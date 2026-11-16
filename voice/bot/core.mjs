@@ -64,13 +64,15 @@ export function parentCancelled(parentSnap, childId) {
 	const taskId = childId.replace(/^thread:/, "node:");
 	const items = (parentSnap.projection || parentSnap).turnItems || [];
 	for (const i of Array.isArray(items) ? items : Object.values(items)) {
-		if (i.type !== "dynamic_tool" || typeof i.text !== "string") continue;
-		let call;
-		try {
-			call = JSON.parse(i.text);
-		} catch {
-			continue;
-		}
+		if (i.type !== "dynamic_tool") continue;
+		// T3's HTTP snapshot puts toolName and input on the item. The MCP thread reader gives them as JSON text instead.
+		let call = { toolName: i.toolName, input: i.input };
+		if (!call.toolName && typeof i.text === "string")
+			try {
+				call = JSON.parse(i.text);
+			} catch {
+				continue;
+			}
 		const input = call.input || {};
 		if (/task_cancel$/.test(call.toolName || "") && (input.taskId === taskId || input.taskId === childId)) return true;
 		if (/t3_thread_interrupt$/.test(call.toolName || "") && input.threadId === childId) return true;
