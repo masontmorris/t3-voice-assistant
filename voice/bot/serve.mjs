@@ -4,12 +4,14 @@
 //   node serve.mjs serve [overrides.json]     follow T3, discover nodes, run the heartbeat, fill the outbox, serve the API
 //   node serve.mjs add-test-workers <projectId>  add the check 4 workers under the PM
 //   node serve.mjs archive                    interrupt and archive every thread in the registry
-// API on 127.0.0.1:<port> (default 8787):
+// API on 127.0.0.1:<port> (default 8787). Every request needs the x-bot-secret header from state/api-secret and no Origin
+// header, and every POST needs content-type application/json (see api.mjs).
 //   POST /handoff { requestId, text, utterance }   hand a request to the root; the same requestId never makes a second task
 //   GET  /outbox?after=<id>&waitMs=<n>              entries after <id>, waiting up to waitMs for a new one
 //   POST /outbox/ack { ids }                        mark entries delivered
 //   GET  /snapshot?conversation=&utterance=&transcript=&prefix=   the end-of-utterance snapshot, with no model call
 //   GET  /registry                                  the tree's nodes
+import crypto from "node:crypto";
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
@@ -29,6 +31,17 @@ const now = () => Date.now();
 const iso = (ms) => new Date(ms).toISOString();
 const append = (file, entry) => fs.appendFileSync(path.join(STATE, file), JSON.stringify(entry) + "\n");
 const say = (msg) => console.log(`${iso(now())} ${msg}`);
+
+// The API's shared secret: created once in the git-ignored state dir, read in-process, and never printed or logged.
+function apiSecret() {
+	const file = path.join(STATE, "api-secret");
+	try {
+		fs.writeFileSync(file, crypto.randomBytes(32).toString("hex"), { flag: "wx" });
+	} catch (e) {
+		if (e.code !== "EEXIST") throw e;
+	}
+	return fs.readFileSync(file, "utf8").trim();
+}
 
 async function setup(projectId) {
 	if (!projectId) throw new Error("usage: node serve.mjs setup <projectId>");
@@ -117,7 +130,7 @@ async function serve(overridesFile) {
 		} else if (v.kind === "thread.updated") learn(v.thread, at);
 	});
 
-	const server = http.createServer(createApiHandler({ data, save: store.save, t3, waiters, say }));
+	const server = http.createServer(createApiHandler({ data, save: store.save, t3, waiters, say, secret: apiSecret() }));
 	server.listen(cfg.port, "127.0.0.1");
 	fs.writeFileSync(path.join(STATE, "serve.json"), JSON.stringify({ pid: process.pid, port: cfg.port, startedAt: iso(now()) }) + "\n");
 	const timer = setInterval(() => hb.tick(now()), cfg.tickSec * 1000);

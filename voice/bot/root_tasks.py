@@ -7,14 +7,25 @@ change. A dispatched task that the mock would run goes to the root as a handoff,
 bot's outbox. A side-effect task, or one the decider never cleared, is held for confirmation as before and never
 reaches the root.
 
-It needs only the standard library and voice.prototype.tasks, so either prototype branch can adopt it.
+It needs only the standard library and voice.prototype.tasks, so either prototype branch can adopt it. Every request
+carries the bot's shared secret in the x-bot-secret header. The secret is read from the bot's state dir, or from the file
+named by BOT_API_SECRET_FILE, and is never printed.
 """
 
 import json
+import os
 import urllib.parse
 import urllib.request
 
+from pathlib import Path
+
 from voice.prototype.tasks import Execution, MockTaskService, Run, needs_hold
+
+SECRET_FILE = Path(__file__).resolve().parent / "state" / "api-secret"
+
+
+def read_secret():
+    return Path(os.environ.get("BOT_API_SECRET_FILE") or SECRET_FILE).read_text(encoding="utf-8").strip()
 
 
 class RootTaskService(MockTaskService):
@@ -23,11 +34,12 @@ class RootTaskService(MockTaskService):
         self.bot_url, self.poll_s = bot_url.rstrip("/"), poll_s
         self._cursor, self._last = None, 0.0
         self._outbox_ids = {}
+        self._secret = read_secret()
 
     def _call(self, method, path, body=None, timeout=75):
         data = json.dumps(body).encode() if body is not None else None
         request = urllib.request.Request(self.bot_url + path, data=data, method=method,
-                                         headers={"content-type": "application/json"})
+                                         headers={"content-type": "application/json", "x-bot-secret": self._secret})
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.loads(response.read())
 

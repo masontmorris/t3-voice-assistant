@@ -6,12 +6,17 @@
 import json
 import os
 import sys
+import tempfile
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 
 sys.path[:0] = [os.environ["VOICE_PROTOTYPE_CHECKOUT"], str(Path(__file__).resolve().parent)]
+SECRET = "test-secret-for-the-fake-bot"
+_secret_file = Path(tempfile.mkdtemp()) / "api-secret"
+_secret_file.write_text(SECRET, encoding="utf-8")
+os.environ["BOT_API_SECRET_FILE"] = str(_secret_file)
 
 from root_tasks import RootTaskService  # noqa: E402
 from voice.prototype.tasks import Run  # noqa: E402
@@ -30,7 +35,16 @@ class FakeBot(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def refused(self):
+        if self.headers.get("x-bot-secret") != SECRET:
+            self.send_response(401)
+            self.end_headers()
+            return True
+        return False
+
     def do_POST(self):
+        if self.refused():
+            return
         body = json.loads(self.rfile.read(int(self.headers["content-length"])))
         if self.path == "/handoff":
             known = any(h["requestId"] == body["requestId"] for h in self.handoffs)
@@ -41,6 +55,8 @@ class FakeBot(BaseHTTPRequestHandler):
         return self.reply({"ok": True})
 
     def do_GET(self):
+        if self.refused():
+            return
         after = self.path.split("after=")[1].split("&")[0]
         start = next((i + 1 for i, e in enumerate(self.outbox) if e["id"] == after), 0)
         return self.reply({"entries": self.outbox[start:]})
