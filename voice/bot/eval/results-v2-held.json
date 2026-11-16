@@ -1,0 +1,164 @@
+{
+  "variant": "v2",
+  "split": "held",
+  "rows": [
+    {
+      "id": "h2",
+      "split": "held",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.3132889529344256,
+        "wake_pm": 0.6825067424850816,
+        "tell_mason": 0.004204304580492904
+      },
+      "cached": false
+    },
+    {
+      "id": "h3",
+      "split": "held",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.41911524979399556,
+        "wake_pm": 0.5750493540064241,
+        "tell_mason": 0.00583539619958028
+      },
+      "cached": false
+    },
+    {
+      "id": "f2",
+      "split": "held",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.7922398707396356,
+        "wake_pm": 0.20238262340281607,
+        "tell_mason": 0.005377505857548422
+      },
+      "cached": false
+    },
+    {
+      "id": "f3",
+      "split": "held",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9961614990339717,
+        "wake_pm": 0.003273002485116046,
+        "tell_mason": 0.0005654984809123665
+      },
+      "cached": false
+    },
+    {
+      "id": "s2",
+      "split": "held",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.1402053013061985,
+        "wake_pm": 0.8569193128914012,
+        "tell_mason": 0.0028753858024003097
+      },
+      "cached": false
+    },
+    {
+      "id": "s3",
+      "split": "held",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.0022824462765949636,
+        "wake_pm": 0.9948564074028672,
+        "tell_mason": 0.0028611463205377844
+      },
+      "cached": false
+    },
+    {
+      "id": "w2",
+      "split": "held",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.8749090281009247,
+        "wake_pm": 0.09923576424650399,
+        "tell_mason": 0.025855207652571304
+      },
+      "cached": false
+    },
+    {
+      "id": "w3",
+      "split": "held",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.08600737119057249,
+        "wake_pm": 0.9079568394448161,
+        "tell_mason": 0.00603578936461144
+      },
+      "cached": false
+    },
+    {
+      "id": "m2",
+      "split": "held",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "got": "tell_mason",
+      "p": {
+        "stay_quiet": 0.011345436153983816,
+        "wake_pm": 0.0338003868256059,
+        "tell_mason": 0.9548541770204102
+      },
+      "cached": false
+    },
+    {
+      "id": "m3",
+      "split": "held",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.603429810120622,
+        "wake_pm": 0.2886729897231854,
+        "tell_mason": 0.10789720015619252
+      },
+      "cached": false
+    },
+    {
+      "id": "a2",
+      "split": "held",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9959303597564473,
+        "wake_pm": 0.003218732416861754,
+        "tell_mason": 0.000850907826691025
+      },
+      "cached": false
+    },
+    {
+      "id": "a3",
+      "split": "held",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.8007979381487886,
+        "wake_pm": 0.19557343121427775,
+        "tell_mason": 0.0036286306369335167
+      },
+      "cached": false
+    }
+  ],
+  "probe": null,
+  "ledgerAttempts": 42
+}

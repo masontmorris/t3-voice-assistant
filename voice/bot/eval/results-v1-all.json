@@ -1,0 +1,250 @@
+{
+  "variant": "v1",
+  "split": "all",
+  "rows": [
+    {
+      "id": "h1",
+      "split": "dev",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9605797246590023,
+        "wake_pm": 0.03623036549399176,
+        "tell_mason": 0.0031899098470058807
+      },
+      "cached": false
+    },
+    {
+      "id": "h2",
+      "split": "held",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9327311560641874,
+        "wake_pm": 0.06442796219421412,
+        "tell_mason": 0.002840881741598527
+      },
+      "cached": false
+    },
+    {
+      "id": "h3",
+      "split": "held",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9820805500505569,
+        "wake_pm": 0.015634400868177058,
+        "tell_mason": 0.0022850490812660784
+      },
+      "cached": false
+    },
+    {
+      "id": "f1",
+      "split": "dev",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9956155978903829,
+        "wake_pm": 0.003612192851264682,
+        "tell_mason": 0.0007722092583524583
+      },
+      "cached": false
+    },
+    {
+      "id": "f2",
+      "split": "held",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9923128575296039,
+        "wake_pm": 0.00647335533947442,
+        "tell_mason": 0.0012137871309216525
+      },
+      "cached": false
+    },
+    {
+      "id": "f3",
+      "split": "held",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9933047117369815,
+        "wake_pm": 0.005851461554572621,
+        "tell_mason": 0.0008438267084458022
+      },
+      "cached": false
+    },
+    {
+      "id": "s1",
+      "split": "dev",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9393201103318353,
+        "wake_pm": 0.054715985963726475,
+        "tell_mason": 0.005963903704438482
+      },
+      "cached": false
+    },
+    {
+      "id": "s2",
+      "split": "held",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9299043950275484,
+        "wake_pm": 0.0667752679447425,
+        "tell_mason": 0.003320337027709079
+      },
+      "cached": false
+    },
+    {
+      "id": "s3",
+      "split": "held",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.017913852208165017,
+        "wake_pm": 0.9682742856579657,
+        "tell_mason": 0.013811862133869241
+      },
+      "cached": false
+    },
+    {
+      "id": "w1",
+      "split": "dev",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.012461754698473557,
+        "wake_pm": 0.9808049722709521,
+        "tell_mason": 0.006733273030574341
+      },
+      "cached": false
+    },
+    {
+      "id": "w2",
+      "split": "held",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.7694560418649726,
+        "wake_pm": 0.2131703480001869,
+        "tell_mason": 0.017373610134840543
+      },
+      "cached": false
+    },
+    {
+      "id": "w3",
+      "split": "held",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.24657433405341156,
+        "wake_pm": 0.7457618884990604,
+        "tell_mason": 0.007663777447527815
+      },
+      "cached": false
+    },
+    {
+      "id": "m1",
+      "split": "dev",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "got": "tell_mason",
+      "p": {
+        "stay_quiet": 0.04506205816608316,
+        "wake_pm": 0.07912696283085889,
+        "tell_mason": 0.875810979003058
+      },
+      "cached": false
+    },
+    {
+      "id": "m2",
+      "split": "held",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "got": "tell_mason",
+      "p": {
+        "stay_quiet": 0.008498474735351164,
+        "wake_pm": 0.06456358473343181,
+        "tell_mason": 0.926937940531217
+      },
+      "cached": false
+    },
+    {
+      "id": "m3",
+      "split": "held",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.814489645940361,
+        "wake_pm": 0.030686629292885775,
+        "tell_mason": 0.1548237247667532
+      },
+      "cached": false
+    },
+    {
+      "id": "a1",
+      "split": "dev",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9386980817353511,
+        "wake_pm": 0.05852171934399631,
+        "tell_mason": 0.002780198920652555
+      },
+      "cached": false
+    },
+    {
+      "id": "a2",
+      "split": "held",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9924009492379923,
+        "wake_pm": 0.006483630478856664,
+        "tell_mason": 0.0011154202831512134
+      },
+      "cached": false
+    },
+    {
+      "id": "a3",
+      "split": "held",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.954682827421643,
+        "wake_pm": 0.0429701298771853,
+        "tell_mason": 0.002347042701171744
+      },
+      "cached": false
+    }
+  ],
+  "probe": {
+    "got": "stay_quiet",
+    "p": {
+      "stay_quiet": 0.5876028283923688,
+      "wake_pm": 0.32298729717387864,
+      "tell_mason": 0.08940987443375258
+    },
+    "cached": false
+  },
+  "ledgerAttempts": 24
+}

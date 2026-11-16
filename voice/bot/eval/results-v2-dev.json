@@ -1,0 +1,86 @@
+{
+  "variant": "v2",
+  "split": "dev",
+  "rows": [
+    {
+      "id": "h1",
+      "split": "dev",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9744847010959516,
+        "wake_pm": 0.02350646765702221,
+        "tell_mason": 0.0020088312470261916
+      },
+      "cached": false
+    },
+    {
+      "id": "f1",
+      "split": "dev",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9943226296961085,
+        "wake_pm": 0.004854276176315842,
+        "tell_mason": 0.000823094127575524
+      },
+      "cached": false
+    },
+    {
+      "id": "s1",
+      "split": "dev",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.05775937267631445,
+        "wake_pm": 0.9395674964602166,
+        "tell_mason": 0.002673130863468917
+      },
+      "cached": false
+    },
+    {
+      "id": "w1",
+      "split": "dev",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "got": "wake_pm",
+      "p": {
+        "stay_quiet": 0.022448236229535474,
+        "wake_pm": 0.9708150254620997,
+        "tell_mason": 0.006736738308364776
+      },
+      "cached": false
+    },
+    {
+      "id": "m1",
+      "split": "dev",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "got": "tell_mason",
+      "p": {
+        "stay_quiet": 0.03128965039824479,
+        "wake_pm": 0.21561792779297448,
+        "tell_mason": 0.7530924218087807
+      },
+      "cached": false
+    },
+    {
+      "id": "a1",
+      "split": "dev",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "got": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9496431387514973,
+        "wake_pm": 0.04799853728747858,
+        "tell_mason": 0.002358323961023961
+      },
+      "cached": false
+    }
+  ],
+  "probe": null,
+  "ledgerAttempts": 30
+}
