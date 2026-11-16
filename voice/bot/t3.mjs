@@ -96,7 +96,7 @@ export function connect() {
 				title,
 				generateTitle: false,
 				modelSelection,
-				runtimeMode: "full-access",
+				runtimeMode: "approval-required",
 				interactionMode: "default",
 				workspaceStrategy: { type: "root" },
 				initialMessage: { messageId: crypto.randomUUID(), text: prompt, attachments: [] },

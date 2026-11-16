@@ -1,8 +1,8 @@
 // Gated heartbeat spike: listener event stream, silence timer, system-one verdict, wake one PM thread, verdict log.
 // Usage:
-//   node heartbeat.mjs setup <projectId>   create a throwaway PM and worker thread and write state/config.json
+//   node heartbeat.mjs setup <projectId>   create a throwaway PM and two worker threads and write state/config.json
 //   node heartbeat.mjs run [overrides.json] follow T3 and run the gate for config.runSec seconds
-//   node heartbeat.mjs nudge               send the worker one message so the gate sees a real change
+//   node heartbeat.mjs nudge               send the first worker one message so the gate sees a real change
 //   node heartbeat.mjs archive             archive every thread named in state/config.json
 import fs from "node:fs";
 import path from "node:path";
@@ -16,7 +16,7 @@ const CONFIG = path.join(STATE, "config.json");
 const CHECKINS = path.join(STATE, "checkins.jsonl");
 const TICKS = path.join(STATE, "ticks.jsonl");
 const HAIKU = { instanceId: "claudeAgent", model: "claude-haiku-5-5", options: [{ id: "effort", value: "low" }] };
-const DEFAULTS = { tickSec: 10, silenceSec: 45, backstopSec: 180, runSec: 300, budget: 60, forceVerdict: null };
+const DEFAULTS = { tickSec: 10, silenceSec: 45, backstopSec: 180, ceilingSec: 1440, runSec: 300, budget: 60, forceVerdict: null };
 
 const now = () => Date.now();
 const iso = (ms) => new Date(ms).toISOString();
@@ -28,23 +28,34 @@ async function setup(projectId) {
 	const t3 = connect();
 	fs.mkdirSync(STATE, { recursive: true });
 	const pmCharter = "Test PM for the heartbeat spike. Reply with one short line to every message.";
-	const workerCharter = "Test worker for the heartbeat spike. It needs a build number from its PM before it can continue.";
-	const pm = await t3.launch({ projectId, title: "bot-spike test PM (throwaway)", modelSelection: HAIKU, prompt: `${pmCharter}\nReply with one short line: ready.` });
-	const worker = await t3.launch({
+	const stalledCharter = "Test worker for the heartbeat spike. It needs a build number from its PM before it can continue.";
+	const doneCharter = "Test worker for the heartbeat spike. It writes one status line and then needs nothing from anyone.";
+	const pm = await t3.launch({ projectId, title: "bot-spike r2 test PM (throwaway)", modelSelection: HAIKU, prompt: `${pmCharter}
+Reply with one short line: ready.` });
+	const stalled = await t3.launch({
 		projectId,
-		title: "bot-spike test worker (throwaway)",
+		title: "bot-spike r2 stalled worker (throwaway)",
 		modelSelection: HAIKU,
-		prompt: `${workerCharter}\nReply with exactly one short line saying you are blocked waiting on the PM for the build number.`,
+		prompt: `${stalledCharter}
+Reply with exactly one short line saying you are blocked waiting on the PM for the build number.`,
+	});
+	const done = await t3.launch({
+		projectId,
+		title: "bot-spike r2 finished worker (throwaway)",
+		modelSelection: HAIKU,
+		prompt: `${doneCharter}
+Reply with exactly one short line saying your task is done and you need nothing.`,
 	});
 	const config = {
 		...DEFAULTS,
 		nodes: [
 			{ role: "pm", threadId: pm, parent: null, charter: pmCharter },
-			{ role: "worker", threadId: worker, parent: pm, charter: workerCharter },
+			{ role: "worker", threadId: stalled, parent: pm, charter: stalledCharter },
+			{ role: "worker", threadId: done, parent: pm, charter: doneCharter },
 		],
 	};
 	fs.writeFileSync(CONFIG, JSON.stringify(config, null, 2) + "\n");
-	say(`created pm ${pm} and worker ${worker}; wrote ${CONFIG}`);
+	say(`created pm ${pm}, stalled worker ${stalled} and finished worker ${done}; wrote ${CONFIG}`);
 }
 
 async function run(overridesFile) {
@@ -64,7 +75,7 @@ async function run(overridesFile) {
 		},
 		now(),
 	);
-	say(`run: tick ${cfg.tickSec}s, silence ${cfg.silenceSec}s, backstop ${cfg.backstopSec}s, runSec ${cfg.runSec}, forceVerdict ${cfg.forceVerdict}`);
+	say(`run: tick ${cfg.tickSec}s, silence ${cfg.silenceSec}s, backstop ${cfg.backstopSec}s, ceiling ${cfg.ceilingSec}s, runSec ${cfg.runSec}, forceVerdict ${cfg.forceVerdict}`);
 
 	// Later snapshots are project-metadata refreshes with no threads (see t3listen), so only the first one seeds state.
 	let seeded = false;
@@ -96,7 +107,7 @@ async function archive() {
 	}
 }
 
-// Test helper: start one turn in the worker so the gate sees a real change.
+// Test helper: start one turn in the first worker so the gate sees a real change.
 async function nudge() {
 	const t3 = connect();
 	const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf8"));
