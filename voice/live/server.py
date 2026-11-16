@@ -12,12 +12,12 @@ down. Text frames are JSON control messages:
   client -> server  hello {mode: vad|ptt}, ping {t}, ptt {down}
   server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, barge_in, turn_done
 
-Each turn runs `voice.prototype.run.run_clip` with injection (c) and the hybrid segmenter, the voice/main default:
-live ASR, the segmenter and decider, the task service with real weather and time lookups, the snapshot, and the reply.
-The endpointer in endpoint.py ends a turn after --silence-ms of silence. Speech that starts while a reply plays cancels
-that turn (barge-in): the server stops sending its audio, tells the client to drop what it buffered, and closes the
-turn's sessions. Speech that starts after a turn ended but before any reply audio continues the turn: the new turn
-gets the old one's audio first.
+Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-of-utterance authority (injection (c),
+the hybrid segmenter, the `gated` default from `voice/main`): live ASR, the segmenter and decider, the task service
+with real weather and time lookups, the snapshot, and the reply. The endpointer in endpoint.py ends a turn after
+--silence-ms of silence. Speech that starts while a reply plays cancels that turn (barge-in): the server stops sending
+its audio, tells the client to drop what it buffered, and closes the turn's sessions. Speech that starts after a turn
+ended but before any reply audio continues the turn: the new turn gets the old one's audio first.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read again at each turn start, so a new prompt
 takes effect on the next turn. When the file is missing the prototype's built-in persona is used.
@@ -59,7 +59,7 @@ STOP_FILE = LIVE_HOME / "STOP"
 EVIDENCE = VOICE_HOME / "evidence" / "live"
 HEADER = "X-Voice-Secret"
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
-UP_CHUNK_BYTES = RATE // 10 * 2
+UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
 
 
@@ -284,7 +284,7 @@ class Conversation:
             if prior is not None:
                 await asyncio.gather(prior, return_exceptions=True)
             record = await run_clip(turn, "c", False, live.url, turn.decider, live.args.delay, live.out, partial,
-                                    live.args.segmenter, live.tools, persona=persona,
+                                    live.args.segmenter, live.tools, "gated", persona=persona,
                                     on_voice_event=self.on_voice_event(turn))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
@@ -347,9 +347,9 @@ async def main_async(args):
     use_decider_cache(args.decider_cache, args.decider_budget)
     out = args.out or EVIDENCE / datetime.now().strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
-    lfm_args = ("-c", str(args.lfm_ctx)) if args.lfm_ctx else ()
+    lfm_args = ("-c", str(args.lfm_ctx))
     tools_context = nullcontext() if args.mock_tools else open_registry()
-    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args) as server, \
+    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, 3) as server, \
             make_decider(args.decider, out) as decider:
         live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out)
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
@@ -378,11 +378,14 @@ def main():
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
     parser.add_argument("--lfm-port", type=int, default=8095)
-    parser.add_argument("--lfm-ctx", type=int, help="LFM3's total context; the model's 128k when left out")
+    parser.add_argument("--lfm-ctx", type=int, default=32768, help="LFM3's total context (default 32768)")
     parser.add_argument("--out", type=Path, help="records directory; a new one under $VOICE_HOME/evidence/live")
     parser.add_argument("--decider-cache", type=Path, default=EVIDENCE / "decider-cache")
     parser.add_argument("--decider-budget", type=int, default=200, help="stop when the ledger holds this many attempts")
-    asyncio.run(main_async(parser.parse_args()))
+    args = parser.parse_args()
+    if args.segmenter != "hybrid":
+        parser.error("the gated turn needs the hybrid segmenter")
+    asyncio.run(main_async(args))
 
 
 if __name__ == "__main__":

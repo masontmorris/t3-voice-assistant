@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import json
 import tempfile
 import unittest
@@ -14,6 +15,7 @@ from voice.live.tests.test_endpoint import noise, tone
 
 SECRET = "s" * 64
 OUT_RATE = 24_000
+PERSONAS = []
 
 
 class FakeSession:
@@ -29,10 +31,11 @@ class FakeSession:
 
 async def fake_run_clip(source, *args, persona, on_voice_event, **kwargs):
     """Streams the turn's input, then sends 2 s of reply audio in 20 ms deltas after a 0.3 s think."""
+    PERSONAS.append(persona)
     on_voice_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
     await asyncio.sleep(0.3)
-    delta = __import__("base64").b64encode(b"\x01\x00" * (OUT_RATE // 50)).decode()
+    delta = base64.b64encode(b"\x01\x00" * (OUT_RATE // 50)).decode()
     for _ in range(100):
         on_voice_event({"type": "response.output_audio.delta", "delta": delta})
         await asyncio.sleep(0.02)
@@ -43,6 +46,7 @@ async def fake_run_clip(source, *args, persona, on_voice_event, **kwargs):
 class LiveServerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.frames = []
+        PERSONAS.clear()
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
@@ -98,6 +102,16 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertTrue((Path(self.tmp.name) / "turn_001.json").is_file())
         await ws.close()
 
+    async def test_the_prompt_file_sets_the_turn_persona(self):
+        (Path(self.tmp.name) / "prompt.txt").write_text("Be brief.\n", encoding="utf-8")
+        ws = await self.connect()
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+        await self.until(ws, "turn_done", [])
+        self.assertEqual(PERSONAS, ["Be brief."])
+        record = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
+        self.assertTrue(record["live"]["prompt"].startswith("prompt.txt sha256:"))
+        await ws.close()
+
     async def test_speech_during_the_reply_interrupts_it(self):
         ws = await self.connect()
         log = []
@@ -135,6 +149,27 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
             await second.recv()
         self.assertEqual(second.close_code, 1013)
         await first.close()
+
+
+class ChunkTest(unittest.IsolatedAsyncioTestCase):
+    async def test_upstream_audio_goes_to_llama_in_40_ms_chunks(self):
+        class Recorder(FakeSession):
+            def __init__(self):
+                super().__init__()
+                self.chunks = []
+
+            async def send(self, **event):
+                if "audio" in event:
+                    self.chunks.append(len(base64.b64decode(event["audio"])))
+
+        turn = server.MicTurn(1, tone(200))
+        turn.end(700)
+        voice, asr = Recorder(), Recorder()
+        await turn.stream(voice, asr)
+        self.assertEqual(server.UP_CHUNK_BYTES, 1280, "40 ms of 16 kHz PCM16")
+        self.assertEqual(max(voice.chunks), server.UP_CHUNK_BYTES)
+        self.assertEqual(sum(voice.chunks), len(turn.pcm))
+        self.assertEqual(voice.chunks, asr.chunks, "the voice and ASR sessions get the same chunks")
 
 
 class BindTest(unittest.TestCase):
