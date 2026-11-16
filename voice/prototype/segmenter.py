@@ -1,7 +1,7 @@
-"""The segmenter behind the prototype: round 2's baseline (PR #2), option (a) with one bundled decisions call.
+"""The segmenters behind the prototype. The default is the hybrid (`voice/segmentation/hybrid.py`, plan A).
 
-Anything with this interface can replace it, such as variant E (`voice/segmentation/cursor.py`) if Mason picks it.
-The orchestrator inside keeps the uniform side-effect hold: a side-effect task dispatches only on the final transcript.
+`BaselineSegmenter` is round 2's option (a) with one bundled decisions call, kept as the comparison. Both keep the
+uniform side-effect hold: a side-effect task dispatches only on the final transcript.
 """
 
 from pathlib import Path
@@ -9,9 +9,13 @@ from typing import Protocol
 
 from voice.segmentation import client as api
 from voice.segmentation.contract import TranscriptUpdate
+from voice.segmentation.hybrid import HybridSegmenter
 from voice.segmentation.run import Runner
 from voice.segmentation.spans import clause_segments
 from voice.segmentation.tasks import Orchestrator
+
+# The prototype round used 52 attempts in the prototype's ledger. The hybrid round adds 80 of its 250.
+DECIDER_BUDGET = 52 + 80
 
 
 class Segmenter(Protocol):
@@ -31,6 +35,20 @@ def use_decider_cache(directory: Path, budget: int):
     """
     directory.mkdir(parents=True, exist_ok=True)
     api.CACHE, api.LEDGER, api.BUDGET = directory, directory / "calls.jsonl", budget
+
+
+def coalesce(items):
+    """Keep only the newest of each run of queued transcript updates. Delegates keep their place.
+
+    Each update carries the whole utterance, so an older one queued behind a newer one adds nothing.
+    """
+    kept, dropped = [], []
+    for i, (kind, payload) in enumerate(items):
+        if kind == "update" and i + 1 < len(items) and items[i + 1][0] == "update":
+            dropped.append(payload)
+        else:
+            kept.append((kind, payload))
+    return kept, dropped
 
 
 def live_calls():
@@ -64,3 +82,6 @@ class BaselineSegmenter:
 
     def records(self):
         return self.orch.task_records()
+
+
+SEGMENTERS = {"hybrid": HybridSegmenter, "baseline": BaselineSegmenter}

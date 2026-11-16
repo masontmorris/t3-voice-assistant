@@ -1,0 +1,163 @@
+{
+  "route": "decisions",
+  "label": "06_description_not_request:r3",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "my sister keeps telling me i should email the landlord about the heater but",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "my sister keeps telling me i should email the landlord about the heater"
+      },
+      "still_being_spoken": null,
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "my [1] sister [2] keeps [3] telling [4] me [5] i [6] should [7] email [8] the [9] landlord [10] about [11] the [12] heater [13] but [14]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"my sister keeps telling me i should email the landlord about the heater\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"my sister keeps telling me i should email the landlord about the heater\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"my sister keeps telling me i should email the landlord about the heater\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"my sister keeps telling\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"my sister keeps telling\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"my\".",
+          "m2": "It ends at [2]. It is \"my sister\".",
+          "m3": "It ends at [3]. It is \"my sister keeps\".",
+          "m4": "It ends at [4]. It is \"my sister keeps telling\".",
+          "m5": "It ends at [5]. It is \"my sister keeps telling me\".",
+          "m6": "It ends at [6]. It is \"my sister keeps telling me i\".",
+          "m7": "It ends at [7]. It is \"my sister keeps telling me i should\".",
+          "m8": "It ends at [8]. It is \"my sister keeps telling me i should email\".",
+          "m9": "It ends at [9]. It is \"my sister keeps telling me i should email the\".",
+          "m10": "It ends at [10]. It is \"my sister keeps telling ... should email the landlord\".",
+          "m11": "It ends at [11]. It is \"my sister keeps telling ... email the landlord about\".",
+          "m12": "It ends at [12]. It is \"my sister keeps telling ... the landlord about the\".",
+          "m13": "It ends at [13]. It is \"my sister keeps telling ... landlord about the heater\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m13",
+        "probabilities": {
+          "m1": 0.002854104419634785,
+          "m10": 0.019031809331567628,
+          "m11": 0.0076330060539554325,
+          "m12": 0.006074363584604924,
+          "m13": 0.7646911932049099,
+          "m2": 0.0022057617652912727,
+          "m3": 0.0016061052981317283,
+          "m4": 0.0024998119157273557,
+          "m5": 0.004635488326214048,
+          "m6": 0.002408729535029574,
+          "m7": 0.014380980067259562,
+          "m8": 0.012770420700689518,
+          "m9": 0.003199110706152891,
+          "none": 0.15600911509083146
+        },
+        "confidence": 0.7465905157591337
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.11776560537694128
+      },
+      "s1_kind": {
+        "type": "choice",
+        "choice": "description",
+        "probabilities": {
+          "chitchat": 0.06346628224491048,
+          "correction": 0.002687376236709311,
+          "description": 0.908171043200481,
+          "request": 0.019422246113038145,
+          "topic_change": 0.006253052204860979
+        },
+        "confidence": 0.8852138040006013
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "wait",
+        "probabilities": {
+          "clarify": 0.1501670642784806,
+          "dispatch_now": 0.1367325798581066,
+          "wait": 0.7131003558634128
+        },
+        "confidence": 0.5696505337951192
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.5721341018707857
+      }
+    },
+    "usage": {
+      "input_tokens": 1052,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797358-sY26BmyIeU9tvppeL4Q1",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:49:17.600+00:00",
+    "ms": 104.07780000241473,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:49:17.600+00:00",
+      "route": "decisions",
+      "hash": "0fdd8fb7b0caa14b13bf15f9",
+      "label": "06_description_not_request:r3",
+      "status": 200,
+      "ms": 104.1,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

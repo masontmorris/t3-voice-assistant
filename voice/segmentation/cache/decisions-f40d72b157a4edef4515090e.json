@@ -1,0 +1,167 @@
+{
+  "route": "decisions",
+  "label": "11_filler_false_starts:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "um so uh can you can you find the the report from uh from tuesday's",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "um so uh can you can you find the the report from uh from tuesday's"
+      },
+      "still_being_spoken": "s1",
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "um [1] so [2] uh [3] can [4] you [5] can [6] you [7] find [8] the [9] the [10] report [11] from [12] uh [13] from [14] tuesday's [15]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"um so uh can you can you find the the report from uh from tuesday's\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"um so uh can you can you find the the report from uh from tuesday's\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"um so uh can you can you find the the report from uh from tuesday's\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"um so uh can\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"um so uh can\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"um\".",
+          "m2": "It ends at [2]. It is \"um so\".",
+          "m3": "It ends at [3]. It is \"um so uh\".",
+          "m4": "It ends at [4]. It is \"um so uh can\".",
+          "m5": "It ends at [5]. It is \"um so uh can you\".",
+          "m6": "It ends at [6]. It is \"um so uh can you can\".",
+          "m7": "It ends at [7]. It is \"um so uh can you can you\".",
+          "m8": "It ends at [8]. It is \"um so uh can you can you find\".",
+          "m9": "It ends at [9]. It is \"um so uh can you can you find the\".",
+          "m10": "It ends at [10]. It is \"um so uh can ... you find the the\".",
+          "m11": "It ends at [11]. It is \"um so uh can ... find the the report\".",
+          "m12": "It ends at [12]. It is \"um so uh can ... the the report from\".",
+          "m13": "It ends at [13]. It is \"um so uh can ... the report from uh\".",
+          "m14": "It ends at [14]. It is \"um so uh can ... report from uh from\".",
+          "m15": "It ends at the end of the speech so far. It is \"um so uh can ... from uh from tuesday's\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m15",
+        "probabilities": {
+          "m1": 0.0024937331297779437,
+          "m10": 0.004612098023224824,
+          "m11": 0.013260995981326287,
+          "m12": 0.0038152150570884163,
+          "m13": 0.004297876099379306,
+          "m14": 0.0027346410643229848,
+          "m15": 0.9014609612682218,
+          "m2": 0.0008423741093566642,
+          "m3": 0.001406548719424575,
+          "m4": 0.0012606910671633211,
+          "m5": 0.0025557374478410375,
+          "m6": 0.001518807526941486,
+          "m7": 0.001774556214552095,
+          "m8": 0.006548583498390401,
+          "m9": 0.004377572993235958,
+          "none": 0.047039607799752775
+        },
+        "confidence": 0.8948916920194366
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.4872781084069081
+      },
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.022116590841840398,
+          "correction": 0.002413011066063204,
+          "description": 0.011028201193544753,
+          "request": 0.9619959432332336,
+          "topic_change": 0.0024462536653180574
+        },
+        "confidence": 0.9524949290415419
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "wait",
+        "probabilities": {
+          "clarify": 0.0917623131878716,
+          "dispatch_now": 0.30839129701055634,
+          "wait": 0.599846389801572
+        },
+        "confidence": 0.399769584702358
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.10556659642169955
+      }
+    },
+    "usage": {
+      "input_tokens": 1140,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797360-Mjb47ZgKsQwIwupJTCLv",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:49:19.269+00:00",
+    "ms": 642.2228000010364,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:49:19.269+00:00",
+      "route": "decisions",
+      "hash": "f40d72b157a4edef4515090e",
+      "label": "11_filler_false_starts:r4",
+      "status": 200,
+      "ms": 642.2,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

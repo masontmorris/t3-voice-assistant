@@ -1,0 +1,80 @@
+{
+  "route": "decisions",
+  "label": "probe:market_three:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "new_speech": "Check the price of oats, [1] find the yen exchange rate, [2] and look up the population of Lima. [3]",
+      "transcript_is_final": true
+    },
+    "questions": {
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"check the price of\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"check the price of\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"check the price of oats\".",
+          "m2": "It ends at [2]. It is \"check the price of ... the yen exchange rate\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.9619974336502362,
+          "m2": 0.018466500530708547,
+          "none": 0.019536065819055384
+        },
+        "confidence": 0.9429961504753542
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.9860475766475707
+      }
+    },
+    "usage": {
+      "input_tokens": 360,
+      "output_tokens": 2,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797773-o691ko8R8fm6tMaYRrzA",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:56:12.689+00:00",
+    "ms": 177.82780004199594,
+    "connect_ms": 68.33400001050904
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:56:12.689+00:00",
+      "route": "decisions",
+      "hash": "5c573438c3afd5f0c1060e41",
+      "label": "probe:market_three:r4",
+      "status": 200,
+      "ms": 177.8,
+      "connect_ms": 68.3,
+      "error": null
+    }
+  ]
+}

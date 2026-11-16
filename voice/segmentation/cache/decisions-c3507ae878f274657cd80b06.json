@@ -1,0 +1,254 @@
+{
+  "route": "decisions",
+  "label": "06_description_not_request:r6",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "My sister keeps telling me I should email the landlord about the heater, but can you just look up the landlord's phone number?",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "My sister keeps telling me I should email the landlord about the heater,",
+        "s2": "but can you just look up the landlord's phone number?"
+      },
+      "still_being_spoken": null,
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "My [1] sister [2] keeps [3] telling [4] me [5] I [6] should [7] email [8] the [9] landlord [10] about [11] the [12] heater, [13] but can you just look up the landlord's phone number? [14]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"My sister keeps telling me I should email the landlord about the heater,\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"My sister keeps telling me I should email the landlord about the heater,\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"My sister keeps telling me I should email the landlord about the heater,\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"but can you just look up the landlord's phone number?\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"but can you just look up the landlord's phone number?\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"but can you just look up the landlord's phone number?\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"but can you just look up the landlord's phone number?\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"My sister keeps telling me I should email the landlord about the heater,\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"but can you just look up the landlord's phone number?\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"My sister keeps telling me I should email the landlord about the heater,\").",
+          "cancel_s1": "It withdraws s1 (\"My sister keeps telling me I should email the landlord about the heater,\") with no replacement."
+        }
+      },
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"my sister keeps telling\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"my sister keeps telling\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"my\".",
+          "m2": "It ends at [2]. It is \"my sister\".",
+          "m3": "It ends at [3]. It is \"my sister keeps\".",
+          "m4": "It ends at [4]. It is \"my sister keeps telling\".",
+          "m5": "It ends at [5]. It is \"my sister keeps telling me\".",
+          "m6": "It ends at [6]. It is \"my sister keeps telling me i\".",
+          "m7": "It ends at [7]. It is \"my sister keeps telling me i should\".",
+          "m8": "It ends at [8]. It is \"my sister keeps telling me i should email\".",
+          "m9": "It ends at [9]. It is \"my sister keeps telling me i should email the\".",
+          "m10": "It ends at [10]. It is \"my sister keeps telling ... should email the landlord\".",
+          "m11": "It ends at [11]. It is \"my sister keeps telling ... email the landlord about\".",
+          "m12": "It ends at [12]. It is \"my sister keeps telling ... the landlord about the\".",
+          "m13": "It ends at [13]. It is \"my sister keeps telling ... landlord about the heater\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m13",
+        "probabilities": {
+          "m1": 0.004427940960972004,
+          "m10": 0.03564291240449945,
+          "m11": 0.011147140110330599,
+          "m12": 0.011401185521204662,
+          "m13": 0.5977110878401515,
+          "m2": 0.002332709004464725,
+          "m3": 0.00192540198659588,
+          "m4": 0.0026700883086546606,
+          "m5": 0.005695346216210497,
+          "m6": 0.0027537821888686627,
+          "m7": 0.008700087050417943,
+          "m8": 0.012250446651930732,
+          "m9": 0.005605318473371871,
+          "none": 0.29773655328232695
+        },
+        "confidence": 0.5667657869047785
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.1091398934017388
+      },
+      "s1_kind": {
+        "type": "choice",
+        "choice": "description",
+        "probabilities": {
+          "chitchat": 0.06586799056500772,
+          "correction": 0.003133279799609999,
+          "description": 0.8857824468222433,
+          "request": 0.03587979968752688,
+          "topic_change": 0.009336483125612126
+        },
+        "confidence": 0.8572280585278041
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.24025765121288992,
+          "dispatch_now": 0.4440678366980533,
+          "wait": 0.3156745120890568
+        },
+        "confidence": 0.1661017550470799
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.6533574110666579
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.03675795808049847,
+          "none": 0.9533611803314719,
+          "replace_s1": 0.009880861588029751
+        },
+        "confidence": 0.9300417704972078
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.8940509901804204,
+          "s1": 0.10594900981957958
+        },
+        "confidence": 0.7881019803608409
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.004554177005629529,
+          "correction": 0.004229628206268638,
+          "description": 0.004250278496722412,
+          "request": 0.9848888107261661,
+          "topic_change": 0.0020771055652134963
+        },
+        "confidence": 0.9811110134077075
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.03452596943122348,
+          "dispatch_now": 0.9395748482749545,
+          "wait": 0.025899182293821973
+        },
+        "confidence": 0.9093622724124316
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.038086349245147935
+      }
+    },
+    "usage": {
+      "input_tokens": 1633,
+      "output_tokens": 10,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797358-ms3Ch4BMPFB81UubJwEL",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:49:17.713+00:00",
+    "ms": 139.78129997849464,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:49:17.713+00:00",
+      "route": "decisions",
+      "hash": "c3507ae878f274657cd80b06",
+      "label": "06_description_not_request:r6",
+      "status": 200,
+      "ms": 139.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

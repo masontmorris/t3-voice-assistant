@@ -1,0 +1,218 @@
+{
+  "route": "decisions",
+  "label": "01_two_independent:r6",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "What's the weather in Denver tomorrow, and look up how long the drive from Boulder takes.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "What's the weather in Denver tomorrow,",
+        "s2": "and look up how long the drive from Boulder takes."
+      },
+      "still_being_spoken": null,
+      "tasks": [
+        {
+          "task": "task_1",
+          "instruction": "what's the weather in denver tomorrow",
+          "status": "dispatched",
+          "sources": [
+            "orchestrator"
+          ]
+        },
+        {
+          "task": "task_2",
+          "instruction": "and look up how long the drive",
+          "status": "proposed",
+          "sources": [
+            "orchestrator"
+          ]
+        }
+      ],
+      "delegate_requests": {},
+      "new_speech": "and look up how long the drive from Boulder takes. [1]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"What's the weather in Denver tomorrow,\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"What's the weather in Denver tomorrow,\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"What's the weather in Denver tomorrow,\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"and look up how long the drive from Boulder takes.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"and look up how long the drive from Boulder takes.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"and look up how long the drive from Boulder takes.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"and look up how long the drive from Boulder takes.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"What's the weather in Denver tomorrow,\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"and look up how long the drive from Boulder takes.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"What's the weather in Denver tomorrow,\").",
+          "cancel_s1": "It withdraws s1 (\"What's the weather in Denver tomorrow,\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0018528987489863547,
+          "correction": 0.0009242052757511742,
+          "description": 0.0036919502374760426,
+          "request": 0.992038843989793,
+          "topic_change": 0.0014921017479935905
+        },
+        "confidence": 0.9900485549872412
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.0054875586398558125,
+          "dispatch_now": 0.9680636445568316,
+          "wait": 0.026448796803312503
+        },
+        "confidence": 0.9520954668352474
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.004790013455996363
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0022343256433224653,
+          "none": 0.9946506283091405,
+          "replace_s1": 0.0031150460475370748
+        },
+        "confidence": 0.9919759424637108
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9807682235562045,
+          "s1": 0.019231776443795378
+        },
+        "confidence": 0.961536447112409
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.00228411606036072,
+          "correction": 0.001588337451891892,
+          "description": 0.007207975545008591,
+          "request": 0.986940075219824,
+          "topic_change": 0.00197949572291479
+        },
+        "confidence": 0.9836750940247798
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.015916450676812473,
+          "dispatch_now": 0.9717328516106505,
+          "wait": 0.012350697712537063
+        },
+        "confidence": 0.9575992774159757
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.007341936797846612
+      }
+    },
+    "usage": {
+      "input_tokens": 1061,
+      "output_tokens": 8,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797357-bfd6vJbMOdHJjDaryhqh",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:49:16.087+00:00",
+    "ms": 86.68710000347346,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:49:16.087+00:00",
+      "route": "decisions",
+      "hash": "e2add3e56473e8a8901921a3",
+      "label": "01_two_independent:r6",
+      "status": 200,
+      "ms": 86.7,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

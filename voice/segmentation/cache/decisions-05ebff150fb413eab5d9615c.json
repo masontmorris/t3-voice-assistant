@@ -1,0 +1,358 @@
+{
+  "route": "decisions",
+  "label": "museum_chain:r3",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "find the museum opening hours then calculate how long until closing and summarize that calculation",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "find the museum opening hours",
+        "s2": "then calculate how long until closing",
+        "s3": "and summarize that calculation"
+      },
+      "still_being_spoken": "s3",
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "find the museum opening hours [1] then calculate how long until closing [2] and summarize that calculation [3]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"find the museum opening hours\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"find the museum opening hours\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"find the museum opening hours\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"then calculate how long until closing\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"then calculate how long until closing\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"then calculate how long until closing\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"then calculate how long until closing\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"find the museum opening hours\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"then calculate how long until closing\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"find the museum opening hours\").",
+          "cancel_s1": "It withdraws s1 (\"find the museum opening hours\") with no replacement."
+        }
+      },
+      "s3_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s3 (\"and summarize that calculation\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s3_ready": {
+        "type": "choice",
+        "instructions": "If segment s3 (\"and summarize that calculation\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s3_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s3 (\"and summarize that calculation\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s3_depends": {
+        "type": "choice",
+        "instructions": "Does segment s3 (\"and summarize that calculation\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"find the museum opening hours\") first.",
+          "s2": "It needs the result of s2 (\"then calculate how long until closing\") first."
+        }
+      },
+      "s3_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s3 (\"and summarize that calculation\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"find the museum opening hours\").",
+          "replace_s2": "It states a new version of s2 (\"then calculate how long until closing\").",
+          "cancel_s1": "It withdraws s1 (\"find the museum opening hours\") with no replacement.",
+          "cancel_s2": "It withdraws s2 (\"then calculate how long until closing\") with no replacement."
+        }
+      },
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"find the museum opening\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"find the museum opening\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"find the museum opening hours\".",
+          "m2": "It ends at [2]. It is \"find the museum opening ... how long until closing\".",
+          "none": "No request that starts there is finished yet."
+        }
+      },
+      "s3_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"and summarize that calculation\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s3_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"and summarize that calculation\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m3": "It ends at the end of the speech so far. It is \"and summarize that calculation\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.945138204921006,
+          "m2": 0.019350244726522248,
+          "none": 0.03551155035247178
+        },
+        "confidence": 0.917707307381509
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.9811071608345654
+      },
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.001540185312383467,
+          "correction": 0.0007218465770279509,
+          "description": 0.007780724264110596,
+          "request": 0.9888954951033712,
+          "topic_change": 0.00106174874310703
+        },
+        "confidence": 0.9861193688792138
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.1423184968695555,
+          "dispatch_now": 0.6469182981374226,
+          "wait": 0.21076320499302187
+        },
+        "confidence": 0.47037744720613395
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.04091507953471725
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0010882703486204206,
+          "none": 0.9974286053868001,
+          "replace_s1": 0.0014831242645795327
+        },
+        "confidence": 0.9961429080802
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "s1",
+        "probabilities": {
+          "none": 0.036956912064889644,
+          "s1": 0.9630430879351105
+        },
+        "confidence": 0.926086175870221
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0018884829699150523,
+          "correction": 0.00107517735946869,
+          "description": 0.01588151697786164,
+          "request": 0.9787287123174524,
+          "topic_change": 0.0024261103753020464
+        },
+        "confidence": 0.9734108903968155
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.09661915354626788,
+          "dispatch_now": 0.6497702415297899,
+          "wait": 0.25361060492394216
+        },
+        "confidence": 0.47465536229468486
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.0074659205855903635
+      },
+      "s3_at": {
+        "type": "choice",
+        "choice": "m3",
+        "probabilities": {
+          "m3": 0.9508830653013768,
+          "none": 0.04911693469862323
+        },
+        "confidence": 0.9017661306027536
+      },
+      "s3_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0005400460133790573,
+          "cancel_s2": 0.0014083751239198352,
+          "none": 0.9962880045051444,
+          "replace_s1": 0.00063917460064768,
+          "replace_s2": 0.0011243997569092658
+        },
+        "confidence": 0.9953600056314305
+      },
+      "s3_depends": {
+        "type": "choice",
+        "choice": "s2",
+        "probabilities": {
+          "none": 0.011991982345816294,
+          "s1": 0.03272398512237449,
+          "s2": 0.9552840325318092
+        },
+        "confidence": 0.9329260487977136
+      },
+      "s3_finished": {
+        "type": "noul",
+        "noul": 0.9294549123771106
+      },
+      "s3_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.003407736401104923,
+          "correction": 0.000982773000844467,
+          "description": 0.015979532558697496,
+          "request": 0.978099422100301,
+          "topic_change": 0.0015305359390522437
+        },
+        "confidence": 0.9726242776253763
+      },
+      "s3_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.04664550970572813,
+          "dispatch_now": 0.6666067491677721,
+          "wait": 0.28674774112649976
+        },
+        "confidence": 0.4999101237516581
+      },
+      "s3_side_effect": {
+        "type": "noul",
+        "noul": 0.005560226988802294
+      }
+    },
+    "usage": {
+      "input_tokens": 2029,
+      "output_tokens": 17,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797423-aO5VV8L6L8qYpoUmAj60",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:50:22.729+00:00",
+    "ms": 94.16429995326325,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:50:22.729+00:00",
+      "route": "decisions",
+      "hash": "05ebff150fb413eab5d9615c",
+      "label": "museum_chain:r3",
+      "status": 200,
+      "ms": 94.2,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

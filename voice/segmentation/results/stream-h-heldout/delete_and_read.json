@@ -1,0 +1,367 @@
+{
+  "scenario": "delete_and_read",
+  "covers": "delete plus read",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "delete_and_read:r2",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          10
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          10
+        ]
+      ],
+      "hard": [
+        4
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.9315570581586368,
+          "at": "m1",
+          "margin": 0.8574409588905156,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 10
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 21,
+          "text": "show the archive size",
+          "open": true
+        },
+        {
+          "sid": "s2",
+          "start": 22,
+          "end": 55,
+          "text": "and delete the draft called april",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "delete_and_read:r2",
+          "route": "decisions",
+          "file": "decisions-e681c9b88f83f904334e1e5c.json",
+          "status": 200,
+          "ms": 165.6,
+          "started_at": "2026-11-16T02:50:21.316+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9887879904424559,
+            "ready": 0.7418334720131554,
+            "side_effect": 0.007646264761501656
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "at": 0.8574409588905156,
+            "corrects": 0.9920824784290974,
+            "depends": 0.954073490742239,
+            "finished": 0.9315570581586368,
+            "kind": 0.9835547330937577,
+            "ready": 0.6803007815824583,
+            "side_effect": 0.9954882845167372
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "delete_and_read:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          10
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          10
+        ]
+      ],
+      "hard": [
+        4
+      ],
+      "soft": [],
+      "breaks": {},
+      "committed": [
+        "s1",
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 21,
+          "text": "Show the archive size",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 22,
+          "end": 56,
+          "text": "and delete the draft called April.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "delete_and_read:r3",
+          "route": "decisions",
+          "file": "decisions-ec66263a125a0548684ebf6c.json",
+          "status": 200,
+          "ms": 142.9,
+          "started_at": "2026-11-16T02:50:21.491+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9889704877383404,
+            "ready": 0.9722407627551787,
+            "side_effect": 0.019518732557866278
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "corrects": 0.9955767342796046,
+            "depends": 0.9665450565715508,
+            "kind": 0.9880584620039806,
+            "ready": 0.970586218049199,
+            "side_effect": 0.9972932739971504
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Show the archive size",
+      "instruction": "Show the archive size",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "show the archive size"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "show the archive size",
+          "new": "Show the archive size"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and delete the draft called April.",
+      "instruction": "and delete the draft called April.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and delete the draft called april"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and delete the draft called april",
+          "new": "and delete the draft called April."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Show the archive size",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "and delete the draft called April.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_delete_and_read",
+    "final_transcript": "Show the archive size and delete the draft called April.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Show the archive size",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and delete the draft called April.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "archive",
+          "size"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "delete",
+          "april"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

@@ -1,0 +1,262 @@
+{
+  "scenario": "07_intentional_repeat",
+  "covers": "An intentional repeat of the same request. Both must run. The repeat is not a duplicate.",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "07_intentional_repeat:r4",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          10
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          10
+        ]
+      ],
+      "hard": [
+        5
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.955560064211737,
+          "at": "m2",
+          "margin": 0.9425559258084113,
+          "runner_up": "m1",
+          "verdict": "candidate",
+          "gap": 10
+        }
+      },
+      "committed": [
+        "s1",
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 18,
+          "text": "Roll a die for me.",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 19,
+          "end": 43,
+          "text": "Okay, now roll it again.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "07_intentional_repeat:r4",
+          "route": "decisions",
+          "file": "decisions-06364123979e65c62baac22e.json",
+          "status": 200,
+          "ms": 82.1,
+          "started_at": "2026-11-16T02:49:17.863+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9633226779756906,
+            "ready": 0.8490644697007169,
+            "side_effect": 0.12405115354918061
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "at": 0.9497850540531341,
+            "corrects": 0.6261871862536575,
+            "depends": 0.3987117847582362,
+            "finished": 0.955560064211737,
+            "kind": 0.4584695534510776,
+            "ready": 0.873717964442293,
+            "side_effect": 0.2610361138439119
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Roll a die for me.",
+      "instruction": "Roll a die for me.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Roll a die for me."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "Okay, now roll it again.",
+      "instruction": "Okay, now roll it again.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Okay, now roll it again."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "Roll a die for me.",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "Okay, now roll it again.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_07_intentional_repeat",
+    "final_transcript": "Roll a die for me. Okay, now roll it again.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Roll a die for me.",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "Okay, now roll it again.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "roll",
+          "die"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "again"
+        ],
+        "status": [
+          "dispatched",
+          "ready"
+        ],
+        "depends_on": [
+          [],
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

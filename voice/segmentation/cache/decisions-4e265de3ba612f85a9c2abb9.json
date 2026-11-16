@@ -1,0 +1,141 @@
+{
+  "route": "decisions",
+  "label": "mixed_chain:r2",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "find the recipe for lentil soup then make a shopping list",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "find the recipe for lentil soup then make a shopping list"
+      },
+      "still_being_spoken": "s1",
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "find the recipe for lentil soup [1] then make a shopping list [2]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"find the recipe for lentil soup then make a shopping list\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"find the recipe for lentil soup then make a shopping list\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"find the recipe for lentil soup then make a shopping list\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"find the recipe for\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"find the recipe for\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"find the recipe for lentil soup\".",
+          "m2": "It ends at the end of the speech so far. It is \"find the recipe for ... make a shopping list\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.9606769848246013,
+          "m2": 0.01400542767249467,
+          "none": 0.025317587502903995
+        },
+        "confidence": 0.9410154772369019
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.9061061535410871
+      },
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.004613856330455255,
+          "correction": 0.002585114540919425,
+          "description": 0.02921030550863608,
+          "request": 0.9605090763484136,
+          "topic_change": 0.003081647271575644
+        },
+        "confidence": 0.9506363454355171
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.0725041020650017,
+          "dispatch_now": 0.7087417673352979,
+          "wait": 0.21875413059970025
+        },
+        "confidence": 0.5631126510029468
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.12593620126680444
+      }
+    },
+    "usage": {
+      "input_tokens": 761,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797423-tUTpJpIDtgFNvP0P00IM",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:50:22.319+00:00",
+    "ms": 88.27750000637025,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:50:22.319+00:00",
+      "route": "decisions",
+      "hash": "4e265de3ba612f85a9c2abb9",
+      "label": "mixed_chain:r2",
+      "status": 200,
+      "ms": 88.3,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}
