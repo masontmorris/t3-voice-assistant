@@ -1,0 +1,210 @@
+{
+  "route": "decisions",
+  "label": "07_intentional_repeat:r4:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Roll a die for me. Okay, now roll it again.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Roll a die for me.",
+        "s2": "Okay, now roll it again."
+      },
+      "still_being_spoken": null,
+      "tasks": [
+        {
+          "task": "task_1",
+          "instruction": "roll a die for me",
+          "status": "proposed",
+          "sources": [
+            "orchestrator"
+          ]
+        }
+      ],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"Roll a die for me.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"Roll a die for me.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"Roll a die for me.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"Okay, now roll it again.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"Okay, now roll it again.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"Okay, now roll it again.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"Okay, now roll it again.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Roll a die for me.\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"Okay, now roll it again.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Roll a die for me.\").",
+          "cancel_s1": "It withdraws s1 (\"Roll a die for me.\") with no replacement."
+        }
+      }
+    },
+    "user": "repeat-1"
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.003925128766211939,
+          "correction": 0.004654509307929722,
+          "description": 0.005291031315238169,
+          "request": 0.9846584457002917,
+          "topic_change": 0.001470884910328381
+        },
+        "confidence": 0.9808230571253646
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.017146338200260933,
+          "dispatch_now": 0.9728167945878871,
+          "wait": 0.01003686721185191
+        },
+        "confidence": 0.9592251918818304
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.055381205129165785
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.01145045113100348,
+          "none": 0.8654810477929116,
+          "replace_s1": 0.12306850107608484
+        },
+        "confidence": 0.7982215716893674
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "s1",
+        "probabilities": {
+          "none": 0.49561940911499536,
+          "s1": 0.5043805908850046
+        },
+        "confidence": 0.008761181770009285
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.019467298176447923,
+          "correction": 0.07875260996969115,
+          "description": 0.007705937251146282,
+          "request": 0.8886942997065107,
+          "topic_change": 0.005379854896203853
+        },
+        "confidence": 0.8608678746331383
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.031852795272596615,
+          "dispatch_now": 0.9561098816207031,
+          "wait": 0.012037323106700267
+        },
+        "confidence": 0.9341648224310545
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.10653853538319763
+      }
+    },
+    "usage": {
+      "input_tokens": 953,
+      "output_tokens": 8,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788944-cnJcyEZKP7LinlnBwMhp",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:29:03.720+00:00",
+    "ms": 88.57920003356412,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:29:03.720+00:00",
+      "route": "decisions",
+      "hash": "8e6a3c9f3e515d9e48ec6ca6",
+      "label": "07_intentional_repeat:r4:decide",
+      "status": 200,
+      "ms": 88.6,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

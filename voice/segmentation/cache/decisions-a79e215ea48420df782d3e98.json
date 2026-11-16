@@ -1,0 +1,60 @@
+{
+  "route": "decisions",
+  "label": "07_intentional_repeat:r4:boundaries",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript_with_markers": "Roll a die for me. [1] now roll it again."
+    },
+    "questions": {
+      "b1": {
+        "type": "noul",
+        "instructions": "Does a separate request, a correction, or a new subject begin at marker [1]?",
+        "criteria": {
+          "true": "The words after the marker start a separate request, a correction, a withdrawal, or a new subject.",
+          "false": "The words after the marker continue the same request, or are filler or a false start."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "b1": {
+        "type": "noul",
+        "noul": 0.45151709320803624
+      }
+    },
+    "usage": {
+      "input_tokens": 136,
+      "output_tokens": 1,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788891-2ohYYhb6zstKSoUr8a4I",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:10.421+00:00",
+    "ms": 86.08639996964484,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:10.421+00:00",
+      "route": "decisions",
+      "hash": "a79e215ea48420df782d3e98",
+      "label": "07_intentional_repeat:r4:boundaries",
+      "status": 200,
+      "ms": 86.1,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,200 @@
+{
+  "scenario": "04_mid_sentence_correction",
+  "covers": "A mid-sentence correction of a request with an external side effect (a booking). The first version must never dispatch.",
+  "option": "a",
+  "mode": "final",
+  "revisions": 1,
+  "decision_points": [
+    {
+      "revision": 7,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 21,
+          "text": "Book a table for four",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 23,
+          "end": 69,
+          "text": "no wait, for six, at Luigi's tonight at seven.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r7:decide",
+          "route": "decisions",
+          "file": "decisions-c503b765ec8f235cdc9ec3a6.json",
+          "status": 200,
+          "ms": 88.5,
+          "started_at": "2026-11-16T00:28:59.759+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.9113572267670375,
+            "ready": 0.812368715514378,
+            "side_effect": 0.998140983943693
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "replace"
+          },
+          "side_effect": true,
+          "confidence": {
+            "corrects": 0.9478302540080449,
+            "depends": 0.7709023969313711,
+            "kind": 0.9744279463224875,
+            "ready": 0.983755516558229,
+            "side_effect": 0.9885536596308049
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "superseded",
+      "segment_text": "Book a table for four",
+      "instruction": "Book a table for four",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Book a table for four"
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "superseded",
+          "reason": "corrected by segment \"no wait, for six, at Luigi's tonight at seven.\""
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "no wait, for six, at Luigi's tonight at seven.",
+      "instruction": "Book a table for four (corrected: no wait, for six, at Luigi's tonight at seven.)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "no wait, for six, at Luigi's tonight at seven."
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_2",
+      "revision": 7,
+      "is_final": true,
+      "instruction": "Book a table for four (corrected: no wait, for six, at Luigi's tonight at seven.)",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_04_mid_sentence_correction",
+    "final_transcript": "Book a table for four, no wait, for six, at Luigi's tonight at seven.",
+    "tasks": [
+      {
+        "task_id": "task_2",
+        "description": "Book a table for four (corrected: no wait, for six, at Luigi's tonight at seven.)",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "table",
+          "four"
+        ],
+        "status": [
+          "superseded",
+          "withdrawn"
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "six"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "revises": "T1",
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

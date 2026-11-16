@@ -1,0 +1,210 @@
+{
+  "route": "decisions",
+  "label": "03_topic_change:r3:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "look up the score of the nuggets game anyway totally",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "look up the score of the nuggets game",
+        "s2": "anyway totally"
+      },
+      "still_being_spoken": "s2",
+      "tasks": [
+        {
+          "task": "task_1",
+          "instruction": "look up the score of",
+          "status": "proposed",
+          "sources": [
+            "orchestrator"
+          ]
+        }
+      ],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"look up the score of the nuggets game\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"look up the score of the nuggets game\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"look up the score of the nuggets game\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"anyway totally\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"anyway totally\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"anyway totally\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"anyway totally\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"look up the score of the nuggets game\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"anyway totally\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"look up the score of the nuggets game\").",
+          "cancel_s1": "It withdraws s1 (\"look up the score of the nuggets game\") with no replacement."
+        }
+      }
+    },
+    "user": "repeat-1"
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.006934776040856105,
+          "correction": 0.0027248524391308144,
+          "description": 0.011975741066757039,
+          "request": 0.9656462231445404,
+          "topic_change": 0.012718407308715587
+        },
+        "confidence": 0.9570577789306756
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.052777634353535295,
+          "dispatch_now": 0.6562638357662757,
+          "wait": 0.29095852988018905
+        },
+        "confidence": 0.4843957536494135
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.02431283236604599
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.07336870703185729,
+          "none": 0.8972718996970435,
+          "replace_s1": 0.029359393271099272
+        },
+        "confidence": 0.8459078495455652
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9427026781098092,
+          "s1": 0.05729732189019077
+        },
+        "confidence": 0.8854053562196185
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "chitchat",
+        "probabilities": {
+          "chitchat": 0.746700770200052,
+          "correction": 0.023762993877900266,
+          "description": 0.013528535905810646,
+          "request": 0.009001953643752688,
+          "topic_change": 0.20700574637248445
+        },
+        "confidence": 0.6833759627500648
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "wait",
+        "probabilities": {
+          "clarify": 0.20378161293732253,
+          "dispatch_now": 0.1849222166811711,
+          "wait": 0.6112961703815064
+        },
+        "confidence": 0.4169442555722596
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.029080361533373646
+      }
+    },
+    "usage": {
+      "input_tokens": 963,
+      "output_tokens": 8,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788942-ktgB3NEeuRuXUgdAeqdY",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:29:02.180+00:00",
+    "ms": 96.18849999969825,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:29:02.180+00:00",
+      "route": "decisions",
+      "hash": "3776484aec2825ea83e82948",
+      "label": "03_topic_change:r3:decide",
+      "status": 200,
+      "ms": 96.2,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

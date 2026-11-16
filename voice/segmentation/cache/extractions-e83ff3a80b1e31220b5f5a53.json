@@ -1,0 +1,62 @@
+{
+  "route": "extractions",
+  "label": "06_description_not_request:r6:extract",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": "My sister keeps telling me I should email the landlord about the heater, but can you just look up the landlord's phone number?",
+    "fields": {
+      "segments": {
+        "type": "list",
+        "items": "text",
+        "instructions": "Each separate thing the speaker asks for, each correction or withdrawal of an earlier request, and each sentence that only describes a task, copied exactly from the transcript. Two requests joined by \"and\" are two items. Skip filler and small talk."
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "segments": {
+        "type": "list",
+        "value": [
+          "look up the landlord's phone number"
+        ],
+        "spans": [
+          [
+            90,
+            125
+          ]
+        ],
+        "confidences": [
+          0.9868484735488892
+        ]
+      }
+    },
+    "truncated": false,
+    "usage": {
+      "input_tokens": 130,
+      "output_tokens": 1,
+      "passes": 1,
+      "cost": 0
+    },
+    "id": "gen-dec-1794788893-qZCI2aH9iE8q3v8P9l2q",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:13.022+00:00",
+    "ms": 96.76369995577261,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:13.022+00:00",
+      "route": "extractions",
+      "hash": "e83ff3a80b1e31220b5f5a53",
+      "label": "06_description_not_request:r6:extract",
+      "status": 200,
+      "ms": 96.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

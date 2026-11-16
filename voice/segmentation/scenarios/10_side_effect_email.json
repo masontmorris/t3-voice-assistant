@@ -1,0 +1,80 @@
+{
+  "id": "10_side_effect_email",
+  "covers": "A request with an external side effect (sending an email) whose partial text is wrong (Tuesday) until ASR revises it (Thursday). It must not dispatch on a partial.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "email dana that",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "email dana that the meeting moved",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "email dana that the meeting moved to tuesday",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "email dana that the meeting moved to tuesday and then check",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "email dana that the meeting moved to thursday and then check if room four b is free",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 6,
+      "text": "Email Dana that the meeting moved to Thursday, and then check if room 4B is free.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "email",
+          "dana"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true,
+        "instruction_contains": [
+          "thursday"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "room"
+        ],
+        "status": [
+          "dispatched",
+          "ready"
+        ],
+        "depends_on": [
+          [],
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}

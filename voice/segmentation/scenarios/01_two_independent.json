@@ -1,0 +1,73 @@
+{
+  "id": "01_two_independent",
+  "covers": "Two independent requests in one utterance.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "what's the weather",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "what's the weather in denver tomorrow",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "what's the weather in denver tomorrow and look up",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "what's the weather in denver tomorrow and look up how long the drive",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "what's the weather in denver tomorrow and look up how long the drive from boulder takes",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 6,
+      "text": "What's the weather in Denver tomorrow, and look up how long the drive from Boulder takes.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "weather",
+          "denver"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "drive",
+          "boulder"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}

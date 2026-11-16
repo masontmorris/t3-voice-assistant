@@ -1,0 +1,71 @@
+{
+  "id": "03_topic_change",
+  "covers": "A topic change between two unrelated requests. The transition sentence creates no task.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "look up the score of",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "look up the score of the nuggets game",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "look up the score of the nuggets game anyway totally",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "look up the score of the nuggets game anyway totally different thing what's a good",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "look up the score of the nuggets game anyway totally different thing what's a good recipe for banana bread",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 6,
+      "text": "Look up the score of the Nuggets game. Anyway, totally different thing. What's a good recipe for banana bread?",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "nuggets"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "banana"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}

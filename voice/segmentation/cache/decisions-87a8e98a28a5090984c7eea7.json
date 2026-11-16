@@ -1,0 +1,105 @@
+{
+  "route": "decisions",
+  "label": "probe-object-state",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "find the q3 budget spreadsheet and tell me the total travel spend, actually make that q2",
+      "segments": {
+        "s1": "find the q3 budget spreadsheet",
+        "s2": "and tell me the total travel spend",
+        "s3": "actually make that q2"
+      }
+    },
+    "questions": {
+      "s3_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s3.",
+        "criteria": {
+          "request": "Asks the assistant to do something.",
+          "description": "Describes a task without asking for it.",
+          "chitchat": "Filler or small talk.",
+          "correction": "Changes an earlier segment.",
+          "topic_change": "Only a change of subject."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 need another segment's result first?",
+        "criteria": {
+          "none": "No.",
+          "s1": "Needs s1's result."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Does carrying out s1 act outside the assistant?",
+        "criteria": {
+          "true": "Sends, buys, books, posts, or changes someone's data.",
+          "false": "Only looks up or reports information."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.038515852040917904
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "s1",
+        "probabilities": {
+          "none": 0.41513940689801465,
+          "s1": 0.5848605931019853
+        },
+        "confidence": 0.1697211862039707
+      },
+      "s3_kind": {
+        "type": "choice",
+        "choice": "correction",
+        "probabilities": {
+          "chitchat": 0.001859474893226956,
+          "correction": 0.9808323487502786,
+          "description": 0.0027757785938579806,
+          "request": 0.012656794908090886,
+          "topic_change": 0.0018756028545455963
+        },
+        "confidence": 0.9760404359378483
+      }
+    },
+    "usage": {
+      "input_tokens": 264,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788503-lW5yCZP7dtSPMU4ZwpMU",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:21:42.811+00:00",
+    "ms": 137.7908000140451,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:21:42.811+00:00",
+      "route": "decisions",
+      "hash": "87a8e98a28a5090984c7eea7",
+      "label": "probe-object-state",
+      "status": 200,
+      "ms": 137.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

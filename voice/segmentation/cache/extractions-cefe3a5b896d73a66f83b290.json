@@ -1,0 +1,68 @@
+{
+  "route": "extractions",
+  "label": "07_intentional_repeat:r4:extract",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": "Roll a die for me. Okay, now roll it again.",
+    "fields": {
+      "segments": {
+        "type": "list",
+        "items": "text",
+        "instructions": "Each separate thing the speaker asks for, each correction or withdrawal of an earlier request, and each sentence that only describes a task, copied exactly from the transcript. Two requests joined by \"and\" are two items. Skip filler and small talk."
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "segments": {
+        "type": "list",
+        "value": [
+          "Roll a die for me.",
+          "roll it again"
+        ],
+        "spans": [
+          [
+            0,
+            18
+          ],
+          [
+            29,
+            42
+          ]
+        ],
+        "confidences": [
+          0.9402222037315369,
+          0.9582805633544922
+        ]
+      }
+    },
+    "truncated": false,
+    "usage": {
+      "input_tokens": 117,
+      "output_tokens": 1,
+      "passes": 1,
+      "cost": 0
+    },
+    "id": "gen-dec-1794788894-KqaMjtITq4bQIuueCG6j",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:13.252+00:00",
+    "ms": 99.4522999972105,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:13.252+00:00",
+      "route": "extractions",
+      "hash": "cefe3a5b896d73a66f83b290",
+      "label": "07_intentional_repeat:r4:extract",
+      "status": 200,
+      "ms": 99.5,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

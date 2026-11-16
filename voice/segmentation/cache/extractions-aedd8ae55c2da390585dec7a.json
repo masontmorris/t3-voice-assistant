@@ -1,0 +1,68 @@
+{
+  "route": "extractions",
+  "label": "10_side_effect_email:r6:extract",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": "Email Dana that the meeting moved to Thursday, and then check if room 4B is free.",
+    "fields": {
+      "segments": {
+        "type": "list",
+        "items": "text",
+        "instructions": "Each separate thing the speaker asks for, each correction or withdrawal of an earlier request, and each sentence that only describes a task, copied exactly from the transcript. Two requests joined by \"and\" are two items. Skip filler and small talk."
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "segments": {
+        "type": "list",
+        "value": [
+          "Email Dana that the meeting moved to Thursday,",
+          "check if room 4B is free"
+        ],
+        "spans": [
+          [
+            0,
+            46
+          ],
+          [
+            56,
+            80
+          ]
+        ],
+        "confidences": [
+          0.666378915309906,
+          0.9998212456703186
+        ]
+      }
+    },
+    "truncated": false,
+    "usage": {
+      "input_tokens": 124,
+      "output_tokens": 1,
+      "passes": 1,
+      "cost": 0
+    },
+    "id": "gen-dec-1794788894-BtE1FaqYhpPQi6DbeOXB",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:14.039+00:00",
+    "ms": 99.91069999523461,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:14.039+00:00",
+      "route": "extractions",
+      "hash": "aedd8ae55c2da390585dec7a",
+      "label": "10_side_effect_email:r6:extract",
+      "status": 200,
+      "ms": 99.9,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

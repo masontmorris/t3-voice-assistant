@@ -1,0 +1,60 @@
+{
+  "id": "11_filler_false_starts",
+  "covers": "Filler words, false starts, and an ASR revision of an earlier word (reports to report). One task.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "um so uh",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "um so uh can you can you find the",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "um so uh can you can you find the the reports from",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "um so uh can you can you find the the report from uh from tuesday's",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "um so uh can you can you find the the report from uh from tuesday's meeting",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 6,
+      "text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "report",
+          "tuesday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}
