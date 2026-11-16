@@ -1,0 +1,1584 @@
+{
+  "sets": {
+    "original": {
+      "baseline": {
+        "run": "stream-a",
+        "scenarios": 11,
+        "pass_old": 9,
+        "pass_new": 9,
+        "premature": 1,
+        "duplicate": 0,
+        "missed_corrections": 0,
+        "early_dispatches": 5,
+        "calls": 35,
+        "calls_per_utterance": 3.18,
+        "malformed": 0,
+        "latency_ms": {
+          "n": 35,
+          "median": 93.0,
+          "p95": 179.6,
+          "min": 83.2,
+          "max": 221.0
+        },
+        "breaks": {
+          "labeled_breaks": 10,
+          "exact": 10,
+          "off_by_1_to_3": 0,
+          "missed": 0,
+          "extra_cuts": 1
+        },
+        "per_scenario": {
+          "01_two_independent": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "02_two_dependent": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "03_topic_change": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "04_mid_sentence_correction": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "05_correction_after_dispatch": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "06_description_not_request": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": []
+          },
+          "07_intentional_repeat": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "08_delegate_after_dispatch": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: status dispatched, expected one of ['ready']",
+              "T2: depends_on [], expected one of [['T1']]",
+              "T2: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "09_delegate_before_segment": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: status needs_clarification, expected one of ['dispatched']",
+              "clarification_needed True"
+            ],
+            "premature": 0,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "10_side_effect_email": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 4,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "11_filler_false_starts": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": []
+          }
+        }
+      },
+      "e": {
+        "run": "stream-e",
+        "scenarios": 11,
+        "pass_old": 7,
+        "pass_new": 7,
+        "premature": 2,
+        "duplicate": 0,
+        "missed_corrections": 1,
+        "early_dispatches": 7,
+        "calls": 70,
+        "calls_per_utterance": 6.36,
+        "malformed": 0,
+        "latency_ms": {
+          "n": 70,
+          "median": 94.6,
+          "p95": 185.2,
+          "min": 79.4,
+          "max": 655.5
+        },
+        "breaks": {
+          "labeled_breaks": 10,
+          "exact": 8,
+          "off_by_1_to_3": 0,
+          "missed": 2,
+          "extra_cuts": 0
+        },
+        "per_scenario": {
+          "01_two_independent": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 6,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "02_two_dependent": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 6,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "03_topic_change": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['banana']",
+              "T1: status cancel_requested, expected one of ['dispatched']",
+              "task_2: unexpected dispatched task \"Anyway,\""
+            ],
+            "premature": 1,
+            "calls": 7,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "04_mid_sentence_correction": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['six']",
+              "T1: status dispatched, expected one of ['superseded', 'withdrawn']",
+              "T1: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 7,
+            "early": 0,
+            "break_error": [
+              null
+            ]
+          },
+          "05_correction_after_dispatch": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 7,
+            "early": 2,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "06_description_not_request": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 6,
+            "early": 0,
+            "break_error": []
+          },
+          "07_intentional_repeat": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: status cancel_requested, expected one of ['dispatched']"
+            ],
+            "premature": 0,
+            "calls": 5,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "08_delegate_after_dispatch": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['travel']"
+            ],
+            "premature": 0,
+            "calls": 6,
+            "early": 1,
+            "break_error": [
+              null
+            ]
+          },
+          "09_delegate_before_segment": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 7,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "10_side_effect_email": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 7,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "11_filler_false_starts": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 6,
+            "early": 0,
+            "break_error": []
+          }
+        }
+      },
+      "hybrid": {
+        "run": "stream-h",
+        "scenarios": 11,
+        "pass_old": 11,
+        "pass_new": 11,
+        "premature": 0,
+        "duplicate": 0,
+        "missed_corrections": 0,
+        "early_dispatches": 7,
+        "calls": 32,
+        "calls_per_utterance": 2.91,
+        "malformed": 0,
+        "latency_ms": {
+          "n": 32,
+          "median": 96.7,
+          "p95": 206.7,
+          "min": 77.6,
+          "max": 642.2
+        },
+        "breaks": {
+          "labeled_breaks": 10,
+          "exact": 10,
+          "off_by_1_to_3": 0,
+          "missed": 0,
+          "extra_cuts": 1
+        },
+        "per_scenario": {
+          "01_two_independent": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "02_two_dependent": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "03_topic_change": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "04_mid_sentence_correction": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "05_correction_after_dispatch": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 4,
+            "early": 2,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "06_description_not_request": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": []
+          },
+          "07_intentional_repeat": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 1,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "08_delegate_after_dispatch": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "09_delegate_before_segment": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "10_side_effect_email": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "11_filler_false_starts": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": []
+          }
+        }
+      }
+    },
+    "heldout": {
+      "baseline": {
+        "run": "stream-a-heldout",
+        "scenarios": 18,
+        "pass_old": 8,
+        "pass_new": 11,
+        "premature": 1,
+        "duplicate": 1,
+        "missed_corrections": 1,
+        "early_dispatches": 7,
+        "calls": 46,
+        "calls_per_utterance": 2.56,
+        "malformed": 0,
+        "latency_ms": {
+          "n": 46,
+          "median": 94.9,
+          "p95": 212.1,
+          "min": 82.5,
+          "max": 340.1
+        },
+        "breaks": {
+          "labeled_breaks": 18,
+          "exact": 12,
+          "off_by_1_to_3": 0,
+          "missed": 6,
+          "extra_cuts": 3
+        },
+        "per_scenario": {
+          "actually": {
+            "old": false,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "assistant_question": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": []
+          },
+          "buy_and_read": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "cancel_second": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "delegate_overlap": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": []
+          },
+          "delete_and_read": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "email_extension": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": []
+          },
+          "i_mean": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['capital', 'australia']",
+              "T1: status dispatched, expected one of ['superseded']",
+              "T1: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              null
+            ]
+          },
+          "market_three": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['yen', 'exchange']"
+            ],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              null,
+              0
+            ]
+          },
+          "mixed_chain": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['shopping', 'list']"
+            ],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              null,
+              0
+            ]
+          },
+          "museum_chain": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['calculate', 'closing']",
+              "T3: depends_on ['T1'], expected one of [['T2']]"
+            ],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              null,
+              0
+            ]
+          },
+          "near_duplicates": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "no_wait": {
+            "old": false,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "pause_correction": {
+            "old": false,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "post_and_read": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "rain_wonder": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: no task matches ['rain', 'saturday']"
+            ],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": []
+          },
+          "run_on": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['fare', 'fremantle']",
+              "T3: no task matches ['translate', 'swahili']"
+            ],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              null,
+              null
+            ]
+          },
+          "true_repeat": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "task_2: duplicate dispatch of T1"
+            ],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": []
+          }
+        }
+      },
+      "e": {
+        "run": "stream-e-heldout",
+        "scenarios": 18,
+        "pass_old": 6,
+        "pass_new": 6,
+        "premature": 6,
+        "duplicate": 1,
+        "missed_corrections": 2,
+        "early_dispatches": 8,
+        "calls": 72,
+        "calls_per_utterance": 4.0,
+        "malformed": 0,
+        "latency_ms": {
+          "n": 71,
+          "median": 94.3,
+          "p95": 128.2,
+          "min": 81.6,
+          "max": 236.1
+        },
+        "breaks": {
+          "labeled_breaks": 18,
+          "exact": 16,
+          "off_by_1_to_3": 0,
+          "missed": 2,
+          "extra_cuts": 1
+        },
+        "per_scenario": {
+          "actually": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['height', 'massive']",
+              "T1: status dispatched, expected one of ['superseded']",
+              "T1: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              null
+            ]
+          },
+          "assistant_question": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": []
+          },
+          "buy_and_read": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: status ready, expected one of ['dispatched']",
+              "T2: depends_on ['T1'], expected one of [[]]"
+            ],
+            "premature": 0,
+            "calls": 4,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "cancel_second": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: status cancel_requested, expected one of ['withdrawn']",
+              "T2: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "delegate_overlap": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 4,
+            "early": 1,
+            "break_error": []
+          },
+          "delete_and_read": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "email_extension": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 4,
+            "early": 0,
+            "break_error": []
+          },
+          "i_mean": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['capital', 'australia']",
+              "T1: status dispatched, expected one of ['superseded']",
+              "T1: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              null
+            ]
+          },
+          "market_three": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: status cancel_requested, expected one of ['dispatched']"
+            ],
+            "premature": 0,
+            "calls": 6,
+            "early": 0,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "mixed_chain": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: status dispatched, expected one of ['ready']",
+              "T2: depends_on [], expected one of [['T1']]",
+              "T2: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 5,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "museum_chain": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 5,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "near_duplicates": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: status cancel_requested, expected one of ['dispatched']"
+            ],
+            "premature": 0,
+            "calls": 4,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "no_wait": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: status cancel_requested, expected one of ['superseded']",
+              "T1: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "pause_correction": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: status cancel_requested, expected one of ['superseded']",
+              "T1: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 4,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "post_and_read": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: status ready, expected one of ['dispatched']",
+              "T2: depends_on ['T1'], expected one of [[]]"
+            ],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0
+            ]
+          },
+          "rain_wonder": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: no task matches ['rain', 'saturday']"
+            ],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": []
+          },
+          "run_on": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 6,
+            "early": 0,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "true_repeat": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "task_2: duplicate dispatch of T1"
+            ],
+            "premature": 0,
+            "calls": 4,
+            "early": 0,
+            "break_error": []
+          }
+        }
+      },
+      "hybrid": {
+        "run": "stream-h-heldout",
+        "scenarios": 18,
+        "pass_old": 14,
+        "pass_new": 14,
+        "premature": 1,
+        "duplicate": 1,
+        "missed_corrections": 0,
+        "early_dispatches": 4,
+        "calls": 36,
+        "calls_per_utterance": 2.0,
+        "malformed": 0,
+        "latency_ms": {
+          "n": 36,
+          "median": 97.1,
+          "p95": 176.4,
+          "min": 81.6,
+          "max": 210.1
+        },
+        "breaks": {
+          "labeled_breaks": 18,
+          "exact": 17,
+          "off_by_1_to_3": 0,
+          "missed": 1,
+          "extra_cuts": 3
+        },
+        "per_scenario": {
+          "actually": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "assistant_question": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 1,
+            "early": 0,
+            "break_error": []
+          },
+          "buy_and_read": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "cancel_second": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "delegate_overlap": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 1,
+            "break_error": []
+          },
+          "delete_and_read": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "email_extension": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 1,
+            "early": 0,
+            "break_error": []
+          },
+          "i_mean": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "market_three": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: no task matches ['yen', 'exchange']"
+            ],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              null,
+              0
+            ]
+          },
+          "mixed_chain": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T2: status dispatched, expected one of ['ready']",
+              "T2: depends_on [], expected one of [['T1']]",
+              "T2: dispatched but should never dispatch"
+            ],
+            "premature": 1,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "museum_chain": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 1,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "near_duplicates": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 1,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "no_wait": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "pause_correction": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "post_and_read": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 2,
+            "early": 0,
+            "break_error": [
+              0
+            ]
+          },
+          "rain_wonder": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "T1: no task matches ['rain', 'saturday']"
+            ],
+            "premature": 0,
+            "calls": 1,
+            "early": 0,
+            "break_error": []
+          },
+          "run_on": {
+            "old": true,
+            "new": true,
+            "failures": [],
+            "premature": 0,
+            "calls": 3,
+            "early": 0,
+            "break_error": [
+              0,
+              0
+            ]
+          },
+          "true_repeat": {
+            "old": false,
+            "new": false,
+            "failures": [
+              "task_2: duplicate dispatch of T1"
+            ],
+            "premature": 0,
+            "calls": 1,
+            "early": 0,
+            "break_error": []
+          }
+        }
+      }
+    }
+  },
+  "hybrid_points": {
+    "original": {
+      "points_by_kind": {
+        "revision": 30,
+        "delegate": 2
+      },
+      "utterances_with_a_drain": 0
+    },
+    "heldout": {
+      "points_by_kind": {
+        "revision": 34,
+        "delegate": 1,
+        "drain": 1
+      },
+      "utterances_with_a_drain": 1
+    }
+  },
+  "ledger": {
+    "attempts_this_round": 69,
+    "status": {
+      "200": 69
+    },
+    "first": "2026-11-16T02:49:15.773+00:00",
+    "last": "2026-11-16T02:56:12.689+00:00"
+  },
+  "clips": {
+    "baseline": {
+      "pass": 7,
+      "premature": 0,
+      "early_dispatches": 1,
+      "side_effect_early": 0,
+      "calls": 28,
+      "coalesced": 0,
+      "snapshot_ready_s": {
+        "n": 10,
+        "median": 1.21,
+        "min": 0.04,
+        "max": 6.73
+      },
+      "snapshot_ready_final_live_s": {
+        "n": 8,
+        "median": 2.25,
+        "min": 0.19,
+        "max": 6.73
+      },
+      "final_wait_s": {
+        "n": 8,
+        "median": 2.02,
+        "min": 0.01,
+        "max": 2.98
+      },
+      "first_reply_audio_s": {
+        "n": 10,
+        "median": 1.44,
+        "min": 0.22,
+        "max": 7.07
+      },
+      "per_clip": {
+        "01_single": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 2,
+          "live_calls": 1,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.317,
+          "first_reply_audio_s": 0.444,
+          "final_live": true,
+          "final_wait_s": 0.07
+        },
+        "02_two_requests": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 0,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.15,
+          "first_reply_audio_s": 0.313,
+          "final_live": false,
+          "final_wait_s": 0.002
+        },
+        "03_dependent": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 0,
+          "snapshot_ready_s": 2.093,
+          "first_reply_audio_s": 2.384,
+          "final_live": true,
+          "final_wait_s": 1.855
+        },
+        "04_correction": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 2,
+          "coalesced": 0,
+          "snapshot_ready_s": 2.41,
+          "first_reply_audio_s": 2.717,
+          "final_live": true,
+          "final_wait_s": 2.179
+        },
+        "05_topic_change": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 0,
+          "snapshot_ready_s": 2.727,
+          "first_reply_audio_s": 3.062,
+          "final_live": true,
+          "final_wait_s": 2.465
+        },
+        "06_not_a_request": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 2,
+          "live_calls": 1,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.302,
+          "first_reply_audio_s": 0.497,
+          "final_live": true,
+          "final_wait_s": 0.014
+        },
+        "07_implicit": {
+          "pass": false,
+          "failures": 1,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 2,
+          "live_calls": 1,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.194,
+          "first_reply_audio_s": 0.367,
+          "final_live": true,
+          "final_wait_s": 0.009
+        },
+        "08_cancel": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 1,
+          "side_effect_early": 0,
+          "calls": 5,
+          "live_calls": 5,
+          "coalesced": 0,
+          "snapshot_ready_s": 6.734,
+          "first_reply_audio_s": 7.071,
+          "final_live": true,
+          "final_wait_s": 2.982
+        },
+        "09_run_on": {
+          "pass": false,
+          "failures": 1,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 0,
+          "snapshot_ready_s": 2.883,
+          "first_reply_audio_s": 3.243,
+          "final_live": true,
+          "final_wait_s": 2.683
+        },
+        "10_noisy": {
+          "pass": false,
+          "failures": 1,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 2,
+          "live_calls": 0,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.043,
+          "first_reply_audio_s": 0.219,
+          "final_live": false,
+          "final_wait_s": 0.009
+        }
+      }
+    },
+    "hybrid": {
+      "pass": 7,
+      "premature": 0,
+      "early_dispatches": 2,
+      "side_effect_early": 0,
+      "calls": 26,
+      "coalesced": 19,
+      "snapshot_ready_s": {
+        "n": 10,
+        "median": 0.26,
+        "min": 0.05,
+        "max": 0.31
+      },
+      "snapshot_ready_final_live_s": {
+        "n": 9,
+        "median": 0.27,
+        "min": 0.16,
+        "max": 0.31
+      },
+      "final_wait_s": {
+        "n": 9,
+        "median": 0.01,
+        "min": 0.01,
+        "max": 0.05
+      },
+      "first_reply_audio_s": {
+        "n": 10,
+        "median": 0.41,
+        "min": 0.24,
+        "max": 0.5
+      },
+      "per_clip": {
+        "01_single": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 1,
+          "live_calls": 1,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.282,
+          "first_reply_audio_s": 0.415,
+          "final_live": true,
+          "final_wait_s": 0.051
+        },
+        "02_two_requests": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 1,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 1,
+          "snapshot_ready_s": 0.307,
+          "first_reply_audio_s": 0.502,
+          "final_live": true,
+          "final_wait_s": 0.009
+        },
+        "03_dependent": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.267,
+          "first_reply_audio_s": 0.465,
+          "final_live": true,
+          "final_wait_s": 0.011
+        },
+        "04_correction": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 3,
+          "snapshot_ready_s": 0.31,
+          "first_reply_audio_s": 0.504,
+          "final_live": true,
+          "final_wait_s": 0.009
+        },
+        "05_topic_change": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 5,
+          "snapshot_ready_s": 0.166,
+          "first_reply_audio_s": 0.258,
+          "final_live": true,
+          "final_wait_s": 0.01
+        },
+        "06_not_a_request": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 2,
+          "live_calls": 2,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.221,
+          "first_reply_audio_s": 0.355,
+          "final_live": true,
+          "final_wait_s": 0.009
+        },
+        "07_implicit": {
+          "pass": false,
+          "failures": 1,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 1,
+          "live_calls": 1,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.16,
+          "first_reply_audio_s": 0.242,
+          "final_live": true,
+          "final_wait_s": 0.01
+        },
+        "08_cancel": {
+          "pass": true,
+          "failures": 0,
+          "premature": 0,
+          "early_dispatches": 1,
+          "side_effect_early": 0,
+          "calls": 6,
+          "live_calls": 6,
+          "coalesced": 7,
+          "snapshot_ready_s": 0.292,
+          "first_reply_audio_s": 0.432,
+          "final_live": true,
+          "final_wait_s": 0.01
+        },
+        "09_run_on": {
+          "pass": false,
+          "failures": 1,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 3,
+          "live_calls": 3,
+          "coalesced": 3,
+          "snapshot_ready_s": 0.249,
+          "first_reply_audio_s": 0.402,
+          "final_live": true,
+          "final_wait_s": 0.01
+        },
+        "10_noisy": {
+          "pass": false,
+          "failures": 1,
+          "premature": 0,
+          "early_dispatches": 0,
+          "side_effect_early": 0,
+          "calls": 1,
+          "live_calls": 0,
+          "coalesced": 0,
+          "snapshot_ready_s": 0.052,
+          "first_reply_audio_s": 0.269,
+          "final_live": false,
+          "final_wait_s": 0.01
+        }
+      }
+    },
+    "replays": {
+      "replay-h-asrun": {
+        "pass": 7,
+        "same_as_run": 10,
+        "decision_points": 26
+      },
+      "replay-h-every": {
+        "pass": 7,
+        "same_as_run": 9,
+        "decision_points": 26
+      }
+    }
+  }
+}
