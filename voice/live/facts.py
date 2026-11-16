@@ -52,7 +52,10 @@ WORD_RE = re.compile(r"[A-Za-z][a-z]*")
 # Words that belong to the machinery, not to the assistant's voice. A reply that says one of them is telling the
 # person about the note, the check or the task list instead of answering them. Measured cost of the bare "note" in
 # this list: 1 of 157 spoken replies on disk ("Got it, I've noted that ...") would be refused and asked again.
-MACHINERY = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update", "note")
+# "lookup" and "no answer yet" are a lookup note's own words. Measured on the callfix3 replay fix2, turns 21 and 23: "It
+# looks like the lookup is still running and has no answer yet."
+MACHINERY = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update", "note",
+             "lookup", "no answer yet")
 
 
 class Fact(NamedTuple):

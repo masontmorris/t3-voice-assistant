@@ -84,7 +84,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
-                               segmenter="hybrid", call_max_turns=8, call_keep_turns=6, snapshot="reply",
+                               segmenter="hybrid", snapshot="reply",
                                recall="note")
         self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name))
         self.patch = mock.patch.object(server, "run_clip", fake_run_clip)
@@ -166,8 +166,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(VOICES[0].closed)
         first = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
         second = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
-        self.assertEqual(second["live"]["call"], {"turn": 2, "session_turn": 2, "voice_session": "shared",
-                                                  "reopened": None, "voice_sessions": 1})
+        self.assertEqual(second["live"]["call"], {"turn": 2, "session_turn": 2})
         self.assertNotEqual(first["live"]["call"], second["live"]["call"])
         await ws.close()
 
@@ -185,28 +184,19 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["live"]["snapshot"], "before-audio", "the record says where the item went")
         await ws.close()
 
-    async def test_a_long_call_seeds_a_new_session_with_the_call_so_far(self):
-        self.live.args.call_max_turns = 1
+    async def test_a_long_call_stays_on_its_one_session(self):
         ws = await self.connect()
-        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
-        await self.until(ws, "turn_done", [])
-        await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
-        await self.until(ws, "turn_done", [])
-        self.assertEqual(len(VOICES), 2)
-        self.assertIsNot(VOICES[0], VOICES[1], "the second turn starts a new session")
-        self.assertTrue(VOICES[0].closed, "the old session is closed")
-        self.assertEqual(SENT_BEFORE[1], [], "nothing goes into the new session before run_clip sends its settings")
-        self.assertIsNone(CALLS[0][-1]["seed"], "the call's first session has nothing to carry")
-        seed = CALLS[1][-1]["seed"]["content"][0]["text"]
-        self.assertTrue(seed.startswith(server.SEED_PREFIX))
-        self.assertIn("words in turn_001", seed, "the call's own text carries over")
-        record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
-        self.assertEqual(record["live"]["call"]["voice_session"], "started")
-        self.assertEqual(record["live"]["call"]["reopened"], "turn limit")
-        self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
+        for seed in range(1, 11):
+            await self.send(ws, noise(500) + tone(600) + noise(900, seed=seed))
+            await self.until(ws, "turn_done", [])
+        self.assertEqual(len({id(voice) for voice in VOICES}), 1, "ten turns, one voice session, never restarted")
+        self.assertFalse(VOICES[0].closed)
+        self.assertNotIn("seed", CALLS[-1][-1], "nothing rebuilds the session from the call's text")
+        record = json.loads((Path(self.tmp.name) / "turn_010.json").read_text())
+        self.assertEqual(record["live"]["call"], {"turn": 10, "session_turn": 10})
         await ws.close()
 
-    async def test_a_new_prompt_mid_call_starts_a_new_session(self):
+    async def test_a_new_prompt_mid_call_waits_for_the_next_call(self):
         prompt = Path(self.tmp.name) / "prompt.txt"
         prompt.write_text("Be brief.\n", encoding="utf-8")
         ws = await self.connect()
@@ -215,67 +205,9 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         prompt.write_text("Be warm.\n", encoding="utf-8")
         await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
         await self.until(ws, "turn_done", [])
-        self.assertIsNot(VOICES[0], VOICES[1], "llama.cpp keeps the old instructions on a session that holds audio")
-        self.assertTrue(VOICES[0].closed)
-        self.assertTrue(PERSONAS[1].startswith("Be warm."))
-        self.assertIn("words in turn_001", CALLS[1][-1]["seed"]["content"][0]["text"], "the call carries over")
-        record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
-        self.assertEqual(record["live"]["call"]["reopened"], "persona changed")
-        self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
+        self.assertIs(VOICES[0], VOICES[1], "the call keeps its session")
+        self.assertTrue(PERSONAS[1].startswith("Be brief."), "and the persona it started with")
         await ws.close()
-
-    async def test_speech_during_the_reply_stops_playback_and_keeps_the_call(self):
-        ws = await self.connect()
-        log = []
-        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
-        await self.until(ws, "reply_start", log)
-        await self.send(ws, tone(300))
-        barge = await self.until(ws, "barge_in", log)
-        self.assertEqual(barge["turn"], 1, "the reply the person talked over is the one flushed")
-        self.assertIn("reply_end", log, "the whole reply was handed to the client before it was flushed")
-        after = []
-        started = await self.until(ws, "turn_start", after)
-        self.assertEqual(started["turn"], 2)
-        await self.send(ws, noise(900, seed=2))
-        await self.until(ws, "turn_end", after)
-        while (done := await self.until(ws, "turn_done", after))["turn"] != 2:
-            pass
-        self.assertFalse(VOICES[0].closed, "a barge-in keeps the call's session, and its history, open")
-        self.assertIs(VOICES[0], VOICES[1], "the next turn continues on the same session")
-        await ws.close()
-
-    async def test_speech_before_the_reply_continues_the_turn(self):
-        ws = await self.connect()
-        log = []
-        await self.send(ws, noise(500) + tone(600) + noise(720, seed=1))
-        await self.until(ws, "turn_end", log)
-        await self.send(ws, tone(300))
-        started = await self.until(ws, "turn_start", log)
-        self.assertEqual(started["turn"], 2)
-        self.assertGreater(started["carried_audio_s"], 1.0, "turn 2 starts with turn 1's audio")
-        self.assertNotIn("barge_in", log)
-        await ws.close()
-
-    async def test_speech_after_the_reply_stops_playback(self):
-        ws = await self.connect()
-        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
-        await self.until(ws, "turn_done", [])
-        log = []
-        await self.send(ws, tone(400))
-        barge = await self.until(ws, "barge_in", log)
-        self.assertEqual(barge["turn"], 1, "the finished turn's audio is dropped once speech starts")
-        started = await self.until(ws, "turn_start", log)
-        self.assertEqual(started["turn"], 2)
-        self.assertEqual(log, ["barge_in", "turn_start"], "stop playback before the new turn starts")
-        await ws.close()
-
-    async def test_a_second_client_is_turned_away(self):
-        first = await self.connect()
-        second = await websockets.connect(self.url, additional_headers={server.HEADER: SECRET})
-        with self.assertRaises(websockets.ConnectionClosed):
-            await second.recv()
-        self.assertEqual(second.close_code, 1013)
-        await first.close()
 
 
 class SpeakTest(unittest.IsolatedAsyncioTestCase):

@@ -9,6 +9,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import numpy as np
+
 from voice.live.facts import ungrounded
 from voice.prototype import run as prototype
 from voice.prototype.segmenter import use_decider_cache
@@ -108,6 +110,35 @@ class NoteTurnTest(unittest.IsolatedAsyncioTestCase):
         result = "Forecast for Raleigh. Monday, November 16: a high of 56 degrees Fahrenheit."
         await self.turn(["It was a high of 56 degrees in Raleigh."], prior_results=(result,))
         self.assertEqual(self.spoken, ["It was a high of 56 degrees in Raleigh."])
+
+
+def tone(seconds, rate=24_000, level=8000):
+    return (np.sin(np.arange(int(seconds * rate)) * 0.2) * level).astype("<i2").tobytes()
+
+
+class SpokenPartTest(unittest.TestCase):
+    """A reply of two sentences with a pause between them, 1 s and 2 s of sound around 0.3 s of silence."""
+
+    PCM = tone(1.0) + b"\x00\x00" * 7200 + tone(2.0)
+    HEARD = ["What about in Durham?"]
+
+    def part(self, text, pcm=None):
+        return prototype.spoken_part({"text": text}, self.PCM if pcm is None else pcm, 24_000, self.HEARD, True)
+
+    def test_the_opening_sentence_is_kept_and_cut_at_the_pause(self):
+        reply, pcm = self.part("I'm checking the weather in Durham. It's a high of 68 degrees with a 10% chance of rain.")
+        self.assertEqual(reply["text"], "I'm checking the weather in Durham.")
+        self.assertIn("68 degrees", reply["dropped"])
+        self.assertAlmostEqual(len(pcm) / 2 / 24_000, 1.15, delta=0.16)
+
+    def test_a_reply_with_no_pause_is_not_cut(self):
+        self.assertIsNone(self.part("I'm checking the weather in Durham. It's a high of 68 degrees.", tone(3.0)))
+
+    def test_a_reply_whose_opening_fails_has_no_part(self):
+        self.assertIsNone(self.part("It's a high of 68 degrees in Durham. I'm checking."))
+
+    def test_a_reply_of_one_sentence_has_no_part(self):
+        self.assertIsNone(self.part("It's a high of 68 degrees in Durham."))
 
 
 class AskRegistry:

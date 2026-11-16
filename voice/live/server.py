@@ -40,9 +40,12 @@ for rerunning earlier experiments: "reply-no-utterance" and "reply" send the tas
 "before-audio" sends the call's task state before the turn's audio, and "off" sends nothing. They also take
 --recall, the numbered `call_turns` list and the recall sentence, which note mode never sends.
 
-A call that reaches --call-max-turns starts a fresh voice session, so the per-slot context (llama.cpp's -c divided
-across two slots) cannot overflow. In note mode the fresh session starts empty: a text summary of the call made the
-model repeat the summary (measured: callfix3 probe H). The limit is an estimate, not a measured token count.
+The call's one voice session is never restarted and never rebuilt from text. The recorded call restarted it every
+eight turns and seeded the new session with the call's own text, and the first answered turn after each of its three
+restarts was wrong: turn 10 answered the first line of the seed, and turns 17 and 28 repeated the person's words
+(measured: 20261116-152653). A session's instructions are fixed once it holds a message, so the persona is read
+when the call's first turn starts and a changed prompt file applies from the next call. How many turns fit in the
+slot is in docs/voice/live-call3-fix.md.
 
 A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
 reply and asks whether the person said them in this call or a lookup gave them; the assistant's own earlier replies
@@ -54,9 +57,8 @@ the person asked why it sounded different). When the registry has a general work
 VOICE_AGENT=on), a reply that states a fact nothing gave it starts a lookup for the person's words in place of
 the retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
 
-The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read again at each turn start. llama.cpp keeps
-a session's instructions once it holds a message, so a changed prompt starts a new voice session on the next turn.
-When the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
+The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
+the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
 
 Needs the GPU (run it inside the lease) and VOICE_ENV_FILE or OPENROUTER_API_KEY for the cloud decider. Writes one
 JSON record and the turn's input and reply audio per turn under --out, all under $VOICE_HOME, never in the repo.
@@ -85,7 +87,7 @@ from voice.live import fallback
 from voice.live.endpoint import RATE, Audio, End, Endpointer, Settings, Start
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, run_clip, user_text
+from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, run_clip
 from voice.live.ledger import ConversationLedger
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
@@ -106,7 +108,6 @@ CALL_RULES = (
     "from the snapshot's call_turns, which lists the person's own turns oldest first and numbered; the task list says "
     "only where tasks stand, not what the person asked."
 )
-SEED_PREFIX = "[call so far, machine-generated, not spoken by the user] "
 
 
 def shared_secret(path=SECRET_FILE):
@@ -251,8 +252,8 @@ class Conversation:
         self.mode, self.ptt_down, self.turn = "vad", False, None
         self.outbox = asyncio.Queue()
         self.sender = asyncio.create_task(self._send_loop())
-        self.voice, self.voice_turn, self.session_turns, self.persona = None, None, 0, None
-        self.sessions, self.out_rate = 0, None
+        self.voice, self.voice_turn, self.session_turns, self.out_rate = None, None, 0, None
+        self.persona = self.prompt_source = None
         self.ledger = ConversationLedger()
         self.pending, self.started = set(), time.perf_counter()
 
@@ -357,55 +358,32 @@ class Conversation:
         self.post_audio(turn, pcm)
         self.post({"type": "reply_end", "turn": turn.n}, turn)
 
-    def reopen_reason(self, persona):
-        """Why this turn needs a new voice session, or None when it shares the call's current one."""
-        if self.voice is None:
-            return "first turn"
-        if persona != self.persona:
-            return "persona changed"
-        if self.session_turns >= self.live.args.call_max_turns:
-            return "turn limit"
-        return None
-
-    async def open_voice(self, persona):
-        """A new voice session for the call, and the seed item `run_clip` must add after its settings.
-
-        A call past --call-max-turns, or whose persona changed, gets a new one seeded with the call's own text, so the
-        recent history survives. The seed is not sent here: llama.cpp refuses instructions once a session holds a
-        message."""
-        seed = None
-        call = self.ledger.conversation() if self.live.args.snapshot != "note" else None
-        if call:
-            keep = self.live.args.call_keep_turns
-            seed = user_text(SEED_PREFIX, {"turns_so_far": len(call), "omitted": max(0, len(call) - keep),
-                                           "turns": call[-keep:]})
-        if self.voice is not None:
-            await self.voice.close()
-        voice = await Session.open(self.live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
-        created = await voice.wait_for("session.created")
+    async def open_voice(self):
+        """The call's one voice session, opened by its first turn. The persona is read here and kept for the call."""
+        live = self.live
+        noted = live.args.snapshot == "note"
+        self.persona, self.prompt_source = load_persona(live.prompt_file, NOTE_PERSONA if noted else PERSONA)
+        if not noted:
+            self.persona += CALL_RULES
+        self.voice = await Session.open(live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
+        created = await self.voice.wait_for("session.created")
         self.out_rate = created["session"]["audio"]["output"]["format"]["rate"]
-        self.voice, self.persona, self.session_turns, self.sessions = voice, persona, 0, self.sessions + 1
-        return voice, seed
 
     async def run_turn(self, turn, prior):
         live = self.live
-        noted = live.args.snapshot == "note"
-        persona, prompt_source = load_persona(live.prompt_file, NOTE_PERSONA if noted else PERSONA)
-        if not noted:
-            persona += CALL_RULES
         turn.decider = TurnDecider(live.decider, live.decider_lock)
-        partial, reopened = {}, None
+        partial = {}
         try:
             if prior is not None:
                 await asyncio.gather(prior, return_exceptions=True)
-            voice, seed = self.voice, None
-            if (reopened := self.reopen_reason(persona)) is not None:
-                voice, seed = await self.open_voice(persona)
+            if self.voice is None:
+                await self.open_voice()
             self.voice_turn, self.session_turns = turn, self.session_turns + 1
             turn.out_rate, self.started = self.out_rate, time.perf_counter()
             record = await run_clip(turn, "c", False, live.url, turn.decider, live.args.delay, live.out, partial,
-                                    live.args.segmenter, live.tools, "gated", persona=persona, voice=voice,
-                                    snapshot_mode=live.args.snapshot, prior_snapshot=self.ledger.snapshot, seed=seed,
+                                    live.args.segmenter, live.tools, "gated", persona=self.persona,
+                                    voice=self.voice, snapshot_mode=live.args.snapshot,
+                                    prior_snapshot=self.ledger.snapshot,
                                     speak=lambda text, pcm: self.speak(turn, text, pcm),
                                     prior_utterances=tuple(turn_text["user"] for turn_text in self.ledger.conversation()
                                                            if "user" in turn_text),
@@ -423,11 +401,9 @@ class Conversation:
         turn.decider.closed = True
         self.ledger.record(record, muted=turn.muted)
         record["ledger"] = self.ledger.record_dict()
-        record["live"] = {**turn.metrics(), "prompt": prompt_source, "endpointer": vars(live.settings),
+        record["live"] = {**turn.metrics(), "prompt": self.prompt_source, "endpointer": vars(live.settings),
                           "mode": self.mode, "snapshot": live.args.snapshot, "recall": live.args.recall,
-                          "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns,
-                                   "voice_session": "shared" if reopened is None else "started",
-                                   "reopened": reopened, "voice_sessions": self.sessions}}
+                          "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns}}
         write_pcm16(live.out / f"{turn.name}_input.wav", bytes(turn.pcm), RATE)
         (live.out / f"{turn.name}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
         done = {"type": "turn_done", "turn": turn.n, "transcript": record.get("final_transcript"),
@@ -493,7 +469,9 @@ async def main_async(args):
     use_decider_cache(args.decider_cache, args.decider_budget)
     out = args.out or EVIDENCE / datetime.now().strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
-    lfm_args = ("-c", str(args.lfm_ctx))
+    # One KV pool for both sessions. Split evenly, the voice session got a third of -c while the ASR session used a
+    # few hundred tokens of its share (measured: n_ctx_slot = 11008 in the recorded call's llama-server log).
+    lfm_args = ("-c", str(args.lfm_ctx), "-kvu")
     cloud_lock = threading.Lock()
     tools_context = nullcontext() if args.mock_tools else open_registry(lock=cloud_lock)
     with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, 2) as server, \
@@ -514,17 +492,13 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", help="bind address; this machine's Tailscale IPv4 when left out")
     parser.add_argument("--port", type=int, default=8770)
-    parser.add_argument("--prompt", type=Path, default=PROMPT_FILE, help="persona file, read at each turn start")
+    parser.add_argument("--prompt", type=Path, default=PROMPT_FILE, help="persona file, read at each call start")
     parser.add_argument("--silence-ms", type=int, default=700, help="trailing silence that ends a turn")
     parser.add_argument("--start-ms", type=int, default=100, help="voiced audio that starts a turn")
     parser.add_argument("--preroll-ms", type=int, default=300, help="audio kept from before the turn started")
     parser.add_argument("--floor-dbfs", type=float, default=-50.0, help="a frame below this level is never speech")
     parser.add_argument("--margin-db", type=float, default=10.0, help="how far above the noise floor speech must be")
     parser.add_argument("--max-turn-s", type=float, default=30.0, help="end a turn that runs this long")
-    parser.add_argument("--call-max-turns", type=int, default=24,
-                        help="a call's voice session is started again after this many turns (default 24)")
-    parser.add_argument("--call-keep-turns", type=int, default=6,
-                        help="turns of the call the rebuilt session is seeded with (default 6)")
     parser.add_argument("--max-minutes", type=float, default=55.0, help="stop the server after this long")
     parser.add_argument("--stop-file", type=Path, default=STOP_FILE,
                         help="stop when this file appears (default $VOICE_HOME/live/STOP)")

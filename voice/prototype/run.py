@@ -57,6 +57,8 @@ from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 
+import numpy as np
+
 from voice.live.facts import names_machinery, speaks_of_person, ungrounded
 from voice.live.recall import recall_note
 from voice.local_decider.bench import gpu_used_mib
@@ -286,8 +288,58 @@ def refused(text, sources, running=False):
     return found
 
 
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+PAUSE_SEARCH = 0.2
+PAUSE_WINDOW_S = 0.1
+PAUSE_RATIO = 0.25
+
+
+def cut_at_pause(pcm, rate, fraction):
+    """`pcm` up to the pause nearest `fraction` of the way through it, or None when there is no pause there.
+
+    The model's text and audio carry no alignment, so the end of a sentence is estimated from its share of the
+    reply's characters and then moved to the quietest 100 ms within a fifth of the clip either side. Only a window
+    well below the clip's own level counts as a pause, so a reply spoken without one is never cut mid-word."""
+    samples = np.frombuffer(pcm, dtype="<i2").astype(np.float64)
+    window, hop = int(rate * PAUSE_WINDOW_S), max(1, int(rate * 0.01))
+    if len(samples) < 4 * window:
+        return None
+    starts = np.arange(0, len(samples) - window, hop)
+    squares = np.concatenate(([0.0], np.cumsum(samples ** 2)))
+    level = np.sqrt((squares[starts + window] - squares[starts]) / window)
+    centre = fraction * len(samples)
+    near = np.abs(starts + window / 2 - centre) <= PAUSE_SEARCH * len(samples)
+    if not near.any():
+        return None
+    quietest = starts[near][np.argmin(level[near])]
+    if level[near].min() > PAUSE_RATIO * np.median(level):
+        return None
+    return pcm[:int(quietest + window / 2) * 2]
+
+
+def spoken_part(reply, pcm, rate, sources, running):
+    """The leading sentences of a refused reply that pass every screen, with their audio, or None.
+
+    Measured on the callfix3 probes: a reply to a running lookup often opened with "I'm checking the weather in
+    Durham." and then invented a forecast. Refused whole and asked again, the model repeated itself and the turn
+    said nothing. The opening sentence was the right reply, so it is spoken and the rest is dropped."""
+    sentences = SENTENCE_END.split((reply["text"] or "").strip())
+    kept = []
+    for sentence in sentences[:-1]:
+        if any(refused(" ".join([*kept, sentence]), sources, running).values()):
+            break
+        kept.append(sentence)
+    if not kept:
+        return None
+    text = " ".join(kept)
+    part = cut_at_pause(pcm, rate, len(text) / max(1, len(reply["text"].strip())))
+    if part is None:
+        return None
+    return {**reply, "text": text, "speech_s": len(part) / 2 / rate, "dropped": reply["text"][len(text):].strip()}, part
+
+
 async def answer(session, rate, since, sources, log, fallback=None, running=False, retry_item=None, escalate=None,
-                 **response):
+                 keep_opening=False, **response):
     """A reply that states only facts the call gave it, and never names the machinery.
 
     `sources` is what the assistant may say: the person's words in this call and the newest machine note, never its
@@ -302,10 +354,14 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     what the screens found and returns the item. `escalate`, when given, is called
     with the facts a reply stated that nothing gave it: it may start a lookup for the person's words and return
     the note for it, so a fact the model does not have is looked up instead of refused. The turn then says it is
-    checking, and the result arrives as a task update."""
+    checking, and the result arrives as a task update. With `keep_opening`, a refused reply whose opening
+    sentences pass is spoken up to there and not asked again (`spoken_part`)."""
     reply, pcm = await respond(session, rate, since, **response)
     if not any((found := refused(reply["text"], sources, running)).values()):
         return reply, pcm
+    if keep_opening and (part := spoken_part(reply, pcm, rate, sources, running)) is not None:
+        log("fact_check", reply=reply["text"], **found, kept=part[0]["text"])
+        return part
     log("fact_check", reply=reply["text"], **found, asked_again=True)
     looked_up = None
     if escalate is not None and found["ungrounded"] and not found["machinery"] and not found["third_person"]:
@@ -321,6 +377,9 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     retry, retry_pcm = await respond(session, rate, since, **response)
     if not any((again := refused(retry["text"], sources, running)).values()):
         return retry, retry_pcm
+    if keep_opening and (part := spoken_part(retry, retry_pcm, rate, sources, running)) is not None:
+        log("fact_check", reply=retry["text"], **again, kept=part[0]["text"])
+        return part
     blocked = {"reply": retry["text"], **again}
     log("fact_check", **blocked, blocked=True)
     if fallback is None or fallback.spoken:
@@ -478,7 +537,7 @@ def close_with_decider(segmenter, update):
 
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
-                   snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
+                   snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
                    recall="off", context=(), prior_results=()):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
@@ -487,9 +546,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `voice` is an already-open voice session the caller keeps across turns, as live mode does for a call. The turn
     then adds its audio, its injections and its replies to that session's conversation instead of opening one, and
     leaves it open. Its session settings are sent only when they change, so a reused session keeps its history. The
-    per-turn `asr` and `tools` sessions are still opened and closed here. `seed` is an item for a session the caller
-    has just opened. It goes in after the settings, because llama.cpp refuses new instructions once a session holds a
-    message, and before the turn's audio. A refused session.update raises SessionRefused with the server's error.
+    per-turn `asr` and `tools` sessions are still opened and closed here. A refused session.update raises SessionRefused with the server's error.
 
     `snapshot_mode` says where the task snapshot enters the voice session. "reply" is the shipped behaviour: one user
     item built after the turn's tools ran, immediately before the reply. "before-audio" sends the caller's
@@ -637,9 +694,6 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
         replies, tool_turn, injection, answered = [], None, [], None
         fallback = Fallback(fallback_pcm)
-        if seed is not None:
-            injection.append(await create_item(voice, seed))
-            log("seed", answer=injection[-1])
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
             log("snapshot_before_audio", snapshot=prior_snapshot)
@@ -736,7 +790,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 running = is_running(answered)
                 reply, reply_pcm = await answer(
                     voice, out_rate, audio_end, sources, log, running=running, escalate=look_up,
-                    retry_item=lambda found: plain_text(retry_note(found, running)))
+                    keep_opening=True, retry_item=lambda found: plain_text(retry_note(found, running)))
             elif service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
             else:
@@ -791,7 +845,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 injection_update = await create_item(voice, plain_text(updates))
                 update_reply, update_pcm = await answer(
                     voice, out_rate, boundary, [adapter.text(), *prior_utterances, updates], log,
-                    retry_item=lambda found: plain_text(retry_note(found, False)), **extra)
+                    keep_opening=True, retry_item=lambda found: plain_text(retry_note(found, False)), **extra)
             else:
                 injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
                 update_reply, update_pcm = await answer(voice, out_rate, boundary,
