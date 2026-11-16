@@ -29,10 +29,15 @@ export function harness(nodes, decide, cfg = {}) {
 			const out = decide(body);
 			attempts++;
 			const { choice, p } = typeof out === "string" ? { choice: out, p: { [out]: 1 } } : out;
-			return { record: { status: 200, response: { answers: { verdict: { choice, probabilities: p } } } }, cached: false };
+			return { record: { status: 200, response: { answers: { [Object.keys(body.questions)[0]]: { choice, probabilities: p } } } }, cached: false };
 		},
 	};
-	const hb = createHeartbeat({ ...BASE, ...cfg, nodes }, { t3, decider, helpers: { lastAssistantText, runOf }, logCheckin: (e) => checkins.push(e), logTick: () => {}, say: () => {} }, 0);
+	const outbox = [];
+	const hb = createHeartbeat(
+		{ ...BASE, ...cfg, nodes },
+		{ t3, decider, helpers: { lastAssistantText, runOf }, logCheckin: (e) => checkins.push(e), logTick: () => {}, say: () => {}, toOutbox: (item) => outbox.push(item) },
+		0,
+	);
 	const set = (id, fields, at) => {
 		const t = { id, status: "completed", activeRunId: null, latestRunId: `${id}-r1`, pendingRuntimeRequest: null, pendingBackgroundTasks: [], lineage: { parentThreadId: null }, ...threads.get(id), ...fields };
 		threads.set(id, t);
@@ -44,7 +49,7 @@ export function harness(nodes, decide, cfg = {}) {
 			await hb.tick(t);
 		}
 	};
-	return { hb, checkins, sent, snaps, replies, set, run, attempts: () => attempts };
+	return { hb, checkins, sent, snaps, replies, set, run, outbox, attempts: () => attempts };
 }
 
 export const verdictFor = (body, map) => {
