@@ -19,7 +19,6 @@ The key comes from LIQUID_API_KEY or the env file named by VOICE_ENV_FILE and is
 Authorization header. Requests and responses hold transcripts, so the cache and the ledger live under $VOICE_HOME.
 """
 
-import hashlib
 import http.client
 import json
 import os
@@ -34,7 +33,6 @@ from voice.segmentation import client as api
 MODEL = "d1.2"
 HOST = "api.liquid.ai"
 PATH = "/decisions/v1/systemone"
-MODELS_PATH = "/decisions/v1/models"
 # The API takes up to 128 questions per request and bills the state once, so a body is sent whole whenever it fits.
 MAX_QUESTIONS = 128
 TIMEOUT_S = 30
@@ -63,12 +61,8 @@ class CallFailed(RuntimeError):
         self.record = record
 
 
-def request_hash(route, body):
-    return hashlib.sha256((route + "\n" + json.dumps(body, sort_keys=True)).encode()).hexdigest()
-
-
 def cache_path(route, body):
-    return CACHE / f"{route}-{request_hash(route, body)[:24]}.json"
+    return CACHE / f"{route}-{api.request_hash(route, body)[:24]}.json"
 
 
 def cached(route, body):
@@ -218,16 +212,16 @@ class LiquidClient:
             raise SpendStop(STOP.read_text(encoding="utf-8"))
         spent = spend_today()
         if spent >= self.day_limit:
-            self._stop(spent, label, 200)
+            self._stop(spent, label)
 
-    def _stop(self, spent, label, status):
+    def _stop(self, spent, label):
         STOP.parent.mkdir(parents=True, exist_ok=True)
-        STOP.write_text(json.dumps({"at": _now(), "spent_usd": round(spent, 6), "status": status,
-                                    "label": label}), encoding="utf-8")
+        STOP.write_text(json.dumps({"at": _now(), "spent_usd": round(spent, 6), "label": label}),
+                        encoding="utf-8")
         raise SpendStop(f"the day's Liquid spend reached ${spent:.4f}, at the ${self.day_limit:.2f} limit")
 
     def _exchange(self, body, label):
-        """Send every chunk of one body once, merging the answers. Returns (status, response, entries)."""
+        """Send every chunk of one body once, merging the answers. Returns (status, response, entries, results)."""
         parts = chunks(body["questions"])
         answers, usage = {}, {"input_tokens": 0, "output_tokens": 0, "cost": 0.0}
         records, status, sent = [], 200, []
@@ -281,7 +275,7 @@ class LiquidClient:
                 BILLING.write_text(json.dumps({"at": _now(), "status": status, "label": label}), encoding="utf-8")
                 raise BillingStop(f"status {status} on {label}")
             if spent >= self.day_limit:
-                self._stop(spent, label, status)
+                self._stop(spent, label)
             if status == 429:
                 retry_after = results[-1].get("retry_after") or ""
                 self.pacer.on_429(int(retry_after) if retry_after.isdigit() else None)
@@ -301,12 +295,3 @@ class LiquidClient:
         if not cache_path(route, body).exists():
             cache_path(route, body).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         return record
-
-    def models(self):
-        """GET /decisions/v1/models, reduced to the ids and their input modes. Not a model call, and not billed."""
-        result = self._send("GET", MODELS_PATH, None)
-        body = result.get("body") or {}
-        listed = body.get("data") if isinstance(body.get("data"), list) else body.get("models") or []
-        keep = [{"id": item.get("id"), "input": item.get("input") or item.get("modalities")}
-                for item in listed if isinstance(item, dict)]
-        return {"status": result["status"], "ms": round(result["ms"], 1), "models": keep}
