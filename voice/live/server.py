@@ -75,7 +75,7 @@ from voice.live import fallback
 from voice.live.endpoint import RATE, Audio, End, Endpointer, Settings, Start
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import FALLBACK_LINE, PERSONA, run_clip, user_text
+from voice.prototype.run import FALLBACK_LINE, PERSONA, carried_tasks, run_clip, user_text
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -231,7 +231,7 @@ class Conversation:
         self.sender = asyncio.create_task(self._send_loop())
         self.voice, self.voice_turn, self.session_turns, self.persona = None, None, 0, None
         self.sessions, self.call, self.out_rate = 0, [], None
-        self.snapshot = None
+        self.snapshot, self.tasks = None, []
         self.pending, self.started = set(), time.perf_counter()
 
     def voice_clock(self):
@@ -384,7 +384,7 @@ class Conversation:
                                     speak=lambda text, pcm: self.speak(turn, text, pcm),
                                     prior_utterances=tuple(turn_text["user"] for turn_text in self.call
                                                            if "user" in turn_text),
-                                    fallback_pcm=live.fallback_pcm(turn.out_rate))
+                                    fallback_pcm=live.fallback_pcm(turn.out_rate), prior_tasks=tuple(self.tasks))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -396,6 +396,7 @@ class Conversation:
         self.call.append({kind: text for kind, text in (("user", record.get("final_transcript")),
                                                         ("assistant", spoken)) if text})
         self.snapshot = record.get("snapshot") or self.snapshot
+        self.tasks += carried_tasks(record)
         record["live"] = {**turn.metrics(), "prompt": prompt_source, "endpointer": vars(live.settings),
                           "mode": self.mode, "snapshot": live.args.snapshot,
                           "call": {"turn": len(self.call), "session_turn": self.session_turns,

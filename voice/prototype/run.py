@@ -324,7 +324,7 @@ class WavInput:
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
-                   fallback_pcm=b""):
+                   fallback_pcm=b"", prior_tasks=()):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -347,7 +347,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     mode does. The turn writes `CLIP_reply.wav` and `CLIP_update.wav` either way, so a record is readable without the
     client's copy. `prior_utterances` is what the person said earlier in the call, which the fact check needs because
     the shipped snapshot no longer carries their words. `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
-    the caller; without it a turn that loses both replies still says the line in its record and plays nothing."""
+    the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
+    `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it."""
     t0 = time.perf_counter()
 
     def clock():
@@ -607,6 +608,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    **({"tools": tool_session.events, "tools_sent": tool_session.sent}
                       if tool_session is not None else {})},
     }
+
+
+def carried_tasks(record):
+    """The tasks one turn ran, as later turns of the call see them. `ref` names the turn and the task, because every
+    turn numbers its tasks from task_1."""
+    turn = Path(record.get("clip") or "turn").stem
+    return [{"ref": f"{turn}:{t['task_id']}", "instruction": t["instruction"], "side_effect": t["side_effect"]}
+            for t in record.get("tasks", []) if t["status"] == "dispatched"]
 
 
 async def main_async(args):
