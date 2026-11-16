@@ -40,7 +40,7 @@ SNAPSHOT_STATUS = {
     Status.NEEDS_CLARIFICATION: "needs_clarification",
     Status.DISPATCHED: "running",
     Status.CANCEL_REQUESTED: "cancel_requested",
-    Status.HELD: "held_for_confirmation",
+    Status.HELD: "pending",
 }
 LIVE = {Status.PROPOSED, Status.READY, Status.NEEDS_CLARIFICATION, Status.HELD, Status.DISPATCHED}
 MATCH_THRESHOLD = 0.6

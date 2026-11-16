@@ -184,12 +184,12 @@ class HandoffToolsTest(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(events, [{"task_id": "task_1", "event": "cancelled"}])
 
-    def test_the_snapshot_reports_a_held_task_and_the_unreviewed_speech(self):
+    def test_the_snapshot_reports_a_dispatch_hold_as_pending_and_keeps_unreviewed_speech(self):
         orch = self.segmenter.orch
         held = orch._new_task("email dana", 0, {"orchestrator"}, side_effect=True)
         orch._move(held, Status.HELD, "test")
         snapshot = self.service.snapshot("utt_1", "", "and email Dana")
-        self.assertEqual(statuses(snapshot)["email dana"], "held_for_confirmation")
+        self.assertEqual(statuses(snapshot)["email dana"], "pending")
         self.assertEqual(snapshot["unreviewed_speech"], "and email Dana")
 
 
