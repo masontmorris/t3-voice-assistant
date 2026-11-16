@@ -1,0 +1,337 @@
+{
+  "split": "held",
+  "bar": 0.88,
+  "rows": [
+    {
+      "id": "h3-short",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9443695491228068,
+        "wake_pm": 0.05288369741006551,
+        "tell_mason": 0.0027467534671278496
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "h3-eval",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9526824371592596,
+        "wake_pm": 0.04429664308401164,
+        "tell_mason": 0.003020919756728576
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "h3-estimate-long",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9056604328169781,
+        "wake_pm": 0.017523296572600006,
+        "tell_mason": 0.07681627061042198
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "f3-pr",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9950877001492566,
+        "wake_pm": 0.003908261695062726,
+        "tell_mason": 0.0010040381556806369
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "f3-old",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9844511625535398,
+        "wake_pm": 0.013297475084397279,
+        "tell_mason": 0.0022513623620628283
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "f3-promise-phrase",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9873428074907717,
+        "wake_pm": 0.011061321333063511,
+        "tell_mason": 0.0015958711761646118
+      },
+      "rule": "rule_promise",
+      "gate": "wake_pm",
+      "layer": "rule_promise",
+      "cached": false
+    },
+    {
+      "id": "s3-run-default",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.7655081885612973,
+        "wake_pm": 0.22894350806518074,
+        "tell_mason": 0.005548303373521923
+      },
+      "rule": "rule_stall",
+      "gate": "wake_pm",
+      "layer": "rule_stall",
+      "cached": false
+    },
+    {
+      "id": "s3-estimate",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.8536391809802044,
+        "wake_pm": 0.14246123787059153,
+        "tell_mason": 0.003899581149203936
+      },
+      "rule": "rule_stall",
+      "gate": "wake_pm",
+      "layer": "rule_stall",
+      "cached": false
+    },
+    {
+      "id": "s3-charter",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.5774346843922573,
+        "wake_pm": 0.4163415785761819,
+        "tell_mason": 0.0062237370315607705
+      },
+      "rule": "rule_stall",
+      "gate": "wake_pm",
+      "layer": "rule_stall",
+      "cached": false
+    },
+    {
+      "id": "s3-promise",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9280375280036821,
+        "wake_pm": 0.06749842785953851,
+        "tell_mason": 0.004464044136779427
+      },
+      "rule": "rule_promise",
+      "gate": "wake_pm",
+      "layer": "rule_promise",
+      "cached": false
+    },
+    {
+      "id": "s3-loop",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.03186501346338427,
+        "wake_pm": 0.9202193274378131,
+        "tell_mason": 0.047915659098802625
+      },
+      "rule": null,
+      "gate": "wake_pm",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "s3-ci-wait",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.904984364156723,
+        "wake_pm": 0.0858384495603639,
+        "tell_mason": 0.00917718628291303
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "s3-drift",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.0512614793822063,
+        "wake_pm": 0.9436763757842656,
+        "tell_mason": 0.005062144833528187
+      },
+      "rule": null,
+      "gate": "wake_pm",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "w3-card-old",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.1259802456344005,
+        "wake_pm": 0.853816670218897,
+        "tell_mason": 0.02020308414670249
+      },
+      "rule": "rule_question",
+      "gate": "wake_pm",
+      "layer": "rule_question",
+      "cached": false
+    },
+    {
+      "id": "w3-card-new",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.15141217193986864,
+        "wake_pm": 0.840191409410469,
+        "tell_mason": 0.00839641864966252
+      },
+      "rule": null,
+      "gate": "wake_pm",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "w3-blocked",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.07010931847320358,
+        "wake_pm": 0.9054137072104289,
+        "tell_mason": 0.02447697431636763
+      },
+      "rule": null,
+      "gate": "wake_pm",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "m3-card-token",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "decider": "tell_mason",
+      "p": {
+        "stay_quiet": 0.006457089596837868,
+        "wake_pm": 0.06973144905902412,
+        "tell_mason": 0.923811461344138
+      },
+      "rule": "rule_question",
+      "gate": "wake_pm",
+      "layer": "rule_question",
+      "cached": false
+    },
+    {
+      "id": "m3-money",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "decider": "tell_mason",
+      "p": {
+        "stay_quiet": 0.10380695389923608,
+        "wake_pm": 0.021323999724503048,
+        "tell_mason": 0.874869046376261
+      },
+      "rule": null,
+      "gate": "tell_mason",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "m3-owner",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "decider": "tell_mason",
+      "p": {
+        "stay_quiet": 0.09254826178782055,
+        "wake_pm": 0.04044861906467564,
+        "tell_mason": 0.8670031191475038
+      },
+      "rule": null,
+      "gate": "tell_mason",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "a3-traceback",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9540942458665622,
+        "wake_pm": 0.0433897604183705,
+        "tell_mason": 0.0025159937150672825
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "a3-critical",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9902689452184248,
+        "wake_pm": 0.008561730409190475,
+        "tell_mason": 0.0011693243723846249
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "a3-429",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.8943262980429547,
+        "wake_pm": 0.08359112007445799,
+        "tell_mason": 0.02208258188258717
+      },
+      "rule": null,
+      "gate": "stay_quiet",
+      "layer": "decider",
+      "cached": false
+    }
+  ],
+  "ledgerAttempts": 82
+}

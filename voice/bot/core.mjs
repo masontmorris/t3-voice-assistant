@@ -57,6 +57,69 @@ export function wakeBlock(watch, fp, t, cfg) {
 
 const RUN_KEYS = ["status", "activeRunId", "latestRunId"];
 
+// The quiet time a running node may have before the stall rule wakes its parent, by role, when nothing more specific is known.
+export const ROLE_BUDGET_MIN = { worker: 30, pm: 60, orchestrator: 120 };
+export const RULE_DEFAULTS = { questionTimeoutSec: 600, promiseGraceSec: 300, estimateSlack: 2 };
+export const STAY_QUIET_BAR = 0.88;
+
+const NUMBER_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, ninety: 90 };
+const ESTIMATE_RE = new RegExp(
+	String.raw`\b(?:takes?|about|around|roughly|eta|finish(?:es)? in|done in|expect(?:ed)?|another)\b[^.]{0,30}?\b(\d+(?:\.\d+)?|${Object.keys(NUMBER_WORDS).join("|")})\s*(minutes?|mins?|hours?|hrs?)\b`,
+	"i",
+);
+const CHARTER_BUDGET_RE = /\bprogress every (\d+) ?min/i;
+const PROMISE_RE =
+	/\b(?:will|i'll|i will)\s+(?:report back|check back|follow up|let (?:you|the pm) know|update you|post the results?)\b|\bonce (?:it|this|that|the \w+) (?:finishes|completes|is done)\b|\bwhen it (?:finishes|completes)\b/i;
+
+// The worker's own stated estimate in minutes, or null. "half an hour" counts as 30.
+export function estimateMin(reply) {
+	if (/\bhalf an hour\b/i.test(reply)) return 30;
+	const m = ESTIMATE_RE.exec(reply || "");
+	if (!m) return null;
+	const n = NUMBER_WORDS[m[1].toLowerCase()] ?? Number(m[1]);
+	return /^h/i.test(m[2]) ? n * 60 : n;
+}
+
+// The node's expectation: how long it may stay quiet while running. Explicit config wins, then the charter, then the
+// worker's own estimate with slack, then the role default.
+export function budgetFor(f, cfg) {
+	if (f.quietBudgetMin) return { min: f.quietBudgetMin, from: "the node's configured budget" };
+	const c = CHARTER_BUDGET_RE.exec(f.charter || "");
+	if (c) return { min: Number(c[1]), from: "the charter" };
+	const slack = cfg.estimateSlack ?? RULE_DEFAULTS.estimateSlack;
+	const e = estimateMin(f.lastReply);
+	if (e) return { min: e * slack, from: `the worker's estimate of ${e} min, times ${slack}` };
+	const roles = { ...ROLE_BUDGET_MIN, ...cfg.roleBudgetMin };
+	return { min: roles[f.role] ?? ROLE_BUDGET_MIN.worker, from: `the ${f.role} default` };
+}
+
+// The fixed rules, checked before any model call. f: { role, charter, quietBudgetMin, running, status, quietSec, lastReply,
+// openQuestionSec, backgroundTasks }. Returns { source, reason } for a wake, or null.
+export function ruleVerdict(f, cfg) {
+	const questionTimeoutSec = cfg.questionTimeoutSec ?? RULE_DEFAULTS.questionTimeoutSec;
+	if (f.openQuestionSec != null && f.openQuestionSec >= questionTimeoutSec)
+		return { source: "rule_question", reason: `a question has been open for ${Math.round(f.openQuestionSec)}s, past questionTimeoutSec ${questionTimeoutSec}` };
+	if (f.running) {
+		const b = budgetFor(f, cfg);
+		if (f.quietSec >= b.min * 60)
+			return { source: "rule_stall", reason: `running and quiet for ${Math.round(f.quietSec / 60)} min, past its budget of ${b.min} min from ${b.from}` };
+		return null;
+	}
+	const promiseGraceSec = cfg.promiseGraceSec ?? RULE_DEFAULTS.promiseGraceSec;
+	if (f.status === "completed" && !f.backgroundTasks && PROMISE_RE.test(f.lastReply || "") && f.quietSec >= promiseGraceSec)
+		return { source: "rule_promise", reason: `the run ended promising a later report, nothing is running or in the background, and it has been quiet for ${Math.round(f.quietSec)}s` };
+	return null;
+}
+
+// stay_quiet counts only when its probability clears the bar. Below it, the gate wakes whichever of wake_pm and tell_mason
+// the decider found likelier, and wake_pm on a tie, because the PM can still escalate to Mason.
+export function applyBar(choice, p, cfg) {
+	const bar = cfg.stayQuietBar === undefined ? STAY_QUIET_BAR : cfg.stayQuietBar;
+	if (choice !== "stay_quiet" || bar == null || (p && p.stay_quiet >= bar)) return { verdict: choice, note: null };
+	const verdict = (p.tell_mason || 0) > (p.wake_pm || 0) ? "tell_mason" : "wake_pm";
+	return { verdict, note: `stay_quiet p=${(p.stay_quiet || 0).toFixed(2)} is below the bar ${bar}, so the gate routed it to ${verdict}` };
+}
+
 export function verdictRequest(worker, pm, trigger, quietSec, lastReply) {
 	return {
 		model: MODEL,
@@ -152,10 +215,41 @@ export function createHeartbeat(cfg, deps, startedAt) {
 		if (runIds.length && runIds.every((id) => botRuns.has(id))) for (const k of RUN_KEYS) delete kept[k];
 		if (!Object.keys(kept).length) return { dropped: "the run was started by the bot's own wake message" };
 		const child = !!node.thread.lineage && node.thread.lineage.parentThreadId === node.parent;
-		if (child && !fp.activeRunId && Object.keys(kept).every((k) => RUN_KEYS.includes(k)))
-			return { dropped: "rule 1: the node is a T3 child of its parent, and T3 wakes the parent when the child's run ends" };
+		if (child && !fp.activeRunId && fp.status === "completed" && Object.keys(kept).every((k) => RUN_KEYS.includes(k)))
+			return { dropped: "rule 1: the node is a T3 child of its parent, and T3 wakes the parent when the child's run completes" };
 		return { delta: kept };
 	}
+
+	async function refreshReply(node, watch) {
+		try {
+			watch.lastReply = helpers.lastAssistantText(await t3.thread(node.threadId));
+		} catch (e) {
+			watch.lastReply = watch.lastReply || "";
+			say(`reply read error for ${node.threadId.slice(-8)}: ${e.message}`);
+		}
+	}
+
+	function trackQuestion(node, watch, fp, t) {
+		if (!fp.pendingRequest) {
+			watch.question = null;
+			return;
+		}
+		if (watch.question && watch.question.id === fp.pendingRequest) return;
+		const opened = Date.parse((node.thread.pendingRuntimeRequest || {}).createdAt);
+		watch.question = { id: fp.pendingRequest, since: Number.isFinite(opened) ? opened : t };
+	}
+
+	const featuresOf = (node, watch, fp, t) => ({
+		role: node.role,
+		charter: node.charter,
+		quietBudgetMin: node.quietBudgetMin,
+		running: !!fp.activeRunId,
+		status: fp.status,
+		quietSec: (t - node.lastEventAt) / 1000,
+		lastReply: watch.lastReply || "",
+		openQuestionSec: watch.question ? (t - watch.question.since) / 1000 : null,
+		backgroundTasks: (node.thread.pendingBackgroundTasks || []).length,
+	});
 
 	async function ask(node, trigger, t) {
 		const parent = nodes.get(node.parent);
@@ -163,17 +257,18 @@ export function createHeartbeat(cfg, deps, startedAt) {
 		let verdict;
 		try {
 			const quietSec = Math.round((t - node.lastEventAt) / 1000);
-			const lastReply = helpers.lastAssistantText(await t3.thread(node.threadId));
-			const body = verdictRequest(node, parent, trigger, quietSec, lastReply);
+			const body = verdictRequest(node, parent, trigger, quietSec, watches.get(node.threadId).lastReply || "");
 			const { record, cached } = await decider.call(body, `${trigger.kind}:${node.threadId.slice(-8)}`);
 			const answer = record.status === 200 && record.response.answers && record.response.answers.verdict;
 			const modelVerdict = answer && VERDICTS.includes(answer.choice) ? answer.choice : null;
 			const p = answer && answer.probabilities ? answer.probabilities[answer.choice] : null;
-			verdict = modelVerdict || "wake_pm";
+			const barred = modelVerdict ? applyBar(modelVerdict, answer.probabilities, cfg) : null;
+			verdict = barred ? barred.verdict : "wake_pm";
 			entry.reason = modelVerdict
-				? `${trigger.kind} ${JSON.stringify(trigger.delta)}; system one chose ${modelVerdict} (p=${p && p.toFixed(2)})`
+				? `${trigger.kind} ${JSON.stringify(trigger.delta)}; system one chose ${modelVerdict} (p=${p && p.toFixed(2)})${barred.note ? `; ${barred.note}` : ""}`
 				: `${trigger.kind}; system one gave no usable verdict (http ${record.status}), failing open`;
 			entry.source = modelVerdict ? "system_one" : "fail_open";
+			if (modelVerdict) entry.modelChoice = modelVerdict;
 			Object.assign(entry, { cached, httpStatus: record.status });
 		} catch (e) {
 			verdict = "wake_pm";
@@ -223,6 +318,8 @@ export function createHeartbeat(cfg, deps, startedAt) {
 				if (!watch) continue;
 				const fp = fingerprint(n.thread);
 				let trigger = gate(watch, fp, n.lastEventAt, t, cfg);
+				if (watch.lastReply === undefined || (trigger && trigger.kind === "change")) await refreshReply(n, watch);
+				trackQuestion(n, watch, fp, t);
 				if (trigger && trigger.kind === "change") {
 					const f = await filterDelta(n, trigger.delta, fp);
 					if (f.dropped) {
@@ -230,7 +327,14 @@ export function createHeartbeat(cfg, deps, startedAt) {
 						trigger = null;
 					} else trigger.delta = f.delta;
 				}
-				if (trigger) {
+				const rule = wakeBlock(watch, fp, t, cfg) ? null : ruleVerdict(featuresOf(n, watch, fp, t), cfg);
+				if (rule) {
+					triggers.push(rule.source);
+					const entry = { at: iso(t), node: n.threadId, role: n.role, trigger: trigger ? trigger.kind : "rule", delta: trigger ? trigger.delta : {}, verdict: "wake_pm", reason: rule.reason, source: rule.source };
+					await wake(n, entry, t);
+					logCheckin(entry);
+					say(`${rule.source} wake for ${n.role} ${n.threadId.slice(-8)}: ${rule.reason}`);
+				} else if (trigger) {
 					triggers.push(trigger.kind);
 					await ask(n, trigger, t);
 				}
