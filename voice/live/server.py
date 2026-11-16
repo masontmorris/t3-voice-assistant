@@ -35,6 +35,11 @@ default) after the turn's tools ran and immediately before the reply, with the p
 same place with everything, "before-audio" the call's task state as the turn started and before the turn's audio,
 "off" no machine text in the voice session at all.
 
+A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
+reply and asks whether the person said them in this call or the newest machine note states them; the assistant's own
+earlier replies do not count. A reply that fails is not sent: the turn says so in its record, sends one machine note
+that the value is not available, and asks again once. A second bad answer is dropped instead of spoken.
+
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read again at each turn start. llama.cpp keeps
 a session's instructions once it holds a message, so a changed prompt starts a new voice session, seeded like a long
 call's, on the next turn. When the file is missing the prototype's built-in persona is used.
@@ -160,7 +165,7 @@ class MicTurn:
         self.queue, self.pcm, self.audio_s = asyncio.Queue(), bytearray(), None
         self.started = time.perf_counter()
         self.speech_end = self.turn_end = self.first_audio = None
-        self.out_rate, self.in_reply, self.reply_started = None, False, False
+        self.out_rate, self.reply_started = None, False
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
         self.task = self.decider = None
         self.feed(pcm)
@@ -305,24 +310,25 @@ class Conversation:
         self.post({"type": "turn_end", "turn": self.turn.n, "trailing_ms": trailing_ms, "forced": forced})
 
     def on_voice_event(self, event):
-        """Every event on the call's voice session belongs to the turn that has the session right now."""
+        """Every event on the call's voice session belongs to the turn that has the session right now.
+
+        Reply audio is not forwarded here. The turn collects it, checks the reply's facts, and hands what passed to
+        `speak`, so a reply that names a day, date, time, number or place the call never gave is never heard."""
         turn = self.voice_turn
         if turn is None:
             return
-        kind = event.get("type")
-        if kind == "session.created":
+        if event.get("type") == "session.created":
             self.out_rate = turn.out_rate = event["session"]["audio"]["output"]["format"]["rate"]
-        if turn.muted:
+
+    def speak(self, turn, text, pcm):
+        """Send one checked reply to the client: its start, its audio in 40 ms frames, and its end."""
+        if turn.muted or not pcm:
             return
-        if kind == "response.output_audio.delta":
-            if not turn.in_reply:
-                turn.in_reply = turn.reply_started = True
-                turn.first_audio = turn.first_audio or time.perf_counter()
-                self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
-            self.post_audio(turn, base64.b64decode(event["delta"]))
-        elif kind == "response.done" and turn.in_reply:
-            turn.in_reply = False
-            self.post({"type": "reply_end", "turn": turn.n}, turn)
+        turn.reply_started = True
+        turn.first_audio = turn.first_audio or time.perf_counter()
+        self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
+        self.post_audio(turn, pcm)
+        self.post({"type": "reply_end", "turn": turn.n}, turn)
 
     def reopen_reason(self, persona):
         """Why this turn needs a new voice session, or None when it shares the call's current one."""
@@ -369,7 +375,10 @@ class Conversation:
             turn.out_rate, self.started = self.out_rate, time.perf_counter()
             record = await run_clip(turn, "c", False, live.url, turn.decider, live.args.delay, live.out, partial,
                                     live.args.segmenter, live.tools, "gated", persona=persona, voice=voice,
-                                    snapshot_mode=live.args.snapshot, prior_snapshot=self.snapshot, seed=seed)
+                                    snapshot_mode=live.args.snapshot, prior_snapshot=self.snapshot, seed=seed,
+                                    speak=lambda text, pcm: self.speak(turn, text, pcm),
+                                    prior_utterances=tuple(turn_text["user"] for turn_text in self.call
+                                                           if "user" in turn_text))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:

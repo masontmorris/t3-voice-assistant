@@ -53,6 +53,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from pathlib import Path
 
+from voice.live.facts import ungrounded
 from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.reuse import ReusingClient
@@ -131,6 +132,14 @@ GATED_TOOLS = [
 TOOL_SESSIONS = {"handoff": (HANDOFF_INSTRUCTIONS, HANDOFF_TOOLS), "gated": (GATED_INSTRUCTIONS, GATED_TOOLS)}
 SNAPSHOT_PREFIX = "[task service snapshot, machine-generated, not spoken by the user] "
 UPDATE_PREFIX = "[task service update, machine-generated, not spoken by the user] "
+FACT_CHECK_PREFIX = "[fact check, machine-generated, not spoken by the user] "
+FACT_CHECK_REJECTED = {
+    "type": "fact_check",
+    "result": "rejected",
+    "reason": "the last reply named a day, date, time, number or place that nothing in this call said or stated",
+    "instruction": "Answer again with only facts the person said or this note states. If you do not have a value, "
+                   "say plainly that you do not have it. Never guess one.",
+}
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -155,6 +164,30 @@ async def respond(session, rate, since, **response):
     await session.send(type="response.create", **({"response": response} if response else {}))
     await session.wait_for("response.done", "error", after=mark)
     return reply_summary(session, mark, since, rate)
+
+
+async def answer(session, rate, since, sources, log, **response):
+    """A reply that states only facts the call gave it.
+
+    `sources` is what the assistant may say: the person's words in this call and the newest machine note, never its
+    own earlier replies. A reply that names a day, date, time, number or place no source states is not spoken: the
+    turn says so in the record, sends one machine note saying the value is not available, and asks again once. A
+    second bad answer is dropped rather than said, and the record keeps both texts. Nothing is substituted for a
+    wrong value, because a different wrong value is worse than saying less."""
+    reply, pcm = await respond(session, rate, since, **response)
+    missing = ungrounded(reply["text"], sources)
+    if not missing:
+        return reply, pcm
+    log("fact_check", reply=reply["text"], ungrounded=[f"{fact.kind} {fact.surface}" for fact in missing],
+        asked_again=True)
+    await create_item(session, user_text(FACT_CHECK_PREFIX, FACT_CHECK_REJECTED))
+    retry, retry_pcm = await respond(session, rate, since, **response)
+    again = ungrounded(retry["text"], sources)
+    if not again:
+        return retry, retry_pcm
+    log("fact_check", reply=retry["text"], ungrounded=[f"{fact.kind} {fact.surface}" for fact in again], blocked=True)
+    return {**retry, "text": "", "blocked": {"reply": retry["text"],
+                                             "ungrounded": [f"{fact.kind} {fact.surface}" for fact in again]}}, b""
 
 
 async def create_item(session, item):
@@ -271,7 +304,7 @@ class WavInput:
 
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
-                   snapshot_mode="reply", prior_snapshot=None, seed=None):
+                   snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=()):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -288,7 +321,12 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     after the tools turn; the turn's own transcript is then not in the text the model reads. "reply-no-utterance" is
     "reply" with the person's words dropped from the snapshot and from the task update (see `without_utterance`), so
     the item still carries the task list, its statuses and its results. "off" sends no machine text at all, whatever
-    `eou` and `inject` are. The task service, the tool session and its snapshot are the same in all four."""
+    `eou` and `inject` are. The task service, the tool session and its snapshot are the same in all four.
+
+    `speak` takes the reply text and PCM that passed the fact check, when the caller streams the reply itself, as live
+    mode does. The turn writes `CLIP_reply.wav` and `CLIP_update.wav` either way, so a record is readable without the
+    client's copy. `prior_utterances` is what the person said earlier in the call, which the fact check needs because
+    the shipped snapshot no longer carries their words."""
     t0 = time.perf_counter()
 
     def clock():
@@ -424,6 +462,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         unreviewed = closed.get("unreviewed_speech")
         snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)
         log("snapshot", snapshot=snapshot)
+        read_before = prior_snapshot if snapshot_mode == "before-audio" else None
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
@@ -444,10 +483,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if (item := shown(answered, snapshot_mode, adapter.text())) is not None:
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
             log("injection", items=injection)
-            reply, reply_pcm = await respond(voice, out_rate, audio_end)
+            sources = [adapter.text(), *prior_utterances, read_before, item]
+            reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log)
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
-            write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+            if reply_pcm:
+                write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+            if speak is not None and reply_pcm:
+                speak(reply["text"], reply_pcm)
         elif (item := shown(snapshot, snapshot_mode, adapter.text())) is None:
             pass
         elif inject == "a":
@@ -466,10 +509,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
         if eou not in TOOL_SESSIONS:
             log("injection", items=injection)
-            reply, reply_pcm = await respond(voice, out_rate, audio_end, **extra)
+            reply, reply_pcm = await answer(voice, out_rate, audio_end,
+                                            [adapter.text(), *prior_utterances, read_before, item], log, **extra)
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
-            write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+            if reply_pcm:
+                write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+            if speak is not None and reply_pcm:
+                speak(reply["text"], reply_pcm)
 
         while (due := service.next_due()) is not None:
             await wait_for_work(service, due - clock())
@@ -481,10 +528,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             boundary = clock()
             log("task_updates", updates=task_updates)
             injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
-            update_reply, update_pcm = await respond(voice, out_rate, boundary, **extra)
+            update_reply, update_pcm = await answer(voice, out_rate, boundary,
+                                                    [adapter.text(), *prior_utterances, updates], log, **extra)
             replies.append({"kind": "update", "injection": injection_update, **update_reply})
             log("reply", reply="update", text=update_reply["text"])
-            write_pcm16(out / f"{stem}_update.wav", update_pcm, out_rate)
+            if update_pcm:
+                write_pcm16(out / f"{stem}_update.wav", update_pcm, out_rate)
+            if speak is not None and update_pcm:
+                speak(update_reply["text"], update_pcm)
 
     finally:
         if worker is not None:

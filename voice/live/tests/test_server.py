@@ -58,22 +58,17 @@ class FakeVoice:
         self.closed = True
 
 
-async def fake_run_clip(source, *args, persona, voice=None, **kwargs):
-    """Streams the turn's input, then sends 2 s of reply audio in 20 ms deltas after a 0.3 s think, through the
-    live server's own voice-event dispatcher."""
+async def fake_run_clip(source, *args, persona, voice=None, speak=None, prior_utterances=(), **kwargs):
+    """Streams the turn's input, then hands the turn one checked 2 s reply through the live server's own transport,
+    the way `run_clip` does after the fact check."""
     PERSONAS.append(persona)
     CALLS.append((*args, kwargs))
     VOICES.append(voice)
     SENT_BEFORE.append(list(voice.sent))
-    emit = voice.on_event
-    emit({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+    voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
     await asyncio.sleep(0.3)
-    delta = base64.b64encode(b"\x01\x00" * (OUT_RATE // 50)).decode()
-    for _ in range(100):
-        emit({"type": "response.output_audio.delta", "delta": delta})
-        await asyncio.sleep(0.02)
-    emit({"type": "response.done"})
+    speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE * 2))
     return {"clip": source.name, "final_transcript": f"words in {source.name}",
             "replies": [{"text": f"reply to {source.name}"}], "metrics": {},
             "snapshot": {"final_transcript": f"state after {source.name}"}}
@@ -228,24 +223,22 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
         await ws.close()
 
-    async def test_speech_during_the_reply_interrupts_it(self):
+    async def test_speech_during_the_reply_stops_playback_and_keeps_the_call(self):
         ws = await self.connect()
         log = []
         await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
         await self.until(ws, "reply_start", log)
         await self.send(ws, tone(300))
         barge = await self.until(ws, "barge_in", log)
-        self.assertEqual(barge["turn"], 1)
+        self.assertEqual(barge["turn"], 1, "the reply the person talked over is the one flushed")
+        self.assertIn("reply_end", log, "the whole reply was handed to the client before it was flushed")
         after = []
         started = await self.until(ws, "turn_start", after)
         self.assertEqual(started["turn"], 2)
         await self.send(ws, noise(900, seed=2))
         await self.until(ws, "turn_end", after)
-        self.assertNotIn("audio", after[:after.index("turn_start")], "no audio from turn 1 after barge_in")
         while (done := await self.until(ws, "turn_done", after))["turn"] != 2:
             pass
-        record = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
-        self.assertEqual(record["live"]["cancelled"], "barge_in")
         self.assertFalse(VOICES[0].closed, "a barge-in keeps the call's session, and its history, open")
         self.assertIs(VOICES[0], VOICES[1], "the next turn continues on the same session")
         await ws.close()
@@ -284,48 +277,54 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         await first.close()
 
 
-class VoiceEventSeamTest(unittest.IsolatedAsyncioTestCase):
-    async def test_run_clip_hands_voice_audio_to_the_live_callback(self):
-        """The voice session is the only source of reply audio, so a delta the model sends has to reach the callback
-        run_clip was given. The live server's outbox follows that callback."""
-        got = []
-        delta = asyncio.Event()
+class SpeakTest(unittest.IsolatedAsyncioTestCase):
+    """The live transport half of the fact check: the server speaks only what the turn hands it after the check, and
+    a reply the person talked over is not sent at all."""
 
-        async def handler(ws):
-            await ws.send(json.dumps({"type": "session.created",
-                                      "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}}))
-            await ws.send(json.dumps({"type": "response.output_audio.delta",
-                                      "delta": base64.b64encode(b"\x01\x00" * 480).decode()}))
-            async for raw in ws:
-                if json.loads(raw).get("type") == "session.update":
-                    await ws.send(json.dumps({"type": "session.updated"}))
+    async def conversation(self):
+        live = SimpleNamespace(settings=server.Settings(silence_ms=700, start_ms=100, preroll_ms=300,
+                                                        floor_dbfs=-50.0, margin_db=10.0, max_turn_s=30.0),
+                               turns=0)
+        conversation = server.Conversation(live, SimpleNamespace(send=None))
+        conversation.sender.cancel()
+        self.addAsyncCleanup(asyncio.gather, conversation.sender, return_exceptions=True)
+        return conversation
 
-        class Source:
-            name = stem = "turn_001"
-            rate, audio_s = 16_000, 0.0
+    async def test_a_checked_reply_is_sent_start_audio_end(self):
+        conversation = await self.conversation()
+        turn = server.MicTurn(1, b"")
+        turn.out_rate = OUT_RATE
+        conversation.speak(turn, "I don't have the day for that yet.", b"\x01\x00" * OUT_RATE)
+        kinds, frames = [], 0
+        while not conversation.outbox.empty():
+            _, payload = conversation.outbox.get_nowait()
+            if isinstance(payload, bytes):
+                kinds.append("audio")
+                frames += len(payload)
+                self.assertLessEqual(len(payload), OUT_RATE * 2 // 25, "no frame longer than 40 ms")
+            else:
+                kinds.append(json.loads(payload)["type"])
+        self.assertEqual(kinds[0], "reply_start")
+        self.assertEqual(kinds[-1], "reply_end")
+        self.assertEqual(set(kinds[1:-1]), {"audio"})
+        self.assertEqual(frames, OUT_RATE * 2, "one second of 16-bit audio")
 
-            async def stream(self, voice, asr):
-                return 0.0
+    async def test_a_muted_turn_says_nothing(self):
+        conversation = await self.conversation()
+        turn = server.MicTurn(1, b"")
+        turn.out_rate = OUT_RATE
+        turn.muted = True
+        conversation.speak(turn, "I'm running the task for Sunday.", b"\x01\x00" * OUT_RATE)
+        self.assertTrue(conversation.outbox.empty(), "the person already talked over this reply")
 
-        def on_voice_event(event):
-            got.append(event["type"])
-            if event["type"] == "response.output_audio.delta":
-                delta.set()
-
-        fake = await serve(handler, "127.0.0.1", 0)
-        url = f"ws://127.0.0.1:{fake.sockets[0].getsockname()[1]}/v1/realtime"
-        with tempfile.TemporaryDirectory() as tmp:
-            turn = asyncio.create_task(run_clip(Source(), "c", False, url, None, 0.0, Path(tmp), {}, "hybrid",
-                                                None, "gated", on_voice_event=on_voice_event))
-            try:
-                await asyncio.wait_for(delta.wait(), 10)
-            finally:
-                turn.cancel()
-                await asyncio.gather(turn, return_exceptions=True)
-                fake.close()
-                await fake.wait_closed()
-        self.assertIn("session.created", got)
-        self.assertIn("response.output_audio.delta", got, "the turn's voice deltas reach the live client")
+    async def test_a_delta_on_the_session_alone_sends_no_audio(self):
+        """The voice session is not the transport any more: only a checked reply reaches the client."""
+        conversation = await self.conversation()
+        conversation.voice_turn = server.MicTurn(1, b"")
+        conversation.on_voice_event({"type": "response.output_audio.delta", "delta": "AAAA"})
+        conversation.on_voice_event({"type": "response.done"})
+        self.assertTrue(conversation.outbox.empty())
+        self.assertFalse(conversation.voice_turn.reply_started, "nothing was spoken")
 
 
 class ChunkTest(unittest.IsolatedAsyncioTestCase):

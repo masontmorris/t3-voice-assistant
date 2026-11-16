@@ -285,6 +285,91 @@ class SessionOrderTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn(REFUSAL, str(refused.exception), "the record gets the reason, not a 120 s timeout")
 
 
+class Scripted(FakeSession):
+    """A voice session that answers each `response.create` with the next line in `script`, plus 20 ms of audio."""
+
+    script = ["Sunny."]
+    asked = 0
+
+    async def send(self, **event):
+        if event.get("type") == "response.create":
+            self.sent.append(event)
+            self.asked += 1
+            text = self.script.pop(0) if self.script else "I'm still on it."
+            await self.push({"type": "response.output_text.delta", "delta": text})
+            await self.push({"type": "response.output_audio.delta",
+                             "delta": base64.b64encode(b"\x01\x00" * 480).decode()})
+            await self.push({"type": "response.done", "response": {"status": "completed", "output": []}})
+            return
+        await super().send(**event)
+
+
+class FactCheckTest(unittest.IsolatedAsyncioTestCase):
+    """The three turns of the demo call, with the voice session scripted to answer as the model did on turn 3."""
+
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.original_open = prototype.Session.open
+        self.voice = None
+
+        async def open_session(url, name, clock, on_event=None):
+            if name == "voice":
+                self.voice = await Scripted.open(url, name, clock, on_event)
+                return self.voice
+            return await FakeSession.open(url, name, clock, on_event)
+
+        prototype.Session.open = open_session
+        self.addCleanup(setattr, prototype.Session, "open", self.original_open)
+        self.spoken = []
+        self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
+
+    async def turn(self, script, snapshot_mode="reply-no-utterance"):
+        self.voice.script = script
+        self.voice.asked = 0
+        return await prototype.run_clip(
+            Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
+            voice=self.voice, snapshot_mode=snapshot_mode,
+            prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
+            speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
+
+    async def test_weekday_invented_from_correction_is_asked_again(self):
+        """Sunday is not in the call, so the model's first answer is dropped and the turn asks again."""
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I don't have the day for that yet."])
+        self.assertEqual(self.voice.asked, 2, "the bad reply, and the one re-ask")
+        self.assertEqual(self.spoken[0][0], "I don't have the day for that yet.")
+        self.assertEqual([reply["text"] for reply in record["replies"]], ["I don't have the day for that yet."],
+                         "the record says what was spoken, not what the model first wrote")
+        notes = [item["content"][0]["text"] for item in [event["item"] for event in self.voice.sent
+                                                        if event.get("type") == "conversation.item.create"]
+                 if item["content"][0]["text"].startswith(prototype.FACT_CHECK_PREFIX)]
+        self.assertEqual(len(notes), 1, "one machine note says the value is not available, and it names no value")
+        self.assertNotIn("Sunday", notes[0])
+        checks = [entry for entry in record["timeline"] if entry["kind"] == "fact_check"]
+        self.assertEqual(checks[0]["ungrounded"], ["weekday Sunday"])
+        self.assertTrue(checks[0]["asked_again"])
+
+    async def test_a_second_ungrounded_reply_is_not_spoken(self):
+        """If the re-ask invents again, the turn says nothing rather than a different wrong day."""
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I'm running the task to get the weather in Denver for Monday."])
+        self.assertEqual(self.spoken, [], "no invented reply reaches the speaker")
+        self.assertEqual([reply["text"] for reply in record["replies"]], [""])
+        self.assertEqual(record["replies"][0]["blocked"]["ungrounded"], ["weekday Monday"],
+                         "the record keeps the text it refused to say")
+        self.assertTrue([entry for entry in record["timeline"] if entry.get("blocked")])
+
+    async def test_a_grounded_reply_is_spoken_once(self):
+        record = await self.turn(["I'm running the task to get the weather in Denver for Saturday."])
+        self.assertEqual(self.voice.asked, 1, "one reply, with no re-ask")
+        self.assertEqual(self.spoken[0][0], "I'm running the task to get the weather in Denver for Saturday.")
+        self.assertEqual([entry["kind"] for entry in record["timeline"] if entry["kind"] == "fact_check"], [])
+        self.assertEqual([reply["text"] for reply in record["replies"]],
+                         ["I'm running the task to get the weather in Denver for Saturday."])
+
+
 class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
