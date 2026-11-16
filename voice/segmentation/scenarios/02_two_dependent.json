@@ -1,0 +1,74 @@
+{
+  "id": "02_two_dependent",
+  "covers": "Two dependent requests. The second needs the first one's result.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find last quarter's",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find last quarter's sales report",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "find last quarter's sales report and then",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "find last quarter's sales report and then summarize it",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "find last quarter's sales report and then summarize it in three bullet points",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 6,
+      "text": "Find last quarter's sales report and then summarize it in three bullet points.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "sales",
+          "report"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "summarize"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}

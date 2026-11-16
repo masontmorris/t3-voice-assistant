@@ -1,0 +1,58 @@
+{
+  "id": "actually",
+  "covers": "correction actually",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "look up the height of mount elbert",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "look up the height of mount elbert actually mount massive",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Look up the height of Mount Elbert, actually Mount Massive.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "height",
+          "elbert"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "height",
+          "massive"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The second mountain replaces the first."
+}

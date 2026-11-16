@@ -1,0 +1,294 @@
+{
+  "scenario": "delete_and_read",
+  "covers": "delete plus read",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "delete_and_read:r1",
+      "cursor": 0,
+      "markers": [
+        4
+      ],
+      "calls": [
+        {
+          "label": "delete_and_read:r1",
+          "route": "decisions",
+          "file": "decisions-08a09abc44d3c6bf964869d3.json",
+          "status": 200,
+          "ms": 107.5,
+          "started_at": "2026-11-16T01:19:59.611+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "show the archive size",
+      "committed": null,
+      "answer": {
+        "finished": 0.9401138259368264,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8225815740302397,
+          "runner_up": "none"
+        },
+        "side_effect": 0.008101899663226084,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "delete_and_read:r2",
+      "cursor": 0,
+      "markers": [
+        4,
+        10
+      ],
+      "calls": [
+        {
+          "label": "delete_and_read:r2",
+          "route": "decisions",
+          "file": "decisions-e00b9918de80f29103a9d354.json",
+          "status": 200,
+          "ms": 88.3,
+          "started_at": "2026-11-16T01:20:02.711+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "show the archive size",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.8811640644364247,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8413665712457301,
+          "runner_up": "none"
+        },
+        "side_effect": 0.030460313576779103,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "delete_and_read:r3",
+      "cursor": 4,
+      "markers": [
+        10
+      ],
+      "calls": [
+        {
+          "label": "delete_and_read:r3",
+          "route": "decisions",
+          "file": "decisions-e8754cc4d3a5fbdad4d37e63.json",
+          "status": 200,
+          "ms": 106.5,
+          "started_at": "2026-11-16T01:20:12.965+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 10,
+      "candidate": "and delete the draft called april",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.9795132921544104,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8974873536962548,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9970859477645316,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9571744049679117,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.24575343503453917,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Show the archive size",
+      "instruction": "show the archive size",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "show the archive size"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "show the archive size",
+          "new": "Show the archive size"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and delete the draft called April.",
+      "instruction": "and delete the draft called April.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and delete the draft called April."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 4,
+      "text": "Show the archive size"
+    },
+    {
+      "sid": "s2",
+      "w0": 4,
+      "w1": 10,
+      "text": "and delete the draft called April."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 2,
+      "is_final": false,
+      "instruction": "show the archive size",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "and delete the draft called April.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_delete_and_read",
+    "final_transcript": "Show the archive size and delete the draft called April.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "show the archive size",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and delete the draft called April.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "archive",
+          "size"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "delete",
+          "april"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

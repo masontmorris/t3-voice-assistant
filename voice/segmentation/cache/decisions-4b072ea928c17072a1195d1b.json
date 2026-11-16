@@ -1,0 +1,131 @@
+{
+  "route": "decisions",
+  "label": "07_intentional_repeat:r4:drain1",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "Roll a die for me."
+      },
+      "new_speech": "Okay, [1] now roll it again. [2]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], after \"okay\" and before \"now roll it again\".",
+          "m2": "It ends at [2], the end of the speech so far, after \"now roll it again\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"Roll a die for me.\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It states a new version of s1 (\"Roll a die for me.\").",
+          "cancel_s1": "It withdraws s1 (\"Roll a die for me.\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m2",
+        "probabilities": {
+          "m1": 0.11862049912569686,
+          "m2": 0.7908444418818575,
+          "none": 0.09053505899244566
+        },
+        "confidence": 0.6862666628227863
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "replace_s1",
+        "probabilities": {
+          "cancel_s1": 0.031913176138541895,
+          "none": 0.30253396872905497,
+          "replace_s1": 0.6655528551324033
+        },
+        "confidence": 0.4983292826986049
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "s1",
+        "probabilities": {
+          "none": 0.06873220802908701,
+          "s1": 0.931267791970913
+        },
+        "confidence": 0.8625355839418261
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.949584948702587
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.032607112994477556
+      }
+    },
+    "usage": {
+      "input_tokens": 474,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791082-h72mxXLPPO5kLnSgNcBA",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:41.875+00:00",
+    "ms": 88.10110000194982,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:41.875+00:00",
+      "route": "decisions",
+      "hash": "4b072ea928c17072a1195d1b",
+      "label": "07_intentional_repeat:r4:drain1",
+      "status": 200,
+      "ms": 88.1,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "route": "extractions",
+  "label": "11_filler_false_starts:r6:extract",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+    "fields": {
+      "segments": {
+        "type": "list",
+        "items": "text",
+        "instructions": "Each separate thing the speaker asks for, each correction or withdrawal of an earlier request, and each sentence that only describes a task, copied exactly from the transcript. Two requests joined by \"and\" are two items. Skip filler and small talk."
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "segments": {
+        "type": "list",
+        "value": null
+      }
+    },
+    "truncated": false,
+    "usage": {
+      "input_tokens": 129,
+      "output_tokens": 1,
+      "passes": 1,
+      "cost": 0
+    },
+    "id": "gen-dec-1794788895-j2JA7eQXNBkwP2oH86Eb",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:14.248+00:00",
+    "ms": 109.94649998610839,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:14.248+00:00",
+      "route": "extractions",
+      "hash": "5ef87d54708f83038251e3e6",
+      "label": "11_filler_false_starts:r6:extract",
+      "status": 200,
+      "ms": 109.9,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

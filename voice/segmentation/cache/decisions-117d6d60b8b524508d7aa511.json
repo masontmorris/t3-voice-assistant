@@ -1,0 +1,105 @@
+{
+  "route": "decisions",
+  "label": "11_filler_false_starts:r6",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "Um, [1] so, [2] uh, [3] can you, [4] can you find the, [5] the report from, [6] uh, [7] from Tuesday's meeting? [8]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], after \"um\" and before \"so uh can you\".",
+          "m2": "It ends at [2], after \"um so\" and before \"uh can you can\".",
+          "m3": "It ends at [3], after \"um so uh\" and before \"can you can you\".",
+          "m4": "It ends at [4], after \"so uh can you\" and before \"can you find the\".",
+          "m5": "It ends at [5], after \"can you find the\" and before \"the report from uh\".",
+          "m6": "It ends at [6], after \"the the report from\" and before \"uh from tuesday's meeting\".",
+          "m7": "It ends at [7], after \"the report from uh\" and before \"from tuesday's meeting\".",
+          "m8": "It ends at [8], the end of the speech so far, after \"uh from tuesday's meeting\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m8",
+        "probabilities": {
+          "m1": 0.002290528281893174,
+          "m2": 0.0040783014062648944,
+          "m3": 0.005020344772103288,
+          "m4": 0.00833464046113369,
+          "m5": 0.00824804903518208,
+          "m6": 0.004819698581005084,
+          "m7": 0.003136381250777537,
+          "m8": 0.8779044370005372,
+          "none": 0.08616761921110297
+        },
+        "confidence": 0.8626424916256045
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9520102305223619
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.04401218913141552
+      }
+    },
+    "usage": {
+      "input_tokens": 517,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791093-FGLP7MlzwlozlS3xZ3Ew",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:52.834+00:00",
+    "ms": 81.64079999551177,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:52.834+00:00",
+      "route": "decisions",
+      "hash": "117d6d60b8b524508d7aa511",
+      "label": "11_filler_false_starts:r6",
+      "status": 200,
+      "ms": 81.6,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

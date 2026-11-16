@@ -1,0 +1,210 @@
+{
+  "route": "decisions",
+  "label": "cancel_second:r1:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "look up the tide at rye and find the ferry timetable",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "look up the tide at rye",
+        "s2": "and find the ferry timetable"
+      },
+      "still_being_spoken": "s2",
+      "tasks": [],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"look up the tide at rye\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"look up the tide at rye\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"look up the tide at rye\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"and find the ferry timetable\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"and find the ferry timetable\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"and find the ferry timetable\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"and find the ferry timetable\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"look up the tide at rye\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"and find the ferry timetable\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"look up the tide at rye\").",
+          "cancel_s1": "It withdraws s1 (\"look up the tide at rye\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0012578335181686212,
+          "correction": 0.000938149089761071,
+          "description": 0.008960755962890974,
+          "request": 0.9876517363916617,
+          "topic_change": 0.001191525037517603
+        },
+        "confidence": 0.9845646704895772
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.01215904719797581,
+          "dispatch_now": 0.7536667913859093,
+          "wait": 0.23417416141611486
+        },
+        "confidence": 0.6305001870788639
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.01687765456075901
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0023826510486620062,
+          "none": 0.9947568599518407,
+          "replace_s1": 0.0028604889994972853
+        },
+        "confidence": 0.9921352899277609
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9598970421847667,
+          "s1": 0.04010295781523338
+        },
+        "confidence": 0.9197940843695334
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0018418327075918092,
+          "correction": 0.0017006808902999622,
+          "description": 0.011514661145578078,
+          "request": 0.9831913505363526,
+          "topic_change": 0.0017514747201776146
+        },
+        "confidence": 0.9789891881704407
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.022849329200969163,
+          "dispatch_now": 0.7664655002413294,
+          "wait": 0.21068517055770136
+        },
+        "confidence": 0.6496982503619941
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.02326226289303965
+      }
+    },
+    "usage": {
+      "input_tokens": 929,
+      "output_tokens": 8,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791768-ZndQFHPBJjm5yH25fOLd",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:16:07.307+00:00",
+    "ms": 97.74019999895245,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:16:04.207+00:00",
+      "route": "decisions",
+      "hash": "a557d4b19bab6eba19ae2006",
+      "label": "cancel_second:r1:decide",
+      "status": 429,
+      "ms": 42.7,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:16:07.307+00:00",
+      "route": "decisions",
+      "hash": "a557d4b19bab6eba19ae2006",
+      "label": "cancel_second:r1:decide",
+      "status": 200,
+      "ms": 97.7,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

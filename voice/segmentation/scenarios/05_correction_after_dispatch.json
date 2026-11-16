@@ -1,0 +1,86 @@
+{
+  "id": "05_correction_after_dispatch",
+  "covers": "A correction that arrives after the first request may already have dispatched. A cancel request or a supersede are both correct.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find flights to austin",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find flights to austin on friday",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "find flights to austin on friday and check hotel",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "find flights to austin on friday and check hotel prices downtown",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "find flights to austin on friday and check hotel prices downtown actually make",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 6,
+      "text": "find flights to austin on friday and check hotel prices downtown actually make the flights saturday",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 7,
+      "text": "Find flights to Austin on Friday and check hotel prices downtown. Actually, make the flights Saturday.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "flights",
+          "friday"
+        ],
+        "status": [
+          "cancel_requested",
+          "superseded"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "hotel"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "saturday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  }
+}

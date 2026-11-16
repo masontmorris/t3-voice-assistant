@@ -1,0 +1,77 @@
+{
+  "route": "decisions",
+  "label": "09_delegate_before_segment:r6:decide2",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Look up tomorrow's weather in Seattle, and, um, what time does the ferry leave?",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Look up tomorrow's weather in Seattle",
+        "s2": "and, um, what time does the ferry leave?"
+      },
+      "still_being_spoken": null,
+      "tasks": [],
+      "delegate_requests": {
+        "d1": "Look up tomorrow's weather in Seattle"
+      }
+    },
+    "questions": {
+      "d1_same_as": {
+        "type": "choice",
+        "instructions": "The voice assistant submitted the task \"Look up tomorrow's weather in Seattle\". Which transcript segment asks for the same thing?",
+        "criteria": {
+          "new": "No segment asks for it.",
+          "s1": "s1 (\"Look up tomorrow's weather in Seattle\") asks for the same thing.",
+          "s2": "s2 (\"and, um, what time does the ferry leave?\") asks for the same thing."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "d1_same_as": {
+        "type": "choice",
+        "choice": "s1",
+        "probabilities": {
+          "new": 0.0009488365537582547,
+          "s1": 0.9987816854900079,
+          "s2": 0.0002694779562339536
+        },
+        "confidence": 0.9981725282350117
+      }
+    },
+    "usage": {
+      "input_tokens": 231,
+      "output_tokens": 1,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788939-MXdfDW9adyxGuFi3uGnT",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:58.811+00:00",
+    "ms": 81.45019999938086,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:58.811+00:00",
+      "route": "decisions",
+      "hash": "0aa26b4ac9f0b4c41f788aec",
+      "label": "09_delegate_before_segment:r6:decide2",
+      "status": 200,
+      "ms": 81.5,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

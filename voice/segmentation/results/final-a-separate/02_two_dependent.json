@@ -1,0 +1,219 @@
+{
+  "scenario": "02_two_dependent",
+  "covers": "Two dependent requests. The second needs the first one's result.",
+  "option": "a",
+  "mode": "final",
+  "revisions": 1,
+  "decision_points": [
+    {
+      "revision": 6,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 32,
+          "text": "Find last quarter's sales report",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 33,
+          "end": 78,
+          "text": "and then summarize it in three bullet points.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r6:decide0",
+          "route": "decisions",
+          "file": "decisions-dc09df0b773c7c49ab899875.json",
+          "status": 200,
+          "ms": 96.4,
+          "started_at": "2026-11-16T00:28:55.519+00:00"
+        },
+        {
+          "label": "02_two_dependent:r6:decide1",
+          "route": "decisions",
+          "file": "decisions-a0ef9b0d58b779995760d122.json",
+          "status": 200,
+          "ms": 225.0,
+          "started_at": "2026-11-16T00:28:55.625+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9845559233713347,
+            "ready": 0.7385774757362188,
+            "side_effect": 0.09149008946431264
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": "s1",
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9908754518172568,
+            "depends": 0.9650501170816674,
+            "kind": 0.9717039152809254,
+            "ready": 0.8925540528205813,
+            "side_effect": 0.015016835567454073
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find last quarter's sales report",
+      "instruction": "Find last quarter's sales report",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Find last quarter's sales report"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "ready",
+      "segment_text": "and then summarize it in three bullet points.",
+      "instruction": "and then summarize it in three bullet points.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [
+        "task_1"
+      ],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and then summarize it in three bullet points."
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "Find last quarter's sales report",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_02_two_dependent",
+    "final_transcript": "Find last quarter's sales report and then summarize it in three bullet points.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Find last quarter's sales report",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and then summarize it in three bullet points.",
+        "status": "pending",
+        "depends_on": [
+          "task_1"
+        ]
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "sales",
+          "report"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "summarize"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

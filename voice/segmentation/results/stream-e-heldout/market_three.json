@@ -1,0 +1,482 @@
+{
+  "scenario": "market_three",
+  "covers": "three independent requests",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "market_three:r1",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "market_three:r1",
+          "route": "decisions",
+          "file": "decisions-ec58a5e051ca0cc66b03750f.json",
+          "status": 200,
+          "ms": 103.8,
+          "started_at": "2026-11-16T01:20:59.170+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "check the price of oats",
+      "committed": null,
+      "answer": {
+        "finished": 0.9324969039774524,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8205341445119464,
+          "runner_up": "none"
+        },
+        "side_effect": 0.020132983014171248,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "market_three:r2",
+      "cursor": 0,
+      "markers": [
+        10
+      ],
+      "calls": [
+        {
+          "label": "market_three:r2",
+          "route": "decisions",
+          "file": "decisions-80984ecf1eb045b146b2cf47.json",
+          "status": 200,
+          "ms": 84.6,
+          "started_at": "2026-11-16T01:21:02.271+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.8629683496386373,
+        "at": {
+          "choice": "none",
+          "margin": 0.5907030838481974,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.014486986392510103,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "market_three:r3",
+      "cursor": 0,
+      "markers": [
+        10,
+        17
+      ],
+      "calls": [
+        {
+          "label": "market_three:r3",
+          "route": "decisions",
+          "file": "decisions-8e5e8af782613f7e27494423.json",
+          "status": 200,
+          "ms": 100.2,
+          "started_at": "2026-11-16T01:21:05.371+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.7695426275951625,
+        "at": {
+          "choice": "m1",
+          "margin": 0.09071450057925273,
+          "runner_up": "none"
+        },
+        "side_effect": 0.011116911174787488,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "market_three:r4",
+      "cursor": 0,
+      "markers": [
+        5,
+        10,
+        17
+      ],
+      "calls": [
+        {
+          "label": "market_three:r4",
+          "route": "decisions",
+          "file": "decisions-72e9dd59ecd187a91cc49efb.json",
+          "status": 200,
+          "ms": 96.3,
+          "started_at": "2026-11-16T01:21:08.471+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "check the price of oats",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9764552517016591,
+        "at": {
+          "choice": "m1",
+          "margin": 0.955417812471228,
+          "runner_up": "none"
+        },
+        "side_effect": 0.010809838466743061,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "market_three:r4:drain1",
+      "cursor": 5,
+      "markers": [
+        10,
+        17
+      ],
+      "calls": [
+        {
+          "label": "market_three:r4:drain1",
+          "route": "decisions",
+          "file": "decisions-2363f3a61e6d1d9f40cc8d6f.json",
+          "status": 200,
+          "ms": 82.3,
+          "started_at": "2026-11-16T01:21:11.571+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 10,
+      "candidate": "find the yen exchange rate",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.9822631691036274,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9753583352946817,
+          "runner_up": "none"
+        },
+        "side_effect": 0.00701521585159417,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9928457133942594,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.11162007377083527,
+          "runner_up": "none"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "market_three:r4:drain2",
+      "cursor": 10,
+      "markers": [
+        17
+      ],
+      "calls": [
+        {
+          "label": "market_three:r4:drain2",
+          "route": "decisions",
+          "file": "decisions-5b361769829e7bb20f0139bb.json",
+          "status": 200,
+          "ms": 92.6,
+          "started_at": "2026-11-16T01:21:17.772+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 17,
+      "candidate": "and look up the population of lima",
+      "committed": "s3",
+      "answer": {
+        "finished": 0.971390404049424,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9201802026770318,
+          "runner_up": "none"
+        },
+        "side_effect": 0.006414412654025014,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9761018966842752,
+          "runner_up": "s2"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.8010637538139765,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "cancel_requested",
+      "segment_text": "Check the price of oats,",
+      "instruction": "Check the price of oats,",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Check the price of oats,"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "dispatched",
+          "new": "cancel_requested",
+          "reason": "corrected by segment \"find the yen exchange rate,\""
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "find the yen exchange rate,",
+      "instruction": "Check the price of oats, (corrected: find the yen exchange rate,)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the yen exchange rate,"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "status": "dispatched",
+      "segment_text": "and look up the population of Lima.",
+      "instruction": "and look up the population of Lima.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and look up the population of Lima."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 5,
+      "text": "Check the price of oats,"
+    },
+    {
+      "sid": "s2",
+      "w0": 5,
+      "w1": 10,
+      "text": "find the yen exchange rate,"
+    },
+    {
+      "sid": "s3",
+      "w0": 10,
+      "w1": 17,
+      "text": "and look up the population of Lima."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "Check the price of oats,",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "Check the price of oats, (corrected: find the yen exchange rate,)",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "and look up the population of Lima.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_market_three",
+    "final_transcript": "Check the price of oats, find the yen exchange rate, and look up the population of Lima.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Check the price of oats,",
+        "status": "cancel_requested"
+      },
+      {
+        "task_id": "task_2",
+        "description": "Check the price of oats, (corrected: find the yen exchange rate,)",
+        "status": "running"
+      },
+      {
+        "task_id": "task_3",
+        "description": "and look up the population of Lima.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "price",
+          "oats"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "yen",
+          "exchange"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "population",
+          "lima"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: status cancel_requested, expected one of ['dispatched']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 3
+  }
+}

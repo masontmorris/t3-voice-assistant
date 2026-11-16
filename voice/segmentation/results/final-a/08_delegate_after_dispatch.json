@@ -1,0 +1,223 @@
+{
+  "scenario": "08_delegate_after_dispatch",
+  "covers": "The orchestrator dispatches a task early, then the voice model's delegate tool submits the same task. One dispatch only.",
+  "option": "a",
+  "mode": "final",
+  "revisions": 1,
+  "decision_points": [
+    {
+      "revision": 5,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 30,
+          "text": "Find the Q3 budget spreadsheet",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 31,
+          "end": 66,
+          "text": "and tell me the total travel spend.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "08_delegate_after_dispatch:r5:decide",
+          "route": "decisions",
+          "file": "decisions-5948735db7f73da886b8175b.json",
+          "status": 200,
+          "ms": 94.3,
+          "started_at": "2026-11-16T00:28:08.303+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9894019173384577,
+            "ready": 0.9099019749753858,
+            "side_effect": 0.050736956388533136
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": "s1",
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9836542484801761,
+            "depends": 0.45057815317400207,
+            "kind": 0.982239283427836,
+            "ready": 0.8461173154884597,
+            "side_effect": 0.017456170189063574
+          }
+        }
+      },
+      "delegates": {
+        "d1": "s1"
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the Q3 budget spreadsheet",
+      "instruction": "Find the Q3 budget spreadsheet",
+      "sources": [
+        "orchestrator",
+        "voice_delegate"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "voice_delegate"
+          ],
+          "segment_text": "Find the Q3 budget spreadsheet"
+        },
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "voice delegate submitted it"
+        },
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "linked_orchestrator"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "ready",
+      "segment_text": "and tell me the total travel spend.",
+      "instruction": "and tell me the total travel spend.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [
+        "task_1"
+      ],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and tell me the total travel spend."
+        },
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 5,
+      "is_final": true,
+      "instruction": "Find the Q3 budget spreadsheet",
+      "sources": [
+        "voice_delegate"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_08_delegate_after_dispatch",
+    "final_transcript": "Find the Q3 budget spreadsheet and tell me the total travel spend.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Find the Q3 budget spreadsheet",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and tell me the total travel spend.",
+        "status": "pending",
+        "depends_on": [
+          "task_1"
+        ]
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "budget",
+          "spreadsheet"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "sources": [
+          "orchestrator",
+          "voice_delegate"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "travel"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

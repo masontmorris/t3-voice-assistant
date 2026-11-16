@@ -1,0 +1,119 @@
+{
+  "route": "decisions",
+  "label": "11_filler_false_starts:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "um [1] so [2] uh [3] can [4] you [5] can [6] you [7] find [8] the [9] the [10] report [11] from [12] uh [13] from [14] tuesday's [15]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at [1]. It is \"um\".",
+          "m2": "The first request ends at [2]. It is \"um so\".",
+          "m3": "The first request ends at [3]. It is \"um so uh\".",
+          "m4": "The first request ends at [4]. It is \"um so uh can\".",
+          "m5": "The first request ends at [5]. It is \"um so uh can you\".",
+          "m6": "The first request ends at [6]. It is \"um so uh can you can\".",
+          "m7": "The first request ends at [7]. It is \"um so uh can you can you\".",
+          "m8": "The first request ends at [8]. It is \"um so uh can you can you find\".",
+          "m9": "The first request ends at [9]. It is \"um so uh can you can you find the\".",
+          "m10": "The first request ends at [10]. It is \"um so uh can ... you find the the\".",
+          "m11": "The first request ends at [11]. It is \"um so uh can ... find the the report\".",
+          "m12": "The first request ends at [12]. It is \"um so uh can ... the the report from\".",
+          "m13": "The first request ends at [13]. It is \"um so uh can ... the report from uh\".",
+          "m14": "The first request ends at [14]. It is \"um so uh can ... report from uh from\".",
+          "m15": "The first request ends at the end of the speech so far. It is \"um so uh can ... from uh from tuesday's\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m15",
+        "probabilities": {
+          "m1": 0.005208670099718445,
+          "m10": 0.00625177223233713,
+          "m11": 0.025747572458959762,
+          "m12": 0.0037734647540766213,
+          "m13": 0.004806909075125345,
+          "m14": 0.002954921231304652,
+          "m15": 0.6806097010300264,
+          "m2": 0.0019574778394122003,
+          "m3": 0.0027226852148847006,
+          "m4": 0.0027282436137321207,
+          "m5": 0.007413858018493266,
+          "m6": 0.002647315870180439,
+          "m7": 0.003124693906704335,
+          "m8": 0.012862495951289625,
+          "m9": 0.006097644539216746,
+          "none": 0.23109257416453838
+        },
+        "confidence": 0.6593170144320282
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.19825373919413997
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.06263292610528974
+      }
+    },
+    "usage": {
+      "input_tokens": 796,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791428-POhX6a6vrmLKC29AGXXH",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:10:27.923+00:00",
+    "ms": 96.83049999875948,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:10:27.923+00:00",
+      "route": "decisions",
+      "hash": "51b5972b91afd122cc3f90ec",
+      "label": "11_filler_false_starts:r4",
+      "status": 200,
+      "ms": 96.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

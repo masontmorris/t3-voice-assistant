@@ -1,0 +1,83 @@
+{
+  "scenario": "02_two_dependent",
+  "covers": "Two dependent requests. The second needs the first one's result.",
+  "option": "c",
+  "mode": "final",
+  "revisions": 1,
+  "decision_points": [
+    {
+      "revision": 6,
+      "is_final": true,
+      "segments": [],
+      "calls": [
+        {
+          "label": "02_two_dependent:r6:extract",
+          "route": "extractions",
+          "file": "extractions-5229190d3f1ccf997f88bc94.json",
+          "status": 200,
+          "ms": 302.8,
+          "started_at": "2026-11-16T00:28:12.127+00:00"
+        }
+      ],
+      "decisions": {},
+      "delegates": {},
+      "problems": [
+        "segments: missing"
+      ]
+    }
+  ],
+  "tasks": [],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_02_two_dependent",
+    "final_transcript": "Find last quarter's sales report and then summarize it in three bullet points.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "sales",
+          "report"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "summarize"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: no task matches ['sales', 'report']",
+      "T2: no task matches ['summarize']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

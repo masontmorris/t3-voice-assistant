@@ -1,0 +1,115 @@
+{
+  "route": "decisions",
+  "label": "11_filler_false_starts:r6",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "Um, [1] so, [2] uh, [3] can you, [4] can you find the, [5] the report from, [6] uh, [7] from Tuesday's meeting? [8]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at [1]. It is \"um\".",
+          "m2": "The first request ends at [2]. It is \"um so\".",
+          "m3": "The first request ends at [3]. It is \"um so uh\".",
+          "m4": "The first request ends at [4]. It is \"um so uh can you\".",
+          "m5": "The first request ends at [5]. It is \"um so uh can you can you find the\".",
+          "m6": "The first request ends at [6]. It is \"um so uh can ... the the report from\".",
+          "m7": "The first request ends at [7]. It is \"um so uh can ... the report from uh\".",
+          "m8": "The first request ends at the end of the speech so far. It is \"um so uh can ... uh from tuesday's meeting\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m8",
+        "probabilities": {
+          "m1": 0.0007094596188471728,
+          "m2": 0.0013253224583807974,
+          "m3": 0.0015233215767141404,
+          "m4": 0.004140021715611864,
+          "m5": 0.0022435752020957033,
+          "m6": 0.002481718561979204,
+          "m7": 0.006053991683518574,
+          "m8": 0.9711861026856703,
+          "none": 0.010336486497182244
+        },
+        "confidence": 0.967584365521379
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9743675135880213
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.052885436967186075
+      }
+    },
+    "usage": {
+      "input_tokens": 588,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791433-sycEFqTBXGr4Gv7NEagR",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:10:32.371+00:00",
+    "ms": 94.89639999810606,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:10:30.324+00:00",
+      "route": "decisions",
+      "hash": "df7a2da6e9c68ed1d5fab3cd",
+      "label": "11_filler_false_starts:r6",
+      "status": 429,
+      "ms": 38.1,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:10:32.371+00:00",
+      "route": "decisions",
+      "hash": "df7a2da6e9c68ed1d5fab3cd",
+      "label": "11_filler_false_starts:r6",
+      "status": 200,
+      "ms": 94.9,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,166 @@
+{
+  "scenario": "05_correction_after_dispatch",
+  "covers": "A correction that arrives after the first request may already have dispatched. A cancel request or a supersede are both correct.",
+  "option": "c",
+  "mode": "final",
+  "revisions": 1,
+  "decision_points": [
+    {
+      "revision": 7,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 32,
+          "text": "Find flights to Austin on Friday",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r7:extract",
+          "route": "extractions",
+          "file": "extractions-cf2de7712023fa781e71a4fb.json",
+          "status": 200,
+          "ms": 98.8,
+          "started_at": "2026-11-16T00:28:12.822+00:00"
+        },
+        {
+          "label": "05_correction_after_dispatch:r7:decide",
+          "route": "decisions",
+          "file": "decisions-829160e8c6f3aeaff4e6bc91.json",
+          "status": 200,
+          "ms": 87.0,
+          "started_at": "2026-11-16T00:28:12.928+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.8272805503472813,
+            "ready": 0.8282545319676125,
+            "side_effect": 0.8058841422316497
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find flights to Austin on Friday",
+      "instruction": "Find flights to Austin on Friday",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Find flights to Austin on Friday"
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 7,
+      "is_final": true,
+      "instruction": "Find flights to Austin on Friday",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_05_correction_after_dispatch",
+    "final_transcript": "Find flights to Austin on Friday and check hotel prices downtown. Actually, make the flights Saturday.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Find flights to Austin on Friday",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "flights",
+          "friday"
+        ],
+        "status": [
+          "cancel_requested",
+          "superseded"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "hotel"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "saturday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['hotel']",
+      "T3: no task matches ['saturday']",
+      "T1: status dispatched, expected one of ['cancel_requested', 'superseded']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 1,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

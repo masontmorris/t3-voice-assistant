@@ -1,0 +1,252 @@
+{
+  "scenario": "true_repeat",
+  "covers": "true repeat",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 27,
+          "text": "find the elevation of cusco",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "true_repeat:r1:decide",
+          "route": "decisions",
+          "file": "decisions-32d007aac212d1735abcd9fa.json",
+          "status": 200,
+          "ms": 101.7,
+          "started_at": "2026-11-16T01:18:39.878+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9630504488536226,
+            "ready": 0.812186095397495,
+            "side_effect": 0.016010551581298705
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 28,
+          "text": "Find the elevation of Cusco.",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 29,
+          "end": 57,
+          "text": "Find the elevation of Cusco.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "true_repeat:r3:decide",
+          "route": "decisions",
+          "file": "decisions-31e50be5030a5be51fdbb9e5.json",
+          "status": 200,
+          "ms": 85.4,
+          "started_at": "2026-11-16T01:18:42.978+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9786540325723327,
+            "ready": 0.9807678125692557,
+            "side_effect": 0.008691912747823114
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9120934072925311,
+            "depends": 0.9485543645871488,
+            "kind": 0.945692660335686,
+            "ready": 0.985991015462306,
+            "side_effect": 0.010716305586942034
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the elevation of Cusco.",
+      "instruction": "Find the elevation of Cusco.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the elevation of cusco"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find the elevation of cusco",
+          "new": "Find the elevation of Cusco."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "Find the elevation of Cusco.",
+      "instruction": "Find the elevation of Cusco.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Find the elevation of Cusco."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Find the elevation of Cusco.",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Find the elevation of Cusco.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_true_repeat",
+    "final_transcript": "Find the elevation of Cusco. Find the elevation of Cusco.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Find the elevation of Cusco.",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "Find the elevation of Cusco.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "elevation",
+          "cusco"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "task_2: duplicate dispatch of T1"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 1,
+    "missed_corrections": 0,
+    "extra_tasks": [
+      "task_2"
+    ],
+    "dispatch_count": 2
+  }
+}

@@ -1,0 +1,139 @@
+{
+  "route": "decisions",
+  "label": "near_duplicates:r3:drain1",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "Check the library hours on Monday."
+      },
+      "new_speech": "Check the library hours on Tuesday. [1]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at the end of the speech so far. It is \"check the library hours on tuesday\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"Check the library hours on Monday.\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It changes what s1 (\"Check the library hours on Monday.\") asked for, so s1 as first spoken should not be done.",
+          "cancel_s1": "It withdraws s1 (\"Check the library hours on Monday.\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.9946893214708592,
+          "none": 0.005310678529140906
+        },
+        "confidence": 0.9893786429417184
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "replace_s1",
+        "probabilities": {
+          "cancel_s1": 0.023711685202315317,
+          "none": 0.059907750912472316,
+          "replace_s1": 0.9163805638852123
+        },
+        "confidence": 0.8745708458278184
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9871108995299883,
+          "s1": 0.012889100470011737
+        },
+        "confidence": 0.9742217990599766
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9873191738901788
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.007985327438041402
+      }
+    },
+    "usage": {
+      "input_tokens": 553,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794792178-OgbVAOQlA9ArpusGQKsX",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:22:57.345+00:00",
+    "ms": 90.29290004400536,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:22:54.244+00:00",
+      "route": "decisions",
+      "hash": "9c2517e0520708b534bfb6c0",
+      "label": "near_duplicates:r3:drain1",
+      "status": 429,
+      "ms": 37.3,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:22:57.345+00:00",
+      "route": "decisions",
+      "hash": "9c2517e0520708b534bfb6c0",
+      "label": "near_duplicates:r3:drain1",
+      "status": 200,
+      "ms": 90.3,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

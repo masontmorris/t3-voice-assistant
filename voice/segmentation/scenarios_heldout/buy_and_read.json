@@ -1,0 +1,57 @@
+{
+  "id": "buy_and_read",
+  "covers": "buy plus read",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find the book review",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find the book review and buy the paperback edition",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Find the book review and buy the paperback edition.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "book",
+          "review"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "buy",
+          "paperback"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The review and purchase are independent. The purchase waits for final speech."
+}

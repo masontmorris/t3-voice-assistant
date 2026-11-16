@@ -1,0 +1,161 @@
+{
+  "scenario": "rain_wonder",
+  "covers": "implicit request and statement",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "rain_wonder:r1",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "rain_wonder:r1",
+          "route": "decisions",
+          "file": "decisions-14621e283de318b122b3298d.json",
+          "status": 200,
+          "ms": 83.8,
+          "started_at": "2026-11-16T01:23:44.805+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.047162724158762166,
+        "at": {
+          "choice": "m1",
+          "margin": 0.40284431359827444,
+          "runner_up": "none"
+        },
+        "side_effect": 0.01103030225423287,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "rain_wonder:r2",
+      "cursor": 0,
+      "markers": [
+        10
+      ],
+      "calls": [
+        {
+          "label": "rain_wonder:r2",
+          "route": "decisions",
+          "file": "decisions-46c541bda9a46420c90067ee.json",
+          "status": 200,
+          "ms": 88.1,
+          "started_at": "2026-11-16T01:23:47.905+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.016913620850886754,
+        "at": {
+          "choice": "none",
+          "margin": 0.1549260415375021,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.0228577607665899,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "rain_wonder:r3",
+      "cursor": 0,
+      "markers": [
+        7,
+        11
+      ],
+      "calls": [
+        {
+          "label": "rain_wonder:r3",
+          "route": "decisions",
+          "file": "decisions-b388ecde828c0fdfd89f9fe8.json",
+          "status": 200,
+          "ms": 100.8,
+          "started_at": "2026-11-16T01:23:51.006+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.03799129061437269,
+        "at": {
+          "choice": "m1",
+          "margin": 0.34229909571925154,
+          "runner_up": "none"
+        },
+        "side_effect": 0.020232011776086845,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [],
+  "segments": [],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_rain_wonder",
+    "final_transcript": "I wonder if it will rain Saturday. My umbrella is blue.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "rain",
+          "saturday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: no task matches ['rain', 'saturday']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

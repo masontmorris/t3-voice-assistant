@@ -1,0 +1,355 @@
+{
+  "scenario": "pause_correction",
+  "covers": "correction after pause",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "pause_correction:r1",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "pause_correction:r1",
+          "route": "decisions",
+          "file": "decisions-5bae6e13e62151f481006610.json",
+          "status": 200,
+          "ms": 101.8,
+          "started_at": "2026-11-16T01:23:15.947+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "search for violin lessons in bath",
+      "committed": null,
+      "answer": {
+        "finished": 0.934545889245071,
+        "at": {
+          "choice": "m1",
+          "margin": 0.760916849503883,
+          "runner_up": "none"
+        },
+        "side_effect": 0.058239148373862064,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "pause_correction:r2",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "pause_correction:r2",
+          "route": "decisions",
+          "file": "decisions-5bae6e13e62151f481006610.json",
+          "status": 200,
+          "ms": 101.8,
+          "started_at": "2026-11-16T01:23:15.947+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "search for violin lessons in bath",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.934545889245071,
+        "at": {
+          "choice": "m1",
+          "margin": 0.760916849503883,
+          "runner_up": "none"
+        },
+        "side_effect": 0.058239148373862064,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "pause_correction:r3",
+      "cursor": 6,
+      "markers": [
+        8
+      ],
+      "calls": [
+        {
+          "label": "pause_correction:r3",
+          "route": "decisions",
+          "file": "decisions-1bf6cce0a546c10ab6cb1624.json",
+          "status": 200,
+          "ms": 103.3,
+          "started_at": "2026-11-16T01:23:22.148+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.7545022187631497,
+        "at": {
+          "choice": "m1",
+          "margin": 0.15098172407929944,
+          "runner_up": "none"
+        },
+        "side_effect": 0.02623239181667103,
+        "depends": {
+          "choice": "none",
+          "margin": 0.38807326881641674,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.9022441243365367,
+          "runner_up": "none"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "pause_correction:r4",
+      "cursor": 6,
+      "markers": [
+        7,
+        8
+      ],
+      "calls": [
+        {
+          "label": "pause_correction:r4",
+          "route": "decisions",
+          "file": "decisions-9d51db5fdcc071aa4daaf00a.json",
+          "status": 200,
+          "ms": 89.5,
+          "started_at": "2026-11-16T01:23:25.248+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "actually bristol",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.8189793936971287,
+        "at": {
+          "choice": "m2",
+          "margin": 0.461734850589844,
+          "runner_up": "none"
+        },
+        "side_effect": 0.03655810362235692,
+        "depends": {
+          "choice": "none",
+          "margin": 0.2751540872725055,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.9037162150679497,
+          "runner_up": "none"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "cancel_requested",
+      "segment_text": "Search for violin lessons in Bath.",
+      "instruction": "search for violin lessons in bath",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "search for violin lessons in bath"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "search for violin lessons in bath",
+          "new": "Search for violin lessons in Bath."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "dispatched",
+          "new": "cancel_requested",
+          "reason": "corrected by segment \"Actually, Bristol.\""
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "Actually, Bristol.",
+      "instruction": "search for violin lessons in bath (corrected: Actually, Bristol.)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Actually, Bristol."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 6,
+      "text": "Search for violin lessons in Bath."
+    },
+    {
+      "sid": "s2",
+      "w0": 6,
+      "w1": 8,
+      "text": "Actually, Bristol."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 2,
+      "is_final": false,
+      "instruction": "search for violin lessons in bath",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "search for violin lessons in bath (corrected: Actually, Bristol.)",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_pause_correction",
+    "final_transcript": "Search for violin lessons in Bath. Actually, Bristol.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "search for violin lessons in bath",
+        "status": "cancel_requested"
+      },
+      {
+        "task_id": "task_2",
+        "description": "search for violin lessons in bath (corrected: Actually, Bristol.)",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "violin",
+          "bath"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "violin",
+          "bristol"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['violin', 'bristol']",
+      "T1: status cancel_requested, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch",
+      "task_2: unexpected dispatched task \"Actually, Bristol.\""
+    ],
+    "premature_dispatches": 2,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [
+      "task_2"
+    ],
+    "dispatch_count": 2
+  }
+}
