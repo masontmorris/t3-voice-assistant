@@ -22,14 +22,17 @@ needs the hybrid and --inject c.
      --status-only offers just `get_task_status`
   c  a user text message with a fixed machine prefix
 
+--decider picks the decider: cloud (pplx-decider-flash on OpenRouter, the default, or $VOICE_DECIDER) or d1 (d1-2B on
+a second local llama-server, see voice/local_decider/). --reuse asks only the questions whose answers it has not kept.
+--lfm-ctx sets LFM3's total context (-c), 32768 by default.
+
 --segmenter picks the segmenter, the hybrid by default. The segmenter takes transcript updates one at a time. When
 newer updates queue behind a decision, only the newest is processed, and the timeline logs the dropped revisions.
 
---fresh sends every decider request live, even when it is cached, so timings include each call. --lfm-ctx sets
-LFM3's total context (-c), 32768 by default.
+--fresh sends every cloud decider request live, even when it is cached, so timings include each call.
 
-Needs the GPU (run it inside the lease) and VOICE_ENV_FILE or OPENROUTER_API_KEY for decider calls that miss the
-cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to --out.
+Needs the GPU (run it inside the lease). The cloud decider needs VOICE_ENV_FILE or OPENROUTER_API_KEY for calls
+that miss the cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to --out.
 """
 
 import argparse
@@ -39,12 +42,14 @@ import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from voice.local_decider.bench import gpu_used_mib
+from voice.local_decider.client import decider as make_decider, default_decider
+from voice.local_decider.reuse import ReusingClient
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.transcript import TranscriptAdapter
-from voice.segmentation import client as api
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
 PERSONA = (
@@ -368,13 +373,18 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
 async def main_async(args):
     use_decider_cache(EVIDENCE / "decider-cache", DECIDER_BUDGET)
-    decider = FreshClient(api.Client()) if args.fresh else api.Client()
     out = args.out or EVIDENCE / f"{args.eou}-{args.inject}{'-status' if args.status_only else ''}"
     out.mkdir(parents=True, exist_ok=True)
     start = live_calls()
     slots = 3 if args.eou == "handoff" else 2
-    with Server(args.port, out / "llama-server.log", ("-c", str(args.lfm_ctx)), slots) as server:
+    with Server(args.port, out / "llama-server.log", ("-c", str(args.lfm_ctx)), slots) as server, \
+            make_decider(args.decider, out) as decider:
+        if args.fresh:
+            decider = FreshClient(decider)
         print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
+        vram_mib = gpu_used_mib()
+        if args.reuse:
+            decider = ReusingClient(decider)
         for wav in args.clips:
             partial = {}
             try:
@@ -384,7 +394,8 @@ async def main_async(args):
             except Exception as exc:
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
             record["server_startup_s"] = server.startup_s
-            record["config"] = {"eou": args.eou, "lfm_ctx": args.lfm_ctx, "slots": slots, "fresh": args.fresh}
+            record["config"] = {"eou": args.eou, "decider": args.decider, "reuse": args.reuse, "fresh": args.fresh,
+                                "lfm_ctx": args.lfm_ctx, "slots": slots, "vram_mib_after_load": vram_mib}
             (out / f"{wav.stem}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
             print(wav.stem, json.dumps(record["metrics"]), flush=True)
             attempts, share = rate_limited_share(start)
@@ -403,11 +414,15 @@ def main():
     parser.add_argument("--out", type=Path)
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--port", type=int, default=8095)
-    parser.add_argument("--fresh", action="store_true", help="send cached decider requests again, for timing")
+    parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
+    parser.add_argument("--reuse", action="store_true", help="ask only questions with no kept answer")
+    parser.add_argument("--fresh", action="store_true", help="send cached cloud decider requests again, for timing")
     parser.add_argument("--lfm-ctx", type=int, default=32768, help="LFM3's total context (default 32768)")
     args = parser.parse_args()
     if args.eou == "handoff" and (args.inject != "c" or args.segmenter != "hybrid"):
         parser.error("--eou handoff injects as in c and needs the hybrid segmenter")
+    if args.fresh and args.decider != "cloud":
+        parser.error("--fresh resends cached cloud requests; the d1 decider has no such cache")
     missing = [str(c) for c in args.clips if not c.is_file()]
     if missing:
         parser.error(f"no such clip: {', '.join(missing)}")

@@ -1,0 +1,524 @@
+{
+  "scenario": "mixed_chain",
+  "covers": "independent request and chain",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "mixed_chain:r2",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          11
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          11
+        ]
+      ],
+      "hard": [],
+      "soft": [
+        6
+      ],
+      "breaks": {
+        "s1": {
+          "finished": 0.7062577427876506,
+          "at": "m1",
+          "margin": 0.8079966704952353,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 6
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 31,
+          "text": "find the recipe for lentil soup",
+          "open": true
+        },
+        {
+          "sid": "s2",
+          "start": 32,
+          "end": 57,
+          "text": "then make a shopping list",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "mixed_chain:r2",
+          "route": "decisions",
+          "file": "decisions-4e265de3ba612f85a9c2abb9.json",
+          "status": 200,
+          "ms": 166.3,
+          "started_at": "2026-11-16T08:38:47.567+00:00"
+        }
+      ],
+      "decisions": {},
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "mixed_chain:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          18
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          11
+        ],
+        [
+          11,
+          18
+        ]
+      ],
+      "hard": [],
+      "soft": [
+        6,
+        11
+      ],
+      "breaks": {
+        "s1": {
+          "finished": 0.716397157573569,
+          "at": "m1",
+          "margin": 0.4191544900043584,
+          "runner_up": "m2",
+          "verdict": "candidate",
+          "gap": 6
+        },
+        "s2": {
+          "finished": 0.7499719515315983,
+          "at": "m2",
+          "margin": 0.7912841768980522,
+          "runner_up": "m3",
+          "verdict": "candidate",
+          "gap": 11
+        }
+      },
+      "committed": [
+        "s1"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 31,
+          "text": "find the recipe for lentil soup",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 32,
+          "end": 57,
+          "text": "then make a shopping list",
+          "open": true
+        },
+        {
+          "sid": "s3",
+          "start": 58,
+          "end": 93,
+          "text": "also check the sunset time in osaka",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "mixed_chain:r3",
+          "route": "decisions",
+          "file": "decisions-3f7fb30bebe3980bc3e6466c.json",
+          "status": 200,
+          "ms": 435.2,
+          "started_at": "2026-11-16T08:38:47.735+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9806656802644234,
+            "ready": 0.5965343689567135,
+            "side_effect": 0.010004359171153963,
+            "finished": 0.716397157573569,
+            "at": 0.49800771919903825
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "mixed_chain:r4",
+      "kind": "revision",
+      "cursor": 6,
+      "pause": false,
+      "pieces": [
+        [
+          6,
+          11
+        ],
+        [
+          11,
+          18
+        ]
+      ],
+      "revised": [
+        [
+          6,
+          11
+        ],
+        [
+          11,
+          18
+        ]
+      ],
+      "hard": [
+        11
+      ],
+      "soft": [],
+      "breaks": {},
+      "committed": [
+        "s2",
+        "s3"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 32,
+          "text": "Find the recipe for lentil soup,",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 33,
+          "end": 59,
+          "text": "then make a shopping list.",
+          "open": false
+        },
+        {
+          "sid": "s3",
+          "start": 60,
+          "end": 96,
+          "text": "Also check the sunset time in Osaka.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "mixed_chain:r4",
+          "route": "decisions",
+          "file": "decisions-f508f52e4e216c86dfb0fb35.json",
+          "status": 200,
+          "ms": 498.4,
+          "started_at": "2026-11-16T08:38:48.171+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.969652990853655,
+            "ready": 0.6052140006130449,
+            "side_effect": 0.009214199992506198
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "cancel"
+          },
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9317064005905173,
+            "ready": 0.52134369312233,
+            "side_effect": 0.4304607304746712,
+            "depends": 0.26083408288181964,
+            "corrects": 0.22773705832288382
+          }
+        },
+        "s3": {
+          "sid": "s3",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9521743805208629,
+            "ready": 0.7503107517415842,
+            "side_effect": 0.015012482620403039,
+            "depends": 0.7589605292185626,
+            "corrects": 0.48098731388769334
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the recipe for lentil soup,",
+      "instruction": "find the recipe for lentil soup",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the recipe for lentil soup"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find the recipe for lentil soup",
+          "new": "Find the recipe for lentil soup,"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "then make a shopping list.",
+      "instruction": "then make a shopping list.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "then make a shopping list."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "status": "dispatched",
+      "segment_text": "Also check the sunset time in Osaka.",
+      "instruction": "Also check the sunset time in Osaka.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Also check the sunset time in Osaka."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": false,
+      "instruction": "find the recipe for lentil soup",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "then make a shopping list.",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "Also check the sunset time in Osaka.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_mixed_chain",
+    "final_transcript": "Find the recipe for lentil soup, then make a shopping list. Also check the sunset time in Osaka.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find the recipe for lentil soup",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "then make a shopping list.",
+        "status": "running"
+      },
+      {
+        "task_id": "task_3",
+        "description": "Also check the sunset time in Osaka.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "recipe",
+          "lentil"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "shopping",
+          "list"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "sunset",
+          "osaka"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 3
+  }
+}

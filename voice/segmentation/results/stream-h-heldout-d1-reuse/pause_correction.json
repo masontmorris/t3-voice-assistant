@@ -1,0 +1,323 @@
+{
+  "scenario": "pause_correction",
+  "covers": "correction after pause",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "pause_correction:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "hard": [
+        6
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.35583215241272703,
+          "at": "m1",
+          "margin": 0.36550383264040187,
+          "runner_up": "none",
+          "verdict": "disagree",
+          "gap": null
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 33,
+          "text": "search for violin lessons in bath",
+          "open": true
+        },
+        {
+          "sid": "s2",
+          "start": 34,
+          "end": 50,
+          "text": "actually bristol",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "pause_correction:r3",
+          "route": "decisions",
+          "file": "decisions-90befae3bbf55b4c4bf07241.json",
+          "status": 200,
+          "ms": 290.1,
+          "started_at": "2026-11-16T08:38:50.909+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9109667873719443,
+            "ready": 0.4116320650593812,
+            "side_effect": 0.0566706192340059
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.3705494982094937,
+            "ready": 0.22517983033388245,
+            "side_effect": 0.061596691099909555,
+            "depends": 0.36302688836627284,
+            "corrects": 0.12530264135533312,
+            "finished": 0.35583215241272703,
+            "at": 0.36550383264040187
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "pause_correction:r4",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "hard": [
+        6
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.89476392634568,
+          "at": "m2",
+          "margin": 0.47759746160202254,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 8
+        }
+      },
+      "committed": [
+        "s1",
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 34,
+          "text": "Search for violin lessons in Bath.",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 35,
+          "end": 53,
+          "text": "Actually, Bristol.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "pause_correction:r4",
+          "route": "decisions",
+          "file": "decisions-c9033f727878e2ae7e09679b.json",
+          "status": 200,
+          "ms": 366.4,
+          "started_at": "2026-11-16T08:38:51.200+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9339915143155949,
+            "ready": 0.31372222332429844,
+            "side_effect": 0.04852959684552264
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.535421831247406,
+            "ready": 0.20852422753272992,
+            "side_effect": 0.0502793031488059,
+            "depends": 0.3570196062739528,
+            "corrects": 0.15108849017738515,
+            "finished": 0.89476392634568,
+            "at": 0.48289766511357946
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "needs_clarification",
+      "segment_text": "Search for violin lessons in Bath.",
+      "instruction": "Search for violin lessons in Bath.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "search for violin lessons in bath"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "search for violin lessons in bath",
+          "new": "Search for violin lessons in Bath."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "needs_clarification",
+          "reason": "readiness wait"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_pause_correction",
+    "final_transcript": "Search for violin lessons in Bath. Actually, Bristol.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Search for violin lessons in Bath.",
+        "status": "needs_clarification"
+      }
+    ],
+    "clarification_needed": [
+      "Search for violin lessons in Bath."
+    ]
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "violin",
+          "bath"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "violin",
+          "bristol"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['violin', 'bristol']",
+      "T1: status needs_clarification, expected one of ['superseded']",
+      "clarification_needed True"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 1,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

@@ -1,0 +1,450 @@
+{
+  "scenario": "no_wait",
+  "covers": "correction no wait",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "no_wait:r2",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          6
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          6
+        ]
+      ],
+      "hard": [
+        4
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.3479493305921195,
+          "at": "m1",
+          "margin": 0.2017732160673586,
+          "runner_up": "none",
+          "verdict": "disagree",
+          "gap": null
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 19,
+          "text": "find trains to york",
+          "open": true
+        },
+        {
+          "sid": "s2",
+          "start": 20,
+          "end": 27,
+          "text": "no wait",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "no_wait:r2",
+          "route": "decisions",
+          "file": "decisions-7525d9d56c8c37f2f9c82733.json",
+          "status": 200,
+          "ms": 280.7,
+          "started_at": "2026-11-16T08:38:35.022+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.8084466366739712,
+            "ready": 0.4574942867206555,
+            "side_effect": 0.027789842351390204
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "cancel"
+          },
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.904410261379003,
+            "ready": 0.3837443366581841,
+            "side_effect": 0.2933607314521554,
+            "depends": 0.5750279381442405,
+            "corrects": 0.1789830563586685,
+            "finished": 0.3479493305921195,
+            "at": 0.20177321606735865
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "no_wait:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          4
+        ],
+        [
+          4,
+          8
+        ]
+      ],
+      "hard": [
+        4
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.7827665656446663,
+          "at": "m1",
+          "margin": 0.46187163093828176,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 8
+        }
+      },
+      "committed": [
+        "s1"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 19,
+          "text": "find trains to york",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 20,
+          "end": 41,
+          "text": "no wait leeds instead",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "no_wait:r3",
+          "route": "decisions",
+          "file": "decisions-11b1459ef2e39118d78219ad.json",
+          "status": 200,
+          "ms": 352.0,
+          "started_at": "2026-11-16T08:38:35.303+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.7293536197464486,
+            "ready": 0.471529646141437,
+            "side_effect": 0.026149275084993453
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "cancel"
+          },
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9203141058518016,
+            "ready": 0.18804263379936545,
+            "side_effect": 0.12444631635818658,
+            "depends": 0.2905958972808249,
+            "corrects": 0.16664313650995088,
+            "finished": 0.7827665656446663,
+            "at": 0.46187163093828176
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "no_wait:r4",
+      "kind": "revision",
+      "cursor": 4,
+      "pause": false,
+      "pieces": [
+        [
+          4,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          4,
+          8
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.9107453731561066,
+          "at": "m2",
+          "margin": 0.5184999474304554,
+          "runner_up": "m1",
+          "verdict": "candidate",
+          "gap": 8
+        }
+      },
+      "committed": [
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 20,
+          "text": "Find trains to York.",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 21,
+          "end": 44,
+          "text": "No wait, Leeds instead.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "no_wait:r4",
+          "route": "decisions",
+          "file": "decisions-b23e5a92068d67ef3da71947.json",
+          "status": 200,
+          "ms": 370.9,
+          "started_at": "2026-11-16T08:38:35.656+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.7378459580787574,
+            "ready": 0.4641230046542296,
+            "side_effect": 0.04779968323042649
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "cancel"
+          },
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9246023286617552,
+            "ready": 0.27116860226191003,
+            "side_effect": 0.06295263404881665,
+            "depends": 0.46475848293148525,
+            "corrects": 0.3391037001066251,
+            "finished": 0.9107453731561066,
+            "at": 0.5187066118758047
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "withdrawn",
+      "segment_text": "Find trains to York.",
+      "instruction": "Find trains to York.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find trains to york"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "withdrawn",
+          "reason": "corrected by segment \"no wait\""
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "withdrawn",
+          "new": "proposed",
+          "reason": "reclassified as request"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "withdrawn",
+          "reason": "corrected by segment \"no wait leeds instead\""
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find trains to york",
+          "new": "Find trains to York."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "withdrawn",
+          "new": "proposed",
+          "reason": "reclassified as request"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "withdrawn",
+          "reason": "corrected by segment \"No wait, Leeds instead.\""
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_no_wait",
+    "final_transcript": "Find trains to York. No wait, Leeds instead.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "trains",
+          "york"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "trains",
+          "leeds"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['trains', 'leeds']",
+      "T1: status withdrawn, expected one of ['superseded']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

@@ -1,0 +1,127 @@
+{
+  "split": "tune",
+  "bar": 0.88,
+  "rows": [
+    {
+      "id": "t-healthy",
+      "situation": "healthy mid-run",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.8952987059277282,
+        "wake_pm": 0.10145222752331673,
+        "tell_mason": 0.003249066548955093
+      },
+      "rule": null,
+      "gate": null,
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "t-finished",
+      "situation": "finished, needs nothing",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.994611099810578,
+        "wake_pm": 0.004650542674061186,
+        "tell_mason": 0.0007383575153605736
+      },
+      "rule": null,
+      "gate": null,
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "t-stall-quiet",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.7616776140660784,
+        "wake_pm": 0.2320288719985314,
+        "tell_mason": 0.006293513935390224
+      },
+      "rule": "rule_stall",
+      "gate": "wake_pm",
+      "layer": "rule_stall",
+      "cached": false
+    },
+    {
+      "id": "t-stall-loop",
+      "situation": "stalled",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.014897469247516025,
+        "wake_pm": 0.951227447738386,
+        "tell_mason": 0.03387508301409802
+      },
+      "rule": null,
+      "gate": null,
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "t-pm-wait",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.06463342200727448,
+        "wake_pm": 0.9280273221658482,
+        "tell_mason": 0.0073392558268772995
+      },
+      "rule": null,
+      "gate": null,
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "t-card-new",
+      "situation": "waiting on a PM answer",
+      "expected": "wake_pm",
+      "decider": "wake_pm",
+      "p": {
+        "stay_quiet": 0.12688559898400464,
+        "wake_pm": 0.8593934623628772,
+        "tell_mason": 0.013720938653118303
+      },
+      "rule": null,
+      "gate": null,
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "t-mason",
+      "situation": "waiting on Mason",
+      "expected": "tell_mason",
+      "decider": "tell_mason",
+      "p": {
+        "stay_quiet": 0.02386353277015829,
+        "wake_pm": 0.022790990232635255,
+        "tell_mason": 0.9533454769972065
+      },
+      "rule": null,
+      "gate": null,
+      "layer": "decider",
+      "cached": false
+    },
+    {
+      "id": "t-alarming",
+      "situation": "alarming reply, state fine",
+      "expected": "stay_quiet",
+      "decider": "stay_quiet",
+      "p": {
+        "stay_quiet": 0.9107324796806168,
+        "wake_pm": 0.08582699723429475,
+        "tell_mason": 0.003440523085088515
+      },
+      "rule": null,
+      "gate": null,
+      "layer": "decider",
+      "cached": false
+    }
+  ],
+  "ledgerAttempts": 60
+}

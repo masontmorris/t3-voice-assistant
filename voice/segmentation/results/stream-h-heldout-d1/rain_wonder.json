@@ -1,0 +1,185 @@
+{
+  "scenario": "rain_wonder",
+  "covers": "implicit request and statement",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "rain_wonder:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          7
+        ],
+        [
+          7,
+          11
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          7
+        ],
+        [
+          7,
+          11
+        ]
+      ],
+      "hard": [
+        7
+      ],
+      "soft": [],
+      "breaks": {},
+      "committed": [
+        "s1",
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 34,
+          "text": "I wonder if it will rain Saturday.",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 35,
+          "end": 55,
+          "text": "My umbrella is blue.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "rain_wonder:r3",
+          "route": "decisions",
+          "file": "decisions-c864f16a76342cb70152c80a.json",
+          "status": 200,
+          "ms": 246.0,
+          "started_at": "2026-11-16T08:38:37.339+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "clarify",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.613313210054375,
+            "ready": 0.22907734561926196,
+            "side_effect": 0.020492699434233742
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "description",
+          "readiness": "clarify",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.6227066263502218,
+            "ready": 0.314887111380295,
+            "side_effect": 0.024181486648457207,
+            "depends": 0.7709543881730088,
+            "corrects": 0.8330961014779742
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "needs_clarification",
+      "segment_text": "I wonder if it will rain Saturday.",
+      "instruction": "I wonder if it will rain Saturday.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "I wonder if it will rain Saturday."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "needs_clarification",
+          "reason": "readiness clarify"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_rain_wonder",
+    "final_transcript": "I wonder if it will rain Saturday. My umbrella is blue.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "I wonder if it will rain Saturday.",
+        "status": "needs_clarification"
+      }
+    ],
+    "clarification_needed": [
+      "I wonder if it will rain Saturday."
+    ]
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "rain",
+          "saturday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: status needs_clarification, expected one of ['dispatched']",
+      "clarification_needed True"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}
