@@ -193,11 +193,12 @@ export function createHeartbeat(cfg, deps, startedAt) {
 		return null;
 	}
 
-	// Sends the wake unless the suppression rule blocks it. Sets entry.wakeMessageId, entry.suppressed or entry.wakeError.
-	async function wake(node, entry, t) {
+	// Sends the wake unless the suppression rule blocks it, or `force` is set. Sets entry.wakeMessageId, entry.suppressed or
+	// entry.wakeError.
+	async function wake(node, entry, t, force = false) {
 		const watch = watches.get(node.threadId);
 		const fp = fingerprint(node.thread);
-		const block = wakeBlock(watch, fp, t, cfg);
+		const block = force ? null : wakeBlock(watch, fp, t, cfg);
 		if (block) {
 			entry.suppressed = true;
 			entry.reason += `; wake suppressed: ${block}`;
@@ -217,10 +218,10 @@ export function createHeartbeat(cfg, deps, startedAt) {
 	}
 
 	// Puts a notice for Mason in the outbox unless the suppression rule blocks it. Marks the node as looked at, like a wake.
-	async function notify(node, entry, t, text) {
+	async function notify(node, entry, t, text, force = false) {
 		const watch = watches.get(node.threadId);
 		const fp = fingerprint(node.thread);
-		const block = wakeBlock(watch, fp, t, cfg);
+		const block = force ? null : wakeBlock(watch, fp, t, cfg);
 		if (block) {
 			entry.suppressed = true;
 			entry.reason += `; notice suppressed: ${block}`;
@@ -335,7 +336,7 @@ export function createHeartbeat(cfg, deps, startedAt) {
 	// except that a node whose state is unchanged since that look waits for ceilingSec. A skip is logged once per look.
 	async function backstop(node, t) {
 		const watch = watches.get(node.threadId);
-		if (t - watch.lookedAt < cfg.backstopSec * 1000) return false;
+		if (finishedChild(node) || t - watch.lookedAt < cfg.backstopSec * 1000) return false;
 		if (wakeBlock(watch, fingerprint(node.thread), t, cfg)) {
 			if (watch.backstopSkipLogged === watch.lookedAt) return false;
 			watch.backstopSkipLogged = watch.lookedAt;
@@ -347,6 +348,10 @@ export function createHeartbeat(cfg, deps, startedAt) {
 		say(`backstop ${entry.suppressed ? "skipped" : "wake"} for ${node.role} ${node.threadId.slice(-8)}: ${entry.reason}`);
 		return true;
 	}
+
+	// A T3 child whose run completed: T3 already delivered its result to the parent, so the heartbeat leaves it alone.
+	const finishedChild = (node) =>
+		!!node.thread && !!node.thread.lineage && node.thread.lineage.parentThreadId === node.parent && node.thread.status === "completed" && !node.thread.activeRunId;
 
 	let tickNo = 0;
 	let busy = false;
@@ -371,7 +376,14 @@ export function createHeartbeat(cfg, deps, startedAt) {
 						trigger = null;
 					} else trigger.delta = f.delta;
 				}
-				const rule = wakeBlock(watch, fp, t, cfg) ? null : ruleVerdict(featuresOf(n, watch, fp, t), cfg);
+				if (trigger && trigger.kind === "silence" && finishedChild(n)) trigger = null;
+				// While a question is open, only the question rule decides, so a verdict ask cannot pre-empt its routing.
+				if (trigger && watch.question) trigger = null;
+				const features = featuresOf(n, watch, fp, t);
+				let rule = ruleVerdict(features, cfg);
+				if (rule && rule.source === "rule_question" && watch.questionRouted === watch.question.id) rule = ruleVerdict({ ...features, openQuestionSec: null }, cfg);
+				const routing = !!rule && rule.source === "rule_question";
+				if (rule && !routing && wakeBlock(watch, fp, t, cfg)) rule = null;
 				if (rule) {
 					triggers.push(rule.source);
 					const entry = { at: iso(t), node: n.threadId, role: n.role, trigger: trigger ? trigger.kind : "rule", delta: trigger ? trigger.delta : {}, verdict: "wake_pm", reason: rule.reason, source: rule.source };
@@ -380,8 +392,9 @@ export function createHeartbeat(cfg, deps, startedAt) {
 						entry.verdict = recipient.verdict;
 						entry.reason += `; ${recipient.note}`;
 					}
-					if (entry.verdict === "tell_mason") await notify(n, entry, t, recipient.text);
-					else await wake(n, entry, t);
+					if (routing) watch.questionRouted = watch.question.id;
+					if (entry.verdict === "tell_mason") await notify(n, entry, t, recipient.text, routing);
+					else await wake(n, entry, t, routing);
 					logCheckin(entry);
 					say(`${rule.source} ${entry.verdict} for ${n.role} ${n.threadId.slice(-8)}: ${entry.reason}`);
 				} else if (trigger) {
