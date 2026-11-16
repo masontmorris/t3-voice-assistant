@@ -163,7 +163,7 @@ class MockTaskService:
 
     def close(self):
         if self._pool is not None:
-            self._pool.shutdown(cancel_futures=True)
+            self._pool.shutdown(wait=False, cancel_futures=True)
 
     def next_due(self):
         due = [e.due_at for e in self.executions.values() if e.state == Run.RUNNING]
