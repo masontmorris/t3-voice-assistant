@@ -56,6 +56,27 @@ export function wakeBlock(watch, fp, t, cfg) {
 }
 
 const RUN_KEYS = ["status", "activeRunId", "latestRunId"];
+const BAD_ENDS = ["interrupted", "cancelled", "failed"];
+
+// True when the parent's own activity holds a task_cancel or t3_thread_interrupt aimed at this child. T3 names a delegated
+// child's task "node:..." where its thread is "thread:...".
+export function parentCancelled(parentSnap, childId) {
+	const taskId = childId.replace(/^thread:/, "node:");
+	const items = (parentSnap.projection || parentSnap).turnItems || [];
+	for (const i of Array.isArray(items) ? items : Object.values(items)) {
+		if (i.type !== "dynamic_tool" || typeof i.text !== "string") continue;
+		let call;
+		try {
+			call = JSON.parse(i.text);
+		} catch {
+			continue;
+		}
+		const input = call.input || {};
+		if (/task_cancel$/.test(call.toolName || "") && (input.taskId === taskId || input.taskId === childId)) return true;
+		if (/t3_thread_interrupt$/.test(call.toolName || "") && input.threadId === childId) return true;
+	}
+	return false;
+}
 
 // The quiet time a running node may have before the stall rule wakes its parent, by role, when nothing more specific is known.
 export const ROLE_BUDGET_MIN = { worker: 30, pm: 60, orchestrator: 120 };
@@ -336,7 +357,7 @@ export function createHeartbeat(cfg, deps, startedAt) {
 	// except that a node whose state is unchanged since that look waits for ceilingSec. A skip is logged once per look.
 	async function backstop(node, t) {
 		const watch = watches.get(node.threadId);
-		if (finishedChild(node) || t - watch.lookedAt < cfg.backstopSec * 1000) return false;
+		if (delegated(node) || t - watch.lookedAt < cfg.backstopSec * 1000) return false;
 		if (wakeBlock(watch, fingerprint(node.thread), t, cfg)) {
 			if (watch.backstopSkipLogged === watch.lookedAt) return false;
 			watch.backstopSkipLogged = watch.lookedAt;
@@ -350,6 +371,7 @@ export function createHeartbeat(cfg, deps, startedAt) {
 	}
 
 	// A T3 child whose run completed: T3 already delivered its result to the parent, so the heartbeat leaves it alone.
+	const delegated = (node) => !!node.thread && !!node.thread.lineage && node.thread.lineage.parentThreadId === node.parent;
 	const finishedChild = (node) =>
 		!!node.thread && !!node.thread.lineage && node.thread.lineage.parentThreadId === node.parent && node.thread.status === "completed" && !node.thread.activeRunId;
 
@@ -376,17 +398,28 @@ export function createHeartbeat(cfg, deps, startedAt) {
 						trigger = null;
 					} else trigger.delta = f.delta;
 				}
-				if (trigger && trigger.kind === "silence" && finishedChild(n)) trigger = null;
+				// A delegated worker gets the fixed rules only: T3 reports its completion, so no decider call is made for it.
+				let childEnd = null;
+				if (trigger && delegated(n)) {
+					if (trigger.kind === "change" && !fp.activeRunId && BAD_ENDS.includes(fp.status)) {
+						if (fp.status !== "failed" && parentCancelled(await t3.thread(n.parent), n.threadId))
+							logCheckin({ at: iso(t), node: n.threadId, role: n.role, trigger: "change", delta: trigger.delta, dropped: true, reason: `the run ended ${fp.status} because its parent cancelled it` });
+						else childEnd = { source: "rule_child_end", reason: `the delegated run ended ${fp.status}, and its parent did not cancel it`, trigger };
+					}
+					trigger = null;
+				}
 				// While a question is open, only the question rule decides, so a verdict ask cannot pre-empt its routing.
 				if (trigger && watch.question) trigger = null;
 				const features = featuresOf(n, watch, fp, t);
-				let rule = ruleVerdict(features, cfg);
+				let rule = childEnd || ruleVerdict(features, cfg);
+				if (rule && rule.source === "rule_promise" && delegated(n)) rule = null;
 				if (rule && rule.source === "rule_question" && watch.questionRouted === watch.question.id) rule = ruleVerdict({ ...features, openQuestionSec: null }, cfg);
 				const routing = !!rule && rule.source === "rule_question";
 				if (rule && !routing && wakeBlock(watch, fp, t, cfg)) rule = null;
 				if (rule) {
 					triggers.push(rule.source);
-					const entry = { at: iso(t), node: n.threadId, role: n.role, trigger: trigger ? trigger.kind : "rule", delta: trigger ? trigger.delta : {}, verdict: "wake_pm", reason: rule.reason, source: rule.source };
+					const why = trigger || rule.trigger;
+					const entry = { at: iso(t), node: n.threadId, role: n.role, trigger: why ? why.kind : "rule", delta: why ? why.delta : {}, verdict: "wake_pm", reason: rule.reason, source: rule.source };
 					const recipient = rule.source === "rule_question" ? await askRecipient(n, t) : null;
 					if (recipient) {
 						entry.verdict = recipient.verdict;

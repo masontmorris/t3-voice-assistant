@@ -57,7 +57,7 @@ test("question rule: a question open past the timeout wakes the PM with no model
 	assert.equal(h.sent.length, 1);
 });
 
-test("rule 1 narrowed: a failed run of a T3 child goes through the gate, and only a completed one is dropped", async () => {
+test("rule 1 narrowed: a failed run of a T3 child wakes its parent by rule, and only a completed one is dropped", async () => {
 	const nodes = [PM, { role: "worker", threadId: "F", parent: "P", charter: "failed child" }, { role: "worker", threadId: "C", parent: "P", charter: "completed child" }];
 	const h = harness(nodes, () => QUIET, { backstopSec: 1e6 });
 	const child = { lineage: { parentThreadId: "P" } };
@@ -67,6 +67,7 @@ test("rule 1 narrowed: a failed run of a T3 child goes through the gate, and onl
 	h.set("F", { status: "failed", activeRunId: null }, 5 * S);
 	h.set("C", { status: "completed", activeRunId: null }, 5 * S);
 	await h.run(10 * S, 10 * S);
-	assert.ok(h.checkins.some((e) => e.node === "F" && e.trigger === "change" && e.verdict), "the failed child run is asked about");
+	assert.ok(h.checkins.some((e) => e.node === "F" && e.trigger === "change" && e.source === "rule_child_end"), "the failed child run wakes the parent by rule");
+	assert.equal(h.attempts(), 0, "with no decider call");
 	assert.ok(h.checkins.some((e) => e.node === "C" && e.dropped && /rule 1/.test(e.reason)), "the completed child run is dropped");
 });
