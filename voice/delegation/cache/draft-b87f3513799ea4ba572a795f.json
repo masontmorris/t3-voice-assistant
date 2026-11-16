@@ -1,0 +1,164 @@
+{
+ "label": "08_delegate_after_dispatch:task_2:r3",
+ "model": "deepseek/deepseek-v4.1-flash",
+ "request": {
+  "system": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only.",
+  "user": "The user's request for this task:\nand tell me\n\nEverything the user said in this utterance, for context only:\nfind the q3 budget spreadsheet and tell me\n\nDependencies:\n- None.\n\nThis task has no effect outside the conversation.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions.",
+  "schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "instruction",
+    "context",
+    "constraints",
+    "success_criteria",
+    "open_questions"
+   ],
+   "properties": {
+    "instruction": {
+     "type": "string"
+    },
+    "context": {
+     "type": "string"
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "success_criteria": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "open_questions": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "max_tokens": 4096,
+  "temperature": 0.0
+ },
+ "status": 200,
+ "content": {
+  "prompt_draft": {
+   "instruction": "Find the Q3 budget spreadsheet and tell the user.",
+   "context": "The user said: 'find the q3 budget spreadsheet and tell me'. No other details were provided.",
+   "constraints": [
+    "Only find the Q3 budget spreadsheet and tell the user; do not take other actions.",
+    "The spreadsheet must be the Q3 budget spreadsheet, not another quarter or type.",
+    "Do not guess what information the user wants to be told."
+   ],
+   "success_criteria": [
+    "The agent locates a spreadsheet matching 'Q3 budget'.",
+    "The agent tells the user something about the spreadsheet, or asks for clarification because the user did not specify what to tell."
+   ],
+   "open_questions": [
+    "What should the agent tell the user about the Q3 budget spreadsheet (e.g., its location, contents, summary, values)?",
+    "Which year's Q3 budget is intended, if multiple Q3 budget spreadsheets exist?",
+    "Where should the agent search for the spreadsheet (e.g., local files, cloud storage, email)?",
+    "Does 'tell me' mean provide the spreadsheet file, a link, or a description?"
+   ]
+  }
+ },
+ "ms": 11463.932000042405,
+ "error": null,
+ "retry_after_s": null,
+ "sent": {
+  "model": "deepseek/deepseek-v4.1-flash",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "messages": [
+   {
+    "role": "system",
+    "content": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only."
+   },
+   {
+    "role": "user",
+    "content": "The user's request for this task:\nand tell me\n\nEverything the user said in this utterance, for context only:\nfind the q3 budget spreadsheet and tell me\n\nDependencies:\n- None.\n\nThis task has no effect outside the conversation.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions."
+   }
+  ],
+  "response_format": {
+   "type": "json_schema",
+   "json_schema": {
+    "name": "prompt_draft",
+    "strict": true,
+    "schema": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "instruction",
+      "context",
+      "constraints",
+      "success_criteria",
+      "open_questions"
+     ],
+     "properties": {
+      "instruction": {
+       "type": "string"
+      },
+      "context": {
+       "type": "string"
+      },
+      "constraints": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "success_criteria": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "open_questions": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "served_model": "deepseek/deepseek-v4.1-flash",
+ "usage": {
+  "prompt_tokens": 346,
+  "completion_tokens": 1780,
+  "total_tokens": 2126,
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 256,
+   "cache_write_tokens": 0,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  },
+  "completion_tokens_details": {
+   "audio_tokens": 0,
+   "reasoning_tokens": 1547,
+   "accepted_prediction_tokens": 0,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  }
+ },
+ "finish_reason": "stop",
+ "meta": {
+  "id": "80d1cb229f1bd987c4bc7b0f0dbd611d",
+  "object": "chat.completion",
+  "created": 1794821796,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "system_fingerprint": ""
+ }
+}

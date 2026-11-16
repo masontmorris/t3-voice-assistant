@@ -1,0 +1,687 @@
+{
+ "original": {
+  "summary": {
+   "utterances": 11,
+   "dispatched": 18,
+   "with_draft": 8,
+   "raw_no_draft_started": 8,
+   "raw_still_drafting": 0,
+   "raw_stale": 2,
+   "raw_rejected": 0,
+   "requests": 18,
+   "requests_per_utterance": 1.64,
+   "drafted_tasks": 12,
+   "redrafts": 6,
+   "gap_done_to_dispatch": {
+    "n": 18,
+    "median": 1.0,
+    "min": 0,
+    "max": 2
+   },
+   "wait_if_holding_for_draft": {
+    "n": 18,
+    "median": 0.5,
+    "min": 0.0,
+    "max": 0.5
+   }
+  },
+  "scenarios": {
+   "01_two_independent": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 5
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "stale",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 2
+   },
+   "02_two_dependent": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 3
+   },
+   "03_topic_change": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 5
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 5,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 5
+     }
+    ],
+    "requests": 1
+   },
+   "04_mid_sentence_correction": {
+    "rows": [
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 6,
+      "first_done": 6,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 6
+     }
+    ],
+    "requests": 0
+   },
+   "05_correction_after_dispatch": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 6
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 4,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 2,
+      "final_at": 6
+     },
+     {
+      "task_id": "task_3",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 6,
+      "first_done": 6,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 6
+     }
+    ],
+    "requests": 3
+   },
+   "06_description_not_request": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 5,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 5
+     }
+    ],
+    "requests": 0
+   },
+   "07_intentional_repeat": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     }
+    ],
+    "requests": 0
+   },
+   "08_delegate_after_dispatch": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 5
+   },
+   "09_delegate_before_segment": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": false,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 6
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 6,
+      "first_done": 6,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 6
+     }
+    ],
+    "requests": 0
+   },
+   "10_side_effect_email": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 3,
+      "wait_for_draft": 0.0,
+      "requests": 2,
+      "final_at": 5
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "stale",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 4,
+      "wait_for_draft": 0.5,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 3
+   },
+   "11_filler_false_starts": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 4,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 1
+   }
+  }
+ },
+ "heldout": {
+  "summary": {
+   "utterances": 18,
+   "dispatched": 26,
+   "with_draft": 12,
+   "raw_no_draft_started": 14,
+   "raw_still_drafting": 0,
+   "raw_stale": 0,
+   "raw_rejected": 0,
+   "requests": 15,
+   "requests_per_utterance": 0.83,
+   "drafted_tasks": 15,
+   "redrafts": 0,
+   "gap_done_to_dispatch": {
+    "n": 26,
+    "median": 0.0,
+    "min": 0,
+    "max": 1
+   },
+   "wait_if_holding_for_draft": {
+    "n": 26,
+    "median": 0.5,
+    "min": 0.0,
+    "max": 0.5
+   }
+  },
+  "scenarios": {
+   "actually": {
+    "rows": [
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     }
+    ],
+    "requests": 1
+   },
+   "assistant_question": {
+    "rows": [],
+    "requests": 0
+   },
+   "buy_and_read": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     }
+    ],
+    "requests": 2
+   },
+   "cancel_second": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 1,
+      "first_done": 0,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     }
+    ],
+    "requests": 2
+   },
+   "delegate_overlap": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": false,
+      "dispatched_at": 1,
+      "first_done": 1,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     }
+    ],
+    "requests": 0
+   },
+   "delete_and_read": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     }
+    ],
+    "requests": 2
+   },
+   "email_extension": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     }
+    ],
+    "requests": 0
+   },
+   "i_mean": {
+    "rows": [
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 2
+     }
+    ],
+    "requests": 0
+   },
+   "market_three": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 3
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 3
+     }
+    ],
+    "requests": 2
+   },
+   "mixed_chain": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": false,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     },
+     {
+      "task_id": "task_3",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     }
+    ],
+    "requests": 0
+   },
+   "museum_chain": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": false,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     }
+    ],
+    "requests": 2
+   },
+   "near_duplicates": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 2
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 2
+     }
+    ],
+    "requests": 0
+   },
+   "no_wait": {
+    "rows": [
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 3
+     }
+    ],
+    "requests": 1
+   },
+   "pause_correction": {
+    "rows": [
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 3
+     }
+    ],
+    "requests": 1
+   },
+   "post_and_read": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     }
+    ],
+    "requests": 2
+   },
+   "rain_wonder": {
+    "rows": [],
+    "requests": 0
+   },
+   "run_on": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     },
+     {
+      "task_id": "task_3",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 3,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 3
+     }
+    ],
+    "requests": 0
+   },
+   "true_repeat": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 2
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 2,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 2
+     }
+    ],
+    "requests": 0
+   }
+  }
+ }
+}

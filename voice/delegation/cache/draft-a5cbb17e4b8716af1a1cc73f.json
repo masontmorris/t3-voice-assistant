@@ -1,0 +1,164 @@
+{
+ "label": "05_correction_after_dispatch:task_1:r3",
+ "model": "deepseek/deepseek-v4.1-flash",
+ "request": {
+  "system": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only.",
+  "user": "The user's request for this task:\nfind flights to austin on friday\n\nEverything the user said in this utterance, for context only:\nfind flights to austin on friday and check hotel\n\nDependencies:\n- None.\n\nThis task has no effect outside the conversation.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions.",
+  "schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "instruction",
+    "context",
+    "constraints",
+    "success_criteria",
+    "open_questions"
+   ],
+   "properties": {
+    "instruction": {
+     "type": "string"
+    },
+    "context": {
+     "type": "string"
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "success_criteria": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "open_questions": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "max_tokens": 4096,
+  "temperature": 0.0
+ },
+ "status": 200,
+ "content": {
+  "instruction": "Find flights to Austin on Friday.",
+  "context": "The user said: 'find flights to austin on friday and check hotel'. The task is only to find flights to Austin on Friday; checking a hotel is not part of this task.",
+  "constraints": [
+   "Do not book or purchase any flights.",
+   "Do not check hotels or perform any other actions beyond finding flights.",
+   "Do not assume departure city, specific date, or other preferences; if not provided, ask the user."
+  ],
+  "success_criteria": [
+   "The agent provides information about flights to Austin on Friday."
+  ],
+  "open_questions": [
+   "What is the departure city?",
+   "Which Friday (specific date)?",
+   "Any preferred airlines?",
+   "Any time of day preferences?",
+   "How many passengers?",
+   "One-way or round-trip?",
+   "Any budget constraints?"
+  ]
+ },
+ "ms": 11885.352800018154,
+ "error": null,
+ "retry_after_s": null,
+ "sent": {
+  "model": "deepseek/deepseek-v4.1-flash",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "messages": [
+   {
+    "role": "system",
+    "content": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only."
+   },
+   {
+    "role": "user",
+    "content": "The user's request for this task:\nfind flights to austin on friday\n\nEverything the user said in this utterance, for context only:\nfind flights to austin on friday and check hotel\n\nDependencies:\n- None.\n\nThis task has no effect outside the conversation.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions."
+   }
+  ],
+  "response_format": {
+   "type": "json_schema",
+   "json_schema": {
+    "name": "prompt_draft",
+    "strict": true,
+    "schema": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "instruction",
+      "context",
+      "constraints",
+      "success_criteria",
+      "open_questions"
+     ],
+     "properties": {
+      "instruction": {
+       "type": "string"
+      },
+      "context": {
+       "type": "string"
+      },
+      "constraints": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "success_criteria": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "open_questions": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "served_model": "deepseek/deepseek-v4.1-flash",
+ "usage": {
+  "prompt_tokens": 353,
+  "completion_tokens": 1587,
+  "total_tokens": 1940,
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 256,
+   "cache_write_tokens": 0,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  },
+  "completion_tokens_details": {
+   "audio_tokens": 0,
+   "reasoning_tokens": 1384,
+   "accepted_prediction_tokens": 0,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  }
+ },
+ "finish_reason": "stop",
+ "meta": {
+  "id": "2cb3703506f69d2169252e28fb56acb3",
+  "object": "chat.completion",
+  "created": 1794821759,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "system_fingerprint": ""
+ }
+}
