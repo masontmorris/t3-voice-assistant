@@ -1,6 +1,6 @@
 """The local voice-assistant prototype, end to end: a WAV in, a spoken reply and a record of every event out.
 
-    python -m voice.prototype.run CLIP.wav [CLIP.wav ...] [--inject a|b|c] [--out DIR]
+    python -m voice.prototype.run CLIP.wav [CLIP.wav ...] [--inject a|b|c] [--segmenter hybrid|baseline] [--out DIR]
 
 The clip streams at real-time pace into two sessions on one llama-server: a `realtime` voice session and a
 `?intent=transcription` session. Transcription deltas feed the segmenter, the segmenter's dispatches feed the mock
@@ -12,6 +12,9 @@ that finish after the reply reach the voice as a `task_update` at the next bound
   b  the output of the model's own `delegate` or `get_task_status` call (the first response must call a tool);
      --status-only offers just `get_task_status`
   c  a user text message with a fixed machine prefix
+
+--segmenter picks the segmenter, the hybrid by default. The segmenter takes transcript updates one at a time. When
+newer updates queue behind a decision, only the newest is processed, and the timeline logs the dropped revisions.
 
 Needs the GPU (run it inside the lease) and VOICE_ENV_FILE or OPENROUTER_API_KEY for decider calls that miss the
 cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to --out.
@@ -25,13 +28,12 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
-from voice.prototype.segmenter import BaselineSegmenter, live_calls, use_decider_cache
+from voice.prototype.segmenter import DECIDER_BUDGET, SEGMENTERS, coalesce, live_calls, use_decider_cache
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.transcript import TranscriptAdapter
 from voice.segmentation import client as api
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
-DECIDER_BUDGET = 150
 PERSONA = (
     "You are a friendly voice assistant. A separate task service carries out what the user asks for. "
     "After the user speaks, you receive a task status snapshot as JSON. Talk to the user directly, as \"you\", in "
@@ -99,7 +101,7 @@ def user_text(prefix, payload):
             "content": [{"type": "input_text", "text": prefix + json.dumps(payload)}]}
 
 
-async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial):
+async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid"):
     t0 = time.perf_counter()
 
     def clock():
@@ -112,7 +114,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
     def log(kind, **detail):
         timeline.append({"t": round(clock(), 4), "kind": kind, **detail})
 
-    segmenter = BaselineSegmenter(decider, stem)
+    segmenter = SEGMENTERS[segmenter_name](decider, stem)
     service = MockTaskService(segmenter, f"conv_{stem}", delay_s)
     adapter = TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
@@ -134,22 +136,29 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
     async def segment_worker():
         while True:
-            kind, payload = await updates_q.get()
-            started, before = clock(), live_calls()
-            work = segmenter.update if kind == "update" else service.submit_delegate
-            try:
-                point = await loop.run_in_executor(executor, work, payload)
-            except Exception as exc:
-                log("segmenter_error", error=repr(exc))
-                point = None
-            if point is not None:
-                log("decision_point", source=kind, revision=point["revision"], is_final=point["is_final"],
-                    started=round(started, 4), live_calls=live_calls() - before, calls=point["calls"],
-                    problems=point["problems"],
-                    segments=[s["text"] for s in point["segments"]], decisions=point["decisions"])
-            for event in service.sync(clock()):
-                log("service", **event)
-            updates_q.task_done()
+            batch = [await updates_q.get()]
+            while not updates_q.empty():
+                batch.append(updates_q.get_nowait())
+            kept, dropped = coalesce(batch)
+            if dropped:
+                log("coalesced", revisions=[u.revision for u in dropped])
+            for kind, payload in kept:
+                started, before = clock(), live_calls()
+                work = segmenter.update if kind == "update" else service.submit_delegate
+                try:
+                    point = await loop.run_in_executor(executor, work, payload)
+                except Exception as exc:
+                    log("segmenter_error", error=repr(exc))
+                    point = None
+                if point is not None:
+                    log("decision_point", source=kind, revision=point["revision"], is_final=point["is_final"],
+                        started=round(started, 4), live_calls=live_calls() - before, calls=point["calls"],
+                        problems=point["problems"],
+                        segments=[s["text"] for s in point["segments"]], decisions=point["decisions"])
+                for event in service.sync(clock()):
+                    log("service", **event)
+            for _ in batch:
+                updates_q.task_done()
 
     voice = await Session.open(url, "voice", clock)
     asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
@@ -243,7 +252,8 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
     snapshot_t = next(e["t"] for e in timeline if e["kind"] == "snapshot")
     snapshot_reply = replies[0]
     return {
-        "clip": wav.name, "inject": inject, "status_only": status_only, "delay_s": delay_s, "audio_s": audio_s,
+        "clip": wav.name, "inject": inject, "segmenter": segmenter_name, "status_only": status_only,
+        "delay_s": delay_s, "audio_s": audio_s,
         "audio_end": audio_end,
         "metrics": {
             "final_transcript_after_audio_end_s": final_t - audio_end,
@@ -252,6 +262,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
             "decider_live_calls": live_calls() - calls_before,
             "decision_points": sum(e["kind"] == "decision_point" for e in timeline),
             "segmenter_errors": sum(e["kind"] == "segmenter_error" for e in timeline),
+            "coalesced_revisions": sum(len(e["revisions"]) for e in timeline if e["kind"] == "coalesced"),
         },
         "final_transcript": adapter.text(),
         "snapshot": snapshot,
@@ -278,7 +289,8 @@ async def main_async(args):
             partial = {}
             try:
                 record = await run_clip(wav, args.inject, args.status_only,
-                                        f"ws://127.0.0.1:{args.port}/v1/realtime", decider, args.delay, out, partial)
+                                        f"ws://127.0.0.1:{args.port}/v1/realtime", decider, args.delay, out, partial,
+                                        args.segmenter)
             except Exception as exc:
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
             record["server_startup_s"] = server.startup_s
@@ -291,6 +303,7 @@ def main():
     parser.add_argument("clips", nargs="+", type=Path)
     parser.add_argument("--inject", choices="abc", default="c")
     parser.add_argument("--status-only", action="store_true", help="with b, offer get_task_status and no delegate")
+    parser.add_argument("--segmenter", choices=sorted(SEGMENTERS), default="hybrid")
     parser.add_argument("--out", type=Path)
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--port", type=int, default=8095)
