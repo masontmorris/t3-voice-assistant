@@ -22,7 +22,6 @@ class Run(StrEnum):
     CANCELLED = "cancelled"
 
 
-# (words that must all appear in the instruction, canned result). The first match wins.
 CANNED = [
     (("weather",), "Mock forecast: sunny, high of 54 degrees."),
     (("rain",), "Mock forecast: 40 percent chance of rain on Saturday."),

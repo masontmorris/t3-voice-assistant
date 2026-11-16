@@ -27,7 +27,7 @@ from pathlib import Path
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import BaselineSegmenter, live_calls, use_decider_cache
 from voice.prototype.tasks import MockTaskService
-from voice.prototype.transcript import COMPLETED, TranscriptAdapter
+from voice.prototype.transcript import TranscriptAdapter
 from voice.segmentation import client as api
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
@@ -101,7 +101,10 @@ def user_text(prefix, payload):
 
 async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial):
     t0 = time.perf_counter()
-    clock = lambda: time.perf_counter() - t0  # noqa: E731
+
+    def clock():
+        return time.perf_counter() - t0
+
     stem = wav.stem
     timeline = []
     partial["timeline"] = timeline
