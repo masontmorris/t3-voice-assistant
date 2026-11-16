@@ -60,7 +60,7 @@ const RUN_KEYS = ["status", "activeRunId", "latestRunId"];
 // The quiet time a running node may have before the stall rule wakes its parent, by role, when nothing more specific is known.
 export const ROLE_BUDGET_MIN = { worker: 30, pm: 60, orchestrator: 120 };
 export const RULE_DEFAULTS = { questionTimeoutSec: 600, promiseGraceSec: 300, estimateSlack: 2 };
-export const STAY_QUIET_BAR = null;
+export const STAY_QUIET_BAR = 0.88;
 
 const NUMBER_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, ninety: 90 };
 const ESTIMATE_RE = new RegExp(
