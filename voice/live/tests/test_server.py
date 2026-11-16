@@ -16,6 +16,7 @@ from voice.live.tests.test_endpoint import noise, tone
 SECRET = "s" * 64
 OUT_RATE = 24_000
 PERSONAS = []
+CALLS = []
 
 
 class FakeSession:
@@ -32,6 +33,7 @@ class FakeSession:
 async def fake_run_clip(source, *args, persona, on_voice_event, **kwargs):
     """Streams the turn's input, then sends 2 s of reply audio in 20 ms deltas after a 0.3 s think."""
     PERSONAS.append(persona)
+    CALLS.append((*args, kwargs))
     on_voice_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
     await asyncio.sleep(0.3)
@@ -47,6 +49,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.frames = []
         PERSONAS.clear()
+        CALLS.clear()
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
@@ -99,6 +102,9 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertLessEqual(max(self.frames), OUT_RATE * 2 // 25, "no frame longer than 40 ms")
         self.assertIn("reply_end", log)
         self.assertIsNone(done["metrics"]["cancelled"])
+        self.assertEqual(CALLS[0][9], "gated", "the live turn keeps the default gated pipeline")
+        self.assertEqual(CALLS[0][0], "c", "gated injects the snapshot as in c")
+        self.assertEqual(CALLS[0][7], "hybrid", "gated needs the hybrid segmenter")
         self.assertTrue((Path(self.tmp.name) / "turn_001.json").is_file())
         await ws.close()
 
