@@ -17,6 +17,7 @@ from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.tasks import MockTaskService, Run, amended
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source
 from voice.segmentation.hybrid import HybridSegmenter
+from voice.tools.tests.replay import replay_registry
 
 DEMO = ("What's the weather in Denver tomorrow?", "And what about Saturday?")
 ASK_PCM = b"\x02\x00" * 480
@@ -56,7 +57,7 @@ class Turn:
         return CLOCK
 
 
-class CorrectionTest(unittest.IsolatedAsyncioTestCase):
+class Call(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
@@ -69,7 +70,7 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
         prototype.Session.open = open_session
         self.addCleanup(setattr, prototype.Session, "open", original)
 
-    async def call(self, *said, ask_pcm=ASK_PCM):
+    async def call(self, *said, ask_pcm=ASK_PCM, tools=None):
         """One call on one voice session, carrying what the live server carries from turn to turn."""
         self.voice = await DemoSession.open("ws://unused", "voice", lambda: CLOCK)
         records, carried, items, self.spoken, self.asked = [], [], [], [], []
@@ -77,7 +78,7 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
             DemoSession.heard = words
             mark, spoken = len(self.voice.sent), []
             record = await prototype.run_clip(
-                Turn(n), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
+                Turn(n), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", tools, "gated",
                 voice=self.voice, snapshot_mode="reply-no-utterance", ask_pcm=ask_pcm,
                 speak=lambda text, pcm: spoken.append((text, len(pcm))),
                 prior_utterances=tuple(r["final_transcript"] for r in records), prior_tasks=tuple(carried))
@@ -95,6 +96,8 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn(f" {normalised(words)} ", f" {normalised(text)} ",
                              "no injected item holds the current turn's words")
 
+
+class CorrectionTest(Call):
     async def test_correction_does_not_rerun_the_rejected_request(self):
         records, items = await self.call(*DEMO, "That's not what I meant.")
         self.assertEqual(len(records[1]["dispatch_log"]), 1, "the fixture's turn 2 did run a task to reject")
@@ -135,6 +138,41 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
         self.assert_no_item_holds("No, Sunday.", items[2])
         self.assertEqual([t["instruction"] for t in self.carried][-1], "And what about Sunday?",
                          "a later correction amends the amended task")
+
+
+class FollowUpTest(Call):
+    """A follow-up that names no place runs the real lookup for the place of the task it continues. The replayed
+    registry has no default place, so a place can only come from the call."""
+
+    async def asyncSetUp(self):
+        await super().asyncSetUp()
+        self.tools, self.fetch, _ = replay_registry(None)
+
+    def lookup(self, record):
+        return [(e["tool"]["tool"], e["tool"]["arguments"], e["tool"]["outcome"]) if e["tool"] else None
+                for e in record["executions"].values()]
+
+    async def test_a_follow_up_with_no_place_inherits_it_and_runs_the_real_tool(self):
+        records, items = await self.call(*DEMO, tools=self.tools)
+        self.assertEqual(self.lookup(records[0]), [("weather", {"place": "Denver", "when": "tomorrow"}, "ok")])
+        self.assertEqual(self.lookup(records[1]), [("weather", {"place": "Denver", "when": "saturday"}, "ok")],
+                         "turn 2 asks about Saturday in turn 1's place, and the real lookup answers it")
+        update = records[1]["task_updates"][0]["result_summary"]
+        self.assertTrue(update.startswith("Forecast for Denver, Colorado. Saturday"), update)
+        self.assert_no_item_holds("And what about Saturday?", items[1])
+
+    async def test_an_amended_correction_inherits_the_place(self):
+        records, items = await self.call(*DEMO, "No, Sunday.", tools=self.tools)
+        self.assertEqual(self.lookup(records[2]), [("weather", {"place": "Denver", "when": "sunday"}, "ok")],
+                         "the amended task keeps the place and changes only the day")
+        self.assert_no_item_holds("No, Sunday.", items[2])
+
+    async def test_with_no_earlier_place_a_follow_up_stays_empty(self):
+        records, _ = await self.call("What's the weather tomorrow?", "And what about Saturday?", tools=self.tools)
+        self.assertEqual(self.lookup(records[0]), [("weather", {"place": None, "when": "tomorrow"}, "failed")],
+                         "the fixture's turn 1 resolves no place")
+        self.assertEqual(self.lookup(records[1]), [None], "turn 2 is not given a place nobody said")
+        self.assertEqual(self.fetch.urls, [], "no place is looked up at all")
 
 
 class ThirdPersonTest(unittest.IsolatedAsyncioTestCase):
