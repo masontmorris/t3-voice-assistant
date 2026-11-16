@@ -1,0 +1,109 @@
+{
+  "route": "decisions",
+  "label": "museum_chain:r1:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "find the museum opening hours",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "find the museum opening hours"
+      },
+      "still_being_spoken": "s1",
+      "tasks": [],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"find the museum opening hours\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"find the museum opening hours\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"find the museum opening hours\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.009048038501954316,
+          "correction": 0.002509160081127117,
+          "description": 0.020210806705453978,
+          "request": 0.9645821561143431,
+          "topic_change": 0.0036498385971213756
+        },
+        "confidence": 0.9557276951429289
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.16258421574554144,
+          "dispatch_now": 0.6092081370188203,
+          "wait": 0.22820764723563824
+        },
+        "confidence": 0.4138122055282304
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.07382038644364619
+      }
+    },
+    "usage": {
+      "input_tokens": 422,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791833-D1NF4kCjqudM6qfl8cNj",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:17:12.413+00:00",
+    "ms": 93.78840000135824,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:17:12.413+00:00",
+      "route": "decisions",
+      "hash": "9639467c59486b3b3fbb9a2c",
+      "label": "museum_chain:r1:decide",
+      "status": 200,
+      "ms": 93.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

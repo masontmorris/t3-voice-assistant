@@ -100,6 +100,19 @@ ONE_ACTION = ("A request is one action for one worker. \"And\", \"then\" or \"al
               "starts a new request, and so does a correction such as \"no wait\" or \"actually\".")
 
 
+EXTRA_QUESTIONS = {
+    "implicit": {
+        "type": "noul", "instructions": "Does new_speech imply a task the speaker wants done without asking for it "
+                                        "outright?",
+        "criteria": {"true": "A helpful assistant would act on it, though the speaker did not phrase it as a request.",
+                     "false": "It implies no task beyond what the speaker asked for."}},
+    "preemptive": {
+        "type": "noul", "instructions": "Would a read-only lookup started now help answer what the speaker is likely "
+                                        "to ask next?",
+        "criteria": {"true": "A lookup now would likely save time.", "false": "No lookup would help yet."}},
+}
+
+
 def cursor_request(update, ws, cursor, gaps, earlier, extra=False):
     """One decisions body for the words after the cursor. `earlier` maps committed sid to its text."""
     questions = {
@@ -134,15 +147,7 @@ def cursor_request(update, ws, cursor, gaps, earlier, extra=False):
                          **{f"cancel_{sid}": f"It withdraws {sid} (\"{t}\") with no replacement."
                             for sid, t in earlier.items()}}}
     if extra:
-        questions["implicit"] = {
-            "type": "noul", "instructions": "Does new_speech imply a task the speaker wants done without asking for "
-                                            "it outright?",
-            "criteria": {"true": "A helpful assistant would act on it, though the speaker did not phrase it as a "
-                                 "request.", "false": "It implies no task beyond what the speaker asked for."}}
-        questions["preemptive"] = {
-            "type": "noul", "instructions": "Would a read-only lookup started now help answer what the speaker is "
-                                            "likely to ask next?",
-            "criteria": {"true": "A lookup now would likely save time.", "false": "No lookup would help yet."}}
+        questions.update(EXTRA_QUESTIONS)
     state = {"earlier_requests": earlier, "new_speech": marked_text(update.text, ws, cursor, gaps),
              "speech_is_final": update.is_final}
     return {"model": MODEL, "state": state, "questions": questions}
@@ -367,8 +372,6 @@ MAX_DRAIN = 8
 
 
 class CursorRunner:
-    option = "e"
-
     def __init__(self, client, extra=False, thresholds=THRESHOLDS, repeat=None):
         self.client, self.extra, self.t, self.repeat = client, extra, thresholds, repeat
 

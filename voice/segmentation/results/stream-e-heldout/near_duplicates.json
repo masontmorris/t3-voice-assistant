@@ -1,0 +1,333 @@
+{
+  "scenario": "near_duplicates",
+  "covers": "near duplicates are distinct",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "near_duplicates:r1",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "near_duplicates:r1",
+          "route": "decisions",
+          "file": "decisions-c84518cc82bebda84ff0a4f0.json",
+          "status": 200,
+          "ms": 100.0,
+          "started_at": "2026-11-16T01:22:44.944+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "check the library hours on monday",
+      "committed": null,
+      "answer": {
+        "finished": 0.9402490395554136,
+        "at": {
+          "choice": "m1",
+          "margin": 0.862621629439882,
+          "runner_up": "none"
+        },
+        "side_effect": 0.014425490627430053,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "near_duplicates:r2",
+      "cursor": 0,
+      "markers": [
+        12
+      ],
+      "calls": [
+        {
+          "label": "near_duplicates:r2",
+          "route": "decisions",
+          "file": "decisions-a0702f9bcad5d045a563ea57.json",
+          "status": 200,
+          "ms": 168.1,
+          "started_at": "2026-11-16T01:22:48.044+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.8870600217966366,
+        "at": {
+          "choice": "none",
+          "margin": 0.010955849006651308,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.013303536071468416,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "near_duplicates:r3",
+      "cursor": 0,
+      "markers": [
+        6,
+        12
+      ],
+      "calls": [
+        {
+          "label": "near_duplicates:r3",
+          "route": "decisions",
+          "file": "decisions-5a4b8e36f9a76f44b963b6d6.json",
+          "status": 200,
+          "ms": 89.5,
+          "started_at": "2026-11-16T01:22:51.144+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "check the library hours on monday",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9761211861988481,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9694271029519848,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.009717181569501895,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "near_duplicates:r3:drain1",
+      "cursor": 6,
+      "markers": [
+        12
+      ],
+      "calls": [
+        {
+          "label": "near_duplicates:r3:drain1",
+          "route": "decisions",
+          "file": "decisions-9c2517e0520708b534bfb6c0.json",
+          "status": 200,
+          "ms": 90.3,
+          "started_at": "2026-11-16T01:22:57.345+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 12,
+      "candidate": "check the library hours on tuesday",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.9873191738901788,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9893786429417183,
+          "runner_up": "none"
+        },
+        "side_effect": 0.007985327438041402,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9742217990599766,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.8564728129727399,
+          "runner_up": "none"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "cancel_requested",
+      "segment_text": "Check the library hours on Monday.",
+      "instruction": "Check the library hours on Monday.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Check the library hours on Monday."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "dispatched",
+          "new": "cancel_requested",
+          "reason": "corrected by segment \"Check the library hours on Tuesday.\""
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "Check the library hours on Tuesday.",
+      "instruction": "Check the library hours on Monday. (corrected: Check the library hours on Tuesday.)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Check the library hours on Tuesday."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 6,
+      "text": "Check the library hours on Monday."
+    },
+    {
+      "sid": "s2",
+      "w0": 6,
+      "w1": 12,
+      "text": "Check the library hours on Tuesday."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Check the library hours on Monday.",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Check the library hours on Monday. (corrected: Check the library hours on Tuesday.)",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_near_duplicates",
+    "final_transcript": "Check the library hours on Monday. Check the library hours on Tuesday.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Check the library hours on Monday.",
+        "status": "cancel_requested"
+      },
+      {
+        "task_id": "task_2",
+        "description": "Check the library hours on Monday. (corrected: Check the library hours on Tuesday.)",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "library",
+          "monday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "library",
+          "tuesday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: status cancel_requested, expected one of ['dispatched']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

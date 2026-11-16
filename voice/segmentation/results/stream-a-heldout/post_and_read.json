@@ -1,0 +1,331 @@
+{
+  "scenario": "post_and_read",
+  "covers": "post plus read",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 29,
+          "text": "find the gallery opening date",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "post_and_read:r1:decide",
+          "route": "decisions",
+          "file": "decisions-6cc1b9dda24158625ceca33e.json",
+          "status": 200,
+          "ms": 89.3,
+          "started_at": "2026-11-16T01:18:18.175+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9559038319317705,
+            "ready": 0.5647592483395879,
+            "side_effect": 0.05465714717927737
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 29,
+          "text": "find the gallery opening date",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 30,
+          "end": 69,
+          "text": "and post the message gallery opens soon",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "post_and_read:r2:decide",
+          "route": "decisions",
+          "file": "decisions-9162a0b8c66782d939b8e4e6.json",
+          "status": 200,
+          "ms": 93.7,
+          "started_at": "2026-11-16T01:18:21.275+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9854440693914113,
+            "ready": 0.8577256495949996,
+            "side_effect": 0.02329854197820301
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "corrects": 0.9886218041700431,
+            "depends": 0.31193118760151073,
+            "kind": 0.9665494119572948,
+            "ready": 0.6057525990398759,
+            "side_effect": 0.9960357703207284
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 29,
+          "text": "Find the gallery opening date",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 30,
+          "end": 72,
+          "text": "and post the message \"Gallery opens soon.\"",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "post_and_read:r3:decide",
+          "route": "decisions",
+          "file": "decisions-b37999e93c00e7872b4a7a31.json",
+          "status": 200,
+          "ms": 129.9,
+          "started_at": "2026-11-16T01:18:24.375+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9874175201365484,
+            "ready": 0.9590348379718039,
+            "side_effect": 0.023361407190796015
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "corrects": 0.9918812521748456,
+            "depends": 0.5575503877656554,
+            "kind": 0.9790896465637902,
+            "ready": 0.9724494703969923,
+            "side_effect": 0.9981565853854522
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the gallery opening date",
+      "instruction": "find the gallery opening date",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the gallery opening date"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find the gallery opening date",
+          "new": "Find the gallery opening date"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and post the message \"Gallery opens soon.\"",
+      "instruction": "and post the message \"Gallery opens soon.\"",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and post the message gallery opens soon"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and post the message gallery opens soon",
+          "new": "and post the message \"Gallery opens soon.\""
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 2,
+      "is_final": false,
+      "instruction": "find the gallery opening date",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "and post the message \"Gallery opens soon.\"",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_post_and_read",
+    "final_transcript": "Find the gallery opening date and post the message \"Gallery opens soon.\"",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find the gallery opening date",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and post the message \"Gallery opens soon.\"",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "gallery",
+          "date"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "post",
+          "gallery opens soon"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

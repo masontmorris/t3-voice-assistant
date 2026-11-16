@@ -1,0 +1,261 @@
+{
+  "scenario": "near_duplicates",
+  "covers": "near duplicates are distinct",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 33,
+          "text": "check the library hours on monday",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "near_duplicates:r1:decide",
+          "route": "decisions",
+          "file": "decisions-e9b874e2404118fac2bf9018.json",
+          "status": 200,
+          "ms": 85.8,
+          "started_at": "2026-11-16T01:17:31.973+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.94974598020858,
+            "ready": 0.7504853951608055,
+            "side_effect": 0.033606257667388346
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 34,
+          "text": "Check the library hours on Monday.",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 35,
+          "end": 70,
+          "text": "Check the library hours on Tuesday.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "near_duplicates:r3:decide",
+          "route": "decisions",
+          "file": "decisions-32b05b11d9007c67c73c0847.json",
+          "status": 200,
+          "ms": 107.1,
+          "started_at": "2026-11-16T01:17:38.174+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.974699673691683,
+            "ready": 0.9763523109168638,
+            "side_effect": 0.014431396660695995
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9306468813283537,
+            "depends": 0.9404108212254543,
+            "kind": 0.9382258685432254,
+            "ready": 0.9648564334323078,
+            "side_effect": 0.014152127556764395
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Check the library hours on Monday.",
+      "instruction": "Check the library hours on Monday.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "check the library hours on monday"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "check the library hours on monday",
+          "new": "Check the library hours on Monday."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "Check the library hours on Tuesday.",
+      "instruction": "Check the library hours on Tuesday.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Check the library hours on Tuesday."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Check the library hours on Monday.",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Check the library hours on Tuesday.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_near_duplicates",
+    "final_transcript": "Check the library hours on Monday. Check the library hours on Tuesday.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Check the library hours on Monday.",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "Check the library hours on Tuesday.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "library",
+          "monday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "library",
+          "tuesday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

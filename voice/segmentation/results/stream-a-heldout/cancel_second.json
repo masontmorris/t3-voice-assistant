@@ -1,0 +1,405 @@
+{
+  "scenario": "cancel_second",
+  "covers": "cancellation",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 23,
+          "text": "look up the tide at rye",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 24,
+          "end": 52,
+          "text": "and find the ferry timetable",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "cancel_second:r1:decide",
+          "route": "decisions",
+          "file": "decisions-a557d4b19bab6eba19ae2006.json",
+          "status": 200,
+          "ms": 97.7,
+          "started_at": "2026-11-16T01:16:07.307+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9845646704895772,
+            "ready": 0.6305001870788639,
+            "side_effect": 0.01687765456075901
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9921352899277609,
+            "depends": 0.9197940843695334,
+            "kind": 0.9789891881704407,
+            "ready": 0.6496982503619941,
+            "side_effect": 0.02326226289303965
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 23,
+          "text": "look up the tide at rye",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 24,
+          "end": 52,
+          "text": "and find the ferry timetable",
+          "open": false
+        },
+        {
+          "sid": "s3",
+          "start": 53,
+          "end": 78,
+          "text": "never mind the second one",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "cancel_second:r2:decide",
+          "route": "decisions",
+          "file": "decisions-0898da2195d3ba05544f2963.json",
+          "status": 200,
+          "ms": 93.1,
+          "started_at": "2026-11-16T01:16:10.407+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9846298879849676,
+            "ready": 0.9546331184599655,
+            "side_effect": 0.018210746857788028
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9891761999348319,
+            "depends": 0.9271494938840503,
+            "kind": 0.963353646165187,
+            "ready": 0.7549013316234565,
+            "side_effect": 0.04867087545615211
+          }
+        },
+        "s3": {
+          "sid": "s3",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s2",
+            "mode": "cancel"
+          },
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9891426001178718,
+            "depends": 0.7439401398501108,
+            "kind": 0.9662528459072545,
+            "ready": 0.43895986370073303,
+            "side_effect": 0.09591097775772334
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 23,
+          "text": "Look up the tide at Rye",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 24,
+          "end": 53,
+          "text": "and find the ferry timetable.",
+          "open": false
+        },
+        {
+          "sid": "s3",
+          "start": 54,
+          "end": 80,
+          "text": "Never mind the second one.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "cancel_second:r3:decide",
+          "route": "decisions",
+          "file": "decisions-d31423198f98ccabf3589593.json",
+          "status": 200,
+          "ms": 107.8,
+          "started_at": "2026-11-16T01:16:13.507+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.983171901549349,
+            "ready": 0.9882537268852434,
+            "side_effect": 0.02146488660454084
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9901298722186881,
+            "depends": 0.923979975810874,
+            "kind": 0.886366898278991,
+            "ready": 0.83169459728732,
+            "side_effect": 0.040314839906351596
+          }
+        },
+        "s3": {
+          "sid": "s3",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s2",
+            "mode": "cancel"
+          },
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9877388654308913,
+            "depends": 0.9069716448144117,
+            "kind": 0.9751601260713058,
+            "ready": 0.7822048161904924,
+            "side_effect": 0.06839917532084895
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Look up the tide at Rye",
+      "instruction": "look up the tide at rye",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "look up the tide at rye"
+        },
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "look up the tide at rye",
+          "new": "Look up the tide at Rye"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "withdrawn",
+      "segment_text": "and find the ferry timetable.",
+      "instruction": "and find the ferry timetable.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and find the ferry timetable"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "withdrawn",
+          "reason": "corrected by segment \"never mind the second one\""
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and find the ferry timetable",
+          "new": "and find the ferry timetable."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "withdrawn",
+          "new": "proposed",
+          "reason": "reclassified as request"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "withdrawn",
+          "reason": "corrected by segment \"Never mind the second one.\""
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 1,
+      "is_final": false,
+      "instruction": "look up the tide at rye",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_cancel_second",
+    "final_transcript": "Look up the tide at Rye and find the ferry timetable. Never mind the second one.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "look up the tide at rye",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "tide",
+          "rye"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "ferry",
+          "timetable"
+        ],
+        "status": [
+          "withdrawn"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

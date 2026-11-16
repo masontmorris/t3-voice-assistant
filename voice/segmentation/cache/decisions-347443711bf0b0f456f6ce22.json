@@ -1,0 +1,117 @@
+{
+  "route": "decisions",
+  "label": "10_side_effect_email:r5:extra",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "email dana that the meeting moved to thursday [1] and then check if room four b is free [2]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at [1]. It is \"email dana that the meeting moved to thursday\".",
+          "m2": "The first request ends at the end of the speech so far. It is \"email dana that the ... four b is free\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "implicit": {
+        "type": "noul",
+        "instructions": "Does new_speech imply a task the speaker wants done without asking for it outright?",
+        "criteria": {
+          "true": "A helpful assistant would act on it, though the speaker did not phrase it as a request.",
+          "false": "It implies no task beyond what the speaker asked for."
+        }
+      },
+      "preemptive": {
+        "type": "noul",
+        "instructions": "Would a read-only lookup started now help answer what the speaker is likely to ask next?",
+        "criteria": {
+          "true": "A lookup now would likely save time.",
+          "false": "No lookup would help yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.9686707211802577,
+          "m2": 0.0064595504901794314,
+          "none": 0.024869728329563034
+        },
+        "confidence": 0.9530060817703865
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9354191402887322
+      },
+      "implicit": {
+        "type": "noul",
+        "noul": 0.28394288200241125
+      },
+      "preemptive": {
+        "type": "noul",
+        "noul": 0.17368435955208436
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.9973998177689924
+      }
+    },
+    "usage": {
+      "input_tokens": 529,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794792503-OwAj9P5IZNmyAvpybiFC",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:28:22.278+00:00",
+    "ms": 90.97809996455908,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:28:22.278+00:00",
+      "route": "decisions",
+      "hash": "347443711bf0b0f456f6ce22",
+      "label": "10_side_effect_email:r5:extra",
+      "status": 200,
+      "ms": 91.0,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

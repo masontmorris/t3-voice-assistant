@@ -1,0 +1,234 @@
+{
+  "scenario": "actually",
+  "covers": "correction actually",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "actually:r1",
+      "cursor": 0,
+      "markers": [
+        7
+      ],
+      "calls": [
+        {
+          "label": "actually:r1",
+          "route": "decisions",
+          "file": "decisions-3b10d831abd5db4c9fe5bb23.json",
+          "status": 200,
+          "ms": 93.5,
+          "started_at": "2026-11-16T01:18:53.466+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 7,
+      "candidate": "look up the height of mount elbert",
+      "committed": null,
+      "answer": {
+        "finished": 0.9297217023839388,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7821573014736494,
+          "runner_up": "none"
+        },
+        "side_effect": 0.007216142609269282,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "actually:r2",
+      "cursor": 0,
+      "markers": [
+        7,
+        10
+      ],
+      "calls": [
+        {
+          "label": "actually:r2",
+          "route": "decisions",
+          "file": "decisions-7a2e502ba7a1d344bb2f47de.json",
+          "status": 200,
+          "ms": 87.2,
+          "started_at": "2026-11-16T01:18:56.499+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.8126291459052382,
+        "at": {
+          "choice": "m2",
+          "margin": 0.0710841188593121,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.007499485277147426,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "actually:r3",
+      "cursor": 0,
+      "markers": [
+        7,
+        10
+      ],
+      "calls": [
+        {
+          "label": "actually:r3",
+          "route": "decisions",
+          "file": "decisions-2b9cc4def86d34b1e179e3ee.json",
+          "status": 200,
+          "ms": 81.6,
+          "started_at": "2026-11-16T01:18:59.600+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 10,
+      "candidate": "look up the height of mount elbert actually mount massive",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.8871583941121846,
+        "at": {
+          "choice": "m2",
+          "margin": 0.6225167225683264,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.006675387650055241,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Look up the height of Mount Elbert, actually Mount Massive.",
+      "instruction": "Look up the height of Mount Elbert, actually Mount Massive.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Look up the height of Mount Elbert, actually Mount Massive."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 10,
+      "text": "Look up the height of Mount Elbert, actually Mount Massive."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Look up the height of Mount Elbert, actually Mount Massive.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_actually",
+    "final_transcript": "Look up the height of Mount Elbert, actually Mount Massive.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Look up the height of Mount Elbert, actually Mount Massive.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "height",
+          "elbert"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "height",
+          "massive"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['height', 'massive']",
+      "T1: status dispatched, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch"
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 1,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}
