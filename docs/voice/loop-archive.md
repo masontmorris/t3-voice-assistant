@@ -70,10 +70,13 @@ An `audio` pointer is `{"clip", "clip_offset_s", "stem", "at", "probe_s"}`. It s
 | --- | --- | --- | --- | --- |
 | `voice/archive/example` (synthetic) | 57 | 7 | 0.1 ms | 0 |
 | Desktop loopback, three clips from `$VOICE_HOME/audio/real` through `client.py --wav` | 117 | 9 | 0.4 ms | 0 |
+| Mason's live demo, server run `20261116-080326` with the laptop's client recording, 6 turns, 91.7 s | 120 | 14 | 0.3 ms | 0 |
 
-Both rows are measured. The loopback ran on 2026-11-16 at this branch's head, in a `voice-loopviz` GPU lease, with `02_two_requests.wav`, `11_tools.wav` and `04_correction.wav`. Two of its replies were cut by barge-ins.
+All three rows are measured. The loopback ran on 2026-11-16 at this branch's head, in a `voice-loopviz` GPU lease, with `02_two_requests.wav`, `11_tools.wav` and `04_correction.wav`. Two of its replies were cut by barge-ins.
 
 Two independent checks agree with the placement (measured on the loopback). The client's `reply_start` log time, plus its measured playback delay, lands within 0.5 ms of where the reply's audio sounds, for the four replies that did not wait in the queue. The client's `turn_end` log time lands 11 to 26 ms before the end of the input audio. That is about one 20 ms frame, because the server ends a turn when the frame arrives and the exporter counts to the frame's end (inferred).
+
+The demo export has two warnings (measured). In turns 1 and 5 the client logged a second reply that the server record does not hold, because a barge-in cancelled the turn and the record kept only its first reply. The client heard 0.23 s and 0.04 s of them. The archive leaves both out.
 
 ## Limits
 
