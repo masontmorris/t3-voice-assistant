@@ -71,3 +71,15 @@ These rows cover `voice/tools/` and [real-tools.md](real-tools.md). Package vers
 | `mcp-server-time` | 2026.11.11 | MIT | https://github.com/modelcontextprotocol/servers/tree/main/src/time | The reference MCP time server. It runs locally over stdio with no network. Keep the copyright and permission notice in copies. |
 | `mcp` (the MCP Python SDK) and `mcp-types` | 2.3.0 | MIT | https://github.com/modelcontextprotocol/python-sdk | A dependency of `mcp-server-time`. `voice/tools/mcp.py` does not import it. The client speaks JSON-RPC with the standard library. |
 | Other `mcp-server-time` dependencies | As installed | MIT: annotated-types 0.8.0, anyio 4.16.0, attrs 26.1.0, h11 0.16.0, jsonschema 4.26.0, jsonschema-specifications 2025.9.1, pydantic 2.14.3, pydantic_core 2.50.4, PyJWT 2.15.1, referencing 0.37.0, rpds-py 2026.9.1, truststore 0.10.5, typing-inspection 0.4.5, tzlocal 5.4.5. MIT-0: cffi 2.1.1. BSD-3-Clause: click 8.5.1, httpcore2 2.16.1, httpx2 2.16.1, idna 3.20, pycparser 3.12, sse-starlette 3.7.0, starlette 1.10.0, uvicorn 0.54.0. Apache-2.0: opentelemetry-api 1.45.2, python-multipart 0.0.33, tzdata 2026.6. Apache-2.0 OR BSD-3-Clause: cryptography 50.0.2. PSF: pywin32 312, typing_extensions 4.16.0. | PyPI | They are installed only in the server's venv. Nothing in the repo imports them. |
+
+## Live demo client
+
+These rows cover `voice/live/client.py` and [live-demo.md](live-demo.md). Versions and license strings come from each package's installed metadata (`importlib.metadata`) in the client venv, measured on 2026-11-16. The server side adds no dependency beyond the LFM3 venv's numpy, soundfile and websockets, listed above.
+
+| Name | Version or revision | License | Source | Notable terms |
+| --- | --- | --- | --- | --- |
+| sounddevice | 0.5.6 | MIT | https://github.com/spatialaudio/python-sounddevice | Its Windows wheel bundles the PortAudio DLL, which is MIT-style licensed (inferred from the PortAudio project's license page, not re-read today). |
+| soundfile | 0.14.0 | BSD-3-Clause | https://github.com/bastibe/python-soundfile | Only `--wav` uses it. The Windows wheel bundles libsndfile, which is LGPL-2.1-or-later. Dynamic loading from Python is the usual LGPL-compatible use (inferred). |
+| numpy | 2.5.5 | BSD-3-Clause with bundled 0BSD, MIT, Zlib, and CC0-1.0 parts | https://numpy.org | |
+| websockets | 17.4 | BSD-3-Clause | https://github.com/python-websockets/websockets | |
+| cffi, pycparser, typing_extensions | 2.1.1, 3.12, 4.16.0 | MIT-0, BSD-3-Clause, PSF | PyPI | Pulled in by sounddevice and soundfile. |

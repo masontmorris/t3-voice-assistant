@@ -73,11 +73,10 @@ PERSONA = (
     "is done unless its status is completed, never promise a step the snapshot does not show, and never make up a "
     "result."
 )
-INSTRUCTIONS = {
-    "a": PERSONA + "\n\nRespond with interleaved text and audio.",
-    "b": PERSONA + " Always call a tool first.\n\nRespond with function calls, and interleaved text and audio."
-                   "\n\nList of tools:",
-    "c": PERSONA + "\n\nRespond with interleaved text and audio.",
+FORMAT_LINES = {
+    "a": "\n\nRespond with interleaved text and audio.",
+    "b": " Always call a tool first.\n\nRespond with function calls, and interleaved text and audio.\n\nList of tools:",
+    "c": "\n\nRespond with interleaved text and audio.",
 }
 TOOLS = [
     {"type": "function", "name": "delegate", "description": "Hand a request to the task service.",
@@ -187,14 +186,29 @@ async def wait_for_work(service, timeout_s):
         await asyncio.sleep(max(0.0, timeout_s))
 
 
-async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
-                   tools=None, eou="gated"):
+class WavInput:
+    """A clip as a turn's audio, streamed at real-time pace into both sessions."""
+
+    def __init__(self, wav):
+        self.name, self.stem = wav.name, wav.stem
+        self.pcm, self.rate, self.audio_s = read_pcm16(wav)
+
+    async def stream(self, voice, asr):
+        (_, voice_end), (_, asr_end) = await asyncio.gather(voice.stream(self.pcm, self.rate),
+                                                            asr.stream(self.pcm, self.rate))
+        return max(voice_end, asr_end)
+
+
+async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
+                   tools=None, eou="gated", persona=PERSONA, on_voice_event=None):
+    """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
+    once streamed, and `stream(voice, asr)`, which returns the clock time the input ended."""
     t0 = time.perf_counter()
 
     def clock():
         return time.perf_counter() - t0
 
-    stem = wav.stem
+    stem = source.stem
     timeline = []
     partial["timeline"] = timeline
 
@@ -258,7 +272,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
             for _ in batch:
                 updates_q.task_done()
 
-    voice = await Session.open(url, "voice", clock)
+    voice = await Session.open(url, "voice", clock, on_event=on_voice_event)
     asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
     def partial_close(update):
         return segmenter.close(update, settle=False)
@@ -276,8 +290,9 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         out_rate = created["session"]["audio"]["output"]["format"]["rate"]
         partial["events"] = {"voice": voice.events, "voice_sent": voice.sent, "asr": asr.events, "asr_sent": asr.sent}
         await asr.wait_for("session.created")
-        pcm, rate, audio_s = read_pcm16(wav)
-        session = {"type": "realtime", "instructions": INSTRUCTIONS[inject], "output_modalities": ["text", "audio"]}
+        rate = source.rate
+        session = {"type": "realtime", "instructions": persona + FORMAT_LINES[inject],
+                   "output_modalities": ["text", "audio"]}
         if inject == "b":
             session["tools"] = TOOLS[1:] if status_only else TOOLS
         if rate != MODEL_RATE:
@@ -288,8 +303,8 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         await voice.wait_for("session.updated")
         worker = asyncio.create_task(segment_worker())
 
-        (_, voice_end), (_, asr_end) = await asyncio.gather(voice.stream(pcm, rate), asr.stream(pcm, rate))
-        audio_end = max(voice_end, asr_end)
+        audio_end = await source.stream(voice, asr)
+        audio_s = source.audio_s
         log("audio_end", audio_s=audio_s)
         adapter.end_input()
         await asr.send(type="input_audio_buffer.commit", final=True)
@@ -375,7 +390,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
     finally:
         if worker is not None:
             worker.cancel()
-        executor.shutdown()
+        executor.shutdown(wait=False, cancel_futures=True)
         service.close()
         await voice.close()
         await asr.close()
@@ -386,7 +401,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
     first_audio = next((r["first_audio_after_s"] for r in replies
                         if r["kind"] != "update" and r["first_audio_after_s"] is not None), None)
     return {
-        "clip": wav.name, "eou": eou, "inject": inject, "segmenter": segmenter_name, "status_only": status_only,
+        "clip": source.name, "eou": eou, "inject": inject, "segmenter": segmenter_name, "status_only": status_only,
         "delay_s": delay_s, "audio_s": audio_s,
         "audio_end": audio_end,
         "metrics": {
@@ -438,7 +453,7 @@ async def main_async(args):
         for wav in args.clips:
             partial = {}
             try:
-                record = await run_clip(wav, args.inject, args.status_only,
+                record = await run_clip(WavInput(wav), args.inject, args.status_only,
                                         f"ws://127.0.0.1:{args.port}/v1/realtime", decider, args.delay, out, partial,
                                         args.segmenter, tools, args.eou)
             except Exception as exc:
