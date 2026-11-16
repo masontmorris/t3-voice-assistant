@@ -28,7 +28,7 @@ export function harness(nodes, decide, cfg = {}) {
 		async call(body) {
 			const out = decide(body);
 			attempts++;
-			const { choice, p } = typeof out === "string" ? { choice: out, p: { [out]: 0.9 } } : out;
+			const { choice, p } = typeof out === "string" ? { choice: out, p: { [out]: 1 } } : out;
 			return { record: { status: 200, response: { answers: { verdict: { choice, probabilities: p } } } }, cached: false };
 		},
 	};
