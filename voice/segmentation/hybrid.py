@@ -235,8 +235,11 @@ class HybridSegmenter:
             return None
         return self._point(self.last, self._proposal(), False, "delegate")
 
-    def close(self, update):
-        """The final transcript under the handoff, with no decider call. Returns the close as a point record."""
+    def close(self, update, settle=True):
+        """The final transcript with no decider call. Returns the close as a point record.
+
+        With `settle`, the handoff's close rule settles the tasks. Without it, as in the gated turn, the tasks stay as
+        the last decision point left them, and the close only reports what no decision point read."""
         self.last, self.ws = update, words(update.text)
         current = tuple(w.text for w in self.ws)
         self.soft = {g for g in self.soft if current[:g] == self.soft_words[:g]}
@@ -245,7 +248,8 @@ class HybridSegmenter:
         segments = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(self.committed) if c.w0 < len(self.ws)]
         segments += [self._segment(f"s{k + i + 1}", p, False) for i, p in enumerate(proposal.pieces)
                      if not proposal.filler(p)]
-        self.orch.close(update, segments)
+        if settle:
+            self.orch.close(update, segments)
         covered = next((i for i, (a, b) in enumerate(zip(current, self.reviewed)) if a != b),
                        min(len(current), len(self.reviewed)))
         tail = update.text[self.ws[covered].start:].strip() if covered < len(self.ws) else None

@@ -1,6 +1,6 @@
 """The local voice-assistant prototype, end to end: a WAV in, a spoken reply and a record of every event out.
 
-    python -m voice.prototype.run CLIP.wav [CLIP.wav ...] [--eou handoff|decider] [--inject a|b|c]
+    python -m voice.prototype.run CLIP.wav [CLIP.wav ...] [--eou gated|handoff|decider] [--inject a|b|c]
         [--segmenter hybrid|baseline] [--fresh] [--lfm-ctx N] [--out DIR] [--mock-tools]
         [--decider-cache DIR --decider-budget N]
 
@@ -9,13 +9,16 @@ The clip streams at real-time pace into two sessions on one llama-server: a `rea
 task service, and at the turn boundary the task snapshot goes into the voice session before it replies. Mock tasks
 that finish after the reply reach the voice as a `task_update` at the next boundary.
 
---eou picks who decides at the end of the utterance. handoff, the default, makes no decider call there: the last
-decision point's answers settle what they covered, code releases side-effect holds whose words have not changed, and
-LFM3 owns the rest. A third, text-only session on the same server reads the snapshot, with every task_id and the
-unreviewed end of the transcript, and may call delegate, cancel_task or amend_task. The task service checks each call.
-The voice session then hears the updated snapshot as in c and replies, so it never sees a tool call of its own.
-decider is the earlier turn: one more decider call on the final transcript, then the snapshot by --inject. handoff
-needs the hybrid and --inject c.
+--eou picks how the turn runs and ends. gated, the default, is plan A. During speech, a task the orchestrator is
+about to dispatch runs only when the task gate (voice/segmentation/gate.py) passes it; otherwise it waits. There is
+no decider call at the end of the utterance and no step that settles tasks. A third, text-only LFM3 session on the
+same server reads the snapshot: every task with its task_id and status, a note on each task that has not run, and
+the unreviewed end of the transcript. It may call run_task, delegate, cancel_task or amend_task, and its calls are
+final. The task service checks only that each call is well formed. The voice session then hears the updated
+snapshot as in c and replies, so it never sees a tool call of its own. handoff is the earlier design with no gate: a
+close rule settles the tasks, side effects stay held, and LFM3 gets the tail. decider is the earliest turn: one more
+decider call on the final transcript, then the snapshot by --inject. gated and handoff need the hybrid and
+--inject c.
 
 Read-only weather and time tasks make real lookups through `voice/tools/registry.py`: Open-Meteo, and the
 `mcp-server-time` MCP server over stdio, which runs for the whole run. VOICE_DEFAULT_PLACE is the place for a request
@@ -55,6 +58,7 @@ from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, re
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
 from voice.prototype.tasks import MockTaskService
+from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
 from voice.tools.registry import open_registry
 
@@ -90,6 +94,17 @@ HANDOFF_INSTRUCTIONS = (
     "none of these, or there is no unreviewed_speech, call no tool and answer none."
     "\n\nRespond with function calls, and interleaved text and audio.\n\nList of tools:"
 )
+GATED_INSTRUCTIONS = (
+    "You decide what happens to a voice assistant's tasks now that the user has finished speaking. You receive a "
+    "task service snapshot as JSON. It lists every task with its task_id and status, and final_transcript, which is "
+    "everything the user said. A running or completed task has already started. A pending or held_for_confirmation "
+    "task has not run, and its note says why. unreviewed_speech, when present, holds the user's last words, which "
+    "the service has not read. Your calls are final. For a task that has not run, call run_task if the user wants it "
+    "as it is, amend_task with the change if the user changed it, or cancel_task if the user took it back. If "
+    "unreviewed_speech asks for something new that no task covers, call delegate with just that request. If the "
+    "user took back a running task, call cancel_task. If nothing needs doing, call no tool and answer none."
+    "\n\nRespond with function calls, and interleaved text and audio.\n\nList of tools:"
+)
 HANDOFF_TOOLS = [
     {"type": "function", "name": "delegate", "description": "Hand a new request from the user to the task service.",
      "parameters": {"type": "object", "properties": {
@@ -103,6 +118,12 @@ HANDOFF_TOOLS = [
      "parameters": {"type": "object", "properties": {"task_id": {"type": "string"}, "new_request": {"type": "string"}},
                     "required": ["task_id", "new_request"]}},
 ]
+GATED_TOOLS = [
+    {"type": "function", "name": "run_task", "description": "Start a task that has not run yet.",
+     "parameters": {"type": "object", "properties": {"task_id": {"type": "string"}}, "required": ["task_id"]}},
+    *HANDOFF_TOOLS,
+]
+TOOL_SESSIONS = {"handoff": (HANDOFF_INSTRUCTIONS, HANDOFF_TOOLS), "gated": (GATED_INSTRUCTIONS, GATED_TOOLS)}
 SNAPSHOT_PREFIX = "[task service snapshot, machine-generated, not spoken by the user] "
 UPDATE_PREFIX = "[task service update, machine-generated, not spoken by the user] "
 SYNTHETIC_CALL_ID = "snapshot_1"
@@ -167,7 +188,7 @@ async def wait_for_work(service, timeout_s):
 
 
 async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
-                   tools=None, eou="handoff"):
+                   tools=None, eou="gated"):
     t0 = time.perf_counter()
 
     def clock():
@@ -181,7 +202,9 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         timeline.append({"t": round(clock(), 4), "kind": kind, **detail})
 
     segmenter = SEGMENTERS[segmenter_name](decider, stem)
-    service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools)
+    if eou == "gated":
+        segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, False
+    service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated")
     adapter = TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -211,8 +234,8 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
                 log("coalesced", revisions=[u.revision for u in dropped])
             for kind, payload in kept:
                 started, before = clock(), live_calls()
-                if kind == "update" and payload.is_final and eou == "handoff":
-                    work = segmenter.close
+                if kind == "update" and payload.is_final and eou in TOOL_SESSIONS:
+                    work = partial_close if eou == "gated" else segmenter.close
                 else:
                     work = segmenter.update if kind == "update" else service.submit_delegate
                 try:
@@ -237,13 +260,16 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
     voice = await Session.open(url, "voice", clock)
     asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
-    tool_session = await Session.open(url, "tools", clock) if eou == "handoff" else None
+    def partial_close(update):
+        return segmenter.close(update, settle=False)
+
+    tool_session = await Session.open(url, "tools", clock) if eou in TOOL_SESSIONS else None
     worker = None
     try:
         if tool_session is not None:
             await tool_session.wait_for("session.created")
             await tool_session.send(type="session.update", session={
-                "type": "realtime", "instructions": HANDOFF_INSTRUCTIONS, "tools": HANDOFF_TOOLS,
+                "type": "realtime", "instructions": TOOL_SESSIONS[eou][0], "tools": TOOL_SESSIONS[eou][1],
                 "output_modalities": ["text"]})
             await tool_session.wait_for("session.updated")
         created = await voice.wait_for("session.created")
@@ -286,12 +312,13 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         await updates_q.join()
         service.poll(clock())
         unreviewed = closed.get("unreviewed_speech")
-        snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou == "handoff" else None)
+        snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)
         log("snapshot", snapshot=snapshot)
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
-        if eou == "handoff":
-            injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, snapshot)))
+        if eou in TOOL_SESSIONS:
+            for_tools = service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated" else snapshot
+            injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, for_tools)))
             tool_turn, _ = await respond(tool_session, out_rate, audio_end, tool_choice="auto")
             log("tool_turn", calls=tool_turn["function_calls"], text=tool_turn["text"])
             for call in tool_turn["function_calls"]:
@@ -323,7 +350,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
                                   "answer": "the model made no call"})
         else:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, snapshot)))
-        if eou != "handoff":
+        if eou not in TOOL_SESSIONS:
             log("injection", items=injection)
             reply, reply_pcm = await respond(voice, out_rate, audio_end, **extra)
             replies.append({"kind": "snapshot", **reply})
@@ -395,7 +422,7 @@ async def main_async(args):
     out = args.out or EVIDENCE / f"{args.eou}-{args.inject}{'-status' if args.status_only else ''}"
     out.mkdir(parents=True, exist_ok=True)
     start = live_calls()
-    slots = 3 if args.eou == "handoff" else 2
+    slots = 3 if args.eou in TOOL_SESSIONS else 2
     tools_context = nullcontext() if args.mock_tools else open_registry()
     server_context = Server(args.port, out / "llama-server.log", ("-c", str(args.lfm_ctx)), slots)
     with tools_context as tools, server_context as server, make_decider(args.decider, out) as decider:
@@ -430,7 +457,7 @@ async def main_async(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("clips", nargs="+", type=Path)
-    parser.add_argument("--eou", choices=["handoff", "decider"], default="handoff")
+    parser.add_argument("--eou", choices=["gated", "handoff", "decider"], default="gated")
     parser.add_argument("--inject", choices="abc", default="c")
     parser.add_argument("--status-only", action="store_true", help="with b, offer get_task_status and no delegate")
     parser.add_argument("--segmenter", choices=sorted(SEGMENTERS), default="hybrid")
@@ -447,8 +474,8 @@ def main():
     parser.add_argument("--decider-budget", type=int, default=DECIDER_BUDGET,
                         help="stop when the ledger holds this many attempts")
     args = parser.parse_args()
-    if args.eou == "handoff" and (args.inject != "c" or args.segmenter != "hybrid"):
-        parser.error("--eou handoff injects as in c and needs the hybrid segmenter")
+    if args.eou in TOOL_SESSIONS and (args.inject != "c" or args.segmenter != "hybrid"):
+        parser.error(f"--eou {args.eou} injects as in c and needs the hybrid segmenter")
     if args.fresh and args.decider != "cloud":
         parser.error("--fresh resends cached cloud requests; the d1 decider has no such cache")
     missing = [str(c) for c in args.clips if not c.is_file()]

@@ -81,10 +81,21 @@ def snapshot_status(record, execution):
     return execution.state.value
 
 
-def build_snapshot(records, executions, conversation_id, utterance_id, final_transcript, unreviewed=None):
+def not_run_note(record):
+    """Why a task has not run, from its history: the gate's weakest answer, or that it was not ready yet."""
+    gate = next((h for h in reversed(record["history"]) if h["event"] == "gate"), None)
+    if gate is not None and not gate["passed"]:
+        return (f"Not started: the service's confidence in its {gate['weakest']} answer was {gate['score']:.2f}, "
+                f"below {gate['threshold']:.2f}.")
+    return "Not started: when the service last read it, it was not ready to run."
+
+
+def build_snapshot(records, executions, conversation_id, utterance_id, final_transcript, unreviewed=None,
+                   notes=False):
     """The plan's `utterance_snapshot`, from task records alone. It reports only what the records say.
 
-    Under the handoff, `unreviewed` is the end of the transcript that no decision point read."""
+    `unreviewed` is the end of the transcript that no decision point read. With `notes`, each task that has not run
+    says why, for the gated turn's tools session."""
     tasks = []
     for record in records:
         execution = executions.get(record["task_id"])
@@ -96,6 +107,8 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
             entry["depends_on"] = record["depends_on"]
         if status in (Run.COMPLETED, Run.FAILED):
             entry["result_summary"] = execution.result_summary
+        if notes and status in ("pending", Run.HELD) and execution is None:
+            entry["note"] = not_run_note(record)
         tasks.append(entry)
     unclear = [r["instruction"] for r in records if r["status"] == "needs_clarification"]
     snapshot = {"type": "utterance_snapshot", "conversation_id": conversation_id, "utterance_id": utterance_id,
@@ -106,15 +119,19 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
 
 
 class MockTaskService:
-    def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None):
+    """`holds_side_effects` off is the gated turn: the gate and the voice model decide what runs, so a dispatched side
+    effect runs on the mock worker instead of waiting for confirmation. A side effect never reaches a real tool."""
+
+    def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None, holds_side_effects=True):
         self.segmenter, self.conversation_id, self.delay_s, self.tools = segmenter, conversation_id, delay_s, tools
+        self.holds_side_effects = holds_side_effects
         self.executions: dict[str, Execution] = {}
         self._seen = 0
         self._calls = {}
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
 
-    def _start(self, task_id, instruction, now):
-        call = self.tools.route(instruction) if self.tools else None
+    def _start(self, task_id, instruction, side_effect, now):
+        call = self.tools.route(instruction) if self.tools and not side_effect else None
         if call is None:
             return Execution(task_id, Run.RUNNING, now, now + self.delay_s)
         self._calls[task_id] = self._pool.submit(self.tools.run, call)
@@ -131,10 +148,11 @@ class MockTaskService:
         records = {r["task_id"]: r for r in self.segmenter.records()}
         for entry in self.segmenter.dispatch_log[self._seen:]:
             task_id = entry["task_id"]
-            if needs_hold(records[task_id]):
+            record = records[task_id]
+            if self.holds_side_effects and needs_hold(record):
                 execution = Execution(task_id, Run.HELD, now, None)
             else:
-                execution = self._start(task_id, entry["instruction"], now)
+                execution = self._start(task_id, entry["instruction"], record["side_effect"], now)
             self.executions[task_id] = execution
             events.append({"task_id": task_id, "event": execution.state.value, "instruction": entry["instruction"]})
         self._seen = len(self.segmenter.dispatch_log)
@@ -186,7 +204,10 @@ class MockTaskService:
         orch = self.segmenter.orch
         if name == "delegate" and isinstance(arguments.get("instruction"), str) and arguments["instruction"].strip():
             result = orch.delegate_from_voice(arguments["instruction"].strip(),
-                                              arguments.get("side_effect") is not False, unreviewed)
+                                              arguments.get("side_effect") is not False, unreviewed,
+                                              run_linked=not self.holds_side_effects)
+        elif name == "run_task" and isinstance(arguments.get("task_id"), str):
+            result = orch.run_from_voice(arguments["task_id"])
         elif name == "cancel_task" and isinstance(arguments.get("task_id"), str):
             execution = self.executions.get(arguments["task_id"])
             if execution is not None and execution.state == Run.COMPLETED:
@@ -203,10 +224,10 @@ class MockTaskService:
         events = self.sync(now)
         return result, events
 
-    def snapshot(self, utterance_id, final_transcript, unreviewed=None):
+    def snapshot(self, utterance_id, final_transcript, unreviewed=None, notes=False):
         """Build the snapshot. Every completion it carries counts as told, so no later update repeats it."""
         snapshot = build_snapshot(self.segmenter.records(), self.executions, self.conversation_id, utterance_id,
-                                  final_transcript, unreviewed)
+                                  final_transcript, unreviewed, notes)
         for entry in snapshot["tasks"]:
             if entry["status"] in (Run.COMPLETED, Run.FAILED):
                 self.executions[entry["task_id"]].reported = True

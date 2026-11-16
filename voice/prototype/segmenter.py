@@ -15,8 +15,9 @@ from voice.segmentation.run import Runner
 from voice.segmentation.spans import clause_segments
 from voice.segmentation.tasks import Orchestrator
 
-# The prototype's ledger held 80 attempts when the end-of-utterance handoff round began. That round adds its 150.
-DECIDER_BUDGET = 80 + 150
+# The prototype's ledger held 80 attempts when the end-of-utterance handoff round began, and that round used 97. The
+# task gate round adds its own 150.
+DECIDER_BUDGET = 177 + 150
 MAX_429_SHARE = 0.2
 
 

@@ -270,5 +270,39 @@ class RealLookupTest(unittest.TestCase):
         self.assertEqual(execution.result_summary, "The weather lookup did not answer in time.")
 
 
+class GatedServiceTest(unittest.TestCase):
+    def test_a_dispatched_side_effect_runs_on_the_mock_and_never_reaches_a_tool(self):
+        tools, fetch, _ = replay_registry("Denver")
+        segmenter = ScriptedSegmenter()
+        service = MockTaskService(segmenter, "conv_test", tools=tools, holds_side_effects=False)
+        self.addCleanup(service.close)
+        segmenter.step(1, "Email Dana the weather in Denver.", final=True, s1={"side_effect": True})
+        service.sync(now=0.0)
+        self.assertEqual((service.pending_calls(), fetch.urls), ([], []))
+        self.assertEqual(service.executions["task_1"].state, "running")
+        self.assertEqual(service.poll(now=4.0), ["task_1"])
+
+    def test_a_task_that_has_not_run_carries_a_note_for_the_tools_session(self):
+        segmenter = ScriptedSegmenter()
+        service = MockTaskService(segmenter, "conv_test", holds_side_effects=False)
+        orch = segmenter.orch
+        held = orch._new_task("email dana", 0, {"orchestrator"}, side_effect=True)
+        orch._log(held, "gate", passed=False, score=0.31, weakest="ready", threshold=0.8)
+        orch._move(held, Status.HELD, "gate")
+        entry = service.snapshot("utt_1", "", notes=True)["tasks"][0]
+        self.assertEqual(entry["note"], "Not started: the service's confidence in its ready answer was 0.31, "
+                                        "below 0.80.")
+        self.assertNotIn("note", service.snapshot("utt_1", "")["tasks"][0])
+
+    def test_run_task_reaches_the_orchestrator(self):
+        segmenter = ScriptedSegmenter()
+        service = MockTaskService(segmenter, "conv_test", holds_side_effects=False)
+        held = segmenter.orch._new_task("find the report", 0, {"orchestrator"})
+        segmenter.orch._move(held, Status.HELD, "gate")
+        result, events = service.call_tool("run_task", {"task_id": held.task_id}, None, 1.0)
+        self.assertTrue(result["ok"])
+        self.assertEqual(events[0]["event"], "running")
+
+
 if __name__ == "__main__":
     unittest.main()

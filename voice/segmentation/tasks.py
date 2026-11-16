@@ -99,6 +99,8 @@ class Orchestrator:
         self.pending_delegates: dict[str, str] = {}
         self._delegate_count = 0
         self.decided: dict[str, tuple] = {}
+        self.gate = None
+        self.side_effects_wait_for_final = True
 
     def _new_task(self, text, start, sources, **extra):
         task = Task(f"task_{len(self.tasks) + 1}", text, text, start, set(sources), **extra)
@@ -202,14 +204,15 @@ class Orchestrator:
             else:
                 self._move(task, Status.HELD, "changed after its last decision")
 
-    def delegate_from_voice(self, instruction, side_effect, tail):
+    def delegate_from_voice(self, instruction, side_effect, tail, run_linked=False):
         """The voice model's delegate call after `close`, reconciled in code.
 
         It duplicates a live task when the two share at least 60% of the shorter one's content words, it brings no
         content word from the unreviewed tail that the task lacks, and it does not claim a side effect the task lacks.
         So "delete the report" never links to "find the report", while a read-only claim about a side-effect task
-        links and leaves its hold in place. A duplicate links to that task and changes nothing else. Anything else
-        becomes a new task and dispatches; the task service holds it if it is a side effect."""
+        links and leaves its hold in place. A duplicate links to that task. With `run_linked`, a linked task that has
+        not run dispatches, because the voice model asked for it. Anything else becomes a new task and dispatches;
+        the task service holds it if it is a side effect and the service holds side effects."""
         words, tail_words = content_words(instruction), content_words(tail)
         best = None
         for task in self.tasks.values():
@@ -223,10 +226,22 @@ class Orchestrator:
             task = best[1]
             task.sources.add("lfm")
             self._log(task, "linked_voice_delegate", instruction=instruction)
+            if run_linked and task.status in UNDISPATCHED:
+                self._move(task, Status.DISPATCHED, "voice model delegated it")
             return {"ok": True, "task_id": task.task_id, "duplicate_of": task.task_id}
         task = self._new_task(instruction, None, {"lfm"}, side_effect=side_effect)
         self._move(task, Status.DISPATCHED, "voice model delegated it")
         return {"ok": True, "task_id": task.task_id}
+
+    def run_from_voice(self, task_id):
+        """The voice model's run_task call: a task that has not run dispatches now."""
+        task = self.tasks.get(task_id)
+        if task is None:
+            return {"ok": False, "error": f"no task {task_id}"}
+        if task.status not in UNDISPATCHED:
+            return {"ok": False, "error": f"{task_id} is already {task.status.value}"}
+        self._move(task, Status.DISPATCHED, "voice model ran it")
+        return {"ok": True, "task_id": task_id}
 
     def cancel_from_voice(self, task_id):
         """The voice model's cancel_task call. Only a live task can be cancelled."""
@@ -343,8 +358,13 @@ class Orchestrator:
             status, reason = Status.READY, "waiting on dependency"
         elif seg.open:
             status, reason = Status.PROPOSED, "segment still being spoken"
-        elif task.side_effect and not self.is_final:
+        elif task.side_effect and not self.is_final and self.side_effects_wait_for_final:
             status, reason = Status.READY, "side effect held for the final transcript"
+        elif self.gate is not None:
+            verdict = self.gate(decision)
+            self._log(task, "gate", passed=verdict.passed, score=round(verdict.score, 4), weakest=verdict.weakest,
+                      threshold=verdict.threshold)
+            status, reason = (Status.DISPATCHED if verdict.passed else Status.HELD), verdict.reason()
         else:
             status, reason = Status.DISPATCHED, "ready"
         self._move(task, status, reason)
