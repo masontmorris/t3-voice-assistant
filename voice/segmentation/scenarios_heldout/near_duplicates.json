@@ -1,0 +1,56 @@
+{
+  "id": "near_duplicates",
+  "covers": "near duplicates are distinct",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "check the library hours on monday",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "check the library hours on monday check the library hours on tuesday",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Check the library hours on Monday. Check the library hours on Tuesday.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "library",
+          "monday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "library",
+          "tuesday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "Different days make two requests despite shared wording."
+}

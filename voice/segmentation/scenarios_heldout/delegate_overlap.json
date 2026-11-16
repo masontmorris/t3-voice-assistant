@@ -1,0 +1,51 @@
+{
+  "id": "delegate_overlap",
+  "covers": "delegate and orchestrator overlap",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "look up the diameter of europa",
+      "is_final": false
+    },
+    {
+      "type": "delegate",
+      "instruction": "Look up the diameter of Europa"
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "look up the diameter of europa please",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Look up the diameter of Europa, please.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "diameter",
+          "europa"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "sources": [
+          "orchestrator",
+          "voice_delegate"
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "Both sources express the same intent and must share one task. The PM checked the delegate event shape against the original suite on 2026-11-15: it matches, and the source label was corrected to voice_delegate."
+}

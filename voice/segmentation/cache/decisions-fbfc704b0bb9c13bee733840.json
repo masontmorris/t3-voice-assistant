@@ -1,0 +1,77 @@
+{
+  "route": "decisions",
+  "label": "08_delegate_after_dispatch:r4:delegate",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "find the q3 budget spreadsheet [1] and tell me the total travel spend [2]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "d1_same_as": {
+        "type": "choice",
+        "instructions": "The voice assistant submitted the task \"Find the Q3 budget spreadsheet\". Which request asks for the same thing?",
+        "criteria": {
+          "new": "No request in the speech asks for it.",
+          "new_speech": "The request in new_speech (\"find the q3 budget spreadsheet and tell me the total travel spend\") asks for it."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "d1_same_as": {
+        "type": "choice",
+        "choice": "new_speech",
+        "probabilities": {
+          "new": 0.013289135024194194,
+          "new_speech": 0.9867108649758058
+        },
+        "confidence": 0.9734217299516117
+      }
+    },
+    "usage": {
+      "input_tokens": 157,
+      "output_tokens": 1,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791087-YPqify4qgD6SkyLFKn3k",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:46.433+00:00",
+    "ms": 91.99739998439327,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:44.388+00:00",
+      "route": "decisions",
+      "hash": "fbfc704b0bb9c13bee733840",
+      "label": "08_delegate_after_dispatch:r4:delegate",
+      "status": 429,
+      "ms": 37.0,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:04:46.433+00:00",
+      "route": "decisions",
+      "hash": "fbfc704b0bb9c13bee733840",
+      "label": "08_delegate_after_dispatch:r4:delegate",
+      "status": 200,
+      "ms": 92.0,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

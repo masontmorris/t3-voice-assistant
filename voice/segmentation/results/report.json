@@ -1,0 +1,315 @@
+{
+  "runs": [
+    {
+      "run": "final-a",
+      "pass": 10,
+      "scenarios": 11,
+      "revisions": 11,
+      "decision_points": 11,
+      "calls": 11,
+      "premature": 0,
+      "duplicate": 0,
+      "missed_corrections": 0,
+      "malformed": 0
+    },
+    {
+      "run": "final-b",
+      "pass": 4,
+      "scenarios": 11,
+      "revisions": 11,
+      "decision_points": 11,
+      "calls": 22,
+      "premature": 2,
+      "duplicate": 0,
+      "missed_corrections": 0,
+      "malformed": 0
+    },
+    {
+      "run": "final-c",
+      "pass": 5,
+      "scenarios": 11,
+      "revisions": 11,
+      "decision_points": 11,
+      "calls": 19,
+      "premature": 0,
+      "duplicate": 0,
+      "missed_corrections": 2,
+      "malformed": 3
+    },
+    {
+      "run": "stream-a",
+      "pass": 9,
+      "scenarios": 11,
+      "revisions": 65,
+      "decision_points": 36,
+      "calls": 35,
+      "premature": 1,
+      "duplicate": 0,
+      "missed_corrections": 0,
+      "malformed": 0
+    },
+    {
+      "run": "final-a-separate",
+      "pass": 11,
+      "scenarios": 11,
+      "revisions": 11,
+      "decision_points": 11,
+      "calls": 25,
+      "premature": 0,
+      "duplicate": 0,
+      "missed_corrections": 0,
+      "malformed": 0
+    },
+    {
+      "run": "final-a-repeat1",
+      "pass": 10,
+      "scenarios": 11,
+      "revisions": 11,
+      "decision_points": 11,
+      "calls": 11,
+      "premature": 0,
+      "duplicate": 0,
+      "missed_corrections": 0,
+      "malformed": 0
+    },
+    {
+      "run": "stream-a-repeat1",
+      "pass": 9,
+      "scenarios": 11,
+      "revisions": 65,
+      "decision_points": 36,
+      "calls": 35,
+      "premature": 1,
+      "duplicate": 0,
+      "missed_corrections": 0,
+      "malformed": 0
+    }
+  ],
+  "agreement": [
+    {
+      "a": "final-a",
+      "b": "final-a-repeat1",
+      "what": "same request sent twice",
+      "questions_compared": 115,
+      "differ": 0,
+      "differ_by_field": {},
+      "compared_by_field": {
+        "corrects": 23,
+        "depends_on": 23,
+        "kind": 23,
+        "readiness": 23,
+        "side_effect": 23
+      },
+      "examples": []
+    },
+    {
+      "a": "stream-a",
+      "b": "stream-a-repeat1",
+      "what": "same request sent twice",
+      "questions_compared": 300,
+      "differ": 0,
+      "differ_by_field": {},
+      "compared_by_field": {
+        "corrects": 60,
+        "depends_on": 60,
+        "kind": 60,
+        "readiness": 60,
+        "side_effect": 60
+      },
+      "examples": []
+    },
+    {
+      "a": "final-a",
+      "b": "final-a-separate",
+      "what": "all segments in one call vs one segment per call",
+      "questions_compared": 115,
+      "differ": 1,
+      "differ_by_field": {
+        "readiness": 1
+      },
+      "compared_by_field": {
+        "corrects": 23,
+        "depends_on": 23,
+        "kind": 23,
+        "readiness": 23,
+        "side_effect": 23
+      },
+      "examples": [
+        "09_delegate_before_segment r6 s2.readiness: \"clarify\" vs \"dispatch_now\""
+      ]
+    }
+  ],
+  "margins": {
+    "corrects": {
+      "n": 96,
+      "below_0.2": 0,
+      "median": 0.98
+    },
+    "depends": {
+      "n": 97,
+      "below_0.2": 7,
+      "median": 0.87
+    },
+    "kind": {
+      "n": 216,
+      "below_0.2": 1,
+      "median": 0.97
+    },
+    "ready": {
+      "n": 215,
+      "below_0.2": 6,
+      "median": 0.89
+    },
+    "same_as": {
+      "n": 14,
+      "below_0.2": 0,
+      "median": 0.99
+    }
+  },
+  "latency": {
+    "by_route": {
+      "decisions": {
+        "n": 145,
+        "median": 92.7,
+        "p95": 221.0,
+        "min": 79.2,
+        "max": 899.9
+      },
+      "extractions": {
+        "n": 12,
+        "median": 109.5,
+        "p95": 208.6,
+        "min": 96.8,
+        "max": 302.8
+      }
+    },
+    "decisions_warm": {
+      "n": 139,
+      "median": 92.3,
+      "p95": 216.9,
+      "min": 79.2,
+      "max": 899.9
+    },
+    "floor_key_get": {
+      "n": 80,
+      "median": 11.4,
+      "p95": 20.2,
+      "min": 7.5,
+      "max": 1020.3
+    },
+    "connect_ms": {
+      "n": 11,
+      "median": 52.5,
+      "p95": 301.5,
+      "min": 28.1,
+      "max": 301.5
+    },
+    "decisions_under_1000_tokens": {
+      "n": 109,
+      "median": 90.9,
+      "p95": 212.6,
+      "min": 79.2,
+      "max": 899.9
+    },
+    "decisions_1500_tokens_or_more": {
+      "n": 8,
+      "median": 111.8,
+      "p95": 163.9,
+      "min": 86.8,
+      "max": 163.9
+    },
+    "input_tokens": {
+      "n": 145,
+      "median": 713,
+      "p95": 1531,
+      "min": 136,
+      "max": 1568
+    },
+    "questions_per_call": {
+      "n": 145,
+      "median": 5,
+      "p95": 13,
+      "min": 1,
+      "max": 13
+    },
+    "usage_cost_values": {
+      "0": 157
+    },
+    "first": "2026-11-16T00:21:42.596+00:00",
+    "last": "2026-11-16T00:29:05.260+00:00"
+  },
+  "run_latency": {
+    "per_run": {
+      "final-a": {
+        "n": 11,
+        "median": 94.3,
+        "p95": 154.8,
+        "min": 89.3,
+        "max": 154.8
+      },
+      "final-b": {
+        "n": 22,
+        "median": 94.2,
+        "p95": 211.6,
+        "min": 79.2,
+        "max": 242.1
+      },
+      "final-c": {
+        "n": 19,
+        "median": 98.8,
+        "p95": 190.8,
+        "min": 85.4,
+        "max": 302.8
+      },
+      "stream-a": {
+        "n": 35,
+        "median": 93.0,
+        "p95": 179.6,
+        "min": 83.2,
+        "max": 221.0
+      },
+      "final-a-separate": {
+        "n": 25,
+        "median": 94.3,
+        "p95": 237.4,
+        "min": 80.3,
+        "max": 899.9
+      },
+      "final-a-repeat1": {
+        "n": 11,
+        "median": 96.4,
+        "p95": 178.6,
+        "min": 84.4,
+        "max": 178.6
+      },
+      "stream-a-repeat1": {
+        "n": 35,
+        "median": 90.8,
+        "p95": 225.4,
+        "min": 80.5,
+        "max": 305.5
+      }
+    },
+    "stream_repeat_paired_diff": {
+      "n": 35,
+      "median": -1.5,
+      "p95": 121.1,
+      "min": -121.1,
+      "max": 218.4
+    }
+  },
+  "largest_choice_set": 5,
+  "ledger": {
+    "attempts": 157,
+    "by_route": {
+      "extractions": 12,
+      "decisions": 145
+    },
+    "status": {
+      "200": 157
+    },
+    "errors": {},
+    "distinct_requests": 157,
+    "cache_files": 157
+  }
+}

@@ -1,0 +1,1442 @@
+{
+  "runs": [
+    {
+      "run": "stream-a",
+      "set": "original",
+      "scenarios": 11,
+      "pass": 9,
+      "pass_if_matched_on_instruction": 9,
+      "passed": [
+        "01_two_independent",
+        "02_two_dependent",
+        "03_topic_change",
+        "04_mid_sentence_correction",
+        "05_correction_after_dispatch",
+        "06_description_not_request",
+        "07_intentional_repeat",
+        "10_side_effect_email",
+        "11_filler_false_starts"
+      ],
+      "premature": 1,
+      "duplicate": 0,
+      "missed_corrections": 0,
+      "early_dispatches": 5,
+      "revisions": 65,
+      "calls": 35,
+      "distinct_requests": 35,
+      "calls_per_utterance": 3.18,
+      "malformed": 0,
+      "latency_ms": {
+        "n": 35,
+        "median": 93.0,
+        "p95": 179.6,
+        "min": 83.2,
+        "max": 221.0
+      },
+      "failures": {
+        "08_delegate_after_dispatch": [
+          "T2: status dispatched, expected one of ['ready']",
+          "T2: depends_on [], expected one of [['T1']]",
+          "T2: dispatched but should never dispatch"
+        ],
+        "09_delegate_before_segment": [
+          "T2: status needs_clarification, expected one of ['dispatched']",
+          "clarification_needed True"
+        ]
+      }
+    },
+    {
+      "run": "stream-e-v1",
+      "set": "original",
+      "scenarios": 11,
+      "pass": 3,
+      "pass_if_matched_on_instruction": 3,
+      "passed": [
+        "01_two_independent",
+        "09_delegate_before_segment",
+        "11_filler_false_starts"
+      ],
+      "premature": 1,
+      "duplicate": 0,
+      "missed_corrections": 2,
+      "early_dispatches": 5,
+      "revisions": 65,
+      "calls": 69,
+      "distinct_requests": 69,
+      "calls_per_utterance": 6.27,
+      "malformed": 0,
+      "latency_ms": {
+        "n": 69,
+        "median": 90.6,
+        "p95": 236.2,
+        "min": 81.2,
+        "max": 1267.6
+      },
+      "failures": {
+        "02_two_dependent": [
+          "T1: no task matches ['sales', 'report']",
+          "T2: no task matches ['summarize']"
+        ],
+        "03_topic_change": [
+          "T2: no task matches ['banana']"
+        ],
+        "04_mid_sentence_correction": [
+          "T2: no task matches ['six']",
+          "T1: status dispatched, expected one of ['superseded', 'withdrawn']",
+          "T1: dispatched but should never dispatch"
+        ],
+        "05_correction_after_dispatch": [
+          "T2: no task matches ['hotel']",
+          "T3: no task matches ['saturday']",
+          "T1: status dispatched, expected one of ['cancel_requested', 'superseded']"
+        ],
+        "06_description_not_request": [
+          "T1: no task matches ['phone', 'number']"
+        ],
+        "07_intentional_repeat": [
+          "T1: status cancel_requested, expected one of ['dispatched']"
+        ],
+        "08_delegate_after_dispatch": [
+          "T2: no task matches ['travel']"
+        ],
+        "10_side_effect_email": [
+          "T2: no task matches ['room']"
+        ]
+      }
+    },
+    {
+      "run": "stream-e",
+      "set": "original",
+      "scenarios": 11,
+      "pass": 7,
+      "pass_if_matched_on_instruction": 7,
+      "passed": [
+        "01_two_independent",
+        "02_two_dependent",
+        "05_correction_after_dispatch",
+        "06_description_not_request",
+        "09_delegate_before_segment",
+        "10_side_effect_email",
+        "11_filler_false_starts"
+      ],
+      "premature": 2,
+      "duplicate": 0,
+      "missed_corrections": 1,
+      "early_dispatches": 7,
+      "revisions": 65,
+      "calls": 70,
+      "distinct_requests": 70,
+      "calls_per_utterance": 6.36,
+      "malformed": 0,
+      "latency_ms": {
+        "n": 70,
+        "median": 94.6,
+        "p95": 185.2,
+        "min": 79.4,
+        "max": 655.5
+      },
+      "failures": {
+        "03_topic_change": [
+          "T2: no task matches ['banana']",
+          "T1: status cancel_requested, expected one of ['dispatched']",
+          "task_2: unexpected dispatched task \"Anyway,\""
+        ],
+        "04_mid_sentence_correction": [
+          "T2: no task matches ['six']",
+          "T1: status dispatched, expected one of ['superseded', 'withdrawn']",
+          "T1: dispatched but should never dispatch"
+        ],
+        "07_intentional_repeat": [
+          "T1: status cancel_requested, expected one of ['dispatched']"
+        ],
+        "08_delegate_after_dispatch": [
+          "T2: no task matches ['travel']"
+        ]
+      }
+    },
+    {
+      "run": "stream-a-heldout",
+      "set": "heldout",
+      "scenarios": 18,
+      "pass": 8,
+      "pass_if_matched_on_instruction": 11,
+      "passed": [
+        "assistant_question",
+        "buy_and_read",
+        "cancel_second",
+        "delegate_overlap",
+        "delete_and_read",
+        "email_extension",
+        "near_duplicates",
+        "post_and_read"
+      ],
+      "premature": 4,
+      "duplicate": 1,
+      "missed_corrections": 1,
+      "early_dispatches": 7,
+      "revisions": 61,
+      "calls": 46,
+      "distinct_requests": 46,
+      "calls_per_utterance": 2.56,
+      "malformed": 0,
+      "latency_ms": {
+        "n": 46,
+        "median": 94.9,
+        "p95": 212.1,
+        "min": 82.5,
+        "max": 340.1
+      },
+      "failures": {
+        "actually": [
+          "T2: no task matches ['height', 'massive']",
+          "task_2: unexpected dispatched task \"actually Mount Massive.\""
+        ],
+        "i_mean": [
+          "T2: no task matches ['capital', 'australia']",
+          "T1: status dispatched, expected one of ['superseded']",
+          "T1: dispatched but should never dispatch"
+        ],
+        "market_three": [
+          "T2: no task matches ['yen', 'exchange']"
+        ],
+        "mixed_chain": [
+          "T2: no task matches ['shopping', 'list']"
+        ],
+        "museum_chain": [
+          "T2: no task matches ['calculate', 'closing']",
+          "T3: depends_on ['T1'], expected one of [['T2']]"
+        ],
+        "no_wait": [
+          "T2: no task matches ['trains', 'leeds']",
+          "task_2: unexpected dispatched task \"No wait, Leeds instead.\""
+        ],
+        "pause_correction": [
+          "T2: no task matches ['violin', 'bristol']",
+          "task_2: unexpected dispatched task \"Actually, Bristol.\""
+        ],
+        "rain_wonder": [
+          "T1: no task matches ['rain', 'saturday']"
+        ],
+        "run_on": [
+          "T2: no task matches ['fare', 'fremantle']",
+          "T3: no task matches ['translate', 'swahili']"
+        ],
+        "true_repeat": [
+          "task_2: duplicate dispatch of T1"
+        ]
+      }
+    },
+    {
+      "run": "stream-e-heldout",
+      "set": "heldout",
+      "scenarios": 18,
+      "pass": 6,
+      "pass_if_matched_on_instruction": 6,
+      "passed": [
+        "assistant_question",
+        "delegate_overlap",
+        "delete_and_read",
+        "email_extension",
+        "museum_chain",
+        "run_on"
+      ],
+      "premature": 8,
+      "duplicate": 1,
+      "missed_corrections": 2,
+      "early_dispatches": 8,
+      "revisions": 61,
+      "calls": 72,
+      "distinct_requests": 71,
+      "calls_per_utterance": 4.0,
+      "malformed": 0,
+      "latency_ms": {
+        "n": 71,
+        "median": 94.3,
+        "p95": 128.2,
+        "min": 81.6,
+        "max": 236.1
+      },
+      "failures": {
+        "actually": [
+          "T2: no task matches ['height', 'massive']",
+          "T1: status dispatched, expected one of ['superseded']",
+          "T1: dispatched but should never dispatch"
+        ],
+        "buy_and_read": [
+          "T2: status ready, expected one of ['dispatched']",
+          "T2: depends_on ['T1'], expected one of [[]]"
+        ],
+        "cancel_second": [
+          "T2: status cancel_requested, expected one of ['withdrawn']",
+          "T2: dispatched but should never dispatch"
+        ],
+        "i_mean": [
+          "T2: no task matches ['capital', 'australia']",
+          "T1: status dispatched, expected one of ['superseded']",
+          "T1: dispatched but should never dispatch"
+        ],
+        "market_three": [
+          "T1: status cancel_requested, expected one of ['dispatched']"
+        ],
+        "mixed_chain": [
+          "T2: status dispatched, expected one of ['ready']",
+          "T2: depends_on [], expected one of [['T1']]",
+          "T2: dispatched but should never dispatch"
+        ],
+        "near_duplicates": [
+          "T1: status cancel_requested, expected one of ['dispatched']"
+        ],
+        "no_wait": [
+          "T2: no task matches ['trains', 'leeds']",
+          "T1: status cancel_requested, expected one of ['superseded']",
+          "T1: dispatched but should never dispatch",
+          "task_2: unexpected dispatched task \"No wait, Leeds instead.\""
+        ],
+        "pause_correction": [
+          "T2: no task matches ['violin', 'bristol']",
+          "T1: status cancel_requested, expected one of ['superseded']",
+          "T1: dispatched but should never dispatch",
+          "task_2: unexpected dispatched task \"Actually, Bristol.\""
+        ],
+        "post_and_read": [
+          "T2: status ready, expected one of ['dispatched']",
+          "T2: depends_on ['T1'], expected one of [[]]"
+        ],
+        "rain_wonder": [
+          "T1: no task matches ['rain', 'saturday']"
+        ],
+        "true_repeat": [
+          "task_2: duplicate dispatch of T1"
+        ]
+      }
+    }
+  ],
+  "boundaries": {
+    "stream-a": {
+      "labeled_breaks": 10,
+      "exact": 10,
+      "off_by_1_to_3": 0,
+      "missed": 0,
+      "mean_error_words_when_found": 0,
+      "extra_cuts": 1,
+      "per_scenario": {
+        "01_two_independent": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "02_two_dependent": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "03_topic_change": {
+          "cuts": [
+            8,
+            12
+          ],
+          "labels": [
+            [
+              8,
+              12
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "04_mid_sentence_correction": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "05_correction_after_dispatch": {
+          "cuts": [
+            6,
+            11
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ],
+            [
+              11,
+              12
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "06_description_not_request": {
+          "cuts": [
+            13
+          ],
+          "labels": [],
+          "error": []
+        },
+        "07_intentional_repeat": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "08_delegate_after_dispatch": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              6
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "09_delegate_before_segment": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              8
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "10_side_effect_email": {
+          "cuts": [
+            8
+          ],
+          "labels": [
+            [
+              8,
+              10
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "11_filler_false_starts": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        }
+      }
+    },
+    "stream-e-v1": {
+      "labeled_breaks": 10,
+      "exact": 3,
+      "off_by_1_to_3": 0,
+      "missed": 7,
+      "mean_error_words_when_found": 0,
+      "extra_cuts": 0,
+      "per_scenario": {
+        "01_two_independent": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "02_two_dependent": {
+          "cuts": [],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "03_topic_change": {
+          "cuts": [],
+          "labels": [
+            [
+              8,
+              12
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "04_mid_sentence_correction": {
+          "cuts": [],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "05_correction_after_dispatch": {
+          "cuts": [],
+          "labels": [
+            [
+              6,
+              7
+            ],
+            [
+              11,
+              12
+            ]
+          ],
+          "error": [
+            null,
+            null
+          ]
+        },
+        "06_description_not_request": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "07_intentional_repeat": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "08_delegate_after_dispatch": {
+          "cuts": [],
+          "labels": [
+            [
+              5,
+              6
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "09_delegate_before_segment": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              8
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "10_side_effect_email": {
+          "cuts": [],
+          "labels": [
+            [
+              8,
+              10
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "11_filler_false_starts": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        }
+      }
+    },
+    "stream-e": {
+      "labeled_breaks": 10,
+      "exact": 8,
+      "off_by_1_to_3": 0,
+      "missed": 2,
+      "mean_error_words_when_found": 0,
+      "extra_cuts": 0,
+      "per_scenario": {
+        "01_two_independent": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "02_two_dependent": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "03_topic_change": {
+          "cuts": [
+            8,
+            9
+          ],
+          "labels": [
+            [
+              8,
+              12
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "04_mid_sentence_correction": {
+          "cuts": [],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "05_correction_after_dispatch": {
+          "cuts": [
+            6,
+            11
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ],
+            [
+              11,
+              12
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "06_description_not_request": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "07_intentional_repeat": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "08_delegate_after_dispatch": {
+          "cuts": [],
+          "labels": [
+            [
+              5,
+              6
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "09_delegate_before_segment": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              8
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "10_side_effect_email": {
+          "cuts": [
+            8
+          ],
+          "labels": [
+            [
+              8,
+              10
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "11_filler_false_starts": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        }
+      }
+    },
+    "stream-a-heldout": {
+      "labeled_breaks": 18,
+      "exact": 12,
+      "off_by_1_to_3": 0,
+      "missed": 6,
+      "mean_error_words_when_found": 0,
+      "extra_cuts": 3,
+      "per_scenario": {
+        "actually": {
+          "cuts": [
+            7
+          ],
+          "labels": [
+            [
+              7,
+              8
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "assistant_question": {
+          "cuts": [
+            5
+          ],
+          "labels": [],
+          "error": []
+        },
+        "buy_and_read": {
+          "cuts": [
+            4
+          ],
+          "labels": [
+            [
+              4,
+              5
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "cancel_second": {
+          "cuts": [
+            6,
+            11
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ],
+            [
+              11,
+              11
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "delegate_overlap": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "delete_and_read": {
+          "cuts": [
+            4
+          ],
+          "labels": [
+            [
+              4,
+              5
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "email_extension": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "i_mean": {
+          "cuts": [],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "market_three": {
+          "cuts": [
+            10
+          ],
+          "labels": [
+            [
+              5,
+              5
+            ],
+            [
+              10,
+              11
+            ]
+          ],
+          "error": [
+            null,
+            0
+          ]
+        },
+        "mixed_chain": {
+          "cuts": [
+            11
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ],
+            [
+              11,
+              12
+            ]
+          ],
+          "error": [
+            null,
+            0
+          ]
+        },
+        "museum_chain": {
+          "cuts": [
+            11
+          ],
+          "labels": [
+            [
+              5,
+              6
+            ],
+            [
+              11,
+              12
+            ]
+          ],
+          "error": [
+            null,
+            0
+          ]
+        },
+        "near_duplicates": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              6
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "no_wait": {
+          "cuts": [
+            4
+          ],
+          "labels": [
+            [
+              4,
+              6
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "pause_correction": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "post_and_read": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              6
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "rain_wonder": {
+          "cuts": [
+            7
+          ],
+          "labels": [],
+          "error": []
+        },
+        "run_on": {
+          "cuts": [],
+          "labels": [
+            [
+              6,
+              6
+            ],
+            [
+              12,
+              12
+            ]
+          ],
+          "error": [
+            null,
+            null
+          ]
+        },
+        "true_repeat": {
+          "cuts": [
+            5
+          ],
+          "labels": [],
+          "error": []
+        }
+      }
+    },
+    "stream-e-heldout": {
+      "labeled_breaks": 18,
+      "exact": 16,
+      "off_by_1_to_3": 0,
+      "missed": 2,
+      "mean_error_words_when_found": 0,
+      "extra_cuts": 1,
+      "per_scenario": {
+        "actually": {
+          "cuts": [],
+          "labels": [
+            [
+              7,
+              8
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "assistant_question": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "buy_and_read": {
+          "cuts": [
+            4
+          ],
+          "labels": [
+            [
+              4,
+              5
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "cancel_second": {
+          "cuts": [
+            6,
+            11
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ],
+            [
+              11,
+              11
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "delegate_overlap": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "delete_and_read": {
+          "cuts": [
+            4
+          ],
+          "labels": [
+            [
+              4,
+              5
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "email_extension": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "i_mean": {
+          "cuts": [],
+          "labels": [
+            [
+              5,
+              7
+            ]
+          ],
+          "error": [
+            null
+          ]
+        },
+        "market_three": {
+          "cuts": [
+            5,
+            10
+          ],
+          "labels": [
+            [
+              5,
+              5
+            ],
+            [
+              10,
+              11
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "mixed_chain": {
+          "cuts": [
+            6,
+            11
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ],
+            [
+              11,
+              12
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "museum_chain": {
+          "cuts": [
+            5,
+            11
+          ],
+          "labels": [
+            [
+              5,
+              6
+            ],
+            [
+              11,
+              12
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "near_duplicates": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              6
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "no_wait": {
+          "cuts": [
+            4
+          ],
+          "labels": [
+            [
+              4,
+              6
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "pause_correction": {
+          "cuts": [
+            6
+          ],
+          "labels": [
+            [
+              6,
+              7
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "post_and_read": {
+          "cuts": [
+            5
+          ],
+          "labels": [
+            [
+              5,
+              6
+            ]
+          ],
+          "error": [
+            0
+          ]
+        },
+        "rain_wonder": {
+          "cuts": [],
+          "labels": [],
+          "error": []
+        },
+        "run_on": {
+          "cuts": [
+            6,
+            12
+          ],
+          "labels": [
+            [
+              6,
+              6
+            ],
+            [
+              12,
+              12
+            ]
+          ],
+          "error": [
+            0,
+            0
+          ]
+        },
+        "true_repeat": {
+          "cuts": [
+            5
+          ],
+          "labels": [],
+          "error": []
+        }
+      }
+    }
+  },
+  "cursor": {
+    "stream-e-v1": {
+      "verdicts": {
+        "candidate": 37,
+        "near_tie": 17,
+        "nothing": 12,
+        "disagree": 1
+      },
+      "commits_by_rule": {
+        "held two revisions": 4,
+        "final": 8
+      },
+      "finished_then_next_revision": 36,
+      "finished_flipped_to_unfinished": 0,
+      "at_margin_below_0.2": 15,
+      "at_answers": 67
+    },
+    "stream-e": {
+      "verdicts": {
+        "candidate": 48,
+        "disagree": 6,
+        "nothing": 8,
+        "near_tie": 6
+      },
+      "commits_by_rule": {
+        "held two revisions": 6,
+        "final": 14
+      },
+      "finished_then_next_revision": 34,
+      "finished_flipped_to_unfinished": 1,
+      "at_margin_below_0.2": 8,
+      "at_answers": 68
+    },
+    "stream-e-heldout": {
+      "verdicts": {
+        "candidate": 58,
+        "near_tie": 5,
+        "disagree": 8
+      },
+      "commits_by_rule": {
+        "final": 26,
+        "held two revisions": 6,
+        "pause": 1
+      },
+      "finished_then_next_revision": 31,
+      "finished_flipped_to_unfinished": 1,
+      "at_margin_below_0.2": 5,
+      "at_answers": 71
+    }
+  },
+  "extra_questions": {
+    "pairs": 15,
+    "answers_compared": 51,
+    "answers_changed": 0,
+    "changed": [],
+    "noul_abs_shift": {
+      "n": 30,
+      "median": 0.0,
+      "p95": 0.1,
+      "min": 0.0,
+      "max": 0.2
+    },
+    "base_ms": {
+      "n": 15,
+      "median": 94.3,
+      "p95": 157.1,
+      "min": 82.7,
+      "max": 185.2
+    },
+    "extra_ms": {
+      "n": 15,
+      "median": 92.6,
+      "p95": 179.2,
+      "min": 85.0,
+      "max": 315.4
+    },
+    "paired_diff_ms": {
+      "n": 15,
+      "median": -1.9,
+      "p95": 80.9,
+      "min": -92.6,
+      "max": 232.7
+    },
+    "questions": {
+      "base": {
+        "n": 15,
+        "median": 3,
+        "p95": 5,
+        "min": 3,
+        "max": 5
+      },
+      "extra": {
+        "n": 15,
+        "median": 5,
+        "p95": 7,
+        "min": 5,
+        "max": 7
+      }
+    },
+    "added_answers": [
+      {
+        "implicit": 0.13678620984209192,
+        "preemptive": 0.44734145876059833
+      },
+      {
+        "implicit": 0.8835347444080571,
+        "preemptive": 0.5298979804052023
+      },
+      {
+        "implicit": 0.6770104039791343,
+        "preemptive": 0.300491135409389
+      },
+      {
+        "implicit": 0.20280251160921026,
+        "preemptive": 0.8770931143578748
+      },
+      {
+        "implicit": 0.26611582781851745,
+        "preemptive": 0.13383630848763373
+      },
+      {
+        "implicit": 0.20501239532354829,
+        "preemptive": 0.13976414818690971
+      },
+      {
+        "implicit": 0.19422210164317785,
+        "preemptive": 0.06149610385371769
+      },
+      {
+        "implicit": 0.38977379260506606,
+        "preemptive": 0.2274132012119741
+      },
+      {
+        "implicit": 0.6526136011160583,
+        "preemptive": 0.07976129125788543
+      },
+      {
+        "implicit": 0.5437946512972966,
+        "preemptive": 0.21844997825585125
+      },
+      {
+        "implicit": 0.11208806512810533,
+        "preemptive": 0.06244740732801391
+      },
+      {
+        "implicit": 0.7647325915922342,
+        "preemptive": 0.07192647737074576
+      },
+      {
+        "implicit": 0.28394288200241125,
+        "preemptive": 0.17368435955208436
+      },
+      {
+        "implicit": 0.15092328353617032,
+        "preemptive": 0.25696999223290157
+      },
+      {
+        "implicit": 0.033273480939848665,
+        "preemptive": 0.13459574895874762
+      }
+    ]
+  },
+  "marker_recall": {
+    "original_punctuated": {
+      "breaks": 10,
+      "with_marker": 10
+    },
+    "original_stripped": {
+      "breaks": 10,
+      "with_marker": 9
+    },
+    "heldout_punctuated": {
+      "breaks": 18,
+      "with_marker": 18
+    },
+    "heldout_stripped": {
+      "breaks": 18,
+      "with_marker": 16
+    }
+  },
+  "ledger": {
+    "attempts_this_round": 363,
+    "status": {
+      "200": 271,
+      "429": 92
+    },
+    "errors": {},
+    "first": "2026-11-16T01:03:36.380+00:00",
+    "last": "2026-11-16T01:28:28.479+00:00",
+    "usage_cost_values_all_cache": {
+      "0": 428
+    }
+  }
+}

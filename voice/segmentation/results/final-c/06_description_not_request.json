@@ -1,0 +1,142 @@
+{
+  "scenario": "06_description_not_request",
+  "covers": "A sentence that describes a task (emailing the landlord) without asking for it, then one real request.",
+  "option": "c",
+  "mode": "final",
+  "revisions": 1,
+  "decision_points": [
+    {
+      "revision": 6,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 90,
+          "end": 125,
+          "text": "look up the landlord's phone number",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "06_description_not_request:r6:extract",
+          "route": "extractions",
+          "file": "extractions-e83ff3a80b1e31220b5f5a53.json",
+          "status": 200,
+          "ms": 96.8,
+          "started_at": "2026-11-16T00:28:13.022+00:00"
+        },
+        {
+          "label": "06_description_not_request:r6:decide",
+          "route": "decisions",
+          "file": "decisions-f809444c201d500bb19ead92.json",
+          "status": 200,
+          "ms": 86.6,
+          "started_at": "2026-11-16T00:28:13.125+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9819758058536626,
+            "ready": 0.8185584118493417,
+            "side_effect": 0.0904607954356918
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "look up the landlord's phone number",
+      "instruction": "look up the landlord's phone number",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "look up the landlord's phone number"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "look up the landlord's phone number",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_06_description_not_request",
+    "final_transcript": "My sister keeps telling me I should email the landlord about the heater, but can you just look up the landlord's phone number?",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "look up the landlord's phone number",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "phone",
+          "number"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

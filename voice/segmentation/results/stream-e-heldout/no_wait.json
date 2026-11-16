@@ -1,0 +1,356 @@
+{
+  "scenario": "no_wait",
+  "covers": "correction no wait",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "no_wait:r1",
+      "cursor": 0,
+      "markers": [
+        4
+      ],
+      "calls": [
+        {
+          "label": "no_wait:r1",
+          "route": "decisions",
+          "file": "decisions-3f71c8489d4172e8eeb11c68.json",
+          "status": 200,
+          "ms": 96.9,
+          "started_at": "2026-11-16T01:23:00.445+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "find trains to york",
+      "committed": null,
+      "answer": {
+        "finished": 0.8908982104088907,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7200586709170249,
+          "runner_up": "none"
+        },
+        "side_effect": 0.1517182576017034,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "no_wait:r2",
+      "cursor": 0,
+      "markers": [
+        4,
+        6
+      ],
+      "calls": [
+        {
+          "label": "no_wait:r2",
+          "route": "decisions",
+          "file": "decisions-b1de68660f6ba1b2351aeaf8.json",
+          "status": 200,
+          "ms": 88.2,
+          "started_at": "2026-11-16T01:23:03.545+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "find trains to york",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.6665586812217338,
+        "at": {
+          "choice": "m1",
+          "margin": 0.49119622671485474,
+          "runner_up": "none"
+        },
+        "side_effect": 0.15029937004078645,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "no_wait:r3",
+      "cursor": 4,
+      "markers": [
+        8
+      ],
+      "calls": [
+        {
+          "label": "no_wait:r3",
+          "route": "decisions",
+          "file": "decisions-52f1a50b532ca17e1d0e5cd2.json",
+          "status": 200,
+          "ms": 121.6,
+          "started_at": "2026-11-16T01:23:06.646+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "no wait leeds instead",
+      "committed": null,
+      "answer": {
+        "finished": 0.8662661417934281,
+        "at": {
+          "choice": "m1",
+          "margin": 0.2615764107888274,
+          "runner_up": "none"
+        },
+        "side_effect": 0.07051351601169069,
+        "depends": {
+          "choice": "s1",
+          "margin": 0.06635296007703495,
+          "runner_up": "none"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.9184503742845141,
+          "runner_up": "cancel_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "no_wait:r4",
+      "cursor": 4,
+      "markers": [
+        6,
+        8
+      ],
+      "calls": [
+        {
+          "label": "no_wait:r4",
+          "route": "decisions",
+          "file": "decisions-fab56a88cd92314808354258.json",
+          "status": 200,
+          "ms": 84.9,
+          "started_at": "2026-11-16T01:23:09.746+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "no wait leeds instead",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.93166181136869,
+        "at": {
+          "choice": "m2",
+          "margin": 0.767854343606254,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.0642140979236511,
+        "depends": {
+          "choice": "none",
+          "margin": 0.006055757881555601,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.9519721460001337,
+          "runner_up": "cancel_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "cancel_requested",
+      "segment_text": "Find trains to York.",
+      "instruction": "find trains to york",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find trains to york"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find trains to york",
+          "new": "Find trains to York."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "dispatched",
+          "new": "cancel_requested",
+          "reason": "corrected by segment \"No wait, Leeds instead.\""
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "No wait, Leeds instead.",
+      "instruction": "find trains to york (corrected: No wait, Leeds instead.)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "No wait, Leeds instead."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 4,
+      "text": "Find trains to York."
+    },
+    {
+      "sid": "s2",
+      "w0": 4,
+      "w1": 8,
+      "text": "No wait, Leeds instead."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 2,
+      "is_final": false,
+      "instruction": "find trains to york",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "find trains to york (corrected: No wait, Leeds instead.)",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_no_wait",
+    "final_transcript": "Find trains to York. No wait, Leeds instead.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find trains to york",
+        "status": "cancel_requested"
+      },
+      {
+        "task_id": "task_2",
+        "description": "find trains to york (corrected: No wait, Leeds instead.)",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "trains",
+          "york"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "trains",
+          "leeds"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['trains', 'leeds']",
+      "T1: status cancel_requested, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch",
+      "task_2: unexpected dispatched task \"No wait, Leeds instead.\""
+    ],
+    "premature_dispatches": 2,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [
+      "task_2"
+    ],
+    "dispatch_count": 2
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "about": "Hand-labeled breaks between expected tasks in each final transcript. A break [lo, hi] accepts a cut before any word index from lo to hi, counting words as voice.segmentation.cursor.words does.",
+  "breaks": {
+    "01_two_independent": [[6, 7]],
+    "02_two_dependent": [[5, 7]],
+    "03_topic_change": [[8, 12]],
+    "04_mid_sentence_correction": [[5, 7]],
+    "05_correction_after_dispatch": [[6, 7], [11, 12]],
+    "06_description_not_request": [],
+    "07_intentional_repeat": [[5, 7]],
+    "08_delegate_after_dispatch": [[5, 6]],
+    "09_delegate_before_segment": [[6, 8]],
+    "10_side_effect_email": [[8, 10]],
+    "11_filler_false_starts": []
+  }
+}

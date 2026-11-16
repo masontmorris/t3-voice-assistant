@@ -1,0 +1,123 @@
+{
+  "route": "decisions",
+  "label": "run_on:r3",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "find [1] the [2] moonrise [3] time [4] in [5] perth [6] check [7] the [8] train [9] fare [10] to [11] fremantle [12] translate [13] good [14] morning [15] into [16] swahili [17]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at [1]. It is \"find\".",
+          "m2": "The first request ends at [2]. It is \"find the\".",
+          "m3": "The first request ends at [3]. It is \"find the moonrise\".",
+          "m4": "The first request ends at [4]. It is \"find the moonrise time\".",
+          "m5": "The first request ends at [5]. It is \"find the moonrise time in\".",
+          "m6": "The first request ends at [6]. It is \"find the moonrise time in perth\".",
+          "m7": "The first request ends at [7]. It is \"find the moonrise time in perth check\".",
+          "m8": "The first request ends at [8]. It is \"find the moonrise time in perth check the\".",
+          "m9": "The first request ends at [9]. It is \"find the moonrise time in perth check the train\".",
+          "m10": "The first request ends at [10]. It is \"find the moonrise time ... check the train fare\".",
+          "m11": "The first request ends at [11]. It is \"find the moonrise time ... the train fare to\".",
+          "m12": "The first request ends at [12]. It is \"find the moonrise time ... train fare to fremantle\".",
+          "m13": "The first request ends at [13]. It is \"find the moonrise time ... fare to fremantle translate\".",
+          "m14": "The first request ends at [14]. It is \"find the moonrise time ... to fremantle translate good\".",
+          "m15": "The first request ends at [15]. It is \"find the moonrise time ... fremantle translate good morning\".",
+          "m16": "The first request ends at [16]. It is \"find the moonrise time ... translate good morning into\".",
+          "m17": "The first request ends at the end of the speech so far. It is \"find the moonrise time ... good morning into swahili\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m6",
+        "probabilities": {
+          "m1": 0.002932227140810241,
+          "m10": 0.0024377886209231646,
+          "m11": 0.0021596075745196385,
+          "m12": 0.002915614885162794,
+          "m13": 0.0017198904992006426,
+          "m14": 0.0012197472475111808,
+          "m15": 0.0017919875460337285,
+          "m16": 0.002124007129961191,
+          "m17": 0.01571136003096468,
+          "m2": 0.001272172377747449,
+          "m3": 0.002163254015187009,
+          "m4": 0.002797309023228693,
+          "m5": 0.0023829643535100173,
+          "m6": 0.9159052213553884,
+          "m7": 0.003947632353854844,
+          "m8": 0.0024310801956193037,
+          "m9": 0.0020549823817641423,
+          "none": 0.034033153268612816
+        },
+        "confidence": 0.9109584696704113
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.7072443907948697
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.022938971355390515
+      }
+    },
+    "usage": {
+      "input_tokens": 895,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794792241-aW8ccBHO6tCBr2CbvpHz",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:24:00.306+00:00",
+    "ms": 97.43829997023568,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:24:00.306+00:00",
+      "route": "decisions",
+      "hash": "1a2b4acb465944dc1abbb522",
+      "label": "run_on:r3",
+      "status": 200,
+      "ms": 97.4,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

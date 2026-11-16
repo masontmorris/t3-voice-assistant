@@ -1,0 +1,43 @@
+{
+  "id": "true_repeat",
+  "covers": "true repeat",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find the elevation of cusco",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find the elevation of cusco find the elevation of cusco",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Find the elevation of Cusco. Find the elevation of Cusco.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "elevation",
+          "cusco"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The exact repetition is emphasis, not an instruction to perform the lookup twice."
+}

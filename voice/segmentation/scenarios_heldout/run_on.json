@@ -1,0 +1,75 @@
+{
+  "id": "run_on",
+  "covers": "unpunctuated run-on",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find the moonrise time in perth",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find the moonrise time in perth check the train fare to fremantle",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "find the moonrise time in perth check the train fare to fremantle translate good morning into swahili",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "Find the moonrise time in Perth, check the train fare to Fremantle, translate good morning into Swahili.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "moonrise",
+          "perth"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "fare",
+          "fremantle"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "translate",
+          "swahili"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "Each imperative starts a separate independent lookup."
+}

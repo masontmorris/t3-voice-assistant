@@ -1,0 +1,79 @@
+{
+  "scenario": "04_mid_sentence_correction",
+  "covers": "A mid-sentence correction of a request with an external side effect (a booking). The first version must never dispatch.",
+  "option": "c",
+  "mode": "final",
+  "revisions": 1,
+  "decision_points": [
+    {
+      "revision": 7,
+      "is_final": true,
+      "segments": [],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r7:extract",
+          "route": "extractions",
+          "file": "extractions-05e5bbc5b6c2ca75d770dbba.json",
+          "status": 200,
+          "ms": 109.0,
+          "started_at": "2026-11-16T00:28:12.705+00:00"
+        }
+      ],
+      "decisions": {},
+      "delegates": {},
+      "problems": [
+        "segments: missing"
+      ]
+    }
+  ],
+  "tasks": [],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_04_mid_sentence_correction",
+    "final_transcript": "Book a table for four, no wait, for six, at Luigi's tonight at seven.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "table",
+          "four"
+        ],
+        "status": [
+          "superseded",
+          "withdrawn"
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "six"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "revises": "T1",
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: no task matches ['table', 'four']",
+      "T2: no task matches ['six']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 1,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

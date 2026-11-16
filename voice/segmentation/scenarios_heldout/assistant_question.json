@@ -1,0 +1,29 @@
+{
+  "id": "assistant_question",
+  "covers": "assistant question and statement",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "what did you just say",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "what did you just say the room is quiet",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "What did you just say? The room is quiet.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [],
+    "clarification_needed": false
+  },
+  "notes": "The assistant can answer from conversation context. Neither phrase creates a task."
+}

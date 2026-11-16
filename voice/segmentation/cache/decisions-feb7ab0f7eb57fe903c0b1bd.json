@@ -1,0 +1,109 @@
+{
+  "route": "decisions",
+  "label": "rain_wonder:r1:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "i wonder if itll rain saturday",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "i wonder if itll rain saturday"
+      },
+      "still_being_spoken": "s1",
+      "tasks": [],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"i wonder if itll rain saturday\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"i wonder if itll rain saturday\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"i wonder if itll rain saturday\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "chitchat",
+        "probabilities": {
+          "chitchat": 0.8074138128322174,
+          "correction": 0.0034007509208913733,
+          "description": 0.04057599365009227,
+          "request": 0.13881297272845564,
+          "topic_change": 0.009796469868343238
+        },
+        "confidence": 0.7592672660402716
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "wait",
+        "probabilities": {
+          "clarify": 0.20582658066310555,
+          "dispatch_now": 0.2074062809967159,
+          "wait": 0.5867671383401786
+        },
+        "confidence": 0.38015070751026786
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.02369205208761423
+      }
+    },
+    "usage": {
+      "input_tokens": 437,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791908-9600QgHQBBy2WKBS1qVy",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:18:27.476+00:00",
+    "ms": 184.51950000599027,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:18:27.476+00:00",
+      "route": "decisions",
+      "hash": "feb7ab0f7eb57fe903c0b1bd",
+      "label": "rain_wonder:r1:decide",
+      "status": 200,
+      "ms": 184.5,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

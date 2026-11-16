@@ -1,0 +1,209 @@
+{
+  "route": "decisions",
+  "label": "no_wait:r4:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Find trains to York. No wait, Leeds instead.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Find trains to York.",
+        "s2": "No wait, Leeds instead."
+      },
+      "still_being_spoken": null,
+      "tasks": [
+        {
+          "task": "task_1",
+          "instruction": "find trains to york",
+          "status": "withdrawn",
+          "sources": [
+            "orchestrator"
+          ]
+        }
+      ],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"Find trains to York.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"Find trains to York.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"Find trains to York.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"No wait, Leeds instead.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"No wait, Leeds instead.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"No wait, Leeds instead.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"No wait, Leeds instead.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Find trains to York.\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"No wait, Leeds instead.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Find trains to York.\").",
+          "cancel_s1": "It withdraws s1 (\"Find trains to York.\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0014243145356940972,
+          "correction": 0.03022504690684627,
+          "description": 0.005070158726482079,
+          "request": 0.9616733127602015,
+          "topic_change": 0.001607167070776148
+        },
+        "confidence": 0.9520916409502519
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.022497843860686605,
+          "dispatch_now": 0.9467796536626066,
+          "wait": 0.030722502476706638
+        },
+        "confidence": 0.9201694804939098
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.659834898064432
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "replace_s1",
+        "probabilities": {
+          "cancel_s1": 0.061256083803106154,
+          "none": 0.01971638591407661,
+          "replace_s1": 0.9190275302828173
+        },
+        "confidence": 0.8785412954242259
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.6762072225454315,
+          "s1": 0.32379277745456836
+        },
+        "confidence": 0.35241444509086306
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "correction",
+        "probabilities": {
+          "chitchat": 0.0033675421523447304,
+          "correction": 0.9819252801714552,
+          "description": 0.0016815758129713474,
+          "request": 0.010324686746129113,
+          "topic_change": 0.0027009151170995466
+        },
+        "confidence": 0.9774066002143189
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.009467796096734978,
+          "dispatch_now": 0.9841303943367381,
+          "wait": 0.00640180956652706
+        },
+        "confidence": 0.9761955915051072
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.4990701686133989
+      }
+    },
+    "usage": {
+      "input_tokens": 937,
+      "output_tokens": 8,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791871-5RUXfL58Y3UBdhcY7czz",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:17:50.575+00:00",
+    "ms": 94.09869997762144,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:17:50.575+00:00",
+      "route": "decisions",
+      "hash": "7167c06a2960c5170ea5382f",
+      "label": "no_wait:r4:decide",
+      "status": 200,
+      "ms": 94.1,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

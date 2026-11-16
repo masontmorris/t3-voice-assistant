@@ -1,0 +1,265 @@
+{
+  "scenario": "06_description_not_request",
+  "covers": "A sentence that describes a task (emailing the landlord) without asking for it, then one real request.",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 26,
+          "text": "my sister keeps telling me",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "06_description_not_request:r1:decide",
+          "route": "decisions",
+          "file": "decisions-e0387aeaa04932af617c2a00.json",
+          "status": 200,
+          "ms": 84.4,
+          "started_at": "2026-11-16T00:28:52.868+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "description",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.6035485786279957,
+            "ready": 0.9279582329235379,
+            "side_effect": 0.031082337364126526
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 71,
+          "text": "my sister keeps telling me i should email the landlord about the heater",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 72,
+          "end": 96,
+          "text": "but can you just look up",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "06_description_not_request:r4:decide",
+          "route": "decisions",
+          "file": "decisions-1f9bee02aac2f33146cb05c9.json",
+          "status": 200,
+          "ms": 91.6,
+          "started_at": "2026-11-16T00:28:52.963+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "description",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.8388374054265471,
+            "ready": 0.808759022016391,
+            "side_effect": 0.6879523300497915
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.7551199224903611,
+            "depends": 0.4996700231763911,
+            "kind": 0.8601364268433398,
+            "ready": 0.9032860696316192,
+            "side_effect": 0.029501885758721234
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 71,
+          "text": "My sister keeps telling me I should email the landlord about the heater",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 73,
+          "end": 126,
+          "text": "but can you just look up the landlord's phone number?",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "06_description_not_request:r6:decide",
+          "route": "decisions",
+          "file": "decisions-9f1b413b199b12dffd5f4e0b.json",
+          "status": 200,
+          "ms": 104.3,
+          "started_at": "2026-11-16T00:28:53.065+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "description",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.7901387329072154,
+            "ready": 0.22787364139362204,
+            "side_effect": 0.5054128439513672
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9234857619733767,
+            "depends": 0.8132605546456431,
+            "kind": 0.9737795260346016,
+            "ready": 0.7801408964470717,
+            "side_effect": 0.049125264506469375
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "but can you just look up the landlord's phone number?",
+      "instruction": "but can you just look up the landlord's phone number?",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "but can you just look up"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "but can you just look up",
+          "new": "but can you just look up the landlord's phone number?"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "but can you just look up the landlord's phone number?",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_06_description_not_request",
+    "final_transcript": "My sister keeps telling me I should email the landlord about the heater, but can you just look up the landlord's phone number?",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "but can you just look up the landlord's phone number?",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "phone",
+          "number"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

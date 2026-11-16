@@ -1,0 +1,200 @@
+{
+  "route": "decisions",
+  "label": "02_two_dependent:r6:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Find last quarter's sales report and then summarize it in three bullet points.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Find last quarter's sales report",
+        "s2": "and then summarize it in three bullet points."
+      },
+      "still_being_spoken": null,
+      "tasks": [],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"Find last quarter's sales report\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"Find last quarter's sales report\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"Find last quarter's sales report\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"and then summarize it in three bullet points.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"and then summarize it in three bullet points.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"and then summarize it in three bullet points.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"and then summarize it in three bullet points.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Find last quarter's sales report\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"and then summarize it in three bullet points.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Find last quarter's sales report\").",
+          "cancel_s1": "It withdraws s1 (\"Find last quarter's sales report\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0013263784219563273,
+          "correction": 0.0013469459524487492,
+          "description": 0.007482301793763633,
+          "request": 0.9886128813774046,
+          "topic_change": 0.0012314924544266608
+        },
+        "confidence": 0.9857661017217556
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.12399093666103855,
+          "dispatch_now": 0.8376139915096117,
+          "wait": 0.038395071829349744
+        },
+        "confidence": 0.7564209872644175
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.07471193996216305
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.001985164060999532,
+          "none": 0.9930446456914258,
+          "replace_s1": 0.004970190247574743
+        },
+        "confidence": 0.9895669685371385
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "s1",
+        "probabilities": {
+          "none": 0.02188343052372536,
+          "s1": 0.9781165694762746
+        },
+        "confidence": 0.9562331389525491
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0032645675347486216,
+          "correction": 0.0024252942211019676,
+          "description": 0.012724865803955307,
+          "request": 0.9786864261389795,
+          "topic_change": 0.0028988463012145156
+        },
+        "confidence": 0.9733580326737242
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.047021665790329584,
+          "dispatch_now": 0.9405185539056493,
+          "wait": 0.012459780304021182
+        },
+        "confidence": 0.910777830858474
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.014750731743147102
+      }
+    },
+    "usage": {
+      "input_tokens": 941,
+      "output_tokens": 8,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788888-9n2eSVhedfu6zLjtwIBt",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:07.515+00:00",
+    "ms": 97.79719996731728,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:07.515+00:00",
+      "route": "decisions",
+      "hash": "3370df68110d10ec0f53c657",
+      "label": "02_two_dependent:r6:decide",
+      "status": 200,
+      "ms": 97.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

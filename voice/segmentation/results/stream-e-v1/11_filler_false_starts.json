@@ -1,0 +1,360 @@
+{
+  "scenario": "11_filler_false_starts",
+  "covers": "Filler words, false starts, and an ASR revision of an earlier word (reports to report). One task.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "11_filler_false_starts:r1",
+      "cursor": 0,
+      "markers": [
+        3
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r1",
+          "route": "decisions",
+          "file": "decisions-6a946f2af2889061a27daf54.json",
+          "status": 200,
+          "ms": 90.2,
+          "started_at": "2026-11-16T01:04:50.045+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "nothing",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.008862198917281097,
+        "at": {
+          "choice": "none",
+          "margin": 0.4512797887848079,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.09159382626717412,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "11_filler_false_starts:r2",
+      "cursor": 0,
+      "markers": [
+        9
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r2",
+          "route": "decisions",
+          "file": "decisions-8397839b929cffb8a6e0dbb6.json",
+          "status": 200,
+          "ms": 87.4,
+          "started_at": "2026-11-16T01:04:50.146+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "nothing",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.018509876472682582,
+        "at": {
+          "choice": "none",
+          "margin": 0.9045109140871417,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.03464291037977423,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "11_filler_false_starts:r3",
+      "cursor": 0,
+      "markers": [
+        12
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r3",
+          "route": "decisions",
+          "file": "decisions-1518b59904d803e52cd0ef72.json",
+          "status": 200,
+          "ms": 191.0,
+          "started_at": "2026-11-16T01:04:50.244+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.30837326886414446,
+        "at": {
+          "choice": "none",
+          "margin": 0.15360405149335715,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.032999319799265056,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "11_filler_false_starts:r4",
+      "cursor": 0,
+      "markers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r4",
+          "route": "decisions",
+          "file": "decisions-9367906532b7080f0094b016.json",
+          "status": 200,
+          "ms": 236.2,
+          "started_at": "2026-11-16T01:04:52.495+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "nothing",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.39195674255867086,
+        "at": {
+          "choice": "none",
+          "margin": 0.22112096668559056,
+          "runner_up": "m15"
+        },
+        "side_effect": 0.062162362173609785,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "11_filler_false_starts:r5",
+      "cursor": 0,
+      "markers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r5",
+          "route": "decisions",
+          "file": "decisions-768e8a8dd4bf282aa185607a.json",
+          "status": 200,
+          "ms": 84.8,
+          "started_at": "2026-11-16T01:04:52.741+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 16,
+      "candidate": "um so uh can you can you find the the report from uh from tuesday's meeting",
+      "committed": null,
+      "answer": {
+        "finished": 0.7104319575128781,
+        "at": {
+          "choice": "m16",
+          "margin": 0.4969863858859484,
+          "runner_up": "none"
+        },
+        "side_effect": 0.06015773076431887,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "11_filler_false_starts:r6",
+      "cursor": 0,
+      "markers": [
+        1,
+        2,
+        3,
+        5,
+        9,
+        12,
+        13,
+        16
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r6",
+          "route": "decisions",
+          "file": "decisions-117d6d60b8b524508d7aa511.json",
+          "status": 200,
+          "ms": 81.6,
+          "started_at": "2026-11-16T01:04:52.834+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 16,
+      "candidate": "um so uh can you can you find the the report from uh from tuesday's meeting",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9520102305223619,
+        "at": {
+          "choice": "m8",
+          "margin": 0.7917368177894343,
+          "runner_up": "none"
+        },
+        "side_effect": 0.04401218913141552,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "instruction": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 16,
+      "text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?"
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_11_filler_false_starts",
+    "final_transcript": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "report",
+          "tuesday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

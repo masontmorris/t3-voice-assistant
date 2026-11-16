@@ -1,0 +1,138 @@
+{
+  "route": "decisions",
+  "label": "03_topic_change:r6:drain1",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "Look up the score of the Nuggets game.",
+        "s2": "Anyway,"
+      },
+      "new_speech": "totally different thing. [1] What's a good recipe for banana bread? [2]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at [1]. It is \"totally different thing\".",
+          "m2": "The first request ends at the end of the speech so far. It is \"totally different thing what's ... recipe for banana bread\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"Look up the score of the Nuggets game.\") first.",
+          "s2": "It needs the result of s2 (\"Anyway,\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It changes what s1 (\"Look up the score of the Nuggets game.\") asked for, so s1 as first spoken should not be done.",
+          "replace_s2": "It changes what s2 (\"Anyway,\") asked for, so s2 as first spoken should not be done.",
+          "cancel_s1": "It withdraws s1 (\"Look up the score of the Nuggets game.\") with no replacement.",
+          "cancel_s2": "It withdraws s2 (\"Anyway,\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m2",
+        "probabilities": {
+          "m1": 0.06716232078127403,
+          "m2": 0.8839184220385086,
+          "none": 0.048919257180217446
+        },
+        "confidence": 0.8258776330577628
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "cancel_s1",
+        "probabilities": {
+          "cancel_s1": 0.5136235816013048,
+          "cancel_s2": 0.0189240448342447,
+          "none": 0.18616961541555085,
+          "replace_s1": 0.26521301392648594,
+          "replace_s2": 0.016069744222413692
+        },
+        "confidence": 0.392029477001631
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9862313180730634,
+          "s1": 0.005147579023206182,
+          "s2": 0.008621102903730448
+        },
+        "confidence": 0.979346977109595
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9343287780539256
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.011928980405246469
+      }
+    },
+    "usage": {
+      "input_tokens": 673,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791315-8yZywWUORzTZ2SoQ205I",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:08:34.646+00:00",
+    "ms": 104.12039997754619,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:08:34.646+00:00",
+      "route": "decisions",
+      "hash": "3a208672a548fd140f6014e6",
+      "label": "03_topic_change:r6:drain1",
+      "status": 200,
+      "ms": 104.1,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

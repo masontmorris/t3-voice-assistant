@@ -1,0 +1,127 @@
+{
+  "route": "decisions",
+  "label": "06_description_not_request:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "my [1] sister [2] keeps [3] telling [4] me [5] i [6] should [7] email [8] the [9] landlord [10] about [11] the [12] heater [13] but can you just look up [14]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at [1]. It is \"my\".",
+          "m2": "The first request ends at [2]. It is \"my sister\".",
+          "m3": "The first request ends at [3]. It is \"my sister keeps\".",
+          "m4": "The first request ends at [4]. It is \"my sister keeps telling\".",
+          "m5": "The first request ends at [5]. It is \"my sister keeps telling me\".",
+          "m6": "The first request ends at [6]. It is \"my sister keeps telling me i\".",
+          "m7": "The first request ends at [7]. It is \"my sister keeps telling me i should\".",
+          "m8": "The first request ends at [8]. It is \"my sister keeps telling me i should email\".",
+          "m9": "The first request ends at [9]. It is \"my sister keeps telling me i should email the\".",
+          "m10": "The first request ends at [10]. It is \"my sister keeps telling ... should email the landlord\".",
+          "m11": "The first request ends at [11]. It is \"my sister keeps telling ... email the landlord about\".",
+          "m12": "The first request ends at [12]. It is \"my sister keeps telling ... the landlord about the\".",
+          "m13": "The first request ends at [13]. It is \"my sister keeps telling ... landlord about the heater\".",
+          "m14": "The first request ends at the end of the speech so far. It is \"my sister keeps telling ... you just look up\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "m1": 0.006155916818090529,
+          "m10": 0.04709539061285254,
+          "m11": 0.008371399565961437,
+          "m12": 0.008675051902741765,
+          "m13": 0.28410445127618483,
+          "m14": 0.0440166603435844,
+          "m2": 0.0029813611067857036,
+          "m3": 0.0032758494737059364,
+          "m4": 0.004389965535779006,
+          "m5": 0.00932279338114338,
+          "m6": 0.00418767018917059,
+          "m7": 0.019922405991317962,
+          "m8": 0.008525645174977187,
+          "m9": 0.006896581668896719,
+          "none": 0.5420788569588081
+        },
+        "confidence": 0.5093702038844372
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.08098162615145026
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.4417696644457884
+      }
+    },
+    "usage": {
+      "input_tokens": 763,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791367-QGMIX2BxSMCkM0CMS3l5",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:09:26.704+00:00",
+    "ms": 94.68249999918044,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:09:24.648+00:00",
+      "route": "decisions",
+      "hash": "06a98b73173df709f6386af9",
+      "label": "06_description_not_request:r4",
+      "status": 429,
+      "ms": 44.9,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:09:26.704+00:00",
+      "route": "decisions",
+      "hash": "06a98b73173df709f6386af9",
+      "label": "06_description_not_request:r4",
+      "status": 200,
+      "ms": 94.7,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

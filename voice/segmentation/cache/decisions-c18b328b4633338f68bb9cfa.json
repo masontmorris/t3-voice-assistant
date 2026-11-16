@@ -1,0 +1,133 @@
+{
+  "route": "decisions",
+  "label": "09_delegate_before_segment:r6",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "Look up tomorrow's weather in Seattle,"
+      },
+      "new_speech": "and, [1] um, [2] what time does the ferry leave? [3]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], after \"and\" and before \"um what time does\".",
+          "m2": "It ends at [2], after \"and um\" and before \"what time does the\".",
+          "m3": "It ends at [3], the end of the speech so far, after \"does the ferry leave\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"Look up tomorrow's weather in Seattle,\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It states a new version of s1 (\"Look up tomorrow's weather in Seattle,\").",
+          "cancel_s1": "It withdraws s1 (\"Look up tomorrow's weather in Seattle,\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m3",
+        "probabilities": {
+          "m1": 0.008101756138557547,
+          "m2": 0.015385813701919656,
+          "m3": 0.7308477450483329,
+          "none": 0.24566468511118997
+        },
+        "confidence": 0.6411303267311106
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.026896334494665896,
+          "none": 0.9518833696253242,
+          "replace_s1": 0.02122029588000989
+        },
+        "confidence": 0.9278250544379862
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9687973262274219,
+          "s1": 0.031202673772578182
+        },
+        "confidence": 0.9375946524548437
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9052596644647263
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.019203034510659873
+      }
+    },
+    "usage": {
+      "input_tokens": 517,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791088-F95desKl5mkoMT802RUG",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:47.223+00:00",
+    "ms": 83.27309996820986,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:47.223+00:00",
+      "route": "decisions",
+      "hash": "c18b328b4633338f68bb9cfa",
+      "label": "09_delegate_before_segment:r6",
+      "status": 200,
+      "ms": 83.3,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "route": "decisions",
+  "label": "delegate_overlap:r1:delegate",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "look up the diameter of europa [1]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "d1_same_as": {
+        "type": "choice",
+        "instructions": "The voice assistant submitted the task \"Look up the diameter of Europa\". Which request asks for the same thing?",
+        "criteria": {
+          "new": "No request in the speech asks for it.",
+          "new_speech": "The request in new_speech (\"look up the diameter of europa\") asks for it."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "d1_same_as": {
+        "type": "choice",
+        "choice": "new_speech",
+        "probabilities": {
+          "new": 0.013250375106909682,
+          "new_speech": 0.9867496248930904
+        },
+        "confidence": 0.9734992497861807
+      }
+    },
+    "usage": {
+      "input_tokens": 142,
+      "output_tokens": 1,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791991-qEQjBrD3ri4o800rI6yn",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:19:50.310+00:00",
+    "ms": 85.60140000190586,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:19:50.310+00:00",
+      "route": "decisions",
+      "hash": "1a6e9f81c14cbb878bb93ac4",
+      "label": "delegate_overlap:r1:delegate",
+      "status": 200,
+      "ms": 85.6,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,428 @@
+{
+  "scenario": "10_side_effect_email",
+  "covers": "A request with an external side effect (sending an email) whose partial text is wrong (Tuesday) until ASR revises it (Thursday). It must not dispatch on a partial.",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 15,
+          "text": "email dana that",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r1:decide",
+          "route": "decisions",
+          "file": "decisions-2f8e50d71c60d63fe5bface0.json",
+          "status": 200,
+          "ms": 83.4,
+          "started_at": "2026-11-16T00:28:54.295+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.8351205435034337,
+            "ready": 0.9064761408987709,
+            "side_effect": 0.9968574029853755
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 44,
+          "text": "email dana that the meeting moved to tuesday",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 45,
+          "end": 59,
+          "text": "and then check",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r4:decide",
+          "route": "decisions",
+          "file": "decisions-a32c4b842bc5700df87ed1d4.json",
+          "status": 200,
+          "ms": 86.0,
+          "started_at": "2026-11-16T00:28:54.390+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.9628692160643562,
+            "ready": 0.7600885234867827,
+            "side_effect": 0.9988353667881495
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9868103999853147,
+            "depends": 0.5088758265826581,
+            "kind": 0.6766506280220144,
+            "ready": 0.7575615169623522,
+            "side_effect": 0.12127355262059003
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 45,
+          "text": "email dana that the meeting moved to thursday",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 46,
+          "end": 83,
+          "text": "and then check if room four b is free",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r5:decide",
+          "route": "decisions",
+          "file": "decisions-1482b5ac202f7e52656b60f1.json",
+          "status": 200,
+          "ms": 95.0,
+          "started_at": "2026-11-16T00:28:54.494+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.9479684775642352,
+            "ready": 0.9546972607832069,
+            "side_effect": 0.9991063824090286
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9818547935463632,
+            "depends": 0.7809014124334019,
+            "kind": 0.9594595536024821,
+            "ready": 0.8271717853148908,
+            "side_effect": 0.10564919902897395
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 45,
+          "text": "Email Dana that the meeting moved to Thursday",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 47,
+          "end": 81,
+          "text": "and then check if room 4B is free.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r6:decide",
+          "route": "decisions",
+          "file": "decisions-c22986c1d453ec27c377fed6.json",
+          "status": 200,
+          "ms": 83.2,
+          "started_at": "2026-11-16T00:28:54.600+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": true,
+          "confidence": {
+            "kind": 0.9826023029936648,
+            "ready": 0.9910992602493972,
+            "side_effect": 0.9991407269600097
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9959922339861824,
+            "depends": 0.8132185706753676,
+            "kind": 0.9744842715733404,
+            "ready": 0.9289891629144342,
+            "side_effect": 0.09950250965828884
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Email Dana that the meeting moved to Thursday",
+      "instruction": "Email Dana that the meeting moved to Thursday",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "email dana that"
+        },
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "segment_text",
+          "old": "email dana that",
+          "new": "email dana that the meeting moved to tuesday"
+        },
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "side effect held for the final transcript"
+        },
+        {
+          "revision": 5,
+          "is_final": false,
+          "event": "segment_text",
+          "old": "email dana that the meeting moved to tuesday",
+          "new": "email dana that the meeting moved to thursday"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "email dana that the meeting moved to thursday",
+          "new": "Email Dana that the meeting moved to Thursday"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "ready",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and then check if room 4B is free.",
+      "instruction": "and then check if room 4B is free.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and then check"
+        },
+        {
+          "revision": 5,
+          "is_final": false,
+          "event": "segment_text",
+          "old": "and then check",
+          "new": "and then check if room four b is free"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and then check if room four b is free",
+          "new": "and then check if room 4B is free."
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "Email Dana that the meeting moved to Thursday",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "and then check if room 4B is free.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_10_side_effect_email",
+    "final_transcript": "Email Dana that the meeting moved to Thursday, and then check if room 4B is free.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Email Dana that the meeting moved to Thursday",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and then check if room 4B is free.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "email",
+          "dana"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true,
+        "instruction_contains": [
+          "thursday"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "room"
+        ],
+        "status": [
+          "dispatched",
+          "ready"
+        ],
+        "depends_on": [
+          [],
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

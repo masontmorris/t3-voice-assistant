@@ -1,0 +1,64 @@
+{
+  "id": "07_intentional_repeat",
+  "covers": "An intentional repeat of the same request. Both must run. The repeat is not a duplicate.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "roll a die for me",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "roll a die for me okay now roll",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "roll a die for me okay now roll it again",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "Roll a die for me. Okay, now roll it again.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "roll",
+          "die"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "again"
+        ],
+        "status": [
+          "dispatched",
+          "ready"
+        ],
+        "depends_on": [
+          [],
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}

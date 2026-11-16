@@ -1,0 +1,57 @@
+{
+  "id": "cancel_second",
+  "covers": "cancellation",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "look up the tide at rye and find the ferry timetable",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "look up the tide at rye and find the ferry timetable never mind the second one",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Look up the tide at Rye and find the ferry timetable. Never mind the second one.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "tide",
+          "rye"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "ferry",
+          "timetable"
+        ],
+        "status": [
+          "withdrawn"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The cancellation refers to the ferry request. Its partial should remain undispatched."
+}

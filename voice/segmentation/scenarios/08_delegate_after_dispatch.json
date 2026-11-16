@@ -1,0 +1,76 @@
+{
+  "id": "08_delegate_after_dispatch",
+  "covers": "The orchestrator dispatches a task early, then the voice model's delegate tool submits the same task. One dispatch only.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find the q3 budget",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find the q3 budget spreadsheet",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "find the q3 budget spreadsheet and tell me",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "find the q3 budget spreadsheet and tell me the total travel spend",
+      "is_final": false
+    },
+    {
+      "type": "delegate",
+      "instruction": "Find the Q3 budget spreadsheet"
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "Find the Q3 budget spreadsheet and tell me the total travel spend.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "budget",
+          "spreadsheet"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "sources": [
+          "orchestrator",
+          "voice_delegate"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "travel"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}

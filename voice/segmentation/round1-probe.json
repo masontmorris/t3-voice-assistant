@@ -1,0 +1,30 @@
+{
+  "status": 200,
+  "body": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "intent": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "other": 0.047215701748070375,
+          "request": 0.9527842982519297
+        },
+        "confidence": 0.9055685965038593
+      }
+    },
+    "usage": {
+      "input_tokens": 77,
+      "output_tokens": 1,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794787883-7YMZRWv9Dw3Rv3C4MCWy",
+    "provider": "Perplexity"
+  }
+}

@@ -1,0 +1,540 @@
+{
+  "scenario": "05_correction_after_dispatch",
+  "covers": "A correction that arrives after the first request may already have dispatched. A cancel request or a supersede are both correct.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 7,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "05_correction_after_dispatch:r1",
+      "cursor": 0,
+      "markers": [
+        4
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r1",
+          "route": "decisions",
+          "file": "decisions-8cf0c8d46753729687a2e6b2.json",
+          "status": 200,
+          "ms": 109.1,
+          "started_at": "2026-11-16T01:09:04.492+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "find flights to austin",
+      "committed": null,
+      "answer": {
+        "finished": 0.9250464727848979,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7973898226513726,
+          "runner_up": "none"
+        },
+        "side_effect": 0.19503860333611184,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "05_correction_after_dispatch:r2",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r2",
+          "route": "decisions",
+          "file": "decisions-6b40c61aebdf2373beecc689.json",
+          "status": 200,
+          "ms": 89.2,
+          "started_at": "2026-11-16T01:09:11.796+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "find flights to austin on friday",
+      "committed": null,
+      "answer": {
+        "finished": 0.9324074638090791,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8390842303749954,
+          "runner_up": "none"
+        },
+        "side_effect": 0.2318702690721699,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "05_correction_after_dispatch:r3",
+      "cursor": 0,
+      "markers": [
+        6,
+        9
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r3",
+          "route": "decisions",
+          "file": "decisions-3526cff8ae36f4b9f01f0e28.json",
+          "status": 200,
+          "ms": 93.2,
+          "started_at": "2026-11-16T01:09:12.996+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "find flights to austin on friday",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.7549642123107255,
+        "at": {
+          "choice": "m1",
+          "margin": 0.4967639375107774,
+          "runner_up": "none"
+        },
+        "side_effect": 0.17721604193024504,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "05_correction_after_dispatch:r4",
+      "cursor": 6,
+      "markers": [
+        11
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r4",
+          "route": "decisions",
+          "file": "decisions-bc39100712a6b3cccb02ec6a.json",
+          "status": 200,
+          "ms": 87.6,
+          "started_at": "2026-11-16T01:09:14.197+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 11,
+      "candidate": "and check hotel prices downtown",
+      "committed": null,
+      "answer": {
+        "finished": 0.9085237816786496,
+        "at": {
+          "choice": "m1",
+          "margin": 0.24688315963624802,
+          "runner_up": "none"
+        },
+        "side_effect": 0.06376946140479717,
+        "depends": {
+          "choice": "none",
+          "margin": 0.8978177903498841,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.9209116370365035,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "05_correction_after_dispatch:r5",
+      "cursor": 6,
+      "markers": [
+        11,
+        13
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r5",
+          "route": "decisions",
+          "file": "decisions-6769bfcca12c79e08f322b7c.json",
+          "status": 200,
+          "ms": 121.2,
+          "started_at": "2026-11-16T01:09:15.397+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 11,
+      "candidate": "and check hotel prices downtown",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.6110381849480396,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5865886190842037,
+          "runner_up": "none"
+        },
+        "side_effect": 0.11642355506708829,
+        "depends": {
+          "choice": "none",
+          "margin": 0.8848951471470937,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.6788406078091948,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": false,
+      "label": "05_correction_after_dispatch:r6",
+      "cursor": 11,
+      "markers": [
+        16
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r6",
+          "route": "decisions",
+          "file": "decisions-89c73bf432d9e191637f3e23.json",
+          "status": 200,
+          "ms": 180.0,
+          "started_at": "2026-11-16T01:09:18.645+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 16,
+      "candidate": "actually make the flights saturday",
+      "committed": null,
+      "answer": {
+        "finished": 0.9141560308318167,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7093613405432257,
+          "runner_up": "none"
+        },
+        "side_effect": 0.8274479079380158,
+        "depends": {
+          "choice": "s1",
+          "margin": 0.5228490910938823,
+          "runner_up": "none"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.953103461054587,
+          "runner_up": "cancel_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 7,
+      "is_final": true,
+      "label": "05_correction_after_dispatch:r7",
+      "cursor": 11,
+      "markers": [
+        12,
+        16
+      ],
+      "calls": [
+        {
+          "label": "05_correction_after_dispatch:r7",
+          "route": "decisions",
+          "file": "decisions-f8b78b130462cc607678d539.json",
+          "status": 200,
+          "ms": 87.3,
+          "started_at": "2026-11-16T01:09:19.846+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 16,
+      "candidate": "actually make the flights saturday",
+      "committed": "s3",
+      "answer": {
+        "finished": 0.9479281515235012,
+        "at": {
+          "choice": "m2",
+          "margin": 0.8964431916974244,
+          "runner_up": "none"
+        },
+        "side_effect": 0.7210386083678952,
+        "depends": {
+          "choice": "none",
+          "margin": 0.5669908275955947,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.9507234989449803,
+          "runner_up": "cancel_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "cancel_requested",
+      "segment_text": "Find flights to Austin on Friday",
+      "instruction": "find flights to austin on friday",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find flights to austin on friday"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find flights to austin on friday",
+          "new": "Find flights to Austin on Friday"
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "status",
+          "old": "dispatched",
+          "new": "cancel_requested",
+          "reason": "corrected by segment \"Actually, make the flights Saturday.\""
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and check hotel prices downtown.",
+      "instruction": "and check hotel prices downtown",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 5,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and check hotel prices downtown"
+        },
+        {
+          "revision": 5,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and check hotel prices downtown",
+          "new": "and check hotel prices downtown."
+        }
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "status": "dispatched",
+      "segment_text": "Actually, make the flights Saturday.",
+      "instruction": "find flights to austin on friday (corrected: Actually, make the flights Saturday.)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Actually, make the flights Saturday."
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 6,
+      "text": "Find flights to Austin on Friday"
+    },
+    {
+      "sid": "s2",
+      "w0": 6,
+      "w1": 11,
+      "text": "and check hotel prices downtown."
+    },
+    {
+      "sid": "s3",
+      "w0": 11,
+      "w1": 16,
+      "text": "Actually, make the flights Saturday."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": false,
+      "instruction": "find flights to austin on friday",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 5,
+      "is_final": false,
+      "instruction": "and check hotel prices downtown",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "revision": 7,
+      "is_final": true,
+      "instruction": "find flights to austin on friday (corrected: Actually, make the flights Saturday.)",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_05_correction_after_dispatch",
+    "final_transcript": "Find flights to Austin on Friday and check hotel prices downtown. Actually, make the flights Saturday.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find flights to austin on friday",
+        "status": "cancel_requested"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and check hotel prices downtown",
+        "status": "running"
+      },
+      {
+        "task_id": "task_3",
+        "description": "find flights to austin on friday (corrected: Actually, make the flights Saturday.)",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "flights",
+          "friday"
+        ],
+        "status": [
+          "cancel_requested",
+          "superseded"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "hotel"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "saturday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 3
+  }
+}

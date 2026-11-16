@@ -1,0 +1,337 @@
+{
+  "scenario": "01_two_independent",
+  "covers": "Two independent requests in one utterance.",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 18,
+          "text": "what's the weather",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r1:decide",
+          "route": "decisions",
+          "file": "decisions-f8efb99efe04bbcea9ac3d9c.json",
+          "status": 200,
+          "ms": 257.8,
+          "started_at": "2026-11-16T00:29:01.052+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.8039417001370036,
+            "ready": 0.4621062759287956,
+            "side_effect": 0.020947511652965337
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 37,
+          "text": "what's the weather in denver tomorrow",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 38,
+          "end": 49,
+          "text": "and look up",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r3:decide",
+          "route": "decisions",
+          "file": "decisions-2133af928855409ef169fc0b.json",
+          "status": 200,
+          "ms": 90.3,
+          "started_at": "2026-11-16T00:29:01.320+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9808083785923177,
+            "ready": 0.42007280264558416,
+            "side_effect": 0.008508699917637051
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9695494621876337,
+            "depends": 0.7190648469316239,
+            "kind": 0.8215187858575065,
+            "ready": 0.5383576849679842,
+            "side_effect": 0.0296531350052432
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 37,
+          "text": "What's the weather in Denver tomorrow",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 39,
+          "end": 89,
+          "text": "and look up how long the drive from Boulder takes.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r6:decide",
+          "route": "decisions",
+          "file": "decisions-c93a67533183200a360ca7b3.json",
+          "status": 200,
+          "ms": 132.7,
+          "started_at": "2026-11-16T00:29:01.419+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9915929401210468,
+            "ready": 0.982636609351407,
+            "side_effect": 0.005864518197732431
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9948533074496244,
+            "depends": 0.9741375900943929,
+            "kind": 0.985905778916209,
+            "ready": 0.9667183789433509,
+            "side_effect": 0.007111812710274635
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "What's the weather in Denver tomorrow",
+      "instruction": "what's the weather in denver tomorrow",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "what's the weather"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "segment_text",
+          "old": "what's the weather",
+          "new": "what's the weather in denver tomorrow"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "what's the weather in denver tomorrow",
+          "new": "What's the weather in Denver tomorrow"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and look up how long the drive from Boulder takes.",
+      "instruction": "and look up how long the drive from Boulder takes.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and look up"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and look up",
+          "new": "and look up how long the drive from Boulder takes."
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": false,
+      "instruction": "what's the weather in denver tomorrow",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "and look up how long the drive from Boulder takes.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_01_two_independent",
+    "final_transcript": "What's the weather in Denver tomorrow, and look up how long the drive from Boulder takes.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "what's the weather in denver tomorrow",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and look up how long the drive from Boulder takes.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "weather",
+          "denver"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "drive",
+          "boulder"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}
