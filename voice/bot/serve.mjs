@@ -25,7 +25,7 @@ import { connect, lastAssistantText, openQuestionText, runOf } from "./t3.mjs";
 const STATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "state");
 const TREE = path.join(STATE, "tree.json");
 const HAIKU = { instanceId: "claudeAgent", model: "claude-haiku-5-5", options: [{ id: "effort", value: "low" }] };
-const DEFAULTS = { port: 8787, tickSec: 10, silenceSec: 600, backstopSec: 100000, ceilingSec: 1440, runSec: 600, budget: 120, forceVerdict: null };
+const DEFAULTS = { port: 8787, tickSec: 10, silenceSec: 600, backstopSec: 1800, ceilingSec: 14400, runSec: 600, budget: 160, forceVerdict: null };
 
 const now = () => Date.now();
 const iso = (ms) => new Date(ms).toISOString();
