@@ -91,6 +91,17 @@ def dispatched(seg):
     return {d["instruction"]: d for d in seg.dispatch_log}
 
 
+class CorrectionOnlyDecider(FakeDecider):
+    """Answers `correction` for every segment's kind, whatever the words, as the decider did on a measured item."""
+
+    def call(self, route, body, label=""):
+        record = super().call(route, body, label)
+        for name, question in body["questions"].items():
+            if name.endswith("_kind"):
+                record["response"]["answers"][name] = choice("correction", list(question["criteria"]))
+        return record
+
+
 class Breaks(unittest.TestCase):
     def test_hard_cuts_are_the_baseline_splitters_cuts_plus_i_mean(self):
         text = "Find the capital of Austria, I mean Australia. Then check the weather and also the tide"
@@ -106,6 +117,10 @@ class Breaks(unittest.TestCase):
 
 
 class Hybrid(unittest.TestCase):
+    def test_a_correction_naming_nothing_inside_a_request_is_the_request_it_leads_into(self):
+        seg = stream(["That was wrong, now find the sales report for week 45."], CorrectionOnlyDecider())
+        self.assertEqual(list(dispatched(seg)), ["That was wrong, now find the sales report for week 45."])
+
     def test_a_bare_then_splits_two_requests_and_the_first_dispatches_before_the_final(self):
         seg = stream(["find the recipe for lentil soup",
                       "find the recipe for lentil soup then make a shopping",
