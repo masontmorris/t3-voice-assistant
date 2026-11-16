@@ -45,9 +45,9 @@ class FakeCanceller:
 
 
 class EchoSelectionTest(unittest.TestCase):
-    def test_the_default_is_on_for_a_microphone_and_off_for_wav(self):
+    def test_the_default_is_off_until_it_works_on_real_echo(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertIsInstance(client.echo_canceller(make_args(tmp)), EchoCanceller)
+            self.assertIsNone(client.echo_canceller(make_args(tmp)))
             self.assertIsNone(client.echo_canceller(make_args(tmp, wav=[Path(tmp) / "clip.wav"])))
 
     def test_no_echo_cancel_turns_it_off(self):
@@ -61,13 +61,13 @@ class EchoSelectionTest(unittest.TestCase):
 
     def test_the_tail_length_is_passed(self):
         with tempfile.TemporaryDirectory() as tmp:
-            self.assertEqual(client.echo_canceller(make_args(tmp, echo_tail_ms=400)).tail_ms, 400)
+            self.assertEqual(client.echo_canceller(make_args(tmp, echo_cancel=True, echo_tail_ms=400)).tail_ms, 400)
 
 
 class ClientWiringTest(unittest.TestCase):
     def test_the_client_gives_the_canceller_to_the_player_and_the_microphone(self):
         with tempfile.TemporaryDirectory() as tmp:
-            run = client.Client(make_args(tmp))
+            run = client.Client(make_args(tmp, echo_cancel=True))
             try:
                 self.assertIsInstance(run.echo, EchoCanceller)
                 self.assertIs(run.player.canceller, run.echo)

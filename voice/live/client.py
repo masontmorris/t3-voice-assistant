@@ -101,10 +101,10 @@ def auto_output():
 def echo_canceller(args):
     """This run's microphone echo canceller, or None when the run does not use one.
 
-    On by default for a microphone, since a laptop's speakers otherwise interrupt the reply. Off with --wav,
-    whose clips are already clean, and off with --no-echo-cancel, which sends the raw microphone."""
+    Off unless --echo-cancel is given: on real laptop echo it garbles the person's speech (issue #33), so use
+    headphones until that is fixed."""
     if getattr(args, "echo_cancel", None) is None:
-        enabled = not getattr(args, "wav", None)
+        enabled = False
     else:
         enabled = args.echo_cancel
     return EchoCanceller(tail_ms=getattr(args, "echo_tail_ms", 256)) if enabled else None
@@ -440,7 +440,7 @@ def main():
                         help="with --wav, send the next clip this long after a reply starts, to test barge-in")
     parser.add_argument("--prebuffer-ms", type=int, default=80, help="reply audio to queue before playback starts")
     parser.add_argument("--echo-cancel", dest="echo_cancel", action="store_true", default=None,
-                        help="cancel speaker echo from the microphone (default: on for a microphone, off with --wav)")
+                        help="cancel speaker echo from the microphone (default: off; it garbles speech on real echo, issue #33)")
     parser.add_argument("--no-echo-cancel", dest="echo_cancel", action="store_false",
                         help="send the raw microphone, as with headphones")
     parser.add_argument("--no-raw-mic", dest="raw_mic", action="store_false",
