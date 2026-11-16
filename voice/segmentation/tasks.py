@@ -277,7 +277,7 @@ class Orchestrator:
         task = self.tasks.get(task_id)
         if task is None:
             return {"ok": False, "error": f"no task {task_id}"}
-        if task.status == Status.SUPERSEDED:
+        if task.status in {Status.SUPERSEDED, Status.WITHDRAWN}:
             task_id = self._successor(task_id)
             task = self.tasks[task_id]
         if task.status not in LIVE | {Status.WITHDRAWN}:

@@ -37,7 +37,7 @@ python -m unittest discover -s voice/segmentation/tests -t .
 python -m unittest discover -s voice/prototype/tests -t .
 ```
 
-96 tests and 44 tests. The new cases cover a delegate that links to two tasks and runs both, a delegate that covers one task and makes the tail task, a delegate that covers nothing and makes one task, a read-only claim that leaves a side-effect task held, a task left for clarification and a task waiting on its dependency, the delete-versus-find refusal, amend of a withdrawn task, amend of a superseded task through its successor, and both snapshot cases (a corrected task and a task taken back, each listed as `cancelled` beside the live one). Mutations that drop the tail task, link only one task, lower the overlap bar, or drop the side-effect guard each fail the suite (checked).
+97 tests and 44 tests. The new cases cover a delegate that links to two tasks and runs both, a delegate that covers one task and makes the tail task, a delegate that covers nothing and makes one task, a read-only claim that leaves a side-effect task held, a task left for clarification and a task waiting on its dependency, the delete-versus-find refusal, amend of a withdrawn task, amend of a superseded task through its successor, and both snapshot cases (a corrected task and a task taken back, each listed as `cancelled` beside the live one). Mutations that drop the tail task, link only one task, lower the overlap bar, or drop the side-effect guard each fail the suite (checked).
 
 ## What the runs must show
 

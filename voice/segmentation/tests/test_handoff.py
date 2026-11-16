@@ -174,6 +174,17 @@ class VoiceTools(unittest.TestCase):
         self.assertEqual((old.status, new.revises, new.status), (Status.WITHDRAWN, old.task_id, Status.DISPATCHED))
         self.assertEqual(new.instruction, "set a reminder for tuesday (corrected: make it wednesday)")
 
+    def test_amend_of_a_withdrawn_task_that_was_replaced_amends_the_replacement(self):
+        orch = Orchestrator()
+        old = orch._new_task("set a reminder for tuesday", 0, {"orchestrator"}, side_effect=True)
+        orch._move(old, Status.WITHDRAWN, "corrected by segment \"make it wednesday\"")
+        replacement = orch._new_task("make it wednesday", 0, {"orchestrator"}, revises=old.task_id, side_effect=True)
+        orch._move(replacement, Status.DISPATCHED, "test")
+        result = orch.amend_from_voice(old.task_id, "make it thursday")
+        self.assertEqual(result["replaces"], replacement.task_id)
+        self.assertEqual(orch.tasks[result["task_id"]].revises, replacement.task_id)
+        self.assertEqual(len(orch.tasks), 3)
+
 
 def gated(decider, gate=Gate(0.4, 0.9)):
     seg = HybridSegmenter(decider, "test")
