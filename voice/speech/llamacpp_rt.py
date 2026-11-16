@@ -6,13 +6,13 @@ Usage: python llamacpp_rt.py [runs] [gpu|cpu] [concurrent]
 Env: VOICE_HOME (default ~/voice); the server binary is $VOICE_HOME/llamacpp/bin/llama-server.exe.
 """
 
+import argparse
 import asyncio
 import base64
 import json
 import os
 import statistics
 import subprocess
-import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -22,9 +22,14 @@ import websockets
 
 import lfm
 
-RUNS = int(sys.argv[1]) if len(sys.argv) > 1 else 5
-ON_GPU = (sys.argv[2] if len(sys.argv) > 2 else "gpu") == "gpu"
-CONCURRENT = len(sys.argv) > 3 and sys.argv[3] == "concurrent"
+parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+parser.add_argument("runs", nargs="?", type=int, default=5, help="timed rounds after the warm-up (default 5)")
+parser.add_argument("device", nargs="?", choices=("gpu", "cpu"), default="gpu")
+parser.add_argument("mode", nargs="?", choices=("concurrent",), help="stream to both sessions at once")
+args = parser.parse_args()
+RUNS = args.runs
+ON_GPU = args.device == "gpu"
+CONCURRENT = args.mode == "concurrent"
 TAG = ("gpu" if ON_GPU else "cpu") + ("_concurrent" if CONCURRENT else "")
 SERVER = lfm.VOICE_HOME / "llamacpp" / "bin" / "llama-server.exe"
 GGUF = lfm.VOICE_HOME / "gguf"

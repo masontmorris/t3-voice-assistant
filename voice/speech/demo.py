@@ -5,11 +5,13 @@ voice-chat context, whose cache is prefilled while the user is still speaking. W
 out as text and speech. Times are seconds from the start of the input audio.
 
 Usage: python demo.py input.wav [--out reply.wav] [--device cuda|cpu] [--fast]
+  --out defaults to $VOICE_HOME/evidence/stage1/demo_reply.wav, outside the repo.
   --fast feeds the clip as fast as the model takes it instead of at real-time pace.
 """
 
 import argparse
 import time
+from pathlib import Path
 
 import soundfile as sf
 import torch
@@ -84,7 +86,7 @@ def run_turn(model, processor, codec, device, wav, realtime=True, echo=True, max
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("wav")
-    parser.add_argument("--out", default="reply.wav")
+    parser.add_argument("--out", default=str(lfm.EVIDENCE_DIR / "demo_reply.wav"))
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--fast", action="store_true")
     parser.add_argument("--max-new-tokens", type=int, default=400)
@@ -93,6 +95,7 @@ if __name__ == "__main__":
     model, processor, codec, load_s = lfm.load(args.device, dtype)
     print(f"loaded {lfm.MODEL_ID}@{lfm.REVISION[:8]} on {args.device} ({dtype}) in {load_s:.1f} s", flush=True)
     timeline, reply = run_turn(model, processor, codec, args.device, args.wav, realtime=not args.fast, max_new_tokens=args.max_new_tokens)
+    Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     sf.write(args.out, reply, lfm.SR_OUT)
     print(f"[{timeline['end_s']:6.2f}s] done. first reply audio {timeline['first_audio_after_audio_end_s']:.2f}s after the input ended; "
           f"{timeline['speech_s']:.2f}s of speech; reply text: {timeline['reply_text']!r}")
