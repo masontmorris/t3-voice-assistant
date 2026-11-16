@@ -33,7 +33,9 @@ class Start:
 
 @dataclass(frozen=True)
 class Audio:
+    """One frame of a turn, with its level so a listener can apply its own voicing rule."""
     pcm: bytes
+    level_dbfs: float = SILENT_DBFS
 
 
 @dataclass(frozen=True)
@@ -110,7 +112,7 @@ class Endpointer:
             return [Start(pcm)]
         self._turn_frames += 1
         self._silent_run = 0 if voiced else self._silent_run + 1
-        events = [Audio(frame)]
+        events = [Audio(frame, level)]
         if self._silent_run * FRAME_MS >= self.settings.silence_ms:
             events.append(End(self._silent_run * FRAME_MS))
             self._reset()

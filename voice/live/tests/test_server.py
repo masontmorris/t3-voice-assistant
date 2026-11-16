@@ -93,6 +93,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         session_patch = mock.patch.object(server.Session, "open", FakeVoice.open)
         session_patch.start()
         self.addCleanup(session_patch.stop)
+        self.heard("And one more thing.")
         self.ws_server = await serve(self.live.handler, "127.0.0.1", 0, process_request=server.authorize(SECRET))
         self.url = f"ws://127.0.0.1:{self.ws_server.sockets[0].getsockname()[1]}"
 
@@ -224,14 +225,33 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
         await ws.close()
 
-    async def test_speech_during_the_reply_stops_playback_and_keeps_the_call(self):
-        ws = await self.connect()
+    def heard(self, text):
+        async def transcribe(pcm):
+            self.transcribed.append(len(pcm))
+            if isinstance(text, Exception):
+                raise text
+            return text
+        self.transcribed = []
+        self.live.transcribe = transcribe
+
+    def overlaps(self):
+        path = Path(self.tmp.name) / "overlaps.jsonl"
+        return [json.loads(line) for line in path.read_text().splitlines()] if path.is_file() else []
+
+    async def reply_playing(self, ws):
         log = []
         await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
         await self.until(ws, "reply_start", log)
-        await self.send(ws, tone(300))
+        return log
+
+    async def test_speech_during_the_reply_stops_playback_and_keeps_the_call(self):
+        self.heard("unused")
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(800))
         barge = await self.until(ws, "barge_in", log)
         self.assertEqual(barge["turn"], 1, "the reply the person talked over is the one flushed")
+        self.assertIn("duck", log, "the reply is turned down as soon as the speech starts")
         self.assertIn("reply_end", log, "the whole reply was handed to the client before it was flushed")
         after = []
         started = await self.until(ws, "turn_start", after)
@@ -240,8 +260,98 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         await self.until(ws, "turn_end", after)
         while (done := await self.until(ws, "turn_done", after))["turn"] != 2:
             pass
+        self.assertEqual(self.transcribed, [], "enough voiced speech needs no transcript")
+        self.assertEqual((done["metrics"]["overlap"]["verdict"], done["metrics"]["overlap"]["how"]),
+                         ("barge_in", "voiced"))
         self.assertFalse(VOICES[0].closed, "a barge-in keeps the call's session, and its history, open")
         self.assertIs(VOICES[0], VOICES[1], "the next turn continues on the same session")
+        await ws.close()
+
+    async def test_the_barge_in_turn_keeps_the_words_that_caused_it(self):
+        self.heard("unused")
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(800) + noise(900, seed=2))
+        while (await self.until(ws, "turn_done", log))["turn"] != 2:
+            pass
+        size = (Path(self.tmp.name) / "turn_002_input.wav").stat().st_size
+        self.assertGreater(size, (800 + 700) * 32, "all 800 ms of speech and the trailing silence")
+        await ws.close()
+
+    async def test_a_backchannel_over_the_reply_leaves_it_playing(self):
+        self.heard("Mm-hm.")
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(300) + noise(900, seed=2))
+        unduck = await self.until(ws, "unduck", log)
+        self.assertEqual((unduck["verdict"], unduck["turn"]), ("backchannel", 1))
+        self.assertNotIn("barge_in", log)
+        self.assertEqual(log.count("turn_start"), 1, "a backchannel is not a turn")
+        self.assertEqual(len(self.transcribed), 1)
+        entry = self.overlaps()[0]
+        self.assertEqual((entry["verdict"], entry["how"], entry["transcript"]), ("backchannel", "transcript", "Mm-hm."))
+        self.assertTrue((Path(self.tmp.name) / entry["audio"]).is_file(), "a dismissed overlap keeps its audio")
+        await ws.close()
+
+    async def test_the_reply_coming_back_through_speakers_is_echo(self):
+        self.heard("reply to turn")
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(400) + noise(900, seed=2))
+        unduck = await self.until(ws, "unduck", log)
+        self.assertEqual(unduck["verdict"], "echo")
+        self.assertNotIn("barge_in", log)
+        await ws.close()
+
+    async def test_a_short_command_over_the_reply_stops_it(self):
+        self.heard("Stop.")
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(300) + noise(900, seed=2))
+        barge = await self.until(ws, "barge_in", log)
+        self.assertEqual(barge["turn"], 1)
+        started = await self.until(ws, "turn_start", log)
+        self.assertEqual(started["turn"], 2)
+        ended = await self.until(ws, "turn_end", log)
+        self.assertEqual(ended["turn"], 2, "the endpointer already heard the command end")
+        while (done := await self.until(ws, "turn_done", log))["turn"] != 2:
+            pass
+        self.assertEqual(done["metrics"]["overlap"]["transcript"], "Stop.")
+        await ws.close()
+
+    async def test_a_failed_transcript_keeps_the_words_as_a_turn(self):
+        self.heard(ConnectionError("no slot"))
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(300) + noise(900, seed=2))
+        await self.until(ws, "barge_in", log)
+        started = await self.until(ws, "turn_start", log)
+        self.assertEqual(started["turn"], 2)
+        await ws.close()
+
+    async def test_a_blip_over_the_reply_is_noise_without_a_transcript(self):
+        self.heard("unused")
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(140) + noise(900, seed=2))
+        unduck = await self.until(ws, "unduck", log)
+        self.assertEqual(unduck["verdict"], "noise")
+        self.assertEqual(self.transcribed, [])
+        await ws.close()
+
+    async def test_speech_the_reply_ends_under_becomes_a_plain_turn(self):
+        self.heard("unused")
+        ws = await self.connect()
+        log = await self.reply_playing(ws)
+        await self.send(ws, tone(200))
+        await self.until(ws, "duck", log)
+        await asyncio.sleep(2.3)
+        await self.send(ws, tone(100))
+        unduck = await self.until(ws, "unduck", log)
+        self.assertEqual(unduck["verdict"], "turn")
+        started = await self.until(ws, "turn_start", log)
+        self.assertEqual(started["turn"], 2)
+        self.assertNotIn("barge_in", log, "nothing was playing any more")
         await ws.close()
 
     async def test_speech_before_the_reply_continues_the_turn(self):
