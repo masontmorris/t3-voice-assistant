@@ -2,7 +2,7 @@
 
 Written 2026-11-16. Every number below is measured from records under `$VOICE_HOME/evidence/live/` except where it says inferred or guess.
 
-The voice assistant invented a day. With the parroting fix in (#27) in place, run C's demo call turned the person's "That's not what I meant." into "I'm running the task to get the weather in Denver for Sunday." The person never said Sunday. This note traces the word, counts how often facts like it appear in every live record on disk, and describes the code check that now refuses such a reply.
+The voice assistant invented a day. With the parroting fix in (#27) in place, run C's demo call turned the person's "That's not what I meant." into "I'm running the task to get the weather in Denver for Sunday." The person never said Sunday. This note traces the word, counts how often facts like it appear in every live record on disk, describes the code check that now refuses such a reply, and describes the one short line a turn says when the check fails twice.
 
 ## The failure, as recorded
 
@@ -58,7 +58,7 @@ What the live turn does with a failing reply (`voice/prototype/run.py`, `answer`
 1. It is not spoken. The turn's timeline records `fact_check` with the reply text and the ungrounded values.
 2. The turn sends one machine item, `[fact check, machine-generated, not spoken by the user]`, saying the last reply named a value nothing in the call states, and telling the model to answer again with only what the person said or the note states, saying plainly if it does not have the value. The note names no value itself, so it cannot feed the guess back.
 3. It asks once more. If that reply is grounded, it is the one spoken and the one in the record.
-4. If the second reply also names an ungrounded value, nothing is spoken. The record keeps `text: ""` and `blocked: {reply, ungrounded}` with the text it refused.
+4. If the second reply also names an ungrounded value, the turn speaks one short fixed line and says nothing else from that reply.
 
 There is no substitution. A wrong value is never replaced by a different wrong value.
 
@@ -84,16 +84,49 @@ Turn 3's first answer was the same Sunday sentence as before and was dropped (th
 
 Costs (measured): +0.61 s to first audio on the one turn that had to be re-asked. Turns whose replies pass cost nothing measurable beyond run to run noise (0.586 s and 0.492 s against 0.514 s and 0.505 s).
 
-Not fixed, and visible in the demo: the model answered "I do not have the information needed to answer the fact check." It names the machine note, which the persona tells it never to mention, and it does not say which value it lacks. It is not a wrong fact, but it is the wrong register. The smallest next change is the wording of that note, and it needs its own run (guess that a wording change alone removes it).
+## The line a failed turn says, and the words it may not use
+
+Written 2026-11-16, after the PM measured the turn-3 failure from `ablation/scores-demo-facts.json`. The model answered "I do not have the information needed to answer the fact check." It names the machine note, which the persona tells it never to mention, and it does not say which value it lacks. It is not a wrong fact, but it is the wrong register, and the demo says it twice: once as the reply and once as the task update, at `t` 3.4 and 8.253 (measured).
+
+Two things changed, both in code:
+
+- **A reply that names the machinery is refused like a reply that names a value no source states.** `voice/live/facts.py` reads `fact check`, `snapshot`, `machine note`, `machine-generated`, `task description`, `task update` and `note`, and `names_machinery` returns the ones a text says. Any of them sends the reply to the one re-ask and, if the re-ask says them too, to the line below. Measured cost of the bare `note` in that list: 1 of the 157 spoken replies on disk ("Got it, I've noted that you're satisfied with the previous response.") would be refused and asked again (inferred from the same scan; no run has exercised it yet).
+- **A turn that loses both replies says one short fixed line, once.** `FALLBACK_LINE` is "Sorry, I can't confirm that right now." It is under eight words, names no fact and no machinery, and reads as the persona's own speech. One `Fallback` object per turn is shared by the snapshot reply and the task update, so a turn that loses both says it once and drops the update rather than repeating itself. Nothing the model wrote on a failed turn reaches the speaker, and no wrong value is replaced by a different one.
+
+The audio for that line is rendered once, at server startup, through the running llama-server's own TTS (`voice/live/script.py`, the same path that renders the demo's turns 2 and 3), so it is the assistant's voice and it costs no turn any latency. The clip is kept under `$VOICE_HOME/live/fallback-<hash of the line>.wav`; measured size 130,604 bytes, 2.72 s at 24 kHz. A server that cannot render it says so on its startup line and the turn then speaks nothing rather than a line in another voice (inferred: that path is only covered by `FallbackAudioTest`, not by a run).
+
+## The note's missing subject, tried and dropped
+
+The diagnosis written before this work was that the parroting fix left the note with a running task and no subject, so the model invented one. The smallest fix was to give the note the subject back, named by the free decision model, and it was built and run once.
+
+What the free decision model can produce for that request (measured, 16 probe calls on 2026-11-16, records kept in `$VOICE_HOME/evidence/live/subject-probe/`): its `extractions` route returns a span of the text it is given, not a paraphrase. On the failing turn's shape, four instruction variants returned `"weather"` or `null`, never `"weather in Denver"`, and asking for a longer phrase returned `null`. Latency was 97 to 344 ms per call.
+
+The run (`ablation/demo-subject/`, the same three-turn call as `demo-runC` and `demo-facts`, one GPU run, one server start). The latency column is turn end to the first audio the client received; on turn 3 that is the fixed line, since the re-ask's audio was dropped (the record's own `first_reply_audio_after_audio_end_s` of 1.029 s there belongs to the re-ask nobody heard):
+
+| Turn | Person | Reply, as spoken | First reply audio after the turn's audio | Check fires | Subject |
+| --- | --- | --- | --- | --- | --- |
+| 1 | "What's the weather in Denver tomorrow?" | "I'm running the task to get the weather in Denver tomorrow." then the forecast | 0.638 s (was 0.586 s) | 0 | "weather" |
+| 2 | "And what about Saturday?" | "I'm running the task to get the weather in Denver for Saturday." then the task update | 0.534 s (was 0.492 s) | 0 | "weather" |
+| 3 | "That's not what I meant." | "Sorry, I can't confirm that right now." once; the task update said nothing | 2.266 s after the turn ended (was 1.637 s) | 4 | "weather" |
+
+Turn 3's first answer was the same Sunday sentence as `demo-facts`, and the update's first answer was too (`ungrounded: ["weekday Sunday"]`, at `t` 2.812 and 7.706). Both re-asks came back with "I do not have the information needed to answer the fact check ..." and were refused for naming the check, so the turn said the fixed line once and dropped the update. Measured: 4 check events, 2 of them blocked, exactly 1 spoken line, and no spoken word naming the machinery.
+
+Verdict, and it is why the subject is not in this branch: the model still invents. The subject does not remove the guess at its cause, because the reply was not missing a subject, it was missing a day, and a subject does not supply one. Latency was not the problem: the turn waited 0.1 ms for the extraction, since the tool turn covered it in full (measured at all three turns, `subject.waited_s`; the extractions themselves took 195.5, 117.1 and 343.9 ms and cost one extra decider call per turn). The screen and the fixed line are what made the turn shippable, so those stayed and the subject came out in `5949f98c32`.
+
+What this does not say: one word from one free model on one call is not proof that no subject-shaped note can help. A note that names the value the model is reaching for, or a persona line that says not to add a day the call has not stated, is a different change and untested (inferred).
+
 
 ## Tests
 
 | Suite | Result |
 | --- | --- |
-| `voice/live/tests/test_facts.py` | 9 pass. `test_weekday_invented_from_correction` is the three recorded turns as a fixture: turn 3's reply must be caught, and its only ungrounded value must be Sunday. Written before the fix and failing on it (`Lists differ: [] != ['Sunday']`), then passing. |
-| `voice/prototype/tests` | 50 pass, up from 47. Three new: the invented day is asked again and the record keeps the spoken text, a second invented value is not spoken and is kept in the record, and a grounded Saturday reply is spoken once with no re-ask. |
-| `voice/live/tests` | 48 tests, 44 pass. The 4 errors are `test_client_recording`, which needs `sounddevice`; that package is in the client venv, not the server venv, and the same 4 failed before this change. |
+| `voice/live/tests/test_facts.py` | 12 pass. `test_weekday_invented_from_correction` is the three recorded turns as a fixture: turn 3's reply must be caught, and its only ungrounded value must be Sunday. Written before the fact check and failing on it (`Lists differ: [] != ['Sunday']`), then passing. Three more cover `names_machinery`: both sentences the demo said, every listed word, and five ordinary replies that must stay clean. |
+| `voice/live/tests/test_fallback.py` | 8 pass. The clip is cached by its wording, a cached clip is not rendered again, a server with no TTS raises instead of returning silence, bare PCM is refused, and the resampling keeps 20 ms of 16 kHz as 20 ms of 24 kHz. |
+| `voice/live/tests/test_server.py` | Three more, `FallbackAudioTest`: no rendered clip means no audio, a rendered clip becomes PCM at the session's rate once per rate, and a failed render is reported without breaking the server. |
+| `voice/prototype/tests` | 55 pass, up from 50. New: a second bad reply is not spoken and the turn says the fixed line; a reply that names the check is replaced by that line; no spoken text in a turn names the machinery; a turn whose reply and update both fail says the line exactly once; a turn whose reply fails and whose update is clean says the line and still says the update; and `FALLBACK_LINE` is under eight words, names no fact and names no machinery. |
+| `voice/live/tests` | 62 tests, 58 pass. The 4 errors are `test_client_recording`, which needs `sounddevice`; that package is in the client venv, not the server venv, and the same 4 failed before this change. |
 | `voice/segmentation/tests` | 89 pass, unchanged. |
+
 
 ## What the check cannot see
 
@@ -101,7 +134,7 @@ Not fixed, and visible in the demo: the model answered "I do not have the inform
 - A number spelled out in a reply ("seventy degrees").
 - A relative day with no anchor ("tomorrow", "the day after"): the check reads weekdays, dates, times, numbers and places, not deictic words.
 - A value the person said in words the patterns do not read, such as "May" (dropped on purpose, it is also a verb) or a lowercase place name in the reply.
-- Whether the reply is sensible. It only stops values that nothing in the call states; it cannot tell a calm sentence from a strange one, as the "fact check" wording shows.
+- Whether the reply is sensible. It only stops values that nothing in the call states and the machinery words listed above; it cannot tell a calm sentence from a strange one.
 - Anything the model says in audio that its text deltas do not carry. The transcript deltas and the audio matched on this run (measured, both replies' audio came from the accepted re-asks).
 
 ## Reproduce
@@ -112,17 +145,23 @@ python "$VOICE_HOME/evidence/live/memory-20261116/ablation/score.py" --repo <che
 python -m unittest discover -s voice/live/tests -t . ; python -m unittest discover -s voice/prototype/tests -t .
 ```
 
-The GPU run is `ablation/run.py --snapshot reply-no-utterance --turns-a turns-demo.txt --clips <01_single.wav> <clips-a/turn_002.wav> <clips-a/turn_003.wav>`. The first attempt at it, `ablation/demo-facts-cutshort/`, handed the client one clip instead of three and stopped after turn 1; it is kept as evidence of the mistake and proves nothing.
+The GPU run is `ablation/run.py --snapshot reply-no-utterance --turns-a turns-demo.txt --clips <01_single.wav> <clips-a/turn_002.wav> <clips-a/turn_003.wav>`. The first attempt at it, `ablation/demo-facts-cutshort/`, handed the client one clip instead of three and stopped after turn 1; it is kept as evidence of the mistake and proves nothing. The subject run is the same command with `--out .../demo-subject` and `--turns-b` added, since `run.py` requires it even when `--clips` makes the second call unused.
 
 ## Files
 
 | Path | Contents | Size |
 | --- | --- | --- |
-| `voice/live/facts.py` | the extractor and `ungrounded` | 8.0 KB |
-| `voice/live/tests/test_facts.py` | the three-turn fixture and the fact cases | 4.5 KB |
+| `voice/live/facts.py` | the extractor, `ungrounded` and `names_machinery` | 8.9 KB |
+| `voice/live/fallback.py` | the fixed line's clip: cache, render, resample | 2.7 KB |
+| `voice/live/tests/test_facts.py` | the three-turn fixture, the fact cases and the machinery words | 5.9 KB |
+| `voice/live/tests/test_fallback.py` | the clip's cache, render and rate handling | 3.5 KB |
 | `$VOICE_HOME/evidence/live/scan_facts.py` | the scan over every record | 4.6 KB |
+| `$VOICE_HOME/evidence/live/subject-probe/` | the 16 subject probes' cached requests and answers | 25 KB |
 | `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts/` | the run's records, client logs and audio | 5.1 MB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-subject/` | the subject run's records, client logs and audio | 6.4 MB |
 | `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts-cutshort/` | the aborted first attempt | 1.6 MB |
 | `$VOICE_HOME/evidence/live/memory-20261116/ablation/scores-demo-facts.json` | `score.py`'s output for both demos | 4.7 KB |
+| `$VOICE_HOME/live/fallback-0570ec7a3663.wav` | the rendered fallback line | 131 KB |
 
 No model, package or venv was added.
+
