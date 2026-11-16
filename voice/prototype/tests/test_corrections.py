@@ -14,7 +14,9 @@ from pathlib import Path
 from voice.prototype import run as prototype
 from voice.prototype.run import normalised
 from voice.prototype.segmenter import use_decider_cache
+from voice.prototype.tasks import MockTaskService, Run, amended
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession
+from voice.segmentation.hybrid import HybridSegmenter
 
 DEMO = ("What's the weather in Denver tomorrow?", "And what about Saturday?")
 
@@ -115,6 +117,27 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
         self.assert_no_item_holds("No, Sunday.", items[2])
         self.assertEqual([t["instruction"] for t in self.carried][-1], "And what about Sunday?",
                          "a later correction amends the amended task")
+
+
+class ServiceTest(unittest.TestCase):
+    def test_a_task_made_from_the_correction_itself_is_stopped(self):
+        """The decider can read a short utterance during speech and make a task of it before the turn ends."""
+        service = MockTaskService(HybridSegmenter(None, "t"), "conv", delay_s=4.0, holds_side_effects=False)
+        service.call_tool("delegate", {"instruction": "That's not what I meant.", "side_effect": False}, None, 0.0)
+        self.assertEqual(service.executions["task_1"].state, Run.RUNNING, "the fixture has a running task to stop")
+        service.correct(None, (), 0.1)
+        self.assertEqual(service.executions["task_1"].state, Run.CANCELLED)
+        self.assertEqual(service.snapshot("utt_1", "")["correction"]["status"], "needs_clarification")
+
+
+class AmendedTest(unittest.TestCase):
+    def test_values(self):
+        self.assertEqual(amended("What's the weather in Denver tomorrow?", "Boulder"),
+                         ("What's the weather in Boulder tomorrow?", "Denver", "Boulder"))
+        self.assertEqual(amended("Book a table at 7 pm", "8 pm"), ("Book a table at 8 pm", "7 pm", "8 pm"))
+        self.assertIsNone(amended("And what about Saturday?", "Saturday"), "the same value changes nothing")
+        self.assertIsNone(amended("What's the weather in Denver tomorrow?", "Sunday"), "no day to change")
+        self.assertIsNone(amended("And what about Saturday?", "the other one"), "no value stated")
 
 
 if __name__ == "__main__":

@@ -24,6 +24,7 @@ from voice.segmentation.contract import (Decisions, Readiness, Segment, Transcri
                                          parse_decisions)
 from voice.segmentation.cursor import (ONE_ACTION, SNIPPET, THRESHOLDS, Verdict, _noul, _pick, _span, commits,
                                        judge, marked_text, markers, words)
+from voice.segmentation.intent import utterance_intent
 from voice.segmentation.score import score
 from voice.segmentation.spans import _is_filler, clause_cuts
 from voice.segmentation.tasks import Orchestrator
@@ -239,7 +240,8 @@ class HybridSegmenter:
         """The final transcript with no decider call. Returns the close as a point record.
 
         With `settle`, the handoff's close rule settles the tasks. Without it, as in the gated turn, the tasks stay as
-        the last decision point left them, and the close only reports what no decision point read."""
+        the last decision point left them, and the close only reports what no decision point read. Either way the
+        close says what the whole utterance is, as an UtteranceIntent."""
         self.last, self.ws = update, words(update.text)
         current = tuple(w.text for w in self.ws)
         self.soft = {g for g in self.soft if current[:g] == self.soft_words[:g]}
@@ -256,6 +258,7 @@ class HybridSegmenter:
                        min(len(current), len(self.reviewed)))
         tail = update.text[self.ws[covered].start:].strip() if covered < len(self.ws) else None
         point = {"revision": update.revision, "is_final": True, "label": f"{self.label}:r{update.revision}:close",
+                 "intent": utterance_intent(update.text),
                  "kind": "close", "cursor": proposal.cursor, "pause": False,
                  "pieces": [[p.w0, p.w1] for p in proposal.pieces], "hard": sorted(proposal.hard),
                  "soft": sorted(self.soft), "segments": [asdict(s) for s in segments], "calls": [],

@@ -278,6 +278,21 @@ class Orchestrator:
         self._move(new, Status.READY if new.depends_on else Status.DISPATCHED, "voice model amended its task")
         return {"ok": True, "task_id": new.task_id, "replaces": task_id}
 
+    def take_back_utterance(self, reason):
+        """Stop every live task this utterance made, because the whole utterance corrects an earlier turn: a task
+        that has not run is withdrawn, and a running one is cancelled."""
+        for task in self.tasks.values():
+            if task.status in UNDISPATCHED:
+                self._move(task, Status.WITHDRAWN, reason)
+            elif task.status == Status.DISPATCHED:
+                self._move(task, Status.CANCEL_REQUESTED, reason)
+
+    def amend_earlier(self, ref, instruction, side_effect):
+        """A task that replaces one an earlier turn ran. `ref` names that task, which this turn does not hold."""
+        task = self._new_task(instruction, None, {"orchestrator"}, revises=ref, side_effect=side_effect)
+        self._move(task, Status.DISPATCHED, "amends an earlier turn's task")
+        return task
+
     def submit_delegate(self, instruction):
         """The voice model's delegate tool. Reconciled against the transcript at the next decision point."""
         self._delegate_count += 1

@@ -29,6 +29,21 @@ class CorrectionMode(StrEnum):
     CANCEL = "cancel"
 
 
+class Intent(StrEnum):
+    """What a whole utterance is. Only a request may start a new task."""
+    REQUEST = "request"
+    CORRECTION = "correction"
+    CHITCHAT = "chitchat"
+
+
+@dataclass(frozen=True)
+class UtteranceIntent:
+    """`replacement` is the words a correction states instead ("Sunday" in "no, Sunday"), or None when it states
+    none ("that's not what I meant"), which leaves nothing to amend yet."""
+    intent: Intent
+    replacement: str | None = None
+
+
 @dataclass(frozen=True)
 class TranscriptUpdate:
     revision: int

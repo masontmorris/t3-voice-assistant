@@ -17,6 +17,7 @@ from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import StrEnum
 
+from voice.live.facts import facts_in
 from voice.prototype.segmenter import Segmenter
 
 
@@ -39,12 +40,28 @@ CANNED = [
     (("slides",), "Mock file search: found Quarterly_Review.pptx."),
 ]
 DEFAULT_RESULT = "Mock worker finished. No real work was done."
+ASK_WHAT_CHANGED = {"status": "needs_clarification",
+                    "ask": "The user says the last answer was not what they meant. Nothing new has started. Ask what "
+                           "they want changed."}
 HUNG_LOOKUP_GRACE_S = 1.0
 
 
 def canned_result(instruction):
     text = instruction.lower()
     return next((result for words, result in CANNED if all(w in text for w in words)), DEFAULT_RESULT)
+
+
+def amended(instruction, replacement):
+    """`instruction` with its day, date, time, number or place changed to the one `replacement` states, plus the old
+    and new values. None when `replacement` states no such value, or `instruction` has none of that kind or the same
+    one, since then there is nothing to change and the turn asks instead."""
+    new = facts_in(replacement, worded_numbers=True) or [f for f in facts_in(f"in {replacement}") if f.kind == "place"]
+    old_facts = facts_in(instruction, worded_numbers=True)
+    for fact in new:
+        old = next((f for f in old_facts if f.kind == fact.kind), None)
+        if old is not None and old.key != fact.key:
+            return instruction.replace(old.surface, fact.surface, 1), old.surface, fact.surface
+    return None
 
 
 def needs_hold(record):
@@ -91,11 +108,12 @@ def not_run_note(record):
 
 
 def build_snapshot(records, executions, conversation_id, utterance_id, final_transcript, unreviewed=None,
-                   notes=False):
+                   notes=False, correction=None):
     """The plan's `utterance_snapshot`, from task records alone. It reports only what the records say.
 
     `unreviewed` is the end of the transcript that no decision point read. With `notes`, each task that has not run
-    says why, for the gated turn's tools session."""
+    says why, for the gated turn's tools session. `correction` is what the turn did with a correction of an earlier
+    turn, when the utterance was one."""
     tasks = []
     for record in records:
         execution = executions.get(record["task_id"])
@@ -115,6 +133,8 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
                 "final_transcript": final_transcript, "tasks": tasks, "clarification_needed": unclear or None}
     if unreviewed is not None:
         snapshot["unreviewed_speech"] = unreviewed
+    if correction is not None:
+        snapshot["correction"] = correction
     return snapshot
 
 
@@ -126,6 +146,7 @@ class MockTaskService:
         self.segmenter, self.conversation_id, self.delay_s, self.tools = segmenter, conversation_id, delay_s, tools
         self.holds_side_effects = holds_side_effects
         self.executions: dict[str, Execution] = {}
+        self.correction = None
         self._seen = 0
         self._calls = {}
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
@@ -199,10 +220,29 @@ class MockTaskService:
         due = [e.due_at for e in self.executions.values() if e.state == Run.RUNNING]
         return min(due) if due else None
 
-    def call_tool(self, name, arguments, unreviewed, now):
-        """One handoff tool call from the voice model. A call is a request: the result says what actually happened."""
+    def correct(self, replacement, prior_tasks, now):
+        """The utterance corrects an earlier turn, so nothing it said becomes a new task. With a `replacement` that
+        changes a value of the call's newest task, a task with that value replaces it. Otherwise the voice asks what
+        to change. Returns the service events."""
         orch = self.segmenter.orch
-        if name == "delegate" and isinstance(arguments.get("instruction"), str) and arguments["instruction"].strip():
+        orch.take_back_utterance("the utterance corrects an earlier turn")
+        target = prior_tasks[-1] if prior_tasks else None
+        change = amended(target["instruction"], replacement) if target and replacement else None
+        if change is None:
+            self.correction = ASK_WHAT_CHANGED
+        else:
+            task = orch.amend_earlier(target["ref"], change[0], target["side_effect"])
+            self.correction = {"status": "amended", "task_id": task.task_id,
+                               "changed": {"from": change[1], "to": change[2]}}
+        return self.sync(now)
+
+    def call_tool(self, name, arguments, unreviewed, now, new_requests=True):
+        """One handoff tool call from the voice model. A call is a request: the result says what actually happened.
+        Without `new_requests`, as for chit-chat, a delegate is refused: only a request starts a new task."""
+        orch = self.segmenter.orch
+        if name == "delegate" and not new_requests:
+            result = {"ok": False, "error": "the utterance asks for nothing new"}
+        elif name == "delegate" and isinstance(arguments.get("instruction"), str) and arguments["instruction"].strip():
             result = orch.delegate_from_voice(arguments["instruction"].strip(),
                                               arguments.get("side_effect") is not False, unreviewed,
                                               run_linked=not self.holds_side_effects)
@@ -227,7 +267,7 @@ class MockTaskService:
     def snapshot(self, utterance_id, final_transcript, unreviewed=None, notes=False):
         """Build the snapshot. Every completion it carries counts as told, so no later update repeats it."""
         snapshot = build_snapshot(self.segmenter.records(), self.executions, self.conversation_id, utterance_id,
-                                  final_transcript, unreviewed, notes)
+                                  final_transcript, unreviewed, notes, self.correction)
         for entry in snapshot["tasks"]:
             if entry["status"] in (Run.COMPLETED, Run.FAILED):
                 self.executions[entry["task_id"]].reported = True

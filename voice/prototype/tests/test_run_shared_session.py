@@ -309,13 +309,13 @@ class Scripted(FakeSession):
 
 
 class Delegating(FakeSession):
-    """The gated tool session: it hands the person's own words to the task service, as the demo's turn 3 did."""
+    """The gated tool session: it hands the person's own words to the task service, as the demo's turn 2 did."""
 
     async def send(self, **event):
         if event.get("type") == "response.create":
             self.sent.append(event)
             call = {"type": "function_call", "name": "delegate", "call_id": "call_1",
-                    "arguments": json.dumps({"instruction": "That's not what I meant.", "side_effect": False})}
+                    "arguments": json.dumps({"instruction": "And what about Saturday?", "side_effect": False})}
             await self.push({"type": "response.done", "response": {"status": "completed", "output": [call]}})
             return
         await super().send(**event)
@@ -431,7 +431,7 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
                 return self.voice
             session = await (Delegating if name == "tools" else FakeSession).open(url, name, clock, on_event)
             if name == "asr":
-                session.transcript = "That's not what I meant."
+                session.transcript = "And what about Saturday?"
             return session
 
         prototype.Session.open = open_session

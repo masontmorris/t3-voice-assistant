@@ -16,10 +16,13 @@ no decider call at the end of the utterance and no step that settles tasks. A th
 same server reads the snapshot: every task with its task_id and status, a note on each task that has not run, and
 the unreviewed end of the transcript. It may call run_task, delegate, cancel_task or amend_task, and its calls are
 final. The task service checks only that each call is well formed. The voice session then hears the updated
-snapshot as in c and replies, so it never sees a tool call of its own. handoff is the earlier design with no gate: a
-close rule settles the tasks, side effects stay held, and LFM3 gets the tail. decider is the earliest turn: one more
-decider call on the final transcript, then the snapshot by --inject. gated and handoff need the hybrid and
---inject c.
+snapshot as in c and replies, so it never sees a tool call of its own. The segmenter's close says what the whole
+utterance is (voice/segmentation/intent.py), and only a request may start a new task. A correction of an earlier
+turn skips the tools session: nothing it said runs, and either the call's newest task runs again with the value the
+person stated ("no, Sunday"), or the snapshot asks the voice to find out what to change. handoff is the earlier
+design with no gate: a close rule settles the tasks, side effects stay held, and LFM3 gets the tail. decider is the
+earliest turn: one more decider call on the final transcript, then the snapshot by --inject. gated and handoff need
+the hybrid and --inject c.
 
 Read-only weather and time tasks make real lookups through `voice/tools/registry.py`: Open-Meteo, and the
 `mcp-server-time` MCP server over stdio, which runs for the whole run. VOICE_DEFAULT_PLACE is the place for a request
@@ -51,6 +54,7 @@ import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
+from dataclasses import asdict
 from pathlib import Path
 
 from voice.live.facts import names_machinery, ungrounded
@@ -61,6 +65,7 @@ from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, re
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
 from voice.prototype.tasks import MockTaskService
+from voice.segmentation.contract import Intent
 from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
 from voice.tools.registry import open_registry
@@ -405,7 +410,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     point = None
                 if point is not None and point["kind"] == "close":
                     closed.update(point)
-                    log("close", revision=point["revision"], started=round(started, 4),
+                    log("close", revision=point["revision"], started=round(started, 4), intent=asdict(point["intent"]),
                         covered_words=point["covered_words"], tail_words=point["tail_words"],
                         unreviewed_speech=point["unreviewed_speech"], segments=[s["text"] for s in point["segments"]])
                 elif point is not None:
@@ -489,17 +494,26 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
-            for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated"
-                         else snapshot)
-            injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, for_tools)))
-            tool_turn, _ = await respond(tool_session, out_rate, audio_end, tool_choice="auto")
-            log("tool_turn", calls=tool_turn["function_calls"], text=tool_turn["text"])
-            for call in tool_turn["function_calls"]:
-                result, events = service.call_tool(call.get("name"), parse_arguments(call), unreviewed, clock())
-                for event in events:
+            intent = closed.get("intent")
+            if intent is not None and intent.intent == Intent.CORRECTION:
+                for event in service.correct(intent.replacement, prior_tasks, clock()):
                     log("service", **event)
-                tool_results.append({"name": call.get("name"), "arguments": parse_arguments(call), "result": result})
-                log("tool_call", **tool_results[-1])
+                log("correction", replacement=intent.replacement, outcome=service.correction)
+            else:
+                for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated"
+                             else snapshot)
+                injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, for_tools)))
+                tool_turn, _ = await respond(tool_session, out_rate, audio_end, tool_choice="auto")
+                log("tool_turn", calls=tool_turn["function_calls"], text=tool_turn["text"])
+                new_requests = intent is None or intent.intent == Intent.REQUEST
+                for call in tool_turn["function_calls"]:
+                    result, events = service.call_tool(call.get("name"), parse_arguments(call), unreviewed, clock(),
+                                                       new_requests)
+                    for event in events:
+                        log("service", **event)
+                    tool_results.append({"name": call.get("name"), "arguments": parse_arguments(call),
+                                         "result": result})
+                    log("tool_call", **tool_results[-1])
             service.poll(clock())
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
