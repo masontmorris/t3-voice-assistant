@@ -7,8 +7,11 @@ answers, and the orchestrator's gate settles each task. The turn ends with `clos
 
 Every decision call for one item-repeat is stored on disk under `EVIDENCE/calls/<item>.<repeat>.<n>.json` and reused
 on the next run, so a scoring pass costs nothing and a rule can be replayed against recorded answers. `--fresh` sends
-the same bodies again, which is how the repeats measure the model's spread on one body. Every response must report a
-zero cost; a non-zero one stops the run.
+the same bodies again, which is how the repeats measure the model's spread on one body.
+
+--decider picks who answers: cloud (pplx-decider-flash on OpenRouter, whose responses must report a zero cost) or
+liquid (Liquid AI's hosted d1.2, billed, whose cost is summed and reported). Each decider keeps its calls and traces
+in its own files, so pplx's record stays the baseline the liquid run is read against.
 
 The scoring pass is pure: it reads the traces and applies a gate rule to the recorded confidences. The rule that ships
 in `voice/segmentation/gate.py` is scored by the same code, so the number the run prints is the number live mode gets.
@@ -20,8 +23,8 @@ import os
 import statistics
 from pathlib import Path
 
+from voice.local_decider.client import decider as make_decider
 from voice.prototype.segmenter import use_decider_cache
-from voice.segmentation import client as api
 from voice.segmentation.contract import Intent, TranscriptUpdate
 from voice.segmentation.gate import PLAN_A, SCORED, scores
 from voice.segmentation.hybrid import HybridSegmenter
@@ -34,30 +37,37 @@ EVIDENCE = VOICE_HOME / "evidence" / "live-gate-eval"
 REPEATS = 3
 CALL_BUDGET = 400
 ASKS_FOR_WORK = {"dispatch", "follow_up"}
+CALLS = {"cloud": EVIDENCE / "calls", "liquid": EVIDENCE / "calls-liquid"}
+TRACES = {"cloud": EVIDENCE / "traces_after.jsonl", "liquid": EVIDENCE / "traces_after-liquid.jsonl"}
 
 
 class Recording:
     """One item-repeat's decider calls, cached by call order so a rerun repeats the same answers.
 
-    With `fresh`, every body is sent again and saved over the previous answer, for a spread run.
+    With `fresh`, every body is sent again and saved over the previous answer, for a spread run. A paid decider's
+    cost is summed in `spent`; a free one must report zero or the run stops.
     """
 
-    def __init__(self, client, key, fresh=False):
-        self.client, self.key, self.fresh, self.n = client, key, fresh, 0
+    def __init__(self, client, key, fresh=False, paid=False, calls=None):
+        self.client, self.key, self.fresh, self.paid, self.n = client, key, fresh, paid, 0
+        self.calls, self.spent = calls or CALLS["cloud"], 0.0
 
     def call(self, route, body, label=""):
         assert route == "decisions", route
         assert body["model"].endswith(":free"), body["model"]
         self.n += 1
-        path = EVIDENCE / "calls" / f"{self.key}.{self.n}.json"
+        path = self.calls / f"{self.key}.{self.n}.json"
         if path.exists() and not self.fresh:
             return json.loads(path.read_text(encoding="utf-8"))
         record = self.client.call(route, body, label=label, fresh=True)
         if record["status"] != 200:
             raise RuntimeError(f"{self.key} call {self.n}: status {record['status']}, nothing scored")
         response = record.get("response") or {}
-        cost = (response.get("usage") or {}).get("cost")
-        assert cost in (None, 0, 0.0), f"{self.key} call {self.n}: cost {cost}, stopping"
+        cost = float((response.get("usage") or {}).get("cost") or 0.0)
+        if self.paid:
+            self.spent += cost
+        else:
+            assert cost == 0, f"{self.key} call {self.n}: cost {cost}, stopping"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(json.dumps(record, indent=2), encoding="utf-8")
         return record
@@ -90,9 +100,10 @@ def trace_of(item, repeat, segmenter, intent):
             "tasks": tasks, "dispatched": bool(segmenter.dispatch_log)}
 
 
-def run_item(client, item, repeat, fresh):
-    """One live end of turn. Returns its trace."""
-    segmenter = HybridSegmenter(Recording(client, f"{item['id']}.r{repeat}", fresh), f"{item['id']}.r{repeat}")
+def run_item(client, item, repeat, fresh, paid=False, calls=None):
+    """One live end of turn. Returns its trace and what its calls cost."""
+    recording = Recording(client, f"{item['id']}.r{repeat}", fresh, paid, calls)
+    segmenter = HybridSegmenter(recording, f"{item['id']}.r{repeat}")
     segmenter.conversation_mode = True
     segmenter.prior_resolved_tasks = tuple(item["context"].get("resolved") or ())
     segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, True
@@ -101,7 +112,7 @@ def run_item(client, item, repeat, fresh):
     if intent.intent == Intent.REQUEST:
         segmenter.update(update)
     segmenter.close(update, settle=False)
-    return trace_of(item, repeat, segmenter, intent)
+    return trace_of(item, repeat, segmenter, intent), recording.spent
 
 
 def weakest(task):
@@ -272,30 +283,40 @@ def main():
     parser.add_argument("--budget", type=int, default=CALL_BUDGET)
     parser.add_argument("--only", default=None, help="one item id, for a smoke test")
     parser.add_argument("--traces", type=Path, default=None,
-                        help="saved traces; default: traces.jsonl for --gate before, traces_after.jsonl for now")
+                        help="saved traces; default: one file per decider, traces.jsonl for --gate before")
     parser.add_argument("--score-only", action="store_true", help="score the saved traces, no call")
     parser.add_argument("--sweep", action="store_true", help="print the threshold sweep over the saved traces")
     parser.add_argument("--gate", choices=["now", "before"], default="now",
                         help="which gate rule to score with: the shipped one, or the one that still scored `kind`")
+    parser.add_argument("--decider", choices=sorted(CALLS), default="cloud",
+                        help="who answers: pplx on OpenRouter (cloud) or Liquid's hosted d1.2 (liquid)")
+    parser.add_argument("--decider-dir", type=Path,
+                        help="where a fresh run keeps its call records; default: EVIDENCE/calls-<decider>")
     args = parser.parse_args()
+    calls = args.decider_dir or CALLS[args.decider]
     if args.traces is None:
-        args.traces = EVIDENCE / ("traces.jsonl" if args.gate == "before" else "traces_after.jsonl")
+        args.traces = EVIDENCE / "traces.jsonl" if args.gate == "before" else TRACES[args.decider]
+    paid = args.decider != "cloud"
     items = [json.loads(line) for line in EVAL.read_text(encoding="utf-8").splitlines() if line.strip()]
     if args.only:
         items = [item for item in items if item["id"] == args.only]
-    use_decider_cache(EVIDENCE / "ledger", args.budget)
+    if args.decider == "cloud":
+        use_decider_cache(EVIDENCE / "ledger", args.budget)
     if not args.score_only:
-        traces = []
-        client = api.Client()
-        for item in items:
-            for repeat in range(1, args.repeats + 1):
-                trace = run_item(client, item, repeat, args.fresh)
-                traces.append(trace)
-                print(f"{item['id']} r{repeat} intent={trace['intent']:9} dispatched={trace['dispatched']!s:5} "
-                      f"scores={[round(weakest(t), 2) for t in trace['tasks'] if t['gate_reached']]} "
-                      f"attempts={api.ledger_attempts()}", flush=True)
+        traces, spent = [], 0.0
+        with make_decider(args.decider) as client:
+            for item in items:
+                for repeat in range(1, args.repeats + 1):
+                    trace, cost = run_item(client, item, repeat, args.fresh, paid, calls)
+                    spent += cost
+                    traces.append(trace)
+                    print(f"{item['id']} r{repeat} intent={trace['intent']:9} "
+                          f"dispatched={trace['dispatched']!s:5} "
+                          f"scores={[round(weakest(t), 2) for t in trace['tasks'] if t['gate_reached']]} "
+                          f"spent=${spent:.5f}", flush=True)
         args.traces.parent.mkdir(parents=True, exist_ok=True)
         args.traces.write_text("\n".join(json.dumps(t) for t in traces) + "\n", encoding="utf-8")
+        print(f"\n{len(traces)} traces, {args.decider} spend ${spent:.5f}", flush=True)
     traces = [json.loads(line) for line in args.traces.read_text(encoding="utf-8").splitlines() if line.strip()]
     shipped = current_rule if args.gate == "now" else kind_in_score
     verify(traces, shipped)

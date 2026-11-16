@@ -34,17 +34,19 @@ that names none. --mock-tools sends every task to the mock worker instead.
      --status-only offers just `get_task_status`
   c  a user text message with a fixed machine prefix
 
---decider picks the decider: cloud (pplx-decider-flash on OpenRouter, the default, or $VOICE_DECIDER) or d1 (d1-2B on
-a second local llama-server, see voice/local_decider/). --reuse asks only the questions whose answers it has not kept.
+--decider picks the decider: liquid (Liquid AI's hosted d1.2, the default, or $VOICE_DECIDER), cloud
+(pplx-decider-flash on OpenRouter, kept as the fallback) or d1 (d1-2B on a second local llama-server, see
+voice/local_decider/). --reuse asks only the questions whose answers it has not kept.
 --lfm-ctx sets LFM3's total context (-c), 32768 by default.
 
 --segmenter picks the segmenter, the hybrid by default. The segmenter takes transcript updates one at a time. When
 newer updates queue behind a decision, only the newest is processed, and the timeline logs the dropped revisions.
 
---fresh sends every cloud decider request live, even when it is cached, so timings include each call.
+--fresh sends every cloud or liquid decider request live, even when it is cached, so timings include each call.
 
-Needs the GPU (run it inside the lease). The cloud decider needs VOICE_ENV_FILE or OPENROUTER_API_KEY for calls
-that miss the cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to --out.
+Needs the GPU (run it inside the lease). The cloud decider needs VOICE_ENV_FILE or OPENROUTER_API_KEY and the liquid
+decider LIQUID_API_KEY in it, for calls that miss the cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to
+--out.
 """
 
 import argparse
@@ -535,6 +537,11 @@ def close_with_decider(segmenter, update):
     return close
 
 
+def live_attempts(decider):
+    """The decider's own HTTP attempts so far, read from the ledger that this decider writes to."""
+    return decider.live_calls() if hasattr(decider, "live_calls") else live_calls()
+
+
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
@@ -605,7 +612,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     final_seen = asyncio.Event()
     loop = asyncio.get_running_loop()
     executor = ThreadPoolExecutor(max_workers=1)
-    calls_before = live_calls()
+    calls_before = live_attempts(decider)
     closed = {}
 
     def enqueue(update):
@@ -628,7 +635,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if dropped:
                 log("coalesced", revisions=[u.revision for u in dropped])
             for kind, payload in kept:
-                started, before = clock(), live_calls()
+                started, before = clock(), live_attempts(decider)
                 if kind == "update" and payload.is_final and eou in TOOL_SESSIONS:
                     work = partial_close if eou == "gated" else segmenter.close
                 else:
@@ -649,7 +656,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                         unreviewed_speech=point["unreviewed_speech"], segments=[s["text"] for s in point["segments"]])
                 elif point is not None:
                     log("decision_point", source=kind, revision=point["revision"], is_final=point["is_final"],
-                        started=round(started, 4), live_calls=live_calls() - before, calls=point["calls"],
+                        started=round(started, 4), live_calls=live_attempts(decider) - before, calls=point["calls"],
                         problems=point["problems"],
                         segments=[s["text"] for s in point["segments"]], decisions=point["decisions"])
                 for event in service.sync(clock()):
@@ -880,7 +887,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             "final_transcript_after_audio_end_s": final_t - audio_end,
             "snapshot_ready_after_audio_end_s": snapshot_t - audio_end,
             "first_reply_audio_after_audio_end_s": first_audio,
-            "decider_live_calls": live_calls() - calls_before,
+            "decider_live_calls": live_attempts(decider) - calls_before,
             "decider_calls": sum(len(p["calls"]) for p in getattr(segmenter, "points", [])),
             "tool_calls": len(tool_results),
             "decision_points": sum(e["kind"] == "decision_point" for e in timeline),
@@ -971,9 +978,10 @@ def main():
     parser.add_argument("--out", type=Path)
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--port", type=int, default=8095)
-    parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
+    parser.add_argument("--decider", choices=["liquid", "cloud", "d1"], default=default_decider())
     parser.add_argument("--reuse", action="store_true", help="ask only questions with no kept answer")
-    parser.add_argument("--fresh", action="store_true", help="send cached cloud decider requests again, for timing")
+    parser.add_argument("--fresh", action="store_true",
+                        help="send cached cloud or liquid decider requests again, for timing")
     parser.add_argument("--lfm-ctx", type=int, default=32768, help="LFM3's total context (default 32768)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
     parser.add_argument("--decider-cache", type=Path, default=EVIDENCE / "decider-cache",
@@ -983,8 +991,8 @@ def main():
     args = parser.parse_args()
     if args.eou in TOOL_SESSIONS and (args.inject != "c" or args.segmenter != "hybrid"):
         parser.error(f"--eou {args.eou} injects as in c and needs the hybrid segmenter")
-    if args.fresh and args.decider != "cloud":
-        parser.error("--fresh resends cached cloud requests; the d1 decider has no such cache")
+    if args.fresh and args.decider not in ("cloud", "liquid"):
+        parser.error("--fresh resends cached cloud or liquid requests; the d1 decider has no such cache")
     missing = [str(c) for c in args.clips if not c.is_file()]
     if missing:
         parser.error(f"no such clip: {', '.join(missing)}")

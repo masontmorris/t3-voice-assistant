@@ -248,11 +248,16 @@ class MistralRsServer:
 
 @contextmanager
 def decider(name, log_dir=None):
-    """The decider a run asked for: `cloud` (the default, OpenRouter) or `d1` (a local llama-server it starts, or
-    whatever server `$VOICE_D1_URL` names, which is how mistral.rs gets measured)."""
+    """The decider a run asked for: `liquid` (Liquid AI's hosted d1.2, the default), `cloud` (OpenRouter's
+    pplx-decider-flash, kept as the fallback), or `d1` (a local llama-server it starts, or whatever server
+    `$VOICE_D1_URL` names, which is how mistral.rs gets measured)."""
     if name == "cloud":
         from voice.segmentation import client as api
         yield api.Client()
+        return
+    if name == "liquid":
+        from voice.liquid_decider.client import LiquidClient
+        yield LiquidClient()
         return
     if name != "d1":
         raise ValueError(f"unknown decider {name!r}")
@@ -266,4 +271,4 @@ def decider(name, log_dir=None):
 
 
 def default_decider():
-    return os.environ.get("VOICE_DECIDER", "cloud")
+    return os.environ.get("VOICE_DECIDER", "liquid")

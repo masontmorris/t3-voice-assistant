@@ -64,9 +64,10 @@ the retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INST
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
 
-Needs the GPU (run it inside the lease) and VOICE_ENV_FILE or OPENROUTER_API_KEY for the cloud decider. Writes one
-JSON record and the turn's input and reply audio per turn under --out, all under $VOICE_HOME, never in the repo.
-Stops on Ctrl+C, when $VOICE_HOME/live/STOP appears, or after --max-minutes.
+Needs the GPU (run it inside the lease) and, for the decider, LIQUID_API_KEY (liquid, the default) or
+OPENROUTER_API_KEY (cloud) from VOICE_ENV_FILE. Writes one JSON record and the turn's input and reply audio per turn
+under --out, all under $VOICE_HOME, never in the repo. Stops on Ctrl+C, when $VOICE_HOME/live/STOP appears, or after
+--max-minutes.
 """
 
 import argparse
@@ -603,7 +604,7 @@ def main():
                         help="how a question about the call reaches the model: the numbered turns inside the "
                              "snapshot item (off), or those turns plus one plain sentence naming the turn the "
                              "question asks about, as the newest item before the reply (note, default)")
-    parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
+    parser.add_argument("--decider", choices=["liquid", "cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
     parser.add_argument("--lfm-port", type=int, default=8095)
