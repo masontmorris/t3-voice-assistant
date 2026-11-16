@@ -1,0 +1,360 @@
+{
+  "scenario": "i_mean",
+  "covers": "correction i mean",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "i_mean:r2",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "hard": [
+        5
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.3025264928295364,
+          "at": "m1",
+          "margin": 0.8217423831469937,
+          "runner_up": "none",
+          "verdict": "disagree",
+          "gap": null
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 27,
+          "text": "find the capital of austria",
+          "open": true
+        },
+        {
+          "sid": "s2",
+          "start": 28,
+          "end": 44,
+          "text": "i mean australia",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "i_mean:r2",
+          "route": "decisions",
+          "file": "decisions-f9b9947d6c5610ba34c47847.json",
+          "status": 200,
+          "ms": 107.4,
+          "started_at": "2026-11-16T02:50:21.770+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9440565702910025,
+            "ready": 0.32947297852337365,
+            "side_effect": 0.0064168777624350835
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "replace"
+          },
+          "side_effect": false,
+          "confidence": {
+            "at": 0.8217423831469937,
+            "corrects": 0.840402791235952,
+            "depends": 0.9043276864515253,
+            "finished": 0.3025264928295364,
+            "kind": 0.9590248504222012,
+            "ready": 0.7042889474737184,
+            "side_effect": 0.007941843988536087
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "i_mean:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "hard": [
+        5
+      ],
+      "soft": [],
+      "breaks": {},
+      "committed": [
+        "s1",
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 28,
+          "text": "Find the capital of Austria,",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 29,
+          "end": 46,
+          "text": "I mean Australia.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "i_mean:r3",
+          "route": "decisions",
+          "file": "decisions-7758bb8f388cec0c104fbc3d.json",
+          "status": 200,
+          "ms": 88.8,
+          "started_at": "2026-11-16T02:50:21.887+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.8896931985270434,
+            "ready": 0.5288801492459918,
+            "side_effect": 0.009112500292198079
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "replace"
+          },
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.39329528489806065,
+            "depends": 0.8673425902614709,
+            "kind": 0.9713375626605016,
+            "ready": 0.9455511253279392,
+            "side_effect": 0.012552489434800904
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "superseded",
+      "segment_text": "Find the capital of Austria,",
+      "instruction": "find the capital of austria",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the capital of austria"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "superseded",
+          "reason": "corrected by segment \"i mean australia\""
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find the capital of austria",
+          "new": "Find the capital of Austria,"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "I mean Australia.",
+      "instruction": "find the capital of austria (corrected: I mean Australia.)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "i mean australia"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "i mean australia",
+          "new": "I mean Australia."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "find the capital of austria (corrected: I mean Australia.)",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_i_mean",
+    "final_transcript": "Find the capital of Austria, I mean Australia.",
+    "tasks": [
+      {
+        "task_id": "task_2",
+        "description": "find the capital of austria (corrected: I mean Australia.)",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "capital",
+          "austria"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "capital",
+          "australia"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

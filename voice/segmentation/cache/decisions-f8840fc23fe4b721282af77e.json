@@ -1,0 +1,362 @@
+{
+  "route": "decisions",
+  "label": "run_on:r4:drain2",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Find the moonrise time in Perth, check the train fare to Fremantle, translate good morning into Swahili.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Find the moonrise time in Perth,",
+        "s2": "check the train fare to Fremantle,",
+        "s3": "translate good morning into Swahili."
+      },
+      "still_being_spoken": null,
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "Find the moonrise time in Perth, [1] check the train fare to Fremantle, [2] translate good morning into Swahili. [3]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"Find the moonrise time in Perth,\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"Find the moonrise time in Perth,\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"Find the moonrise time in Perth,\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"check the train fare to Fremantle,\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"check the train fare to Fremantle,\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"check the train fare to Fremantle,\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"check the train fare to Fremantle,\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Find the moonrise time in Perth,\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"check the train fare to Fremantle,\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Find the moonrise time in Perth,\").",
+          "cancel_s1": "It withdraws s1 (\"Find the moonrise time in Perth,\") with no replacement."
+        }
+      },
+      "s3_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s3 (\"translate good morning into Swahili.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s3_ready": {
+        "type": "choice",
+        "instructions": "If segment s3 (\"translate good morning into Swahili.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s3_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s3 (\"translate good morning into Swahili.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s3_depends": {
+        "type": "choice",
+        "instructions": "Does segment s3 (\"translate good morning into Swahili.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Find the moonrise time in Perth,\") first.",
+          "s2": "It needs the result of s2 (\"check the train fare to Fremantle,\") first."
+        }
+      },
+      "s3_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s3 (\"translate good morning into Swahili.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Find the moonrise time in Perth,\").",
+          "replace_s2": "It states a new version of s2 (\"check the train fare to Fremantle,\").",
+          "cancel_s1": "It withdraws s1 (\"Find the moonrise time in Perth,\") with no replacement.",
+          "cancel_s2": "It withdraws s2 (\"check the train fare to Fremantle,\") with no replacement."
+        }
+      },
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"find the moonrise time\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"find the moonrise time\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"find the moonrise time in perth\".",
+          "m2": "It ends at [2]. It is \"find the moonrise time ... train fare to fremantle\".",
+          "m3": "It ends at the end of the speech so far. It is \"find the moonrise time ... good morning into swahili\".",
+          "none": "No request that starts there is finished yet."
+        }
+      },
+      "s2_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"check the train fare\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s2_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"check the train fare\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m2": "It ends at [2]. It is \"check the train fare to fremantle\".",
+          "m3": "It ends at the end of the speech so far. It is \"check the train fare ... good morning into swahili\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.9513931848547965,
+          "m2": 0.024343889358175136,
+          "m3": 0.0037742020938155057,
+          "none": 0.020488723693213008
+        },
+        "confidence": 0.9351909131397287
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.9804076066711084
+      },
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0012183711029533522,
+          "correction": 0.0006814721952146034,
+          "description": 0.006463091314229859,
+          "request": 0.9904541642943451,
+          "topic_change": 0.0011829010932572588
+        },
+        "confidence": 0.9880677053679312
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.0073968579206446705,
+          "dispatch_now": 0.985489500695114,
+          "wait": 0.007113641384241363
+        },
+        "confidence": 0.9782342510426708
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.01121143735482068
+      },
+      "s2_at": {
+        "type": "choice",
+        "choice": "m2",
+        "probabilities": {
+          "m2": 0.9467149481966308,
+          "m3": 0.013763399768147671,
+          "none": 0.039521652035221434
+        },
+        "confidence": 0.9200724222949462
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0018754553445681714,
+          "none": 0.9954514984137809,
+          "replace_s1": 0.00267304624165102
+        },
+        "confidence": 0.9931772476206712
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9935381053130319,
+          "s1": 0.0064618946869680225
+        },
+        "confidence": 0.9870762106260638
+      },
+      "s2_finished": {
+        "type": "noul",
+        "noul": 0.9893043755815742
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0010517587212427026,
+          "correction": 0.0008265534747851233,
+          "description": 0.006266488215462403,
+          "request": 0.9906542235219846,
+          "topic_change": 0.0012009760665249252
+        },
+        "confidence": 0.9883177794024808
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.029346299356953452,
+          "dispatch_now": 0.9596790748465962,
+          "wait": 0.010974625796450385
+        },
+        "confidence": 0.9395186122698943
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.03127118575728591
+      },
+      "s3_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0005518365027816559,
+          "cancel_s2": 0.0011829367960983538,
+          "none": 0.9968179254448256,
+          "replace_s1": 0.0006138344446589484,
+          "replace_s2": 0.0008334668116354586
+        },
+        "confidence": 0.9960224068060319
+      },
+      "s3_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9965852816180235,
+          "s1": 0.0014139167871307578,
+          "s2": 0.0020008015948458527
+        },
+        "confidence": 0.9948779224270351
+      },
+      "s3_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0012757133678768706,
+          "correction": 0.0006417617561685106,
+          "description": 0.005324823375746658,
+          "request": 0.991650019329135,
+          "topic_change": 0.0011076821710728506
+        },
+        "confidence": 0.9895625241614187
+      },
+      "s3_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.0052444050074338736,
+          "dispatch_now": 0.9917261860685904,
+          "wait": 0.003029408923975727
+        },
+        "confidence": 0.9875892791028856
+      },
+      "s3_side_effect": {
+        "type": "noul",
+        "noul": 0.014465033838576995
+      }
+    },
+    "usage": {
+      "input_tokens": 2192,
+      "output_tokens": 17,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797425-OqtduqG060iqXp1gXfnW",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:50:24.259+00:00",
+    "ms": 100.80679995007813,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:50:24.259+00:00",
+      "route": "decisions",
+      "hash": "f8840fc23fe4b721282af77e",
+      "label": "run_on:r4:drain2",
+      "status": 200,
+      "ms": 100.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

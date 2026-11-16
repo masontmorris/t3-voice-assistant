@@ -1,0 +1,230 @@
+{
+  "route": "decisions",
+  "label": "actually:r2",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "look up the height of mount elbert actually mount massive",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "look up the height of mount elbert",
+        "s2": "actually mount massive"
+      },
+      "still_being_spoken": "s2",
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "look up the height of mount elbert actually mount massive [1]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"look up the height of mount elbert\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"look up the height of mount elbert\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"look up the height of mount elbert\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"actually mount massive\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"actually mount massive\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"actually mount massive\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"actually mount massive\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"look up the height of mount elbert\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"actually mount massive\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"look up the height of mount elbert\").",
+          "cancel_s1": "It withdraws s1 (\"look up the height of mount elbert\") with no replacement."
+        }
+      },
+      "s2_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"actually mount massive\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s2_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"actually mount massive\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at the end of the speech so far. It is \"actually mount massive\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0017903600338059756,
+          "correction": 0.03885254376202172,
+          "description": 0.0031919114472906828,
+          "request": 0.9543243472521313,
+          "topic_change": 0.001840837504750308
+        },
+        "confidence": 0.942905434065164
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "wait",
+        "probabilities": {
+          "clarify": 0.027239366572640162,
+          "dispatch_now": 0.36017140261574143,
+          "wait": 0.6125892308116185
+        },
+        "confidence": 0.4188838462174278
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.0064765966247921644
+      },
+      "s2_at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.8366894748228605,
+          "none": 0.16331052517713945
+        },
+        "confidence": 0.673378949645721
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "replace_s1",
+        "probabilities": {
+          "cancel_s1": 0.02533012174555153,
+          "none": 0.03172644555082957,
+          "replace_s1": 0.942943432703619
+        },
+        "confidence": 0.9144151490554285
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9231939587793192,
+          "s1": 0.07680604122068085
+        },
+        "confidence": 0.8463879175586384
+      },
+      "s2_finished": {
+        "type": "noul",
+        "noul": 0.8667159371125306
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "correction",
+        "probabilities": {
+          "chitchat": 0.005972696692287413,
+          "correction": 0.9739212802035189,
+          "description": 0.002289110092377038,
+          "request": 0.01574530451715383,
+          "topic_change": 0.0020716084946629733
+        },
+        "confidence": 0.9674016002543986
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.02225991711601874,
+          "dispatch_now": 0.7468795910412855,
+          "wait": 0.23086049184269564
+        },
+        "confidence": 0.6203193865619283
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.006839215687908408
+      }
+    },
+    "usage": {
+      "input_tokens": 1192,
+      "output_tokens": 10,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797421-I6CnMDK1Kx7AwUK4qWVF",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:50:20.122+00:00",
+    "ms": 176.40339996432886,
+    "connect_ms": 46.65249999379739
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:50:20.122+00:00",
+      "route": "decisions",
+      "hash": "6cad714657e6dd326611b023",
+      "label": "actually:r2",
+      "status": 200,
+      "ms": 176.4,
+      "connect_ms": 46.7,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,228 @@
+[
+  {
+    "scenario": "actually",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "assistant_question",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 1,
+    "calls": 1,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "buy_and_read",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "cancel_second",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "delegate_overlap",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "delete_and_read",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "email_extension",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 1,
+    "calls": 1,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "i_mean",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "market_three",
+    "pass": false,
+    "revisions": 4,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['yen', 'exchange']"
+    ]
+  },
+  {
+    "scenario": "mixed_chain",
+    "pass": false,
+    "revisions": 4,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+    ]
+  },
+  {
+    "scenario": "museum_chain",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "near_duplicates",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 1,
+    "calls": 1,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "no_wait",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "pause_correction",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "post_and_read",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 2,
+    "calls": 2,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "rain_wonder",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 1,
+    "calls": 1,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T1: no task matches ['rain', 'saturday']"
+    ]
+  },
+  {
+    "scenario": "run_on",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "true_repeat",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 1,
+    "calls": 1,
+    "premature": 0,
+    "duplicate": 1,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "task_2: duplicate dispatch of T1"
+    ]
+  }
+]

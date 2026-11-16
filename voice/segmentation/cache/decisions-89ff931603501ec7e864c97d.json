@@ -1,0 +1,201 @@
+{
+  "route": "decisions",
+  "label": "true_repeat:r3",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Find the elevation of Cusco. Find the elevation of Cusco.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Find the elevation of Cusco.",
+        "s2": "Find the elevation of Cusco."
+      },
+      "still_being_spoken": null,
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "Find the elevation of Cusco. Find the elevation of Cusco. [1]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"Find the elevation of Cusco.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"Find the elevation of Cusco.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"Find the elevation of Cusco.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"Find the elevation of Cusco.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"Find the elevation of Cusco.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"Find the elevation of Cusco.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"Find the elevation of Cusco.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Find the elevation of Cusco.\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"Find the elevation of Cusco.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Find the elevation of Cusco.\").",
+          "cancel_s1": "It withdraws s1 (\"Find the elevation of Cusco.\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0030674048852200055,
+          "correction": 0.003983419255530735,
+          "description": 0.005935608458591856,
+          "request": 0.9860651797476219,
+          "topic_change": 0.0009483876530355266
+        },
+        "confidence": 0.9825814746845274
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.009799233373551137,
+          "dispatch_now": 0.9823215243531952,
+          "wait": 0.0078792422732538
+        },
+        "confidence": 0.9734822865297926
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.008946266979512953
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.008244284932946506,
+          "none": 0.9311068803919519,
+          "replace_s1": 0.060648834675101626
+        },
+        "confidence": 0.8966603205879277
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9659265780559021,
+          "s1": 0.03407342194409788
+        },
+        "confidence": 0.9318531561118042
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.004228416039735204,
+          "correction": 0.018651176167583803,
+          "description": 0.006480319487140113,
+          "request": 0.969173871690908,
+          "topic_change": 0.0014662166146331157
+        },
+        "confidence": 0.961467339613635
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.006742700464577195,
+          "dispatch_now": 0.9882987360920454,
+          "wait": 0.0049585634433775205
+        },
+        "confidence": 0.9824481041380682
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.00960716984688966
+      }
+    },
+    "usage": {
+      "input_tokens": 951,
+      "output_tokens": 8,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797425-ViwuggjcJ3xVGZdeC3hn",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:50:24.370+00:00",
+    "ms": 89.55969999078661,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:50:24.370+00:00",
+      "route": "decisions",
+      "hash": "89ff931603501ec7e864c97d",
+      "label": "true_repeat:r3",
+      "status": 200,
+      "ms": 89.6,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

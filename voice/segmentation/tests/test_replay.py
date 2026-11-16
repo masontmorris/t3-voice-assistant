@@ -18,6 +18,8 @@ RUNS = {
     "stream-e": ("e", "stream", False, None, "original"),
     "stream-a-heldout": ("a", "stream", False, None, "heldout"),
     "stream-e-heldout": ("e", "stream", False, None, "heldout"),
+    "stream-h": ("h", "stream", False, None, "original"),
+    "stream-h-heldout": ("h", "stream", False, None, "heldout"),
 }
 
 
