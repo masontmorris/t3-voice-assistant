@@ -66,6 +66,21 @@ class Client(unittest.TestCase):
         self.assertEqual(record["response"]["answers"]["s1_ready"]["confidence"], 0.0)
         self.assertGreater(record["timing"]["ms"], 0)
 
+    def test_a_set_size_rides_with_the_request_and_is_absent_when_unset(self):
+        server = HTTPServer(("127.0.0.1", 0), Handler)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        body = {"state": {"segments": {}},
+                "questions": {"s1_ready": {"type": "choice", "instructions": "x", "criteria": {"wait": "W", "go": "G"}}}}
+        packed = D1Client(f"http://127.0.0.1:{server.server_port}", set_size=4)
+        self.addCleanup(packed.close)
+        packed.call("decisions", body)
+        self.assertEqual(Handler.seen[-1][1]["set_size"], 4)
+        unpacked = D1Client(f"http://127.0.0.1:{server.server_port}")
+        self.addCleanup(unpacked.close)
+        unpacked.call("decisions", body)
+        self.assertNotIn("set_size", Handler.seen[-1][1])
+
 
 if __name__ == "__main__":
     unittest.main()

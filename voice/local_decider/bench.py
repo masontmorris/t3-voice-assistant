@@ -1,13 +1,20 @@
-"""Bench d1-2B on llama.cpp against the segmenter's recorded decider requests. GPU: run inside the lease and quiet_run.
+"""Bench d1-2B on llama.cpp and mistral.rs against the segmenter's recorded decider requests. GPU: run inside the
+lease and quiet_run.
 
     python -m voice.local_decider.bench replay [--configs ub8192,ub2048,ub512,ub8192-nofa] [--rounds 3]
+    python -m voice.local_decider.bench replay --configs mr16,mr1 --tag mistralrs [--paged-attn on]
+    python -m voice.local_decider.bench packing [--requests 3] [--sizes default,8,4,2,1] [--concurrent]
     python -m voice.local_decider.bench promptcache [--variants default,prompt-cache,...] [--rounds 3]
     python -m voice.local_decider.bench reuse
     python -m voice.local_decider.bench bargein CLIP.wav [--lfm-ctx 32768]
 
 replay sends every recorded decisions request once per config per round, configs alternating, and records latency,
-input tokens, the answers, startup time and VRAM. promptcache runs debug-logged servers under several prompt-reuse flag
-sets and counts the tokens llama.cpp reports reusing, within one request and across calls. reuse replays the same sequences twice per request, the full request
+input tokens, the answers, startup time and VRAM. `mr` configs run mistral.rs and name the `set_size` sent with each
+request (`mr16` is the model's own default, `mr1` is one question per state read); the other config names are
+llama.cpp flag sets. packing sends the largest requests at several set sizes and, with --concurrent, two requests at
+once. promptcache runs debug-logged servers under several prompt-reuse flag
+sets and counts the tokens llama.cpp reports reusing, within one request and across calls. reuse replays the same
+sequences twice per request, the full request
 and the answer-reuse request, and compares the reused answers with the full ones. bargein streams a clip into LFM3,
 asks for a spoken reply, and sends d1 requests while LFM3 speaks, alternating with replies that have no d1 load.
 
@@ -23,9 +30,10 @@ import statistics
 import subprocess
 import threading
 import time
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from voice.local_decider.client import D1Client, VOICE_HOME, d1_server
+from voice.local_decider.client import D1Client, MistralRsServer, VOICE_HOME, d1_server
 from voice.local_decider.reuse import ReusingClient
 
 REPO = Path(__file__).resolve().parents[1]
@@ -42,6 +50,9 @@ CONFIGS = {
     "ub8192-nofa": ("-b", "8192", "-ub", "8192", "-fa", "off"),
     "ub8192-c16k": ("-b", "8192", "-ub", "8192", "-fa", "on", "-c", "16384"),
 }
+# mistral.rs config name to the `set_size` sent with each request. None is the model's own default, 16 questions per
+# state read (mistralrs-core/src/gguf/lfm3_d1_config.rs, DEFAULT_SET_SIZE).
+MISTRALRS = {"mr16": None, "mr8": 8, "mr4": 4, "mr2": 2, "mr1": 1}
 
 
 def gpu_used_mib():
@@ -118,6 +129,13 @@ def compact(answers):
             for k, a in answers.items() if isinstance(a, dict)}
 
 
+def started(cfg, log, paged_attn="off"):
+    """The server a config names: mistral.rs when MISTRALRS holds it, else llama.cpp's flags from CONFIGS."""
+    if cfg in MISTRALRS:
+        return MistralRsServer(log_path=log, paged_attn=paged_attn)
+    return d1_server(log_path=log, flags=CONFIGS[cfg])
+
+
 def replay(args):
     rows_path, servers_path = OUT / f"replay-{args.tag}.jsonl", OUT / f"replay-{args.tag}-servers.json"
     items = corpus()
@@ -126,11 +144,11 @@ def replay(args):
         for rnd in range(args.rounds):
             for cfg in args.configs:
                 idle = gpu_used_mib()
-                log = OUT / "logs" / f"replay-{cfg}-r{rnd}.log"
-                with d1_server(log_path=log, flags=CONFIGS[cfg]) as server:
+                log = OUT / "logs" / f"replay-{args.tag}-{cfg}-paged-{args.paged_attn}-r{rnd}.log"
+                with started(cfg, log, args.paged_attn) as server:
                     loaded = gpu_used_mib()
-                    client = D1Client(f"http://127.0.0.1:{server.port}")
-                    started = time.perf_counter()
+                    client = D1Client(f"http://127.0.0.1:{server.port}", set_size=MISTRALRS.get(cfg))
+                    t0 = time.perf_counter()
                     errors = 0
                     with VramPeak() as vram:
                         for source, name, record in items:
@@ -138,6 +156,8 @@ def replay(args):
                             ok = out["status"] == 200 and isinstance(out["response"].get("answers"), dict)
                             errors += not ok
                             row = {"config": cfg, "round": rnd, "source": source, "file": name,
+                                   "server": "llama.cpp" if cfg in CONFIGS else "mistral.rs",
+                                   "set_size": MISTRALRS.get(cfg), "paged_attn": args.paged_attn,
                                    "chars": len(json.dumps(record["request"])), "questions": len(record["request"]["questions"]),
                                    "status": out["status"], "ms": round(out["timing"]["ms"], 2),
                                    "input_tokens": (out["response"].get("usage") or {}).get("input_tokens")}
@@ -146,12 +166,70 @@ def replay(args):
                             else:
                                 row["error"] = json.dumps(out["response"])[:300]
                             rows.write(json.dumps(row) + "\n")
-                    wall = time.perf_counter() - started
+                    wall = time.perf_counter() - t0
                 servers.append({"config": cfg, "round": rnd, "startup_s": round(server.startup_s, 3), "idle_mib": idle,
                                 "loaded_mib": loaded, "peak_mib": vram.peak, "calls": len(items), "errors": errors,
-                                "wall_s": round(wall, 2), "calls_per_s": round(len(items) / wall, 2)})
+                                "wall_s": round(wall, 2), "calls_per_s": round(len(items) / wall, 2),
+                                "questions_per_s": round(sum(len(r["request"]["questions"]) for _, _, r in items) / wall, 2),
+                                "paged_attn": args.paged_attn})
                 print(json.dumps(servers[-1]), flush=True)
     servers_path.write_text(json.dumps(servers, indent=1) + "\n", encoding="utf-8")
+
+
+def packing(args):
+    """The largest recorded requests at several set sizes, plus two requests at once.
+
+    mistral.rs reads the state once per group of `set_size` questions (DecisionPrompt::prepare, step_by(size)), so the
+    input tokens it reports should fall as the group count falls while the question count stays. It runs one decision
+    sequence at a time (pipeline/mod.rs, ModelCategory::Decision), so two requests at once should take about as long as
+    the same two back to back.
+    """
+    items = corpus()
+    picked = sorted(items, key=lambda row: -len(row[2]["request"]["questions"]))[:args.requests]
+    sizes = [None if s == "default" else int(s) for s in args.sizes.split(",")]
+    rows = []
+    with MistralRsServer(log_path=OUT / "logs" / f"packing-paged-{args.paged_attn}.log",
+                         paged_attn=args.paged_attn) as server:
+        url = f"http://127.0.0.1:{server.port}"
+        warm = D1Client(url)
+        warm.call("decisions", picked[-1][2]["request"], "warmup")
+        warm.close()
+        for source, name, record in picked:
+            questions = len(record["request"]["questions"])
+            for size in sizes:
+                client = D1Client(url, set_size=size)
+                out = client.call("decisions", record["request"], "packing")
+                client.close()
+                row = {"source": source, "file": name, "questions": questions, "set_size": size,
+                       "groups": -(-questions // (size or 16)), "ms": round(out["timing"]["ms"], 1),
+                       "input_tokens": (out["response"].get("usage") or {}).get("input_tokens"),
+                       "status": out["status"]}
+                rows.append(row)
+                print(json.dumps(row), flush=True)
+        if args.concurrent:
+            largest = [record["request"] for _, _, record in picked[:2]]
+            back = time.perf_counter()
+            for body in largest:
+                client = D1Client(url)
+                client.call("decisions", body, "back-to-back")
+                client.close()
+            back_s = time.perf_counter() - back
+
+            def once(body):
+                client = D1Client(url)
+                out = client.call("decisions", body, "concurrent")
+                client.close()
+                return round(out["timing"]["ms"], 1)
+
+            both = time.perf_counter()
+            with ThreadPoolExecutor(2) as pool:
+                ms = list(pool.map(once, largest))
+            both_s = time.perf_counter() - both
+            print(json.dumps({"back_to_back_s": round(back_s, 3), "concurrent_s": round(both_s, 3), "ms": ms,
+                              "startup_s": round(server.startup_s, 2)}), flush=True)
+            rows.append({"back_to_back_s": round(back_s, 3), "concurrent_s": round(both_s, 3), "ms": ms,
+                         "startup_s": round(server.startup_s, 2)})
+    (OUT / "packing.json").write_text(json.dumps(rows, indent=1) + "\n", encoding="utf-8")
 
 
 NEW_PROMPT = re.compile(r"task (\d+) \| new prompt, .*task\.n_tokens = (\d+)")
@@ -364,6 +442,13 @@ def main():
     p.add_argument("--configs", type=lambda s: s.split(","), default=["ub8192", "ub2048", "ub512", "ub8192-nofa"])
     p.add_argument("--rounds", type=int, default=3)
     p.add_argument("--tag", default="sweep")
+    p.add_argument("--paged-attn", choices=["off", "on"], default="off",
+                   help="mistral.rs only; llama.cpp uses -fa inside each config")
+    p = sub.add_parser("packing")
+    p.add_argument("--requests", type=int, default=3, help="how many of the largest recorded requests")
+    p.add_argument("--sizes", default="default,8,4,2,1")
+    p.add_argument("--concurrent", action="store_true", help="also time two requests at once")
+    p.add_argument("--paged-attn", choices=["off", "on"], default="off")
     p = sub.add_parser("promptcache")
     p.add_argument("--variants", type=lambda s: s.split(","), default=list(REUSE_FLAGS))
     p.add_argument("--rounds", type=int, default=3)
@@ -378,7 +463,7 @@ def main():
     if args.command == "bargein":
         asyncio.run(_bargein(args))
     else:
-        {"replay": replay, "promptcache": promptcache, "reuse": reuse}[args.command](args)
+        {"replay": replay, "packing": packing, "promptcache": promptcache, "reuse": reuse}[args.command](args)
 
 
 if __name__ == "__main__":
