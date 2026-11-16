@@ -1,0 +1,142 @@
+[
+  {
+    "scenario": "01_two_independent",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "02_two_dependent",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "03_topic_change",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "04_mid_sentence_correction",
+    "pass": false,
+    "revisions": 7,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['six']"
+    ]
+  },
+  {
+    "scenario": "05_correction_after_dispatch",
+    "pass": false,
+    "revisions": 7,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 1,
+    "problems": 0,
+    "failures": [
+      "T3: revises None, expected T1"
+    ]
+  },
+  {
+    "scenario": "06_description_not_request",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "07_intentional_repeat",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 1,
+    "calls": 1,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "08_delegate_after_dispatch",
+    "pass": false,
+    "revisions": 5,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+    ]
+  },
+  {
+    "scenario": "09_delegate_before_segment",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "10_side_effect_email",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "11_filler_false_starts",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  }
+]

@@ -1,0 +1,159 @@
+{
+ "label": "buy_and_read:task_1:r2",
+ "model": "deepseek/deepseek-v4.1-flash",
+ "request": {
+  "system": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only.",
+  "user": "The user's request for this task:\nfind the book review\n\nEverything the user said in this utterance, for context only:\nfind the book review and buy the paperback edition\n\nDependencies:\n- None.\n\nThis task has no effect outside the conversation.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions.",
+  "schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "instruction",
+    "context",
+    "constraints",
+    "success_criteria",
+    "open_questions"
+   ],
+   "properties": {
+    "instruction": {
+     "type": "string"
+    },
+    "context": {
+     "type": "string"
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "success_criteria": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "open_questions": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "max_tokens": 4096,
+  "temperature": 0.0
+ },
+ "status": 200,
+ "content": {
+  "instruction": "Find the book review.",
+  "context": "The user's full utterance was: 'find the book review and buy the paperback edition'. The task is only to find the book review; buying the paperback edition is not part of this task.",
+  "constraints": [
+   "Do not purchase the paperback edition or take any purchasing action.",
+   "Do not add steps or goals beyond finding the book review."
+  ],
+  "success_criteria": [
+   "The agent either returns a specific book review or asks clarifying questions to identify which book and review the user means."
+  ],
+  "open_questions": [
+   "Which book is the review for?",
+   "Which review source or publication should be checked?",
+   "Does the user want a specific format or location for the review?"
+  ]
+ },
+ "ms": 7753.034099994693,
+ "error": null,
+ "retry_after_s": null,
+ "sent": {
+  "model": "deepseek/deepseek-v4.1-flash",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "messages": [
+   {
+    "role": "system",
+    "content": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only."
+   },
+   {
+    "role": "user",
+    "content": "The user's request for this task:\nfind the book review\n\nEverything the user said in this utterance, for context only:\nfind the book review and buy the paperback edition\n\nDependencies:\n- None.\n\nThis task has no effect outside the conversation.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions."
+   }
+  ],
+  "response_format": {
+   "type": "json_schema",
+   "json_schema": {
+    "name": "prompt_draft",
+    "strict": true,
+    "schema": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "instruction",
+      "context",
+      "constraints",
+      "success_criteria",
+      "open_questions"
+     ],
+     "properties": {
+      "instruction": {
+       "type": "string"
+      },
+      "context": {
+       "type": "string"
+      },
+      "constraints": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "success_criteria": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "open_questions": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "served_model": "deepseek/deepseek-v4.1-flash",
+ "usage": {
+  "prompt_tokens": 347,
+  "completion_tokens": 1046,
+  "total_tokens": 1393,
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 256,
+   "cache_write_tokens": 0,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  },
+  "completion_tokens_details": {
+   "audio_tokens": 0,
+   "reasoning_tokens": 899,
+   "accepted_prediction_tokens": 0,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  }
+ },
+ "finish_reason": "stop",
+ "meta": {
+  "id": "dbff56f5ca9b65979a97eb8cbfbadaa4",
+  "object": "chat.completion",
+  "created": 1794821857,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "system_fingerprint": ""
+ }
+}

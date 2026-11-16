@@ -1,0 +1,326 @@
+{
+  "scenario": "11_filler_false_starts",
+  "covers": "Filler words, false starts, and an ASR revision of an earlier word (reports to report). One task.",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "11_filler_false_starts:r4",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          15
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          15
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s1": {
+          "finished": 0.7646880800319346,
+          "at": "m15",
+          "margin": 0.7089380411548177,
+          "runner_up": "m14",
+          "verdict": "candidate",
+          "gap": 15
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 67,
+          "text": "um so uh can you can you find the the report from uh from tuesday's",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r4",
+          "route": "decisions",
+          "file": "decisions-f40d72b157a4edef4515090e.json",
+          "status": 200,
+          "ms": 218.9,
+          "started_at": "2026-11-16T08:38:23.722+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9510961482982835,
+            "ready": 0.2319618373673678,
+            "side_effect": 0.028833337542120432,
+            "finished": 0.7646880800319346,
+            "at": 0.7264358973437844
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "11_filler_false_starts:r5",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          16
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          16
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s1": {
+          "finished": 0.7616992505119787,
+          "at": "m16",
+          "margin": 0.7480600551774244,
+          "runner_up": "m15",
+          "verdict": "candidate",
+          "gap": 16
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 75,
+          "text": "um so uh can you can you find the the report from uh from tuesday's meeting",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r5",
+          "route": "decisions",
+          "file": "decisions-23709cd8c74b51ffba5ec585.json",
+          "status": 200,
+          "ms": 258.6,
+          "started_at": "2026-11-16T08:38:23.943+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9523670977771215,
+            "ready": 0.12679524500031417,
+            "side_effect": 0.03108078528649576,
+            "finished": 0.7616992505119787,
+            "at": 0.7676985401325005
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "11_filler_false_starts:r6",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          16
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          16
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s1": {
+          "finished": 0.9552794157074694,
+          "at": "m8",
+          "margin": 0.3322582474347082,
+          "runner_up": "m7",
+          "verdict": "candidate",
+          "gap": 16
+        }
+      },
+      "committed": [
+        "s1"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 83,
+          "text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r6",
+          "route": "decisions",
+          "file": "decisions-1d800d1a337887b6686b2b46.json",
+          "status": 200,
+          "ms": 255.3,
+          "started_at": "2026-11-16T08:38:24.202+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9669890607827172,
+            "ready": 0.7296938720663263,
+            "side_effect": 0.022223483783981056,
+            "finished": 0.9552794157074694,
+            "at": 0.5250646324585987
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "instruction": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "um so uh can you can you find the the report from uh from tuesday's"
+        },
+        {
+          "revision": 5,
+          "is_final": false,
+          "event": "segment_text",
+          "old": "um so uh can you can you find the the report from uh from tuesday's",
+          "new": "um so uh can you can you find the the report from uh from tuesday's meeting"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "um so uh can you can you find the the report from uh from tuesday's meeting",
+          "new": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_11_filler_false_starts",
+    "final_transcript": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "report",
+          "tuesday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

@@ -18,11 +18,15 @@ that names none. --mock-tools sends every task to the mock worker instead.
      --status-only offers just `get_task_status`
   c  a user text message with a fixed machine prefix
 
+--decider picks the decider: cloud (pplx-decider-flash on OpenRouter, the default, or $VOICE_DECIDER) or d1 (d1-2B on
+a second local llama-server, see voice/local_decider/). --reuse asks only the questions whose answers it has not kept.
+--lfm-ctx sets LFM3's total context (-c); left out, the server takes the model's 128k.
+
 --segmenter picks the segmenter, the hybrid by default. The segmenter takes transcript updates one at a time. When
 newer updates queue behind a decision, only the newest is processed, and the timeline logs the dropped revisions.
 
-Needs the GPU (run it inside the lease) and VOICE_ENV_FILE or OPENROUTER_API_KEY for decider calls that miss the
-cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to --out.
+Needs the GPU (run it inside the lease). The cloud decider needs VOICE_ENV_FILE or OPENROUTER_API_KEY for calls
+that miss the cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to --out.
 """
 
 import argparse
@@ -33,11 +37,13 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from pathlib import Path
 
+from voice.local_decider.bench import gpu_used_mib
+from voice.local_decider.client import decider as make_decider, default_decider
+from voice.local_decider.reuse import ReusingClient
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import DECIDER_BUDGET, SEGMENTERS, coalesce, live_calls, use_decider_cache
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.transcript import TranscriptAdapter
-from voice.segmentation import client as api
 from voice.tools.registry import open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
@@ -299,14 +305,18 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
 async def main_async(args):
     use_decider_cache(args.decider_cache, args.decider_budget)
-    decider = api.Client()
     out = args.out or EVIDENCE / f"inject-{args.inject}{'-status' if args.status_only else ''}"
     out.mkdir(parents=True, exist_ok=True)
+    lfm_args = ("-c", str(args.lfm_ctx)) if args.lfm_ctx else ()
     tools_context = nullcontext() if args.mock_tools else open_registry()
-    with tools_context as tools, Server(args.port, out / "llama-server.log") as server:
+    server_context = Server(args.port, out / "llama-server.log", lfm_args)
+    with tools_context as tools, server_context as server, make_decider(args.decider, out) as decider:
         if tools is not None:
             print(f"MCP server {tools.mcp.server_info} up after {tools.mcp.startup_s:.2f} s", flush=True)
         print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
+        vram_mib = gpu_used_mib()
+        if args.reuse:
+            decider = ReusingClient(decider)
         for wav in args.clips:
             partial = {}
             try:
@@ -317,6 +327,8 @@ async def main_async(args):
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
             record["server_startup_s"] = server.startup_s
             record["mcp_startup_s"] = tools.mcp.startup_s if tools is not None else None
+            record["config"] = {"decider": args.decider, "reuse": args.reuse, "lfm_ctx": args.lfm_ctx,
+                                "vram_mib_after_load": vram_mib}
             (out / f"{wav.stem}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
             print(wav.stem, json.dumps(record["metrics"]), flush=True)
 
@@ -330,6 +342,9 @@ def main():
     parser.add_argument("--out", type=Path)
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--port", type=int, default=8095)
+    parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
+    parser.add_argument("--reuse", action="store_true", help="ask only questions with no kept answer")
+    parser.add_argument("--lfm-ctx", type=int, help="LFM3's total context; the model's 128k when left out")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
     parser.add_argument("--decider-cache", type=Path, default=EVIDENCE / "decider-cache",
                         help="decider cache and call ledger, kept out of the repo")

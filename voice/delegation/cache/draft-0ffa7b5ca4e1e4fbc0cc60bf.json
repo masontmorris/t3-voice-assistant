@@ -1,0 +1,152 @@
+{
+ "label": "10_side_effect_email:task_1:r4",
+ "model": "deepseek/deepseek-v4.1-flash-ultrafast",
+ "request": {
+  "system": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only.",
+  "user": "The user's request for this task:\nemail dana that the meeting moved to tuesday\n\nEverything the user said in this utterance, for context only:\nemail dana that the meeting moved to tuesday and then check\n\nDependencies:\n- None.\n\nThis task acts on the outside world. The agent must confirm with the user before acting.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions.",
+  "schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "instruction",
+    "context",
+    "constraints",
+    "success_criteria",
+    "open_questions"
+   ],
+   "properties": {
+    "instruction": {
+     "type": "string"
+    },
+    "context": {
+     "type": "string"
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "success_criteria": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "open_questions": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "max_tokens": 4096,
+  "temperature": 0.0
+ },
+ "status": 200,
+ "content": {
+  "instruction": "Email Dana to let her know that the meeting has been moved to Tuesday.",
+  "context": "The user asked: \"email dana that the meeting moved to tuesday and then check\" \u2014 the request to \"check\" something afterward was cut off and is not part of this task.",
+  "constraints": [
+   "This task acts on the outside world, so confirm with the user before sending the email.",
+   "Do not add any information beyond the meeting being moved to Tuesday."
+  ],
+  "success_criteria": [
+   "An email to Dana is prepared (and sent only after the user confirms) stating that the meeting has been moved to Tuesday."
+  ],
+  "open_questions": [
+   "What is Dana's email address?",
+   "Which meeting is being referred to?",
+   "Which Tuesday is the meeting moved to (specific date)?",
+   "Should the email be sent immediately after confirmation, or left as a draft for the user to review?",
+   "What did the user mean by \"and then check\"?"
+  ]
+ },
+ "ms": 963.3097000187263,
+ "error": null,
+ "retry_after_s": null,
+ "sent": {
+  "model": "deepseek/deepseek-v4.1-flash-ultrafast",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "messages": [
+   {
+    "role": "system",
+    "content": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only."
+   },
+   {
+    "role": "user",
+    "content": "The user's request for this task:\nemail dana that the meeting moved to tuesday\n\nEverything the user said in this utterance, for context only:\nemail dana that the meeting moved to tuesday and then check\n\nDependencies:\n- None.\n\nThis task acts on the outside world. The agent must confirm with the user before acting.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions."
+   }
+  ],
+  "response_format": {
+   "type": "json_schema",
+   "json_schema": {
+    "name": "prompt_draft",
+    "strict": true,
+    "schema": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "instruction",
+      "context",
+      "constraints",
+      "success_criteria",
+      "open_questions"
+     ],
+     "properties": {
+      "instruction": {
+       "type": "string"
+      },
+      "context": {
+       "type": "string"
+      },
+      "constraints": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "success_criteria": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "open_questions": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "served_model": "deepseek/deepseek-v4.1-flash-ultrafast",
+ "usage": {
+  "prompt_tokens": 364,
+  "completion_tokens": 359,
+  "total_tokens": 723,
+  "prompt_tokens_details": {
+   "cached_tokens": 130,
+   "audio_tokens": 0,
+   "video_tokens": 0
+  },
+  "completion_tokens_details": {
+   "reasoning_tokens": 156,
+   "image_tokens": 0
+  },
+  "cache_creation_input_tokens": 0
+ },
+ "finish_reason": "stop",
+ "meta": {
+  "id": "gen_01M7HW8Q6WVHT55WRHC4YEWSQM",
+  "object": "chat.completion",
+  "created": 1794822660,
+  "model": "deepseek/deepseek-v4.1-flash-ultrafast",
+  "system_fingerprint": "fp_9k62qarn8x"
+ }
+}

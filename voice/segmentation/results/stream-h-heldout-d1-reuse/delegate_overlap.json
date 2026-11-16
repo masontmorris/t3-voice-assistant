@@ -1,0 +1,259 @@
+{
+  "scenario": "delegate_overlap",
+  "covers": "delegate and orchestrator overlap",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "delegate_overlap:r1:delegate0",
+      "kind": "delegate",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          6
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s1": {
+          "finished": 0.969593485864378,
+          "at": "m1",
+          "margin": 0.785354360222189,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 6
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 30,
+          "text": "look up the diameter of europa",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "delegate_overlap:r1:delegate0",
+          "route": "decisions",
+          "file": "decisions-344bbf5e39337611f049b684.json",
+          "status": 200,
+          "ms": 186.0,
+          "started_at": "2026-11-16T08:38:44.321+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9432760198320733,
+            "ready": 0.6050201302742654,
+            "side_effect": 0.004689063300318601,
+            "finished": 0.969593485864378,
+            "at": 0.7853543602221891
+          }
+        }
+      },
+      "delegates": {
+        "d1": "s1"
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "delegate_overlap:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          7
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          7
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s1": {
+          "finished": 0.8727814683591444,
+          "at": "m2",
+          "margin": 0.38397428070794204,
+          "runner_up": "m1",
+          "verdict": "candidate",
+          "gap": 7
+        }
+      },
+      "committed": [
+        "s1"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 39,
+          "text": "Look up the diameter of Europa, please.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "delegate_overlap:r3",
+          "route": "decisions",
+          "file": "decisions-63281f21274b884607a4fc21.json",
+          "status": 200,
+          "ms": 187.3,
+          "started_at": "2026-11-16T08:38:44.508+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.945786663414111,
+            "ready": 0.6361709587331845,
+            "side_effect": 0.009135875356270215,
+            "finished": 0.8727814683591444,
+            "at": 0.4485588265301001
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Look up the diameter of Europa, please.",
+      "instruction": "look up the diameter of europa",
+      "sources": [
+        "orchestrator",
+        "voice_delegate"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "voice_delegate"
+          ],
+          "segment_text": "look up the diameter of europa"
+        },
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "voice delegate submitted it"
+        },
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "linked_orchestrator"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "look up the diameter of europa",
+          "new": "Look up the diameter of Europa, please."
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 1,
+      "is_final": false,
+      "instruction": "look up the diameter of europa",
+      "sources": [
+        "voice_delegate"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_delegate_overlap",
+    "final_transcript": "Look up the diameter of Europa, please.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "look up the diameter of europa",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "diameter",
+          "europa"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "sources": [
+          "orchestrator",
+          "voice_delegate"
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

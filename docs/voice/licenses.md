@@ -5,8 +5,10 @@ Each row records a model or dependency the voice assistant uses or studies.
 | Name | Version or revision | License | Source | Notable terms |
 | --- | --- | --- | --- | --- |
 | T3 Code | This fork's `main` at `eeae88de5c68b2d3c744ad5e7e4964e118856d3f`. The investigation also read the installed build `0.1.8-nightly.20261106.4275`, commit `6577c6b6185167c0e502fa01f9e8e8f2dee6ff25`. | MIT | https://github.com/pingdotgg/t3code | Copyright 2026 T3 Tools Inc. Keep the copyright and permission notice in copies and forks. This repository is a fork, and the notice stays in `LICENSE`. Bundled third-party licenses are listed in `third-party-licenses/` and in `apps/server/dist/client/third-party-licenses.json` in the app. |
-| Perplexity Decider Flash V1.3 (free variant), `perplexity/pplx-decider-flash-v1.3:free` | Endpoint `perplexity/pplx-decider-flash-v1.3-20261112:free`, measured on 2026-11-15 | Not stated. The model page, the public endpoints API, and the OpenRouter Decisions and Extractions docs name no license and no data policy. | [OpenRouter endpoints API](https://openrouter.ai/api/v1/models/perplexity/pplx-decider-flash-v1.3:free/endpoints) | A hosted model with no weights to download. Use is governed by the OpenRouter terms of service and the provider's terms. Prompt and completion price 0. Requests count against the key's free-model daily limit (1,000 per day, measured). The paid id `perplexity/pplx-decider-flash-v1.3` must not be called. |
+| Perplexity Decider Flash V1.3 (free variant), `perplexity/pplx-decider-flash-v1.3:free` | Endpoint `perplexity/pplx-decider-flash-v1.3-20261112:free`, measured on 2026-11-15 | Not stated. The model page, the public endpoints API, and the OpenRouter Decisions and Extractions docs name no license and no data policy. | [OpenRouter endpoints API](https://openrouter.ai/api/v1/models/perplexity/pplx-decider-flash-v1.3:free/endpoints) | A hosted model with no weights to download. Use is governed by the OpenRouter terms of service and the provider's terms. Prompt and completion price 0. Requests count against the key's free-model daily limit (1,000 per day, measured). The paid id `perplexity/pplx-decider-flash-v1.3` must not be called. The bot heartbeat spike measured `usage.cost` 0 on every response on 2026-11-16 (measured). |
+| DeepSeek V4.1 Flash, the draft author for `voice/delegation/`, called as `deepseek/deepseek-v4.1-flash`, `deepseek/deepseek-v4.1-flash-fast`, and `deepseek/deepseek-v4.1-flash-ultrafast` through Command Code (`https://api.commandcode.ai/provider/v1`) | Command Code lists the id as "DeepSeek V4.1 Flash (latest)" and returns no build stamp (`system_fingerprint` is empty), so the build it serves is unconfirmed. The weights cards read on 2026-11-16 are `deepseek-ai/DeepSeek-V4.1-Flash-1017` at `08c8657f02291e11b6f6b63e0e16014f8e748518` (created 2026-10-17) and `deepseek-ai/DeepSeek-V4.1-Flash` at `314113f8a7dadb388215396ba5fbee2c610a04d6`. | MIT (both cards' `license` field) | https://huggingface.co/deepseek-ai/DeepSeek-V4.1-Flash-1017 | Called on Mason's Command Code subscription, so Command Code's terms of service apply to the hosted calls. Most requests carry no reasoning parameter, so each id runs on its own default. The reasoning race sent `reasoning_effort: "off"`, the lowest value Command Code accepts, after it rejected `minimal`. Mason allowed his clip transcripts to go to it on 2026-11-16. The listing does not say whether the `-fast` and `-ultrafast` ids serve the same weights. |
 | Python standard library | CPython 3.14.6 | Python Software Foundation License 2.0 | [python.org license](https://docs.python.org/3/license.html) | Stage 2 uses only the standard library (`http.client`, `json`, `unittest`, and others). No third-party packages. |
+| T3 Tots | v1.4.34 | Not stated in the installed files (`README.md`, `manifest.json`). The source repository was not read. | https://github.com/Deepusleepy/t3-tots | `voice/bot` copies no T3 Tots code. It calls the same T3 RPCs that `t3ctl` and `t3listen` call, and it reads the T3 Tots token file at run time from `T3_TOTS_DIR`. |
 
 ## Stage 1 speech path
 
@@ -45,6 +47,19 @@ The LICENSE file in the pinned snapshot is the source of every quote below. It i
 - **Patents.** Section 3 grants a patent license that ends if you sue anyone alleging the Work infringes a patent.
 - **Termination.** Section 11 says the License "will terminate automatically and immediately if You fail to comply with any of its terms", after which you "must cease all use ... and delete all copies".
 - **Warranty.** Sections 8 and 9 disclaim warranty and liability. The Work is provided "AS IS".
+
+## Local decider
+
+These rows cover `voice/local_decider/` and [local-decider.md](local-decider.md), measured on 2026-11-16.
+
+| Name | Version or revision | License | Source | Notable terms |
+| --- | --- | --- | --- | --- |
+| `LiquidAI/d1-2B-GGUF`, file `d1-2B-Q4_K_M.gguf` | `4a181094d1b6addfaa3a0956f78e7ab2aa406a0c`, file SHA-256 `adca5789ad30ae6027e8e936749bb9f19673097492ab26fa1c5b69643ca50b4b` (1,099,629,888 bytes) | LFM Open License v1.0 (`license: other`, `license_name: lfm1.0`) | https://huggingface.co/LiquidAI/d1-2B-GGUF | Same terms as LFM3-Audio above. Its LICENSE file is byte-identical to LFM3-Audio-2B's (measured with `cmp`). The file lives in `$VOICE_HOME/gguf/` and is not committed. |
+| `LiquidAI/d1-2B` (Transformers weights and remote code) | `652f920e544ea37f81e4b0ce89b81d4ed0da90b1` | LFM Open License v1.0 | https://huggingface.co/LiquidAI/d1-2B | Read from decision-lab's Hugging Face cache for one comparison run, not downloaded by this lane and not a dependency of the voice code. |
+| torch, transformers (decision-lab's venv) | torch 2.11.0+cu128, transformers 5.19.0 | BSD-3-Clause, Apache-2.0 | https://pytorch.org, https://github.com/huggingface/transformers | Used read-only by `transformers_bench.py` for that comparison. Not installed by this lane. |
+| mistral.rs | Not installed | MIT | https://github.com/EricLBuehler/mistral.rs | Evaluated on paper only. See the blocked option in [local-decider.md](local-decider.md). |
+
+The local decider client, the reuse layer, and the bench scripts use only the Python standard library, plus numpy, soundfile and websockets from the LFM3 venv for the barge-in bench.
 
 ## Real read-only tools
 

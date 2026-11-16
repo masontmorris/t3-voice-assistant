@@ -1,0 +1,588 @@
+{
+  "scenario": "08_delegate_after_dispatch",
+  "covers": "The orchestrator dispatches a task early, then the voice model's delegate tool submits the same task. One dispatch only.",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 5,
+  "decision_points": [
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "08_delegate_after_dispatch:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          8
+        ]
+      ],
+      "hard": [
+        5
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.5501427288011097,
+          "at": "m1",
+          "margin": 0.4673579845626307,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 8
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 30,
+          "text": "find the q3 budget spreadsheet",
+          "open": true
+        },
+        {
+          "sid": "s2",
+          "start": 31,
+          "end": 42,
+          "text": "and tell me",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "08_delegate_after_dispatch:r3",
+          "route": "decisions",
+          "file": "decisions-8ef7a15d31fe4f324068aec3.json",
+          "status": 200,
+          "ms": 295.2,
+          "started_at": "2026-11-16T08:38:20.500+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9677141413560827,
+            "ready": 0.3390364019211301,
+            "side_effect": 0.035456405841444126
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.7307201104071533,
+            "ready": 0.32090377777166834,
+            "side_effect": 0.013776738152742695,
+            "depends": 0.32698228342635893,
+            "corrects": 0.5434303133271499,
+            "finished": 0.5501427288011097,
+            "at": 0.4673579845626308
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "08_delegate_after_dispatch:r4",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          12
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          12
+        ]
+      ],
+      "hard": [
+        5
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.7544937520204853,
+          "at": "m1",
+          "margin": 0.6379824983407947,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 12
+        }
+      },
+      "committed": [
+        "s1"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 30,
+          "text": "find the q3 budget spreadsheet",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 31,
+          "end": 65,
+          "text": "and tell me the total travel spend",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "08_delegate_after_dispatch:r4",
+          "route": "decisions",
+          "file": "decisions-8e41bdd82d09c2fea8d9cecd.json",
+          "status": 200,
+          "ms": 307.5,
+          "started_at": "2026-11-16T08:38:20.796+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9677141413560827,
+            "ready": 0.3390364019211301,
+            "side_effect": 0.035456405841444126
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": "s1",
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9123662179214012,
+            "ready": 0.6099373372147477,
+            "side_effect": 0.01390925348372331,
+            "depends": 0.23899826336530205,
+            "corrects": 0.784490188597943,
+            "finished": 0.7544937520204853,
+            "at": 0.6379824983407947
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "08_delegate_after_dispatch:r4:delegate2",
+      "kind": "delegate",
+      "cursor": 5,
+      "pause": false,
+      "pieces": [
+        [
+          5,
+          12
+        ]
+      ],
+      "revised": [
+        [
+          5,
+          12
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.8774268594643803,
+          "at": "m1",
+          "margin": 0.6336688963707364,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 12
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 30,
+          "text": "find the q3 budget spreadsheet",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 31,
+          "end": 65,
+          "text": "and tell me the total travel spend",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "08_delegate_after_dispatch:r4:delegate2",
+          "route": "decisions",
+          "file": "decisions-c8a5e402c3760f69b0b181ea.json",
+          "status": 200,
+          "ms": 139.6,
+          "started_at": "2026-11-16T08:38:21.105+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9677141413560827,
+            "ready": 0.3390364019211301,
+            "side_effect": 0.035456405841444126
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": "s1",
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9123662179214012,
+            "ready": 0.6099373372147477,
+            "side_effect": 0.01390925348372331,
+            "depends": 0.23899826336530205,
+            "corrects": 0.784490188597943,
+            "finished": 0.8774268594643803,
+            "at": 0.6336688963707364
+          }
+        }
+      },
+      "delegates": {
+        "d1": "s1"
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": true,
+      "label": "08_delegate_after_dispatch:r5",
+      "kind": "revision",
+      "cursor": 5,
+      "pause": false,
+      "pieces": [
+        [
+          5,
+          12
+        ]
+      ],
+      "revised": [
+        [
+          5,
+          12
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {},
+      "committed": [
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 30,
+          "text": "Find the Q3 budget spreadsheet",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 31,
+          "end": 66,
+          "text": "and tell me the total travel spend.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "08_delegate_after_dispatch:r5",
+          "route": "decisions",
+          "file": "decisions-f97c3cbf2ffac65da45abe6c.json",
+          "status": 200,
+          "ms": 340.2,
+          "started_at": "2026-11-16T08:38:21.245+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9614852654663094,
+            "ready": 0.8291986490682647,
+            "side_effect": 0.03297533049149456
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9188378045099423,
+            "ready": 0.8027549691683852,
+            "side_effect": 0.010524761945849516,
+            "depends": 0.30242819921039077,
+            "corrects": 0.7258575966115234
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the Q3 budget spreadsheet",
+      "instruction": "find the q3 budget spreadsheet",
+      "sources": [
+        "orchestrator",
+        "voice_delegate"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the q3 budget spreadsheet"
+        },
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "linked_delegate",
+          "instruction": "Find the Q3 budget spreadsheet"
+        },
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find the q3 budget spreadsheet",
+          "new": "Find the Q3 budget spreadsheet"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and tell me the total travel spend.",
+      "instruction": "and tell me the total travel spend.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and tell me"
+        },
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "segment_text",
+          "old": "and tell me",
+          "new": "and tell me the total travel spend"
+        },
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        },
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and tell me the total travel spend",
+          "new": "and tell me the total travel spend."
+        },
+        {
+          "revision": 5,
+          "is_final": true,
+          "event": "status",
+          "old": "ready",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 4,
+      "is_final": false,
+      "instruction": "find the q3 budget spreadsheet",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 5,
+      "is_final": true,
+      "instruction": "and tell me the total travel spend.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_08_delegate_after_dispatch",
+    "final_transcript": "Find the Q3 budget spreadsheet and tell me the total travel spend.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find the q3 budget spreadsheet",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and tell me the total travel spend.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "budget",
+          "spreadsheet"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "sources": [
+          "orchestrator",
+          "voice_delegate"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "travel"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}
