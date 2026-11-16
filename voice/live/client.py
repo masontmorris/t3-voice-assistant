@@ -3,12 +3,15 @@
     python client.py [--server ws://HOST:8770] [--input DEVICE] [--output DEVICE] [--ptt] [--wav CLIP.wav ...]
     python client.py --list-devices
 
-Use headphones. There is no echo cancellation, so reply audio from speakers reaches the microphone and the server
-hears it as speech, which interrupts the reply.
+Use speakers or headphones. The client cancels speaker echo from the microphone before it sends it, so the reply
+audio the speakers play is not heard as speech and does not interrupt the reply. A person talking over the reply
+still interrupts it. `--no-echo-cancel` sends the raw microphone, which works with headphones and was the earlier
+behavior. The echo canceller models a 256 ms echo path by default; `--echo-tail-ms` raises it for a long delay.
 
 The server decides when a turn ends (about 0.7 s of silence). With --ptt, press Enter to start talking and Enter
 again to stop. Talking while a reply plays interrupts it: the server cancels the reply and this client drops the audio
-it buffered. --wav feeds clips in place of the microphone, which is how the Desktop loopback test runs.
+it buffered. --wav feeds clips in place of the microphone, which is how the Desktop loopback test runs, and echo
+cancellation is off for it unless `--echo-cancel` is given.
 
 The server address and the shared secret come from config.json and the `secret` file beside this script unless
 --server and --secret-file say otherwise. Each run records what this client sent and played, plus the metrics, the
@@ -31,8 +34,10 @@ import numpy as np
 import websockets
 
 if __package__:
+    from voice.live.aec import EchoCanceller
     from voice.live.recording import SessionRecorder, unique_session_dir
 else:
+    from aec import EchoCanceller
     from recording import SessionRecorder, unique_session_dir
 
 HERE = Path(__file__).resolve().parent
@@ -73,12 +78,24 @@ def auto_output():
     return None, f"Windows default output: {name}"
 
 
+def echo_canceller(args):
+    """This run's microphone echo canceller, or None when the run does not use one.
+
+    On by default for a microphone, since a laptop's speakers otherwise interrupt the reply. Off with --wav,
+    whose clips are already clean, and off with --no-echo-cancel, which sends the raw microphone."""
+    if getattr(args, "echo_cancel", None) is None:
+        enabled = not getattr(args, "wav", None)
+    else:
+        enabled = args.echo_cancel
+    return EchoCanceller(tail_ms=getattr(args, "echo_tail_ms", 256)) if enabled else None
+
+
 class Player:
     """Plays reply PCM16 through one output stream, after `prebuffer_ms` is queued or the reply ends."""
 
-    def __init__(self, output, prebuffer_ms, recorder=None):
+    def __init__(self, output, prebuffer_ms, recorder=None, canceller=None):
         self.output, self.prebuffer_ms = output, prebuffer_ms
-        self.recorder = recorder
+        self.recorder, self.canceller = recorder, canceller
         self.stream, self.rate = None, None
         self.buffer, self.lock = bytearray(), threading.Lock()
         self.playing, self.reply_done = False, True
@@ -133,6 +150,11 @@ class Player:
                 self.playing = False
             rate = self.rate
         outdata[:] = chunk + b"\x00" * (need - len(chunk))
+        if chunk and self.canceller is not None:
+            try:
+                self.canceller.playback(chunk, rate, now)
+            except Exception:
+                self.canceller = None
         if chunk and self.recorder is not None:
             self.recorder.playback(chunk, rate, now)
 
@@ -184,7 +206,10 @@ class Client:
         if output is None:
             output, chosen = auto_output()
             print(f"output: {chosen}", flush=True)
-        self.player = Player(output, args.prebuffer_ms, recorder=self.recorder)
+        self.echo = echo_canceller(args)
+        if self.echo is not None:
+            print(f"echo cancellation on: {self.echo.tail_ms} ms echo path", flush=True)
+        self.player = Player(output, args.prebuffer_ms, recorder=self.recorder, canceller=self.echo)
         self.rtts, self.done_turns, self.latest_turn = [], 0, None
         self.clips_left = max(0, len(args.wav or []) - 1)
         self.next_clip = asyncio.Event()
@@ -197,9 +222,22 @@ class Client:
         self.log_file.write(json.dumps({"t": round(time.time(), 3), "kind": kind, **detail}) + "\n")
         self.log_file.flush()
 
+    def echo_stats(self):
+        return None if self.echo is None else self.echo.stats()
+
     async def send_audio(self, ws, frames):
         while True:
             pcm, t = await frames.get()
+            echo = getattr(self, "echo", None)
+            if echo is not None:
+                try:
+                    pcm = echo.process(pcm, t)
+                except Exception as exc:
+                    print(f"echo cancellation failed, sending the raw microphone: {exc}", file=sys.stderr,
+                          flush=True)
+                    self.echo = None
+                    if hasattr(self, "log"):
+                        self.log("echo_failed", error=repr(exc))
             await ws.send(pcm)
             if self.recorder is not None:
                 self.recorder.mic(pcm, t)
@@ -261,7 +299,7 @@ class Client:
             if self.player.first_play_t is not None:
                 play_delay = round(self.player.first_play_t - self.reply_first, 4)
             self.log("reply_end", turn=message["turn"], first_audio_to_playback_s=play_delay,
-                     underruns=self.player.underruns)
+                     underruns=self.player.underruns, echo=self.echo_stats())
         elif kind == "barge_in":
             self.player.flush()
             self.reply_audio.clear()
@@ -342,7 +380,8 @@ class Client:
                                                                        websockets.ConnectionClosed):
                         raise task.exception()
             self.log("summary", rtt_median_s=self.rtt_median(), rtt_samples=len(self.rtts),
-                     rtt_max_s=round(max(self.rtts), 4) if self.rtts else None, turns=self.done_turns)
+                     rtt_max_s=round(max(self.rtts), 4) if self.rtts else None, turns=self.done_turns,
+                     echo=self.echo_stats())
             print(f"round trip over the socket: median {self.rtt_median()} s over {len(self.rtts)} pings",
                   flush=True)
         finally:
@@ -373,6 +412,13 @@ def main():
     parser.add_argument("--barge-in-ms", type=int,
                         help="with --wav, send the next clip this long after a reply starts, to test barge-in")
     parser.add_argument("--prebuffer-ms", type=int, default=80, help="reply audio to queue before playback starts")
+    parser.add_argument("--echo-cancel", dest="echo_cancel", action="store_true", default=None,
+                        help="cancel speaker echo from the microphone (default: on for a microphone, off with --wav)")
+    parser.add_argument("--no-echo-cancel", dest="echo_cancel", action="store_false",
+                        help="send the raw microphone, as with headphones")
+    parser.add_argument("--echo-tail-ms", type=int, default=256,
+                        help="echo path the canceller models, from output callback to microphone (default 256); "
+                             "raise it for a Bluetooth speaker")
     parser.add_argument("--output-rate", type=int, default=24_000, help="rate to open the output at before a reply")
     parser.add_argument("--wait-for-server", type=float, default=0, help="keep retrying the connection this many s")
     parser.add_argument("--log-dir", type=Path, default=LOG_DIR)
@@ -385,6 +431,8 @@ def main():
         return
     if not args.server:
         parser.error("no server: put config.json beside client.py or pass --server ws://HOST:8770")
+    if args.echo_tail_ms <= 0:
+        parser.error("--echo-tail-ms must be positive")
     try:
         asyncio.run(Client(args).run())
     except KeyboardInterrupt:
