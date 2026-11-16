@@ -375,7 +375,7 @@ class Client:
             if message.get("verdict") != "turn":
                 print(f"[turn {message['turn']}] kept talking over a {message.get('verdict')}", flush=True)
             self.log("unduck", **message)
-            if self.args.wav and message.get("verdict") != "turn" and self.args.barge_in_ms is not None:
+            if self.args.wav and message.get("verdict") != "turn":
                 self.advance()
         elif kind == "barge_in":
             self.player.flush()
