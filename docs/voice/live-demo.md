@@ -64,7 +64,9 @@ Two things follow from never being able to delete a conversation item (measured:
 
 **Snapshots.** Every turn injects its task snapshot as a user text item with the machine prefix. Over a call those items pile up, and an old snapshot reads exactly like a current one. The call's instructions therefore say that only the newest snapshot is current, and that a task or result from an older snapshot must not be spoken. The rule lives in one place, in the session instructions, rather than in every injected item, so a snapshot costs the same as before.
 
-**A long call.** llama.cpp divides `-c` across its slots, so the voice session has 11,008 tokens at the default `-c 32768` and three slots (measured: `n_ctx_slot = 11008` in the server log). Past that a slot runs out of room, and what llama.cpp does then was not observed at this head (guess: it drops the oldest tokens, which is the start of the call). So a call that reaches `--call-max-turns` (default 8) closes its session and opens a new one seeded with the call's own transcript, up to `--call-keep-turns` earlier turns (default 6), as one machine-prefixed item. The seed is one item, so it cannot be mistaken for something the person said, and it is what would keep "what did I ask you first" answerable after the slot fills.
+**A long call.** llama.cpp divides `-c` across its slots, so the voice session has 11,008 tokens at the default `-c 32768` and three slots (measured: `n_ctx_slot = 11008` in the server log). Past that a slot runs out of room, and what llama.cpp does then was not observed at this head (guess: it drops the oldest tokens, which is the start of the call). So a call that reaches `--call-max-turns` (default 8) closes its session and opens a new one seeded with the call's own transcript, up to `--call-keep-turns` earlier turns (default 6), as one machine-prefixed item. The seed is one item, so it cannot be mistaken for something the person said, and it is what would keep "what did I ask you first" answerable after the slot fills. llama.cpp refuses new instructions once a session holds a message, and answers the refusal with an `error` event, not `session.updated` (measured on build 12428 by a probe that sends both orders, `$VOICE_HOME/evidence/live/callfix-20261116/refusal_probe.py`). So `run_clip` sends the new session's settings first and creates the seed after them, and any refused `session.update` ends the turn with the server's text in the record instead of a 120 s wait.
+
+**Reseeds, checked 2026-11-16.** Two real calls in an ordinary `voice-live-memory` lease under `quiet_run`, no priority, with the server's own TTS clips. With `--call-max-turns 1`, turn 2 reseeded and finished in 6.50 s, first audio 0.45 s after its turn ended. With `--call-max-turns 2` and five turns, `voice_sessions` read 1, 1, 2, 2, 3, every reseeded turn's seed was accepted after its settings, turns took 5.2 to 8.1 s, and first audio came 0.40 to 0.68 s after each turn ended (measured, turn records). No turn hit the timeout. Each record's `live.call.reopened` names why its session opened: `first turn`, `turn limit` or `persona changed`.
 
 **Checking it.** `voice/live/script.py` renders a file of one utterance per line to WAV clips with the running server's own TTS, and the client's `--wav` path plays them as one call, in order. Both run while the server holds the lease:
 
@@ -103,7 +105,7 @@ I did not change the firewall.
 
 ## Prompt
 
-The voice persona comes from `$VOICE_HOME/live/prompt.txt`. The server reads it again at each turn start, so the next turn uses a new prompt with no restart. Each turn's record names the file and the first 12 hex characters of its SHA-256 under `live.prompt`. Delete the file to go back to the built-in persona. The server adds the format line "Respond with interleaved text and audio." itself, so leave it out of the file. The tool session's instructions are fixed by the `gated` design and are not part of the persona. The current-head loopback used the kit v2 reference prompt this way (measured: `prompt.txt sha256:020fd0f20f5e` in all five records), and the file was removed after the run.
+The voice persona comes from `$VOICE_HOME/live/prompt.txt`. The server reads it again at each turn start, so the next turn uses a new prompt with no restart. llama.cpp keeps a session's instructions once it holds audio, so a changed prompt starts a new voice session for the call, seeded with the call so far like a long call's. Each turn's record names the file and the first 12 hex characters of its SHA-256 under `live.prompt`. Delete the file to go back to the built-in persona. The server adds the format line "Respond with interleaved text and audio." itself, so leave it out of the file. The tool session's instructions are fixed by the `gated` design and are not part of the persona. The current-head loopback used the kit v2 reference prompt this way (measured: `prompt.txt sha256:020fd0f20f5e` in all five records), and the file was removed after the run.
 
 A CPU test writes "Be brief." to the prompt file and confirms the turn receives it as its persona (measured, `test_the_prompt_file_sets_the_turn_persona`).
 
@@ -123,7 +125,10 @@ All of these ran at this head, CPU only, in `$VOICE_HOME/venv-lfm3` (measured on
 | Speech after the turn ends stops playback | `test_speech_after_the_reply_stops_playback` | pass |
 | Voice events reach the live callback | `test_run_clip_hands_voice_audio_to_the_live_callback` | pass, real `run_clip` against a scripted realtime server |
 | One voice session per call | `test_a_call_keeps_one_voice_session` | pass, turn 2 is given turn 1's session |
-| A long call seeds a new session | `test_a_long_call_seeds_a_new_session_with_the_call_so_far` | pass, the seed holds the call's text |
+| A long call seeds a new session | `test_a_long_call_seeds_a_new_session_with_the_call_so_far` | pass, the seed holds the call's text and reaches `run_clip`, not the session |
+| The seed goes in after the settings | `SessionOrderTest.test_the_seed_goes_in_after_the_settings` | pass, against a fake that refuses as llama.cpp does |
+| A refused update ends the turn | `SessionOrderTest.test_a_refused_update_ends_the_turn_with_the_servers_words` | pass, the server's text, no timeout |
+| A new prompt starts a new session | `test_a_new_prompt_mid_call_starts_a_new_session` | pass, seeded with the call so far |
 | A barge-in keeps the session | `test_speech_during_the_reply_interrupts_it` | pass, session open, next turn on it |
 | The hook adds to a caller's session | `test_a_callers_session_is_added_to_and_left_open` | pass, settings sent once, not closed |
 
@@ -193,7 +198,7 @@ cd $HOME\voice-live-client
 
 Use headphones. If silence detection misbehaves, add `--ptt` and press Enter to start and stop talking.
 
-**Swap the prompt.** Write Mason's chosen persona to `$VOICE_HOME/live/prompt.txt`. The next turn uses it. The record names the file and its hash. Delete the file to go back to the built-in persona.
+**Swap the prompt.** Write Mason's chosen persona to `$VOICE_HOME/live/prompt.txt`. The next turn uses it, on a new voice session seeded with the call so far. The record names the file and its hash. Delete the file to go back to the built-in persona.
 
 **Stop everything.** Press Ctrl+C in the laptop window. On the Desktop, press Ctrl+C in the server window, or run `touch "$VOICE_HOME/live/STOP"`. The server stops llama-server and the MCP time server on the way out, and the lease ends with it. Check with `python ~/.gpu/gpu_lease.py status`. A run started with `--stop-file PATH` watches that file instead, so a worker's check cannot stop Mason's demo.
 

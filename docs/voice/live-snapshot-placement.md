@@ -41,22 +41,35 @@ message). The position and the wording of that one item are the only levers, whi
 
 `voice/prototype/run.py` gains a `snapshot_mode` and a filter:
 
-- `reply` is the shipped behaviour and stays the default.
-- `reply-no-utterance` keeps the item in the same place and drops every string that repeats the person's words, at any
-  depth, from the snapshot and from the task update. `without_utterance` does the dropping, and `repeats` is the test
-  it uses: a case-insensitive verbatim match on the turn's transcript.
+- `reply-no-utterance` keeps the item in the same place and removes the person's words from the snapshot and from the
+  task update. It is the default for live mode.
+- `reply` is the earlier behaviour, with everything in the item. It stays the default for the prototype's own runs, so
+  their records compare with earlier ones.
 - `before-audio` and `off` are the two ablation settings the runs above used, kept so the experiment can be rerun.
+  `off` sends no machine text under every `--eou` and `--inject`.
+
+`without_utterance` removes the person's words in two ways:
+
+- By field. `final_transcript`, `unreviewed_speech`, `segment_text`, `instruction`, `description`, every element of
+  `clarification_needed`, and the `text` of each entry in the decider's `read` list go, whatever they hold.
+- By content. Any other string, in a dict or a list, goes when it holds the transcript or the transcript holds it.
+  Both sides are normalised first: case, curly quotes, contractions ("what's" and "what is" match) and spacing. A
+  single word is not compared, so a status such as `running` stays when the person happened to say "running".
 
 `voice/live/server.py` gains `--snapshot` with those four values and records the mode in each turn's `live` block, so a
 record says how its reply was built.
 
 ## What it costs
 
-A task whose description is the utterance loses that description, so a reply about a task that has not finished cannot
-name the subject from the task list alone. Run 8 turn 2 answers "I don't have access to the weather data for Saturday"
-and does not repeat Denver, though the model heard it earlier in the call (measured). A decider-written description that
-paraphrases the request rather than copying it would keep the label and still stay clear of the person's words
-(guess: the decider's paraphrase is already in the dispatch log for most turns, but no run has injected one).
+The task list loses its subject. A task's `description` is the decision model's copy of the request, so it goes, and a
+reply about a task that has not finished cannot name the subject from the item. Two replies in run 8 show it (measured).
+Turn 1 answered "I can't provide the weather in Denver tomorrow as I don't have access to real-time weather data" while
+the lookup ran, a false refusal. Turn 7, "That's not what I meant.", answered "I'm running the task to get the weather
+in Denver tomorrow", a task that turn did not have. Turn 2 not naming Denver is not a cost of the filter: its
+description was "And what about Saturday?", which never named Denver (measured, run 8 records). Both measured costs
+come from the item losing its subject.
+Giving the task back a subject that is not the person's words is the paraphrase work in PR 28's follow-up, not this
+filter.
 
 ## Where the evidence is
 
