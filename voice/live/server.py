@@ -10,7 +10,8 @@ IPv4 address (`tailscale ip -4`) and refuses any address outside 100.64.0.0/10 o
 Wire format. Binary frames are PCM16 mono: 16 kHz up from the client, LFM3's output rate down, 40 ms per frame
 down. Text frames are JSON control messages:
   client -> server  hello {mode: vad|ptt}, ping {t}, ptt {down}
-  server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, barge_in, turn_done
+  server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, duck, unduck, barge_in,
+                    turn_done
 
 Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-of-utterance authority (injection (c),
 the hybrid segmenter, the `gated` default from `voice/main`): live ASR, the segmenter and decider, the task service
@@ -21,11 +22,14 @@ One client connection is one call, and one call is one LFM3 voice session. The f
 turn adds its audio and its reply to the same conversation, so the model hears what the person and the assistant said
 on earlier turns. The ASR, segmenter, task service and tools session still start fresh per turn.
 
-Speech that arrives while a turn is running or its reply is playing drops that turn's remaining audio: the server
-mutes the turn, tells the client to drop what it buffered, and lets the turn finish, so the call's one response is
-never cut off mid-stream and the history stays whole. The next turn starts once the previous one finishes, on the same
-session. Speech that starts after a turn ended but before any reply audio continues that turn: the new turn gets the
-old one's audio first.
+Speech that starts while a reply is still playing on the client is an overlap (voice/live/overlap.py). The client
+ducks the reply, and the overlap keeps its audio until a verdict. Enough voiced speech makes it a barge-in: the
+server mutes the turn, tells the client to drop what it buffered, and lets the turn finish, so the call's one
+response is never cut off mid-stream and the history stays whole. The overlap's audio opens the next turn, which
+starts once the previous one finishes, on the same session. A shorter overlap is transcribed once: a backchannel,
+noise or the reply's own echo is dismissed and the reply plays on at full volume, and anything else barges in. Speech
+after the reply has played starts a turn at once and drops only a still-running turn's later audio. Speech that starts
+after a turn ended but before any reply audio continues that turn: the new turn gets the old one's audio first.
 
 Every turn injects its task snapshot as a user text item with a machine prefix, and a snapshot cannot be deleted, so
 the instructions tell the model that only the newest snapshot is current. A call that reaches --call-max-turns starts
@@ -78,6 +82,7 @@ from websockets.asyncio.server import serve
 
 from voice.live import fallback
 from voice.live.endpoint import RATE, Audio, End, Endpointer, Settings, Start
+from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, PERSONA, run_clip, user_text
@@ -180,7 +185,7 @@ class MicTurn:
         self.speech_end = self.turn_end = self.first_audio = None
         self.out_rate, self.reply_started = None, False
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
-        self.task = self.decider = None
+        self.task = self.decider = self.overlap = None
         self.feed(pcm)
 
     def feed(self, pcm):
@@ -221,6 +226,7 @@ class MicTurn:
             "speech_end_to_first_audio_sent_s": since(self.first_audio, self.speech_end),
             "turn_end_to_first_audio_sent_s": since(self.first_audio, self.turn_end),
             "cancelled": self.cancelled,
+            "overlap": self.overlap,
         }
 
 
@@ -241,6 +247,7 @@ class Conversation:
         self.sessions, self.out_rate = 0, None
         self.ledger = ConversationLedger()
         self.pending, self.started = set(), time.perf_counter()
+        self.playback, self.overlap = Playback(), None
 
     def voice_clock(self):
         """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
@@ -276,11 +283,69 @@ class Conversation:
             return
         for event in self.endpointer.push(pcm):
             if isinstance(event, Start):
-                self.start_turn(event.pcm)
-            elif isinstance(event, Audio):
+                self.on_start(event.pcm)
+            elif isinstance(event, Audio) and self.overlap is None:
                 self.turn.feed(event.pcm)
-            elif isinstance(event, End):
+            elif isinstance(event, Audio):
+                self.on_overlap_frame(event)
+            elif self.overlap is None:
                 self.end_turn(event.trailing_ms, event.forced)
+            else:
+                self.on_overlap_end(event.trailing_ms)
+
+    def reply_audible(self):
+        return self.playback.playing(time.perf_counter(), self.live.overlap_settings.grace_ms / 1000)
+
+    def on_start(self, pcm):
+        """Speech while a reply is audible waits for a verdict, holding its audio; other speech starts a turn now. An
+        overlap still being transcribed when speech resumes hands its audio to what comes next."""
+        held = b""
+        if self.overlap is not None:
+            held = bytes(self.overlap.pcm)
+            if self.overlap.task is not None:
+                self.overlap.task.cancel()
+            self.overlap = None
+        if self.turn is not None and self.reply_audible():
+            self.overlap = Overlap(self.live.overlap_settings, bytearray(held + pcm), self.playback.turn)
+            self.post({"type": "duck", "turn": self.playback.turn})
+        else:
+            self.start_turn(held + pcm)
+
+    def on_overlap_frame(self, event):
+        if self.overlap.feed(event.pcm, event.level_dbfs, self.endpointer.noise_dbfs):
+            self.settle(Verdict.BARGE_IN, "voiced")
+        elif not self.reply_audible():
+            self.settle(None, "reply ended")
+
+    def on_overlap_end(self, trailing_ms):
+        overlap = self.overlap
+        if overlap.voiced_ms < self.live.overlap_settings.min_voiced_ms:
+            self.settle(Verdict.NOISE, "too short")
+        else:
+            overlap.task = asyncio.create_task(self.classify_overlap(overlap, trailing_ms))
+
+    async def classify_overlap(self, overlap, trailing_ms):
+        try:
+            text = await self.live.transcribe(bytes(overlap.pcm))
+            verdict, how = classify(text, self.playback.text), "transcript"
+        except Exception as exc:
+            text, verdict, how = None, Verdict.BARGE_IN, f"transcript failed: {exc!r}"
+        if self.overlap is overlap:
+            self.settle(verdict, how, text, trailing_ms)
+
+    def settle(self, verdict, how, transcript=None, trailing_ms=None):
+        """The overlap's verdict. A barge-in, or speech the reply finished under, becomes a turn that opens with all
+        of the overlap's audio; a dismissed overlap is logged with its audio and the reply plays on."""
+        overlap, self.overlap = self.overlap, None
+        entry = overlap.record(verdict or "turn", how, time.perf_counter(), transcript)
+        self.live.log_overlap(entry, None if verdict in (None, Verdict.BARGE_IN) else overlap.pcm)
+        if verdict is not Verdict.BARGE_IN:
+            self.post({"type": "unduck", "turn": overlap.turn, "verdict": str(verdict or "turn")})
+        if verdict in (None, Verdict.BARGE_IN):
+            self.start_turn(bytes(overlap.pcm), barge_in=verdict is Verdict.BARGE_IN)
+            self.turn.overlap = entry
+            if trailing_ms is not None:
+                self.end_turn(trailing_ms, False)
 
     async def on_control(self, message):
         kind = message.get("type")
@@ -292,20 +357,23 @@ class Conversation:
         elif kind == "ptt" and self.mode == "ptt":
             down = bool(message.get("down"))
             if down and not self.ptt_down:
-                self.start_turn(b"")
+                self.start_turn(b"", barge_in=self.reply_audible())
             elif self.ptt_down and not down and self.turn is not None:
                 self.end_turn(0, False)
             self.ptt_down = down
 
-    def start_turn(self, pcm):
-        """A new turn starts. Speech after a turn has sent reply audio drops that audio, even once the turn's own
-        task has finished: the model streams a reply faster than the client plays it. That turn then keeps running,
+    def start_turn(self, pcm, barge_in=False):
+        """A new turn starts. A barge-in stops the reply the client is playing. A turn that has spoken and is still
+        running drops its later audio, such as a task update, rather than talk over the person; it keeps running,
         because closing it mid-response would cut the call's one session off."""
         prior, carry = self.turn, b""
+        if barge_in:
+            self.post({"type": "barge_in", "turn": self.playback.turn})
+            self.playback.stop(time.perf_counter())
         if prior is not None:
             if prior.reply_started:
-                prior.mute("barge_in")
-                self.post({"type": "barge_in", "turn": prior.n})
+                if barge_in or not prior.task.done():
+                    prior.mute("barge_in" if barge_in else "superseded")
             elif not prior.task.done():
                 prior.cancel("continued")
                 carry = bytes(prior.pcm)
@@ -339,6 +407,7 @@ class Conversation:
             return
         turn.reply_started = True
         turn.first_audio = turn.first_audio or time.perf_counter()
+        self.playback.add(len(pcm) / 2 / turn.out_rate, text, time.perf_counter(), turn.n)
         self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
         self.post_audio(turn, pcm)
         self.post({"type": "reply_end", "turn": turn.n}, turn)
@@ -420,6 +489,8 @@ class Conversation:
         print(f"{turn.name} {json.dumps(done['metrics'])}", flush=True)
 
     async def close(self):
+        if self.overlap is not None and self.overlap.task is not None:
+            self.overlap.task.cancel()
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")
@@ -436,8 +507,24 @@ class Live:
         self.settings = Settings(silence_ms=args.silence_ms, start_ms=args.start_ms, preroll_ms=args.preroll_ms,
                                  floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s)
         self.prompt_file, self.decider_lock = args.prompt, threading.Lock()
-        self.active, self.turns = None, 0
+        self.active, self.turns, self.overlaps = None, 0, 0
+        self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
+
+    async def transcribe(self, pcm):
+        return await transcribe(self.url, pcm, Session)
+
+    def log_overlap(self, entry, pcm):
+        """One line per overlap in overlaps.jsonl; a dismissed overlap's audio is kept beside it, since no turn holds
+        it."""
+        self.overlaps += 1
+        entry["n"] = self.overlaps
+        if pcm is not None:
+            entry["audio"] = f"overlap_{self.overlaps:03d}.wav"
+            write_pcm16(self.out / entry["audio"], bytes(pcm), RATE)
+        with open(self.out / "overlaps.jsonl", "a", encoding="utf-8") as log:
+            log.write(json.dumps(entry) + "\n")
+        print(f"overlap {json.dumps(entry)}", flush=True)
 
     def render_lines(self):
         """Render the fixed lines in the server's own TTS voice before any client connects, so no turn pays for it."""
@@ -501,6 +588,9 @@ def main():
     parser.add_argument("--floor-dbfs", type=float, default=-50.0, help="a frame below this level is never speech")
     parser.add_argument("--margin-db", type=float, default=10.0, help="how far above the noise floor speech must be")
     parser.add_argument("--max-turn-s", type=float, default=30.0, help="end a turn that runs this long")
+    parser.add_argument("--confirm-ms", type=int, default=OverlapSettings.confirm_ms,
+                        help="voiced speech over a playing reply that stops it (default 600); shorter speech is "
+                             "transcribed and a backchannel, noise or echo leaves the reply playing")
     parser.add_argument("--call-max-turns", type=int, default=8,
                         help="a call's voice session is rebuilt from the call's text after this many turns (default 8)")
     parser.add_argument("--call-keep-turns", type=int, default=6,

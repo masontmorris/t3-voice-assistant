@@ -9,9 +9,11 @@ still interrupts it. `--no-echo-cancel` sends the raw microphone, which works wi
 behavior. The echo canceller models a 256 ms echo path by default; `--echo-tail-ms` raises it for a long delay.
 
 The server decides when a turn ends (about 0.7 s of silence). With --ptt, press Enter to start talking and Enter
-again to stop. Talking while a reply plays interrupts it: the server cancels the reply and this client drops the audio
-it buffered. --wav feeds clips in place of the microphone, which is how the Desktop loopback test runs, and echo
-cancellation is off for it unless `--echo-cancel` is given.
+again to stop. Talking while a reply plays turns it down at once; the server then either stops it, and this client
+drops the audio it buffered, or finds the speech was a backchannel such as "mm-hm" and turns it back up. --wav feeds
+clips in place of the microphone, which is how the Desktop loopback test runs, and echo cancellation is off for it
+unless `--echo-cancel` is given. Each clip after the first starts once the previous reply has finished playing, the
+way a person waits, unless --barge-in-ms sends it over the reply.
 
 The server address and the shared secret come from config.json and the `secret` file beside this script unless
 --server and --secret-file say otherwise. Each run records what this client sent and played, plus the metrics, the
@@ -49,6 +51,7 @@ HEADER = "X-Voice-Secret"
 RATE = 16_000
 FRAME_MS = 20
 FRAME_SAMPLES = RATE * FRAME_MS // 1000
+DUCK_GAIN = 0.35
 LOG_DIR = Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "live-client"
 
 
@@ -120,6 +123,7 @@ class Player:
         self.buffer, self.lock = bytearray(), threading.Lock()
         self.playing, self.reply_done = False, True
         self.first_play_t, self.underruns = None, 0
+        self.gain, self.on_drain = 1.0, None
 
     def open(self, rate):
         """Opening a stream takes a while on Windows, so open it before the first reply and again only if the rate
@@ -151,7 +155,21 @@ class Player:
     def flush(self):
         with self.lock:
             self.buffer.clear()
-            self.playing = False
+            self.playing, self.gain = False, 1.0
+        self._drained()
+
+    def duck(self, on):
+        """Turns the reply down while the server decides whether speech over it is a barge-in."""
+        with self.lock:
+            self.gain = DUCK_GAIN if on else 1.0
+
+    def idle(self):
+        with self.lock:
+            return self.reply_done and not self.buffer
+
+    def _drained(self):
+        if self.on_drain is not None:
+            self.on_drain()
 
     def _callback(self, outdata, frames, _time, _status):
         need = frames * 2
@@ -166,10 +184,15 @@ class Player:
             del self.buffer[:need]
             if len(chunk) < need and not self.reply_done:
                 self.underruns += 1
+            drained = bool(chunk) and not self.buffer
             if not self.buffer:
                 self.playing = False
-            rate = self.rate
+            rate, gain = self.rate, self.gain
+        if chunk and gain != 1.0:
+            chunk = (np.frombuffer(chunk, dtype="<i2") * gain).astype("<i2").tobytes()
         outdata[:] = chunk + b"\x00" * (need - len(chunk))
+        if drained:
+            self._drained()
         if chunk and self.canceller is not None:
             try:
                 self.canceller.playback(chunk, rate, now)
@@ -237,13 +260,13 @@ class Client:
         if self.echo is not None:
             print(f"echo cancellation on: {self.echo.tail_ms} ms echo path", flush=True)
         self.player = Player(output, args.prebuffer_ms, recorder=self.recorder, canceller=self.echo)
-        self.rtts, self.done_turns, self.latest_turn = [], 0, None
+        self.rtts, self.done_turns, self.latest_turn, self.barged_turn = [], 0, None, None
         self.clips_left = max(0, len(args.wav or []) - 1)
         self.next_clip = asyncio.Event()
         self.turn_end_rx, self.trailing_s, self.reply_first = None, 0.0, None
         self.reply_audio, self.reply_turn, self.reply_t0 = bytearray(), None, None
         self.log_file = open(self.log_dir / "client.jsonl", "a", encoding="utf-8")
-        self.finished = asyncio.Event()
+        self.finished, self.drained = asyncio.Event(), asyncio.Event()
 
     def log(self, kind, **detail):
         self.log_file.write(json.dumps({"t": round(time.time(), 3), "kind": kind, **detail}) + "\n")
@@ -282,6 +305,20 @@ class Client:
             print("talking..." if down else "sent.", flush=True)
             asyncio.run_coroutine_threadsafe(ws.send(json.dumps({"type": "ptt", "down": down})), loop)
 
+    async def after_playback(self, then):
+        """Runs `then` once every reply the server sent has played."""
+        while True:
+            self.drained.clear()
+            if self.player.idle():
+                break
+            await self.drained.wait()
+        then()
+
+    def advance(self):
+        """The previous clip is settled: the next clip, or the end of the run, once the reply has played."""
+        then = self.send_next_clip if self.clips_left else self.finished.set
+        asyncio.get_running_loop().create_task(self.after_playback(then))
+
     def save_reply(self):
         if self.reply_turn is None or not self.reply_audio:
             return
@@ -317,16 +354,29 @@ class Client:
             self.turn_end_rx = None
             self.log("reply_start", turn=message["turn"], rate=message["rate"], speech_end_to_first_audio_rx_s=e2e,
                      output_latency_s=round(self.player.stream.latency, 4))
-            if self.args.barge_in_ms is not None and self.clips_left:
+            if self.args.barge_in_ms is not None and self.clips_left and message["turn"] != self.barged_turn:
+                self.barged_turn = message["turn"]
                 asyncio.get_running_loop().call_later(self.args.barge_in_ms / 1000, self.send_next_clip)
         elif kind == "reply_end":
             self.player.end_reply()
+            if self.player.idle():
+                self.drained.set()
             self.save_reply()
             play_delay = None
             if self.player.first_play_t is not None:
                 play_delay = round(self.player.first_play_t - self.reply_first, 4)
             self.log("reply_end", turn=message["turn"], first_audio_to_playback_s=play_delay,
                      underruns=self.player.underruns, echo=self.echo_stats())
+        elif kind == "duck":
+            self.player.duck(True)
+            self.log("duck", **message)
+        elif kind == "unduck":
+            self.player.duck(False)
+            if message.get("verdict") != "turn":
+                print(f"[turn {message['turn']}] kept talking over a {message.get('verdict')}", flush=True)
+            self.log("unduck", **message)
+            if self.args.wav and message.get("verdict") != "turn":
+                self.advance()
         elif kind == "barge_in":
             self.player.flush()
             self.reply_audio.clear()
@@ -334,16 +384,16 @@ class Client:
             self.log("barge_in", **message)
         elif kind == "turn_done":
             self.done_turns += 1
-            print(f"[turn {message['turn']}] heard: {message.get('transcript')!r}", flush=True)
+            if message["metrics"].get("cancelled") == "continued":
+                print(f"[turn {message['turn']}] you kept talking: it continues in the next turn", flush=True)
+            else:
+                print(f"[turn {message['turn']}] heard: {message.get('transcript')!r}", flush=True)
             for text in message.get("replies") or []:
                 print(f"[turn {message['turn']}] said: {text!r}", flush=True)
             self.log("turn_done", **message, rtt_median_s=self.rtt_median())
             settled = message["turn"] == self.latest_turn and not message["metrics"].get("cancelled")
-            if self.args.wav and settled:
-                if self.clips_left:
-                    self.send_next_clip()
-                else:
-                    self.finished.set()
+            if self.args.wav and settled and (self.args.barge_in_ms is None or not self.clips_left):
+                self.advance()
 
     def send_next_clip(self):
         if self.clips_left:
@@ -385,6 +435,8 @@ class Client:
                 print(f"recording this session to {self.log_dir}", flush=True)
             secret = self.args.secret_file.read_text(encoding="utf-8").strip()
             frames = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+            self.player.on_drain = lambda: loop.call_soon_threadsafe(self.drained.set)
             self.player.open(self.args.output_rate)
             ws = await self.connect(secret)
             if self.args.wav:

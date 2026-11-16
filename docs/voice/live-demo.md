@@ -42,19 +42,17 @@ A split costs little when the second part starts before any reply audio. The ser
 
 ## Talking over the reply
 
-If speech starts while a turn has sent reply audio, the server stops sending that turn's audio. It does these things in order.
+The server knows how long the client will keep playing: each checked reply adds its audio's duration to a playback clock, starting from when it was sent or when the audio before it ends. The model streams a reply much faster than the client plays it (4.88 s of reply audio reached the client in 0.63 s, measured in an earlier loopback), so the clock follows the audio, not the turn's task. Speech is weighed against that clock. [barge-in.md](barge-in.md) has the evidence and the numbers.
 
-1. It marks the turn muted, so the sender drops the turn's audio frames that are still queued.
-2. It sends `barge_in` to the client. The client empties its playback buffer.
-3. It lets the turn finish. Its voice session is the call's, so nothing is torn down and the reply it had started stays in the conversation's history.
+Speech that starts while a reply is audible is an overlap, and the client ducks the reply at once. The overlap keeps every frame it hears until one of these verdicts.
 
-Speech that starts after a turn has finished still drops that turn's audio. The model streams a reply much faster than the client plays it. In the current-head loopback, 4.88 s of reply audio reached the client in 0.63 s (measured). So a turn is usually done while its audio is still playing, and waiting for the turn's task to finish before reacting would leave the old reply running over the new turn. A new turn now mutes the previous turn and sends `barge_in` even when that turn has finished, which clears the client's playback buffer (measured in the CPU test `test_speech_after_the_reply_stops_playback`).
+1. **Barge-in.** It reaches 600 ms of voiced audio (`--confirm-ms`), or it is shorter but its one-shot transcript is not a backchannel. The server marks the playing turn muted, so the sender drops its frames still queued, and sends `barge_in`; the client empties its playback buffer. The turn finishes on the call's shared session, so the reply it started stays in the history. The overlap's audio opens the next turn, so the words that interrupted are not lost.
+2. **Dismissed.** Its transcript is a backchannel ("okay", "mm-hm", "yeah, totally"), empty, or mostly the reply's own words coming back through speakers. The server sends `unduck` and the reply plays on. The overlap's audio and transcript go to `overlaps.jsonl` and `overlap_NNN.wav` in the record directory.
+3. **Turn.** The reply finishes playing first. The overlap becomes an ordinary turn and nothing is stopped.
 
-llama.cpp has no `response.cancel` (measured: a string search of the server DLL). Before this change a turn was cut off by closing its voice session, which also threw the call's history away. Now the reply is left to finish on the shared session and only its audio is dropped, so the next turn still knows what was said.
+Speech that starts after the reply has played starts a turn at once and sends nothing to the client. A turn that has spoken and is still running, such as one waiting for a task update, is muted then, and its update reply is generated but not sent.
 
-A turn that is waiting for a task update when speech starts is muted the same way, and its update reply is generated but not sent.
-
-In the earlier head's loopback, barge-in reached the client 125 ms after the reply's first audio, with the client sending speech at once (measured, turn 3 of that record). That is the 100 ms start window, up to one 20 ms frame, and the socket trip.
+llama.cpp has no `response.cancel` (measured: a string search of the server DLL). Before the shared session a turn was cut off by closing its voice session, which also threw the call's history away. Now the reply is left to finish on the shared session and only its audio is dropped, so the next turn still knows what was said.
 
 ## Memory across a call
 
@@ -76,7 +74,7 @@ python -m voice.live.script --turns turns.txt --out clips --server http://127.0.
   --secret-file "$VOICE_HOME/live/secret" --wav clips/turn_*.wav --log-dir "$VOICE_HOME/evidence/live/<run>/client"
 ```
 
-`--barge-in-ms 300` sends the next clip 300 ms into a reply, which barges in on it, so one run can show both.
+Each clip after the first starts once the previous reply has played, the way a person waits. `--barge-in-ms 1500` sends the next clip 1.5 s into a reply instead, so it overlaps the reply and the gate decides.
 
 **Checked, 2026-11-16.** The model's own TTS rendered five turns and a second three-turn set, and the real client played them as two calls over loopback, in an ordinary `voice-live-memory` lease under `quiet_run`, with no priority and no `--priority` (measured). Mason's `prompt.txt` was in place and the records name it (`sha256:02700e254b8f`, measured). The five-turn call kept one voice session for all five turns: turn 1 records `voice_session: started`, turns 2 to 5 record `shared`, and every turn records `voice_sessions: 1` (measured, from the turn records). Asked "And what about Saturday?" after "What's the weather in Denver tomorrow?", the reply was "I'm running the request to get the weather in Denver for Saturday", so the city and the follow-up both carried (measured, turn 2).
 
