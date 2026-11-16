@@ -272,7 +272,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             for _ in batch:
                 updates_q.task_done()
 
-    voice = await Session.open(url, "voice", clock)
+    voice = await Session.open(url, "voice", clock, on_event=on_voice_event)
     asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
     def partial_close(update):
         return segmenter.close(update, settle=False)
