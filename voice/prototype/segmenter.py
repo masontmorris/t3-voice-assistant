@@ -16,8 +16,8 @@ from voice.segmentation.spans import clause_segments
 from voice.segmentation.tasks import Orchestrator
 
 # The prototype's ledger held 80 attempts when the end-of-utterance handoff round began, and that round used 97. The
-# task gate round adds its own 150.
-DECIDER_BUDGET = 177 + 150
+# task gate round used 113 of its 150. The update backlog round adds its own 100.
+DECIDER_BUDGET = 290 + 100
 MAX_429_SHARE = 0.2
 
 
