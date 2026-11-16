@@ -10,7 +10,7 @@ The design is fixed now, not tuned to Mason's recordings. The only bar in the co
 
 `Orchestrator.delegate_from_voice` now links a voice delegate to every live task whose content words it covers at 60%, when the side-effect claim does not contradict that task. A delegate that covers no task still becomes one new task, as before.
 
-The recorded cause it targets is a whole-utterance re-delegation. LFM3-Audio-2B often repeats the whole utterance instead of running the tasks in the snapshot (PR #12, recorded on `05_topic_change`, `09_run_on`, and `long`). The old rule linked a delegate to at most one task, and any tail word the task lacked forced a new combined task. On `05_topic_change` that new task stood in for both requests, and the milk task stayed pending. On `long` the combined task replaced the five tasks LFM3 could have run.
+The recorded cause it targets is a whole-utterance re-delegation. LFM3-Audio-2B often repeats the whole utterance instead of running the tasks in the snapshot (PR #12, recorded on `05_topic_change`, `09_run_on`, and `long`). The old rule linked a delegate to at most one task, and any tail word the task lacked forced a new combined task. On `05_topic_change` that new task stood in for both requests, and the milk task stayed pending. On `long` the combined task became the only task the delegate touched, while the five tasks in the snapshot stayed as they were.
 
 Two rules are unchanged. "delete the report" still never links to "find the report", because it shares one of the task's two content words. A read-only claim about a side-effect task still links and keeps the hold; it no longer runs the task even when `run_linked` is set, which the old code allowed.
 
@@ -37,7 +37,7 @@ python -m unittest discover -s voice/segmentation/tests -t .
 python -m unittest discover -s voice/prototype/tests -t .
 ```
 
-94 tests and 44 tests. The new cases cover a delegate that links to two tasks and runs both, a delegate that covers one task and makes the tail task, a delegate that covers nothing and makes one task, a read-only claim that leaves a side-effect task held, a task left for clarification and a task waiting on its dependency, the delete-versus-find refusal, amend of a withdrawn task, amend of a superseded task through its successor, and both snapshot cases (a corrected task and a task taken back, each listed as `cancelled` beside the live one). A mutation that drops the tail task and a mutation that links only one task each fail the suite (checked).
+96 tests and 44 tests. The new cases cover a delegate that links to two tasks and runs both, a delegate that covers one task and makes the tail task, a delegate that covers nothing and makes one task, a read-only claim that leaves a side-effect task held, a task left for clarification and a task waiting on its dependency, the delete-versus-find refusal, amend of a withdrawn task, amend of a superseded task through its successor, and both snapshot cases (a corrected task and a task taken back, each listed as `cancelled` beside the live one). Mutations that drop the tail task, link only one task, lower the overlap bar, or drop the side-effect guard each fail the suite (checked).
 
 ## What the runs must show
 
@@ -68,7 +68,7 @@ python -m voice.prototype.run CLIPS... --eou gated --fresh --out "$VOICE_HOME/ev
 python -m voice.prototype.eou_report before="$VOICE_HOME/evidence/eou/r2-gated" fix="$VOICE_HOME/evidence/eou/fix-r1" decider="$VOICE_HOME/evidence/eou/r2-decider"
 ```
 
-CLIPS is `$VOICE_HOME/audio/real/01_single.wav` through `10_noisy.wav`, then the four synthetic clips above. The budget is the existing `DECIDER_BUDGET`, which holds 390 attempts and 323 used after the backlog round; this round's 14 clips cost 33 decider attempts in the gated arm (measured).
+CLIPS is `$VOICE_HOME/audio/real/01_single.wav` through `10_noisy.wav`, then the four synthetic clips above. The budget is the existing `DECIDER_BUDGET`, which holds 390 attempts and 323 used after the backlog round; the backlog round's 14 clips cost 33 decider attempts in the gated arm (measured).
 
 ## Limits
 
