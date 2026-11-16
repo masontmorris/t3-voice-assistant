@@ -15,10 +15,11 @@ from voice.prototype import run as prototype
 from voice.prototype.run import normalised
 from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.tasks import MockTaskService, Run, amended
-from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession
+from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source
 from voice.segmentation.hybrid import HybridSegmenter
 
 DEMO = ("What's the weather in Denver tomorrow?", "And what about Saturday?")
+ASK_PCM = b"\x02\x00" * 480
 
 
 class DemoSession(FakeSession):
@@ -68,21 +69,24 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
         prototype.Session.open = open_session
         self.addCleanup(setattr, prototype.Session, "open", original)
 
-    async def call(self, *said):
+    async def call(self, *said, ask_pcm=ASK_PCM):
         """One call on one voice session, carrying what the live server carries from turn to turn."""
         self.voice = await DemoSession.open("ws://unused", "voice", lambda: CLOCK)
-        records, carried, items = [], [], []
+        records, carried, items, self.spoken, self.asked = [], [], [], [], []
         for n, words in enumerate(said, 1):
             DemoSession.heard = words
-            mark = len(self.voice.sent)
+            mark, spoken = len(self.voice.sent), []
             record = await prototype.run_clip(
                 Turn(n), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
-                voice=self.voice, snapshot_mode="reply-no-utterance",
+                voice=self.voice, snapshot_mode="reply-no-utterance", ask_pcm=ask_pcm,
+                speak=lambda text, pcm: spoken.append((text, len(pcm))),
                 prior_utterances=tuple(r["final_transcript"] for r in records), prior_tasks=tuple(carried))
             carried += prototype.carried_tasks(record)
             records.append(record)
             items.append([e["item"]["content"][0]["text"] for e in self.voice.sent[mark:]
                           if e.get("type") == "conversation.item.create"])
+            self.spoken.append(spoken)
+            self.asked.append(sum(e.get("type") == "response.create" for e in self.voice.sent[mark:]))
         self.carried = carried
         return records, items
 
@@ -104,6 +108,20 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
         self.assert_no_item_holds("That's not what I meant.", items[2])
         self.assertEqual(len(self.carried), 2, "the call's task list gains nothing from the correction")
 
+    async def test_a_bare_correction_speaks_the_fixed_line(self):
+        records, _ = await self.call(*DEMO, "That's not what I meant.")
+        self.assertEqual(self.asked[2], 0, "the voice model composes nothing on this turn")
+        self.assertEqual(self.spoken[2], [(prototype.ASK_INSTEAD_LINE, len(ASK_PCM))], "the rendered line is played")
+        self.assertEqual([r["text"] for r in records[2]["replies"]], [prototype.ASK_INSTEAD_LINE])
+        self.assertTrue(records[2]["replies"][0]["fixed"], "the record says the line was fixed, not composed")
+
+    async def test_without_a_clip_the_fixed_line_is_silent(self):
+        records, _ = await self.call(*DEMO, "That's not what I meant.", ask_pcm=b"")
+        self.assertEqual(self.asked[2], 0, "no other voice and no composed reply stands in for the clip")
+        self.assertEqual(self.spoken[2], [], "nothing is played")
+        self.assertEqual([r["text"] for r in records[2]["replies"]], [prototype.ASK_INSTEAD_LINE],
+                         "the record still says which line the turn meant")
+
     async def test_correction_with_a_value_amends_the_rejected_task(self):
         records, items = await self.call(*DEMO, "No, Sunday.")
         third = records[2]
@@ -117,6 +135,53 @@ class CorrectionTest(unittest.IsolatedAsyncioTestCase):
         self.assert_no_item_holds("No, Sunday.", items[2])
         self.assertEqual([t["instruction"] for t in self.carried][-1], "And what about Sunday?",
                          "a later correction amends the amended task")
+
+
+class ThirdPersonTest(unittest.IsolatedAsyncioTestCase):
+    """A reply that talks about the person instead of to them is refused, asked again once, then replaced."""
+
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        original = prototype.Session.open
+
+        async def open_session(url, name, clock, on_event=None):
+            if name == "voice":
+                return self.voice
+            return await FakeSession.open(url, name, clock, on_event)
+
+        prototype.Session.open = open_session
+        self.addCleanup(setattr, prototype.Session, "open", original)
+        self.voice = await Scripted.open("ws://unused", "voice", lambda: CLOCK)
+        self.spoken = []
+
+    async def turn(self, script):
+        self.voice.script, self.voice.asked = list(script), 0
+        return await prototype.run_clip(
+            Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
+            voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480,
+            speak=lambda text, pcm: self.spoken.append(text))
+
+    async def test_the_user_is_refused_and_asked_again(self):
+        record = await self.turn(["The user wants the weather in Denver.", "I'm checking the weather in Denver."])
+        self.assertEqual(self.voice.asked, 2, "the third-person reply, and the one re-ask")
+        self.assertEqual(self.spoken, ["I'm checking the weather in Denver."])
+        check = next(e for e in record["timeline"] if e["kind"] == "fact_check")
+        self.assertEqual(check["third_person"], ["the user"])
+
+    async def test_the_person_is_refused_and_a_second_one_gets_the_fixed_line(self):
+        record = await self.turn(["The person asked for the weather in Denver.",
+                                  "The person wants to know about Denver."])
+        self.assertEqual(self.voice.asked, 2)
+        self.assertEqual(self.spoken, [prototype.FALLBACK_LINE], "neither third-person reply is spoken")
+        self.assertEqual(record["replies"][0]["blocked"]["third_person"], ["the person"])
+
+    async def test_a_reply_to_the_person_passes(self):
+        record = await self.turn(["I'm checking the weather in Denver for you."])
+        self.assertEqual(self.voice.asked, 1)
+        self.assertEqual(self.spoken, ["I'm checking the weather in Denver for you."])
+        self.assertEqual([e for e in record["timeline"] if e["kind"] == "fact_check"], [])
 
 
 class ServiceTest(unittest.TestCase):

@@ -149,6 +149,7 @@ FACT_CHECK_REJECTED = {
 # What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
 # no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
 FALLBACK_LINE = "Sorry, I can't confirm that right now."
+ASK_INSTEAD_LINE = "Sorry about that. What did you want instead?"
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -329,7 +330,7 @@ class WavInput:
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
-                   fallback_pcm=b"", prior_tasks=()):
+                   fallback_pcm=b"", prior_tasks=(), ask_pcm=b""):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
