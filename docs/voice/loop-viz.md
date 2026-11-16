@@ -45,3 +45,4 @@ Edits of real runs quote real speech, so they live under `$VOICE_HOME/viz/edits/
 - `npx tsc --noEmit` passes.
 - The synthetic `LoopReplay` render is 25.7 s at 1920x1080, H.264 with AAC (measured with `ffprobe`). Its soundtrack sits 0.1 ms from `conversation.wav` at 2, 8, 14 and 21.5 s, by cross-correlation of the decoded MP4 audio (measured).
 - Frames are drawn at 30 fps, so an event shows up to 33 ms after its timestamp. That is longer than the archive's 20 ms alignment. A lag that size is unlikely to be visible (guess).
+- Five renders exist under `$VOICE_HOME/viz/renders/`, outside git (measured with `ffprobe`): the synthetic replay (25.7 s), the synthetic edit (31.5 s), the Desktop loopback replay (43.1 s), Mason's demo replay (91.7 s) and an edit of the demo (72.1 s).
