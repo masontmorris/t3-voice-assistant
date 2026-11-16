@@ -1,16 +1,18 @@
 # Prompt pre-writing: drafts that are ready at dispatch
 
-Measured on 2026-11-16 from committed decider responses and from the live timeline of the hybrid's prototype run on Mason's ten clips. No author model has run yet. Each claim says whether it is measured, inferred, or a guess.
+Measured on 2026-11-16 from committed decider responses, from 32 live calls to DeepSeek V4.1 Flash through Command Code on the synthetic scenarios, and from the live timeline of the hybrid's prototype run on Mason's ten clips. Each claim says whether it is measured, inferred, or a guess.
 
-`voice/delegation/` drafts the prompt that each task's frontier agent will receive while the user is still speaking. The hybrid segmenter's per-segment completion answer starts the draft. The design works offline against hand-written fixtures, and 20 tests pass (measured). No Flint call has run. Mason moved the author from OpenRouter to his opencode Go subscription, and the route is not settled, so draft latency and draft quality are still unmeasured.
+`voice/delegation/` drafts the prompt that each task's frontier agent will receive while the user is still speaking. The hybrid segmenter's per-segment completion answer starts the draft.
 
-The replay already gives the time budget that a draft has to fit in. On Mason's clips, 4 of the 9 dispatched tasks completed only at the decision point that dispatched them, so no author can get ahead of those 4. The other 5 completed 0.67 s to 2.49 s before dispatch (measured). An author that answers in under 0.67 s covers all 5. An author that takes 1 s covers 1 of the 5 (measured with a stand-in author at fixed latencies).
+On default reasoning the author is too slow to get ahead of dispatch. Its median answer took 7.0 s and its p95 took 12.0 s (measured, n=31). On Mason's clips, the 5 tasks that complete before their dispatch point do so 0.67 s to 2.49 s early (measured). So at the author's median latency, none of the 9 dispatched clip tasks would go out with its draft (measured with the stand-in author at 7.0 s). The drafts themselves are mostly faithful: 26 of 31 ask for exactly what the span asks (hand-checked). The other 5 fold a neighboring request's read-only work into the task. None adds an outside action.
 
 ## Recommendation
 
-- Measure Flint's latency on the opencode route before you tune anything else. On the clips, the gap from a task's first completion to its dispatch has a median of 0.67 s (n=9, measured). Unless Flint's median is under about 0.7 s, most drafts land after their task has gone out (inferred from the latency sweep below).
-- Dispatch with the raw span when the draft is not ready, and do not wait. Holding a task for its draft adds the author's latency to every task that completes at its dispatch point, and that is 4 of 9 tasks on the clips and 22 of 44 on the scenarios (measured).
-- Keep drafting tied to the completion answer. It started 0.83 to 1.64 drafts per utterance on the scenarios and 0.7 on the clips (measured). That leaves the 150-call budget room for every replay plus repeats.
+- Do not hold dispatch for a draft on default reasoning. Holding would add about 6.3 s to every clip task (median, measured at 7.0 s latency). Send the raw span when no current draft exists. `Prewriter.dispatch` already does that.
+- Ask Mason whether a faster setting is acceptable. Command Code also lists `deepseek/deepseek-v4.1-flash-fast` and `deepseek/deepseek-v4.1-flash-ultrafast` (measured, model list). An answer under about 0.7 s would cover all 5 clip tasks that complete early (measured with the stand-in). Whether either variant is that fast is untested. Default reasoning spent a median of 769 reasoning tokens per answer (measured), so a setting with less reasoning is the likely lever (inferred).
+- Keep drafts where a task waits anyway. A task held on a dependency waits for another task's result, so a 7 s draft can still be ready when it is released (inferred, not measured, because the mock service's task times are not real).
+- Change the author prompt before the next pass. Tell it not to restate other requests and not to write prohibitions. 5 of 31 drafts restated a neighbor's request, and most of the drafts that `check` rejected were rejected for prohibitions such as "Do not book or purchase any flights" (measured).
+- Do not treat the action check as a safety gate yet. In this sample, no draft added an outside action, the check caught 2 of the 5 scope additions for an unrelated reason, and it rejected 6 of the 26 faithful drafts (measured, after the negation fix described below).
 
 ## How drafting works
 
@@ -19,7 +21,7 @@ The replay already gives the time budget that a draft has to fit in. On Mason's 
 `voice/delegation/draft.py` owns the shape.
 
 - `DraftInput` is everything the author sees for one task: the task id, the instruction, the dependency ids, the side-effect flag, and the utterance so far as context. Two inputs are equal when the instruction's lowercased words, the dependencies, and the side-effect flag are equal. Casing and punctuation do not count, because the final transcript re-cases and re-punctuates the partials ("email dana that" becomes "Email Dana that"). An earlier version compared the raw text. It refused 11 of the 12 held-out drafts that were ready before dispatch, for that reason alone (measured).
-- `Draft` is the author's structured answer: `instruction`, `context`, `constraints`, `success_criteria`, and `open_questions`. `DRAFT_SCHEMA` is the JSON schema that goes in `response_format`.
+- `Draft` is the author's structured answer: `instruction`, `context`, `constraints`, `success_criteria`, and `open_questions`. `DRAFT_SCHEMA` goes in `response_format` under the name `prompt_draft`.
 - `PromptDraft` is the newest draft for one task. It holds the input it came from and a status: `drafting`, `current`, `stale`, or `rejected`.
 - `Prewriter` keeps the drafts for one utterance. It allows at most one draft request in flight per task. If the task's input changes while a request is in flight, the newest input waits and goes out when the first reply lands.
 
@@ -33,35 +35,76 @@ A task's first completion starts its draft. After that, `Prewriter.observe` redr
 
 The draft is untrusted model output. Deterministic code reads it at two points.
 
-1. `parse_draft` requires every field, and at least one success criterion. Anything else makes the draft `rejected`.
-2. `check` rejects a draft that names an outside action the span does not name. The actions come in families: message, purchase, booking, removal, publish, and call. A draft may say "send Dana a message" for "email Dana", but a draft for "look up the weather" that says "email the forecast" is rejected. `check` also rejects a `{{task_N.result}}` placeholder for a task that the record does not depend on.
+1. `parse_draft` requires every field, and at least one success criterion. It also accepts the object nested under `prompt_draft` as its only key. Command Code did not enforce the strict schema, and 7 of 31 answers came back nested that way (measured).
+2. `check` rejects a draft that names an outside action the span does not name. The actions come in families: message, purchase, booking, removal, publish, and call. A draft may say "send Dana a message" for "email Dana". A sentence that forbids or sets something aside, such as "Do not book any flights", is skipped, because it names no action to take. `check` also rejects a `{{task_N.result}}` placeholder for a task that the record does not depend on.
 
 `render` builds the prompt the agent receives. The dependency placeholders and the side-effect confirmation come from the task record, never from the draft. A draft that says "no need to confirm" still gets the confirmation line on a side-effect task. So the draft cannot change the side-effect flag, the dependencies, or when the task dispatches.
 
 ### At dispatch
 
-`Prewriter.dispatch` sends the rendered draft when the draft is `current` and its input equals the task record. Otherwise it sends the raw instruction, with the same dependency and confirmation lines, and gives the reason: `no draft started`, `still drafting`, `stale`, or `rejected`. A side-effect task gets its draft while the hybrid holds it for the final transcript. The test `test_a_held_side_effect_task_gets_its_draft_before_the_final_and_dispatches_with_it` shows the email task dispatching with its draft on the final transcript.
+`Prewriter.dispatch` sends the rendered draft when the draft is `current` and its input equals the task record. Otherwise it sends the raw instruction, with the same dependency and confirmation lines, and gives the reason: `no draft started`, `still drafting`, `stale`, or `rejected`. A side-effect task gets its draft while the hybrid holds it for the final transcript.
 
 ### The author
 
-`voice/delegation/author.py` keeps the provider behind a `Transport`. A transport has a `model`, an `assert_free` method, and a `send` method that returns an `AuthorReply`. `author_request` builds a provider-neutral request from a `DraftInput`. `CachedAuthor` wraps any transport with the rules the brief sets.
+`voice/delegation/author.py` keeps the provider behind a `Transport`, which has a `model` and a `send` method that returns an `AuthorReply`. `author_request` builds a provider-neutral request from a `DraftInput`. `CachedAuthor` wraps any transport.
 
 - A response cache that never re-requests. Failed replies are not cached.
-- An attempt budget, 150 by default.
+- An attempt budget of 150.
 - One request in flight, and the decider's adaptive pacer on 429.
 - A stop when more than 20% of attempts draw a 429, after at least 5 attempts.
-- A stop on any nonzero cost.
-- `assert_free` runs before every attempt. The transport owns that check, because the free id's form depends on the provider.
+- A stop on HTTP 402, or on any error that mentions a usage limit, a quota, billing, credit, payment, or the subscription.
 
-No transport ships in this change. The opencode adapter is one class with `model`, `assert_free`, and `send`, and nothing else in the module changes when it lands (inferred from the interface).
+`voice/delegation/commandcode.py` is the Command Code transport. It posts to `https://api.commandcode.ai/provider/v1/chat/completions` with the model `deepseek/deepseek-v4.1-flash`. It reads the key at each send from the file that `VOICE_AUTHOR_KEY_FILE` names, and puts it only in the Authorization header. The body it sends has exactly five keys: `model`, `max_tokens`, `temperature`, `messages`, and `response_format` (measured, from the `sent` field of every cache record). It carries no reasoning parameter, so the model runs on its default reasoning. A test pins that key set.
 
-## What the replay measured
+`max_tokens` is 4096. The first call used 600, and default reasoning spent 539 of them before the answer, so the reply came back cut off with no draft (measured, one call).
 
-`python -m voice.delegation.replay` drives a fresh hybrid from the decider cache, with no live call, and attaches a `Prewriter`. The author is a stand-in that returns a valid draft of the instruction after a fixed latency. So these numbers measure timing and staleness, not draft quality.
+## The model
 
-### Mason's ten clips
+Command Code lists 100 models. The only V4.1 Flash id at default speed is `deepseek/deepseek-v4.1-flash`, named "DeepSeek V4.1 Flash (latest)" (measured, 2026-11-16). Every reply named that id as its model and had an empty `system_fingerprint` (measured, 31 of 31). So the API does not say whether it serves the 1017 build. Hugging Face has both `deepseek-ai/DeepSeek-V4.1-Flash-1017`, created 2026-10-17, and `deepseek-ai/DeepSeek-V4.1-Flash`. Whether "latest" means 1017 is a guess until Command Code says so.
 
-The clip replay uses the as-run updates from the hybrid's prototype run (`$VOICE_HOME/evidence/hybrid/run-h-c`). It reproduced that run's task records and dispatch logs on all 10 clips (measured). Each decision point happens at the second it finished in the live run.
+## Live drafts on the scenarios
+
+`python -m voice.delegation.replay scenarios --author commandcode` drives the hybrid from the decider cache and sends each draft request to Command Code. Only synthetic scenario text went to Command Code. `voice/delegation/results/scenarios-commandcode.json` holds every landed draft with its request status, latency, token usage, and response metadata. `voice/delegation/cache/` holds the raw records.
+
+### Latency
+
+| Measurement | Value |
+| --- | --- |
+| Answers | 31, all HTTP 200, all `finish_reason` `stop` |
+| Median latency | 7.0 s |
+| p95 latency (nearest rank) | 12.0 s |
+| Range | 2.4 s to 14.8 s |
+| Reasoning tokens per answer | median 769, maximum 1,991 |
+
+The replay ran one request at a time. Latency was not the replay's clock, so these are request times, not readiness.
+
+### Quality, hand-checked
+
+I read all 31 drafts against their spans.
+
+- 26 ask for exactly what the span asks. Several resolve the span well: "look up the height of mount elbert (corrected: actually mount massive)" became "Look up the height of Mount Massive", and "and then summarize it" with a dependency became a summary of `{{task_1.result}}`.
+- 5 fold a neighboring request into the task. In `08_delegate_after_dispatch`, "find the q3 budget spreadsheet" became "Find the Q3 budget spreadsheet and tell the user", and two drafts for "and tell me" also re-found the spreadsheet. In `05_correction_after_dispatch`, "and check hotel" became "Find flights to Austin on Friday and check hotel". In `post_and_read`, "and post the message gallery opens soon" also found the gallery's opening date. Each one adds read-only work that another task already does.
+- None adds an outside action. The two side-effect drafts that matter most, the email to Dana and the deletion of "april", stay on their spans and ask for confirmation.
+- The drafts lean on `open_questions`. 29 of 31 ask 2 to 7 questions (measured), such as "Which Friday (specific date)?" The agent will see these as questions to ask, which may slow it on tasks a person would just do (guess).
+
+### What the checks did
+
+`parse_draft` read all 31 answers (measured). `check` rejected 11 before the negation fix: 3 of the 5 scope additions and 8 of the 26 faithful drafts (measured). After the fix it rejects 8: 2 scope additions and 6 faithful drafts (measured). I chose the fix from these same drafts, so its numbers are not a held-out result. The remaining false rejections come from drafts that quote another request in `context` ("The email request is not part of this task") or ask about it in `open_questions` (measured).
+
+### Readiness on the scenario clock
+
+With live answers and decision point i at time i, a draft that lands before the next point is ready.
+
+| Set | Dispatched | With a draft | No draft started | Rejected | Stale |
+| --- | --- | --- | --- | --- | --- |
+| Original | 18 | 6 | 8 | 3 | 1 |
+| Held-out | 26 | 9 | 14 | 3 | 0 |
+
+This table assumes each draft lands within one decision point. At 7.0 s per answer it would not, so the scenario readiness here is an upper bound (inferred).
+
+## The time a draft has on Mason's clips
+
+The clip replay uses the as-run updates from the hybrid's prototype run (`$VOICE_HOME/evidence/hybrid/run-h-c`). It reproduced that run's task records and dispatch logs on all 10 clips (measured). Each decision point happens at the second it finished in the live run. The author is the stand-in at fixed latencies, because Mason's transcripts go to no service but the free decider.
 
 | Clip | Task | Dispatched on | First completion to dispatch, s | First completion to final transcript, s |
 | --- | --- | --- | --- | --- |
@@ -75,32 +118,19 @@ The clip replay uses the as-run updates from the hybrid's prototype run (`$VOICE
 | 09_run_on | task_1 | final | 0.67 | 0.67 |
 | 09_run_on | task_2 | final | 0.00 | 0.00 |
 
-Clips 06, 07, and 10 dispatched no task. The 4 tasks at 0.00 are the last request of their utterance. The hybrid's completion answer for those requests first said yes on the final transcript, at the same point that dispatched them (measured).
+Clips 06, 07, and 10 dispatched no task. The 4 tasks at 0.00 are the last request of their utterance. The hybrid's completion answer for those first said yes on the final transcript, at the same point that dispatched them (measured).
 
-| Stand-in latency, s | Dispatched with a draft | Raw, no draft started | Raw, still drafting | Median added wait if dispatch held for the draft, s |
+| Author latency, s | Dispatched with a draft | Raw, no draft started | Raw, still drafting | Median added wait if dispatch held for the draft, s |
 | --- | --- | --- | --- | --- |
 | 0.25 | 5 of 9 | 4 | 0 | 0.00 |
 | 0.5 | 5 of 9 | 4 | 0 | 0.00 |
 | 1 | 1 of 9 | 4 | 4 | 0.33 |
 | 2 | 1 of 9 | 4 | 4 | 1.33 |
 | 4 | 0 of 9 | 4 | 5 | 3.33 |
+| 7.0 (measured median) | 0 of 9 | 4 | 5 | 6.33 |
+| 12.0 (measured p95) | 0 of 9 | 4 | 5 | 11.33 |
 
-The clips started 7 drafts, for 7 tasks, with no redrafts (measured). The 2 drafted tasks that did not dispatch, in clips 02 and 03, wait on `task_1`'s result. Their drafts are ready when that result arrives (measured, both `ready` with a dependency at the end of the utterance).
-
-These are 10 clips, one run each. The 0.67 s floor among the 5 drafted tasks is a single clip, so a different speaker or pace could move it (inferred).
-
-### The scenario sets
-
-Scenarios have no clock, so the replay puts decision point i at time i and uses a latency of 0.5. A draft is then ready when its task completed at an earlier decision point than the one that dispatched it.
-
-| Set | Utterances | Dispatched | With a draft | No draft started | Stale | Drafts requested | Per utterance | Redrafts |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Original | 11 | 18 | 8 | 8 | 2 | 18 | 1.64 | 6 |
-| Held-out | 18 | 26 | 12 | 14 | 0 | 15 | 0.83 | 0 |
-
-Both stale drafts were real changes to what was asked (measured). In `01_two_independent`, the hybrid answered `finished` yes on "look up how long the drive" one revision before "from boulder takes" arrived. The record changed again only at the final point, which also dispatched it. In `10_side_effect_email`, ASR turned "check if room four b is free" into "room 4B". The first is a premature completion answer, and the second is a word change that the normalization correctly treats as new input.
-
-`voice/delegation/results/scenarios-standin.json` holds the per-task rows.
+The clips started 7 drafts for 7 tasks, with no redrafts (measured). The 2 drafted tasks that did not dispatch, in clips 02 and 03, wait on `task_1`'s result (measured). These are 10 clips with one run each, so a different speaker or pace could move the 0.67 s floor (inferred).
 
 ## Where it plugs into the prototype
 
@@ -109,17 +139,13 @@ This change does not touch `voice/prototype/`. Two hooks would connect it, both 
 1. In `segment_worker`, after `segmenter.update` returns an applied point, call `Prewriter.observe(point, segmenter.orch.tasks, update.text)`. Send each returned input to the author on a worker thread, and call `Prewriter.land` with the reply.
 2. Where `MockTaskService.sync` starts a dispatched task, take the prompt from `Prewriter.dispatch(task)` instead of the bare instruction.
 
-## Not measured yet
-
-These need the author route.
-
-- Draft latency, median and p95, on the opencode route.
-- Draft quality on a hand-checked sample: does the draft ask for exactly what the user asked, with nothing added and nothing dropped.
-- How often real drafts fail `parse_draft` or `check`. The action families may reject a good draft that mentions an action in a negative way, such as "do not send anything" (guess). A rejected draft falls back to the raw span, so that failure costs quality, not safety.
-- Readiness with the real latency, on the scenarios and the clips.
-
-The live run needs about 40 distinct requests for one pass over the 29 scenarios and 10 clips (measured from the stand-in counts: 18 + 15 + 7). That leaves room in the 150-call budget for one repeat pass and a quality sample.
-
 ## Calls and cost
 
-No Flint call ran, through OpenRouter or any other route (measured, no author ledger exists). The replays made no decider call either. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
+This branch made 32 calls to Command Code, all HTTP 200, with no 429, no 402, and no limit message (measured, `voice/delegation/cache/calls.jsonl`). One was the 600-token test call, and 31 were scenario drafts. That is 32 of the 150-call cap. No Flint call ran, through OpenRouter or any route. The replays made no decider call. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
+
+## Limits
+
+- Each draft request ran once. Latency on a different hour or a longer session is untested.
+- The quality check is one reader's judgment on 31 drafts.
+- The negation fix to `check` was chosen on the same 31 drafts it is scored on.
+- No draft ran on Mason's clips, so draft quality on real speech is unmeasured.

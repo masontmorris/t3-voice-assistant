@@ -1,13 +1,14 @@
 """Replay recorded hybrid runs with a Prewriter attached, from the decider cache only.
 
-    python -m voice.delegation.replay scenarios [--latency 0.5] --out FILE
+    python -m voice.delegation.replay scenarios [--author stand-in|commandcode] [--latency 0.5] --out FILE
     python -m voice.delegation.replay clips RUN_DIR [--latency 0.5 1 2] --out DIR
 
-The author is a stand-in that returns a valid draft of the instruction after a fixed latency, so the replay
-measures timing and staleness, not draft quality. Scenarios have no clock, so decision point i happens at time i,
-and a latency below 1 means a draft lands before the next point. Clip records carry the live run's timeline, so a
-clip's decision points happen at the seconds they finished in that run. Clip output holds transcripts, so --out
-must be outside the repo there. The printed table holds numbers only.
+The stand-in author returns a valid draft of the instruction, so it measures timing and staleness, not quality.
+`--author commandcode` sends each scenario draft request to Command Code through `CachedAuthor`, with the key file
+named by VOICE_AUTHOR_KEY_FILE, and keeps every landed draft for review. Clips always use the stand-in, because
+Mason's transcripts go to no service but the free decider. Scenarios have no clock, so decision point i happens at
+time i, and a latency below 1 means a draft lands before the next point. A clip's decision points happen at the
+seconds they finished in the live run. Clip output holds transcripts, so --out must be outside the repo there.
 """
 
 import argparse
@@ -16,12 +17,16 @@ import json
 import statistics
 from pathlib import Path
 
-from voice.delegation.draft import Prewriter
+from dataclasses import asdict
+
+from voice.delegation.author import CachedAuthor, author_request
+from voice.delegation.draft import Prewriter, parse_draft, unwrap
 from voice.segmentation.contract import TranscriptUpdate
 from voice.segmentation.hybrid import HybridSegmenter
 from voice.segmentation.run import OfflineClient
 
 ROOT = Path(__file__).resolve().parents[1]
+CACHE = Path(__file__).resolve().parent / "cache"
 SCENARIO_DIRS = {"original": ROOT / "segmentation" / "scenarios", "heldout": ROOT / "segmentation" / "scenarios_heldout"}
 
 
@@ -30,8 +35,11 @@ def stand_in(source):
             "success_criteria": ["The request above is done."], "open_questions": []}
 
 
-def simulate(steps, label, latency):
-    """Run (time, event) steps through a hybrid and a Prewriter. Returns one row per dispatched task."""
+def simulate(steps, label, latency, author=stand_in):
+    """Run (time, event) steps through a hybrid and a Prewriter. Returns one row per dispatched task.
+
+    `author` maps a DraftInput to the author's JSON answer. Each answer lands `latency` after its request.
+    """
     seg, pre = HybridSegmenter(OfflineClient(), label), Prewriter()
     pending, order, first_done, final_t = [], 0, {}, None
     rows = []
@@ -45,7 +53,7 @@ def simulate(steps, label, latency):
     def land_until(now):
         while pending and pending[0][0] <= now:
             _, _, source = heapq.heappop(pending)
-            send(pre.land(source, stand_in(source), seg.orch.tasks[source.task_id]), now)
+            send(pre.land(source, author(source), seg.orch.tasks[source.task_id]), now)
 
     for now, event in steps:
         land_until(now)
@@ -96,6 +104,7 @@ def summarize(rows, utterances, requests, drafted):
             "raw_no_draft_started": sum(r["reason"] == "no draft started" for r in rows),
             "raw_still_drafting": sum(r["reason"] == "still drafting" for r in rows),
             "raw_stale": sum(r["reason"] == "stale" for r in rows),
+            "raw_rejected": sum(r["reason"] == "rejected" for r in rows),
             "requests": requests, "requests_per_utterance": round(requests / utterances, 2) if utterances else None,
             "drafted_tasks": drafted, "redrafts": requests - drafted,
             "gap_done_to_dispatch": _spread(gaps), "wait_if_holding_for_draft": _spread(waits)}
@@ -109,19 +118,37 @@ def _spread(values):
             "max": round(values[-1], 3)}
 
 
-def run_scenarios(latency):
-    out = {}
+def live(author, label, landed):
+    """An author function over a CachedAuthor that keeps each landed draft's record for the quality review."""
+    def write(source):
+        record = author.write(author_request(source), label=f"{label}:{source.task_id}:r{source.revision}")
+        draft, problems = parse_draft(record["content"]) if record["status"] == 200 else (None, (record["error"],))
+        landed.append({"label": record["label"], "instruction": source.instruction, "depends_on": source.depends_on,
+                       "side_effect": source.side_effect, "status": record["status"], "ms": round(record["ms"], 1),
+                       "served_model": record.get("served_model"), "finish_reason": record.get("finish_reason"),
+                       "usage": record.get("usage"), "meta": record.get("meta"),
+                       "draft": draft and asdict(draft), "parse_problems": list(problems),
+                       "wrapped": unwrap(record["content"]) is not record["content"]})
+        return record["content"]
+    return write
+
+
+def run_scenarios(latency, author=None, only=None):
+    out, landed = {}, []
     for name, directory in SCENARIO_DIRS.items():
         rows, requests, drafted, per = [], 0, 0, {}
-        paths = sorted(p for p in directory.glob("*.json"))
+        paths = sorted(p for p in directory.glob("*.json") if not only or p.stem in only)
         for path in paths:
             scenario = json.loads(path.read_text(encoding="utf-8"))
-            got, pre, _ = simulate(scenario_steps(scenario), scenario["id"], latency)
+            fn = stand_in if author is None else live(author, scenario["id"], landed)
+            got, pre, _ = simulate(scenario_steps(scenario), scenario["id"], latency, fn)
             per[scenario["id"]] = {"rows": got, "requests": len(pre.requests)}
             rows += got
             requests += len(pre.requests)
             drafted += len({s.task_id for s in pre.requests})
         out[name] = {"summary": summarize(rows, len(paths), requests, drafted), "scenarios": per}
+    if author is not None:
+        out["drafts"] = landed
     return out
 
 
@@ -155,13 +182,20 @@ def main():
     parser.add_argument("what", choices=["scenarios", "clips"])
     parser.add_argument("run", type=Path, nargs="?")
     parser.add_argument("--latency", type=float, nargs="+", default=[0.5])
+    parser.add_argument("--author", choices=["stand-in", "commandcode"], default="stand-in",
+                        help="commandcode sends scenario drafts to Command Code; clips always use the stand-in")
+    parser.add_argument("--only", nargs="*", help="scenario ids to replay")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     if args.what == "scenarios":
-        result = run_scenarios(args.latency[0])
+        author = None
+        if args.author == "commandcode":
+            from voice.delegation.commandcode import CommandCodeTransport
+            author = CachedAuthor(CommandCodeTransport(), CACHE)
+        result = run_scenarios(args.latency[0], author, args.only)
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
-        summaries = {k: v["summary"] for k, v in result.items()}
+        summaries = {k: v["summary"] for k, v in result.items() if k != "drafts"}
     else:
         result = run_clips(args.run, args.latency)
         args.out.mkdir(parents=True, exist_ok=True)
