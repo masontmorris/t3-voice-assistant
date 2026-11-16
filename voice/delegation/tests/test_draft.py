@@ -2,6 +2,7 @@ import tempfile
 import unittest
 
 from voice.delegation.author import AuthorReply, AuthorStopped, CachedAuthor, author_request
+from voice.delegation.commandcode import body_for
 from voice.delegation.draft import CONFIRM, DraftStatus, Prewriter, completed, parse_draft, render, source_for
 from voice.segmentation.contract import TranscriptUpdate
 from voice.segmentation.hybrid import HybridSegmenter
@@ -108,6 +109,13 @@ class Authority(unittest.TestCase):
         self.assertEqual(pre.drafts["task_1"].problems, ("adds a message action",))
         self.assertEqual(pre.dispatch(t).prompt, "Task: look up the weather in denver")
 
+    def test_a_prohibition_is_not_an_added_action(self):
+        t = task("find flights to austin on friday")
+        pre = self.land(t, reply("Find flights to Austin on Friday.", constraints=["Do not book or purchase any flights."]))
+        self.assertEqual(pre.drafts["task_1"].status, DraftStatus.CURRENT)
+        pre = self.land(t, reply("Find flights to Austin on Friday.", constraints=["Book the cheapest one."]))
+        self.assertEqual(pre.drafts["task_1"].problems, ("adds a booking action",))
+
     def test_a_draft_may_name_the_spans_own_action_in_other_words(self):
         t = task("email dana that the meeting moved", side_effect=True)
         pre = self.land(t, reply("Send Dana a message saying the meeting moved."))
@@ -117,6 +125,11 @@ class Authority(unittest.TestCase):
         t = task("book the cheapest one", "task_2", depends_on=["task_1"])
         pre = self.land(t, reply("Book the cheapest flight in {{task_3.result}}."))
         self.assertEqual(pre.drafts["task_2"].problems, ("names task_3, which is not a dependency",))
+
+    def test_a_draft_nested_under_the_schema_name_is_read(self):
+        draft, problems = parse_draft({"prompt_draft": reply()})
+        self.assertEqual((draft.instruction, problems), ("Look up the weather in Denver tomorrow.", ()))
+        self.assertEqual(parse_draft({"prompt_draft": reply(), "extra": 1})[1][0], "instruction missing")
 
     def test_a_draft_missing_a_required_field_is_rejected(self):
         pre = self.land(task("look up the weather"), reply(success_criteria=[]))
@@ -156,17 +169,18 @@ class WithTheHybrid(unittest.TestCase):
 
 
 class FakeTransport:
-    model = "flint:free"
+    model = "deepseek/deepseek-v4.1-flash"
 
-    def __init__(self, replies, free=True):
-        self.replies, self.free, self.sent = list(replies), free, 0
-
-    def assert_free(self):
-        assert self.free, "not a free model"
+    def __init__(self, replies):
+        self.replies, self.sent = list(replies), 0
 
     def send(self, request):
         self.sent += 1
         return self.replies.pop(0)
+
+
+def ok():
+    return AuthorReply(200, reply(), 400.0)
 
 
 class Cache(unittest.TestCase):
@@ -175,16 +189,26 @@ class Cache(unittest.TestCase):
 
     def test_a_cached_request_is_never_sent_again(self):
         with tempfile.TemporaryDirectory() as d:
-            transport = FakeTransport([AuthorReply(200, reply(), 400.0, cost=0)])
+            transport = FakeTransport([ok()])
             author = CachedAuthor(transport, d)
             first = author.write(self.request())
             self.assertEqual(author.write(self.request()), first)
             self.assertEqual(transport.sent, 1)
 
+    def test_a_429_backs_off_and_retries(self):
+        with tempfile.TemporaryDirectory() as d:
+            transport = FakeTransport([ok() for _ in range(4)] + [AuthorReply(429, None, 1.0, error="rate limited"),
+                                                                  ok()])
+            author = CachedAuthor(transport, d)
+            author.pacer.first_s = 0.0
+            for i in range(5):
+                author.write(self.request(f"look up item {i}"))
+            self.assertEqual(transport.sent, 6)
+
     def test_more_than_a_fifth_of_attempts_drawing_429_stops_the_author(self):
         with tempfile.TemporaryDirectory() as d:
-            ok = [AuthorReply(200, reply(), 1.0, cost=0) for _ in range(4)]
-            transport = FakeTransport(ok + [AuthorReply(429, None, 1.0), AuthorReply(429, None, 1.0)])
+            limited = [AuthorReply(429, None, 1.0, error="rate limited") for _ in range(2)]
+            transport = FakeTransport([ok() for _ in range(4)] + limited)
             author = CachedAuthor(transport, d)
             author.pacer.first_s = 0.0
             for i in range(4):
@@ -193,25 +217,27 @@ class Cache(unittest.TestCase):
                 author.write(self.request("look up the last item"))
             self.assertEqual(transport.sent, 6)
 
-    def test_a_nonzero_cost_stops_the_author(self):
-        with tempfile.TemporaryDirectory() as d:
-            author = CachedAuthor(FakeTransport([AuthorReply(200, reply(), 1.0, cost=0.0001)]), d)
-            with self.assertRaises(AuthorStopped):
-                author.write(self.request())
-
-    def test_a_paid_model_id_is_refused_before_any_send(self):
-        with tempfile.TemporaryDirectory() as d:
-            transport = FakeTransport([AuthorReply(200, reply(), 1.0)], free=False)
-            with self.assertRaises(AssertionError):
-                CachedAuthor(transport, d).write(self.request())
-            self.assertEqual(transport.sent, 0)
+    def test_a_402_or_a_usage_limit_message_stops_the_author(self):
+        for stop in (AuthorReply(402, None, 1.0, error="{}"),
+                     AuthorReply(429, None, 1.0, error='{"message": "Monthly usage limit reached"}'),
+                     AuthorReply(403, None, 1.0, error='{"message": "billing problem"}')):
+            with tempfile.TemporaryDirectory() as d:
+                transport = FakeTransport([stop, ok()])
+                with self.assertRaises(AuthorStopped):
+                    CachedAuthor(transport, d).write(self.request())
+                self.assertEqual(transport.sent, 1)
 
     def test_the_budget_caps_attempts(self):
         with tempfile.TemporaryDirectory() as d:
-            author = CachedAuthor(FakeTransport([AuthorReply(200, reply(), 1.0, cost=0)]), d, budget=1)
+            author = CachedAuthor(FakeTransport([ok()]), d, budget=1)
             author.write(self.request())
             with self.assertRaises(AuthorStopped):
                 author.write(self.request("look up something else"))
+
+    def test_the_command_code_body_has_no_reasoning_parameter(self):
+        body = body_for(self.request())
+        self.assertEqual(sorted(body), ["max_tokens", "messages", "model", "response_format", "temperature"])
+        self.assertEqual(body["model"], "deepseek/deepseek-v4.1-flash")
 
 
 if __name__ == "__main__":

@@ -3,7 +3,8 @@
 `author_request` turns a DraftInput into a provider-neutral request. A `Transport` sends it to one provider and
 returns an `AuthorReply`. `CachedAuthor` wraps any transport with the brief's rules: a response cache that never
 re-requests, an attempt budget, one request in flight, backoff on 429, a stop when more than 20% of attempts draw a
-429, and a stop on any nonzero cost. The transport asserts its own free model id before every send.
+429, and a stop on HTTP 402 or on any error that mentions a usage limit or billing. The author runs on Mason's
+subscription, so usage is recorded but does not stop the run.
 """
 
 import hashlib
@@ -20,6 +21,7 @@ BUDGET = 150
 MAX_429_SHARE = 0.2
 MIN_ATTEMPTS_FOR_SHARE = 5
 MAX_ATTEMPTS = 5
+LIMIT_WORDS = ("usage limit", "limit reached", "quota", "billing", "credit", "payment", "insufficient", "subscription")
 
 SYSTEM = (
     "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one "
@@ -34,24 +36,27 @@ class AuthorRequest:
     system: str
     user: str
     schema: dict
-    max_tokens: int = 600
+    max_tokens: int = 4096
     temperature: float = 0.0
 
 
 @dataclass(frozen=True)
 class AuthorReply:
+    """One attempt. `sent` is the request body as the transport sent it, without headers."""
     status: int | None
     content: dict | None
     ms: float
-    cost: float | None = None
     error: str | None = None
     retry_after_s: float | None = None
+    sent: dict | None = None
+    served_model: str | None = None
+    usage: dict | None = None
+    finish_reason: str | None = None
+    meta: dict | None = None
 
 
 class Transport(Protocol):
     model: str
-
-    def assert_free(self) -> None: ...
 
     def send(self, request: AuthorRequest) -> AuthorReply: ...
 
@@ -75,6 +80,10 @@ def author_request(source):
 
 def request_hash(model, request):
     return hashlib.sha256(json.dumps([model, asdict(request)], sort_keys=True).encode()).hexdigest()[:24]
+
+
+def limit_hit(reply):
+    return reply.status == 402 or any(word in (reply.error or "").lower() for word in LIMIT_WORDS)
 
 
 class CachedAuthor:
@@ -103,16 +112,15 @@ class CachedAuthor:
             limited = sum(a["status"] == 429 for a in attempts)
             if len(attempts) >= MIN_ATTEMPTS_FOR_SHARE and limited / len(attempts) > MAX_429_SHARE:
                 raise AuthorStopped(f"{limited} of {len(attempts)} attempts drew a 429")
-            self.transport.assert_free()
             if self._last is not None and self.pacer.gap_s:
                 time.sleep(max(0.0, self.pacer.gap_s - (time.monotonic() - self._last)))
             self._last = time.monotonic()
             reply = self.transport.send(request)
             with self.ledger.open("a", encoding="utf-8") as ledger:
                 ledger.write(json.dumps({"label": label, "model": self.transport.model, "status": reply.status,
-                                         "ms": round(reply.ms, 1), "cost": reply.cost, "error": reply.error}) + "\n")
-            if reply.cost:
-                raise AuthorStopped(f"nonzero cost {reply.cost} on {label}")
+                                         "ms": round(reply.ms, 1), "usage": reply.usage, "error": reply.error}) + "\n")
+            if limit_hit(reply):
+                raise AuthorStopped(f"status {reply.status} on {label}: {reply.error}")
             if reply.status == 429:
                 self.pacer.on_429(reply.retry_after_s)
                 continue

@@ -64,6 +64,7 @@ class Dispatch:
     reason: str
 
 
+DRAFT_NAME = "prompt_draft"
 DRAFT_SCHEMA = {
     "type": "object",
     "additionalProperties": False,
@@ -86,6 +87,8 @@ ACTION_FAMILIES = {
     "publish": ("post", "publish", "share", "tweet", "upload"),
     "call": ("call", "phone", "dial"),
 }
+NEGATED = re.compile(r"\b(do not|don't|does not|not part|never|without|no need|instead of|rather than|separate)\b",
+                     re.IGNORECASE)
 PLACEHOLDER = re.compile(r"\{\{\s*(task_\d+)\.result\s*\}\}")
 CONFIRM = "Confirm with the user before you take any action that has an effect outside this conversation."
 DEAD = {Status.SUPERSEDED, Status.WITHDRAWN, Status.CANCEL_REQUESTED}
@@ -131,8 +134,15 @@ def _families(text):
     return {name for name, stems in ACTION_FAMILIES.items() if any(w.startswith(s) for s in stems for w in ws)}
 
 
+def unwrap(content):
+    """The draft object, also when the author nested it under the schema's name as its only key."""
+    inner = content.get(DRAFT_NAME) if isinstance(content, dict) and len(content) == 1 else None
+    return inner if isinstance(inner, dict) else content
+
+
 def parse_draft(content):
     """The author's JSON object as a Draft, or None and the problems. Never raises."""
+    content = unwrap(content)
     if not isinstance(content, dict):
         return None, ("not a JSON object",)
     problems = []
@@ -154,11 +164,16 @@ def parse_draft(content):
     return Draft(content["instruction"].strip(), content["context"].strip(), **lists), ()
 
 
+def _affirmed(text):
+    """The sentences of `text` that do not forbid or set aside something. "Do not book" names no booking to do."""
+    return " ".join(s for s in re.split(r"(?<=[.;?!])\s+", text) if not NEGATED.search(s))
+
+
 def check(draft, task):
     """Problems that keep a parsed draft from dispatch for this task record. Empty means usable."""
     text = " ".join([draft.instruction, draft.context, *draft.constraints, *draft.success_criteria,
                      *draft.open_questions])
-    problems = [f"adds a {name} action" for name in sorted(_families(text) - _families(task.instruction))]
+    problems = [f"adds a {name} action" for name in sorted(_families(_affirmed(text)) - _families(task.instruction))]
     problems += [f"names {ref}, which is not a dependency" for ref in sorted(set(PLACEHOLDER.findall(text)))
                  if ref not in task.depends_on]
     return tuple(problems)
