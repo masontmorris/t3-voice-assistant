@@ -168,6 +168,10 @@ class LiquidClient:
     def close(self):
         self._drop()
 
+    def live_calls(self):
+        """The attempts this decider's ledger holds, so a run's own record counts Liquid's calls too."""
+        return len(entries())
+
     def _send(self, method, path, payload):
         if self._key is None:
             self._key = _api_key()
@@ -243,11 +247,22 @@ class LiquidClient:
     def call(self, route, body, label="", fresh=False):
         """Return the cached record for this request, calling the API at most once per distinct request.
 
-        `fresh` sends the request again for a timing or spread run and never overwrites the cached entry."""
+        `fresh` sends the request again for a timing or spread run and never overwrites the cached entry. A body with
+        no questions is answered here: the API rejects it with a 422 while pplx answers it with an empty answer set
+        (measured on one live turn), and there is nothing to ask and nothing to bill."""
         assert route == "decisions", route
         hit = None if fresh else cached(route, body)
         if hit is not None:
             return hit
+        if not body.get("questions"):
+            record = {"route": route, "label": label, "request": body, "status": 200, "model": MODEL,
+                      "response": {"model": MODEL, "answers": {},
+                                   "usage": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0}},
+                      "timing": {"started_at": _now(), "ms": 0.0, "connect_ms": None},
+                      "attempts": [], "requests": 0}
+            CACHE.mkdir(parents=True, exist_ok=True)
+            cache_path(route, body).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+            return record
         if BILLING.exists():
             raise BillingStop(BILLING.read_text(encoding="utf-8"))
         self._guard(label)

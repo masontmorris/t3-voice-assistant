@@ -105,6 +105,15 @@ class Request(LiquidCase):
         self.assertAlmostEqual(record["response"]["usage"]["cost"], 0.00002)
         self.assertEqual([entry["label"] for entry in self.ledger()], ["big#1", "big#2"])
 
+    def test_a_body_with_no_questions_makes_no_request_and_costs_nothing(self):
+        record = self.client.call("decisions", {**body(), "questions": {}}, label="u:r3")
+        self.assertEqual(Handler.seen, [])
+        self.assertEqual(record["status"], 200)
+        self.assertEqual(record["response"]["answers"], {})
+        self.assertEqual(record["response"]["usage"]["cost"], 0.0)
+        self.assertEqual(self.ledger(), [])
+        self.assertAlmostEqual(liquid.spend_today(), 0.0)
+
     def test_the_key_never_reaches_the_ledger(self):
         self.client.call("decisions", body(), label="u:r1")
         text = liquid.LEDGER.read_text(encoding="utf-8")

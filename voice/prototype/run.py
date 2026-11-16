@@ -537,6 +537,11 @@ def close_with_decider(segmenter, update):
     return close
 
 
+def live_attempts(decider):
+    """The decider's own HTTP attempts so far, read from the ledger that this decider writes to."""
+    return decider.live_calls() if hasattr(decider, "live_calls") else live_calls()
+
+
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
@@ -607,7 +612,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     final_seen = asyncio.Event()
     loop = asyncio.get_running_loop()
     executor = ThreadPoolExecutor(max_workers=1)
-    calls_before = live_calls()
+    calls_before = live_attempts(decider)
     closed = {}
 
     def enqueue(update):
@@ -630,7 +635,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if dropped:
                 log("coalesced", revisions=[u.revision for u in dropped])
             for kind, payload in kept:
-                started, before = clock(), live_calls()
+                started, before = clock(), live_attempts(decider)
                 if kind == "update" and payload.is_final and eou in TOOL_SESSIONS:
                     work = partial_close if eou == "gated" else segmenter.close
                 else:
@@ -651,7 +656,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                         unreviewed_speech=point["unreviewed_speech"], segments=[s["text"] for s in point["segments"]])
                 elif point is not None:
                     log("decision_point", source=kind, revision=point["revision"], is_final=point["is_final"],
-                        started=round(started, 4), live_calls=live_calls() - before, calls=point["calls"],
+                        started=round(started, 4), live_calls=live_attempts(decider) - before, calls=point["calls"],
                         problems=point["problems"],
                         segments=[s["text"] for s in point["segments"]], decisions=point["decisions"])
                 for event in service.sync(clock()):
@@ -882,7 +887,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             "final_transcript_after_audio_end_s": final_t - audio_end,
             "snapshot_ready_after_audio_end_s": snapshot_t - audio_end,
             "first_reply_audio_after_audio_end_s": first_audio,
-            "decider_live_calls": live_calls() - calls_before,
+            "decider_live_calls": live_attempts(decider) - calls_before,
             "decider_calls": sum(len(p["calls"]) for p in getattr(segmenter, "points", [])),
             "tool_calls": len(tool_results),
             "decision_points": sum(e["kind"] == "decision_point" for e in timeline),
