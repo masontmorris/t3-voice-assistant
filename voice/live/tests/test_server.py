@@ -1,5 +1,6 @@
 import asyncio
 import base64
+import contextlib
 import json
 import tempfile
 import unittest
@@ -530,6 +531,61 @@ class FallbackAudioTest(unittest.TestCase):
             self.assertEqual([call.args for call in render.call_args_list],
                              [("http://127.0.0.1:8099", server.FALLBACK_LINE),
                               ("http://127.0.0.1:8099", server.ASK_INSTEAD_LINE)])
+
+
+class LlamaServerSlotsTest(unittest.IsolatedAsyncioTestCase):
+    """One llama-server slot holds the call's voice session for the whole call, so a call needs two more: the turn's
+    ASR and the reply it generates. With one free slot (two in total) the ASR waited behind the previous turn's reply
+    and its final transcript arrived tens of seconds late (measured: 2026-11-16 17:38 replay)."""
+
+    async def test_the_call_gets_a_slot_for_its_session_its_asr_and_its_reply(self):
+        recorded = {}
+
+        class FakeServer:
+            startup_s = 0.0
+            proc = SimpleNamespace(pid=1)
+
+            def __init__(self, port, log_path, extra_args, slots):
+                recorded["slots"], recorded["args"] = slots, tuple(extra_args)
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+        class FakeServe:
+            def __init__(self, *args, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *exc):
+                return False
+
+        @contextlib.contextmanager
+        def fake_decider(name, out):
+            yield SimpleNamespace(live_calls=lambda: 0)
+
+        async def stop_now(*args, **kwargs):
+            return None
+
+        with tempfile.TemporaryDirectory() as tmp:
+            args = SimpleNamespace(host="127.0.0.1", port=8799, lfm_port=8119, lfm_ctx=32768, lfm_args=None,
+                                   stop_file=Path(tmp) / "STOP", decider_cache=Path(tmp) / "cache",
+                                   decider_budget=200, out=Path(tmp) / "out", max_minutes=1.0, mock_tools=True,
+                                   decider="liquid", snapshot="note", prompt=None, silence_ms=700, start_ms=100,
+                                   preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0, max_turn_s=30.0)
+            with mock.patch.object(server, "Server", FakeServer), \
+                    mock.patch.object(server, "serve", FakeServe), \
+                    mock.patch.object(server, "make_decider", fake_decider), \
+                    mock.patch.object(server, "wait_for_stop", stop_now), \
+                    mock.patch.object(server, "shared_secret", lambda: "s" * 64), \
+                    mock.patch.object(server, "use_decider_cache", lambda *a, **k: None):
+                await server.main_async(args)
+        self.assertGreaterEqual(recorded["slots"], 3)
+        self.assertIn("-kvu", recorded["args"])
 
 
 if __name__ == "__main__":

@@ -13,7 +13,8 @@ again to stop. Talking while a reply plays turns it down at once; the server the
 drops the audio it buffered, or finds the speech was a backchannel such as "mm-hm" and turns it back up. --wav feeds
 clips in place of the microphone, which is how the Desktop loopback test runs, and echo cancellation is off for it
 unless `--echo-cancel` is given. Each clip after the first starts once the previous reply has finished playing, the
-way a person waits, unless --barge-in-ms sends it over the reply.
+way a person waits, unless --barge-in-ms sends it over the reply. A clip that begins with the clip before it is sent
+from where they differ, because a recorded turn can hold the audio the server carried into it from the turn before.
 
 The server address and the shared secret come from config.json and the `secret` file beside this script unless
 --server and --secret-file say otherwise. Each run records what this client sent and played, plus the metrics, the
@@ -228,15 +229,31 @@ async def mic_frames(input_device, queue, raw=True):
         await asyncio.Event().wait()
 
 
+def without_carry(clip, previous):
+    """`clip` without the audio it repeats from `previous`, the clip sent before it.
+
+    A live turn's recorded input can open with the turn before it: when a turn is cancelled because the person kept
+    talking, the server carries that turn's audio into the next one (`start_turn` in server.py), and the recording of
+    the next turn holds both. Replayed as sent, those clips say the carried words again, and the endpointer splits
+    them at the pause they carry, so one sentence becomes several turns. The carried part is sample-identical to the
+    previous clip; a person repeating a phrase or a clip identical to the one before it is not stripped."""
+    if previous and len(clip) > len(previous) and clip.startswith(previous):
+        return clip[len(previous):]
+    return clip
+
+
 async def wav_frames(paths, queue, next_clip, lead_s=0.5):
     """Clips in place of the microphone, at real-time pace with silence between. Each clip after the first waits for
-    `next_clip`."""
+    `next_clip`. A clip that begins with the previous one is sent from where they differ, see `without_carry`."""
     step, start, index = FRAME_SAMPLES * 2, time.perf_counter(), 0
-    pending, clips = bytearray(b"\x00" * int(lead_s * RATE) * 2 + read_wav_16k(paths[0])), list(paths[1:])
+    first, clips = read_wav_16k(paths[0]), list(paths[1:])
+    pending, previous = bytearray(b"\x00" * int(lead_s * RATE) * 2 + first), first
     while True:
         if not pending and clips and next_clip.is_set():
             next_clip.clear()
-            pending += read_wav_16k(clips.pop(0))
+            clip = read_wav_16k(clips.pop(0))
+            pending += without_carry(clip, previous)
+            previous = clip
         frame = bytes(pending[:step])
         del pending[:step]
         queue.put_nowait((frame + b"\x00" * (step - len(frame)), time.perf_counter()))
