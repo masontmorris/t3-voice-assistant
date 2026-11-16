@@ -19,6 +19,7 @@ OUT_RATE = 24_000
 PERSONAS = []
 CALLS = []
 VOICES = []
+SENT_BEFORE = []
 
 
 class FakeSession:
@@ -63,6 +64,7 @@ async def fake_run_clip(source, *args, persona, voice=None, **kwargs):
     PERSONAS.append(persona)
     CALLS.append((*args, kwargs))
     VOICES.append(voice)
+    SENT_BEFORE.append(list(voice.sent))
     emit = voice.on_event
     emit({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
@@ -83,6 +85,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         PERSONAS.clear()
         CALLS.clear()
         VOICES.clear()
+        SENT_BEFORE.clear()
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
@@ -168,7 +171,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         first = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
         second = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
         self.assertEqual(second["live"]["call"], {"turn": 2, "session_turn": 2, "voice_session": "shared",
-                                                  "voice_sessions": 1})
+                                                  "reopened": None, "voice_sessions": 1})
         self.assertNotEqual(first["live"]["call"], second["live"]["call"])
         await ws.close()
 
@@ -196,11 +199,32 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(VOICES), 2)
         self.assertIsNot(VOICES[0], VOICES[1], "the second turn starts a new session")
         self.assertTrue(VOICES[0].closed, "the old session is closed")
-        seed = next(send["item"] for send in VOICES[1].sent if send.get("type") == "conversation.item.create")
-        self.assertTrue(seed["content"][0]["text"].startswith(server.SEED_PREFIX))
-        self.assertIn("words in turn_001", seed["content"][0]["text"], "the call's own text carries over")
+        self.assertEqual(SENT_BEFORE[1], [], "nothing goes into the new session before run_clip sends its settings")
+        self.assertIsNone(CALLS[0][-1]["seed"], "the call's first session has nothing to carry")
+        seed = CALLS[1][-1]["seed"]["content"][0]["text"]
+        self.assertTrue(seed.startswith(server.SEED_PREFIX))
+        self.assertIn("words in turn_001", seed, "the call's own text carries over")
         record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
         self.assertEqual(record["live"]["call"]["voice_session"], "started")
+        self.assertEqual(record["live"]["call"]["reopened"], "turn limit")
+        self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
+        await ws.close()
+
+    async def test_a_new_prompt_mid_call_starts_a_new_session(self):
+        prompt = Path(self.tmp.name) / "prompt.txt"
+        prompt.write_text("Be brief.\n", encoding="utf-8")
+        ws = await self.connect()
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+        await self.until(ws, "turn_done", [])
+        prompt.write_text("Be warm.\n", encoding="utf-8")
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
+        await self.until(ws, "turn_done", [])
+        self.assertIsNot(VOICES[0], VOICES[1], "llama.cpp keeps the old instructions on a session that holds audio")
+        self.assertTrue(VOICES[0].closed)
+        self.assertTrue(PERSONAS[1].startswith("Be warm."))
+        self.assertIn("words in turn_001", CALLS[1][-1]["seed"]["content"][0]["text"], "the call carries over")
+        record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
+        self.assertEqual(record["live"]["call"]["reopened"], "persona changed")
         self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
         await ws.close()
 
@@ -323,6 +347,14 @@ class ChunkTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(max(voice.chunks), server.UP_CHUNK_BYTES)
         self.assertEqual(sum(voice.chunks), len(turn.pcm))
         self.assertEqual(voice.chunks, asr.chunks, "the voice and ASR sessions get the same chunks")
+
+
+class DefaultsTest(unittest.TestCase):
+    def test_live_mode_drops_the_persons_words_unless_told_otherwise(self):
+        argv = mock.patch("sys.argv", ["server"])
+        with argv, mock.patch.object(server, "main_async") as main_async, mock.patch.object(server.asyncio, "run"):
+            server.main()
+        self.assertEqual(main_async.call_args.args[0].snapshot, "reply-no-utterance")
 
 
 class BindTest(unittest.TestCase):

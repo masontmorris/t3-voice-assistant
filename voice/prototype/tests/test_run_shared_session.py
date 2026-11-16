@@ -10,6 +10,7 @@ import base64
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from voice.prototype import run as prototype
 from voice.prototype.segmenter import use_decider_cache
@@ -18,13 +19,18 @@ from voice.prototype.transcript import COMPLETED
 CLOCK = 0.0
 
 
+REFUSAL = "session.update: instructions cannot change after the first audio or message"
+
+
 class FakeSession:
-    """A realtime session that answers the few requests run_clip makes, in memory."""
+    """A realtime session that answers the few requests run_clip makes, in memory. Like llama.cpp, it refuses new
+    instructions once it holds audio or a message."""
 
     def __init__(self, name, on_event):
         self.name, self.on_event = name, on_event
         self.events, self.sent, self.audio, self.configs = [], [], [], []
         self.closed, self._changed = False, asyncio.Condition()
+        self.instructions, self.holds_content = None, False
 
     @classmethod
     async def open(cls, url, name, clock, on_event=None):
@@ -46,8 +52,15 @@ class FakeSession:
     async def send(self, **event):
         self.sent.append(event)
         kind = event.get("type")
+        if kind in ("conversation.item.create", "input_audio_buffer.append"):
+            self.holds_content = True
         if kind == "session.update":
+            instructions = event["session"].get("instructions", self.instructions)
+            if self.holds_content and instructions != self.instructions:
+                await self.push({"type": "error", "error": {"type": "invalid_request_error", "message": REFUSAL}})
+                return
             self.configs.append(event["session"])
+            self.instructions = instructions
             await self.push({"type": "session.updated"})
         elif kind == "conversation.item.create":
             await self.push({"type": "conversation.item.added", "item": event["item"]})
@@ -164,22 +177,112 @@ class SnapshotPlacementTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("[task service", texts[0], "the machine prefix stays")
         self.assertIn('"tasks"', texts[0], "the item keeps its shape, task list included")
 
-    def test_without_utterance_drops_every_copy_at_any_depth(self):
+    async def test_the_task_update_item_loses_the_persons_words(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        with mock.patch.object(prototype.MockTaskService, "take_updates", return_value=[UPDATE]):
+            await self.turn(voice, snapshot_mode="reply-no-utterance")
+        texts = self.item_texts(voice)
+        update = next(text for text in texts if text.startswith(prototype.UPDATE_PREFIX))
+        self.assertNotIn("weather in denver", update.lower(), "the task's description is the person's request")
+        self.assertIn("High of 69 F.", update, "the result the person asked for still reaches the model")
+        self.assertIn('"status": "completed"', update)
+
+    async def test_off_sends_no_task_update_either(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        with mock.patch.object(prototype.MockTaskService, "take_updates", return_value=[UPDATE]):
+            record = await self.turn(voice, snapshot_mode="off")
+        self.assertEqual(self.item_texts(voice), [], "a finished task does not bring machine text back in")
+        self.assertEqual(record["task_updates"], [UPDATE], "the update existed, so the test could have seen it")
+
+    async def test_off_holds_for_the_decider_turn_too(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        await prototype.run_clip(Streams(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid",
+                                 None, "decider", voice=voice, snapshot_mode="off")
+        self.assertEqual(self.item_texts(voice), [], "--eou decider sends no snapshot under off")
+        await prototype.run_clip(Streams(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid",
+                                 None, "decider", voice=voice)
+        self.assertEqual(len(self.item_texts(voice)), 1, "and the same turn under reply sends one")
+
+    def item_texts(self, voice):
+        return [e["item"]["content"][0]["text"] for _, e in self.voice_sent(voice)
+                if e["type"] == "conversation.item.create"]
+
+
+UPDATE = {"task_id": "task_1", "description": "get the weather in Denver", "status": "completed",
+          "result_summary": "High of 69 F."}
+
+
+class WithoutUtteranceTest(unittest.TestCase):
+    """The filter by itself. Each case is a leak measured in the live ablation runs or named in the review."""
+
+    def test_the_persons_fields_go_whatever_they_hold(self):
         transcript = "What did I just ask you?"
-        snapshot = {"type": "utterance_snapshot", "final_transcript": transcript,
-                    "unreviewed_speech": transcript, "clarification_needed": None,
-                    "tasks": [{"task_id": "task_1", "description": transcript, "status": "running"},
-                              {"task_id": "task_2", "description": "get the weather in Denver", "status": "completed",
-                               "result_summary": "High of 69 F."}]}
+        snapshot = {"type": "utterance_snapshot", "final_transcript": "something else entirely",
+                    "unreviewed_speech": "you", "clarification_needed": ["which city do you mean"],
+                    "tasks": [{"task_id": "task_1", "description": "get the weather in Denver", "status": "completed",
+                               "result_summary": "High of 69 F.", "segment_text": "weather in Denver",
+                               "instruction": "look it up"}],
+                    "decider": {"read": [{"revision": 3, "text": "what time is it"}]}}
         clean = prototype.without_utterance(snapshot, transcript)
-        self.assertNotIn("final_transcript", clean, "the turn's own transcript goes")
-        self.assertNotIn("unreviewed_speech", clean, "and the second copy of it goes")
-        self.assertEqual(clean["tasks"][0], {"task_id": "task_1", "status": "running"},
-                         "a description that is the utterance goes, the task and its status stay")
-        self.assertEqual(clean["tasks"][1]["description"], "get the weather in Denver",
-                         "a description that is not the utterance stays")
-        self.assertEqual(clean["tasks"][1]["result_summary"], "High of 69 F.")
-        self.assertEqual(clean["type"], "utterance_snapshot", "the shape of the item is unchanged")
+        self.assertEqual(clean, {"type": "utterance_snapshot",
+                                 "tasks": [{"task_id": "task_1", "status": "completed",
+                                            "result_summary": "High of 69 F."}],
+                                 "decider": {"read": [{"revision": 3}]}})
+
+    def test_a_list_element_that_repeats_them_goes(self):
+        transcript = "What's the weather in Denver?"
+        clean = prototype.without_utterance({"asked": ["What's the weather in Denver?", "High of 69 F."]}, transcript)
+        self.assertEqual(clean, {"asked": ["High of 69 F."]})
+
+    def test_a_fragment_of_a_two_request_turn_goes(self):
+        transcript = "What's the weather in Denver and what time is it in Tokyo?"
+        clean = prototype.without_utterance({"heard": "what time is it in Tokyo?", "summary": "Tokyo: 09:12."},
+                                            transcript)
+        self.assertEqual(clean, {"summary": "Tokyo: 09:12."})
+
+    def test_a_near_copy_goes(self):
+        clean = prototype.without_utterance({"heard": "What is the weather in Denver", "status": "running"},
+                                            "What\N{RIGHT SINGLE QUOTATION MARK}s the  weather in DENVER?")
+        self.assertEqual(clean, {"status": "running"})
+
+    def test_a_single_word_they_happened_to_say_stays(self):
+        clean = prototype.without_utterance({"status": "running", "place": "Denver"}, "I'm running late in Denver")
+        self.assertEqual(clean, {"status": "running", "place": "Denver"})
+
+
+class SessionOrderTest(unittest.IsolatedAsyncioTestCase):
+    """llama.cpp refuses new instructions once a session holds a message. A reseeded live call opens a new session and
+    seeds it, so the order of the settings and the seed decides whether the turn runs."""
+
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        patch = mock.patch.object(prototype.Session, "open", FakeSession.open)
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    async def turn(self, voice, **kwargs):
+        return await asyncio.wait_for(prototype.run_clip(
+            Streams(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
+            voice=voice, **kwargs), 10)
+
+    async def test_the_seed_goes_in_after_the_settings(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        seed = prototype.user_text("[call so far] ", {"turns": [{"user": "earlier words"}]})
+        record = await self.turn(voice, seed=seed)
+        kinds = [e["type"] for e in voice.sent]
+        self.assertLess(kinds.index("session.update"), kinds.index("conversation.item.create"))
+        self.assertEqual(voice.sent[kinds.index("conversation.item.create")]["item"], seed)
+        self.assertIn("instructions", voice.configs[0], "the session took the persona")
+        self.assertEqual([r["text"] for r in record["replies"]], ["Sunny."])
+
+    async def test_a_refused_update_ends_the_turn_with_the_servers_words(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        await voice.send(type="conversation.item.create", item=prototype.user_text("", {}))
+        with self.assertRaises(prototype.SessionRefused) as refused:
+            await self.turn(voice)
+        self.assertIn(REFUSAL, str(refused.exception), "the record gets the reason, not a 120 s timeout")
 
 
 class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):

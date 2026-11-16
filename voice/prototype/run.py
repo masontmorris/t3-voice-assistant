@@ -47,6 +47,7 @@ that miss the cache. Writes CLIP.json, CLIP_reply.wav, and CLIP_update.wav to --
 import argparse
 import asyncio
 import json
+import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
@@ -174,24 +175,68 @@ def user_text(prefix, payload):
             "content": [{"type": "input_text", "text": prefix + json.dumps(payload)}]}
 
 
-def repeats(text, transcript):
-    """True when `text` holds the person's words verbatim, ignoring case, quotes and the space around them."""
-    needle = " ".join((transcript or "").lower().split()).strip("\"'` .,;:!?")
-    return bool(needle) and needle in " ".join(text.lower().split())
+PERSON_FIELDS = frozenset({"final_transcript", "unreviewed_speech", "segment_text", "instruction", "description",
+                           "clarification_needed"})
+CONTRACTIONS = (("n't", " not"), ("'re", " are"), ("'s", " is"), ("'ll", " will"), ("'m", " am"), ("'ve", " have"),
+                ("'d", " would"))
 
 
-def without_utterance(payload, transcript):
-    """The payload with every string that repeats the person's words removed, at any depth.
+def normalised(text):
+    """Lower case, straight quotes, contractions spelled out, and words joined by single spaces."""
+    text = re.sub("[\N{LEFT SINGLE QUOTATION MARK}\N{RIGHT SINGLE QUOTATION MARK}]", "'", text.lower())
+    for short, full in CONTRACTIONS:
+        text = text.replace(short, full)
+    return " ".join(re.findall(r"\w+", text))
 
-    The snapshot carries the person's last words three times over on a turn with one task: final_transcript,
-    unreviewed_speech and the task's own description. A status, a task_id, a note and a result summary are not the
-    person's words, so they stay."""
+
+def overlaps(text, transcript):
+    """True when `text` holds the person's words or a run of two or more of them, after normalising both.
+
+    A single word is not compared against the transcript, so a status or a place name the person happened to say
+    stays."""
+    words, said = normalised(text), normalised(transcript or "")
+    if not words or not said:
+        return False
+    return f" {said} " in f" {words} " or (" " in words and f" {words} " in f" {said} ")
+
+
+def without_utterance(payload, transcript, within=None):
+    """The payload with the person's words removed, at any depth.
+
+    Fields that hold the person's words or the decision model's copy of them go whatever their content: the
+    PERSON_FIELDS and the `text` of each entry the decider `read`. Any other string, in a dict or a list, goes when it
+    overlaps the transcript. A status, a task_id, a note and a result summary stay."""
     if isinstance(payload, dict):
-        return {key: without_utterance(value, transcript) for key, value in payload.items()
-                if not (isinstance(value, str) and repeats(value, transcript))}
+        return {key: without_utterance(value, transcript, key) for key, value in payload.items()
+                if key not in PERSON_FIELDS and not (key == "text" and within == "read")
+                and not (isinstance(value, str) and overlaps(value, transcript))}
     if isinstance(payload, list):
-        return [without_utterance(item, transcript) for item in payload]
+        return [without_utterance(item, transcript, within) for item in payload
+                if not (isinstance(item, str) and overlaps(item, transcript))]
     return payload
+
+
+def shown(payload, snapshot_mode, transcript, update=False):
+    """What a machine item after the turn's audio carries under `snapshot_mode`, or None when no item goes in.
+
+    before-audio sends its snapshot ahead of the audio, so it sends none after it, but it still sends task updates."""
+    if snapshot_mode == "reply-no-utterance":
+        return without_utterance(payload, transcript)
+    if snapshot_mode == "reply" or (update and snapshot_mode == "before-audio"):
+        return payload
+    return None
+
+
+class SessionRefused(RuntimeError):
+    """llama.cpp answered a session.update with an error, so the session does not have those settings."""
+
+
+async def update_session(session, settings):
+    mark = len(session.events)
+    await session.send(type="session.update", session=settings)
+    answer = await session.wait_for("session.updated", "error", after=mark)
+    if answer["type"] == "error":
+        raise SessionRefused(f"{session.name} session.update refused: {answer.get('error')}")
 
 
 def parse_arguments(call):
@@ -226,22 +271,24 @@ class WavInput:
 
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
-                   snapshot_mode="reply", prior_snapshot=None):
+                   snapshot_mode="reply", prior_snapshot=None, seed=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
     `voice` is an already-open voice session the caller keeps across turns, as live mode does for a call. The turn
     then adds its audio, its injections and its replies to that session's conversation instead of opening one, and
     leaves it open. Its session settings are sent only when they change, so a reused session keeps its history. The
-    per-turn `asr` and `tools` sessions are still opened and closed here.
+    per-turn `asr` and `tools` sessions are still opened and closed here. `seed` is an item for a session the caller
+    has just opened. It goes in after the settings, because llama.cpp refuses new instructions once a session holds a
+    message, and before the turn's audio. A refused session.update raises SessionRefused with the server's error.
 
     `snapshot_mode` says where the task snapshot enters the voice session. "reply" is the shipped behaviour: one user
     item built after the turn's tools ran, immediately before the reply. "before-audio" sends the caller's
     `prior_snapshot`, the call's task state when the turn started, before the turn's audio and answers with no item
     after the tools turn; the turn's own transcript is then not in the text the model reads. "reply-no-utterance" is
-    "reply" with every string that repeats the person's words dropped from the snapshot and from the task update, so
-    the item still carries the task list, its statuses and its results. "off" sends no machine text at all. The task
-    service, the tool session and its snapshot are the same in all four."""
+    "reply" with the person's words dropped from the snapshot and from the task update (see `without_utterance`), so
+    the item still carries the task list, its statuses and its results. "off" sends no machine text at all, whatever
+    `eou` and `inject` are. The task service, the tool session and its snapshot are the same in all four."""
     t0 = time.perf_counter()
 
     def clock():
@@ -324,10 +371,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     try:
         if tool_session is not None:
             await tool_session.wait_for("session.created")
-            await tool_session.send(type="session.update", session={
+            await update_session(tool_session, {
                 "type": "realtime", "instructions": TOOL_SESSIONS[eou][0], "tools": TOOL_SESSIONS[eou][1],
                 "output_modalities": ["text"]})
-            await tool_session.wait_for("session.updated")
         created = await voice.wait_for("session.created")
         out_rate = created["session"]["audio"]["output"]["format"]["rate"]
         partial["events"] = {"voice": voice.events[voice_mark:], "voice_sent": voice.sent[voice_sent_mark:],
@@ -340,15 +386,16 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             session["tools"] = TOOLS[1:] if status_only else TOOLS
         if rate != MODEL_RATE:
             session["audio"] = {"input": {"format": {"type": "audio/pcm", "rate": rate}}}
-            await asr.send(type="session.update", session={"audio": session["audio"]})
-            await asr.wait_for("session.updated")
+            await update_session(asr, {"audio": session["audio"]})
         if getattr(voice, "config", None) != session:
-            await voice.send(type="session.update", session=session)
-            await voice.wait_for("session.updated")
+            await update_session(voice, session)
             voice.config = session
         worker = asyncio.create_task(segment_worker())
 
         replies, tool_turn, injection = [], None, []
+        if seed is not None:
+            injection.append(await create_item(voice, seed))
+            log("seed", answer=injection[-1])
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
             log("snapshot_before_audio", snapshot=prior_snapshot)
@@ -394,30 +441,29 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             service.poll(clock())
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
-            if snapshot_mode == "reply":
-                injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, answered)))
-            elif snapshot_mode == "reply-no-utterance":
-                injection.append(await create_item(voice, user_text(
-                    SNAPSHOT_PREFIX, without_utterance(answered, adapter.text()))))
+            if (item := shown(answered, snapshot_mode, adapter.text())) is not None:
+                injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
             log("injection", items=injection)
             reply, reply_pcm = await respond(voice, out_rate, audio_end)
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+        elif (item := shown(snapshot, snapshot_mode, adapter.text())) is None:
+            pass
         elif inject == "a":
             call = {"type": "function_call", "call_id": SYNTHETIC_CALL_ID, "name": "get_task_status", "arguments": "{}"}
             injection.append(await create_item(voice, call))
             injection.append(await create_item(voice, {"type": "function_call_output", "call_id": SYNTHETIC_CALL_ID,
-                                                       "output": json.dumps(snapshot)}))
+                                                       "output": json.dumps(item)}))
         elif inject == "b":
             for call in tool_turn["function_calls"]:
                 injection.append(await create_item(voice, {"type": "function_call_output", "call_id": call["call_id"],
-                                                           "output": json.dumps(snapshot)}))
+                                                           "output": json.dumps(item)}))
             if not tool_turn["function_calls"]:
                 injection.append({"item_type": "function_call_output", "accepted": False,
                                   "answer": "the model made no call"})
         else:
-            injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, snapshot)))
+            injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
         if eou not in TOOL_SESSIONS:
             log("injection", items=injection)
             reply, reply_pcm = await respond(voice, out_rate, audio_end, **extra)
@@ -430,12 +476,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             for task_id in service.poll(clock()):
                 log("service", task_id=task_id, event=service.executions[task_id].state.value)
         task_updates = service.take_updates()
-        if task_updates and snapshot_mode != "off":
+        updates = shown({"updates": task_updates}, snapshot_mode, adapter.text(), update=True) if task_updates else None
+        if updates is not None:
             boundary = clock()
             log("task_updates", updates=task_updates)
-            updates = {"updates": task_updates}
-            if snapshot_mode == "reply-no-utterance":
-                updates = without_utterance(updates, adapter.text())
             injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
             update_reply, update_pcm = await respond(voice, out_rate, boundary, **extra)
             replies.append({"kind": "update", "injection": injection_update, **update_reply})
