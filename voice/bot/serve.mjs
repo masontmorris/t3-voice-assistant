@@ -93,7 +93,7 @@ async function serve(overridesFile) {
 	const readRoot = () =>
 		(ingesting = ingesting
 			.then(async () => {
-				for (const e of ingestRoot(data, await t3.thread(data.root))) {
+				for (const e of await ingestRoot(data, await t3.thread(data.root), (id) => t3.thread(id))) {
 					store.save();
 					for (const w of waiters) w();
 					say(`outbox ${e.id} ${e.source} ${e.requestId}: ${e.text.slice(0, 100)}`);

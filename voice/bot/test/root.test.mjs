@@ -75,7 +75,7 @@ test("handoff: a send that crashed after reaching the root is not sent again", a
 	assert.equal(t3.sent.length, before);
 });
 
-test("ingestRoot: a handoff run is a root reply, a tagged run is a task result, and other runs add nothing", () => {
+test("ingestRoot: a handoff run is a root reply, a tagged run is a task result, and other runs add nothing", async () => {
 	const data = { ...emptyTree(), root: "R", handoffs: { r1: { requestId: "r1", text: "drive time", status: "sent", messageId: "m1" } } };
 	const snap = {
 		runs: [
@@ -90,9 +90,9 @@ test("ingestRoot: a handoff run is a root reply, a tagged run is a task result, 
 			{ runId: "run3", type: "assistant_message", text: "Noted." },
 		],
 	};
-	const added = ingestRoot(data, snap);
+	const added = await ingestRoot(data, snap);
 	assert.deepEqual(added.map((e) => [e.source, e.requestId, e.text]), [["root_reply", "r1", "Passed it to the research PM."], ["task_result", "r1", "About 35 minutes."]]);
-	assert.equal(ingestRoot(data, snap).length, 0, "a run is read once");
+	assert.equal((await ingestRoot(data, snap)).length, 0, "a run is read once");
 });
 
 test("snapshot: built from handoffs and the outbox alone", () => {

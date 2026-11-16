@@ -92,22 +92,77 @@ export async function handoff(data, t3, req, save, at = Date.now()) {
 	return { status: "created", requestId: req.requestId };
 }
 
+const itemsOf = (snap) => {
+	const items = (snap.projection || snap).turnItems || [];
+	return Array.isArray(items) ? items : Object.values(items);
+};
+const runsOf = (snap) => (snap.projection || snap).runs || [];
+
+// The message id a t3_thread_send (or other send) tool call created, from its recorded output.
+function createdMessageId(item) {
+	if (item.type !== "dynamic_tool" || typeof item.text !== "string") return null;
+	try {
+		const out = JSON.parse(item.text).output || {};
+		const s = out.structuredContent || (typeof out.content === "string" ? JSON.parse(out.content) : {});
+		return (s && s.messageId) || null;
+	} catch {
+		return null;
+	}
+}
+
+// Walks back from a root run to the handoff that caused it. Each hop goes from a message to the thread that sent it
+// (senderThreadId), to the tool call there that created it, to the run that made the call, and on to that run's own
+// triggering message. Returns the request id, or null when a hop is missing. readThread(id) returns a thread snapshot.
+export async function traceRequest(data, rootSnap, run, readThread, maxHops = 6) {
+	const byMessage = new Map(Object.values(data.handoffs).filter((h) => h.messageId).map((h) => [h.messageId, h.requestId]));
+	const cache = new Map([[data.root, rootSnap]]);
+	const read = async (id) => {
+		if (!cache.has(id)) cache.set(id, await readThread(id));
+		return cache.get(id);
+	};
+	let threadId = data.root;
+	let messageId = run.userMessageId;
+	for (let hop = 0; hop <= maxHops; hop++) {
+		if (byMessage.has(messageId)) return byMessage.get(messageId);
+		const msg = itemsOf(await read(threadId)).find((i) => i.type === "user_message" && i.messageId === messageId);
+		const sender = msg && msg.senderThreadId;
+		if (!sender) return null;
+		const senderSnap = await read(sender);
+		const call = itemsOf(senderSnap).find((i) => createdMessageId(i) === messageId);
+		const senderRun = call && runsOf(senderSnap).find((r) => r.id === call.runId);
+		if (!senderRun) return null;
+		threadId = sender;
+		messageId = senderRun.userMessageId;
+	}
+	return null;
+}
+
 // Turns each newly completed root run into an outbox entry. A run started by a handoff message is that request's root reply.
-// Any other run whose reply carries a [request <id>] tag is that request's task result. Other runs are skipped.
-export function ingestRoot(data, snap, at = Date.now()) {
-	const p = snap.projection || snap;
-	const items = Array.isArray(p.turnItems) ? p.turnItems : Object.values(p.turnItems || {});
+// Any other run is a task result for the request its sender chain leads back to (traceRequest). The [request <id>] tag is the
+// fallback when the chain breaks, and a tag that disagrees with the chain is recorded. Other runs are skipped.
+export async function ingestRoot(data, snap, readThread = null, at = Date.now()) {
+	const items = itemsOf(snap);
 	const byMessage = new Map(Object.values(data.handoffs).filter((h) => h.messageId).map((h) => [h.messageId, h.requestId]));
 	const added = [];
-	for (const run of p.runs || []) {
+	for (const run of runsOf(snap)) {
 		if (run.status !== "completed" || data.seenRuns.includes(run.id)) continue;
 		data.seenRuns.push(run.id);
 		const reply = items.filter((i) => i.runId === run.id && i.type === "assistant_message" && i.text).at(-1);
 		if (!reply) continue;
 		const fromHandoff = byMessage.get(run.userMessageId);
-		const tagged = TAG_RE.exec(reply.text);
-		if (fromHandoff) added.push(addOutbox(data, { source: "root_reply", node: data.root, requestId: fromHandoff, text: reply.text }, at));
-		else if (tagged && data.handoffs[tagged[1]]) added.push(addOutbox(data, { source: "task_result", node: data.root, requestId: tagged[1], text: reply.text.replace(TAG_RE, "").replace(/^\s*RESULT:\s*/i, "").trim() }, at));
+		if (fromHandoff) {
+			added.push(addOutbox(data, { source: "root_reply", node: data.root, requestId: fromHandoff, text: reply.text }, at));
+			continue;
+		}
+		const chained = readThread ? await traceRequest(data, snap, run, readThread) : null;
+		const m = TAG_RE.exec(reply.text);
+		const tagged = m && data.handoffs[m[1]] ? m[1] : null;
+		const requestId = chained || tagged;
+		if (!requestId) continue;
+		const entry = addOutbox(data, { source: "task_result", node: data.root, requestId, text: reply.text.replace(TAG_RE, "").replace(/^\s*RESULT:\s*/i, "").trim() }, at);
+		entry.tiedBy = chained ? "chain" : "tag";
+		if (chained && tagged && tagged !== chained) entry.tagMismatch = tagged;
+		added.push(entry);
 	}
 	return added;
 }
