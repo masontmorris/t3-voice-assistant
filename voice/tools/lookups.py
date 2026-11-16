@@ -2,9 +2,11 @@
 
 Each lookup has a parser, from a task's instruction to its arguments or None, and a call, from the arguments to a
 spoken summary and a detail record. The parsers are plain word rules, written for the instructions the segmenter
-copies from the transcript. The place is the capitalized name after "in", "for" or "at". With no place, a lookup
-uses the default place, and with no default it fails. The time lookup geocodes the place with Open-Meteo to get its
-IANA time zone, then asks the MCP server for the time there.
+copies from the transcript. The place is the capitalized name after "in", "for" or "at". A parser can also take
+the arguments of the earlier task a follow-up continues: then "And what about Saturday?" needs no subject word, as
+long as it states a day or a place of its own, and what it leaves out comes from the earlier task. With no place
+from either, a lookup uses the default place, and with no default it fails. The time lookup geocodes the place
+with Open-Meteo to get its IANA time zone, then asks the MCP server for the time there.
 """
 
 import re
@@ -43,13 +45,18 @@ def find_place(text):
     return None
 
 
-def find_when(text):
-    """today, tomorrow, weekend, or a weekday name. A request that names no day asks about today."""
+def stated_when(text):
+    """today, tomorrow, weekend, or a weekday name, or None when the text names no day."""
     words = re.findall(r"[a-z]+", text.lower())
     for when in ("weekend", "tomorrow", *WEEKDAYS, "today", "tonight"):
         if when in words:
             return "today" if when == "tonight" else when
-    return "today"
+    return None
+
+
+def find_when(text):
+    """The day a request asks about. A request that names no day asks about today."""
+    return stated_when(text) or "today"
 
 
 def pick_days(when, days):
@@ -83,10 +90,13 @@ def geocode(fetch, name, deadline):
 
 
 def weather_tool(fetch, default_place):
-    def parse(instruction):
-        if not WEATHER.search(instruction):
+    def parse(instruction, earlier=None):
+        place, when, subject = find_place(instruction), stated_when(instruction), WEATHER.search(instruction)
+        if not subject and (earlier is None or (place is None and when is None)):
             return None
-        return {"place": find_place(instruction) or default_place, "when": find_when(instruction)}
+        earlier = earlier or {}
+        return {"place": place or earlier.get("place") or default_place,
+                "when": when or earlier.get("when") or "today"}
 
     def call(arguments, deadline):
         if not arguments["place"]:
@@ -103,10 +113,11 @@ def weather_tool(fetch, default_place):
 
 
 def time_tool(fetch, mcp, default_place):
-    def parse(instruction):
-        if not TIME.search(instruction):
+    def parse(instruction, earlier=None):
+        place = find_place(instruction)
+        if not TIME.search(instruction) and (earlier is None or place is None):
             return None
-        return {"place": find_place(instruction) or default_place}
+        return {"place": place or (earlier or {}).get("place") or default_place}
 
     def call(arguments, deadline):
         if not arguments["place"]:

@@ -157,8 +157,8 @@ class FollowUpTest(Call):
         self.assertEqual(self.lookup(records[0]), [("weather", {"place": "Denver", "when": "tomorrow"}, "ok")])
         self.assertEqual(self.lookup(records[1]), [("weather", {"place": "Denver", "when": "saturday"}, "ok")],
                          "turn 2 asks about Saturday in turn 1's place, and the real lookup answers it")
-        update = records[1]["task_updates"][0]["result_summary"]
-        self.assertTrue(update.startswith("Forecast for Denver, Colorado. Saturday"), update)
+        result = records[1]["executions"]["task_1"]["result_summary"]
+        self.assertTrue(result.startswith("Forecast for Denver, Colorado. Saturday"), result)
         self.assert_no_item_holds("And what about Saturday?", items[1])
 
     async def test_an_amended_correction_inherits_the_place(self):

@@ -68,7 +68,7 @@ from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskSe
 from voice.segmentation.contract import Intent
 from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
-from voice.tools.registry import open_registry
+from voice.tools.registry import ToolCall, open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
 PERSONA = (
@@ -380,7 +380,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     segmenter = SEGMENTERS[segmenter_name](decider, stem)
     if eou == "gated":
         segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, False
-    service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated")
+    service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
+                              earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")),
+                                           None))
     adapter = TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -640,10 +642,19 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
 def carried_tasks(record):
     """The tasks one turn ran, as later turns of the call see them. `ref` names the turn and the task, because every
-    turn numbers its tasks from task_1."""
+    turn numbers its tasks from task_1. `call` is the lookup a task resolved, when it answered, so a later follow-up
+    can continue its place; a failed lookup carries nothing."""
     turn = Path(record.get("clip") or "turn").stem
-    return [{"ref": f"{turn}:{t['task_id']}", "instruction": t["instruction"], "side_effect": t["side_effect"]}
-            for t in record.get("tasks", []) if t["status"] == "dispatched"]
+    executions = record.get("executions", {})
+    carried = []
+    for t in record.get("tasks", []):
+        if t["status"] != "dispatched":
+            continue
+        tool = (executions.get(t["task_id"]) or {}).get("tool") or {}
+        call = {"tool": tool["tool"], "arguments": tool["arguments"]} if tool.get("outcome") == "ok" else None
+        carried.append({"ref": f"{turn}:{t['task_id']}", "instruction": t["instruction"],
+                        "side_effect": t["side_effect"], "call": call})
+    return carried
 
 
 async def main_async(args):

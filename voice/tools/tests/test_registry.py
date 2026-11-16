@@ -42,6 +42,36 @@ class RouteTest(unittest.TestCase):
                 self.assertIsNone(self.registry.route(instruction))
 
 
+class FollowUpRouteTest(unittest.TestCase):
+    """A follow-up continues the earlier lookup only when no tool claims it and it states a value of its own."""
+
+    EARLIER = ToolCall("weather", {"place": "Denver", "when": "tomorrow"})
+
+    def setUp(self):
+        self.registry, _, _ = replay_registry(None)
+
+    def route(self, instruction, earlier=EARLIER):
+        return self.registry.route(instruction, earlier)
+
+    def test_a_new_day_keeps_the_place(self):
+        self.assertEqual(self.route("And what about Saturday?"),
+                         ToolCall("weather", {"place": "Denver", "when": "saturday"}))
+
+    def test_a_new_place_keeps_the_day(self):
+        self.assertEqual(self.route("What about in Boulder?"),
+                         ToolCall("weather", {"place": "Boulder", "when": "tomorrow"}))
+
+    def test_a_named_subject_wins(self):
+        self.assertEqual(self.route("What time is it in Tokyo?"), ToolCall("time", {"place": "Tokyo"}))
+        self.assertEqual(self.route("What's the weather on Saturday?"),
+                         ToolCall("weather", {"place": "Denver", "when": "saturday"}),
+                         "a weather request with no place still takes the earlier place")
+
+    def test_nothing_to_continue(self):
+        self.assertIsNone(self.route("And set a timer for ten minutes."), "states no day and no place")
+        self.assertIsNone(self.route("And what about Saturday?", earlier=None), "no earlier lookup, no place")
+
+
 class RunTest(unittest.TestCase):
     def run_one(self, instruction, **kw):
         tools, fetch, mcp = replay_registry(**kw)

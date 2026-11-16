@@ -1,6 +1,8 @@
 """The tool registry: from a read-only task's instruction to a real lookup, with a timeout and a clear outcome.
 
-`Registry.route` picks the first tool whose parser accepts the instruction, or None when no tool fits. `Registry.run`
+`Registry.route` picks the first tool whose parser accepts the instruction, or None when no tool fits. Given the
+earlier `ToolCall` a follow-up continues, that tool also accepts a request with no subject word that states a value
+of its own, and fills what the request leaves out from the earlier call. `Registry.run`
 never raises. It returns a `ToolResult` whose outcome is ok, failed or timeout, and whose summary is the sentence
 the voice may speak, a failure included.
 
@@ -56,7 +58,7 @@ class ToolResult:
 @dataclass(frozen=True)
 class Tool:
     name: str
-    parse: Callable[[str], dict | None]
+    parse: Callable[[str, dict | None], dict | None]
     call: Callable[[dict, float], tuple[str, dict]]
 
 
@@ -68,11 +70,17 @@ class Registry:
     def __init__(self, tools, timeout_s=5.0, mcp=None):
         self.tools, self.timeout_s, self.mcp = {tool.name: tool for tool in tools}, timeout_s, mcp
 
-    def route(self, instruction):
+    def route(self, instruction, earlier=None):
+        """A tool whose subject the instruction names wins, so "what time is it in Tokyo" after a forecast is a time
+        lookup. Only an instruction no tool claims continues `earlier`'s tool."""
         for tool in self.tools.values():
-            arguments = tool.parse(instruction)
+            if tool.parse(instruction) is not None:
+                same = earlier is not None and earlier.tool == tool.name
+                return ToolCall(tool.name, tool.parse(instruction, earlier.arguments if same else None))
+        if earlier is not None and earlier.tool in self.tools:
+            arguments = self.tools[earlier.tool].parse(instruction, earlier.arguments)
             if arguments is not None:
-                return ToolCall(tool.name, arguments)
+                return ToolCall(earlier.tool, arguments)
         return None
 
     def run(self, call):

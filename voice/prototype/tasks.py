@@ -143,8 +143,12 @@ class MockTaskService:
     """`holds_side_effects` off is the gated turn: the gate and the voice model decide what runs, so a dispatched side
     effect runs on the mock worker instead of waiting for confirmation. A side effect never reaches a real tool."""
 
-    def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None, holds_side_effects=True):
+    def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None, holds_side_effects=True,
+                 earlier=None):
+        """`earlier` is the newest lookup the call resolved before this turn, a `ToolCall`, which a follow-up that
+        names no place continues."""
         self.segmenter, self.conversation_id, self.delay_s, self.tools = segmenter, conversation_id, delay_s, tools
+        self.earlier = earlier
         self.holds_side_effects = holds_side_effects
         self.executions: dict[str, Execution] = {}
         self.correction = None
@@ -153,9 +157,10 @@ class MockTaskService:
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
 
     def _start(self, task_id, instruction, side_effect, now):
-        call = self.tools.route(instruction) if self.tools and not side_effect else None
+        call = self.tools.route(instruction, self.earlier) if self.tools and not side_effect else None
         if call is None:
             return Execution(task_id, Run.RUNNING, now, now + self.delay_s)
+        self.earlier = call
         self._calls[task_id] = self._pool.submit(self.tools.run, call)
         return Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_s + HUNG_LOOKUP_GRACE_S,
                          tool={"tool": call.tool, "arguments": call.arguments})
