@@ -49,6 +49,8 @@ python -m voice.prototype.run "$VOICE_HOME/evidence/stage1/audio/two_request.wav
 
 The command prints the server PID and one metrics line per clip. It writes `two_request.json`, `two_request_reply.wav`, and, when a task finishes after the reply, `two_request_update.wav` to `$VOICE_HOME/evidence/prototype/inject-c/`. Pass several clips to reuse one server. `--inject a|b|c` picks the injection method, `--status-only` offers method (b) only the `get_task_status` tool, and `--delay` sets how long a mock task takes.
 
+Weather and time tasks now make real lookups instead of mock ones. [real-tools.md](real-tools.md) covers the tools, the `--mock-tools` flag, and the results.
+
 The decider cache and call ledger for these runs live in `$VOICE_HOME/evidence/prototype/decider-cache/`, not in `voice/segmentation/cache/`, because their keys hold the transcripts of Mason's recordings. The runner caps live decider calls at 150. Cached requests make no calls.
 
 ## Injection methods

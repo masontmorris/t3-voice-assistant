@@ -2,15 +2,18 @@
 
 The segmenter owns the records and their dedup, including the voice model's delegate calls, which go through
 `submit_delegate`. Under the end-of-utterance handoff the voice model's tools go through `call_tool` instead, which
-checks each call against the records before the segmenter's orchestrator acts on it. This service watches the dispatch
-log. A dispatched read-only task runs on a mock worker that
-finishes after `delay_s` with a canned result. A dispatched side-effect task is held and never runs, and so is a
-task no decider answer cleared, such as a voice delegate that matched no segment. Nothing here calls a real agent,
-sends a message, or touches a device.
+checks each call against the records before the orchestrator acts on it. This service watches the dispatch log,
+so delegated and segmented tasks take the same path. A dispatched read-only task that a tool in `tools`
+(`voice/tools/registry.py`) accepts runs that real lookup on a worker thread, and finishes when it returns:
+completed, or failed with the reason as its summary. Any other read-only task runs on a mock worker that finishes
+after `delay_s` with a canned result. A dispatched side-effect task is held and never runs, and so is a task no
+decider answer cleared, such as a voice delegate that matched no segment. Nothing here calls a real agent, sends a
+message, or touches a device.
 
 Times are seconds on the caller's clock, passed in, so the service is deterministic under test.
 """
 
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from enum import StrEnum
 
@@ -22,6 +25,7 @@ class Run(StrEnum):
     COMPLETED = "completed"
     HELD = "held_for_confirmation"
     CANCELLED = "cancelled"
+    FAILED = "failed"
 
 
 CANNED = [
@@ -35,6 +39,7 @@ CANNED = [
     (("slides",), "Mock file search: found Quarterly_Review.pptx."),
 ]
 DEFAULT_RESULT = "Mock worker finished. No real work was done."
+HUNG_LOOKUP_GRACE_S = 1.0
 
 
 def canned_result(instruction):
@@ -59,6 +64,7 @@ class Execution:
     result_summary: str | None = None
     finished_at: float | None = None
     reported: bool = False
+    tool: dict | None = None
 
 
 def snapshot_status(record, execution):
@@ -88,7 +94,7 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
         entry = {"task_id": record["task_id"], "description": record["instruction"], "status": status}
         if record["depends_on"]:
             entry["depends_on"] = record["depends_on"]
-        if status == Run.COMPLETED:
+        if status in (Run.COMPLETED, Run.FAILED):
             entry["result_summary"] = execution.result_summary
         tasks.append(entry)
     unclear = [r["instruction"] for r in records if r["status"] == "needs_clarification"]
@@ -100,10 +106,20 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
 
 
 class MockTaskService:
-    def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0):
-        self.segmenter, self.conversation_id, self.delay_s = segmenter, conversation_id, delay_s
+    def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None):
+        self.segmenter, self.conversation_id, self.delay_s, self.tools = segmenter, conversation_id, delay_s, tools
         self.executions: dict[str, Execution] = {}
         self._seen = 0
+        self._calls = {}
+        self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
+
+    def _start(self, task_id, instruction, now):
+        call = self.tools.route(instruction) if self.tools else None
+        if call is None:
+            return Execution(task_id, Run.RUNNING, now, now + self.delay_s)
+        self._calls[task_id] = self._pool.submit(self.tools.run, call)
+        return Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_s + HUNG_LOOKUP_GRACE_S,
+                         tool={"tool": call.tool, "arguments": call.arguments})
 
     def submit_delegate(self, instruction):
         """The voice model's delegate tool. The segmenter reconciles it with its own records."""
@@ -118,7 +134,7 @@ class MockTaskService:
             if needs_hold(records[task_id]):
                 execution = Execution(task_id, Run.HELD, now, None)
             else:
-                execution = Execution(task_id, Run.RUNNING, now, now + self.delay_s)
+                execution = self._start(task_id, entry["instruction"], now)
             self.executions[task_id] = execution
             events.append({"task_id": task_id, "event": execution.state.value, "instruction": entry["instruction"]})
         self._seen = len(self.segmenter.dispatch_log)
@@ -129,15 +145,37 @@ class MockTaskService:
         return events
 
     def poll(self, now):
-        """Finish every running execution that is due. Returns the task ids that finished."""
+        """Finish every running execution that is due or whose lookup returned. Returns the task ids that finished."""
         done = []
         records = {r["task_id"]: r for r in self.segmenter.records()}
         for task_id, execution in self.executions.items():
-            if execution.state == Run.RUNNING and execution.due_at <= now:
-                execution.state, execution.finished_at = Run.COMPLETED, now
+            if execution.state != Run.RUNNING:
+                continue
+            call = self._calls.get(task_id)
+            if call is not None and call.done():
+                result = call.result()
+                execution.state = Run.COMPLETED if result.outcome == "ok" else Run.FAILED
+                execution.result_summary, execution.tool = result.summary, result.record()
+            elif call is None and execution.due_at <= now:
+                execution.state = Run.COMPLETED
                 execution.result_summary = canned_result(records[task_id]["instruction"])
-                done.append(task_id)
+            elif execution.due_at <= now:
+                execution.state, execution.tool = Run.FAILED, {**execution.tool, "outcome": "timeout"}
+                execution.result_summary = f"The {execution.tool['tool']} lookup did not answer in time."
+            else:
+                continue
+            execution.finished_at = now
+            done.append(task_id)
         return done
+
+    def pending_calls(self):
+        """The lookups still running, as futures a caller can wait on."""
+        return [self._calls[task_id] for task_id, e in self.executions.items()
+                if e.state == Run.RUNNING and task_id in self._calls]
+
+    def close(self):
+        if self._pool is not None:
+            self._pool.shutdown(cancel_futures=True)
 
     def next_due(self):
         due = [e.due_at for e in self.executions.values() if e.state == Run.RUNNING]
@@ -170,7 +208,7 @@ class MockTaskService:
         snapshot = build_snapshot(self.segmenter.records(), self.executions, self.conversation_id, utterance_id,
                                   final_transcript, unreviewed)
         for entry in snapshot["tasks"]:
-            if entry["status"] == Run.COMPLETED:
+            if entry["status"] in (Run.COMPLETED, Run.FAILED):
                 self.executions[entry["task_id"]].reported = True
         return snapshot
 
@@ -179,7 +217,7 @@ class MockTaskService:
         records = {r["task_id"]: r for r in self.segmenter.records()}
         updates = []
         for task_id, execution in self.executions.items():
-            if execution.state == Run.COMPLETED and not execution.reported:
+            if execution.state in (Run.COMPLETED, Run.FAILED) and not execution.reported:
                 execution.reported = True
                 updates.append({"type": "task_update", "conversation_id": self.conversation_id, "task_id": task_id,
                                 "description": records[task_id]["instruction"], "status": execution.state.value,

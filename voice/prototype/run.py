@@ -1,7 +1,8 @@
 """The local voice-assistant prototype, end to end: a WAV in, a spoken reply and a record of every event out.
 
     python -m voice.prototype.run CLIP.wav [CLIP.wav ...] [--eou handoff|decider] [--inject a|b|c]
-        [--segmenter hybrid|baseline] [--fresh] [--lfm-ctx N] [--out DIR]
+        [--segmenter hybrid|baseline] [--fresh] [--lfm-ctx N] [--out DIR] [--mock-tools]
+        [--decider-cache DIR --decider-budget N]
 
 The clip streams at real-time pace into two sessions on one llama-server: a `realtime` voice session and a
 `?intent=transcription` session. Transcription deltas feed the segmenter, the segmenter's dispatches feed the mock
@@ -15,6 +16,10 @@ unreviewed end of the transcript, and may call delegate, cancel_task or amend_ta
 The voice session then hears the updated snapshot as in c and replies, so it never sees a tool call of its own.
 decider is the earlier turn: one more decider call on the final transcript, then the snapshot by --inject. handoff
 needs the hybrid and --inject c.
+
+Read-only weather and time tasks make real lookups through `voice/tools/registry.py`: Open-Meteo, and the
+`mcp-server-time` MCP server over stdio, which runs for the whole run. VOICE_DEFAULT_PLACE is the place for a request
+that names none. --mock-tools sends every task to the mock worker instead.
 
 --inject picks how the snapshot enters the voice session under --eou decider:
   a  a client-made `function_call` item plus its `function_call_output`
@@ -40,6 +45,7 @@ import asyncio
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from pathlib import Path
 
 from voice.local_decider.bench import gpu_used_mib
@@ -50,13 +56,15 @@ from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS
                                        rate_limited_share, use_decider_cache)
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.transcript import TranscriptAdapter
+from voice.tools.registry import open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
 PERSONA = (
     "You are a friendly voice assistant. A separate task service carries out what the user asks for. "
     "After the user speaks, you receive a task status snapshot as JSON. Talk to the user directly, as \"you\", in "
     "one or two short sentences, and say only what the snapshot says. running means the task has started. pending "
-    "means it is waiting. completed means it is done, and you may say its result_summary. held_for_confirmation "
+    "means it is waiting. completed means it is done, and you may say its result_summary. failed means it could not be "
+    "done, and you may say its result_summary. held_for_confirmation "
     "means you need the user's OK before doing it. needs_clarification means you must ask the user. Never say a task "
     "is done unless its status is completed, never promise a step the snapshot does not show, and never make up a "
     "result."
@@ -149,8 +157,17 @@ def parse_arguments(call):
     return arguments if isinstance(arguments, dict) else {}
 
 
+async def wait_for_work(service, timeout_s):
+    """Sleep until the next mock task is due, or until a running lookup returns, whichever comes first."""
+    calls = [asyncio.wrap_future(call) for call in service.pending_calls()]
+    if calls:
+        await asyncio.wait(calls, timeout=max(0.0, timeout_s))
+    else:
+        await asyncio.sleep(max(0.0, timeout_s))
+
+
 async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
-                   eou="handoff"):
+                   tools=None, eou="handoff"):
     t0 = time.perf_counter()
 
     def clock():
@@ -164,7 +181,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         timeline.append({"t": round(clock(), 4), "kind": kind, **detail})
 
     segmenter = SEGMENTERS[segmenter_name](decider, stem)
-    service = MockTaskService(segmenter, f"conv_{stem}", delay_s)
+    service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools)
     adapter = TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -220,15 +237,15 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
     voice = await Session.open(url, "voice", clock)
     asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
-    tools = await Session.open(url, "tools", clock) if eou == "handoff" else None
+    tool_session = await Session.open(url, "tools", clock) if eou == "handoff" else None
     worker = None
     try:
-        if tools is not None:
-            await tools.wait_for("session.created")
-            await tools.send(type="session.update", session={
+        if tool_session is not None:
+            await tool_session.wait_for("session.created")
+            await tool_session.send(type="session.update", session={
                 "type": "realtime", "instructions": HANDOFF_INSTRUCTIONS, "tools": HANDOFF_TOOLS,
                 "output_modalities": ["text"]})
-            await tools.wait_for("session.updated")
+            await tool_session.wait_for("session.updated")
         created = await voice.wait_for("session.created")
         out_rate = created["session"]["audio"]["output"]["format"]["rate"]
         partial["events"] = {"voice": voice.events, "voice_sent": voice.sent, "asr": asr.events, "asr_sent": asr.sent}
@@ -274,8 +291,8 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou == "handoff":
-            injection.append(await create_item(tools, user_text(SNAPSHOT_PREFIX, snapshot)))
-            tool_turn, _ = await respond(tools, out_rate, audio_end, tool_choice="auto")
+            injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, snapshot)))
+            tool_turn, _ = await respond(tool_session, out_rate, audio_end, tool_choice="auto")
             log("tool_turn", calls=tool_turn["function_calls"], text=tool_turn["text"])
             for call in tool_turn["function_calls"]:
                 result, events = service.call_tool(call.get("name"), parse_arguments(call), unreviewed, clock())
@@ -314,9 +331,9 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
             write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
 
         while (due := service.next_due()) is not None:
-            await asyncio.sleep(max(0.0, due - clock()))
+            await wait_for_work(service, due - clock())
             for task_id in service.poll(clock()):
-                log("service", task_id=task_id, event="completed")
+                log("service", task_id=task_id, event=service.executions[task_id].state.value)
         task_updates = service.take_updates()
         if task_updates:
             boundary = clock()
@@ -331,10 +348,11 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         if worker is not None:
             worker.cancel()
         executor.shutdown()
+        service.close()
         await voice.close()
         await asr.close()
-        if tools is not None:
-            await tools.close()
+        if tool_session is not None:
+            await tool_session.close()
     final_t = next(e["t"] for e in timeline if e["kind"] == "transcript_update" and e["is_final"])
     snapshot_t = next(e["t"] for e in timeline if e["kind"] == "snapshot")
     first_audio = next((r["first_audio_after_s"] for r in replies
@@ -367,20 +385,24 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         "executions": {k: {**vars(v), "state": v.state.value} for k, v in service.executions.items()},
         "timeline": timeline,
         "events": {"voice": voice.events, "voice_sent": voice.sent, "asr": asr.events, "asr_sent": asr.sent,
-                   **({"tools": tools.events, "tools_sent": tools.sent} if tools is not None else {})},
+                   **({"tools": tool_session.events, "tools_sent": tool_session.sent}
+                      if tool_session is not None else {})},
     }
 
 
 async def main_async(args):
-    use_decider_cache(EVIDENCE / "decider-cache", DECIDER_BUDGET)
+    use_decider_cache(args.decider_cache, args.decider_budget)
     out = args.out or EVIDENCE / f"{args.eou}-{args.inject}{'-status' if args.status_only else ''}"
     out.mkdir(parents=True, exist_ok=True)
     start = live_calls()
     slots = 3 if args.eou == "handoff" else 2
-    with Server(args.port, out / "llama-server.log", ("-c", str(args.lfm_ctx)), slots) as server, \
-            make_decider(args.decider, out) as decider:
+    tools_context = nullcontext() if args.mock_tools else open_registry()
+    server_context = Server(args.port, out / "llama-server.log", ("-c", str(args.lfm_ctx)), slots)
+    with tools_context as tools, server_context as server, make_decider(args.decider, out) as decider:
         if args.fresh:
             decider = FreshClient(decider)
+        if tools is not None:
+            print(f"MCP server {tools.mcp.server_info} up after {tools.mcp.startup_s:.2f} s", flush=True)
         print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
         vram_mib = gpu_used_mib()
         if args.reuse:
@@ -390,10 +412,11 @@ async def main_async(args):
             try:
                 record = await run_clip(wav, args.inject, args.status_only,
                                         f"ws://127.0.0.1:{args.port}/v1/realtime", decider, args.delay, out, partial,
-                                        args.segmenter, args.eou)
+                                        args.segmenter, tools, args.eou)
             except Exception as exc:
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
             record["server_startup_s"] = server.startup_s
+            record["mcp_startup_s"] = tools.mcp.startup_s if tools is not None else None
             record["config"] = {"eou": args.eou, "decider": args.decider, "reuse": args.reuse, "fresh": args.fresh,
                                 "lfm_ctx": args.lfm_ctx, "slots": slots, "vram_mib_after_load": vram_mib}
             (out / f"{wav.stem}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
@@ -418,6 +441,11 @@ def main():
     parser.add_argument("--reuse", action="store_true", help="ask only questions with no kept answer")
     parser.add_argument("--fresh", action="store_true", help="send cached cloud decider requests again, for timing")
     parser.add_argument("--lfm-ctx", type=int, default=32768, help="LFM3's total context (default 32768)")
+    parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
+    parser.add_argument("--decider-cache", type=Path, default=EVIDENCE / "decider-cache",
+                        help="decider cache and call ledger, kept out of the repo")
+    parser.add_argument("--decider-budget", type=int, default=DECIDER_BUDGET,
+                        help="stop when the ledger holds this many attempts")
     args = parser.parse_args()
     if args.eou == "handoff" and (args.inject != "c" or args.segmenter != "hybrid"):
         parser.error("--eou handoff injects as in c and needs the hybrid segmenter")
