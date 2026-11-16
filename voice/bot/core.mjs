@@ -401,5 +401,13 @@ export function createHeartbeat(cfg, deps, startedAt) {
 		return triggers;
 	}
 
-	return { observe, tick, watches, nodes, ticks: () => tickNo };
+	// A node found after start, such as a worker a PM delegated to. It is watched once its parent is known.
+	function addNode(n) {
+		if (nodes.has(n.threadId)) return;
+		const node = { ...n, status: null, lastEventAt: null, thread: null };
+		nodes.set(n.threadId, node);
+		if (node.parent && nodes.has(node.parent)) watched.push(node);
+	}
+
+	return { observe, tick, addNode, watches, nodes, ticks: () => tickNo };
 }
