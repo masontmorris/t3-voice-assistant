@@ -3,7 +3,7 @@
 import unittest
 
 from voice.segmentation.contract import Intent, UtteranceIntent
-from voice.segmentation.intent import utterance_intent
+from voice.segmentation.intent import asks_about_call, utterance_intent
 
 REQUEST, CORRECTION, CHITCHAT = Intent.REQUEST, Intent.CORRECTION, Intent.CHITCHAT
 CASES = [
@@ -54,6 +54,52 @@ class UtteranceIntentTest(unittest.TestCase):
         for said, intent, replacement in CASES:
             with self.subTest(said=said):
                 self.assertEqual(utterance_intent(said), UtteranceIntent(intent, replacement))
+
+
+class CallHistoryTest(unittest.TestCase):
+    """A question about this call's own turns is conversation: it runs no task and reaches no tools session.
+
+    The questions are the twelve-item paraphrase set's, which measured 7/12 with the note, and 8/12 once every one
+    of them stopped being a request. The requests below refer to an earlier turn too, and must stay requests."""
+
+    QUESTIONS = (
+        "What did I ask first?",
+        "What was the most recent thing I asked?",
+        "Did I ask you about the weather in Denver?",
+        "What was the first thing I asked you?",
+        "What did I ask at the start of the call?",
+        "What was the second thing I asked?",
+        "What did you tell me about Lisbon?",
+        "Did I ask about Tokyo?",
+        "Going back to the beginning, what did I ask?",
+        "What did I ask just before this?",
+        "What was the second request I made?",
+        "What did you say about Paris?",
+        "What was my first message in this conversation?",
+        "No, what did I ask first?",
+    )
+    REQUESTS = (
+        "Do that again for Boston.",
+        "Send that to Sam.",
+        "And what about Saturday?",
+        "What's the weather in Denver tomorrow?",
+        "What was the weather in Denver yesterday?",
+        "Tell me about Lisbon.",
+        "I need the first train to Denver.",
+        "Can you check the weather?",
+    )
+
+    def test_a_question_about_the_call_is_conversation(self):
+        for said in self.QUESTIONS:
+            with self.subTest(said=said):
+                self.assertEqual(utterance_intent(said).intent, CHITCHAT)
+                self.assertTrue(asks_about_call(said))
+
+    def test_a_request_about_an_earlier_turn_is_still_a_request(self):
+        for said in self.REQUESTS:
+            with self.subTest(said=said):
+                self.assertEqual(utterance_intent(said).intent, REQUEST)
+                self.assertFalse(asks_about_call(said))
 
 
 if __name__ == "__main__":
