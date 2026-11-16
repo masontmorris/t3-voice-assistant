@@ -35,9 +35,11 @@ import websockets
 
 if __package__:
     from voice.live.aec import EchoCanceller
+    from voice.live.rawmic import open_raw
     from voice.live.recording import SessionRecorder, unique_session_dir
 else:
     from aec import EchoCanceller
+    from rawmic import open_raw
     from recording import SessionRecorder, unique_session_dir
 
 HERE = Path(__file__).resolve().parent
@@ -165,15 +167,20 @@ class Player:
             self.stream = None
 
 
-async def mic_frames(input_device, queue):
+async def mic_frames(input_device, queue, raw=True):
     import sounddevice as sd
     loop = asyncio.get_running_loop()
 
-    def callback(indata, _frames, _time, _status):
-        loop.call_soon_threadsafe(queue.put_nowait, (bytes(indata), time.perf_counter()))
+    def on_frame(pcm):
+        loop.call_soon_threadsafe(queue.put_nowait, (pcm, time.perf_counter()))
 
-    stream = sd.RawInputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=FRAME_SAMPLES,
-                               device=input_device, callback=callback)
+    stream, how = open_raw(sd, input_device, RATE, FRAME_SAMPLES, on_frame) if raw else (None, "--no-raw-mic")
+    if stream is None:
+        print(f"input: driver-processed capture ({how})", flush=True)
+        stream = sd.RawInputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=FRAME_SAMPLES,
+                                   device=input_device, callback=lambda data, *_: on_frame(bytes(data)))
+    else:
+        print(f"input: {how}", flush=True)
     with stream:
         await asyncio.Event().wait()
 
@@ -363,7 +370,7 @@ class Client:
             if self.args.wav:
                 source = wav_frames(self.args.wav, frames, self.next_clip)
             else:
-                source = mic_frames(device(self.args.input), frames)
+                source = mic_frames(device(self.args.input), frames, raw=getattr(self.args, "raw_mic", True))
             async with ws:
                 await ws.send(json.dumps({"type": "hello", "mode": "ptt" if self.args.ptt else "vad"}))
                 tasks = [asyncio.create_task(c) for c in (source, self.send_audio(ws, frames), self.ping(ws),
@@ -416,6 +423,9 @@ def main():
                         help="cancel speaker echo from the microphone (default: on for a microphone, off with --wav)")
     parser.add_argument("--no-echo-cancel", dest="echo_cancel", action="store_false",
                         help="send the raw microphone, as with headphones")
+    parser.add_argument("--no-raw-mic", dest="raw_mic", action="store_false",
+                        help="take the microphone after the driver's own effects (its echo cancellation and noise "
+                             "suppression) instead of the raw WASAPI stream")
     parser.add_argument("--echo-tail-ms", type=int, default=256,
                         help="echo path the canceller models, from output callback to microphone (default 256); "
                              "raise it for a Bluetooth speaker")
