@@ -7,7 +7,10 @@
 The clip streams at real-time pace into two sessions on one llama-server: a `realtime` voice session and a
 `?intent=transcription` session. Transcription deltas feed the segmenter, the segmenter's dispatches feed the mock
 task service, and at the turn boundary the task snapshot goes into the voice session before it replies. Mock tasks
-that finish after the reply reach the voice as a `task_update` at the next boundary.
+that finish after the reply reach the voice as a `task_update` at the next boundary. While a reply is generating,
+every result the service reports goes into a backlog (`voice/prototype/backlog.py`). When the reply ends, the
+backlog's rule decides whether to re-prompt, and everything to tell goes out as one merged update. A result that
+arrives while nothing is replying goes out at once.
 
 --eou picks how the turn runs and ends. gated, the default, is plan A. During speech, a task the orchestrator is
 about to dispatch runs only when the task gate (voice/segmentation/gate.py) passes it; otherwise it waits. There is
@@ -57,6 +60,7 @@ from voice.local_decider.reuse import ReusingClient
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
+from voice.prototype.backlog import Backlog
 from voice.prototype.tasks import MockTaskService
 from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
@@ -176,6 +180,21 @@ def parse_arguments(call):
     except ValueError:
         return {}
     return arguments if isinstance(arguments, dict) else {}
+
+
+COLLECT_EVERY_S = 0.05
+
+
+async def collect(service, backlog, clock, during, log):
+    """Record every result the task service reports until cancelled. It wakes when a lookup returns, when a mock
+    task is due, or every COLLECT_EVERY_S to see work the voice model started."""
+    while True:
+        due = service.next_due()
+        await wait_for_work(service, COLLECT_EVERY_S if due is None else min(COLLECT_EVERY_S, due - clock()))
+        for task_id in service.poll(clock()):
+            execution = service.executions[task_id]
+            backlog.record(task_id, "running", execution.state.value, execution.result_summary, clock(), during)
+            log("service", task_id=task_id, event=execution.state.value, during=during)
 
 
 async def wait_for_work(service, timeout_s):
@@ -315,6 +334,8 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)
         log("snapshot", snapshot=snapshot)
 
+        backlog = Backlog()
+        collecting = asyncio.create_task(collect(service, backlog, clock, "first reply", log))
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
             for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated"
@@ -358,19 +379,32 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
             log("reply", reply="snapshot", text=reply["text"])
             write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
 
-        while (due := service.next_due()) is not None:
+        collecting.cancel()
+        task_updates = []
+        while True:
+            tell = backlog.decide(backlog.drain(), service.executions, clock())
+            if tell:
+                updates = service.take_updates({e.task_id for e in tell})
+                task_updates += updates
+                boundary = clock()
+                log("task_updates", updates=updates, decision=backlog.history[-1])
+                injection_update = await create_item(voice, user_text(UPDATE_PREFIX, {"updates": updates}))
+                collecting = asyncio.create_task(collect(service, backlog, clock, "update reply", log))
+                update_reply, update_pcm = await respond(voice, out_rate, boundary, **extra)
+                collecting.cancel()
+                replies.append({"kind": "update", "injection": injection_update, "boundary": boundary,
+                                "tasks": [u["task_id"] for u in updates], **update_reply})
+                log("reply", reply="update", text=update_reply["text"])
+                n = sum(r["kind"] == "update" for r in replies)
+                write_pcm16(out / f"{stem}_update{'' if n == 1 else n}.wav", update_pcm, out_rate)
+                continue
+            if (due := service.next_due()) is None:
+                break
             await wait_for_work(service, due - clock())
             for task_id in service.poll(clock()):
-                log("service", task_id=task_id, event=service.executions[task_id].state.value)
-        task_updates = service.take_updates()
-        if task_updates:
-            boundary = clock()
-            log("task_updates", updates=task_updates)
-            injection_update = await create_item(voice, user_text(UPDATE_PREFIX, {"updates": task_updates}))
-            update_reply, update_pcm = await respond(voice, out_rate, boundary, **extra)
-            replies.append({"kind": "update", "injection": injection_update, **update_reply})
-            log("reply", reply="update", text=update_reply["text"])
-            write_pcm16(out / f"{stem}_update.wav", update_pcm, out_rate)
+                execution = service.executions[task_id]
+                backlog.record(task_id, "running", execution.state.value, execution.result_summary, clock(), "idle")
+                log("service", task_id=task_id, event=execution.state.value, during="idle")
 
     finally:
         if worker is not None:
@@ -408,6 +442,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         "tool_turn": tool_turn,
         "replies": replies,
         "task_updates": task_updates,
+        "backlog": backlog.history,
         "tasks": segmenter.records(),
         "dispatch_log": segmenter.dispatch_log,
         "executions": {k: {**vars(v), "state": v.state.value} for k, v in service.executions.items()},

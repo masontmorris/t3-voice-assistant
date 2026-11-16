@@ -233,11 +233,14 @@ class MockTaskService:
                 self.executions[entry["task_id"]].reported = True
         return snapshot
 
-    def take_updates(self):
-        """A `task_update` for each completion the voice has not been told about yet, each exactly once."""
+    def take_updates(self, task_ids=None):
+        """A `task_update` for each completion the voice has not been told about yet, each exactly once. With
+        `task_ids`, only for those tasks."""
         records = {r["task_id"]: r for r in self.segmenter.records()}
         updates = []
         for task_id, execution in self.executions.items():
+            if task_ids is not None and task_id not in task_ids:
+                continue
             if execution.state in (Run.COMPLETED, Run.FAILED) and not execution.reported:
                 execution.reported = True
                 updates.append({"type": "task_update", "conversation_id": self.conversation_id, "task_id": task_id,
