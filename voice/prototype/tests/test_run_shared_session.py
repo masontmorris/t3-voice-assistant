@@ -89,6 +89,99 @@ class Source:
         return CLOCK
 
 
+class Streams(Source):
+    """A turn whose audio really goes to the voice session, so where an item lands relative to it is observable."""
+
+    async def stream(self, voice, asr):
+        await voice.send(type="input_audio_buffer.append", audio="AA==")
+        return CLOCK
+
+
+class SnapshotPlacementTest(unittest.IsolatedAsyncioTestCase):
+    """Where --snapshot puts the one user item that carries the task state, against the turn's own audio."""
+
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.original_open = prototype.Session.open
+
+        async def open_session(url, name, clock, on_event=None):
+            return await FakeSession.open(url, name, clock, on_event)
+
+        prototype.Session.open = open_session
+        self.addCleanup(setattr, prototype.Session, "open", self.original_open)
+
+    def voice_sent(self, voice):
+        return [(index, e) for index, e in enumerate(voice.sent)
+                if e.get("type") in ("conversation.item.create", "input_audio_buffer.append")]
+
+    async def turn(self, voice, **snapshot):
+        return await prototype.run_clip(Streams(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {},
+                                        "hybrid", None, "gated", voice=voice, **snapshot)
+
+    async def test_the_shipped_snapshot_is_the_newest_item_before_the_reply(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn(voice)
+        sent = self.voice_sent(voice)
+        self.assertEqual([e["type"] for _, e in sent], ["input_audio_buffer.append", "conversation.item.create"],
+                         "the shipped mode puts the snapshot after the audio, as the newest user item")
+        text = sent[1][1]["item"]["content"][0]["text"]
+        self.assertIn(record["final_transcript"], text, "it carries the turn's own transcript")
+
+    async def test_before_audio_sends_the_prior_state_ahead_of_the_turn_audio(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn(voice, snapshot_mode="before-audio",
+                                 prior_snapshot={"final_transcript": "earlier words", "tasks": []})
+        sent = self.voice_sent(voice)
+        self.assertEqual([e["type"] for _, e in sent], ["conversation.item.create", "input_audio_buffer.append"],
+                         "the snapshot goes in before the audio, so it is not the newest user item")
+        text = sent[0][1]["item"]["content"][0]["text"]
+        self.assertIn("earlier words", text)
+        self.assertNotIn(record["final_transcript"], text, "the turn's own words reach the model as audio only")
+
+    async def test_before_audio_sends_nothing_after_the_tools_turn(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        await self.turn(voice, snapshot_mode="before-audio", prior_snapshot={"final_transcript": "earlier words"})
+        items = [e for _, e in self.voice_sent(voice) if e["type"] == "conversation.item.create"]
+        self.assertEqual(len(items), 1, "one item, moved, not a second one added")
+
+    async def test_off_sends_no_machine_text_at_all(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        await self.turn(voice, snapshot_mode="off", prior_snapshot={"final_transcript": "earlier words"})
+        items = [e for _, e in self.voice_sent(voice) if e["type"] == "conversation.item.create"]
+        self.assertEqual(items, [], "no snapshot, and no task update either")
+
+    async def test_reply_no_utterance_keeps_the_task_list_and_drops_their_words(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn(voice, snapshot_mode="reply-no-utterance")
+        texts = [e["item"]["content"][0]["text"] for _, e in self.voice_sent(voice)
+                 if e["type"] == "conversation.item.create"]
+        self.assertTrue(texts, "the shipped place, one item before the reply")
+        for text in texts:
+            self.assertNotIn(record["final_transcript"].lower(), text.lower(),
+                             "no copy of the person's words in any item the model reads")
+        self.assertIn("[task service", texts[0], "the machine prefix stays")
+        self.assertIn('"tasks"', texts[0], "the item keeps its shape, task list included")
+
+    def test_without_utterance_drops_every_copy_at_any_depth(self):
+        transcript = "What did I just ask you?"
+        snapshot = {"type": "utterance_snapshot", "final_transcript": transcript,
+                    "unreviewed_speech": transcript, "clarification_needed": None,
+                    "tasks": [{"task_id": "task_1", "description": transcript, "status": "running"},
+                              {"task_id": "task_2", "description": "get the weather in Denver", "status": "completed",
+                               "result_summary": "High of 69 F."}]}
+        clean = prototype.without_utterance(snapshot, transcript)
+        self.assertNotIn("final_transcript", clean, "the turn's own transcript goes")
+        self.assertNotIn("unreviewed_speech", clean, "and the second copy of it goes")
+        self.assertEqual(clean["tasks"][0], {"task_id": "task_1", "status": "running"},
+                         "a description that is the utterance goes, the task and its status stay")
+        self.assertEqual(clean["tasks"][1]["description"], "get the weather in Denver",
+                         "a description that is not the utterance stays")
+        self.assertEqual(clean["tasks"][1]["result_summary"], "High of 69 F.")
+        self.assertEqual(clean["type"], "utterance_snapshot", "the shape of the item is unchanged")
+
+
 class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()

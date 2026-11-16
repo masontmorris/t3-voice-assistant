@@ -174,6 +174,26 @@ def user_text(prefix, payload):
             "content": [{"type": "input_text", "text": prefix + json.dumps(payload)}]}
 
 
+def repeats(text, transcript):
+    """True when `text` holds the person's words verbatim, ignoring case, quotes and the space around them."""
+    needle = " ".join((transcript or "").lower().split()).strip("\"'` .,;:!?")
+    return bool(needle) and needle in " ".join(text.lower().split())
+
+
+def without_utterance(payload, transcript):
+    """The payload with every string that repeats the person's words removed, at any depth.
+
+    The snapshot carries the person's last words three times over on a turn with one task: final_transcript,
+    unreviewed_speech and the task's own description. A status, a task_id, a note and a result summary are not the
+    person's words, so they stay."""
+    if isinstance(payload, dict):
+        return {key: without_utterance(value, transcript) for key, value in payload.items()
+                if not (isinstance(value, str) and repeats(value, transcript))}
+    if isinstance(payload, list):
+        return [without_utterance(item, transcript) for item in payload]
+    return payload
+
+
 def parse_arguments(call):
     try:
         arguments = json.loads(call.get("arguments") or "{}")
@@ -205,14 +225,23 @@ class WavInput:
 
 
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
-                   tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None):
+                   tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
+                   snapshot_mode="reply", prior_snapshot=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
     `voice` is an already-open voice session the caller keeps across turns, as live mode does for a call. The turn
     then adds its audio, its injections and its replies to that session's conversation instead of opening one, and
     leaves it open. Its session settings are sent only when they change, so a reused session keeps its history. The
-    per-turn `asr` and `tools` sessions are still opened and closed here."""
+    per-turn `asr` and `tools` sessions are still opened and closed here.
+
+    `snapshot_mode` says where the task snapshot enters the voice session. "reply" is the shipped behaviour: one user
+    item built after the turn's tools ran, immediately before the reply. "before-audio" sends the caller's
+    `prior_snapshot`, the call's task state when the turn started, before the turn's audio and answers with no item
+    after the tools turn; the turn's own transcript is then not in the text the model reads. "reply-no-utterance" is
+    "reply" with every string that repeats the person's words dropped from the snapshot and from the task update, so
+    the item still carries the task list, its statuses and its results. "off" sends no machine text at all. The task
+    service, the tool session and its snapshot are the same in all four."""
     t0 = time.perf_counter()
 
     def clock():
@@ -319,6 +348,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             voice.config = session
         worker = asyncio.create_task(segment_worker())
 
+        replies, tool_turn, injection = [], None, []
+        if snapshot_mode == "before-audio" and prior_snapshot is not None:
+            injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
+            log("snapshot_before_audio", snapshot=prior_snapshot)
         audio_end = await source.stream(voice, asr)
         audio_s = source.audio_s
         log("audio_end", audio_s=audio_s)
@@ -326,7 +359,6 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         await asr.send(type="input_audio_buffer.commit", final=True)
         await voice.send(type="input_audio_buffer.commit")
 
-        replies, tool_turn, injection = [], None, []
         if inject == "b":
             tool_turn, _ = await respond(voice, out_rate, audio_end, tool_choice="required", output_modalities=["text"])
             log("tool_turn", calls=tool_turn["function_calls"], text=tool_turn["text"])
@@ -362,7 +394,11 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             service.poll(clock())
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
-            injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, answered)))
+            if snapshot_mode == "reply":
+                injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, answered)))
+            elif snapshot_mode == "reply-no-utterance":
+                injection.append(await create_item(voice, user_text(
+                    SNAPSHOT_PREFIX, without_utterance(answered, adapter.text()))))
             log("injection", items=injection)
             reply, reply_pcm = await respond(voice, out_rate, audio_end)
             replies.append({"kind": "snapshot", **reply})
@@ -394,10 +430,13 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             for task_id in service.poll(clock()):
                 log("service", task_id=task_id, event=service.executions[task_id].state.value)
         task_updates = service.take_updates()
-        if task_updates:
+        if task_updates and snapshot_mode != "off":
             boundary = clock()
             log("task_updates", updates=task_updates)
-            injection_update = await create_item(voice, user_text(UPDATE_PREFIX, {"updates": task_updates}))
+            updates = {"updates": task_updates}
+            if snapshot_mode == "reply-no-utterance":
+                updates = without_utterance(updates, adapter.text())
+            injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
             update_reply, update_pcm = await respond(voice, out_rate, boundary, **extra)
             replies.append({"kind": "update", "injection": injection_update, **update_reply})
             log("reply", reply="update", text=update_reply["text"])

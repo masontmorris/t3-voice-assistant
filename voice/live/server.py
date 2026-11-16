@@ -30,7 +30,10 @@ old one's audio first.
 Every turn injects its task snapshot as a user text item with a machine prefix, and a snapshot cannot be deleted, so
 the instructions tell the model that only the newest snapshot is current. A call that reaches --call-max-turns starts
 a fresh voice session seeded with the call's own transcript, so a long call keeps its recent history in the per-slot
-context (llama.cpp's -c is divided across slots).
+context (llama.cpp's -c is divided across slots). --snapshot picks where that item goes: "reply" (the default) after
+the turn's tools ran and immediately before the reply, "reply-no-utterance" in the same place with every string that
+repeats the person's words dropped, "before-audio" the call's task state as the turn started and before the turn's
+audio, "off" no machine text in the voice session at all
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read again at each turn start, so a new prompt
 takes effect on the next turn. When the file is missing the prototype's built-in persona is used.
@@ -217,6 +220,7 @@ class Conversation:
         self.sender = asyncio.create_task(self._send_loop())
         self.voice, self.voice_turn, self.session_turns = None, None, 0
         self.sessions, self.call, self.out_rate = 0, [], None
+        self.snapshot = None
         self.pending, self.started = set(), time.perf_counter()
 
     def voice_clock(self):
@@ -353,7 +357,7 @@ class Conversation:
             turn.out_rate, self.started = self.out_rate, time.perf_counter()
             record = await run_clip(turn, "c", False, live.url, turn.decider, live.args.delay, live.out, partial,
                                     live.args.segmenter, live.tools, "gated", persona=persona + CALL_RULES,
-                                    voice=voice)
+                                    voice=voice, snapshot_mode=live.args.snapshot, prior_snapshot=self.snapshot)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -364,8 +368,9 @@ class Conversation:
         spoken = " ".join(text for text in (r.get("text") for r in record.get("replies", [])) if text)
         self.call.append({kind: text for kind, text in (("user", record.get("final_transcript")),
                                                         ("assistant", spoken)) if text})
+        self.snapshot = record.get("snapshot") or self.snapshot
         record["live"] = {**turn.metrics(), "prompt": prompt_source, "endpointer": vars(live.settings),
-                          "mode": self.mode,
+                          "mode": self.mode, "snapshot": live.args.snapshot,
                           "call": {"turn": len(self.call), "session_turn": self.session_turns,
                                    "voice_session": "started" if opening else "shared",
                                    "voice_sessions": self.sessions}}
@@ -460,6 +465,9 @@ def main():
     parser.add_argument("--stop-file", type=Path, default=STOP_FILE,
                         help="stop when this file appears (default $VOICE_HOME/live/STOP)")
     parser.add_argument("--segmenter", choices=sorted(SEGMENTERS), default="hybrid")
+    parser.add_argument("--snapshot", choices=["reply", "reply-no-utterance", "before-audio", "off"], default="reply",
+                        help="where the task snapshot enters the voice session: before the reply (default), before "
+                             "the reply with the person's own words dropped, before the turn's audio, or not at all")
     parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")

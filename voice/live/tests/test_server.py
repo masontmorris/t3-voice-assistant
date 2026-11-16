@@ -73,7 +73,8 @@ async def fake_run_clip(source, *args, persona, voice=None, **kwargs):
         await asyncio.sleep(0.02)
     emit({"type": "response.done"})
     return {"clip": source.name, "final_transcript": f"words in {source.name}",
-            "replies": [{"text": f"reply to {source.name}"}], "metrics": {}}
+            "replies": [{"text": f"reply to {source.name}"}], "metrics": {},
+            "snapshot": {"final_transcript": f"state after {source.name}"}}
 
 
 class LiveServerTest(unittest.IsolatedAsyncioTestCase):
@@ -85,7 +86,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
-                               segmenter="hybrid", call_max_turns=8, call_keep_turns=6)
+                               segmenter="hybrid", call_max_turns=8, call_keep_turns=6, snapshot="reply")
         self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name))
         self.patch = mock.patch.object(server, "run_clip", fake_run_clip)
         self.patch.start()
@@ -169,6 +170,20 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second["live"]["call"], {"turn": 2, "session_turn": 2, "voice_session": "shared",
                                                   "voice_sessions": 1})
         self.assertNotEqual(first["live"]["call"], second["live"]["call"])
+        await ws.close()
+
+    async def test_the_snapshot_mode_and_the_last_snapshot_reach_the_turn(self):
+        self.live.args.snapshot = "before-audio"
+        ws = await self.connect()
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+        await self.until(ws, "turn_done", [])
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
+        await self.until(ws, "turn_done", [])
+        self.assertEqual([call[-1]["snapshot_mode"] for call in CALLS], ["before-audio", "before-audio"])
+        self.assertIsNone(CALLS[0][-1]["prior_snapshot"], "the call's first turn has no task state yet")
+        self.assertEqual(CALLS[1][-1]["prior_snapshot"], {"final_transcript": "state after turn_001"})
+        record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
+        self.assertEqual(record["live"]["snapshot"], "before-audio", "the record says where the item went")
         await ws.close()
 
     async def test_a_long_call_seeds_a_new_session_with_the_call_so_far(self):
