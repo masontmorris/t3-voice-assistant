@@ -1,0 +1,180 @@
+{
+  "scenario": "assistant_question",
+  "covers": "assistant question and statement",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "assistant_question:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          9
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          5
+        ],
+        [
+          5,
+          9
+        ]
+      ],
+      "hard": [
+        5
+      ],
+      "soft": [],
+      "breaks": {},
+      "committed": [
+        "s1",
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 22,
+          "text": "What did you just say?",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 23,
+          "end": 41,
+          "text": "The room is quiet.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "assistant_question:r3",
+          "route": "decisions",
+          "file": "decisions-82bdfe8c6a28d2925b4736d2.json",
+          "status": 200,
+          "ms": 228.8,
+          "started_at": "2026-11-16T08:38:42.011+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.5252225400141584,
+            "ready": 0.11361803323968807,
+            "side_effect": 0.04426256501867185
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "description",
+          "readiness": "clarify",
+          "depends_on": "s1",
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.2849467698900146,
+            "ready": 0.2271635767963457,
+            "side_effect": 0.033648880650023714,
+            "depends": 0.012353158593706226,
+            "corrects": 0.18249646456815125
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "What did you just say?",
+      "instruction": "What did you just say?",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "What did you just say?"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "What did you just say?",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_assistant_question",
+    "final_transcript": "What did you just say? The room is quiet.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "What did you just say?",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "task_1: unexpected dispatched task \"What did you just say?\""
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [
+      "task_1"
+    ],
+    "dispatch_count": 1
+  }
+}

@@ -1,0 +1,2949 @@
+{
+ "replay_ubsweep": {
+  "ub8192": {
+   "calls": 1695,
+   "rounds": 3,
+   "errors": 0,
+   "latency": {
+    "all": {
+     "n": 1695,
+     "median": 118.6,
+     "p95": 514.4,
+     "min": 19.0,
+     "max": 2383.1
+    },
+    "fit": {
+     "intercept_ms": 21.6,
+     "ms_per_1k_tokens": 121.9
+    },
+    "input_tokens": {
+     "n": 1695,
+     "median": 801,
+     "p95": 3898,
+     "min": 108,
+     "max": 19589
+    },
+    "buckets": {
+     "0-250": {
+      "n": 36,
+      "median": 20.5,
+      "p95": 28.9,
+      "min": 19.0,
+      "max": 29.8
+     },
+     "250-500": {
+      "n": 372,
+      "median": 69.2,
+      "p95": 75.4,
+      "min": 52.9,
+      "max": 83.8
+     },
+     "500-1000": {
+      "n": 597,
+      "median": 95.7,
+      "p95": 134.5,
+      "min": 70.8,
+      "max": 152.8
+     },
+     "1000-2000": {
+      "n": 267,
+      "median": 238.9,
+      "p95": 269.7,
+      "min": 137.4,
+      "max": 282.6
+     },
+     "2000-4000": {
+      "n": 345,
+      "median": 339.6,
+      "p95": 486.4,
+      "min": 251.1,
+      "max": 535.7
+     },
+     "4000-max": {
+      "n": 78,
+      "median": 711.3,
+      "p95": 2349.5,
+      "min": 530.5,
+      "max": 2383.1
+     }
+    }
+   },
+   "per_round_median_ms": [
+    118.3,
+    118.5,
+    119.6
+   ],
+   "vs_reference": {
+    "questions": 3346,
+    "decision_flips": 0,
+    "max_probability_move": 0
+   },
+   "repeat_flips_vs_round0": 0,
+   "servers": [
+    {
+     "round": 0,
+     "startup_s": 1.547,
+     "idle_mib": 673,
+     "loaded_mib": 3056,
+     "peak_mib": 3076,
+     "wall_s": 116.87,
+     "calls_per_s": 4.83
+    },
+    {
+     "round": 1,
+     "startup_s": 1.322,
+     "idle_mib": 673,
+     "loaded_mib": 3056,
+     "peak_mib": 3076,
+     "wall_s": 116.93,
+     "calls_per_s": 4.83
+    },
+    {
+     "round": 2,
+     "startup_s": 1.317,
+     "idle_mib": 673,
+     "loaded_mib": 3056,
+     "peak_mib": 3076,
+     "wall_s": 117.44,
+     "calls_per_s": 4.81
+    }
+   ]
+  },
+  "ub2048": {
+   "calls": 1695,
+   "rounds": 3,
+   "errors": 0,
+   "latency": {
+    "all": {
+     "n": 1695,
+     "median": 120.4,
+     "p95": 519.5,
+     "min": 19.2,
+     "max": 2408.8
+    },
+    "fit": {
+     "intercept_ms": 22.4,
+     "ms_per_1k_tokens": 122.4
+    },
+    "input_tokens": {
+     "n": 1695,
+     "median": 801,
+     "p95": 3898,
+     "min": 108,
+     "max": 19589
+    },
+    "buckets": {
+     "0-250": {
+      "n": 36,
+      "median": 21.6,
+      "p95": 28.9,
+      "min": 19.2,
+      "max": 30.5
+     },
+     "250-500": {
+      "n": 372,
+      "median": 70.1,
+      "p95": 76.5,
+      "min": 52.5,
+      "max": 89.4
+     },
+     "500-1000": {
+      "n": 597,
+      "median": 96.1,
+      "p95": 133.8,
+      "min": 70.8,
+      "max": 146.2
+     },
+     "1000-2000": {
+      "n": 267,
+      "median": 240.6,
+      "p95": 274.5,
+      "min": 137.5,
+      "max": 287.4
+     },
+     "2000-4000": {
+      "n": 345,
+      "median": 339.5,
+      "p95": 487.2,
+      "min": 254.2,
+      "max": 546.7
+     },
+     "4000-max": {
+      "n": 78,
+      "median": 707.7,
+      "p95": 2359.8,
+      "min": 530.3,
+      "max": 2408.8
+     }
+    }
+   },
+   "per_round_median_ms": [
+    119.0,
+    122.7,
+    119.5
+   ],
+   "vs_reference": {
+    "questions": 3346,
+    "decision_flips": 0,
+    "max_probability_move": 0
+   },
+   "repeat_flips_vs_round0": 0,
+   "servers": [
+    {
+     "round": 0,
+     "startup_s": 1.201,
+     "idle_mib": 673,
+     "loaded_mib": 2084,
+     "peak_mib": 2104,
+     "wall_s": 116.79,
+     "calls_per_s": 4.84
+    },
+    {
+     "round": 1,
+     "startup_s": 1.396,
+     "idle_mib": 673,
+     "loaded_mib": 2084,
+     "peak_mib": 2104,
+     "wall_s": 119.56,
+     "calls_per_s": 4.73
+    },
+    {
+     "round": 2,
+     "startup_s": 1.326,
+     "idle_mib": 673,
+     "loaded_mib": 2084,
+     "peak_mib": 2104,
+     "wall_s": 117.39,
+     "calls_per_s": 4.81
+    }
+   ]
+  },
+  "ub512": {
+   "calls": 1659,
+   "rounds": 3,
+   "errors": 36,
+   "latency": {
+    "all": {
+     "n": 1659,
+     "median": 117.6,
+     "p95": 466.7,
+     "min": 19.0,
+     "max": 968.4
+    },
+    "fit": {
+     "intercept_ms": 13.4,
+     "ms_per_1k_tokens": 129.4
+    },
+    "input_tokens": {
+     "n": 1659,
+     "median": 786,
+     "p95": 3531,
+     "min": 108,
+     "max": 7257
+    },
+    "buckets": {
+     "0-250": {
+      "n": 36,
+      "median": 21.3,
+      "p95": 30.1,
+      "min": 19.0,
+      "max": 31.9
+     },
+     "250-500": {
+      "n": 372,
+      "median": 69.0,
+      "p95": 75.4,
+      "min": 53.1,
+      "max": 78.1
+     },
+     "500-1000": {
+      "n": 594,
+      "median": 96.7,
+      "p95": 133.3,
+      "min": 70.8,
+      "max": 149.8
+     },
+     "1000-2000": {
+      "n": 261,
+      "median": 240.0,
+      "p95": 277.2,
+      "min": 138.1,
+      "max": 285.5
+     },
+     "2000-4000": {
+      "n": 339,
+      "median": 340.8,
+      "p95": 489.3,
+      "min": 263.9,
+      "max": 555.0
+     },
+     "4000-max": {
+      "n": 57,
+      "median": 635.5,
+      "p95": 899.2,
+      "min": 531.5,
+      "max": 968.4
+     }
+    }
+   },
+   "per_round_median_ms": [
+    117.2,
+    118.7,
+    117.6
+   ],
+   "vs_reference": {
+    "questions": 3123,
+    "decision_flips": 0,
+    "max_probability_move": 0
+   },
+   "repeat_flips_vs_round0": 0,
+   "servers": [
+    {
+     "round": 0,
+     "startup_s": 1.141,
+     "idle_mib": 673,
+     "loaded_mib": 1886,
+     "peak_mib": 1902,
+     "wall_s": 103.13,
+     "calls_per_s": 5.48
+    },
+    {
+     "round": 1,
+     "startup_s": 1.311,
+     "idle_mib": 673,
+     "loaded_mib": 1886,
+     "peak_mib": 1902,
+     "wall_s": 104.88,
+     "calls_per_s": 5.39
+    },
+    {
+     "round": 2,
+     "startup_s": 1.338,
+     "idle_mib": 673,
+     "loaded_mib": 1886,
+     "peak_mib": 1902,
+     "wall_s": 104.33,
+     "calls_per_s": 5.42
+    }
+   ]
+  }
+ },
+ "replay_flags": {
+  "ub8192": {
+   "calls": 1695,
+   "rounds": 3,
+   "errors": 0,
+   "latency": {
+    "all": {
+     "n": 1695,
+     "median": 118.8,
+     "p95": 526.6,
+     "min": 19.0,
+     "max": 2362.8
+    },
+    "fit": {
+     "intercept_ms": 22.0,
+     "ms_per_1k_tokens": 121.6
+    },
+    "input_tokens": {
+     "n": 1695,
+     "median": 801,
+     "p95": 3898,
+     "min": 108,
+     "max": 19589
+    },
+    "buckets": {
+     "0-250": {
+      "n": 36,
+      "median": 20.7,
+      "p95": 29.9,
+      "min": 19.0,
+      "max": 30.6
+     },
+     "250-500": {
+      "n": 372,
+      "median": 69.0,
+      "p95": 75.4,
+      "min": 53.2,
+      "max": 78.4
+     },
+     "500-1000": {
+      "n": 597,
+      "median": 94.3,
+      "p95": 132.6,
+      "min": 70.7,
+      "max": 144.2
+     },
+     "1000-2000": {
+      "n": 267,
+      "median": 238.1,
+      "p95": 270.4,
+      "min": 137.8,
+      "max": 289.3
+     },
+     "2000-4000": {
+      "n": 345,
+      "median": 339.1,
+      "p95": 491.2,
+      "min": 253.1,
+      "max": 546.9
+     },
+     "4000-max": {
+      "n": 78,
+      "median": 719.1,
+      "p95": 2347.5,
+      "min": 533.6,
+      "max": 2362.8
+     }
+    }
+   },
+   "per_round_median_ms": [
+    118.7,
+    120.3,
+    118.6
+   ],
+   "vs_reference": {
+    "questions": 3346,
+    "decision_flips": 0,
+    "max_probability_move": 0
+   },
+   "repeat_flips_vs_round0": 0,
+   "servers": [
+    {
+     "round": 0,
+     "startup_s": 1.555,
+     "idle_mib": 673,
+     "loaded_mib": 3056,
+     "peak_mib": 3076,
+     "wall_s": 117.27,
+     "calls_per_s": 4.82
+    },
+    {
+     "round": 1,
+     "startup_s": 1.318,
+     "idle_mib": 673,
+     "loaded_mib": 3056,
+     "peak_mib": 3076,
+     "wall_s": 117.09,
+     "calls_per_s": 4.83
+    },
+    {
+     "round": 2,
+     "startup_s": 1.327,
+     "idle_mib": 673,
+     "loaded_mib": 3056,
+     "peak_mib": 3076,
+     "wall_s": 116.69,
+     "calls_per_s": 4.84
+    }
+   ]
+  },
+  "ub8192-nofa": {
+   "calls": 1695,
+   "rounds": 3,
+   "errors": 0,
+   "latency": {
+    "all": {
+     "n": 1695,
+     "median": 122.5,
+     "p95": 548.0,
+     "min": 19.5,
+     "max": 2706.9
+    },
+    "fit": {
+     "intercept_ms": 11.2,
+     "ms_per_1k_tokens": 135.6
+    },
+    "input_tokens": {
+     "n": 1695,
+     "median": 801,
+     "p95": 3898,
+     "min": 108,
+     "max": 19589
+    },
+    "buckets": {
+     "0-250": {
+      "n": 36,
+      "median": 21.5,
+      "p95": 30.0,
+      "min": 19.5,
+      "max": 31.3
+     },
+     "250-500": {
+      "n": 372,
+      "median": 70.5,
+      "p95": 77.0,
+      "min": 54.7,
+      "max": 80.0
+     },
+     "500-1000": {
+      "n": 597,
+      "median": 100.0,
+      "p95": 138.2,
+      "min": 72.6,
+      "max": 654.1
+     },
+     "1000-2000": {
+      "n": 267,
+      "median": 246.1,
+      "p95": 280.3,
+      "min": 142.4,
+      "max": 289.9
+     },
+     "2000-4000": {
+      "n": 345,
+      "median": 355.4,
+      "p95": 503.8,
+      "min": 272.1,
+      "max": 572.7
+     },
+     "4000-max": {
+      "n": 78,
+      "median": 750.0,
+      "p95": 2689.6,
+      "min": 557.1,
+      "max": 2706.9
+     }
+    }
+   },
+   "per_round_median_ms": [
+    121.6,
+    123.1,
+    123.0
+   ],
+   "vs_reference": {
+    "questions": 3346,
+    "decision_flips": 14,
+    "max_probability_move": 0.0397
+   },
+   "repeat_flips_vs_round0": 0,
+   "servers": [
+    {
+     "round": 0,
+     "startup_s": 1.994,
+     "idle_mib": 673,
+     "loaded_mib": 6752,
+     "peak_mib": 6786,
+     "wall_s": 123.39,
+     "calls_per_s": 4.58
+    },
+    {
+     "round": 1,
+     "startup_s": 1.517,
+     "idle_mib": 673,
+     "loaded_mib": 6752,
+     "peak_mib": 6786,
+     "wall_s": 122.92,
+     "calls_per_s": 4.6
+    },
+    {
+     "round": 2,
+     "startup_s": 1.529,
+     "idle_mib": 673,
+     "loaded_mib": 6752,
+     "peak_mib": 6786,
+     "wall_s": 122.64,
+     "calls_per_s": 4.61
+    }
+   ]
+  },
+  "ub4096": {
+   "calls": 1695,
+   "rounds": 3,
+   "errors": 0,
+   "latency": {
+    "all": {
+     "n": 1695,
+     "median": 120.3,
+     "p95": 523.9,
+     "min": 19.2,
+     "max": 2377.3
+    },
+    "fit": {
+     "intercept_ms": 22.3,
+     "ms_per_1k_tokens": 122.1
+    },
+    "input_tokens": {
+     "n": 1695,
+     "median": 801,
+     "p95": 3898,
+     "min": 108,
+     "max": 19589
+    },
+    "buckets": {
+     "0-250": {
+      "n": 36,
+      "median": 21.3,
+      "p95": 29.5,
+      "min": 19.2,
+      "max": 30.7
+     },
+     "250-500": {
+      "n": 372,
+      "median": 70.0,
+      "p95": 75.7,
+      "min": 53.2,
+      "max": 80.6
+     },
+     "500-1000": {
+      "n": 597,
+      "median": 95.8,
+      "p95": 135.8,
+      "min": 71.5,
+      "max": 187.0
+     },
+     "1000-2000": {
+      "n": 267,
+      "median": 239.2,
+      "p95": 273.7,
+      "min": 139.7,
+      "max": 286.2
+     },
+     "2000-4000": {
+      "n": 345,
+      "median": 340.1,
+      "p95": 488.0,
+      "min": 252.9,
+      "max": 537.8
+     },
+     "4000-max": {
+      "n": 78,
+      "median": 713.9,
+      "p95": 2357.8,
+      "min": 536.2,
+      "max": 2377.3
+     }
+    }
+   },
+   "per_round_median_ms": [
+    119.0,
+    123.5,
+    118.9
+   ],
+   "vs_reference": {
+    "questions": 3346,
+    "decision_flips": 0,
+    "max_probability_move": 0
+   },
+   "repeat_flips_vs_round0": 0,
+   "servers": [
+    {
+     "round": 0,
+     "startup_s": 1.337,
+     "idle_mib": 673,
+     "loaded_mib": 2376,
+     "peak_mib": 2396,
+     "wall_s": 116.93,
+     "calls_per_s": 4.83
+    },
+    {
+     "round": 1,
+     "startup_s": 1.329,
+     "idle_mib": 673,
+     "loaded_mib": 2376,
+     "peak_mib": 2396,
+     "wall_s": 119.3,
+     "calls_per_s": 4.74
+    },
+    {
+     "round": 2,
+     "startup_s": 1.334,
+     "idle_mib": 673,
+     "loaded_mib": 2376,
+     "peak_mib": 2396,
+     "wall_s": 116.71,
+     "calls_per_s": 4.84
+    }
+   ]
+  }
+ },
+ "promptcache": {
+  "default": {
+   "sequences": {
+    "calls": 68,
+    "prompt_tokens": 179483,
+    "cached_first_question": 0,
+    "cached_later_questions": 0,
+    "total_ms": 23745.8
+   },
+   "slowest_within_request_cached_tokens": 0,
+   "slowest_across_call_cached_tokens": 0,
+   "slowest_identical_repeat_cached_tokens": 0,
+   "slowest_prompt_tokens": 565158,
+   "slowest_shared_prefix_tokens": [
+    465,
+    536.0,
+    548.0,
+    552.0
+   ],
+   "slowest_ms": {
+    "n": 30,
+    "median": 2330.4,
+    "p95": 2383.8,
+    "min": 1964.9,
+    "max": 2385.5
+   }
+  },
+  "prompt-cache": {
+   "sequences": {
+    "calls": 68,
+    "prompt_tokens": 179483,
+    "cached_first_question": 0,
+    "cached_later_questions": 0,
+    "total_ms": 23872.9
+   },
+   "slowest_within_request_cached_tokens": 0,
+   "slowest_across_call_cached_tokens": 0,
+   "slowest_identical_repeat_cached_tokens": 0,
+   "slowest_prompt_tokens": 565158,
+   "slowest_shared_prefix_tokens": [
+    465,
+    536.0,
+    548.0,
+    552.0
+   ],
+   "slowest_ms": {
+    "n": 30,
+    "median": 2334.4,
+    "p95": 2375.6,
+    "min": 1956.8,
+    "max": 2377.0
+   }
+  },
+  "checkpoints": {
+   "sequences": {
+    "calls": 68,
+    "prompt_tokens": 179483,
+    "cached_first_question": 0,
+    "cached_later_questions": 0,
+    "total_ms": 23919.1
+   },
+   "slowest_within_request_cached_tokens": 0,
+   "slowest_across_call_cached_tokens": 0,
+   "slowest_identical_repeat_cached_tokens": 0,
+   "slowest_prompt_tokens": 565158,
+   "slowest_shared_prefix_tokens": [
+    465,
+    536.0,
+    548.0,
+    552.0
+   ],
+   "slowest_ms": {
+    "n": 30,
+    "median": 2337.2,
+    "p95": 2383.0,
+    "min": 1961.1,
+    "max": 2399.6
+   }
+  },
+  "prompt-cache+checkpoints": {
+   "sequences": {
+    "calls": 68,
+    "prompt_tokens": 179483,
+    "cached_first_question": 0,
+    "cached_later_questions": 0,
+    "total_ms": 24490.7
+   },
+   "slowest_within_request_cached_tokens": 0,
+   "slowest_across_call_cached_tokens": 0,
+   "slowest_identical_repeat_cached_tokens": 0,
+   "slowest_prompt_tokens": 565158,
+   "slowest_shared_prefix_tokens": [
+    465,
+    536.0,
+    548.0,
+    552.0
+   ],
+   "slowest_ms": {
+    "n": 30,
+    "median": 2334.8,
+    "p95": 2378.4,
+    "min": 1958.0,
+    "max": 2385.8
+   }
+  },
+  "prompt-cache+checkpoints+swa-full": {
+   "sequences": {
+    "calls": 68,
+    "prompt_tokens": 179483,
+    "cached_first_question": 0,
+    "cached_later_questions": 0,
+    "total_ms": 24457.4
+   },
+   "slowest_within_request_cached_tokens": 0,
+   "slowest_across_call_cached_tokens": 0,
+   "slowest_identical_repeat_cached_tokens": 0,
+   "slowest_prompt_tokens": 565158,
+   "slowest_shared_prefix_tokens": [
+    465,
+    536.0,
+    548.0,
+    552.0
+   ],
+   "slowest_ms": {
+    "n": 30,
+    "median": 2349.5,
+    "p95": 2379.6,
+    "min": 1957.6,
+    "max": 2383.1
+   }
+  },
+  "prompt-cache+cache-reuse": {
+   "sequences": {
+    "calls": 68,
+    "prompt_tokens": 179483,
+    "cached_first_question": 0,
+    "cached_later_questions": 0,
+    "total_ms": 23965.7
+   },
+   "slowest_within_request_cached_tokens": 0,
+   "slowest_across_call_cached_tokens": 0,
+   "slowest_identical_repeat_cached_tokens": 0,
+   "slowest_prompt_tokens": 565158,
+   "slowest_shared_prefix_tokens": [
+    465,
+    536.0,
+    548.0,
+    552.0
+   ],
+   "slowest_ms": {
+    "n": 30,
+    "median": 2338.4,
+    "p95": 2380.8,
+    "min": 1958.0,
+    "max": 2385.6
+   }
+  }
+ },
+ "transformers": {
+  "model": "LiquidAI/d1-2B",
+  "torch": "2.11.0+cu128",
+  "kernels": "portable",
+  "load_s": 3.85,
+  "idle_mib": 673,
+  "loaded_mib": 4460,
+  "after_runs_mib": 11694,
+  "torch_peak_allocated_mib": 8302.4,
+  "repeats": 5,
+  "slowest": {
+   "llama_ms": [
+    2348.2,
+    2376.0,
+    2353.3,
+    2287.7,
+    1969.8
+   ],
+   "packed16_ms": [
+    1092.0,
+    1088.8,
+    1098.0,
+    1087.8,
+    944.3
+   ],
+   "one_at_a_time_ms": [
+    4309.5,
+    4315.6,
+    4314.8,
+    4241.2,
+    3646.9
+   ],
+   "llama_tokens": [
+    19589,
+    19583,
+    19475,
+    19121,
+    16425
+   ],
+   "packed16_tokens": [
+    4739,
+    4733,
+    4733,
+    4703,
+    4387
+   ],
+   "questions": [
+    29,
+    29,
+    29,
+    29,
+    28
+   ],
+   "flips_vs_pplx": {
+    "llama": 21,
+    "packed16": 7,
+    "one_at_a_time": 15
+   },
+   "flips_vs_llama": {
+    "packed16": 23,
+    "one_at_a_time": 6
+   },
+   "answers": 144
+  },
+  "median": {
+   "llama_ms": [
+    120.9,
+    108.3,
+    114.5,
+    108.0,
+    126.2
+   ],
+   "packed16_ms": [
+    135.4,
+    138.1,
+    113.1,
+    112.2,
+    135.3
+   ],
+   "one_at_a_time_ms": [
+    188.5,
+    268.7,
+    186.9,
+    202.6,
+    193.0
+   ],
+   "llama_tokens": [
+    792,
+    793,
+    801,
+    806,
+    809
+   ],
+   "packed16_tokens": [
+    552,
+    615,
+    510,
+    490,
+    557
+   ],
+   "questions": [
+    5,
+    3,
+    4,
+    3,
+    5
+   ],
+   "flips_vs_pplx": {
+    "llama": 3,
+    "packed16": 3,
+    "one_at_a_time": 3
+   },
+   "flips_vs_llama": {
+    "packed16": 0,
+    "one_at_a_time": 0
+   },
+   "answers": 20
+  }
+ },
+ "reuse": {
+  "all": {
+   "calls": 94,
+   "calls_skipped": 1,
+   "questions_full": {
+    "n": 94,
+    "median": 10.0,
+    "p95": 15,
+    "min": 3,
+    "max": 20
+   },
+   "questions_asked": {
+    "n": 94,
+    "median": 8.0,
+    "p95": 13,
+    "min": 0,
+    "max": 17
+   },
+   "questions_total": [
+    835,
+    742
+   ],
+   "tokens_full": {
+    "n": 94,
+    "median": 2422.5,
+    "p95": 4942,
+    "min": 587,
+    "max": 7257
+   },
+   "tokens_reuse": {
+    "n": 94,
+    "median": 2153.5,
+    "p95": 4210,
+    "min": 0,
+    "max": 5080
+   },
+   "tokens_total": [
+    237683,
+    208496
+   ],
+   "ms_full": {
+    "n": 94,
+    "median": 323.1,
+    "p95": 651.0,
+    "min": 81.8,
+    "max": 953.0
+   },
+   "ms_reuse": {
+    "n": 94,
+    "median": 290.7,
+    "p95": 556.7,
+    "min": 0.0,
+    "max": 646.5
+   },
+   "reused_answers": 93,
+   "reuse_errors": 16,
+   "reuse_error_rate": 0.172,
+   "errors_by_type": {
+    "corrects": [
+     0,
+     3
+    ],
+    "depends": [
+     1,
+     3
+    ],
+    "kind": [
+     2,
+     29
+    ],
+    "ready": [
+     12,
+     29
+    ],
+    "side_effect": [
+     1,
+     29
+    ]
+   }
+  },
+  "original": {
+   "calls": 32,
+   "calls_skipped": 0,
+   "questions_full": {
+    "n": 32,
+    "median": 10.0,
+    "p95": 15,
+    "min": 3,
+    "max": 15
+   },
+   "questions_asked": {
+    "n": 32,
+    "median": 8.0,
+    "p95": 12,
+    "min": 3,
+    "max": 15
+   },
+   "questions_total": [
+    290,
+    261
+   ],
+   "tokens_full": {
+    "n": 32,
+    "median": 2621.0,
+    "p95": 4816,
+    "min": 605,
+    "max": 5080
+   },
+   "tokens_reuse": {
+    "n": 32,
+    "median": 2235.0,
+    "p95": 3938,
+    "min": 605,
+    "max": 5080
+   },
+   "tokens_total": [
+    86118,
+    76895
+   ],
+   "ms_full": {
+    "n": 32,
+    "median": 346.7,
+    "p95": 637.6,
+    "min": 84.7,
+    "max": 651.6
+   },
+   "ms_reuse": {
+    "n": 32,
+    "median": 299.9,
+    "p95": 513.8,
+    "min": 82.2,
+    "max": 646.5
+   },
+   "reused_answers": 29,
+   "reuse_errors": 4,
+   "reuse_error_rate": 0.1379,
+   "errors_by_type": {
+    "corrects": [
+     0,
+     1
+    ],
+    "depends": [
+     1,
+     1
+    ],
+    "kind": [
+     0,
+     9
+    ],
+    "ready": [
+     3,
+     9
+    ],
+    "side_effect": [
+     0,
+     9
+    ]
+   }
+  },
+  "heldout": {
+   "calls": 36,
+   "calls_skipped": 0,
+   "questions_full": {
+    "n": 36,
+    "median": 10.0,
+    "p95": 15,
+    "min": 3,
+    "max": 17
+   },
+   "questions_asked": {
+    "n": 36,
+    "median": 10.0,
+    "p95": 13,
+    "min": 3,
+    "max": 17
+   },
+   "questions_total": [
+    343,
+    331
+   ],
+   "tokens_full": {
+    "n": 36,
+    "median": 2355.0,
+    "p95": 4776,
+    "min": 598,
+    "max": 5271
+   },
+   "tokens_reuse": {
+    "n": 36,
+    "median": 2265.0,
+    "p95": 4204,
+    "min": 598,
+    "max": 4374
+   },
+   "tokens_total": [
+    93365,
+    89542
+   ],
+   "ms_full": {
+    "n": 36,
+    "median": 316.7,
+    "p95": 625.0,
+    "min": 87.7,
+    "max": 671.0
+   },
+   "ms_reuse": {
+    "n": 36,
+    "median": 312.3,
+    "p95": 552.7,
+    "min": 86.9,
+    "max": 562.1
+   },
+   "reused_answers": 12,
+   "reuse_errors": 1,
+   "reuse_error_rate": 0.0833,
+   "errors_by_type": {
+    "kind": [
+     0,
+     4
+    ],
+    "ready": [
+     1,
+     4
+    ],
+    "side_effect": [
+     0,
+     4
+    ]
+   }
+  },
+  "clips": {
+   "calls": 26,
+   "calls_skipped": 1,
+   "questions_full": {
+    "n": 26,
+    "median": 8.0,
+    "p95": 17,
+    "min": 3,
+    "max": 20
+   },
+   "questions_asked": {
+    "n": 26,
+    "median": 5.0,
+    "p95": 12,
+    "min": 0,
+    "max": 14
+   },
+   "questions_total": [
+    202,
+    150
+   ],
+   "tokens_full": {
+    "n": 26,
+    "median": 2135.0,
+    "p95": 5994,
+    "min": 587,
+    "max": 7257
+   },
+   "tokens_reuse": {
+    "n": 26,
+    "median": 1539.5,
+    "p95": 4413,
+    "min": 0,
+    "max": 4738
+   },
+   "tokens_total": [
+    58200,
+    42059
+   ],
+   "ms_full": {
+    "n": 26,
+    "median": 285.6,
+    "p95": 777.7,
+    "min": 81.8,
+    "max": 953.0
+   },
+   "ms_reuse": {
+    "n": 26,
+    "median": 202.5,
+    "p95": 576.1,
+    "min": 0.0,
+    "max": 625.6
+   },
+   "reused_answers": 52,
+   "reuse_errors": 11,
+   "reuse_error_rate": 0.2115,
+   "errors_by_type": {
+    "corrects": [
+     0,
+     2
+    ],
+    "depends": [
+     0,
+     2
+    ],
+    "kind": [
+     2,
+     16
+    ],
+    "ready": [
+     8,
+     16
+    ],
+    "side_effect": [
+     1,
+     16
+    ]
+   }
+  }
+ },
+ "agreement": {
+  "all": {
+   "at": {
+    "n": 294,
+    "agree": 125,
+    "rate": 0.425
+   },
+   "b1": {
+    "n": 11,
+    "agree": 10,
+    "rate": 0.909
+   },
+   "b2": {
+    "n": 4,
+    "agree": 3,
+    "rate": 0.75
+   },
+   "b3": {
+    "n": 4,
+    "agree": 4,
+    "rate": 1.0
+   },
+   "corrects": {
+    "n": 335,
+    "agree": 266,
+    "rate": 0.794
+   },
+   "depends": {
+    "n": 336,
+    "agree": 292,
+    "rate": 0.869
+   },
+   "effect": {
+    "n": 222,
+    "agree": 214,
+    "rate": 0.964
+   },
+   "finished": {
+    "n": 294,
+    "agree": 233,
+    "rate": 0.793
+   },
+   "implicit": {
+    "n": 15,
+    "agree": 12,
+    "rate": 0.8
+   },
+   "kind": {
+    "n": 593,
+    "agree": 568,
+    "rate": 0.958
+   },
+   "preemptive": {
+    "n": 15,
+    "agree": 14,
+    "rate": 0.933
+   },
+   "ready": {
+    "n": 592,
+    "agree": 484,
+    "rate": 0.818
+   },
+   "same_as": {
+    "n": 38,
+    "agree": 35,
+    "rate": 0.921
+   },
+   "side_effect": {
+    "n": 593,
+    "agree": 537,
+    "rate": 0.906
+   }
+  },
+  "hybrid": {
+   "at": {
+    "n": 70,
+    "agree": 53,
+    "rate": 0.757
+   },
+   "corrects": {
+    "n": 82,
+    "agree": 61,
+    "rate": 0.744
+   },
+   "depends": {
+    "n": 82,
+    "agree": 75,
+    "rate": 0.915
+   },
+   "finished": {
+    "n": 70,
+    "agree": 56,
+    "rate": 0.8
+   },
+   "kind": {
+    "n": 175,
+    "agree": 165,
+    "rate": 0.943
+   },
+   "ready": {
+    "n": 175,
+    "agree": 141,
+    "rate": 0.806
+   },
+   "same_as": {
+    "n": 3,
+    "agree": 3,
+    "rate": 1.0
+   },
+   "side_effect": {
+    "n": 175,
+    "agree": 160,
+    "rate": 0.914
+   }
+  }
+ },
+ "scenario_runs": {
+  "original/d1": {
+   "pass": [
+    11,
+    8
+   ],
+   "premature": [
+    0,
+    1
+   ],
+   "calls": [
+    32,
+    34
+   ],
+   "final_segments_changed": 1,
+   "scenarios": 11,
+   "per_scenario": {
+    "01_two_independent": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 433.6
+    },
+    "02_two_dependent": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 358.6
+    },
+    "03_topic_change": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 639.7
+    },
+    "04_mid_sentence_correction": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      3
+     ],
+     "final_segments_changed": true,
+     "failures": [
+      "T2: no task matches ['six']"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 614.9
+    },
+    "05_correction_after_dispatch": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      4,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T3: revises None, expected T1"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 729.9
+    },
+    "06_description_not_request": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 487.0
+    },
+    "07_intentional_repeat": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 306.8
+    },
+    "08_delegate_after_dispatch": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      4,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+     ],
+     "premature": [
+      0,
+      1
+     ],
+     "max_ms": 488.5
+    },
+    "09_delegate_before_segment": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      4,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 457.4
+    },
+    "10_side_effect_email": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 435.2
+    },
+    "11_filler_false_starts": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 256.3
+    }
+   }
+  },
+  "original/d1-reuse": {
+   "pass": [
+    11,
+    8
+   ],
+   "premature": [
+    0,
+    1
+   ],
+   "calls": [
+    32,
+    34
+   ],
+   "final_segments_changed": 1,
+   "scenarios": 11,
+   "per_scenario": {
+    "01_two_independent": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 334.7
+    },
+    "02_two_dependent": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 333.7
+    },
+    "03_topic_change": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 643.6
+    },
+    "04_mid_sentence_correction": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      3
+     ],
+     "final_segments_changed": true,
+     "failures": [
+      "T2: no task matches ['six']"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 475.0
+    },
+    "05_correction_after_dispatch": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      4,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T1: status withdrawn, expected one of ['cancel_requested', 'superseded']",
+      "T3: revises None, expected T1"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 733.3
+    },
+    "06_description_not_request": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 376.0
+    },
+    "07_intentional_repeat": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 306.1
+    },
+    "08_delegate_after_dispatch": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      4,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+     ],
+     "premature": [
+      0,
+      1
+     ],
+     "max_ms": 340.2
+    },
+    "09_delegate_before_segment": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      4,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 451.4
+    },
+    "10_side_effect_email": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 435.2
+    },
+    "11_filler_false_starts": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 258.6
+    }
+   }
+  },
+  "heldout/d1": {
+   "pass": [
+    14,
+    7
+   ],
+   "premature": [
+    1,
+    3
+   ],
+   "calls": [
+    36,
+    38
+   ],
+   "final_segments_changed": 2,
+   "scenarios": 18,
+   "per_scenario": {
+    "actually": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: no task matches ['height', 'massive']",
+      "T1: status needs_clarification, expected one of ['superseded']",
+      "clarification_needed True"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 330.2
+    },
+    "assistant_question": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "task_1: unexpected dispatched task \"What did you just say?\""
+     ],
+     "premature": [
+      0,
+      1
+     ],
+     "max_ms": 231.8
+    },
+    "buy_and_read": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 331.8
+    },
+    "cancel_second": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status dispatched, expected one of ['withdrawn']",
+      "T2: depends_on ['T1'], expected one of [[]]",
+      "T2: dispatched but should never dispatch"
+     ],
+     "premature": [
+      0,
+      1
+     ],
+     "max_ms": 714.4
+    },
+    "delegate_overlap": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 191.6
+    },
+    "delete_and_read": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 328.7
+    },
+    "email_extension": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 83.6
+    },
+    "i_mean": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status withdrawn, expected one of ['dispatched']"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 346.8
+    },
+    "market_three": {
+     "pplx": false,
+     "d1": true,
+     "calls": [
+      2,
+      3
+     ],
+     "final_segments_changed": true,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 703.7
+    },
+    "mixed_chain": {
+     "pplx": false,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+     ],
+     "premature": [
+      1,
+      1
+     ],
+     "max_ms": 508.1
+    },
+    "museum_chain": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": true,
+     "failures": [
+      "T2: no task matches ['calculate', 'closing']",
+      "T3: depends_on ['T1'], expected one of [['T2']]"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 478.4
+    },
+    "near_duplicates": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 248.9
+    },
+    "no_wait": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: no task matches ['trains', 'leeds']",
+      "T1: status withdrawn, expected one of ['superseded']"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 370.9
+    },
+    "pause_correction": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: no task matches ['violin', 'bristol']",
+      "T1: status needs_clarification, expected one of ['superseded']",
+      "clarification_needed True"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 365.7
+    },
+    "post_and_read": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status ready, expected one of ['dispatched']",
+      "T2: depends_on ['T1'], expected one of [[]]"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 335.2
+    },
+    "rain_wonder": {
+     "pplx": false,
+     "d1": false,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T1: status needs_clarification, expected one of ['dispatched']",
+      "clarification_needed True"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 246.0
+    },
+    "run_on": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 763.9
+    },
+    "true_repeat": {
+     "pplx": false,
+     "d1": false,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "task_2: duplicate dispatch of T1"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 246.8
+    }
+   }
+  },
+  "heldout/d1-reuse": {
+   "pass": [
+    14,
+    7
+   ],
+   "premature": [
+    1,
+    3
+   ],
+   "calls": [
+    36,
+    38
+   ],
+   "final_segments_changed": 2,
+   "scenarios": 18,
+   "per_scenario": {
+    "actually": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: no task matches ['height', 'massive']",
+      "T1: status needs_clarification, expected one of ['superseded']",
+      "clarification_needed True"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 334.5
+    },
+    "assistant_question": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "task_1: unexpected dispatched task \"What did you just say?\""
+     ],
+     "premature": [
+      0,
+      1
+     ],
+     "max_ms": 228.8
+    },
+    "buy_and_read": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 330.0
+    },
+    "cancel_second": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status dispatched, expected one of ['withdrawn']",
+      "T2: depends_on ['T1'], expected one of [[]]",
+      "T2: dispatched but should never dispatch"
+     ],
+     "premature": [
+      0,
+      1
+     ],
+     "max_ms": 571.9
+    },
+    "delegate_overlap": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 187.3
+    },
+    "delete_and_read": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 323.6
+    },
+    "email_extension": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 83.7
+    },
+    "i_mean": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status withdrawn, expected one of ['dispatched']"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 344.0
+    },
+    "market_three": {
+     "pplx": false,
+     "d1": true,
+     "calls": [
+      2,
+      3
+     ],
+     "final_segments_changed": true,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 716.5
+    },
+    "mixed_chain": {
+     "pplx": false,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+     ],
+     "premature": [
+      1,
+      1
+     ],
+     "max_ms": 498.4
+    },
+    "museum_chain": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": true,
+     "failures": [
+      "T2: no task matches ['calculate', 'closing']",
+      "T3: depends_on ['T1'], expected one of [['T2']]"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 490.0
+    },
+    "near_duplicates": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 243.1
+    },
+    "no_wait": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      3,
+      3
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: no task matches ['trains', 'leeds']",
+      "T1: status withdrawn, expected one of ['superseded']"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 374.2
+    },
+    "pause_correction": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: no task matches ['violin', 'bristol']",
+      "T1: status needs_clarification, expected one of ['superseded']",
+      "clarification_needed True"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 366.4
+    },
+    "post_and_read": {
+     "pplx": true,
+     "d1": false,
+     "calls": [
+      2,
+      2
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T2: status ready, expected one of ['dispatched']",
+      "T2: depends_on ['T1'], expected one of [[]]"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 339.1
+    },
+    "rain_wonder": {
+     "pplx": false,
+     "d1": false,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "T1: status needs_clarification, expected one of ['dispatched']",
+      "clarification_needed True"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 246.9
+    },
+    "run_on": {
+     "pplx": true,
+     "d1": true,
+     "calls": [
+      3,
+      4
+     ],
+     "final_segments_changed": false,
+     "failures": [],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 631.1
+    },
+    "true_repeat": {
+     "pplx": false,
+     "d1": false,
+     "calls": [
+      1,
+      1
+     ],
+     "final_segments_changed": false,
+     "failures": [
+      "task_2: duplicate dispatch of T1"
+     ],
+     "premature": [
+      0,
+      0
+     ],
+     "max_ms": 250.9
+    }
+   }
+  }
+ },
+ "clips": {
+  "cloud": {
+   "clips": 10,
+   "errors": 0,
+   "pass": 7,
+   "premature": 0,
+   "first_reply_audio_s": {
+    "n": 10,
+    "median": 0.408,
+    "p95": 0.504,
+    "min": 0.242,
+    "max": 0.504
+   },
+   "snapshot_ready_s": {
+    "n": 10,
+    "median": 0.258,
+    "p95": 0.31,
+    "min": 0.052,
+    "max": 0.31
+   },
+   "lag_s": {
+    "n": 68,
+    "median": 1.093,
+    "p95": 3.05,
+    "min": 0.096,
+    "max": 3.939
+   },
+   "uncovered_tail_words": [
+    6,
+    5,
+    8,
+    2,
+    4,
+    2,
+    9,
+    3,
+    4,
+    9
+   ],
+   "call_ms_during_speech": {
+    "n": 15,
+    "median": 101.0,
+    "p95": 290.8,
+    "min": 85.8,
+    "max": 336.7
+   },
+   "call_ms_after_speech": {
+    "n": 11,
+    "median": 105.6,
+    "p95": 180.8,
+    "min": 86.2,
+    "max": 180.8
+   },
+   "vram_mib": [],
+   "per_clip": {
+    "01_single": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.415,
+     "snapshot_ready_s": 0.282,
+     "calls": 1,
+     "words": 6,
+     "uncovered_tail_words": 6,
+     "lag_median_s": null,
+     "vram_mib": null
+    },
+    "02_two_requests": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.502,
+     "snapshot_ready_s": 0.307,
+     "calls": 3,
+     "words": 12,
+     "uncovered_tail_words": 5,
+     "lag_median_s": 0.167,
+     "vram_mib": null
+    },
+    "03_dependent": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.465,
+     "snapshot_ready_s": 0.267,
+     "calls": 3,
+     "words": 16,
+     "uncovered_tail_words": 8,
+     "lag_median_s": 1.084,
+     "vram_mib": null
+    },
+    "04_correction": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.504,
+     "snapshot_ready_s": 0.31,
+     "calls": 3,
+     "words": 12,
+     "uncovered_tail_words": 2,
+     "lag_median_s": 2.038,
+     "vram_mib": null
+    },
+    "05_topic_change": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.258,
+     "snapshot_ready_s": 0.166,
+     "calls": 3,
+     "words": 15,
+     "uncovered_tail_words": 4,
+     "lag_median_s": 1.094,
+     "vram_mib": null
+    },
+    "06_not_a_request": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.355,
+     "snapshot_ready_s": 0.221,
+     "calls": 2,
+     "words": 10,
+     "uncovered_tail_words": 2,
+     "lag_median_s": 1.246,
+     "vram_mib": null
+    },
+    "07_implicit": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.242,
+     "snapshot_ready_s": 0.16,
+     "calls": 1,
+     "words": 9,
+     "uncovered_tail_words": 9,
+     "lag_median_s": null,
+     "vram_mib": null
+    },
+    "08_cancel": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.432,
+     "snapshot_ready_s": 0.292,
+     "calls": 6,
+     "words": 16,
+     "uncovered_tail_words": 3,
+     "lag_median_s": 0.302,
+     "vram_mib": null
+    },
+    "09_run_on": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.402,
+     "snapshot_ready_s": 0.249,
+     "calls": 3,
+     "words": 15,
+     "uncovered_tail_words": 4,
+     "lag_median_s": 1.069,
+     "vram_mib": null
+    },
+    "10_noisy": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.269,
+     "snapshot_ready_s": 0.052,
+     "calls": 1,
+     "words": 9,
+     "uncovered_tail_words": 9,
+     "lag_median_s": null,
+     "vram_mib": null
+    }
+   }
+  },
+  "d1-c128k": {
+   "clips": 10,
+   "errors": 0,
+   "pass": 6,
+   "premature": 0,
+   "first_reply_audio_s": {
+    "n": 10,
+    "median": 0.567,
+    "p95": 1.695,
+    "min": 0.402,
+    "max": 1.695
+   },
+   "snapshot_ready_s": {
+    "n": 10,
+    "median": 0.414,
+    "p95": 1.619,
+    "min": 0.168,
+    "max": 1.619
+   },
+   "lag_s": {
+    "n": 71,
+    "median": 1.283,
+    "p95": 3.473,
+    "min": 0.147,
+    "max": 4.362
+   },
+   "uncovered_tail_words": [
+    6,
+    5,
+    8,
+    1,
+    5,
+    2,
+    9,
+    3,
+    1,
+    9
+   ],
+   "call_ms_during_speech": {
+    "n": 18,
+    "median": 395.3,
+    "p95": 839.6,
+    "min": 144.6,
+    "max": 844.1
+   },
+   "call_ms_after_speech": {
+    "n": 12,
+    "median": 324.2,
+    "p95": 729.9,
+    "min": 103.9,
+    "max": 943.0
+   },
+   "vram_mib": [
+    7154
+   ],
+   "per_clip": {
+    "01_single": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 1.086,
+     "snapshot_ready_s": 0.168,
+     "calls": 1,
+     "words": 6,
+     "uncovered_tail_words": 6,
+     "lag_median_s": null,
+     "vram_mib": 7154
+    },
+    "02_two_requests": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.448,
+     "snapshot_ready_s": 0.369,
+     "calls": 3,
+     "words": 12,
+     "uncovered_tail_words": 5,
+     "lag_median_s": 0.269,
+     "vram_mib": 7154
+    },
+    "03_dependent": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.492,
+     "snapshot_ready_s": 0.411,
+     "calls": 3,
+     "words": 16,
+     "uncovered_tail_words": 8,
+     "lag_median_s": 1.274,
+     "vram_mib": 7154
+    },
+    "04_correction": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 1.041,
+     "snapshot_ready_s": 0.971,
+     "calls": 4,
+     "words": 12,
+     "uncovered_tail_words": 1,
+     "lag_median_s": 2.428,
+     "vram_mib": 7154
+    },
+    "05_topic_change": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.498,
+     "snapshot_ready_s": 0.418,
+     "calls": 3,
+     "words": 15,
+     "uncovered_tail_words": 5,
+     "lag_median_s": 1.828,
+     "vram_mib": 7154
+    },
+    "06_not_a_request": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.635,
+     "snapshot_ready_s": 0.564,
+     "calls": 3,
+     "words": 10,
+     "uncovered_tail_words": 2,
+     "lag_median_s": 1.365,
+     "vram_mib": 7154
+    },
+    "07_implicit": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.419,
+     "snapshot_ready_s": 0.319,
+     "calls": 1,
+     "words": 9,
+     "uncovered_tail_words": 9,
+     "lag_median_s": null,
+     "vram_mib": 7154
+    },
+    "08_cancel": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 1.695,
+     "snapshot_ready_s": 1.619,
+     "calls": 6,
+     "words": 16,
+     "uncovered_tail_words": 3,
+     "lag_median_s": 0.847,
+     "vram_mib": 7154
+    },
+    "09_run_on": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 1.613,
+     "snapshot_ready_s": 1.497,
+     "calls": 5,
+     "words": 15,
+     "uncovered_tail_words": 1,
+     "lag_median_s": 1.277,
+     "vram_mib": 7154
+    },
+    "10_noisy": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.402,
+     "snapshot_ready_s": 0.322,
+     "calls": 1,
+     "words": 9,
+     "uncovered_tail_words": 9,
+     "lag_median_s": null,
+     "vram_mib": 7154
+    }
+   }
+  },
+  "d1-c32k": {
+   "clips": 10,
+   "errors": 0,
+   "pass": 6,
+   "premature": 0,
+   "first_reply_audio_s": {
+    "n": 10,
+    "median": 0.585,
+    "p95": 1.722,
+    "min": 0.243,
+    "max": 1.722
+   },
+   "snapshot_ready_s": {
+    "n": 10,
+    "median": 0.502,
+    "p95": 1.643,
+    "min": 0.157,
+    "max": 1.643
+   },
+   "lag_s": {
+    "n": 71,
+    "median": 1.257,
+    "p95": 3.406,
+    "min": 0.139,
+    "max": 4.302
+   },
+   "uncovered_tail_words": [
+    6,
+    5,
+    8,
+    2,
+    4,
+    2,
+    9,
+    3,
+    1,
+    9
+   ],
+   "call_ms_during_speech": {
+    "n": 18,
+    "median": 425.6,
+    "p95": 847.2,
+    "min": 137.1,
+    "max": 851.4
+   },
+   "call_ms_after_speech": {
+    "n": 12,
+    "median": 338.9,
+    "p95": 747.0,
+    "min": 97.0,
+    "max": 961.4
+   },
+   "vram_mib": [
+    4430
+   ],
+   "per_clip": {
+    "01_single": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.294,
+     "snapshot_ready_s": 0.159,
+     "calls": 1,
+     "words": 6,
+     "uncovered_tail_words": 6,
+     "lag_median_s": null,
+     "vram_mib": 4430
+    },
+    "02_two_requests": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.462,
+     "snapshot_ready_s": 0.377,
+     "calls": 3,
+     "words": 12,
+     "uncovered_tail_words": 5,
+     "lag_median_s": 0.288,
+     "vram_mib": 4430
+    },
+    "03_dependent": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.634,
+     "snapshot_ready_s": 0.55,
+     "calls": 3,
+     "words": 16,
+     "uncovered_tail_words": 8,
+     "lag_median_s": 1.17,
+     "vram_mib": 4430
+    },
+    "04_correction": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.992,
+     "snapshot_ready_s": 0.919,
+     "calls": 4,
+     "words": 12,
+     "uncovered_tail_words": 2,
+     "lag_median_s": 2.369,
+     "vram_mib": 4430
+    },
+    "05_topic_change": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.535,
+     "snapshot_ready_s": 0.453,
+     "calls": 3,
+     "words": 15,
+     "uncovered_tail_words": 4,
+     "lag_median_s": 1.346,
+     "vram_mib": 4430
+    },
+    "06_not_a_request": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 0.647,
+     "snapshot_ready_s": 0.575,
+     "calls": 3,
+     "words": 10,
+     "uncovered_tail_words": 2,
+     "lag_median_s": 1.373,
+     "vram_mib": 4430
+    },
+    "07_implicit": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.243,
+     "snapshot_ready_s": 0.157,
+     "calls": 1,
+     "words": 9,
+     "uncovered_tail_words": 9,
+     "lag_median_s": null,
+     "vram_mib": 4430
+    },
+    "08_cancel": {
+     "pass": true,
+     "premature": 0,
+     "first_reply_audio_s": 1.722,
+     "snapshot_ready_s": 1.643,
+     "calls": 6,
+     "words": 16,
+     "uncovered_tail_words": 3,
+     "lag_median_s": 0.85,
+     "vram_mib": 4430
+    },
+    "09_run_on": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 1.628,
+     "snapshot_ready_s": 1.52,
+     "calls": 5,
+     "words": 15,
+     "uncovered_tail_words": 1,
+     "lag_median_s": 1.271,
+     "vram_mib": 4430
+    },
+    "10_noisy": {
+     "pass": false,
+     "premature": 0,
+     "first_reply_audio_s": 0.414,
+     "snapshot_ready_s": 0.333,
+     "calls": 1,
+     "words": 9,
+     "uncovered_tail_words": 9,
+     "lag_median_s": null,
+     "vram_mib": 4430
+    }
+   }
+  }
+ },
+ "bargein": {
+  "bargein-c32768": {
+   "both_loaded_mib": 4430,
+   "trials": 12,
+   "first_audio_s": {
+    "with_d1": {
+     "n": 6,
+     "median": 0.404,
+     "p95": 0.471,
+     "min": 0.376,
+     "max": 0.471
+    },
+    "without": {
+     "n": 6,
+     "median": 0.322,
+     "p95": 0.403,
+     "min": 0.227,
+     "max": 0.403
+    }
+   },
+   "reply_s": {
+    "with_d1": {
+     "n": 6,
+     "median": 2.279,
+     "p95": 2.422,
+     "min": 2.135,
+     "max": 2.422
+    },
+    "without": {
+     "n": 6,
+     "median": 0.852,
+     "p95": 0.921,
+     "min": 0.803,
+     "max": 0.921
+    }
+   },
+   "reply_audio_s": {
+    "n": 12,
+    "median": 3.8,
+    "p95": 4.56,
+    "min": 3.44,
+    "max": 4.56
+   },
+   "d1_ms_while_speaking": {
+    "n": 24,
+    "median": 678.4,
+    "p95": 808.8,
+    "min": 98.6,
+    "max": 858.2
+   },
+   "peak_mib": 4465
+  }
+ }
+}
