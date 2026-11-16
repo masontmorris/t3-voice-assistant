@@ -29,6 +29,6 @@ class ReplayMcp:
         return RECORDED["mcp"][mcp_key(name, arguments)]
 
 
-def replay_registry(default_place="Denver", timeout_s=5.0):
+def replay_registry(default_place="Denver", timeout_s=5.0, chat=None):
     fetch, mcp = ReplayFetch(), ReplayMcp()
-    return registry.build(fetch, mcp, default_place, timeout_s), fetch, mcp
+    return registry.build(fetch, mcp, default_place, timeout_s, chat), fetch, mcp
