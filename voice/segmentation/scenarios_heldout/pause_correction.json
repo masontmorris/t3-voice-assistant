@@ -1,0 +1,64 @@
+{
+  "id": "pause_correction",
+  "covers": "correction after pause",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "search for violin lessons in bath",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "search for violin lessons in bath",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "search for violin lessons in bath actually bristol",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "Search for violin lessons in Bath. Actually, Bristol.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "violin",
+          "bath"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "violin",
+          "bristol"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The repeated partial represents a pause, not a second request. The destination changes."
+}

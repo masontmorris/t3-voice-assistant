@@ -1,0 +1,23 @@
+{
+  "about": "Hand-labeled breaks between expected tasks in each held-out final transcript, written after variant E was frozen and before any held-out run. Same format as original.json.",
+  "breaks": {
+    "actually": [[7, 8]],
+    "assistant_question": [],
+    "buy_and_read": [[4, 5]],
+    "cancel_second": [[6, 7], [11, 11]],
+    "delegate_overlap": [],
+    "delete_and_read": [[4, 5]],
+    "email_extension": [],
+    "i_mean": [[5, 7]],
+    "market_three": [[5, 5], [10, 11]],
+    "mixed_chain": [[6, 7], [11, 12]],
+    "museum_chain": [[5, 6], [11, 12]],
+    "near_duplicates": [[6, 6]],
+    "no_wait": [[4, 6]],
+    "pause_correction": [[6, 7]],
+    "post_and_read": [[5, 6]],
+    "rain_wonder": [],
+    "run_on": [[6, 6], [12, 12]],
+    "true_repeat": []
+  }
+}

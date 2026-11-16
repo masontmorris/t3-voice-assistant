@@ -1,0 +1,57 @@
+{
+  "id": "delete_and_read",
+  "covers": "delete plus read",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "show the archive size",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "show the archive size and delete the draft called april",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Show the archive size and delete the draft called April.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "archive",
+          "size"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "delete",
+          "april"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The deletion is explicit and waits for final speech."
+}

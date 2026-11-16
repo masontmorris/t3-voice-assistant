@@ -1,0 +1,57 @@
+{
+  "id": "post_and_read",
+  "covers": "post plus read",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find the gallery opening date",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find the gallery opening date and post the message gallery opens soon",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "Find the gallery opening date and post the message \"Gallery opens soon.\"",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "gallery",
+          "date"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "post",
+          "gallery opens soon"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The quoted message is supplied by the user and does not depend on the lookup."
+}
