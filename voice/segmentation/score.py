@@ -6,7 +6,8 @@ CORRECTED = {"superseded", "withdrawn", "cancel_requested"}
 
 
 def _matches(expected, record):
-    text = record["segment_text"].lower()
+    """Match on the instruction, so a corrected task carries the words of the request it corrects."""
+    text = record["instruction"].lower()
     return all(word in text for word in expected["match"])
 
 
