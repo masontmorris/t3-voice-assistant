@@ -329,7 +329,7 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
 
 
 class ChunkTest(unittest.IsolatedAsyncioTestCase):
-    async def test_upstream_audio_goes_to_llama_in_40_ms_chunks(self):
+    async def test_upstream_audio_goes_to_the_asr_in_40_ms_chunks_and_to_the_voice_once_at_the_end(self):
         class Recorder(FakeSession):
             def __init__(self):
                 super().__init__()
@@ -344,17 +344,22 @@ class ChunkTest(unittest.IsolatedAsyncioTestCase):
         voice, asr = Recorder(), Recorder()
         await turn.stream(voice, asr)
         self.assertEqual(server.UP_CHUNK_BYTES, 1280, "40 ms of 16 kHz PCM16")
-        self.assertEqual(max(voice.chunks), server.UP_CHUNK_BYTES)
-        self.assertEqual(sum(voice.chunks), len(turn.pcm))
-        self.assertEqual(voice.chunks, asr.chunks, "the voice and ASR sessions get the same chunks")
+        self.assertEqual(max(asr.chunks), server.UP_CHUNK_BYTES)
+        self.assertEqual(sum(asr.chunks), len(turn.pcm))
+        self.assertEqual(voice.chunks, [], "a turn that is cancelled while streaming leaves the voice session empty")
+        await turn.send_voice(voice)
+        self.assertEqual(sum(voice.chunks), len(turn.pcm), "the voice session gets the whole turn when it ends")
 
 
 class DefaultsTest(unittest.TestCase):
-    def test_live_mode_drops_the_persons_words_unless_told_otherwise(self):
+    def test_live_mode_sends_only_a_lookup_note_unless_told_otherwise(self):
         argv = mock.patch("sys.argv", ["server"])
         with argv, mock.patch.object(server, "main_async") as main_async, mock.patch.object(server.asyncio, "run"):
             server.main()
-        self.assertEqual(main_async.call_args.args[0].snapshot, "reply-no-utterance")
+        self.assertEqual(main_async.call_args.args[0].snapshot, "note")
+
+    def test_the_note_persona_is_the_default_without_a_prompt_file(self):
+        self.assertEqual(server.load_persona(None, server.NOTE_PERSONA), (server.NOTE_PERSONA, "built-in default"))
 
     def test_live_mode_names_the_turn_a_question_asks_about_unless_told_otherwise(self):
         argv = mock.patch("sys.argv", ["server"])

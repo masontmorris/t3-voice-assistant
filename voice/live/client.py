@@ -334,7 +334,10 @@ class Client:
             self.log("barge_in", **message)
         elif kind == "turn_done":
             self.done_turns += 1
-            print(f"[turn {message['turn']}] heard: {message.get('transcript')!r}", flush=True)
+            if message.get("cancelled") == "continued":
+                print(f"[turn {message['turn']}] still listening: joined to the next turn", flush=True)
+            else:
+                print(f"[turn {message['turn']}] heard: {message.get('transcript')!r}", flush=True)
             for text in message.get("replies") or []:
                 print(f"[turn {message['turn']}] said: {text!r}", flush=True)
             self.log("turn_done", **message, rtt_median_s=self.rtt_median())
