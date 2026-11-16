@@ -187,8 +187,9 @@ class Orchestrator:
 
     def close(self, update, segments):
         """End the utterance with no decision call. A task whose words have not changed since its last decision is
-        settled by that decision, as on a final transcript. A task whose words changed is a side effect that stays
-        held, a request waiting on a dependency, or a read-only request that dispatches with its final words."""
+        settled by that decision, as on a final transcript. A task whose words changed is held. No decider read the
+        new words, so code cannot tell whether they made it a side effect, as when "and if any are under three
+        hundred" grows into "...book the cheapest one"."""
         self.revision, self.is_final, self.text = update.revision, True, update.text
         bound = self.bind(segments)
         for seg in segments:
@@ -198,12 +199,8 @@ class Orchestrator:
             decision, seen = self.decided[task.task_id]
             if tuple(_words(seg.text)) == seen:
                 self._settle(task, replace(seg, open=False), decision)
-            elif task.side_effect:
-                self._move(task, Status.HELD, "side effect changed after its last decision")
-            elif task.depends_on:
-                self._move(task, Status.READY, "changed after its last decision, waiting on dependency")
             else:
-                self._move(task, Status.DISPATCHED, "read-only request changed after its last decision")
+                self._move(task, Status.HELD, "changed after its last decision")
 
     def delegate_from_voice(self, instruction, side_effect, tail):
         """The voice model's delegate call after `close`, reconciled in code.

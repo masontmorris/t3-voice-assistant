@@ -45,12 +45,13 @@ class Close(unittest.TestCase):
         self.assertNotIn(email["task_id"], {d["task_id"] for d in seg.dispatch_log})
         self.assertEqual(point["unreviewed_speech"], "tide times.")
 
-    def test_a_read_only_request_whose_words_grew_dispatches_with_its_final_words(self):
-        seg, _, _ = handoff(["look up the tide at rye and find", "look up the tide at rye and find the ferry"],
-                            "Look up the tide at Rye and find the ferry timetable.")
+    def test_a_read_only_request_whose_words_grew_is_held_because_no_decider_read_the_new_words(self):
+        seg, _, _ = handoff(["look up the tide at rye and if the", "look up the tide at rye and if the ferry runs"],
+                            "Look up the tide at Rye and if the ferry runs book two seats.")
         ferry = task(seg, "ferry")
-        self.assertEqual(ferry["status"], "dispatched")
-        self.assertIn("timetable", seg.dispatch_log[-1]["instruction"])
+        self.assertEqual(ferry["status"], "held")
+        self.assertIn("book two seats", ferry["instruction"])
+        self.assertNotIn(ferry["task_id"], {d["task_id"] for d in seg.dispatch_log})
 
 
 def orchestrator_with(*tasks):
