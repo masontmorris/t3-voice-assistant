@@ -1,0 +1,129 @@
+{
+  "route": "decisions",
+  "label": "09_delegate_before_segment:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "look up tomorrow's weather in seattle"
+      },
+      "new_speech": "and um what time does the ferry [1]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], the end of the speech so far, after \"time does the ferry\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"look up tomorrow's weather in seattle\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It states a new version of s1 (\"look up tomorrow's weather in seattle\").",
+          "cancel_s1": "It withdraws s1 (\"look up tomorrow's weather in seattle\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "m1": 0.12636134070907876,
+          "none": 0.8736386592909213
+        },
+        "confidence": 0.7472773185818427
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0282222482827652,
+          "none": 0.953388403264236,
+          "replace_s1": 0.018389348452998607
+        },
+        "confidence": 0.9300826048963539
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9914857549529508,
+          "s1": 0.00851424504704928
+        },
+        "confidence": 0.9829715099059015
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.38759479770568733
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.016203031333269727
+      }
+    },
+    "usage": {
+      "input_tokens": 458,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791087-C6og7tbCkwTKuHUGWbpq",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:47.035+00:00",
+    "ms": 88.1768999970518,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:47.035+00:00",
+      "route": "decisions",
+      "hash": "bd1b401fe6f8ba395c88d620",
+      "label": "09_delegate_before_segment:r4",
+      "status": 200,
+      "ms": 88.2,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

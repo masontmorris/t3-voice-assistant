@@ -1,0 +1,395 @@
+{
+  "scenario": "10_side_effect_email",
+  "covers": "A request with an external side effect (sending an email) whose partial text is wrong (Tuesday) until ASR revises it (Thursday). It must not dispatch on a partial.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "10_side_effect_email:r1",
+      "cursor": 0,
+      "markers": [
+        3
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r1",
+          "route": "decisions",
+          "file": "decisions-79bfc9992bfcbd54f9de4188.json",
+          "status": 200,
+          "ms": 82.4,
+          "started_at": "2026-11-16T01:04:47.314+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "nothing",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.0726522539956597,
+        "at": {
+          "choice": "none",
+          "margin": 0.6844466877690911,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.9974417817891614,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "10_side_effect_email:r2",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r2",
+          "route": "decisions",
+          "file": "decisions-f811e4812c50eef30d3837d2.json",
+          "status": 200,
+          "ms": 107.2,
+          "started_at": "2026-11-16T01:04:47.404+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "email dana that the meeting moved",
+      "committed": null,
+      "answer": {
+        "finished": 0.8562043391059739,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8980247241678684,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9983879881354842,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "10_side_effect_email:r3",
+      "cursor": 0,
+      "markers": [
+        8
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r3",
+          "route": "decisions",
+          "file": "decisions-b151f9b26fdb59e3e0e72594.json",
+          "status": 200,
+          "ms": 89.1,
+          "started_at": "2026-11-16T01:04:47.519+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "email dana that the meeting moved to tuesday",
+      "committed": null,
+      "answer": {
+        "finished": 0.9128342216595894,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8835865463842806,
+          "runner_up": "none"
+        },
+        "side_effect": 0.998810419229626,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "10_side_effect_email:r4",
+      "cursor": 0,
+      "markers": [
+        8,
+        11
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r4",
+          "route": "decisions",
+          "file": "decisions-97a8c9f8f237cc42b4bb0319.json",
+          "status": 200,
+          "ms": 83.4,
+          "started_at": "2026-11-16T01:04:49.661+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "email dana that the meeting moved to tuesday",
+      "committed": null,
+      "answer": {
+        "finished": 0.9000681324960045,
+        "at": {
+          "choice": "m1",
+          "margin": 0.862054567645731,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9980057610301833,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "10_side_effect_email:r5",
+      "cursor": 0,
+      "markers": [
+        8,
+        17
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r5",
+          "route": "decisions",
+          "file": "decisions-acaec8828f8b7a50e1f16753.json",
+          "status": 200,
+          "ms": 83.8,
+          "started_at": "2026-11-16T01:04:49.758+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "email dana that the meeting moved to thursday",
+      "committed": null,
+      "answer": {
+        "finished": 0.930413195039284,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5949563429048781,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9978548490061581,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "10_side_effect_email:r6",
+      "cursor": 0,
+      "markers": [
+        8,
+        16
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r6",
+          "route": "decisions",
+          "file": "decisions-8839a5b618009427accc7ca2.json",
+          "status": 200,
+          "ms": 85.4,
+          "started_at": "2026-11-16T01:04:49.852+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "email dana that the meeting moved to thursday",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9856879072667037,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9088005220841974,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.9983198295033022,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "10_side_effect_email:r6:drain1",
+      "cursor": 8,
+      "markers": [
+        9,
+        16
+      ],
+      "calls": [
+        {
+          "label": "10_side_effect_email:r6:drain1",
+          "route": "decisions",
+          "file": "decisions-173b4472b5edc8f972bdd5a0.json",
+          "status": 200,
+          "ms": 89.0,
+          "started_at": "2026-11-16T01:04:49.947+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.8710887559265488,
+        "at": {
+          "choice": "none",
+          "margin": 0.18106717724293947,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.04156210774670412,
+        "depends": {
+          "choice": "none",
+          "margin": 0.6754653028343238,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.9233142876893017,
+          "runner_up": "cancel_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Email Dana that the meeting moved to Thursday,",
+      "instruction": "Email Dana that the meeting moved to Thursday,",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Email Dana that the meeting moved to Thursday,"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 8,
+      "text": "Email Dana that the meeting moved to Thursday,"
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "Email Dana that the meeting moved to Thursday,",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_10_side_effect_email",
+    "final_transcript": "Email Dana that the meeting moved to Thursday, and then check if room 4B is free.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Email Dana that the meeting moved to Thursday,",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "email",
+          "dana"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true,
+        "instruction_contains": [
+          "thursday"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "room"
+        ],
+        "status": [
+          "dispatched",
+          "ready"
+        ],
+        "depends_on": [
+          [],
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['room']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

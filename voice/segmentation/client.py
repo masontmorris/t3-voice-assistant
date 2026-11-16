@@ -21,7 +21,8 @@ ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / "cache"
 LEDGER = ROOT / "calls.jsonl"
 STOP = ROOT / "BILLING_STOP"
-BUDGET = 400
+# Round 2 used 157 ledger attempts; the variants round adds its own cap of 400.
+BUDGET = 157 + 400
 TIMEOUT_S = 30
 MAX_ATTEMPTS = 5
 

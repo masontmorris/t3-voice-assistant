@@ -1,0 +1,290 @@
+{
+  "scenario": "02_two_dependent",
+  "covers": "Two dependent requests. The second needs the first one's result.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "02_two_dependent:r1",
+      "cursor": 0,
+      "markers": [
+        3
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r1",
+          "route": "decisions",
+          "file": "decisions-1ffa8d2e475bca3e741ec792.json",
+          "status": 200,
+          "ms": 90.4,
+          "started_at": "2026-11-16T01:03:53.301+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "nothing",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.038353705519866624,
+        "at": {
+          "choice": "none",
+          "margin": 0.8554555626235706,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.025422771178739968,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "02_two_dependent:r2",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r2",
+          "route": "decisions",
+          "file": "decisions-9b12ee4c4ae410a1ddeb11bf.json",
+          "status": 200,
+          "ms": 238.4,
+          "started_at": "2026-11-16T01:03:55.449+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "find last quarter's sales report",
+      "committed": null,
+      "answer": {
+        "finished": 0.8469036913151711,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7322588321954524,
+          "runner_up": "none"
+        },
+        "side_effect": 0.03780629687299986,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "02_two_dependent:r3",
+      "cursor": 0,
+      "markers": [
+        5,
+        7
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r3",
+          "route": "decisions",
+          "file": "decisions-686478c71446e7fd2040aef1.json",
+          "status": 200,
+          "ms": 86.8,
+          "started_at": "2026-11-16T01:03:55.695+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.5500964240320422,
+        "at": {
+          "choice": "m1",
+          "margin": 0.6882842474210126,
+          "runner_up": "none"
+        },
+        "side_effect": 0.03581269779446467,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "02_two_dependent:r4",
+      "cursor": 0,
+      "markers": [
+        5,
+        9
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r4",
+          "route": "decisions",
+          "file": "decisions-47ef9a7d2e4dad166688b968.json",
+          "status": 200,
+          "ms": 89.3,
+          "started_at": "2026-11-16T01:03:55.790+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.7126049830073033,
+        "at": {
+          "choice": "none",
+          "margin": 0.010137632237617933,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.020407066476654648,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "02_two_dependent:r5",
+      "cursor": 0,
+      "markers": [
+        5,
+        13
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r5",
+          "route": "decisions",
+          "file": "decisions-456a6aa8f80fb181d2848496.json",
+          "status": 200,
+          "ms": 82.4,
+          "started_at": "2026-11-16T01:03:55.888+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.7434835167775591,
+        "at": {
+          "choice": "m1",
+          "margin": 0.15762376023527797,
+          "runner_up": "none"
+        },
+        "side_effect": 0.017062518748226396,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "02_two_dependent:r6",
+      "cursor": 0,
+      "markers": [
+        5,
+        13
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r6",
+          "route": "decisions",
+          "file": "decisions-ba22e26b7deb6cf3d91a2993.json",
+          "status": 200,
+          "ms": 83.2,
+          "started_at": "2026-11-16T01:03:55.977+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.9481659709405549,
+        "at": {
+          "choice": "m2",
+          "margin": 0.15201660153364566,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.01683989230406582,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [],
+  "segments": [],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_02_two_dependent",
+    "final_transcript": "Find last quarter's sales report and then summarize it in three bullet points.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "sales",
+          "report"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "summarize"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: no task matches ['sales', 'report']",
+      "T2: no task matches ['summarize']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

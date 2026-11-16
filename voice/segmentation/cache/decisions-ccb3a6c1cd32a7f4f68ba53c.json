@@ -1,0 +1,133 @@
+{
+  "route": "decisions",
+  "label": "03_topic_change:r6",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "Look up the score of the Nuggets game."
+      },
+      "new_speech": "Anyway, [1] totally different thing. [2] What's a good recipe for banana bread? [3]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], after \"anyway\" and before \"totally different thing what's\".",
+          "m2": "It ends at [2], after \"anyway totally different thing\" and before \"what's a good recipe\".",
+          "m3": "It ends at [3], the end of the speech so far, after \"recipe for banana bread\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"Look up the score of the Nuggets game.\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It states a new version of s1 (\"Look up the score of the Nuggets game.\").",
+          "cancel_s1": "It withdraws s1 (\"Look up the score of the Nuggets game.\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "m1": 0.022743510492207138,
+          "m2": 0.04286902338899449,
+          "m3": 0.4498099150304483,
+          "none": 0.48457755108835
+        },
+        "confidence": 0.3127700681178
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.1014413589374622,
+          "none": 0.883415911587312,
+          "replace_s1": 0.015142729475225785
+        },
+        "confidence": 0.8251238673809679
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9864371553446191,
+          "s1": 0.01356284465538086
+        },
+        "confidence": 0.9728743106892381
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9332591691370116
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.015130586193312982
+      }
+    },
+    "usage": {
+      "input_tokens": 529,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791053-K4RzqnIUGjhDnUd4rFKs",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:12.822+00:00",
+    "ms": 94.8608000180684,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:12.822+00:00",
+      "route": "decisions",
+      "hash": "ccb3a6c1cd32a7f4f68ba53c",
+      "label": "03_topic_change:r6",
+      "status": 200,
+      "ms": 94.9,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

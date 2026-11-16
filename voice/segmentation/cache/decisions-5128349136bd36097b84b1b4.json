@@ -1,0 +1,117 @@
+{
+  "route": "decisions",
+  "label": "06_description_not_request:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "my [1] sister [2] keeps [3] telling [4] me [5] i [6] should [7] email [8] the [9] landlord [10] about [11] the [12] heater [13] but can you just look up [14]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], after \"my\" and before \"sister keeps telling me\".",
+          "m2": "It ends at [2], after \"my sister\" and before \"keeps telling me i\".",
+          "m3": "It ends at [3], after \"my sister keeps\" and before \"telling me i should\".",
+          "m4": "It ends at [4], after \"my sister keeps telling\" and before \"me i should email\".",
+          "m5": "It ends at [5], after \"sister keeps telling me\" and before \"i should email the\".",
+          "m6": "It ends at [6], after \"keeps telling me i\" and before \"should email the landlord\".",
+          "m7": "It ends at [7], after \"telling me i should\" and before \"email the landlord about\".",
+          "m8": "It ends at [8], after \"me i should email\" and before \"the landlord about the\".",
+          "m9": "It ends at [9], after \"i should email the\" and before \"landlord about the heater\".",
+          "m10": "It ends at [10], after \"should email the landlord\" and before \"about the heater but\".",
+          "m11": "It ends at [11], after \"email the landlord about\" and before \"the heater but can\".",
+          "m12": "It ends at [12], after \"the landlord about the\" and before \"heater but can you\".",
+          "m13": "It ends at [13], after \"landlord about the heater\" and before \"but can you just\".",
+          "m14": "It ends at [14], the end of the speech so far, after \"you just look up\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "m1": 0.0060686894650111055,
+          "m10": 0.021904330511391925,
+          "m11": 0.01177092572240184,
+          "m12": 0.0044998891787944445,
+          "m13": 0.0879834023087434,
+          "m14": 0.014760317731967695,
+          "m2": 0.004348127487059907,
+          "m3": 0.0035234967944779015,
+          "m4": 0.004016437416946615,
+          "m5": 0.01925167101758813,
+          "m6": 0.004942286319809116,
+          "m7": 0.005116422577476121,
+          "m8": 0.0028543999164471778,
+          "m9": 0.010032560508687144,
+          "none": 0.7989270430431975
+        },
+        "confidence": 0.7845646889748544
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.07297133457481246
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.5160531640269227
+      }
+    },
+    "usage": {
+      "input_tokens": 709,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791077-fHYWrxfaaEmOjgKVwoHl",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:36.275+00:00",
+    "ms": 168.70709997601807,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:36.275+00:00",
+      "route": "decisions",
+      "hash": "5128349136bd36097b84b1b4",
+      "label": "06_description_not_request:r4",
+      "status": 200,
+      "ms": 168.7,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}
