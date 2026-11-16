@@ -114,3 +114,58 @@ test("snapshot: built from handoffs and the outbox alone", () => {
 	ack(data, ["o2"]);
 	assert.equal(snapshot(data, { conversationId: "c1", utteranceId: "utt_2", finalTranscript: "t", requestPrefix: "c1:" }).for_mason.length, 0);
 });
+
+const send = (runId, messageId, threadId) => ({ type: "dynamic_tool", runId, text: JSON.stringify({ toolName: "mcp__t3-code__t3_thread_send", input: { threadId }, output: { structuredContent: { messageId, threadId } } }) });
+
+test("ingestRoot: with two requests in flight, the sender chain ties each result to its request, whatever the tags say", async () => {
+	const data = {
+		...emptyTree(),
+		root: "R",
+		handoffs: { r1: { requestId: "r1", text: "drive time", status: "sent", messageId: "H1" }, r2: { requestId: "r2", text: "weather", status: "sent", messageId: "H2" } },
+	};
+	const threads = {
+		R: {
+			runs: [
+				{ id: "R1", userMessageId: "H1", status: "completed" },
+				{ id: "R2", userMessageId: "H2", status: "completed" },
+				{ id: "R3", userMessageId: "MA", status: "completed" },
+				{ id: "R4", userMessageId: "MB", status: "completed" },
+				{ id: "R5", userMessageId: "MX", status: "completed" },
+			],
+			turnItems: [
+				{ type: "user_message", messageId: "H1", runId: "R1", text: "[request r1] drive time" },
+				send("R1", "P1msg", "P"),
+				{ type: "assistant_message", runId: "R1", text: "Passed on." },
+				{ type: "user_message", messageId: "H2", runId: "R2", text: "[request r2] weather" },
+				send("R2", "P2msg", "P"),
+				{ type: "assistant_message", runId: "R2", text: "Passed on." },
+				{ type: "user_message", messageId: "MA", runId: "R3", senderThreadId: "P", text: "35 minutes" },
+				{ type: "assistant_message", runId: "R3", text: "RESULT: about 35 minutes" },
+				{ type: "user_message", messageId: "MB", runId: "R4", senderThreadId: "P", text: "sunny" },
+				{ type: "assistant_message", runId: "R4", text: "[request r1] RESULT: sunny" },
+				{ type: "user_message", messageId: "MX", runId: "R5", senderThreadId: "Q", text: "late" },
+				{ type: "assistant_message", runId: "R5", text: "[request r2] RESULT: a late note" },
+			],
+		},
+		P: {
+			runs: [
+				{ id: "PR1", userMessageId: "P1msg", status: "completed" },
+				{ id: "PR2", userMessageId: "P2msg", status: "completed" },
+			],
+			turnItems: [
+				{ type: "user_message", messageId: "P1msg", runId: "PR1", senderThreadId: "R", text: "[request r1] drive time" },
+				send("PR1", "MA", "R"),
+				{ type: "user_message", messageId: "P2msg", runId: "PR2", senderThreadId: "R", text: "[request r2] weather" },
+				send("PR2", "MB", "R"),
+			],
+		},
+		Q: { runs: [], turnItems: [] },
+	};
+	const added = await ingestRoot(data, threads.R, async (id) => threads[id]);
+	const results = added.filter((e) => e.source === "task_result").map((e) => [e.requestId, e.text, e.tiedBy, !!e.tagMismatch]);
+	assert.deepEqual(results, [
+		["r1", "about 35 minutes", "chain", false],
+		["r2", "sunny", "chain", true],
+		["r2", "a late note", "tag", false],
+	]);
+});
