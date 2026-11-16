@@ -155,10 +155,15 @@ def d1_server(port=DEFAULT_PORT, log_path=None, flags=FLAGS):
 
 @contextmanager
 def decider(name, log_dir=None):
-    """The decider a run asked for: `cloud` (the default, OpenRouter) or `d1` (a local llama-server it starts)."""
+    """The decider a run asked for: `liquid` (Liquid AI's hosted d1.2, the default), `cloud` (OpenRouter's
+    pplx-decider-flash, kept as the fallback), or `d1` (a local llama-server it starts)."""
     if name == "cloud":
         from voice.segmentation import client as api
         yield api.Client()
+        return
+    if name == "liquid":
+        from voice.liquid_decider.client import LiquidClient
+        yield LiquidClient()
         return
     if name != "d1":
         raise ValueError(f"unknown decider {name!r}")
@@ -172,4 +177,4 @@ def decider(name, log_dir=None):
 
 
 def default_decider():
-    return os.environ.get("VOICE_DECIDER", "cloud")
+    return os.environ.get("VOICE_DECIDER", "liquid")
