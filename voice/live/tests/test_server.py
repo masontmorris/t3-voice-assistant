@@ -256,17 +256,17 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("barge_in", log)
         await ws.close()
 
-    async def test_speech_after_the_reply_stops_playback(self):
+    async def test_speech_after_the_reply_has_played_is_a_plain_turn(self):
+        """Call 1 of 2026-11-16 15:26 logged 16 barge_in events; 15 came 1.5 to 17 s after the reply had played."""
         ws = await self.connect()
         await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
         await self.until(ws, "turn_done", [])
+        await asyncio.sleep(2.3)
         log = []
-        await self.send(ws, tone(400))
-        barge = await self.until(ws, "barge_in", log)
-        self.assertEqual(barge["turn"], 1, "the finished turn's audio is dropped once speech starts")
+        await self.send(ws, tone(140))
         started = await self.until(ws, "turn_start", log)
         self.assertEqual(started["turn"], 2)
-        self.assertEqual(log, ["barge_in", "turn_start"], "stop playback before the new turn starts")
+        self.assertEqual(log, ["turn_start"], "nothing is playing, so there is nothing to duck or stop")
         await ws.close()
 
     async def test_a_second_client_is_turned_away(self):
