@@ -1,0 +1,171 @@
+{
+  "route": "decisions",
+  "label": "run_on:r3",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "find the moonrise time in perth check the train fare to fremantle translate good morning into swahili",
+      "transcript_is_final": false,
+      "segments": {
+        "s1": "find the moonrise time in perth check the train fare to fremantle translate good morning into swahili"
+      },
+      "still_being_spoken": "s1",
+      "tasks": [],
+      "delegate_requests": {},
+      "new_speech": "find [1] the [2] moonrise [3] time [4] in [5] perth [6] check [7] the [8] train [9] fare [10] to [11] fremantle [12] translate [13] good [14] morning [15] into [16] swahili [17]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"find the moonrise time in perth check the train fare to fremantle translate good morning into swahili\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"find the moonrise time in perth check the train fare to fremantle translate good morning into swahili\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"find the moonrise time in perth check the train fare to fremantle translate good morning into swahili\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s1_finished": {
+        "type": "noul",
+        "instructions": "In new_speech, look at the words that start with \"find the moonrise time\". Has the speaker finished explicitly asking the assistant there for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "A request that starts there is complete: a worker could act on it as spoken.",
+          "false": "The words there are only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "s1_at": {
+        "type": "choice",
+        "instructions": "In new_speech, at which marker does the request that starts with \"find the moonrise time\" end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "It ends at [1]. It is \"find\".",
+          "m2": "It ends at [2]. It is \"find the\".",
+          "m3": "It ends at [3]. It is \"find the moonrise\".",
+          "m4": "It ends at [4]. It is \"find the moonrise time\".",
+          "m5": "It ends at [5]. It is \"find the moonrise time in\".",
+          "m6": "It ends at [6]. It is \"find the moonrise time in perth\".",
+          "m7": "It ends at [7]. It is \"find the moonrise time in perth check\".",
+          "m8": "It ends at [8]. It is \"find the moonrise time in perth check the\".",
+          "m9": "It ends at [9]. It is \"find the moonrise time in perth check the train\".",
+          "m10": "It ends at [10]. It is \"find the moonrise time ... check the train fare\".",
+          "m11": "It ends at [11]. It is \"find the moonrise time ... the train fare to\".",
+          "m12": "It ends at [12]. It is \"find the moonrise time ... train fare to fremantle\".",
+          "m13": "It ends at [13]. It is \"find the moonrise time ... fare to fremantle translate\".",
+          "m14": "It ends at [14]. It is \"find the moonrise time ... to fremantle translate good\".",
+          "m15": "It ends at [15]. It is \"find the moonrise time ... fremantle translate good morning\".",
+          "m16": "It ends at [16]. It is \"find the moonrise time ... translate good morning into\".",
+          "m17": "It ends at the end of the speech so far. It is \"find the moonrise time ... good morning into swahili\".",
+          "none": "No request that starts there is finished yet."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_at": {
+        "type": "choice",
+        "choice": "m6",
+        "probabilities": {
+          "m1": 0.000783794606234233,
+          "m10": 0.0014905900214957541,
+          "m11": 0.0013285357121882578,
+          "m12": 0.0011832908326254203,
+          "m13": 0.000608739779789267,
+          "m14": 0.00037018663259933766,
+          "m15": 0.0006339533996570845,
+          "m16": 0.0006297332969277237,
+          "m17": 0.0022739656662641773,
+          "m2": 0.0003254552653479352,
+          "m3": 0.000506623220004755,
+          "m4": 0.0008802351972189346,
+          "m5": 0.000613508919243695,
+          "m6": 0.9751445588015325,
+          "m7": 0.0029407593803017066,
+          "m8": 0.000876758750651204,
+          "m9": 0.0006561927623678355,
+          "none": 0.008753117755550351
+        },
+        "confidence": 0.9736824740251521
+      },
+      "s1_finished": {
+        "type": "noul",
+        "noul": 0.965975571681659
+      },
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0030074311577160742,
+          "correction": 0.001524797036596621,
+          "description": 0.014869212476074391,
+          "request": 0.9784463562005427,
+          "topic_change": 0.0021522031290702437
+        },
+        "confidence": 0.9730579452506782
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.021186878708361764,
+          "dispatch_now": 0.9076690671590942,
+          "wait": 0.07114405413254392
+        },
+        "confidence": 0.8615036007386412
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.055907143481982204
+      }
+    },
+    "usage": {
+      "input_tokens": 1267,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797424-nqG5hcAZV77FUzieJRDB",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:50:24.032+00:00",
+    "ms": 124.83519996749237,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:50:24.032+00:00",
+      "route": "decisions",
+      "hash": "5eac65b1d951d17c21cfe68d",
+      "label": "run_on:r3",
+      "status": 200,
+      "ms": 124.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

@@ -1,0 +1,68 @@
+{
+  "route": "extractions",
+  "label": "09_delegate_before_segment:r6:extract",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": "Look up tomorrow's weather in Seattle, and, um, what time does the ferry leave?",
+    "fields": {
+      "segments": {
+        "type": "list",
+        "items": "text",
+        "instructions": "Each separate thing the speaker asks for, each correction or withdrawal of an earlier request, and each sentence that only describes a task, copied exactly from the transcript. Two requests joined by \"and\" are two items. Skip filler and small talk."
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "segments": {
+        "type": "list",
+        "value": [
+          "Look up tomorrow's weather in Seattle",
+          "what time does the ferry leave"
+        ],
+        "spans": [
+          [
+            0,
+            37
+          ],
+          [
+            48,
+            78
+          ]
+        ],
+        "confidences": [
+          0.9986822009086609,
+          0.9708433747291565
+        ]
+      }
+    },
+    "truncated": false,
+    "usage": {
+      "input_tokens": 123,
+      "output_tokens": 1,
+      "passes": 1,
+      "cost": 0
+    },
+    "id": "gen-dec-1794788894-upgJ5LGhOYjNuVob2xMY",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:13.747+00:00",
+    "ms": 190.8217000309378,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:13.747+00:00",
+      "route": "extractions",
+      "hash": "00d50ea779999759919b3210",
+      "label": "09_delegate_before_segment:r6:extract",
+      "status": 200,
+      "ms": 190.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

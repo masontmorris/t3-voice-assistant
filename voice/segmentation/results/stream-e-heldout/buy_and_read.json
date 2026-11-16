@@ -1,0 +1,324 @@
+{
+  "scenario": "buy_and_read",
+  "covers": "buy plus read",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "buy_and_read:r1",
+      "cursor": 0,
+      "markers": [
+        4
+      ],
+      "calls": [
+        {
+          "label": "buy_and_read:r1",
+          "route": "decisions",
+          "file": "decisions-1762cc3855dd5894f350ad13.json",
+          "status": 200,
+          "ms": 98.6,
+          "started_at": "2026-11-16T01:19:12.001+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "find the book review",
+      "committed": null,
+      "answer": {
+        "finished": 0.8049920885576293,
+        "at": {
+          "choice": "m1",
+          "margin": 0.6134870159838904,
+          "runner_up": "none"
+        },
+        "side_effect": 0.025114807167004254,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "buy_and_read:r2",
+      "cursor": 0,
+      "markers": [
+        4,
+        9
+      ],
+      "calls": [
+        {
+          "label": "buy_and_read:r2",
+          "route": "decisions",
+          "file": "decisions-8802556eca3a6ad7bb998fc6.json",
+          "status": 200,
+          "ms": 128.2,
+          "started_at": "2026-11-16T01:19:15.101+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "find the book review",
+      "committed": null,
+      "answer": {
+        "finished": 0.714589728231425,
+        "at": {
+          "choice": "m1",
+          "margin": 0.2967388837730494,
+          "runner_up": "none"
+        },
+        "side_effect": 0.7150887552010887,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "buy_and_read:r3",
+      "cursor": 0,
+      "markers": [
+        4,
+        9
+      ],
+      "calls": [
+        {
+          "label": "buy_and_read:r3",
+          "route": "decisions",
+          "file": "decisions-89c762d74bcf2de43cdec4b0.json",
+          "status": 200,
+          "ms": 103.5,
+          "started_at": "2026-11-16T01:19:18.201+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 4,
+      "candidate": "find the book review",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9784609835355914,
+        "at": {
+          "choice": "m1",
+          "margin": 0.6503684602737585,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.8404832432194327,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "buy_and_read:r3:drain1",
+      "cursor": 4,
+      "markers": [
+        9
+      ],
+      "calls": [
+        {
+          "label": "buy_and_read:r3:drain1",
+          "route": "decisions",
+          "file": "decisions-4d1fa98e4b3fa78dd55d2935.json",
+          "status": 200,
+          "ms": 222.9,
+          "started_at": "2026-11-16T01:19:21.302+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 9,
+      "candidate": "and buy the paperback edition",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.8721151503712657,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5382793601738012,
+          "runner_up": "none"
+        },
+        "side_effect": 0.983697789679152,
+        "depends": {
+          "choice": "s1",
+          "margin": 0.5675571923006283,
+          "runner_up": "none"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.16301182868066788,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the book review",
+      "instruction": "Find the book review",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Find the book review"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "ready",
+      "segment_text": "and buy the paperback edition.",
+      "instruction": "and buy the paperback edition.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [
+        "task_1"
+      ],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and buy the paperback edition."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 4,
+      "text": "Find the book review"
+    },
+    {
+      "sid": "s2",
+      "w0": 4,
+      "w1": 9,
+      "text": "and buy the paperback edition."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Find the book review",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_buy_and_read",
+    "final_transcript": "Find the book review and buy the paperback edition.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Find the book review",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and buy the paperback edition.",
+        "status": "pending",
+        "depends_on": [
+          "task_1"
+        ]
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "book",
+          "review"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "buy",
+          "paperback"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: status ready, expected one of ['dispatched']",
+      "T2: depends_on ['T1'], expected one of [[]]"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

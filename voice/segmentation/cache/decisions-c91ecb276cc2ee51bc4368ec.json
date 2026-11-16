@@ -1,0 +1,67 @@
+{
+  "route": "decisions",
+  "label": "09_delegate_before_segment:r2:delegate",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "look up tomorrow's weather in seattle [1]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "d1_same_as": {
+        "type": "choice",
+        "instructions": "The voice assistant submitted the task \"Look up tomorrow's weather in Seattle\". Which request asks for the same thing?",
+        "criteria": {
+          "new": "No request in the speech asks for it.",
+          "new_speech": "The request in new_speech (\"look up tomorrow's weather in seattle\") asks for it."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "d1_same_as": {
+        "type": "choice",
+        "choice": "new_speech",
+        "probabilities": {
+          "new": 0.010054129264350502,
+          "new_speech": 0.9899458707356494
+        },
+        "confidence": 0.9798917414712989
+      }
+    },
+    "usage": {
+      "input_tokens": 145,
+      "output_tokens": 1,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791087-YPuzlZzhy8YsFbRFbka5",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:46.833+00:00",
+    "ms": 94.6381000103429,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:46.833+00:00",
+      "route": "decisions",
+      "hash": "c91ecb276cc2ee51bc4368ec",
+      "label": "09_delegate_before_segment:r2:delegate",
+      "status": 200,
+      "ms": 94.6,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

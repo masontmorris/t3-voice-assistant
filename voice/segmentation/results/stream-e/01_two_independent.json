@@ -1,0 +1,420 @@
+{
+  "scenario": "01_two_independent",
+  "covers": "Two independent requests in one utterance.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "01_two_independent:r1",
+      "cursor": 0,
+      "markers": [
+        3
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r1",
+          "route": "decisions",
+          "file": "decisions-f89c79da48d559359cac2100.json",
+          "status": 200,
+          "ms": 157.1,
+          "started_at": "2026-11-16T01:07:58.796+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 3,
+      "candidate": "what's the weather",
+      "committed": null,
+      "answer": {
+        "finished": 0.7807841265543637,
+        "at": {
+          "choice": "m1",
+          "margin": 0.6034888835408206,
+          "runner_up": "none"
+        },
+        "side_effect": 0.00867955457175651,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "01_two_independent:r2",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r2",
+          "route": "decisions",
+          "file": "decisions-f03d15dff1bf8c9beaa2982c.json",
+          "status": 200,
+          "ms": 97.0,
+          "started_at": "2026-11-16T01:08:01.960+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "what's the weather in denver tomorrow",
+      "committed": null,
+      "answer": {
+        "finished": 0.8910744854113689,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7685208756063372,
+          "runner_up": "none"
+        },
+        "side_effect": 0.007571520582435382,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "01_two_independent:r3",
+      "cursor": 0,
+      "markers": [
+        6,
+        9
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r3",
+          "route": "decisions",
+          "file": "decisions-d8b34818afe0228695d09706.json",
+          "status": 200,
+          "ms": 95.6,
+          "started_at": "2026-11-16T01:08:03.160+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "what's the weather in denver tomorrow",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.8778551349169138,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9116939840012519,
+          "runner_up": "none"
+        },
+        "side_effect": 0.012840094156136416,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "01_two_independent:r4",
+      "cursor": 6,
+      "markers": [
+        13
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r4",
+          "route": "decisions",
+          "file": "decisions-b2ecd8b759dba2ad17b4f526.json",
+          "status": 200,
+          "ms": 86.2,
+          "started_at": "2026-11-16T01:08:06.434+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.5616565019488994,
+        "at": {
+          "choice": "none",
+          "margin": 0.25381578613603867,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.013955907251589999,
+        "depends": {
+          "choice": "none",
+          "margin": 0.7359914038373536,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.7810708231193576,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "01_two_independent:r5",
+      "cursor": 6,
+      "markers": [
+        16
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r5",
+          "route": "decisions",
+          "file": "decisions-a738ead2d98febea62ef4bad.json",
+          "status": 200,
+          "ms": 91.1,
+          "started_at": "2026-11-16T01:08:07.634+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 16,
+      "candidate": "and look up how long the drive from boulder takes",
+      "committed": null,
+      "answer": {
+        "finished": 0.8875425692776389,
+        "at": {
+          "choice": "m1",
+          "margin": 0.27493238247457136,
+          "runner_up": "none"
+        },
+        "side_effect": 0.0102269362722098,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9699277666097786,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.8230055928174022,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "01_two_independent:r6",
+      "cursor": 6,
+      "markers": [
+        16
+      ],
+      "calls": [
+        {
+          "label": "01_two_independent:r6",
+          "route": "decisions",
+          "file": "decisions-4ba1d5f74519e0bb4620956c.json",
+          "status": 200,
+          "ms": 88.7,
+          "started_at": "2026-11-16T01:08:08.835+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 16,
+      "candidate": "and look up how long the drive from boulder takes",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.9504727870293953,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8329203283494411,
+          "runner_up": "none"
+        },
+        "side_effect": 0.011024301173779616,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9084172898199485,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.7310538631267423,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "What's the weather in Denver tomorrow,",
+      "instruction": "what's the weather in denver tomorrow",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "what's the weather in denver tomorrow"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "what's the weather in denver tomorrow",
+          "new": "What's the weather in Denver tomorrow,"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and look up how long the drive from Boulder takes.",
+      "instruction": "and look up how long the drive from Boulder takes.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and look up how long the drive from Boulder takes."
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 6,
+      "text": "What's the weather in Denver tomorrow,"
+    },
+    {
+      "sid": "s2",
+      "w0": 6,
+      "w1": 16,
+      "text": "and look up how long the drive from Boulder takes."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": false,
+      "instruction": "what's the weather in denver tomorrow",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "and look up how long the drive from Boulder takes.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_01_two_independent",
+    "final_transcript": "What's the weather in Denver tomorrow, and look up how long the drive from Boulder takes.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "what's the weather in denver tomorrow",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and look up how long the drive from Boulder takes.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "weather",
+          "denver"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "drive",
+          "boulder"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

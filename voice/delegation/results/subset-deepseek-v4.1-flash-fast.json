@@ -1,0 +1,963 @@
+{
+ "original": {
+  "summary": {
+   "utterances": 4,
+   "dispatched": 8,
+   "with_draft": 5,
+   "raw_no_draft_started": 1,
+   "raw_still_drafting": 0,
+   "raw_stale": 1,
+   "raw_rejected": 1,
+   "requests": 13,
+   "requests_per_utterance": 3.25,
+   "drafted_tasks": 8,
+   "redrafts": 5,
+   "gap_done_to_dispatch": {
+    "n": 8,
+    "median": 1.0,
+    "min": 0,
+    "max": 2
+   },
+   "wait_if_holding_for_draft": {
+    "n": 8,
+    "median": 0.0,
+    "min": 0.0,
+    "max": 0.5
+   }
+  },
+  "scenarios": {
+   "01_two_independent": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 5
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "stale",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 3,
+      "wait_for_draft": 0.5,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 2
+   },
+   "05_correction_after_dispatch": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 6
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 4,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 2,
+      "final_at": 6
+     },
+     {
+      "task_id": "task_3",
+      "used_draft": false,
+      "reason": "no draft started",
+      "is_final": true,
+      "dispatched_at": 6,
+      "first_done": 6,
+      "wait_for_draft": 0.5,
+      "requests": 0,
+      "final_at": 6
+     }
+    ],
+    "requests": 3
+   },
+   "08_delegate_after_dispatch": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": false,
+      "dispatched_at": 3,
+      "first_done": 2,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 5
+   },
+   "10_side_effect_email": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 3,
+      "wait_for_draft": 0.0,
+      "requests": 2,
+      "final_at": 5
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "rejected",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 4,
+      "wait_for_draft": 0.5,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 3
+   }
+  }
+ },
+ "heldout": {
+  "summary": {
+   "utterances": 1,
+   "dispatched": 2,
+   "with_draft": 1,
+   "raw_no_draft_started": 0,
+   "raw_still_drafting": 0,
+   "raw_stale": 0,
+   "raw_rejected": 1,
+   "requests": 2,
+   "requests_per_utterance": 2.0,
+   "drafted_tasks": 2,
+   "redrafts": 0,
+   "gap_done_to_dispatch": {
+    "n": 2,
+    "median": 1.0,
+    "min": 1,
+    "max": 1
+   },
+   "wait_if_holding_for_draft": {
+    "n": 2,
+    "median": 0.25,
+    "min": 0.0,
+    "max": 0.5
+   }
+  },
+  "scenarios": {
+   "post_and_read": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "rejected",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.5,
+      "requests": 1,
+      "final_at": 2
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     }
+    ],
+    "requests": 2
+   }
+  }
+ },
+ "drafts": [
+  {
+   "label": "01_two_independent:task_1:r3",
+   "instruction": "what's the weather in denver tomorrow",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 3249.7,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 343,
+    "completion_tokens": 312,
+    "total_tokens": 655,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 128,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW63V6QWE57P79GG7V4QR7",
+    "object": "chat.completion",
+    "created": 1794822576,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_yoz2rk1h5o"
+   },
+   "draft": {
+    "instruction": "Tell the user what the weather in Denver will be tomorrow.",
+    "context": "The user asked by voice: \"what's the weather in denver tomorrow and look up\" (the utterance was cut off after \"look up\"). The only complete request is the weather in Denver for tomorrow.",
+    "constraints": [
+     "Report only the weather for Denver; do not substitute another location.",
+     "Report only tomorrow's weather, not today's or a multi-day forecast.",
+     "Do not add steps or goals beyond reporting tomorrow's Denver weather."
+    ],
+    "success_criteria": [
+     "The user is told what the weather in Denver will be tomorrow."
+    ],
+    "open_questions": [
+     "What did the user mean by the incomplete phrase \"and look up\"?",
+     "What source should be used for the weather information?",
+     "Should temperatures be given in Fahrenheit or Celsius?",
+     "Which timezone defines \"tomorrow\" for Denver?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "01_two_independent:task_2:r4",
+   "instruction": "and look up how long the drive",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 7959.0,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 346,
+    "completion_tokens": 1408,
+    "total_tokens": 1754,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1215,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW677NPVRKC2TCFFVWKMPM",
+    "object": "chat.completion",
+    "created": 1794822584,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_wbqnejfi2l"
+   },
+   "draft": {
+    "instruction": "Look up how long the drive takes.",
+    "context": "The user's full utterance was: \"what's the weather in denver tomorrow and look up how long the drive\". The drive's origin, destination, and timing were not specified.",
+    "constraints": [
+     "Restate or perform only the drive-duration lookup requested; do not add other tasks.",
+     "Do not assume the drive's origin, destination, or date.",
+     "Do not fabricate a route or duration if details are missing."
+    ],
+    "success_criteria": [
+     "The agent looks up and reports the drive duration if the route can be determined from the request.",
+     "If the route cannot be determined, the agent asks for the missing origin and destination instead of guessing."
+    ],
+    "open_questions": [
+     "Where does the drive start?",
+     "Where does the drive end?",
+     "When is the drive expected to take place?",
+     "Does \"the drive\" refer to a drive to Denver?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "05_correction_after_dispatch:task_1:r3",
+   "instruction": "find flights to austin on friday",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 5578.8,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 343,
+    "completion_tokens": 799,
+    "total_tokens": 1142,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 608,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW6ER26P404074S7RG4TJH",
+    "object": "chat.completion",
+    "created": 1794822590,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_t3o4xtn3zs"
+   },
+   "draft": {
+    "instruction": "Find flights to Austin on Friday.",
+    "context": "The user's full utterance was \"find flights to austin on friday and check hotel\"; this task covers only the flight search. The destination is Austin and the travel day is Friday.",
+    "constraints": [
+     "Search for flights only \u2014 do not book, purchase, or modify any reservation.",
+     "Destination must be Austin.",
+     "Travel day must be Friday."
+    ],
+    "success_criteria": [
+     "A list of available flight options to Austin on Friday is returned.",
+     "Each option includes whatever identifying details are available, such as airline, departure/arrival times, and price."
+    ],
+    "open_questions": [
+     "What is the departure city or origin airport?",
+     "Which Friday does the user mean (specific date)?",
+     "Is this a one-way or round-trip search?",
+     "How many passengers are traveling?",
+     "Does the user have preferences on time of day, airline, or price?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "05_correction_after_dispatch:task_2:r3",
+   "instruction": "and check hotel",
+   "depends_on": [],
+   "side_effect": true,
+   "status": 200,
+   "ms": 5708.8,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 347,
+    "completion_tokens": 828,
+    "total_tokens": 1175,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 611,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW6M4TC533FH8PBYE2MGD6",
+    "object": "chat.completion",
+    "created": 1794822596,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_hnjqz5jfbs"
+   },
+   "draft": {
+    "instruction": "Check hotel for the user.",
+    "context": "The user's full utterance was: \"find flights to austin on friday and check hotel.\" The hotel check appears to relate to that trip (Austin, Friday), but the user gave no hotel details in this task.",
+    "constraints": [
+     "Confirm with the user before taking any action that affects the outside world (e.g., booking, contacting a hotel, making a reservation).",
+     "This task covers only the hotel check; the flight search is a separate request."
+    ],
+    "success_criteria": [
+     "The user's hotel check is performed/reported back only after the user has confirmed what should be checked."
+    ],
+    "open_questions": [
+     "Which hotel (name, chain, or specific property) does the user want checked?",
+     "What location should the hotel be in \u2014 Austin, as implied by the flight request?",
+     "What check-in and check-out dates should be used \u2014 does \"Friday\" apply to the hotel stay?",
+     "How many guests, and are there any price, room, or amenity preferences?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "05_correction_after_dispatch:task_2:r4",
+   "instruction": "and check hotel prices downtown",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 3707.2,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 342,
+    "completion_tokens": 443,
+    "total_tokens": 785,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 290,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW6SQYRHV0F1TKV0W0WEGR",
+    "object": "chat.completion",
+    "created": 1794822599,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_tbidkra94p"
+   },
+   "draft": {
+    "instruction": "Check hotel prices downtown.",
+    "context": "The user also asked to find flights to Austin on Friday. This task concerns checking hotel prices downtown, presumably in Austin.",
+    "constraints": [
+     "Focus only on hotel prices downtown; do not book or reserve anything.",
+     "Do not perform the flight search as part of this task."
+    ],
+    "success_criteria": [
+     "Downtown hotel prices are checked and reported."
+    ],
+    "open_questions": [
+     "Which downtown location should be used (Austin, based on context, or another city)?",
+     "What check-in and check-out dates should be used, and is Friday the check-in date?",
+     "How many guests and rooms should the prices be for?",
+     "Are there any budget, star rating, or amenity requirements?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "08_delegate_after_dispatch:task_1:r3",
+   "instruction": "find the q3 budget spreadsheet",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 4716.2,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 339,
+    "completion_tokens": 737,
+    "total_tokens": 1076,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 589,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW6XC61H3DC78PPHF2DH3R",
+    "object": "chat.completion",
+    "created": 1794822604,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_j98tv3hpnw"
+   },
+   "draft": {
+    "instruction": "Find the Q3 budget spreadsheet.",
+    "context": "The user said: \"find the q3 budget spreadsheet and tell me\". The task being restated is limited to finding the Q3 budget spreadsheet.",
+    "constraints": [
+     "Do not perform any action beyond finding the Q3 budget spreadsheet.",
+     "Do not infer what the user wanted to be told from the incomplete phrase \"and tell me\"."
+    ],
+    "success_criteria": [
+     "The Q3 budget spreadsheet is located or clearly identified."
+    ],
+    "open_questions": [
+     "Which year's Q3 budget spreadsheet is meant?",
+     "What should be told to the user after the spreadsheet is found, since the utterance ends with \"and tell me\" without specifying what to tell?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "08_delegate_after_dispatch:task_2:r3",
+   "instruction": "and tell me",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 3647.1,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 336,
+    "completion_tokens": 501,
+    "total_tokens": 837,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 396,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW71ZPDQK69ME5W894BVGD",
+    "object": "chat.completion",
+    "created": 1794822608,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_6x9sdw4fao"
+   },
+   "draft": {
+    "instruction": "Find the Q3 budget spreadsheet and tell me.",
+    "context": "The user said: \"find the q3 budget spreadsheet and tell me\"",
+    "constraints": [],
+    "success_criteria": [
+     "The Q3 budget spreadsheet is found and reported back to the user."
+    ],
+    "open_questions": [
+     "What exactly should the agent tell the user about the Q3 budget spreadsheet?",
+     "Where should the agent search for the Q3 budget spreadsheet?",
+     "Which file or document counts as the Q3 budget spreadsheet?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "08_delegate_after_dispatch:task_2:r4",
+   "instruction": "and tell me the total travel spend",
+   "depends_on": [
+    "task_1"
+   ],
+   "side_effect": false,
+   "status": 200,
+   "ms": 3912.1,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 363,
+    "completion_tokens": 571,
+    "total_tokens": 934,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 415,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW75KMZNCK272E6KZG4ZSM",
+    "object": "chat.completion",
+    "created": 1794822612,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_2q8j5qklfy"
+   },
+   "draft": {
+    "instruction": "Using the Q3 budget spreadsheet from {{task_1.result}}, tell me the total travel spend.",
+    "context": "The user asked to find the Q3 budget spreadsheet and then tell the total travel spend. This task covers the second part and depends on the result of task_1.",
+    "constraints": [
+     "Base the answer solely on the provided Q3 budget spreadsheet."
+    ],
+    "success_criteria": [
+     "The total travel spend from the Q3 budget spreadsheet is reported."
+    ],
+    "open_questions": [
+     "What is the format of {{task_1.result}} (e.g., file path, URL, or spreadsheet data)?",
+     "Which line items or categories count as 'travel spend'?",
+     "What currency is the total travel spend in?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "08_delegate_after_dispatch:task_2:r4",
+   "instruction": "and tell me the total travel spend",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 2911.9,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 344,
+    "completion_tokens": 363,
+    "total_tokens": 707,
+    "prompt_tokens_details": {
+     "cached_tokens": 128,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 262,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW79CJRKS705KDDN9KB85E",
+    "object": "chat.completion",
+    "created": 1794822615,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_fvihe3cpvk"
+   },
+   "draft": {
+    "instruction": "Find the Q3 budget spreadsheet and tell me the total travel spend.",
+    "context": "The user asked to find the Q3 budget spreadsheet and report the total travel spend.",
+    "constraints": [],
+    "success_criteria": [
+     "The Q3 budget spreadsheet is found.",
+     "The total travel spend is reported."
+    ],
+    "open_questions": [
+     "Where is the Q3 budget spreadsheet located?",
+     "Which file exactly is the Q3 budget spreadsheet?",
+     "What should be counted as travel spend?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "08_delegate_after_dispatch:task_2:r5",
+   "instruction": "and tell me the total travel spend.",
+   "depends_on": [
+    "task_1"
+   ],
+   "side_effect": false,
+   "status": 200,
+   "ms": 3911.1,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 363,
+    "completion_tokens": 589,
+    "total_tokens": 952,
+    "prompt_tokens_details": {
+     "cached_tokens": 128,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 399,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW7C7Z4BD4EHGJZDCSYYD6",
+    "object": "chat.completion",
+    "created": 1794822619,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_v5kx8r7c09"
+   },
+   "draft": {
+    "instruction": "Using {{task_1.result}}, tell me the total travel spend.",
+    "context": "The user asked to find the Q3 budget spreadsheet and tell me the total travel spend. This task depends on task_1's result, which is where the Q3 budget spreadsheet result goes.",
+    "constraints": [
+     "Use {{task_1.result}} as the Q3 budget spreadsheet result.",
+     "Do not repeat the spreadsheet search; rely on task_1's result.",
+     "Report the total travel spend from the Q3 budget spreadsheet."
+    ],
+    "success_criteria": [
+     "The total travel spend from the Q3 budget spreadsheet is stated."
+    ],
+    "open_questions": [
+     "Which column, row, or field in {{task_1.result}} represents travel spend?",
+     "What currency or number format should the total travel spend use?",
+     "If {{task_1.result}} is a file or link rather than extracted values, how should it be accessed?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "10_side_effect_email:task_1:r4",
+   "instruction": "email dana that the meeting moved to tuesday",
+   "depends_on": [],
+   "side_effect": true,
+   "status": 200,
+   "ms": 3679.8,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 356,
+    "completion_tokens": 464,
+    "total_tokens": 820,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 254,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW7G2871EX12VGXFS781HV",
+    "object": "chat.completion",
+    "created": 1794822622,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_m3oh4sbzej"
+   },
+   "draft": {
+    "instruction": "Email Dana to let her know that the meeting has moved to Tuesday.",
+    "context": "The user said: \"email dana that the meeting moved to tuesday and then check\" \u2014 only the email part is in scope for this task; the trailing \"and then check\" is a separate follow-on request and is not part of this task.",
+    "constraints": [
+     "Send the message to Dana only; do not contact anyone else.",
+     "The email should only convey that the meeting moved to Tuesday; do not add details the user did not provide.",
+     "Do not send the email until the user has confirmed, since this task acts on the outside world."
+    ],
+    "success_criteria": [
+     "An email is sent to Dana stating that the meeting has moved to Tuesday, after the user confirms."
+    ],
+    "open_questions": [
+     "Which Dana is this \u2014 what is her email address?",
+     "Which meeting does the user mean?",
+     "Which Tuesday \u2014 what specific date?",
+     "Should the email be sent now, or scheduled for a particular time?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "10_side_effect_email:task_1:r5",
+   "instruction": "email dana that the meeting moved to thursday",
+   "depends_on": [],
+   "side_effect": true,
+   "status": 200,
+   "ms": 6629.2,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 362,
+    "completion_tokens": 1170,
+    "total_tokens": 1532,
+    "prompt_tokens_details": {
+     "cached_tokens": 128,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 953,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW7KNH9C57BQ1WHDBZ16KF",
+    "object": "chat.completion",
+    "created": 1794822629,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_3828sjmlde"
+   },
+   "draft": {
+    "instruction": "Email Dana to tell her that the meeting has moved to Thursday.",
+    "context": "The user asked: \u201cemail dana that the meeting moved to thursday and then check if room four b is free.\u201d This task covers only the email to Dana; the room-four-B check is outside this task.",
+    "constraints": [
+     "Confirm with the user before sending the email.",
+     "Do not send the email without user confirmation.",
+     "Do not perform the room-four-B availability check as part of this task."
+    ],
+    "success_criteria": [
+     "The user has confirmed the email should be sent.",
+     "An email is sent to Dana stating that the meeting moved to Thursday.",
+     "No room availability check is performed as part of this task."
+    ],
+    "open_questions": [
+     "Which meeting is being moved?",
+     "What was the meeting\u2019s original day/time, if that should be included?",
+     "What time on Thursday is the meeting?",
+     "Which Dana and which email address should be used?",
+     "What exact wording should the email use?",
+     "Should the email be sent immediately after confirmation?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "10_side_effect_email:task_2:r5",
+   "instruction": "and then check if room four b is free",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 8641.1,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 352,
+    "completion_tokens": 1665,
+    "total_tokens": 2017,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1504,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW7T5BXPDJ9FBBGDZDY1Z1",
+    "object": "chat.completion",
+    "created": 1794822638,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_54euwlx14p"
+   },
+   "draft": {
+    "instruction": "Check whether room four b is free.",
+    "context": "The user's full utterance was: \"email dana that the meeting moved to thursday and then check if room four b is free.\"",
+    "constraints": [
+     "Only check whether room four b is free; do not send any email or take other actions."
+    ],
+    "success_criteria": [
+     "The agent reports whether room four b is free."
+    ],
+    "open_questions": [
+     "For what date and time should room four b's availability be checked?",
+     "What system or method should be used to check whether room four b is free?",
+     "Is 'room four b' the exact name of the room?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "post_and_read:task_1:r2",
+   "instruction": "find the gallery opening date",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 8800.1,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 341,
+    "completion_tokens": 1752,
+    "total_tokens": 2093,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 1663,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW82MSQ75WEA25MCXGPZMS",
+    "object": "chat.completion",
+    "created": 1794822646,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_c99n6q6fa8"
+   },
+   "draft": {
+    "instruction": "Find the gallery opening date and post the message 'gallery opens soon'.",
+    "context": "",
+    "constraints": [
+     "This task has no effect outside the conversation."
+    ],
+    "success_criteria": [
+     "The gallery opening date is found and reported.",
+     "The message 'gallery opens soon' is posted within the conversation."
+    ],
+    "open_questions": [
+     "Which gallery is the user referring to?",
+     "Where should the message be posted?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "post_and_read:task_2:r2",
+   "instruction": "and post the message gallery opens soon",
+   "depends_on": [],
+   "side_effect": true,
+   "status": 200,
+   "ms": 3954.1,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 352,
+    "completion_tokens": 633,
+    "total_tokens": 985,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 494,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HW8B6T43XZAT22MF9PXG9C",
+    "object": "chat.completion",
+    "created": 1794822650,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_oc74mpi8yx"
+   },
+   "draft": {
+    "instruction": "Find the gallery opening date and post the message \"gallery opens soon\".",
+    "context": "The user said: \"find the gallery opening date and post the message gallery opens soon\".",
+    "constraints": [
+     "Confirm with the user before acting on the outside world (posting).",
+     "Use the message text \"gallery opens soon\"."
+    ],
+    "success_criteria": [
+     "The gallery opening date is found.",
+     "The message \"gallery opens soon\" is posted after user confirmation."
+    ],
+    "open_questions": [
+     "Which gallery is intended?",
+     "Where should the message be posted (platform, channel, or audience)?",
+     "What does \"post\" mean in this context?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  }
+ ]
+}

@@ -1,0 +1,56 @@
+{
+  "_about": "Hand-written before any prototype run, from the scripted prompts in script.txt and the synthetic clips' .txt references. Same format as the Stage 2 scenarios' expected block, scored by voice.segmentation.score. status lists the orchestrator statuses that pass. A side-effect task passes as dispatched only on the final transcript, and the mock task service must then hold it.",
+  "01_single": {"tasks": [
+    {"key": "T1", "match": ["weather", "denver"], "status": ["dispatched"], "depends_on": [[]]}
+  ], "clarification_needed": false},
+  "02_two_requests": {"tasks": [
+    {"key": "T1", "match": ["sales", "report"], "status": ["dispatched"], "depends_on": [[]]},
+    {"key": "T2", "match": ["email", "dana"], "status": ["ready", "dispatched"], "depends_on": [["T1"], []], "dispatch_only_on_final": true}
+  ], "clarification_needed": false},
+  "03_dependent": {"tasks": [
+    {"key": "T1", "match": ["flight", "chicago"], "status": ["dispatched"], "depends_on": [[]]},
+    {"key": "T2", "match": ["book"], "status": ["ready", "dispatched"], "depends_on": [["T1"]], "dispatch_only_on_final": true}
+  ], "clarification_needed": false},
+  "04_correction": {"tasks": [
+    {"key": "T1", "match": ["reminder"], "status": ["superseded", "withdrawn", "cancel_requested"]},
+    {"key": "T2", "match": ["wednesday"], "status": ["dispatched"], "revises": "T1", "instruction_contains": ["wednesday"]}
+  ], "clarification_needed": false},
+  "05_topic_change": {"tasks": [
+    {"key": "T1", "match": ["milk"], "status": ["dispatched"], "depends_on": [[]]},
+    {"key": "T2", "match": ["boulder"], "status": ["dispatched"], "depends_on": [[]]}
+  ], "clarification_needed": false},
+  "06_not_a_request": {"tasks": [], "clarification_needed": false},
+  "07_implicit": {"tasks": [
+    {"key": "T1", "match": ["rain", "saturday"], "status": ["dispatched"], "depends_on": [[]]}
+  ], "clarification_needed": false},
+  "08_cancel": {"tasks": [
+    {"key": "T1", "match": ["calendar", "friday"], "status": ["dispatched"], "depends_on": [[]]},
+    {"key": "T2", "match": ["text", "sam"], "status": ["withdrawn", "superseded"], "never_dispatched": true}
+  ], "clarification_needed": false},
+  "09_run_on": {"tasks": [
+    {"key": "T1", "match": ["dad"], "status": ["dispatched"], "dispatch_only_on_final": true},
+    {"key": "T2", "match": ["lights"], "status": ["dispatched"], "dispatch_only_on_final": true},
+    {"key": "T3", "match": ["start"], "status": ["dispatched"], "dispatch_only_on_final": true}
+  ], "clarification_needed": false},
+  "10_noisy": {"tasks": [
+    {"key": "T1", "match": ["rain", "saturday"], "status": ["dispatched"], "depends_on": [[]]}
+  ], "clarification_needed": false},
+  "single": {"tasks": [
+    {"key": "T1", "match": ["tokyo"], "status": ["dispatched"], "depends_on": [[]]}
+  ], "clarification_needed": false},
+  "two_request": {"tasks": [
+    {"key": "T1", "match": ["sales", "report"], "status": ["dispatched"], "depends_on": [[]]},
+    {"key": "T2", "match": ["email", "dana"], "status": ["ready", "dispatched"], "depends_on": [["T1"], []], "dispatch_only_on_final": true}
+  ], "clarification_needed": false},
+  "correction": {"tasks": [
+    {"key": "T1", "match": ["timer"], "status": ["superseded", "withdrawn", "cancel_requested"]},
+    {"key": "T2", "match": ["make"], "status": ["dispatched"], "revises": "T1"}
+  ], "clarification_needed": false},
+  "long": {"tasks": [
+    {"key": "T1", "match": ["calendar", "noon"], "status": ["dispatched"], "depends_on": [[]]},
+    {"key": "T2", "match": ["slides"], "status": ["dispatched"], "depends_on": [[]]},
+    {"key": "T3", "match": ["send"], "status": ["ready", "dispatched"], "depends_on": [["T2"], []], "dispatch_only_on_final": true},
+    {"key": "T4", "match": ["dentist"], "status": ["dispatched", "ready"]},
+    {"key": "T5", "match": ["coffee"], "status": ["dispatched"], "dispatch_only_on_final": true}
+  ], "clarification_needed": false}
+}

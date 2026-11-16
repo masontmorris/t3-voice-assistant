@@ -1,0 +1,190 @@
+{
+  "scenario": "11_filler_false_starts",
+  "covers": "Filler words, false starts, and an ASR revision of an earlier word (reports to report). One task.",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [],
+      "calls": [],
+      "decisions": {},
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 33,
+          "text": "um so uh can you can you find the",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r2:decide",
+          "route": "decisions",
+          "file": "decisions-d2af421827f3674534fa4ef7.json",
+          "status": 200,
+          "ms": 81.9,
+          "started_at": "2026-11-16T00:29:05.166+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.8994303081906337,
+            "ready": 0.9674300441718616,
+            "side_effect": 0.05096867512592114
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 83,
+          "text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "11_filler_false_starts:r6:decide",
+          "route": "decisions",
+          "file": "decisions-4ad7376bcfce05dd7f1d04fd.json",
+          "status": 200,
+          "ms": 216.9,
+          "started_at": "2026-11-16T00:29:05.260+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.982833582213036,
+            "ready": 0.8856762108975793,
+            "side_effect": 0.058750287346838286
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "instruction": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "um so uh can you can you find the"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "um so uh can you can you find the",
+          "new": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_11_filler_false_starts",
+    "final_transcript": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Um, so, uh, can you, can you find the, the report from, uh, from Tuesday's meeting?",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "report",
+          "tuesday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

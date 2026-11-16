@@ -1,0 +1,68 @@
+{
+  "route": "extractions",
+  "label": "03_topic_change:r6:extract",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": "Look up the score of the Nuggets game. Anyway, totally different thing. What's a good recipe for banana bread?",
+    "fields": {
+      "segments": {
+        "type": "list",
+        "items": "text",
+        "instructions": "Each separate thing the speaker asks for, each correction or withdrawal of an earlier request, and each sentence that only describes a task, copied exactly from the transcript. Two requests joined by \"and\" are two items. Skip filler and small talk."
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "segments": {
+        "type": "list",
+        "value": [
+          "Look up the score of the Nuggets game.",
+          "What's a good recipe for banana bread?"
+        ],
+        "spans": [
+          [
+            0,
+            38
+          ],
+          [
+            72,
+            110
+          ]
+        ],
+        "confidences": [
+          0.9897162318229675,
+          0.9286975264549255
+        ]
+      }
+    },
+    "truncated": false,
+    "usage": {
+      "input_tokens": 128,
+      "output_tokens": 1,
+      "passes": 1,
+      "cost": 0
+    },
+    "id": "gen-dec-1794788893-KRHDJZcPJoCqU2sT3Mqb",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:12.439+00:00",
+    "ms": 98.93340000417084,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:12.439+00:00",
+      "route": "extractions",
+      "hash": "c1aa56fd9c859ec5f10ac02e",
+      "label": "03_topic_change:r6:extract",
+      "status": 200,
+      "ms": 98.9,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

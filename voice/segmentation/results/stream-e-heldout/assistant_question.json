@@ -1,0 +1,145 @@
+{
+  "scenario": "assistant_question",
+  "covers": "assistant question and statement",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "assistant_question:r1",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "assistant_question:r1",
+          "route": "decisions",
+          "file": "decisions-336c73217123e4d446ddb913.json",
+          "status": 200,
+          "ms": 113.6,
+          "started_at": "2026-11-16T01:19:02.700+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.19305168548751508,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5769519907724175,
+          "runner_up": "none"
+        },
+        "side_effect": 0.01045325101806785,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "assistant_question:r2",
+      "cursor": 0,
+      "markers": [
+        9
+      ],
+      "calls": [
+        {
+          "label": "assistant_question:r2",
+          "route": "decisions",
+          "file": "decisions-2298ab40f6c49ffecff6a799.json",
+          "status": 200,
+          "ms": 93.1,
+          "started_at": "2026-11-16T01:19:05.800+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.22181422983822335,
+        "at": {
+          "choice": "m1",
+          "margin": 0.4676532333914053,
+          "runner_up": "none"
+        },
+        "side_effect": 0.018427275883560027,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "assistant_question:r3",
+      "cursor": 0,
+      "markers": [
+        5,
+        9
+      ],
+      "calls": [
+        {
+          "label": "assistant_question:r3",
+          "route": "decisions",
+          "file": "decisions-244772758b65de05f78bffa2.json",
+          "status": 200,
+          "ms": 85.4,
+          "started_at": "2026-11-16T01:19:08.900+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.11451688494147143,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5414740865132024,
+          "runner_up": "none"
+        },
+        "side_effect": 0.03386218902656307,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [],
+  "segments": [],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_assistant_question",
+    "final_transcript": "What did you just say? The room is quiet.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

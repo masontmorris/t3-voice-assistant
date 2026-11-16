@@ -1,0 +1,79 @@
+{
+  "id": "museum_chain",
+  "covers": "three chained requests",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find the museum opening hours",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find the museum opening hours then calculate how long until closing",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "find the museum opening hours then calculate how long until closing and summarize that calculation",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "Find the museum opening hours, then calculate how long until closing and summarize that calculation.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "museum",
+          "hours"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "calculate",
+          "closing"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "summarize",
+          "calculation"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T2"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The calculation depends on hours and the summary depends on the calculation."
+}

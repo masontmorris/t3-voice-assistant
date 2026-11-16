@@ -1,0 +1,93 @@
+{
+  "route": "decisions",
+  "label": "10_side_effect_email:r5",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "email dana that the meeting moved to thursday [1] and then check if room four b is free [2]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], after \"meeting moved to thursday\" and before \"and then check if\".",
+          "m2": "It ends at [2], the end of the speech so far, after \"four b is free\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.7785404769631731,
+          "m2": 0.03787538897853192,
+          "none": 0.18358413405829505
+        },
+        "confidence": 0.6678107154447596
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.930413195039284
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.9978548490061581
+      }
+    },
+    "usage": {
+      "input_tokens": 332,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791090-85oDsPSb0q9wqN8HGcnm",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:49.758+00:00",
+    "ms": 83.77299999119714,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:49.758+00:00",
+      "route": "decisions",
+      "hash": "acaec8828f8b7a50e1f16753",
+      "label": "10_side_effect_email:r5",
+      "status": 200,
+      "ms": 83.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

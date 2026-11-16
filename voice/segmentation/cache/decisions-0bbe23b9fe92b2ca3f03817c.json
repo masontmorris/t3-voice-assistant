@@ -1,0 +1,159 @@
+{
+  "route": "decisions",
+  "label": "03_topic_change:r5",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "look up the score of the nuggets game"
+      },
+      "new_speech": "anyway totally different thing what's a good recipe for banana bread [1]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], the end of the speech so far, after \"recipe for banana bread\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"look up the score of the nuggets game\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It states a new version of s1 (\"look up the score of the nuggets game\").",
+          "cancel_s1": "It withdraws s1 (\"look up the score of the nuggets game\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.7218410656937031,
+          "none": 0.2781589343062969
+        },
+        "confidence": 0.4436821313874062
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.22132150043343762,
+          "none": 0.7367097500942965,
+          "replace_s1": 0.04196874947226597
+        },
+        "confidence": 0.6050646251414448
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9976978469597009,
+          "s1": 0.002302153040299008
+        },
+        "confidence": 0.9953956939194017
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.8175399100246843
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.009289083919853057
+      }
+    },
+    "usage": {
+      "input_tokens": 468,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791053-Igjc9owIXeouY15JClQj",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:12.724+00:00",
+    "ms": 90.91849997639656,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:03:58.593+00:00",
+      "route": "decisions",
+      "hash": "0bbe23b9fe92b2ca3f03817c",
+      "label": "03_topic_change:r5",
+      "status": 429,
+      "ms": 33.5,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:04:00.633+00:00",
+      "route": "decisions",
+      "hash": "0bbe23b9fe92b2ca3f03817c",
+      "label": "03_topic_change:r5",
+      "status": 429,
+      "ms": 34.6,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:04:04.675+00:00",
+      "route": "decisions",
+      "hash": "0bbe23b9fe92b2ca3f03817c",
+      "label": "03_topic_change:r5",
+      "status": 429,
+      "ms": 40.3,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:04:12.724+00:00",
+      "route": "decisions",
+      "hash": "0bbe23b9fe92b2ca3f03817c",
+      "label": "03_topic_change:r5",
+      "status": 200,
+      "ms": 90.9,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

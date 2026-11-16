@@ -1,0 +1,75 @@
+{
+  "id": "market_three",
+  "covers": "three independent requests",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "check the price of oats",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "check the price of oats find the yen exchange rate",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "check the price of oats find the yen exchange rate and look up the population of lima",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "Check the price of oats, find the yen exchange rate, and look up the population of Lima.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "price",
+          "oats"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "yen",
+          "exchange"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "population",
+          "lima"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "Three distinct lookups are independent."
+}

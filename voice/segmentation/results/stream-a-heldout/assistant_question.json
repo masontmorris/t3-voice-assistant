@@ -1,0 +1,134 @@
+{
+  "scenario": "assistant_question",
+  "covers": "assistant question and statement",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 21,
+          "text": "what did you just say",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "assistant_question:r1:decide",
+          "route": "decisions",
+          "file": "decisions-89f83d7cb257f2ed1e9b720d.json",
+          "status": 200,
+          "ms": 92.6,
+          "started_at": "2026-11-16T01:15:45.606+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "chitchat",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.6657573003489808,
+            "ready": 0.6125580801967505,
+            "side_effect": 0.014612621273399141
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 22,
+          "text": "What did you just say?",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 23,
+          "end": 41,
+          "text": "The room is quiet.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "assistant_question:r3:decide",
+          "route": "decisions",
+          "file": "decisions-decd6a1f5f095509450dfd16.json",
+          "status": 200,
+          "ms": 98.2,
+          "started_at": "2026-11-16T01:15:48.706+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "chitchat",
+          "readiness": "clarify",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.7515719493682779,
+            "ready": 0.352367395122884,
+            "side_effect": 0.018200220942617057
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "chitchat",
+          "readiness": "clarify",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.8872790738512576,
+            "depends": 0.6899315175454543,
+            "kind": 0.8354746771288276,
+            "ready": 0.33648430995206974,
+            "side_effect": 0.014892289269857787
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_assistant_question",
+    "final_transcript": "What did you just say? The room is quiet.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}

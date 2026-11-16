@@ -1,0 +1,380 @@
+{
+ "original": {
+  "summary": {
+   "utterances": 1,
+   "dispatched": 2,
+   "with_draft": 1,
+   "raw_no_draft_started": 0,
+   "raw_still_drafting": 0,
+   "raw_stale": 0,
+   "raw_rejected": 1,
+   "requests": 3,
+   "requests_per_utterance": 3.0,
+   "drafted_tasks": 2,
+   "redrafts": 1,
+   "gap_done_to_dispatch": {
+    "n": 2,
+    "median": 1.5,
+    "min": 1,
+    "max": 2
+   },
+   "wait_if_holding_for_draft": {
+    "n": 2,
+    "median": 0.25,
+    "min": 0.0,
+    "max": 0.5
+   }
+  },
+  "scenarios": {
+   "10_side_effect_email": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 3,
+      "wait_for_draft": 0.0,
+      "requests": 2,
+      "final_at": 5
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": false,
+      "reason": "rejected",
+      "is_final": true,
+      "dispatched_at": 5,
+      "first_done": 4,
+      "wait_for_draft": 0.5,
+      "requests": 1,
+      "final_at": 5
+     }
+    ],
+    "requests": 3
+   }
+  }
+ },
+ "heldout": {
+  "summary": {
+   "utterances": 1,
+   "dispatched": 2,
+   "with_draft": 1,
+   "raw_no_draft_started": 0,
+   "raw_still_drafting": 0,
+   "raw_stale": 0,
+   "raw_rejected": 1,
+   "requests": 2,
+   "requests_per_utterance": 2.0,
+   "drafted_tasks": 2,
+   "redrafts": 0,
+   "gap_done_to_dispatch": {
+    "n": 2,
+    "median": 1.0,
+    "min": 1,
+    "max": 1
+   },
+   "wait_if_holding_for_draft": {
+    "n": 2,
+    "median": 0.25,
+    "min": 0.0,
+    "max": 0.5
+   }
+  },
+  "scenarios": {
+   "post_and_read": {
+    "rows": [
+     {
+      "task_id": "task_1",
+      "used_draft": false,
+      "reason": "rejected",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.5,
+      "requests": 1,
+      "final_at": 2
+     },
+     {
+      "task_id": "task_2",
+      "used_draft": true,
+      "reason": "current draft",
+      "is_final": true,
+      "dispatched_at": 2,
+      "first_done": 1,
+      "wait_for_draft": 0.0,
+      "requests": 1,
+      "final_at": 2
+     }
+    ],
+    "requests": 2
+   }
+  }
+ },
+ "drafts": [
+  {
+   "label": "10_side_effect_email:task_1:r4",
+   "instruction": "email dana that the meeting moved to tuesday",
+   "depends_on": [],
+   "side_effect": true,
+   "status": 200,
+   "ms": 1827.5,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 331,
+    "completion_tokens": 139,
+    "total_tokens": 470,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HWNKB5W428R6PD2Z9F19TY",
+    "object": "chat.completion",
+    "created": 1794823082,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_cqlzbqd390"
+   },
+   "setting": "reasoning_effort=off",
+   "draft": {
+    "instruction": "Email Dana to say that the meeting has moved to Tuesday.",
+    "context": "The user asked to email Dana that the meeting moved to Tuesday.",
+    "constraints": [
+     "The agent must confirm with the user before sending the email."
+    ],
+    "success_criteria": [
+     "An email is sent to Dana stating that the meeting moved to Tuesday, after the user confirms."
+    ],
+    "open_questions": [
+     "Which Dana (email address) should be emailed?",
+     "Which meeting is being referred to?",
+     "Which Tuesday (specific date) is the meeting moved to?",
+     "What is the sender's name or email account to send from?",
+     "Should the email include any additional details such as time or location?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "10_side_effect_email:task_1:r5",
+   "instruction": "email dana that the meeting moved to thursday",
+   "depends_on": [],
+   "side_effect": true,
+   "status": 200,
+   "ms": 1900.7,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 337,
+    "completion_tokens": 135,
+    "total_tokens": 472,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HWPMCVRPQ5N1BKQ29965JM",
+    "object": "chat.completion",
+    "created": 1794823116,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_8qf04uyyle"
+   },
+   "setting": "reasoning_effort=off",
+   "draft": {
+    "instruction": "Email Dana to tell her that the meeting has moved to Thursday.",
+    "context": "The user asked for this email to be sent to Dana.",
+    "constraints": [
+     "The email must be addressed to Dana.",
+     "The email must state that the meeting moved to Thursday."
+    ],
+    "success_criteria": [
+     "An email to Dana is prepared stating that the meeting moved to Thursday.",
+     "The user confirms before the email is sent."
+    ],
+    "open_questions": [
+     "Which Thursday (specific date) is the meeting moved to?",
+     "What is Dana's email address?",
+     "Which meeting is being referred to?",
+     "Should the email include any additional details such as time or location?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "10_side_effect_email:task_2:r5",
+   "instruction": "and then check if room four b is free",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 1947.3,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 327,
+    "completion_tokens": 189,
+    "total_tokens": 516,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HWPP7ZP0BVSM6NZPNP0H4S",
+    "object": "chat.completion",
+    "created": 1794823118,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_2fxkht4959"
+   },
+   "setting": "reasoning_effort=off",
+   "draft": {
+    "instruction": "Email Dana that the meeting moved to Thursday, and then check if room 4B is free.",
+    "context": "The user asked to email Dana that the meeting moved to Thursday and then check if room four b is free.",
+    "constraints": [
+     "Email Dana that the meeting moved to Thursday.",
+     "Check whether room 4B is free.",
+     "Perform the email before the room check."
+    ],
+    "success_criteria": [
+     "An email is sent to Dana stating the meeting moved to Thursday.",
+     "The availability of room 4B is checked and reported."
+    ],
+    "open_questions": [
+     "Which Dana (email address) should be emailed?",
+     "What is the meeting's original date/time or subject, for the email?",
+     "Which day's Thursday, and what time, is the meeting moved to?",
+     "How should room availability be checked (which system or source)?",
+     "Which date and time should room 4B be checked for?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "post_and_read:task_1:r2",
+   "instruction": "find the gallery opening date",
+   "depends_on": [],
+   "side_effect": false,
+   "status": 200,
+   "ms": 1456.7,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 316,
+    "completion_tokens": 143,
+    "total_tokens": 459,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HWPR2JGJC2Q6MWB541FTY7",
+    "object": "chat.completion",
+    "created": 1794823120,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_kvlfetazsr"
+   },
+   "setting": "reasoning_effort=off",
+   "draft": {
+    "instruction": "Find the gallery opening date and post the message \"gallery opens soon\".",
+    "context": "The user asked to find the gallery opening date and to post the message \"gallery opens soon\".",
+    "constraints": [
+     "The posted message must be exactly \"gallery opens soon\".",
+     "Do not perform any actions beyond finding the opening date and posting the message."
+    ],
+    "success_criteria": [
+     "The gallery opening date is found and reported.",
+     "The message \"gallery opens soon\" is posted."
+    ],
+    "open_questions": [
+     "Which gallery is meant?",
+     "Where should the message be posted (which channel, platform, or recipient)?",
+     "Where should the gallery opening date be looked up?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  },
+  {
+   "label": "post_and_read:task_2:r2",
+   "instruction": "and post the message gallery opens soon",
+   "depends_on": [],
+   "side_effect": true,
+   "status": 200,
+   "ms": 1295.9,
+   "served_model": "deepseek/deepseek-v4.1-flash-fast",
+   "finish_reason": "stop",
+   "usage": {
+    "prompt_tokens": 327,
+    "completion_tokens": 151,
+    "total_tokens": 478,
+    "prompt_tokens_details": {
+     "cached_tokens": 0,
+     "audio_tokens": 0,
+     "video_tokens": 0
+    },
+    "completion_tokens_details": {
+     "reasoning_tokens": 0,
+     "image_tokens": 0
+    },
+    "cache_creation_input_tokens": 0
+   },
+   "meta": {
+    "id": "gen_01M7HWPSGH004QQWV979YYC4HX",
+    "object": "chat.completion",
+    "created": 1794823121,
+    "model": "deepseek/deepseek-v4.1-flash-fast",
+    "system_fingerprint": "fp_2eui3a864h"
+   },
+   "setting": "reasoning_effort=off",
+   "draft": {
+    "instruction": "Find the gallery opening date and post the message \"gallery opens soon\".",
+    "context": "The user asked to find the gallery opening date and to post the message \"gallery opens soon\".",
+    "constraints": [
+     "The posted message must be exactly \"gallery opens soon\".",
+     "The agent must confirm with the user before acting on the outside world."
+    ],
+    "success_criteria": [
+     "The gallery opening date is found.",
+     "The message \"gallery opens soon\" is posted."
+    ],
+    "open_questions": [
+     "Which gallery is meant?",
+     "Where should the message be posted (which platform, channel, or recipient)?",
+     "Should the opening date be included in or affect the posted message, or is the message posted as-is?"
+    ]
+   },
+   "parse_problems": [],
+   "wrapped": false
+  }
+ ]
+}

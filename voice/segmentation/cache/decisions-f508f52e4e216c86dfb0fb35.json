@@ -1,0 +1,307 @@
+{
+  "route": "decisions",
+  "label": "mixed_chain:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Find the recipe for lentil soup, then make a shopping list. Also check the sunset time in Osaka.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Find the recipe for lentil soup,",
+        "s2": "then make a shopping list.",
+        "s3": "Also check the sunset time in Osaka."
+      },
+      "still_being_spoken": null,
+      "tasks": [
+        {
+          "task": "task_1",
+          "instruction": "find the recipe for lentil soup",
+          "status": "dispatched",
+          "sources": [
+            "orchestrator"
+          ]
+        }
+      ],
+      "delegate_requests": {},
+      "new_speech": "then make a shopping list. Also check the sunset time in Osaka. [1]"
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"Find the recipe for lentil soup,\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"Find the recipe for lentil soup,\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"Find the recipe for lentil soup,\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s2 (\"then make a shopping list.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s2_ready": {
+        "type": "choice",
+        "instructions": "If segment s2 (\"then make a shopping list.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s2 (\"then make a shopping list.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s2_depends": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"then make a shopping list.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Find the recipe for lentil soup,\") first."
+        }
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s2 (\"then make a shopping list.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Find the recipe for lentil soup,\").",
+          "cancel_s1": "It withdraws s1 (\"Find the recipe for lentil soup,\") with no replacement."
+        }
+      },
+      "s3_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s3 (\"Also check the sunset time in Osaka.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s3_ready": {
+        "type": "choice",
+        "instructions": "If segment s3 (\"Also check the sunset time in Osaka.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s3_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s3 (\"Also check the sunset time in Osaka.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "s3_depends": {
+        "type": "choice",
+        "instructions": "Does segment s3 (\"Also check the sunset time in Osaka.\") need the result of an earlier segment before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier segment's result.",
+          "s1": "It needs the result of s1 (\"Find the recipe for lentil soup,\") first.",
+          "s2": "It needs the result of s2 (\"then make a shopping list.\") first."
+        }
+      },
+      "s3_corrects": {
+        "type": "choice",
+        "instructions": "Does segment s3 (\"Also check the sunset time in Osaka.\") change or withdraw an earlier segment?",
+        "criteria": {
+          "none": "It does not change any earlier segment.",
+          "replace_s1": "It states a new version of s1 (\"Find the recipe for lentil soup,\").",
+          "replace_s2": "It states a new version of s2 (\"then make a shopping list.\").",
+          "cancel_s1": "It withdraws s1 (\"Find the recipe for lentil soup,\") with no replacement.",
+          "cancel_s2": "It withdraws s2 (\"then make a shopping list.\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0010773227108452285,
+          "correction": 0.0007708987573760442,
+          "description": 0.00815045965508016,
+          "request": 0.988619242061445,
+          "topic_change": 0.0013820768152536717
+        },
+        "confidence": 0.9857740525768063
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.007715871153628632,
+          "dispatch_now": 0.9823659061895467,
+          "wait": 0.009918222656824667
+        },
+        "confidence": 0.97354885928432
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.028515103216745663
+      },
+      "s2_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.00209298658709529,
+          "none": 0.9944848900902776,
+          "replace_s1": 0.003422123322627008
+        },
+        "confidence": 0.9917273351354164
+      },
+      "s2_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.8307037229531861,
+          "s1": 0.16929627704681385
+        },
+        "confidence": 0.6614074459063721
+      },
+      "s2_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.003203677679403133,
+          "correction": 0.0011654781379104437,
+          "description": 0.01634064903040044,
+          "request": 0.9735372444967612,
+          "topic_change": 0.005752950655524812
+        },
+        "confidence": 0.9669215556209515
+      },
+      "s2_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.13474879612619306,
+          "dispatch_now": 0.8188941373918414,
+          "wait": 0.046357066481965616
+        },
+        "confidence": 0.728341206087762
+      },
+      "s2_side_effect": {
+        "type": "noul",
+        "noul": 0.6323078800962144
+      },
+      "s3_corrects": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "cancel_s1": 0.0005588136405237087,
+          "cancel_s2": 0.0015598290662558263,
+          "none": 0.9948174562902491,
+          "replace_s1": 0.0007400162681760236,
+          "replace_s2": 0.0023238847347951982
+        },
+        "confidence": 0.9935218203628112
+      },
+      "s3_depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.9848590201784142,
+          "s1": 0.00493439720200668,
+          "s2": 0.010206582619579158
+        },
+        "confidence": 0.9772885302676213
+      },
+      "s3_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0021943043908734714,
+          "correction": 0.0006686738312094455,
+          "description": 0.006052024764027512,
+          "request": 0.9882953317686942,
+          "topic_change": 0.0027896652451955255
+        },
+        "confidence": 0.9853691647108678
+      },
+      "s3_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.010643511922602157,
+          "dispatch_now": 0.9847921688265021,
+          "wait": 0.004564319250895753
+        },
+        "confidence": 0.977188253239753
+      },
+      "s3_side_effect": {
+        "type": "noul",
+        "noul": 0.010039560069252395
+      }
+    },
+    "usage": {
+      "input_tokens": 1575,
+      "output_tokens": 13,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794797423-ez8ScqNWIjdOg4FZBu62",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T02:50:22.523+00:00",
+    "ms": 91.578199993819,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T02:50:22.523+00:00",
+      "route": "decisions",
+      "hash": "f508f52e4e216c86dfb0fb35",
+      "label": "mixed_chain:r4",
+      "status": 200,
+      "ms": 91.6,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

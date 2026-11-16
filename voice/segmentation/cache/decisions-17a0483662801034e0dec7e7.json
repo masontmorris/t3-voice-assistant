@@ -1,0 +1,60 @@
+{
+  "route": "decisions",
+  "label": "01_two_independent:r6:boundaries",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript_with_markers": "What's the weather in Denver tomorrow [1] and look up how long the drive from Boulder takes."
+    },
+    "questions": {
+      "b1": {
+        "type": "noul",
+        "instructions": "Does a separate request, a correction, or a new subject begin at marker [1]?",
+        "criteria": {
+          "true": "The words after the marker start a separate request, a correction, a withdrawal, or a new subject.",
+          "false": "The words after the marker continue the same request, or are filler or a false start."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "b1": {
+        "type": "noul",
+        "noul": 0.823895879756849
+      }
+    },
+    "usage": {
+      "input_tokens": 143,
+      "output_tokens": 1,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788889-RunP9HE07lk0sJiwNOi2",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:09.056+00:00",
+    "ms": 149.77290004026145,
+    "connect_ms": 43.17999997874722
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:09.056+00:00",
+      "route": "decisions",
+      "hash": "17a0483662801034e0dec7e7",
+      "label": "01_two_independent:r6:boundaries",
+      "status": 200,
+      "ms": 149.8,
+      "connect_ms": 43.2,
+      "error": null
+    }
+  ]
+}

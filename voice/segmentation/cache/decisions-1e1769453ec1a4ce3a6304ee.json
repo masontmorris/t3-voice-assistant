@@ -1,0 +1,91 @@
+{
+  "route": "decisions",
+  "label": "01_two_independent:r1",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "what's the weather [1]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], the end of the speech so far, after \"what's the weather\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.9231200152520049,
+          "none": 0.07687998474799514
+        },
+        "confidence": 0.8462400305040099
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.8372685271682174
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.00798671382471228
+      }
+    },
+    "usage": {
+      "input_tokens": 287,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791017-a0JojTJfYBVOAvx0cOog",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:03:36.380+00:00",
+    "ms": 183.41810000129044,
+    "connect_ms": 58.433800004422665
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:03:36.380+00:00",
+      "route": "decisions",
+      "hash": "1e1769453ec1a4ce3a6304ee",
+      "label": "01_two_independent:r1",
+      "status": 200,
+      "ms": 183.4,
+      "connect_ms": 58.4,
+      "error": null
+    }
+  ]
+}

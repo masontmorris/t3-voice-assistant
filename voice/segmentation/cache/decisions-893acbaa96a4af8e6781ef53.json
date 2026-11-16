@@ -1,0 +1,109 @@
+{
+  "route": "decisions",
+  "label": "10_side_effect_email:r6:decide",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "transcript": "Email Dana that the meeting moved to Thursday, and then check if room 4B is free.",
+      "transcript_is_final": true,
+      "segments": {
+        "s1": "Email Dana that the meeting moved to Thursday, and then check if room 4B is free."
+      },
+      "still_being_spoken": null,
+      "tasks": [],
+      "delegate_requests": {}
+    },
+    "questions": {
+      "s1_kind": {
+        "type": "choice",
+        "instructions": "Classify segment s1 (\"Email Dana that the meeting moved to Thursday, and then check if room 4B is free.\").",
+        "criteria": {
+          "request": "The speaker asks the assistant to do something or to find something out.",
+          "description": "The speaker describes or mentions a task (their own, someone else's, past, or habitual) without asking the assistant to do it.",
+          "chitchat": "Small talk, filler, thanks, or a reaction, with no task in it.",
+          "correction": "The speaker changes, replaces, or withdraws something they asked for in an earlier segment.",
+          "topic_change": "Only a transition to a new subject, such as \"anyway\" or \"different thing\", with no task of its own."
+        }
+      },
+      "s1_ready": {
+        "type": "choice",
+        "instructions": "If segment s1 (\"Email Dana that the meeting moved to Thursday, and then check if room 4B is free.\") is a request or a correction, is it ready to hand to a worker?",
+        "criteria": {
+          "dispatch_now": "Complete and specific enough for a worker to start now.",
+          "wait": "Still being spoken, or missing words a worker would need that more speech is likely to supply.",
+          "clarify": "Finished but ambiguous. The assistant must ask the speaker a question before anyone starts."
+        }
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out segment s1 (\"Email Dana that the meeting moved to Thursday, and then check if room 4B is free.\") act outside the assistant?",
+        "criteria": {
+          "true": "Carrying it out acts outside the assistant: it sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "s1_kind": {
+        "type": "choice",
+        "choice": "request",
+        "probabilities": {
+          "chitchat": 0.0015240082857979587,
+          "correction": 0.0014005587132114917,
+          "description": 0.012021868044891783,
+          "request": 0.9840404263623219,
+          "topic_change": 0.001013138593776999
+        },
+        "confidence": 0.9800505329529025
+      },
+      "s1_ready": {
+        "type": "choice",
+        "choice": "dispatch_now",
+        "probabilities": {
+          "clarify": 0.00839780785216502,
+          "dispatch_now": 0.9877871977501995,
+          "wait": 0.0038149943976353534
+        },
+        "confidence": 0.9816807966252993
+      },
+      "s1_side_effect": {
+        "type": "noul",
+        "noul": 0.9965975832358158
+      }
+    },
+    "usage": {
+      "input_tokens": 491,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794788892-6GFIPS3HjJ9enKq6M1h6",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T00:28:11.326+00:00",
+    "ms": 80.86590003222227,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T00:28:11.326+00:00",
+      "route": "decisions",
+      "hash": "893acbaa96a4af8e6781ef53",
+      "label": "10_side_effect_email:r6:decide",
+      "status": 200,
+      "ms": 80.9,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

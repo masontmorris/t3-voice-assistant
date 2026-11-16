@@ -1,0 +1,382 @@
+{
+  "scenario": "04_mid_sentence_correction",
+  "covers": "A mid-sentence correction of a request with an external side effect (a booking). The first version must never dispatch.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 7,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "04_mid_sentence_correction:r1",
+      "cursor": 0,
+      "markers": [
+        4
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r1",
+          "route": "decisions",
+          "file": "decisions-8dd85b8e945d9f08518163ed.json",
+          "status": 200,
+          "ms": 85.5,
+          "started_at": "2026-11-16T01:08:35.846+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.22874803305811514,
+        "at": {
+          "choice": "m1",
+          "margin": 0.18565273854432818,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9924015124469435,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "04_mid_sentence_correction:r2",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r2",
+          "route": "decisions",
+          "file": "decisions-3b12fd603296e7451ca7e532.json",
+          "status": 200,
+          "ms": 82.7,
+          "started_at": "2026-11-16T01:08:37.046+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "book a table for four",
+      "committed": null,
+      "answer": {
+        "finished": 0.9430569241813603,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8687044781757294,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9966146888543876,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "04_mid_sentence_correction:r3",
+      "cursor": 0,
+      "markers": [
+        5,
+        7
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r3",
+          "route": "decisions",
+          "file": "decisions-2e4c21af8ebfcc26f9308f68.json",
+          "status": 200,
+          "ms": 192.0,
+          "started_at": "2026-11-16T01:08:38.247+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "book a table for four",
+      "committed": null,
+      "answer": {
+        "finished": 0.6798879246151149,
+        "at": {
+          "choice": "m1",
+          "margin": 0.6085751159677701,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9961397492749313,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "04_mid_sentence_correction:r4",
+      "cursor": 0,
+      "markers": [
+        5,
+        9
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r4",
+          "route": "decisions",
+          "file": "decisions-9da84959bdad4fb3a42df487.json",
+          "status": 200,
+          "ms": 86.8,
+          "started_at": "2026-11-16T01:08:45.548+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.9060430103170186,
+        "at": {
+          "choice": "m1",
+          "margin": 0.02629375300520992,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.9970384823338012,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "04_mid_sentence_correction:r5",
+      "cursor": 0,
+      "markers": [
+        5,
+        12
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r5",
+          "route": "decisions",
+          "file": "decisions-73a60c43b7eaf8cd0f7a7992.json",
+          "status": 200,
+          "ms": 94.8,
+          "started_at": "2026-11-16T01:08:46.748+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "near_tie",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.9153003860400148,
+        "at": {
+          "choice": "m1",
+          "margin": 0.18522597303349259,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.997154078336465,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": false,
+      "label": "04_mid_sentence_correction:r6",
+      "cursor": 0,
+      "markers": [
+        5,
+        14
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r6",
+          "route": "decisions",
+          "file": "decisions-7c69c2675fc41ebc60e3768a.json",
+          "status": 200,
+          "ms": 98.3,
+          "started_at": "2026-11-16T01:09:02.091+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "book a table for four",
+      "committed": null,
+      "answer": {
+        "finished": 0.9059002704672452,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5093082285459127,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.9971874566980147,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 7,
+      "is_final": true,
+      "label": "04_mid_sentence_correction:r7",
+      "cursor": 0,
+      "markers": [
+        5,
+        7,
+        9,
+        14
+      ],
+      "calls": [
+        {
+          "label": "04_mid_sentence_correction:r7",
+          "route": "decisions",
+          "file": "decisions-9d97b586ba6588e0bf976db3.json",
+          "status": 200,
+          "ms": 101.5,
+          "started_at": "2026-11-16T01:09:03.292+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 14,
+      "candidate": "book a table for four no wait for six at luigi's tonight at seven",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9786702461525024,
+        "at": {
+          "choice": "m4",
+          "margin": 0.7629336943985964,
+          "runner_up": "m3"
+        },
+        "side_effect": 0.9982868824432808,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Book a table for four, no wait, for six, at Luigi's tonight at seven.",
+      "instruction": "Book a table for four, no wait, for six, at Luigi's tonight at seven.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Book a table for four, no wait, for six, at Luigi's tonight at seven."
+        },
+        {
+          "revision": 7,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 14,
+      "text": "Book a table for four, no wait, for six, at Luigi's tonight at seven."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 7,
+      "is_final": true,
+      "instruction": "Book a table for four, no wait, for six, at Luigi's tonight at seven.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_04_mid_sentence_correction",
+    "final_transcript": "Book a table for four, no wait, for six, at Luigi's tonight at seven.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Book a table for four, no wait, for six, at Luigi's tonight at seven.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "table",
+          "four"
+        ],
+        "status": [
+          "superseded",
+          "withdrawn"
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "six"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "revises": "T1",
+        "dispatch_only_on_final": true
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['six']",
+      "T1: status dispatched, expected one of ['superseded', 'withdrawn']",
+      "T1: dispatched but should never dispatch"
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 1,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

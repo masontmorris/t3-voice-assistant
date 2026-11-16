@@ -1,0 +1,522 @@
+{
+  "scenario": "09_delegate_before_segment",
+  "covers": "The voice model's delegate tool submits a task while the orchestrator still holds it as an open segment. One dispatch only.",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "09_delegate_before_segment:r2:delegate0",
+      "kind": "delegate",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          6
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s1": {
+          "finished": 0.815858557908144,
+          "at": "m1",
+          "margin": 0.9033188216834662,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 6
+        }
+      },
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 37,
+          "text": "look up tomorrow's weather in seattle",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "09_delegate_before_segment:r2:delegate0",
+          "route": "decisions",
+          "file": "decisions-bfc2fb9e51efea441f08af31.json",
+          "status": 200,
+          "ms": 82.1,
+          "started_at": "2026-11-16T02:49:18.372+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "at": 0.9033188216834662,
+            "finished": 0.815858557908144,
+            "kind": 0.9791244895959739,
+            "ready": 0.8102850516042973,
+            "side_effect": 0.015111001271122077
+          }
+        }
+      },
+      "delegates": {
+        "d1": "s1"
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "09_delegate_before_segment:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          8
+        ]
+      ],
+      "hard": [
+        6
+      ],
+      "soft": [],
+      "breaks": {},
+      "committed": [],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 37,
+          "text": "look up tomorrow's weather in seattle",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "09_delegate_before_segment:r3",
+          "route": "decisions",
+          "file": "decisions-2824da98773f556604ce1765.json",
+          "status": 200,
+          "ms": 77.6,
+          "started_at": "2026-11-16T02:49:18.463+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9724178873026281,
+            "ready": 0.9207870538516977,
+            "side_effect": 0.017066501821329315
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "09_delegate_before_segment:r4",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          13
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          6
+        ],
+        [
+          6,
+          13
+        ]
+      ],
+      "hard": [
+        6
+      ],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.4522436761068175,
+          "at": "m1",
+          "margin": 0.46971053812194397,
+          "runner_up": "none",
+          "verdict": "disagree",
+          "gap": null
+        }
+      },
+      "committed": [
+        "s1"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 37,
+          "text": "look up tomorrow's weather in seattle",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 38,
+          "end": 69,
+          "text": "and um what time does the ferry",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "09_delegate_before_segment:r4",
+          "route": "decisions",
+          "file": "decisions-75be63f1e2dc0469d6d3c4cb.json",
+          "status": 200,
+          "ms": 206.7,
+          "started_at": "2026-11-16T02:49:18.549+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.992474113034262,
+            "ready": 0.9603252680533261,
+            "side_effect": 0.008323406670280841
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "at": 0.46971053812194397,
+            "corrects": 0.9903157312719555,
+            "depends": 0.9435430375089033,
+            "finished": 0.4522436761068175,
+            "kind": 0.9624589802186758,
+            "ready": 0.2630321451377662,
+            "side_effect": 0.017539277014485686
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "09_delegate_before_segment:r6",
+      "kind": "revision",
+      "cursor": 6,
+      "pause": false,
+      "pieces": [
+        [
+          6,
+          14
+        ]
+      ],
+      "revised": [
+        [
+          6,
+          14
+        ]
+      ],
+      "hard": [],
+      "soft": [],
+      "breaks": {
+        "s2": {
+          "finished": 0.9170612137310769,
+          "at": "m3",
+          "margin": 0.8764045173501567,
+          "runner_up": "none",
+          "verdict": "candidate",
+          "gap": 14
+        }
+      },
+      "committed": [
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 38,
+          "text": "Look up tomorrow's weather in Seattle,",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 39,
+          "end": 79,
+          "text": "and, um, what time does the ferry leave?",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "09_delegate_before_segment:r6",
+          "route": "decisions",
+          "file": "decisions-19525204cb18422956b9c80d.json",
+          "status": 200,
+          "ms": 175.8,
+          "started_at": "2026-11-16T02:49:18.765+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9824165499397514,
+            "ready": 0.9529665007283066,
+            "side_effect": 0.012351796588485377
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "at": 0.9040179744452944,
+            "corrects": 0.9876794938600343,
+            "depends": 0.9443611356935593,
+            "finished": 0.9170612137310769,
+            "kind": 0.9691461701253795,
+            "ready": 0.590769819691278,
+            "side_effect": 0.04292942804520298
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Look up tomorrow's weather in Seattle,",
+      "instruction": "look up tomorrow's weather in seattle",
+      "sources": [
+        "orchestrator",
+        "voice_delegate"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "voice_delegate"
+          ],
+          "segment_text": "look up tomorrow's weather in seattle"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "voice delegate submitted it"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "linked_orchestrator"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "look up tomorrow's weather in seattle",
+          "new": "Look up tomorrow's weather in Seattle,"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "and, um, what time does the ferry leave?",
+      "instruction": "and, um, what time does the ferry leave?",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and um what time does the ferry"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and um what time does the ferry",
+          "new": "and, um, what time does the ferry leave?"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 2,
+      "is_final": false,
+      "instruction": "look up tomorrow's weather in seattle",
+      "sources": [
+        "voice_delegate"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "and, um, what time does the ferry leave?",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_09_delegate_before_segment",
+    "final_transcript": "Look up tomorrow's weather in Seattle, and, um, what time does the ferry leave?",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "look up tomorrow's weather in seattle",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and, um, what time does the ferry leave?",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "weather",
+          "seattle"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "sources": [
+          "orchestrator",
+          "voice_delegate"
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "ferry"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 2
+  }
+}

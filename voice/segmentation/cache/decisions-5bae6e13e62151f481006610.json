@@ -1,0 +1,101 @@
+{
+  "route": "decisions",
+  "label": "pause_correction:r1",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "search for violin lessons in bath [1]",
+      "speech_is_final": false
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at the end of the speech so far. It is \"search for violin lessons in bath\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.8804584247519416,
+          "none": 0.11954157524805849
+        },
+        "confidence": 0.7609168495038832
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.934545889245071
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.058239148373862064
+      }
+    },
+    "usage": {
+      "input_tokens": 379,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794792196-bXL4qyjJVlKrlBlUtvWS",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:23:15.947+00:00",
+    "ms": 101.79470002185553,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:23:12.847+00:00",
+      "route": "decisions",
+      "hash": "5bae6e13e62151f481006610",
+      "label": "pause_correction:r1",
+      "status": 429,
+      "ms": 37.1,
+      "connect_ms": null,
+      "error": null
+    },
+    {
+      "at": "2026-11-16T01:23:15.947+00:00",
+      "route": "decisions",
+      "hash": "5bae6e13e62151f481006610",
+      "label": "pause_correction:r1",
+      "status": 200,
+      "ms": 101.8,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

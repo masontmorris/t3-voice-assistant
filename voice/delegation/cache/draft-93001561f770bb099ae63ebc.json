@@ -1,0 +1,166 @@
+{
+ "label": "delete_and_read:task_2:r2",
+ "model": "deepseek/deepseek-v4.1-flash",
+ "request": {
+  "system": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only.",
+  "user": "The user's request for this task:\nand delete the draft called april\n\nEverything the user said in this utterance, for context only:\nshow the archive size and delete the draft called april\n\nDependencies:\n- None.\n\nThis task acts on the outside world. The agent must confirm with the user before acting.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions.",
+  "schema": {
+   "type": "object",
+   "additionalProperties": false,
+   "required": [
+    "instruction",
+    "context",
+    "constraints",
+    "success_criteria",
+    "open_questions"
+   ],
+   "properties": {
+    "instruction": {
+     "type": "string"
+    },
+    "context": {
+     "type": "string"
+    },
+    "constraints": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "success_criteria": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    },
+    "open_questions": {
+     "type": "array",
+     "items": {
+      "type": "string"
+     }
+    }
+   }
+  },
+  "max_tokens": 4096,
+  "temperature": 0.0
+ },
+ "status": 200,
+ "content": {
+  "prompt_draft": {
+   "instruction": "Delete the draft called \"april\".",
+   "context": "The user's full utterance was: \"show the archive size and delete the draft called april\". This task covers only the deletion request; the archive-size request in the same utterance is separate and not part of this task. No further details were given about where the drafts live or how they are identified.",
+   "constraints": [
+    "Delete only the draft named \"april\"; do not delete, rename, or modify any other draft.",
+    "This task changes data in the outside world, so confirm with the user before carrying out the deletion.",
+    "Do not carry out the separate \"show the archive size\" request as part of this task."
+   ],
+   "success_criteria": [
+    "The draft called \"april\" is deleted, as reflected in the drafts store (gone from the drafts listing or moved to trash, per how the system handles deletion).",
+    "The user was asked for confirmation and gave it before the deletion was performed.",
+    "No other drafts were deleted or changed."
+   ],
+   "open_questions": [
+    "Which system or archive holds the drafts, and how are drafts listed and deleted there?",
+    "Should \"april\" be matched to the draft title exactly, or case-insensitively / as a partial match?",
+    "What should be done if no draft called \"april\" exists, or if more than one matches?",
+    "Should the deletion be permanent, or should the draft go to a trash/recycle location where it can be recovered?",
+    "Should the archive size still be shown, since it was requested in the same utterance?"
+   ]
+  }
+ },
+ "ms": 8831.767299969215,
+ "error": null,
+ "retry_after_s": null,
+ "sent": {
+  "model": "deepseek/deepseek-v4.1-flash",
+  "max_tokens": 4096,
+  "temperature": 0.0,
+  "messages": [
+   {
+    "role": "system",
+    "content": "You write the task prompt that a coding and research agent receives. A voice assistant heard a user ask for one task. Restate exactly that task for the agent. Do not add steps, actions, or goals the user did not ask for. Do not drop anything the user asked for. Put details the user gave into the instruction or the constraints. Put anything the agent would have to guess into open_questions. Answer with one JSON object only."
+   },
+   {
+    "role": "user",
+    "content": "The user's request for this task:\nand delete the draft called april\n\nEverything the user said in this utterance, for context only:\nshow the archive size and delete the draft called april\n\nDependencies:\n- None.\n\nThis task acts on the outside world. The agent must confirm with the user before acting.\n\nFields: instruction (the task, in one or two sentences), context (facts from the utterance the agent needs, or an empty string), constraints, success_criteria (at least one), open_questions."
+   }
+  ],
+  "response_format": {
+   "type": "json_schema",
+   "json_schema": {
+    "name": "prompt_draft",
+    "strict": true,
+    "schema": {
+     "type": "object",
+     "additionalProperties": false,
+     "required": [
+      "instruction",
+      "context",
+      "constraints",
+      "success_criteria",
+      "open_questions"
+     ],
+     "properties": {
+      "instruction": {
+       "type": "string"
+      },
+      "context": {
+       "type": "string"
+      },
+      "constraints": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "success_criteria": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      },
+      "open_questions": {
+       "type": "array",
+       "items": {
+        "type": "string"
+       }
+      }
+     }
+    }
+   }
+  }
+ },
+ "served_model": "deepseek/deepseek-v4.1-flash",
+ "usage": {
+  "prompt_tokens": 359,
+  "completion_tokens": 1404,
+  "total_tokens": 1763,
+  "prompt_tokens_details": {
+   "audio_tokens": 0,
+   "cached_tokens": 256,
+   "cache_write_tokens": 0,
+   "cache_creation_input_tokens": 0,
+   "cache_read_input_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  },
+  "completion_tokens_details": {
+   "audio_tokens": 0,
+   "reasoning_tokens": 1075,
+   "accepted_prediction_tokens": 0,
+   "rejected_prediction_tokens": 0,
+   "text_tokens": 0,
+   "image_tokens": 0,
+   "video_tokens": 0
+  }
+ },
+ "finish_reason": "stop",
+ "meta": {
+  "id": "027be29ca3fe90a8b82186e395889350",
+  "object": "chat.completion",
+  "created": 1794821895,
+  "model": "deepseek/deepseek-v4.1-flash",
+  "system_fingerprint": ""
+ }
+}

@@ -1,0 +1,445 @@
+{
+  "scenario": "museum_chain",
+  "covers": "three chained requests",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "museum_chain:r1",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r1",
+          "route": "decisions",
+          "file": "decisions-7fd1f05f2fac26e1acb685e5.json",
+          "status": 200,
+          "ms": 99.4,
+          "started_at": "2026-11-16T01:22:20.142+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "find the museum opening hours",
+      "committed": null,
+      "answer": {
+        "finished": 0.9108805594236085,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7431370220874649,
+          "runner_up": "none"
+        },
+        "side_effect": 0.01791019739653923,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "museum_chain:r2",
+      "cursor": 0,
+      "markers": [
+        5,
+        11
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r2",
+          "route": "decisions",
+          "file": "decisions-c0ab38ef6824eecb36f0bedc.json",
+          "status": 200,
+          "ms": 99.1,
+          "started_at": "2026-11-16T01:22:26.342+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "find the museum opening hours",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.8682938356687745,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8100387126017734,
+          "runner_up": "none"
+        },
+        "side_effect": 0.009693121547736386,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "museum_chain:r3",
+      "cursor": 5,
+      "markers": [
+        11,
+        15
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r3",
+          "route": "decisions",
+          "file": "decisions-2e0085395ebf0f8b2ba69e05.json",
+          "status": 200,
+          "ms": 87.1,
+          "started_at": "2026-11-16T01:22:29.443+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 11,
+      "candidate": "then calculate how long until closing",
+      "committed": null,
+      "answer": {
+        "finished": 0.6686119570511027,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5768597364722879,
+          "runner_up": "none"
+        },
+        "side_effect": 0.008241404464056207,
+        "depends": {
+          "choice": "s1",
+          "margin": 0.9253628782322565,
+          "runner_up": "none"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.43508786714752773,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "museum_chain:r4",
+      "cursor": 5,
+      "markers": [
+        11,
+        15
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r4",
+          "route": "decisions",
+          "file": "decisions-ca7bcbb10beacdc3066b8355.json",
+          "status": 200,
+          "ms": 96.5,
+          "started_at": "2026-11-16T01:22:35.643+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 11,
+      "candidate": "then calculate how long until closing",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.8382678669369112,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5976967473963296,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.00896410877450895,
+        "depends": {
+          "choice": "s1",
+          "margin": 0.8577378986570332,
+          "runner_up": "none"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.29853222589213324,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "museum_chain:r4:drain1",
+      "cursor": 11,
+      "markers": [
+        15
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r4:drain1",
+          "route": "decisions",
+          "file": "decisions-b0cd08b41d8c555f31b84526.json",
+          "status": 200,
+          "ms": 236.1,
+          "started_at": "2026-11-16T01:22:38.744+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 15,
+      "candidate": "and summarize that calculation",
+      "committed": "s3",
+      "answer": {
+        "finished": 0.8912378464030676,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7803301189411114,
+          "runner_up": "none"
+        },
+        "side_effect": 0.007249618613798748,
+        "depends": {
+          "choice": "s2",
+          "margin": 0.8869816446867,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.670708832591619,
+          "runner_up": "replace_s2"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the museum opening hours,",
+      "instruction": "find the museum opening hours",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the museum opening hours"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find the museum opening hours",
+          "new": "Find the museum opening hours,"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "ready",
+      "segment_text": "then calculate how long until closing",
+      "instruction": "then calculate how long until closing",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [
+        "task_1"
+      ],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "then calculate how long until closing"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        }
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "status": "ready",
+      "segment_text": "and summarize that calculation.",
+      "instruction": "and summarize that calculation.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [
+        "task_2"
+      ],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and summarize that calculation."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 5,
+      "text": "Find the museum opening hours,"
+    },
+    {
+      "sid": "s2",
+      "w0": 5,
+      "w1": 11,
+      "text": "then calculate how long until closing"
+    },
+    {
+      "sid": "s3",
+      "w0": 11,
+      "w1": 15,
+      "text": "and summarize that calculation."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 2,
+      "is_final": false,
+      "instruction": "find the museum opening hours",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_museum_chain",
+    "final_transcript": "Find the museum opening hours, then calculate how long until closing and summarize that calculation.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find the museum opening hours",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "then calculate how long until closing",
+        "status": "pending",
+        "depends_on": [
+          "task_1"
+        ]
+      },
+      {
+        "task_id": "task_3",
+        "description": "and summarize that calculation.",
+        "status": "pending",
+        "depends_on": [
+          "task_2"
+        ]
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "museum",
+          "hours"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "calculate",
+          "closing"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "summarize",
+          "calculation"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T2"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

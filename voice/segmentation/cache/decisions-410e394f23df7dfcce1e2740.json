@@ -1,0 +1,95 @@
+{
+  "route": "decisions",
+  "label": "07_intentional_repeat:r4",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {},
+      "new_speech": "Roll a die for me. [1] Okay, [2] now roll it again. [3]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request?",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end?",
+        "criteria": {
+          "m1": "It ends at [1], after \"a die for me\" and before \"okay now roll it\".",
+          "m2": "It ends at [2], after \"die for me okay\" and before \"now roll it again\".",
+          "m3": "It ends at [3], the end of the speech so far, after \"now roll it again\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m1",
+        "probabilities": {
+          "m1": 0.8733014852106132,
+          "m2": 0.020670551107091057,
+          "m3": 0.07782893797140106,
+          "none": 0.028199025710894558
+        },
+        "confidence": 0.8310686469474843
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9622507644058553
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.02285745191012697
+      }
+    },
+    "usage": {
+      "input_tokens": 356,
+      "output_tokens": 3,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791082-orBaVrtD1uTIN5ZtclME",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:04:41.770+00:00",
+    "ms": 95.991000009235,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:04:41.770+00:00",
+      "route": "decisions",
+      "hash": "410e394f23df7dfcce1e2740",
+      "label": "07_intentional_repeat:r4",
+      "status": 200,
+      "ms": 96.0,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

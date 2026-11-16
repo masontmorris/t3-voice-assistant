@@ -1,0 +1,60 @@
+{
+  "id": "06_description_not_request",
+  "covers": "A sentence that describes a task (emailing the landlord) without asking for it, then one real request.",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "my sister keeps telling me",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "my sister keeps telling me i should email the landlord",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "my sister keeps telling me i should email the landlord about the heater but",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "my sister keeps telling me i should email the landlord about the heater but can you just look up",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 5,
+      "text": "my sister keeps telling me i should email the landlord about the heater but can you just look up the landlord's phone number",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 6,
+      "text": "My sister keeps telling me I should email the landlord about the heater, but can you just look up the landlord's phone number?",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "phone",
+          "number"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  }
+}

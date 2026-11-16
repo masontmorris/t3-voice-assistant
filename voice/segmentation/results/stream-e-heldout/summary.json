@@ -1,0 +1,257 @@
+[
+  {
+    "scenario": "actually",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 1,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['height', 'massive']",
+      "T1: status dispatched, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch"
+    ]
+  },
+  {
+    "scenario": "assistant_question",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "buy_and_read",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: status ready, expected one of ['dispatched']",
+      "T2: depends_on ['T1'], expected one of [[]]"
+    ]
+  },
+  {
+    "scenario": "cancel_second",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: status cancel_requested, expected one of ['withdrawn']",
+      "T2: dispatched but should never dispatch"
+    ]
+  },
+  {
+    "scenario": "delegate_overlap",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "delete_and_read",
+    "pass": true,
+    "revisions": 3,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "email_extension",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "i_mean",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 1,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['capital', 'australia']",
+      "T1: status dispatched, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch"
+    ]
+  },
+  {
+    "scenario": "market_three",
+    "pass": false,
+    "revisions": 4,
+    "decision_points": 6,
+    "calls": 6,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T1: status cancel_requested, expected one of ['dispatched']"
+    ]
+  },
+  {
+    "scenario": "mixed_chain",
+    "pass": false,
+    "revisions": 4,
+    "decision_points": 5,
+    "calls": 5,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: status dispatched, expected one of ['ready']",
+      "T2: depends_on [], expected one of [['T1']]",
+      "T2: dispatched but should never dispatch"
+    ]
+  },
+  {
+    "scenario": "museum_chain",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 5,
+    "calls": 5,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "near_duplicates",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T1: status cancel_requested, expected one of ['dispatched']"
+    ]
+  },
+  {
+    "scenario": "no_wait",
+    "pass": false,
+    "revisions": 4,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 2,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['trains', 'leeds']",
+      "T1: status cancel_requested, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch",
+      "task_2: unexpected dispatched task \"No wait, Leeds instead.\""
+    ]
+  },
+  {
+    "scenario": "pause_correction",
+    "pass": false,
+    "revisions": 4,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 2,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['violin', 'bristol']",
+      "T1: status cancel_requested, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch",
+      "task_2: unexpected dispatched task \"Actually, Bristol.\""
+    ]
+  },
+  {
+    "scenario": "post_and_read",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: status ready, expected one of ['dispatched']",
+      "T2: depends_on ['T1'], expected one of [[]]"
+    ]
+  },
+  {
+    "scenario": "rain_wonder",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 3,
+    "calls": 3,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T1: no task matches ['rain', 'saturday']"
+    ]
+  },
+  {
+    "scenario": "run_on",
+    "pass": true,
+    "revisions": 4,
+    "decision_points": 6,
+    "calls": 6,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "true_repeat",
+    "pass": false,
+    "revisions": 3,
+    "decision_points": 4,
+    "calls": 4,
+    "premature": 0,
+    "duplicate": 1,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "task_2: duplicate dispatch of T1"
+    ]
+  }
+]

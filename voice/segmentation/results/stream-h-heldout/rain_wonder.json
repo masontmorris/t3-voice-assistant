@@ -1,0 +1,144 @@
+{
+  "scenario": "rain_wonder",
+  "covers": "implicit request and statement",
+  "option": "h",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "rain_wonder:r3",
+      "kind": "revision",
+      "cursor": 0,
+      "pause": false,
+      "pieces": [
+        [
+          0,
+          7
+        ],
+        [
+          7,
+          11
+        ]
+      ],
+      "revised": [
+        [
+          0,
+          7
+        ],
+        [
+          7,
+          11
+        ]
+      ],
+      "hard": [
+        7
+      ],
+      "soft": [],
+      "breaks": {},
+      "committed": [
+        "s1",
+        "s2"
+      ],
+      "applied": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 34,
+          "text": "I wonder if it will rain Saturday.",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 35,
+          "end": 55,
+          "text": "My umbrella is blue.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "rain_wonder:r3",
+          "route": "decisions",
+          "file": "decisions-c864f16a76342cb70152c80a.json",
+          "status": 200,
+          "ms": 179.2,
+          "started_at": "2026-11-16T02:50:23.841+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "chitchat",
+          "readiness": "clarify",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.7446329472105986,
+            "ready": 0.5281986609868581,
+            "side_effect": 0.022503472442782092
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "chitchat",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9828332553005059,
+            "depends": 0.946111494302394,
+            "kind": 0.7170776938437295,
+            "ready": 0.09598137182401949,
+            "side_effect": 0.01577491893884982
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [],
+  "dispatch_log": [],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_rain_wonder",
+    "final_transcript": "I wonder if it will rain Saturday. My umbrella is blue.",
+    "tasks": [],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "rain",
+          "saturday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T1: no task matches ['rain', 'saturday']"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 0
+  }
+}
