@@ -140,11 +140,14 @@ Of the 93 answers it reused, 16 differed from a fresh answer to the full request
 
 ## mistral.rs is blocked on disk
 
-mistral.rs serves d1-2B on `/v1/systemone` and packs questions in groups of `set_size`, 16 by default, so it could give the packed path's speed from the 1.1 GB GGUF. It was not installed, because it would take C: below the 20 GB floor.
+mistral.rs serves d1-2B on `/v1/systemone` and packs questions in groups of `set_size`, 16 by default, so it could give the packed path's speed from the 1.1 GB GGUF. Disk is the only blocker. A source build would take C: below the 20 GB floor, so it was not installed.
 
-- No release has a Windows CUDA build. v0.9.5 (2026-10-19) ships CUDA only for Linux, and Windows only as a CPU build (measured, GitHub releases).
-- No release supports d1 yet. d1 support (pull request 2530) merged on 2026-11-01, after v0.9.5 (measured, GitHub API).
-- A source build would need the CUDA Toolkit components, about 2.5 to 3.5 GB, which this machine lacks, plus a build tree of about 5 to 10 GB and about 1 GB of crates. That totals about 8 to 14 GB (guess). C: has 20.5 GB free, so the build would leave about 7 to 12 GB (inferred).
+The build has to come from source, which is an ordinary path on this machine. Rust and Visual Studio are already installed.
+
+- No release includes d1 support yet. It merged on 2026-11-01 as pull request 2530, after the newest release, v0.9.5 (2026-10-19) (measured, GitHub API).
+- Releases ship CUDA builds only for Linux. Windows gets only a CPU build (measured, GitHub releases). A Windows CUDA build is a `cargo build --release --features cuda` from the main branch.
+- The build needs the CUDA Toolkit components, about 2.5 to 3.5 GB, which this machine lacks. It also needs a build tree of about 5 to 10 GB and about 1 GB of crates. That totals about 8 to 14 GB (guess). C: has 20.4 GB free, so the build would leave about 7 to 12 GB (inferred).
+- The first compile probably takes 30 to 60 minutes (guess). Whether it compiles cleanly on Windows the first time is unknown. The flash-attention feature may not build there, and leaving it out costs only attention speed (guess).
 - The voice lane's own files that could go total about 1.1 GB, mostly the d1 GGUF. The large folders that are not the lane's are `voice/venv-lfm3` (3.5 GB), the d1-2B Hugging Face weights (3.6 GB), and `voice/llamacpp` (1.3 GB). Removing all of them still would not keep C: above 20 GB through a build (inferred).
 - Building elsewhere would work. Build mistral.rs with CUDA for the 3060's sm86 on a machine with free disk, then copy only the server binary and its CUDA libraries here. That copy is probably about 1 GB (guess).
 
