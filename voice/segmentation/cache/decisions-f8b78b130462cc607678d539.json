@@ -1,0 +1,138 @@
+{
+  "route": "decisions",
+  "label": "05_correction_after_dispatch:r7",
+  "request": {
+    "model": "perplexity/pplx-decider-flash-v1.3:free",
+    "state": {
+      "earlier_requests": {
+        "s1": "Find flights to Austin on Friday",
+        "s2": "and check hotel prices downtown."
+      },
+      "new_speech": "Actually, [1] make the flights Saturday. [2]",
+      "speech_is_final": true
+    },
+    "questions": {
+      "finished": {
+        "type": "noul",
+        "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an actionable task, or for a change or withdrawal of an earlier request? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "true": "At least one request in new_speech is complete: a worker could act on it as spoken.",
+          "false": "new_speech holds only filler, small talk, a description of a task, or a request still being spoken."
+        }
+      },
+      "at": {
+        "type": "choice",
+        "instructions": "At which marker does the first finished request in new_speech end? A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action starts a new request, and so does a correction such as \"no wait\" or \"actually\".",
+        "criteria": {
+          "m1": "The first request ends at [1]. It is \"actually\".",
+          "m2": "The first request ends at the end of the speech so far. It is \"actually make the flights saturday\".",
+          "none": "No request in new_speech is finished yet."
+        }
+      },
+      "side_effect": {
+        "type": "noul",
+        "instructions": "Would carrying out the first finished request in new_speech change something outside the conversation?",
+        "criteria": {
+          "true": "It sends a message or email, contacts someone, buys, books, posts, or changes or deletes someone's data.",
+          "false": "It only looks up, computes, or reports information back to the speaker."
+        }
+      },
+      "depends": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech need the result of an earlier request before it can start?",
+        "criteria": {
+          "none": "It can start without any earlier request's result.",
+          "s1": "It needs the result of s1 (\"Find flights to Austin on Friday\") first.",
+          "s2": "It needs the result of s2 (\"and check hotel prices downtown.\") first."
+        }
+      },
+      "corrects": {
+        "type": "choice",
+        "instructions": "Does the first finished request in new_speech change or withdraw an earlier request?",
+        "criteria": {
+          "none": "It does not change any earlier request.",
+          "replace_s1": "It changes what s1 (\"Find flights to Austin on Friday\") asked for, so s1 as first spoken should not be done.",
+          "replace_s2": "It changes what s2 (\"and check hotel prices downtown.\") asked for, so s2 as first spoken should not be done.",
+          "cancel_s1": "It withdraws s1 (\"Find flights to Austin on Friday\") with no replacement.",
+          "cancel_s2": "It withdraws s2 (\"and check hotel prices downtown.\") with no replacement."
+        }
+      }
+    }
+  },
+  "status": 200,
+  "response": {
+    "model": "perplexity/pplx-decider-flash-v1.3-20261112",
+    "answers": {
+      "at": {
+        "type": "choice",
+        "choice": "m2",
+        "probabilities": {
+          "m1": 0.0339768238946224,
+          "m2": 0.931233183901401,
+          "none": 0.034789992203976654
+        },
+        "confidence": 0.8968497758521015
+      },
+      "corrects": {
+        "type": "choice",
+        "choice": "replace_s1",
+        "probabilities": {
+          "cancel_s1": 0.018519390639724437,
+          "cancel_s2": 0.0011973054697525874,
+          "none": 0.009938528740855697,
+          "replace_s1": 0.9692428895847047,
+          "replace_s2": 0.0011018855649626434
+        },
+        "confidence": 0.961553611980881
+      },
+      "depends": {
+        "type": "choice",
+        "choice": "none",
+        "probabilities": {
+          "none": 0.7801938699942436,
+          "s1": 0.21320304239864887,
+          "s2": 0.006603087607107641
+        },
+        "confidence": 0.6702908049913653
+      },
+      "finished": {
+        "type": "noul",
+        "noul": 0.9479281515235012
+      },
+      "side_effect": {
+        "type": "noul",
+        "noul": 0.7210386083678952
+      }
+    },
+    "usage": {
+      "input_tokens": 663,
+      "output_tokens": 5,
+      "cost": 0,
+      "is_byok": false,
+      "cost_details": {
+        "upstream_inference_cost": 0,
+        "upstream_inference_prompt_cost": 0,
+        "upstream_inference_completions_cost": 0
+      }
+    },
+    "id": "gen-dec-1794791360-UcAGhP9RNs7hsi3UlkY9",
+    "provider": "Perplexity"
+  },
+  "timing": {
+    "started_at": "2026-11-16T01:09:19.846+00:00",
+    "ms": 87.29649998713285,
+    "connect_ms": null
+  },
+  "attempts": [
+    {
+      "at": "2026-11-16T01:09:19.846+00:00",
+      "route": "decisions",
+      "hash": "f8b78b130462cc607678d539",
+      "label": "05_correction_after_dispatch:r7",
+      "status": 200,
+      "ms": 87.3,
+      "connect_ms": null,
+      "error": null
+    }
+  ]
+}

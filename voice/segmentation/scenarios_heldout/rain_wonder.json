@@ -1,0 +1,43 @@
+{
+  "id": "rain_wonder",
+  "covers": "implicit request and statement",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "i wonder if itll rain saturday",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "i wonder if itll rain saturday my umbrella is blue",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "I wonder if it will rain Saturday. My umbrella is blue.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "rain",
+          "saturday"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "Treat wondering about rain as a lookup. The umbrella description is context."
+}

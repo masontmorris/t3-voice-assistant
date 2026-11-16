@@ -1,0 +1,353 @@
+{
+  "scenario": "museum_chain",
+  "covers": "three chained requests",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 29,
+          "text": "find the museum opening hours",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r1:decide",
+          "route": "decisions",
+          "file": "decisions-9639467c59486b3b3fbb9a2c.json",
+          "status": 200,
+          "ms": 93.8,
+          "started_at": "2026-11-16T01:17:12.413+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9557276951429289,
+            "ready": 0.4138122055282304,
+            "side_effect": 0.07382038644364619
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 67,
+          "text": "find the museum opening hours then calculate how long until closing",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 68,
+          "end": 98,
+          "text": "and summarize that calculation",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r3:decide",
+          "route": "decisions",
+          "file": "decisions-48d1a40bf84b49843f8554dd.json",
+          "status": 200,
+          "ms": 93.8,
+          "started_at": "2026-11-16T01:17:22.672+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9814222476778206,
+            "ready": 0.7503066608692397,
+            "side_effect": 0.012136657811060795
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": "s1",
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9885801336931633,
+            "depends": 0.9303888328444558,
+            "kind": 0.965482159401256,
+            "ready": 0.7393406646911489,
+            "side_effect": 0.004925641430218032
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 68,
+          "text": "Find the museum opening hours, then calculate how long until closing",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 69,
+          "end": 100,
+          "text": "and summarize that calculation.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "museum_chain:r4:decide",
+          "route": "decisions",
+          "file": "decisions-a8f6e0057c29927b59133358.json",
+          "status": 200,
+          "ms": 97.1,
+          "started_at": "2026-11-16T01:17:25.773+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.986860980752437,
+            "ready": 0.970845034248775,
+            "side_effect": 0.012208724937129966
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": "s1",
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.992777590459711,
+            "depends": 0.9220807158651299,
+            "kind": 0.9792344731348243,
+            "ready": 0.9625680669559784,
+            "side_effect": 0.006567315930071446
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the museum opening hours, then calculate how long until closing",
+      "instruction": "find the museum opening hours then calculate how long until closing",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find the museum opening hours"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "segment_text",
+          "old": "find the museum opening hours",
+          "new": "find the museum opening hours then calculate how long until closing"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find the museum opening hours then calculate how long until closing",
+          "new": "Find the museum opening hours, then calculate how long until closing"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "ready",
+      "segment_text": "and summarize that calculation.",
+      "instruction": "and summarize that calculation.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [
+        "task_1"
+      ],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and summarize that calculation"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "and summarize that calculation",
+          "new": "and summarize that calculation."
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": false,
+      "instruction": "find the museum opening hours then calculate how long until closing",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_museum_chain",
+    "final_transcript": "Find the museum opening hours, then calculate how long until closing and summarize that calculation.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find the museum opening hours then calculate how long until closing",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and summarize that calculation.",
+        "status": "pending",
+        "depends_on": [
+          "task_1"
+        ]
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "museum",
+          "hours"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "calculate",
+          "closing"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "summarize",
+          "calculation"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T2"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['calculate', 'closing']",
+      "T3: depends_on ['T1'], expected one of [['T2']]"
+    ],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

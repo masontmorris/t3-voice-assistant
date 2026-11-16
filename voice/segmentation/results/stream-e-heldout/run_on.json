@@ -1,0 +1,487 @@
+{
+  "scenario": "run_on",
+  "covers": "unpunctuated run-on",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "run_on:r1",
+      "cursor": 0,
+      "markers": [
+        6
+      ],
+      "calls": [
+        {
+          "label": "run_on:r1",
+          "route": "decisions",
+          "file": "decisions-76cb8d0bd1362572bbe79ead.json",
+          "status": 200,
+          "ms": 84.5,
+          "started_at": "2026-11-16T01:23:54.106+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "find the moonrise time in perth",
+      "committed": null,
+      "answer": {
+        "finished": 0.942965440273144,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8306006242116442,
+          "runner_up": "none"
+        },
+        "side_effect": 0.009089180728340973,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "run_on:r2",
+      "cursor": 0,
+      "markers": [
+        12
+      ],
+      "calls": [
+        {
+          "label": "run_on:r2",
+          "route": "decisions",
+          "file": "decisions-bf9350207837751424051896.json",
+          "status": 200,
+          "ms": 102.0,
+          "started_at": "2026-11-16T01:23:57.206+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.844749882017468,
+        "at": {
+          "choice": "none",
+          "margin": 0.6361946512023551,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.014751383172129533,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "run_on:r3",
+      "cursor": 0,
+      "markers": [
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17
+      ],
+      "calls": [
+        {
+          "label": "run_on:r3",
+          "route": "decisions",
+          "file": "decisions-1a2b4acb465944dc1abbb522.json",
+          "status": 200,
+          "ms": 97.4,
+          "started_at": "2026-11-16T01:24:00.306+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "find the moonrise time in perth",
+      "committed": null,
+      "answer": {
+        "finished": 0.7072443907948697,
+        "at": {
+          "choice": "m6",
+          "margin": 0.8818720680867757,
+          "runner_up": "none"
+        },
+        "side_effect": 0.022938971355390515,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "run_on:r4",
+      "cursor": 0,
+      "markers": [
+        6,
+        12,
+        17
+      ],
+      "calls": [
+        {
+          "label": "run_on:r4",
+          "route": "decisions",
+          "file": "decisions-f528e974aeee68f8f987328e.json",
+          "status": 200,
+          "ms": 84.8,
+          "started_at": "2026-11-16T01:24:03.406+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 6,
+      "candidate": "find the moonrise time in perth",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9718215475159168,
+        "at": {
+          "choice": "m1",
+          "margin": 0.932482979803567,
+          "runner_up": "none"
+        },
+        "side_effect": 0.011571607386588632,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "run_on:r4:drain1",
+      "cursor": 6,
+      "markers": [
+        12,
+        17
+      ],
+      "calls": [
+        {
+          "label": "run_on:r4:drain1",
+          "route": "decisions",
+          "file": "decisions-5c9c376f34324e1062c62da8.json",
+          "status": 200,
+          "ms": 86.4,
+          "started_at": "2026-11-16T01:24:06.507+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 12,
+      "candidate": "check the train fare to fremantle",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.9854510066054474,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9688581122090778,
+          "runner_up": "none"
+        },
+        "side_effect": 0.01780809219064916,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9908615760345336,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.4376509828886838,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "run_on:r4:drain2",
+      "cursor": 12,
+      "markers": [
+        17
+      ],
+      "calls": [
+        {
+          "label": "run_on:r4:drain2",
+          "route": "decisions",
+          "file": "decisions-c29ac356251df0d49a68ac4f.json",
+          "status": 200,
+          "ms": 126.1,
+          "started_at": "2026-11-16T01:24:12.707+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 17,
+      "candidate": "translate good morning into swahili",
+      "committed": "s3",
+      "answer": {
+        "finished": 0.983655418371815,
+        "at": {
+          "choice": "m1",
+          "margin": 0.980813805844969,
+          "runner_up": "none"
+        },
+        "side_effect": 0.012091798780767288,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9972377119743855,
+          "runner_up": "s2"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.7832698034564148,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the moonrise time in Perth,",
+      "instruction": "Find the moonrise time in Perth,",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Find the moonrise time in Perth,"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "check the train fare to Fremantle,",
+      "instruction": "check the train fare to Fremantle,",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "check the train fare to Fremantle,"
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "status": "dispatched",
+      "segment_text": "translate good morning into Swahili.",
+      "instruction": "translate good morning into Swahili.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "translate good morning into Swahili."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 6,
+      "text": "Find the moonrise time in Perth,"
+    },
+    {
+      "sid": "s2",
+      "w0": 6,
+      "w1": 12,
+      "text": "check the train fare to Fremantle,"
+    },
+    {
+      "sid": "s3",
+      "w0": 12,
+      "w1": 17,
+      "text": "translate good morning into Swahili."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "Find the moonrise time in Perth,",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "check the train fare to Fremantle,",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_3",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "translate good morning into Swahili.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_run_on",
+    "final_transcript": "Find the moonrise time in Perth, check the train fare to Fremantle, translate good morning into Swahili.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Find the moonrise time in Perth,",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "check the train fare to Fremantle,",
+        "status": "running"
+      },
+      {
+        "task_id": "task_3",
+        "description": "translate good morning into Swahili.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "moonrise",
+          "perth"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "fare",
+          "fremantle"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T3",
+        "match": [
+          "translate",
+          "swahili"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 3
+  }
+}

@@ -1,0 +1,329 @@
+{
+  "scenario": "actually",
+  "covers": "correction actually",
+  "option": "a",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 34,
+          "text": "look up the height of mount elbert",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "actually:r1:decide",
+          "route": "decisions",
+          "file": "decisions-4e9c518240cfe370905cecd3.json",
+          "status": 200,
+          "ms": 189.9,
+          "started_at": "2026-11-16T01:15:33.251+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9729857385671603,
+            "ready": 0.8634059095992174,
+            "side_effect": 0.02000148346936962
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 34,
+          "text": "look up the height of mount elbert",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 35,
+          "end": 57,
+          "text": "actually mount massive",
+          "open": true
+        }
+      ],
+      "calls": [
+        {
+          "label": "actually:r2:decide",
+          "route": "decisions",
+          "file": "decisions-d3c93a7916b33bab70fbb696.json",
+          "status": 200,
+          "ms": 183.1,
+          "started_at": "2026-11-16T01:15:39.405+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "wait",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.9467685008433169,
+            "ready": 0.5526415872720567,
+            "side_effect": 0.00784956225072477
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "replace"
+          },
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.9235764264802405,
+            "depends": 0.8791002362757321,
+            "kind": 0.969147165662585,
+            "ready": 0.8609801145830519,
+            "side_effect": 0.010743612602112432
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "segments": [
+        {
+          "sid": "s1",
+          "start": 0,
+          "end": 34,
+          "text": "Look up the height of Mount Elbert",
+          "open": false
+        },
+        {
+          "sid": "s2",
+          "start": 36,
+          "end": 59,
+          "text": "actually Mount Massive.",
+          "open": false
+        }
+      ],
+      "calls": [
+        {
+          "label": "actually:r3:decide",
+          "route": "decisions",
+          "file": "decisions-964a7f731b82a24d5ea43fba.json",
+          "status": 200,
+          "ms": 95.7,
+          "started_at": "2026-11-16T01:15:42.505+00:00"
+        }
+      ],
+      "decisions": {
+        "s1": {
+          "sid": "s1",
+          "kind": "request",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": null,
+          "side_effect": false,
+          "confidence": {
+            "kind": 0.7339150433950198,
+            "ready": 0.7766391441198938,
+            "side_effect": 0.009933862450481258
+          }
+        },
+        "s2": {
+          "sid": "s2",
+          "kind": "correction",
+          "readiness": "dispatch_now",
+          "depends_on": null,
+          "corrects": {
+            "target": "s1",
+            "mode": "replace"
+          },
+          "side_effect": false,
+          "confidence": {
+            "corrects": 0.8182953684259944,
+            "depends": 0.8908092243190442,
+            "kind": 0.9711917702117692,
+            "ready": 0.9612772056478471,
+            "side_effect": 0.015386926772940172
+          }
+        }
+      },
+      "delegates": {},
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "superseded",
+      "segment_text": "Look up the height of Mount Elbert",
+      "instruction": "look up the height of mount elbert",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 1,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "look up the height of mount elbert"
+        },
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "superseded",
+          "reason": "corrected by segment \"actually mount massive\""
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "look up the height of mount elbert",
+          "new": "Look up the height of Mount Elbert"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "actually Mount Massive.",
+      "instruction": "look up the height of mount elbert (corrected: actually Mount Massive.)",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": "task_1",
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 2,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "actually mount massive"
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "actually mount massive",
+          "new": "actually Mount Massive."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_2",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "look up the height of mount elbert (corrected: actually Mount Massive.)",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_actually",
+    "final_transcript": "Look up the height of Mount Elbert, actually Mount Massive.",
+    "tasks": [
+      {
+        "task_id": "task_2",
+        "description": "look up the height of mount elbert (corrected: actually Mount Massive.)",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "height",
+          "elbert"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "height",
+          "massive"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['height', 'massive']",
+      "task_2: unexpected dispatched task \"actually Mount Massive.\""
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [
+      "task_2"
+    ],
+    "dispatch_count": 1
+  }
+}

@@ -1,0 +1,54 @@
+{
+  "id": "email_extension",
+  "covers": "apparent completion then continuation",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "email dana",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "email dana the q3",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "email dana the q3 numbers",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "Email Dana the Q3 numbers.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "email",
+          "dana"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true,
+        "instruction_contains": [
+          "q3",
+          "numbers"
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The early phrase lacks content. Hold the side effect until final."
+}

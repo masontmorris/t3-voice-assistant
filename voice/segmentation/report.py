@@ -1,5 +1,7 @@
 """Derive every number in docs/voice/stage2-segmentation.md from committed files. No network.
 
+Only round 2's ledger entries and cache files count. docs/voice/stage2-variants.md has its own report.
+
     python -m voice.segmentation.report
 """
 
@@ -14,6 +16,19 @@ RUNS = ["final-a", "final-b", "final-c", "stream-a", "final-a-separate", "final-
 PAIRS = [("final-a", "final-a-repeat1", "same request sent twice"),
          ("stream-a", "stream-a-repeat1", "same request sent twice"),
          ("final-a", "final-a-separate", "all segments in one call vs one segment per call")]
+
+
+ROUND2_ATTEMPTS = 157
+
+
+def round2_entries():
+    return [json.loads(line) for line in LEDGER.read_text(encoding="utf-8").splitlines()][:ROUND2_ATTEMPTS]
+
+
+def round2_cache():
+    """Cache files for the requests round 2 sent. Later rounds share the cache directory."""
+    hashes = {e["hash"] for e in round2_entries()}
+    return [p for p in CACHE.glob("*.json") if p.stem.split("-", 1)[1] in hashes]
 
 
 def pct(values, q):
@@ -72,7 +87,9 @@ def agreement(a, b):
 def margins():
     """Margin (top minus second probability) of every recorded choice answer, by question field."""
     fields = {}
-    for path in CACHE.glob("decisions-*.json"):
+    for path in round2_cache():
+        if not path.name.startswith("decisions-"):
+            continue
         record = json.loads(path.read_text(encoding="utf-8"))
         for name, answer in ((record.get("response") or {}).get("answers") or {}).items():
             if answer.get("type") == "choice" and "_" in name:
@@ -82,7 +99,7 @@ def margins():
 
 
 def latency():
-    records = [json.loads(p.read_text(encoding="utf-8")) for p in CACHE.glob("*.json")]
+    records = [json.loads(p.read_text(encoding="utf-8")) for p in round2_cache()]
     live = [r for r in records if r["status"] == 200]
     by_route = {route: dist([r["timing"]["ms"] for r in live if r["route"] == route])
                 for route in sorted({r["route"] for r in live})}
@@ -123,19 +140,19 @@ def run_latency():
 
 
 def largest_choice_set():
-    sizes = [len(q["criteria"]) for path in CACHE.glob("decisions-*.json")
+    sizes = [len(q["criteria"]) for path in round2_cache() if path.name.startswith("decisions-")
              for q in json.loads(path.read_text(encoding="utf-8"))["request"]["questions"].values()
              if q["type"] == "choice"]
     return max(sizes)
 
 
 def ledger():
-    entries = [json.loads(line) for line in LEDGER.read_text(encoding="utf-8").splitlines()]
+    entries = round2_entries()
     return {"attempts": len(entries), "by_route": dict(Counter(e["route"] for e in entries)),
             "status": dict(Counter(str(e["status"]) for e in entries)),
             "errors": dict(Counter(e["error"] for e in entries if e["error"])),
             "distinct_requests": len({e["hash"] for e in entries}),
-            "cache_files": len(list(CACHE.glob("*.json")))}
+            "cache_files": len(round2_cache())}
 
 
 def main():

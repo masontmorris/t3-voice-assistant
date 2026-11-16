@@ -3,6 +3,9 @@
     python -m voice.segmentation.run --option a --mode stream            # live calls for uncached requests
     python -m voice.segmentation.run --option a --mode stream --offline  # recorded responses only
 
+--option e is variant E (voice/segmentation/cursor.py) and runs streams only. --set heldout runs the held-out
+scenarios in scenarios_heldout/. --extra adds variant E's optional implicit and preemptive questions.
+
 --mode final runs only the final transcript of each scenario (the span-option comparison). --separate asks one
 segment's questions per call instead of all in one call. --repeat N adds a `user` tag so the same request is sent again.
 """
@@ -13,6 +16,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from voice.segmentation import client as api
+from voice.segmentation.cursor import CursorRunner
 from voice.segmentation.contract import Decisions, TranscriptUpdate, decision_request, parse_decisions
 from voice.segmentation.score import score
 from voice.segmentation.spans import (boundary_request, clause_segments, extracted_segments, extraction_request, fine_pieces,
@@ -21,6 +25,7 @@ from voice.segmentation.tasks import Orchestrator
 
 ROOT = Path(__file__).resolve().parent
 SCENARIOS = ROOT / "scenarios"
+SETS = {"original": SCENARIOS, "heldout": ROOT / "scenarios_heldout"}
 RESULTS = ROOT / "results"
 
 
@@ -128,24 +133,34 @@ def _jsonable(value):
     return value
 
 
-def run_name(option, mode, separate, repeat):
-    return f"{mode}-{option}" + ("-separate" if separate else "") + (f"-repeat{repeat}" if repeat else "")
+def run_name(option, mode, separate, repeat, scenario_set="original", extra=False):
+    return (f"{mode}-{option}" + ("-separate" if separate else "") + ("-extra" if extra else "")
+            + (f"-repeat{repeat}" if repeat else "") + ("" if scenario_set == "original" else f"-{scenario_set}"))
+
+
+def make_runner(option, client, separate=False, repeat=None, extra=False):
+    if option == "e":
+        return CursorRunner(client, extra=extra, repeat=repeat)
+    return Runner(option, client, separate, repeat)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--option", choices="abc", required=True)
+    parser.add_argument("--option", choices="abce", required=True)
     parser.add_argument("--mode", choices=["stream", "final"], required=True)
     parser.add_argument("--separate", action="store_true")
     parser.add_argument("--repeat", type=int)
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--only")
+    parser.add_argument("--set", choices=sorted(SETS), default="original")
+    parser.add_argument("--extra", action="store_true", help="variant E: add the implicit and preemptive questions")
     args = parser.parse_args()
-    runner = Runner(args.option, OfflineClient() if args.offline else api.Client(), args.separate, args.repeat)
-    out = RESULTS / run_name(args.option, args.mode, args.separate, args.repeat)
+    runner = make_runner(args.option, OfflineClient() if args.offline else api.Client(), args.separate, args.repeat,
+                         args.extra)
+    out = RESULTS / run_name(args.option, args.mode, args.separate, args.repeat, args.set, args.extra)
     out.mkdir(parents=True, exist_ok=True)
     summary = []
-    for path in sorted(SCENARIOS.glob("*.json")):
+    for path in sorted(SETS[args.set].glob("*.json")):
         scenario = json.loads(path.read_text(encoding="utf-8"))
         if args.only and args.only not in scenario["id"]:
             continue

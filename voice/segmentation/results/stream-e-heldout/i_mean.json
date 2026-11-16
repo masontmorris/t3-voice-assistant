@@ -1,0 +1,234 @@
+{
+  "scenario": "i_mean",
+  "covers": "correction i mean",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 3,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "i_mean:r1",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "i_mean:r1",
+          "route": "decisions",
+          "file": "decisions-92ef0cc6d7ba81b319418a94.json",
+          "status": 200,
+          "ms": 97.1,
+          "started_at": "2026-11-16T01:20:31.567+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "find the capital of austria",
+      "committed": null,
+      "answer": {
+        "finished": 0.9410103054704154,
+        "at": {
+          "choice": "m1",
+          "margin": 0.81165610970857,
+          "runner_up": "none"
+        },
+        "side_effect": 0.006106564786153212,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "i_mean:r2",
+      "cursor": 0,
+      "markers": [
+        5,
+        8
+      ],
+      "calls": [
+        {
+          "label": "i_mean:r2",
+          "route": "decisions",
+          "file": "decisions-a985eb7e096a34253f3b9dc2.json",
+          "status": 200,
+          "ms": 104.9,
+          "started_at": "2026-11-16T01:20:34.667+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "find the capital of austria i mean australia",
+      "committed": null,
+      "answer": {
+        "finished": 0.7357263900459814,
+        "at": {
+          "choice": "m2",
+          "margin": 0.39345892037495667,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.007867135841575787,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": true,
+      "label": "i_mean:r3",
+      "cursor": 0,
+      "markers": [
+        5,
+        8
+      ],
+      "calls": [
+        {
+          "label": "i_mean:r3",
+          "route": "decisions",
+          "file": "decisions-c7f59ec0e5ea02c1ddfcd400.json",
+          "status": 200,
+          "ms": 93.1,
+          "started_at": "2026-11-16T01:20:40.868+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "find the capital of austria i mean australia",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.8636860468473901,
+        "at": {
+          "choice": "m2",
+          "margin": 0.4626013446475959,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.008421092327078704,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find the capital of Austria, I mean Australia.",
+      "instruction": "Find the capital of Austria, I mean Australia.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Find the capital of Austria, I mean Australia."
+        },
+        {
+          "revision": 3,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 8,
+      "text": "Find the capital of Austria, I mean Australia."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": true,
+      "instruction": "Find the capital of Austria, I mean Australia.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_i_mean",
+    "final_transcript": "Find the capital of Austria, I mean Australia.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Find the capital of Austria, I mean Australia.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "capital",
+          "austria"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "capital",
+          "australia"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['capital', 'australia']",
+      "T1: status dispatched, expected one of ['superseded']",
+      "T1: dispatched but should never dispatch"
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 1,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

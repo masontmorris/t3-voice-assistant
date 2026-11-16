@@ -1,0 +1,64 @@
+{
+  "id": "no_wait",
+  "covers": "correction no wait",
+  "events": [
+    {
+      "type": "transcript",
+      "revision": 1,
+      "text": "find trains to york",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 2,
+      "text": "find trains to york no wait",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 3,
+      "text": "find trains to york no wait leeds instead",
+      "is_final": false
+    },
+    {
+      "type": "transcript",
+      "revision": 4,
+      "text": "Find trains to York. No wait, Leeds instead.",
+      "is_final": true
+    }
+  ],
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "trains",
+          "york"
+        ],
+        "status": [
+          "superseded"
+        ],
+        "depends_on": [
+          []
+        ],
+        "never_dispatched": true
+      },
+      {
+        "key": "T2",
+        "match": [
+          "trains",
+          "leeds"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "revises": "T1"
+      }
+    ],
+    "clarification_needed": false
+  },
+  "notes": "The correction replaces the destination. The earlier proposal must not have dispatched."
+}

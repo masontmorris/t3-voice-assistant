@@ -21,8 +21,11 @@ ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / "cache"
 LEDGER = ROOT / "calls.jsonl"
 STOP = ROOT / "BILLING_STOP"
-BUDGET = 400
+# Round 2 used 157 ledger attempts; the variants round adds its own cap of 400.
+BUDGET = 157 + 400
 TIMEOUT_S = 30
+# The free tier answered bursts of back-to-back calls with 429s, and 1.2 s spacing still drew 24 of them in 92.
+MIN_INTERVAL_S = 3.1
 MAX_ATTEMPTS = 5
 
 
@@ -93,6 +96,7 @@ class Client:
     def __init__(self):
         self._conn = None
         self._key = None
+        self._last = None
 
     def _connection(self):
         if self._conn is not None:
@@ -146,6 +150,9 @@ class Client:
         for attempt in range(MAX_ATTEMPTS):
             if ledger_attempts() >= BUDGET:
                 raise BudgetExhausted(f"{BUDGET} attempts used")
+            if self._last is not None:
+                time.sleep(max(0.0, MIN_INTERVAL_S - (time.monotonic() - self._last)))
+            self._last = time.monotonic()
             result = self._send("POST", ROUTES[route], payload)
             entry = {"at": result["started_at"], "route": route, "hash": request_hash(route, body)[:24],
                      "label": label, "status": result["status"], "ms": round(result["ms"], 1),

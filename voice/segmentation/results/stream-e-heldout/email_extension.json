@@ -1,0 +1,255 @@
+{
+  "scenario": "email_extension",
+  "covers": "apparent completion then continuation",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 4,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "email_extension:r1",
+      "cursor": 0,
+      "markers": [
+        2
+      ],
+      "calls": [
+        {
+          "label": "email_extension:r1",
+          "route": "decisions",
+          "file": "decisions-0ba2f52126d7a17cb0ab4ba8.json",
+          "status": 200,
+          "ms": 86.9,
+          "started_at": "2026-11-16T01:20:16.065+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 2,
+      "candidate": "email dana",
+      "committed": null,
+      "answer": {
+        "finished": 0.8618231691436393,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7647262850024915,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9981839827642454,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "email_extension:r2",
+      "cursor": 0,
+      "markers": [
+        4
+      ],
+      "calls": [
+        {
+          "label": "email_extension:r2",
+          "route": "decisions",
+          "file": "decisions-3ef9f9e7478e578a5287f4e0.json",
+          "status": 200,
+          "ms": 82.0,
+          "started_at": "2026-11-16T01:20:22.266+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.403131014471004,
+        "at": {
+          "choice": "m1",
+          "margin": 0.5105544570350857,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9951572866321512,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "email_extension:r3",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "email_extension:r3",
+          "route": "decisions",
+          "file": "decisions-1448b50b21814a1313e9b1ce.json",
+          "status": 200,
+          "ms": 98.4,
+          "started_at": "2026-11-16T01:20:25.366+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "email dana the q3 numbers",
+      "committed": null,
+      "answer": {
+        "finished": 0.9455282283341749,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8679689052386523,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9982896845842356,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": true,
+      "label": "email_extension:r4",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "email_extension:r4",
+          "route": "decisions",
+          "file": "decisions-2745341072823999db99f437.json",
+          "status": 200,
+          "ms": 97.6,
+          "started_at": "2026-11-16T01:20:28.466+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "email dana the q3 numbers",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.9939084283577768,
+        "at": {
+          "choice": "m1",
+          "margin": 0.9877601756461221,
+          "runner_up": "none"
+        },
+        "side_effect": 0.9988152766275142,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Email Dana the Q3 numbers.",
+      "instruction": "Email Dana the Q3 numbers.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": true,
+      "history": [
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Email Dana the Q3 numbers."
+        },
+        {
+          "revision": 4,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 5,
+      "text": "Email Dana the Q3 numbers."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 4,
+      "is_final": true,
+      "instruction": "Email Dana the Q3 numbers.",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_email_extension",
+    "final_transcript": "Email Dana the Q3 numbers.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "Email Dana the Q3 numbers.",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "email",
+          "dana"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ],
+        "dispatch_only_on_final": true,
+        "instruction_contains": [
+          "q3",
+          "numbers"
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}
