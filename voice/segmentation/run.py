@@ -3,7 +3,8 @@
     python -m voice.segmentation.run --option a --mode stream            # live calls for uncached requests
     python -m voice.segmentation.run --option a --mode stream --offline  # recorded responses only
 
---option e is variant E (voice/segmentation/cursor.py) and runs streams only. --set heldout runs the held-out
+--option e is variant E (voice/segmentation/cursor.py) and --option h is the hybrid (voice/segmentation/hybrid.py).
+Both run streams only. --set heldout runs the held-out
 scenarios in scenarios_heldout/. --extra adds variant E's optional implicit and preemptive questions.
 
 --mode final runs only the final transcript of each scenario (the span-option comparison). --separate asks one
@@ -17,6 +18,7 @@ from pathlib import Path
 
 from voice.segmentation import client as api
 from voice.segmentation.cursor import CursorRunner
+from voice.segmentation.hybrid import HybridRunner
 from voice.segmentation.contract import Decisions, TranscriptUpdate, decision_request, parse_decisions
 from voice.segmentation.score import score
 from voice.segmentation.spans import (boundary_request, clause_segments, extracted_segments, extraction_request, fine_pieces,
@@ -141,12 +143,14 @@ def run_name(option, mode, separate, repeat, scenario_set="original", extra=Fals
 def make_runner(option, client, separate=False, repeat=None, extra=False):
     if option == "e":
         return CursorRunner(client, extra=extra, repeat=repeat)
+    if option == "h":
+        return HybridRunner(client)
     return Runner(option, client, separate, repeat)
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--option", choices="abce", required=True)
+    parser.add_argument("--option", choices="abceh", required=True)
     parser.add_argument("--mode", choices=["stream", "final"], required=True)
     parser.add_argument("--separate", action="store_true")
     parser.add_argument("--repeat", type=int)
