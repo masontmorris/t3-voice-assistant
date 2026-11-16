@@ -53,7 +53,8 @@ class RecallNoteTest(unittest.TestCase):
     def test_the_first_request_is_named_with_its_turn_number_and_the_persons_words(self):
         self.assertEqual(
             recall.recall_note("What was the first thing I asked you?", CALL),
-            recall.PREFIX + 'first request of this call, turn 2 of 4: "What time is it in Tokyo right now?"')
+            recall.PREFIX + 'earlier in this call, not a request now. the first request was turn 2 of 4, '
+                            '"What time is it in Tokyo right now?"')
 
     def test_the_most_recent_request_is_not_the_first(self):
         note = recall.recall_note("What did I ask just before this?", CALL)
@@ -62,16 +63,16 @@ class RecallNoteTest(unittest.TestCase):
         self.assertNotIn("Tokyo", note)
 
     def test_the_second_request_is_the_middle_one(self):
-        self.assertIn('turn 3 of 4: "What\'s the weather in Denver tomorrow?"',
+        self.assertIn('turn 3 of 4, "What\'s the weather in Denver tomorrow?"',
                       recall.recall_note("What was the second thing I asked?", CALL))
 
     def test_a_topic_names_the_most_recent_turn_that_says_it(self):
-        self.assertIn('turn 3 of 4: "What\'s the weather in Denver tomorrow?"',
+        self.assertIn('turn 3 of 4 said "What\'s the weather in Denver tomorrow?"',
                       recall.recall_note("Did I ask you about the weather in Denver?", CALL))
 
     def test_a_topic_the_call_never_said_says_so_and_lists_the_turns(self):
         note = recall.recall_note("Did I ask about Saturday?", CALL)
-        self.assertIn("nothing in this call mentions Saturday", note)
+        self.assertIn("no turn mentions Saturday", note)
         self.assertIn("turn 2", note)
         self.assertIn("Berlin", note)
 
@@ -89,5 +90,5 @@ class CallRecordTest(unittest.TestCase):
     def test_every_turn_is_numbered_oldest_first_in_plain_words(self):
         self.assertEqual(
             recall.call_record(("Hey, can you hear me?", "What time is it in Tokyo?")),
-            recall.PREFIX + 'earlier turns of this call, oldest first: turn 1: "Hey, can you hear me?"; '
+            recall.PREFIX + 'earlier turns of this call, already said, oldest first: turn 1: "Hey, can you hear me?"; '
                             'turn 2: "What time is it in Tokyo?"')

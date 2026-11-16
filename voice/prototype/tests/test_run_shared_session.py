@@ -195,7 +195,7 @@ class SnapshotPlacementTest(unittest.IsolatedAsyncioTestCase):
                          ["input_audio_buffer.append", "conversation.item.create", "conversation.item.create"],
                          "the note goes after the snapshot and after the audio")
         note = sent[2][1]["item"]["content"][0]["text"]
-        self.assertIn("first request of this call, turn 2 of 3", note)
+        self.assertIn("the first request was turn 2 of 3", note)
         self.assertIn("Tokyo", note)
 
     async def test_no_recall_note_when_the_question_is_not_about_the_call(self):

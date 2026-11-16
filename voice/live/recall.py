@@ -80,24 +80,29 @@ def recall_note(question, turns):
         found = [number for number, text in enumerate(turns, 1) if all(word in _tokens(text) for word in words)]
         if found:
             number = found[-1]
-            return PREFIX + f'earlier words about {topic}, turn {number} of {total}: "{turns[number - 1]}"'
+            return _frame(f'about {topic}, turn {number} of {total} said "{turns[number - 1]}"')
         listed = "; ".join(f'turn {number}: "{text}"' for number, text in enumerate(turns, 1))
-        return PREFIX + f"nothing in this call mentions {topic}. The earlier turns were {listed}."
+        return _frame(f"no turn mentions {topic}. The earlier turns were {listed}")
     asked = request_turns(turns)
     if not asked:
         return None
     if kind[0] == "first":
-        number, label = asked[0], "first request of this call"
+        number, label = asked[0], "the first request was"
     elif kind[0] == "last":
-        number, label = asked[-1], "most recent request of this call"
+        number, label = asked[-1], "the most recent request was"
     else:
         if kind[1] > len(asked):
             return None
-        number, label = asked[kind[1] - 1], f"request {_ordinal(kind[1])} of this call"
-    return PREFIX + f'{label}, turn {number} of {total}: "{turns[number - 1]}"'
+        number, label = asked[kind[1] - 1], f"request {_ordinal(kind[1])} was"
+    return _frame(f'{label} turn {number} of {total}, "{turns[number - 1]}"')
+
+
+def _frame(body):
+    """The one opening every note shares: the words are a record of an earlier turn, not a request to run now."""
+    return PREFIX + f"earlier in this call, not a request now. {body}"
 
 
 def call_record(turns):
     """Every earlier turn of the call, numbered oldest first, one line each, in plain words."""
     listed = "; ".join(f'turn {number}: "{text}"' for number, text in enumerate(turns, 1))
-    return PREFIX + f"earlier turns of this call, oldest first: {listed}"
+    return PREFIX + f"earlier turns of this call, already said, oldest first: {listed}"
