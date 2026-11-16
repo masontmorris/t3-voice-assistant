@@ -393,27 +393,36 @@ class FallbackAudioTest(unittest.TestCase):
     def test_no_rendered_clip_means_no_audio(self):
         with tempfile.TemporaryDirectory() as tmp:
             live = self.live(tmp)
-            live.fallback_error = "no TTS"
-            self.assertEqual(live.fallback_pcm(OUT_RATE), b"",
-                             "the turn still says the line in its record, but plays nothing")
+            for clip in (live.fallback, live.ask):
+                self.assertEqual(clip.pcm(OUT_RATE), b"",
+                                 "the turn still says the line in its record, but plays nothing")
 
     def test_a_rendered_clip_is_pcm_at_the_session_rate(self):
         from voice.live.tests.test_fallback import wav_bytes
         with tempfile.TemporaryDirectory() as tmp:
             live = self.live(tmp)
-            live.fallback_wav = wav_bytes(16_000, [0] * 1600)
-            self.assertEqual(len(live.fallback_pcm(OUT_RATE)) // 2, 2400)
-            self.assertEqual(live.fallback_pcm(OUT_RATE), live.fallback_pcm(OUT_RATE),
+            live.fallback.wav = wav_bytes(16_000, [0] * 1600)
+            self.assertEqual(len(live.fallback.pcm(OUT_RATE)) // 2, 2400)
+            self.assertEqual(live.fallback.pcm(OUT_RATE), live.fallback.pcm(OUT_RATE),
                              "one conversion per rate, kept for the call")
 
     def test_a_failed_render_is_reported_and_changes_nothing_else(self):
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch.object(server.fallback, "wav", side_effect=OSError("no TTS")):
                 live = self.live(tmp)
-                live.render_fallback()
-            self.assertEqual(live.fallback_wav, b"")
-            self.assertIn("no TTS", live.fallback_error)
-            self.assertEqual(live.fallback_pcm(OUT_RATE), b"")
+                live.render_lines()
+            for clip in (live.fallback, live.ask):
+                self.assertEqual(clip.wav, b"")
+                self.assertIn("no TTS", clip.error)
+                self.assertEqual(clip.pcm(OUT_RATE), b"")
+
+    def test_both_lines_are_rendered_in_the_servers_voice(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(server.fallback, "wav", side_effect=lambda url, line: line.encode()) as render:
+                self.live(tmp).render_lines()
+            self.assertEqual([call.args for call in render.call_args_list],
+                             [("http://127.0.0.1:8099", server.FALLBACK_LINE),
+                              ("http://127.0.0.1:8099", server.ASK_INSTEAD_LINE)])
 
 
 if __name__ == "__main__":

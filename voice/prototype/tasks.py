@@ -40,9 +40,10 @@ CANNED = [
     (("slides",), "Mock file search: found Quarterly_Review.pptx."),
 ]
 DEFAULT_RESULT = "Mock worker finished. No real work was done."
-ASK_WHAT_CHANGED = {"status": "needs_clarification",
-                    "ask": "The user says the last answer was not what they meant. Nothing new has started. Ask what "
-                           "they want changed."}
+# What a turn says to a correction that names no value. The voice model does not word this turn: given a note to
+# ask, it said "I need to know what information or details the user wants ..." (demo-corrections, turn 3).
+ASK_INSTEAD_LINE = "Sorry about that. What did you want instead?"
+ASK_WHAT_CHANGED = {"status": "needs_clarification", "assistant_said": ASK_INSTEAD_LINE}
 HUNG_LOOKUP_GRACE_S = 1.0
 
 

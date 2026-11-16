@@ -57,14 +57,14 @@ from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 
-from voice.live.facts import names_machinery, ungrounded
+from voice.live.facts import names_machinery, speaks_of_person, ungrounded
 from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.reuse import ReusingClient
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
-from voice.prototype.tasks import MockTaskService
+from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskService
 from voice.segmentation.contract import Intent
 from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
@@ -141,15 +141,15 @@ FACT_CHECK_PREFIX = "[fact check, machine-generated, not spoken by the user] "
 FACT_CHECK_REJECTED = {
     "type": "fact_check",
     "result": "rejected",
-    "reason": "the last reply named a day, date, time, number or place that nothing in this call said or stated, or "
-              "described this note instead of answering",
-    "instruction": "Answer again as yourself, using only what the person said or this note states. If you do not have "
-                   "a value, say plainly that you do not have it. Never guess one, and never talk about this note.",
+    "reason": "the last reply named a day, date, time, number or place that nothing in this call said or stated, "
+              "described this note instead of answering, or spoke of the person in the third person",
+    "instruction": "Answer again as yourself, to the person as you, using only what the person said or this note "
+                   "states. If you do not have a value, say plainly that you do not have it. Never guess one, and "
+                   "never talk about this note.",
 }
 # What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
 # no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
 FALLBACK_LINE = "Sorry, I can't confirm that right now."
-ASK_INSTEAD_LINE = "Sorry about that. What did you want instead?"
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -185,34 +185,43 @@ async def respond(session, rate, since, **response):
     return reply_summary(session, mark, since, rate)
 
 
+def refused(text, sources):
+    """Why a reply may not be spoken, by screen. Every list is empty for a reply that may."""
+    return {"ungrounded": [f"{fact.kind} {fact.surface}" for fact in ungrounded(text, sources)],
+            "machinery": names_machinery(text), "third_person": speaks_of_person(text)}
+
+
 async def answer(session, rate, since, sources, log, fallback=None, **response):
     """A reply that states only facts the call gave it, and never names the machinery.
 
     `sources` is what the assistant may say: the person's words in this call and the newest machine note, never its
-    own earlier replies. A reply that names a day, date, time, number or place no source states, or that talks about
-    the note, the check or the task list, is not spoken: the turn says so in the record, sends one machine note, and
-    asks again once. If the second answer is bad too, the turn speaks `fallback`'s one short line, and only if that
-    turn has not said it yet. Nothing is substituted for a wrong value, because a different wrong value is worse than
-    saying less."""
+    own earlier replies. A reply that names a day, date, time, number or place no source states, that talks about
+    the note, the check or the task list, or that speaks of the person in the third person ("the user wants"), is
+    not spoken: the turn says so in the record, sends one machine note, and asks again once. If the second answer is
+    bad too, the turn speaks `fallback`'s one short line, and only if that turn has not said it yet. Nothing is
+    substituted for a wrong value, because a different wrong value is worse than saying less."""
     reply, pcm = await respond(session, rate, since, **response)
-    missing, machinery = ungrounded(reply["text"], sources), names_machinery(reply["text"])
-    if not missing and not machinery:
+    if not any((found := refused(reply["text"], sources)).values()):
         return reply, pcm
-    log("fact_check", reply=reply["text"], ungrounded=[f"{fact.kind} {fact.surface}" for fact in missing],
-        machinery=machinery, asked_again=True)
+    log("fact_check", reply=reply["text"], **found, asked_again=True)
     await create_item(session, user_text(FACT_CHECK_PREFIX, FACT_CHECK_REJECTED))
     retry, retry_pcm = await respond(session, rate, since, **response)
-    again, again_machinery = ungrounded(retry["text"], sources), names_machinery(retry["text"])
-    if not again and not again_machinery:
+    if not any((again := refused(retry["text"], sources)).values()):
         return retry, retry_pcm
-    blocked = {"reply": retry["text"], "ungrounded": [f"{fact.kind} {fact.surface}" for fact in again],
-               "machinery": again_machinery}
+    blocked = {"reply": retry["text"], **again}
     log("fact_check", **blocked, blocked=True)
     if fallback is None or fallback.spoken:
         return {**retry, "text": "", "blocked": blocked}, b""
     fallback.spoken = True
     log("fallback", text=fallback.line, blocked=blocked)
     return {**retry, "text": fallback.line, "blocked": blocked, "fallback": True}, fallback.pcm
+
+
+def fixed_reply(line, pcm, rate, after_s):
+    """A reply the turn speaks without asking the voice model: `line` and its pre-rendered `pcm`. With no clip the
+    record still says the line, and nothing plays."""
+    return {"text": line, "status": "fixed", "fixed": True, "function_calls": [],
+            "first_audio_after_s": after_s if pcm else None, "speech_s": len(pcm) / 2 / rate, "done_at": None}
 
 
 async def create_item(session, item):
@@ -354,7 +363,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     client's copy. `prior_utterances` is what the person said earlier in the call, which the fact check needs because
     the shipped snapshot no longer carries their words. `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
-    `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it."""
+    `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
+    audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply."""
     t0 = time.perf_counter()
 
     def clock():
@@ -522,7 +532,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
             log("injection", items=injection)
             sources = [adapter.text(), *prior_utterances, read_before, item]
-            reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback)
+            if service.correction is ASK_WHAT_CHANGED:
+                reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
+            else:
+                reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback)
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             if reply_pcm:

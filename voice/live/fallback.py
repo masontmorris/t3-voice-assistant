@@ -1,4 +1,5 @@
-"""One short line rendered once in the server's own TTS voice, for a turn whose reply failed the fact check twice.
+"""Fixed lines rendered once in the server's own TTS voice: the line for a turn whose reply failed the fact check
+twice, and the question for a correction that names no value.
 
 The turn cannot speak the model's second answer: on the recorded demo it was "I do not have the information needed
 to answer the fact check.", which names the machinery and says nothing useful. It cannot ask a third time either,
@@ -44,6 +45,33 @@ def wav(server: str, line: str) -> bytes:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_bytes(blob)
     return blob
+
+
+class Clip:
+    """One fixed line, rendered before any client connects, as PCM at each session rate it is asked for. Empty when it
+    could not render, so a turn says the line in its record and plays nothing rather than another voice."""
+
+    def __init__(self, line: str):
+        self.line, self.wav, self.error, self.by_rate = line, b"", "not rendered yet", {}
+
+    def render(self, server: str):
+        try:
+            self.wav, self.error = wav(server, self.line), None
+        except (OSError, ValueError) as exc:
+            self.error = repr(exc)
+        print(f"fixed line {'ready' if self.wav else 'unavailable'}: {self.line!r}"
+              f"{'' if self.wav else f' ({self.error})'}", flush=True)
+
+    def pcm(self, rate: int) -> bytes:
+        """The clip at `rate`, converted once per rate. Empty when no clip was rendered."""
+        if not self.wav or not rate:
+            return b""
+        if rate not in self.by_rate:
+            try:
+                self.by_rate[rate] = pcm(self.wav, rate)
+            except (ValueError, EOFError) as exc:
+                self.error, self.by_rate[rate] = repr(exc), b""
+        return self.by_rate[rate]
 
 
 def pcm(blob: bytes, rate: int) -> bytes:

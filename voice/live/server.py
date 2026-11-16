@@ -38,11 +38,12 @@ same place with everything, "before-audio" the call's task state as the turn sta
 A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
 reply and asks whether the person said them in this call or the newest machine note states them; the assistant's own
 earlier replies do not count. A reply that fails is not sent: the turn says so in its record, sends one machine note
-that the value is not available, and asks again once. A reply that talks about the note, the check or the task list
-fails the same way. If the second answer is bad too, the turn says one short fixed line from
-`voice/prototype/run.py`'s `FALLBACK_LINE`, rendered once at startup in this server's own voice and kept under
-`$VOICE_HOME/live/`, and says it once a turn even when both the reply and the task update are lost. Nothing the model
-wrote on a failed turn reaches the speaker.
+that the value is not available, and asks again once. A reply that talks about the note, the check or the task list,
+or speaks of the person in the third person, fails the same way. If the second answer is bad too, the turn says one
+short fixed line from `voice/prototype/run.py`'s `FALLBACK_LINE`, rendered once at startup in this server's own voice
+and kept under `$VOICE_HOME/live/`, and says it once a turn even when both the reply and the task update are lost.
+Nothing the model wrote on a failed turn reaches the speaker. A correction that names no value gets the second fixed
+line, `ASK_INSTEAD_LINE`, rendered the same way, and the model writes nothing for that turn.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read again at each turn start. llama.cpp keeps
 a session's instructions once it holds a message, so a changed prompt starts a new voice session, seeded like a long
@@ -75,7 +76,7 @@ from voice.live import fallback
 from voice.live.endpoint import RATE, Audio, End, Endpointer, Settings, Start
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import FALLBACK_LINE, PERSONA, carried_tasks, run_clip, user_text
+from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, PERSONA, carried_tasks, run_clip, user_text
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -384,7 +385,8 @@ class Conversation:
                                     speak=lambda text, pcm: self.speak(turn, text, pcm),
                                     prior_utterances=tuple(turn_text["user"] for turn_text in self.call
                                                            if "user" in turn_text),
-                                    fallback_pcm=live.fallback_pcm(turn.out_rate), prior_tasks=tuple(self.tasks))
+                                    fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.tasks),
+                                    ask_pcm=live.ask.pcm(turn.out_rate))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -428,29 +430,12 @@ class Live:
                                  floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s)
         self.prompt_file, self.decider_lock = args.prompt, threading.Lock()
         self.active, self.turns = None, 0
-        self.fallback_wav, self.fallback_cache = b"", {}
-        self.fallback_error = "not rendered yet"
+        self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
 
-    def fallback_pcm(self, rate):
-        """`FALLBACK_LINE` as PCM at the session's rate, converted once per rate. Empty when no clip was rendered."""
-        if not self.fallback_wav or not rate:
-            return b""
-        if rate not in self.fallback_cache:
-            try:
-                self.fallback_cache[rate] = fallback.pcm(self.fallback_wav, rate)
-            except (ValueError, EOFError) as exc:
-                self.fallback_error, self.fallback_cache[rate] = repr(exc), b""
-        return self.fallback_cache[rate]
-
-    def render_fallback(self):
-        """Render the fallback line in the server's own TTS voice before any client connects, so no turn pays for it."""
-        try:
-            self.fallback_wav = fallback.wav(f"http://127.0.0.1:{self.args.lfm_port}", FALLBACK_LINE)
-            self.fallback_error = None
-        except (OSError, ValueError) as exc:
-            self.fallback_error = repr(exc)
-        print(f"fallback line {'ready' if self.fallback_wav else 'unavailable'}: {FALLBACK_LINE!r}"
-              f"{'' if self.fallback_wav else f' ({self.fallback_error})'}", flush=True)
+    def render_lines(self):
+        """Render the fixed lines in the server's own TTS voice before any client connects, so no turn pays for it."""
+        for clip in (self.fallback, self.ask):
+            clip.render(f"http://127.0.0.1:{self.args.lfm_port}")
 
     async def handler(self, ws):
         if self.active is not None:
@@ -491,7 +476,7 @@ async def main_async(args):
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
             print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
-            live.render_fallback()
+            live.render_lines()
             print(f"live server on ws://{host}:{args.port}, prompt: {prompt_source}, records: {out}", flush=True)
             await wait_for_stop(args.max_minutes, args.stop_file)
             if live.active is not None:

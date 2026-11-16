@@ -61,10 +61,23 @@ class Fact(NamedTuple):
     key: tuple
 
 
+# The person named in the third person. A reply that says one is talking about the person instead of to them.
+# Measured on demo-corrections turn 3: "I need to know what information or details the user wants ...".
+THIRD_PERSON = re.compile(
+    r"\bthe (?:user|person|caller|speaker|customer)\b"
+    r"|\b(?:they|he|she) (?:want|wants|wanted|mean|meant|asked|said|need|needs|would like|are asking|were asking)\b",
+    re.IGNORECASE)
+
+
 def names_machinery(text):
     """The machinery words `text` says, in the order they appear. Empty when it names none."""
     low = (text or "").lower()
     return [word for word in MACHINERY if word in low]
+
+
+def speaks_of_person(text):
+    """The words in `text` that speak of the person in the third person, lower case, in order. Empty when none."""
+    return [match.group(0).lower() for match in THIRD_PERSON.finditer(text or "")]
 
 
 def _strings(payload):

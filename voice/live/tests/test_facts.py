@@ -1,6 +1,6 @@
 import unittest
 
-from voice.live.facts import names_machinery, ungrounded
+from voice.live.facts import names_machinery, speaks_of_person, ungrounded
 
 # The three turns of the demo call in $VOICE_HOME/evidence/live/memory-20261116/ablation/demo-runC, text side only:
 # what the person said, the machine note the voice session received, and what the assistant said. Turn 3 is the
@@ -103,6 +103,17 @@ class MachineryTest(unittest.TestCase):
                       ""):
             with self.subTest(reply=reply):
                 self.assertEqual(names_machinery(reply), [])
+
+
+class ThirdPersonTest(unittest.TestCase):
+    def test_the_person_named_in_the_third_person(self):
+        self.assertEqual(speaks_of_person("I need to know what the user wants for Denver."), ["the user"])
+        self.assertEqual(speaks_of_person("The person asked about Saturday, and they meant Sunday."),
+                         ["the person", "they meant"])
+
+    def test_a_reply_to_the_person(self):
+        self.assertEqual(speaks_of_person("Sorry about that. What did you want instead?"), [])
+        self.assertEqual(speaks_of_person("Saturday looks sunny, with a high of 54."), [])
 
 
 if __name__ == "__main__":
