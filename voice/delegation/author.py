@@ -56,7 +56,9 @@ class AuthorReply:
 
 
 class Transport(Protocol):
+    """`setting` names any request option beyond the model, such as a reasoning effort. It keys the cache."""
     model: str
+    setting: str | None
 
     def send(self, request: AuthorRequest) -> AuthorReply: ...
 
@@ -100,7 +102,9 @@ class CachedAuthor:
 
     def write(self, request, label=""):
         """The cached record for this request, calling the transport at most once per distinct request."""
-        path = self.directory / f"draft-{request_hash(self.transport.model, request)}.json"
+        setting = getattr(self.transport, "setting", None)
+        key = self.transport.model if setting is None else f"{self.transport.model}|{setting}"
+        path = self.directory / f"draft-{request_hash(key, request)}.json"
         if path.exists():
             return json.loads(path.read_text(encoding="utf-8"))
         self.directory.mkdir(parents=True, exist_ok=True)
@@ -117,7 +121,8 @@ class CachedAuthor:
             self._last = time.monotonic()
             reply = self.transport.send(request)
             with self.ledger.open("a", encoding="utf-8") as ledger:
-                ledger.write(json.dumps({"label": label, "model": self.transport.model, "status": reply.status,
+                ledger.write(json.dumps({"label": label, "model": self.transport.model, "setting": setting,
+                                         "status": reply.status,
                                          "ms": round(reply.ms, 1), "usage": reply.usage, "error": reply.error}) + "\n")
             if limit_hit(reply):
                 raise AuthorStopped(f"status {reply.status} on {label}: {reply.error}")
@@ -129,7 +134,8 @@ class CachedAuthor:
                 continue
             self.pacer.on_success()
             break
-        record = {"label": label, "model": self.transport.model, "request": asdict(request), **asdict(reply)}
+        record = {"label": label, "model": self.transport.model, "setting": setting, "request": asdict(request),
+                  **asdict(reply)}
         if reply.status == 200:
             path.write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
         return record

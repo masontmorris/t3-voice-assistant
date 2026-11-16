@@ -234,6 +234,16 @@ class Cache(unittest.TestCase):
             with self.assertRaises(AuthorStopped):
                 author.write(self.request("look up something else"))
 
+    def test_a_reasoning_effort_adds_one_key_and_its_own_cache_entry(self):
+        self.assertEqual(sorted(set(body_for(self.request(), reasoning_effort="minimal")) - set(body_for(self.request()))),
+                         ["reasoning_effort"])
+        with tempfile.TemporaryDirectory() as d:
+            plain, minimal = FakeTransport([ok()]), FakeTransport([ok()])
+            minimal.setting = "reasoning_effort=minimal"
+            CachedAuthor(plain, d).write(self.request())
+            CachedAuthor(minimal, d).write(self.request())
+            self.assertEqual((plain.sent, minimal.sent), (1, 1))
+
     def test_the_command_code_body_has_no_reasoning_parameter(self):
         body = body_for(self.request())
         self.assertEqual(sorted(body), ["max_tokens", "messages", "model", "response_format", "temperature"])

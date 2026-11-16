@@ -131,7 +131,7 @@ def live(author, label, landed):
         landed.append({"label": record["label"], "instruction": source.instruction, "depends_on": source.depends_on,
                        "side_effect": source.side_effect, "status": record["status"], "ms": round(record["ms"], 1),
                        "served_model": record.get("served_model"), "finish_reason": record.get("finish_reason"),
-                       "usage": record.get("usage"), "meta": record.get("meta"),
+                       "usage": record.get("usage"), "meta": record.get("meta"), "setting": record.get("setting"),
                        "draft": draft and asdict(draft), "parse_problems": list(problems),
                        "wrapped": unwrap(record["content"]) is not record["content"]})
         return record["content"], record["ms"] / 1000
@@ -185,14 +185,15 @@ def run_clips(run_dir, latencies, author=None):
     return out
 
 
-def clip_author(model):
+def clip_author(model, reasoning_effort=None):
     """A Command Code author for clips. Its cache holds transcripts, so it lives under $VOICE_HOME, and it gets
     what is left of the shared budget after the repo's scenario ledger."""
     from voice.delegation.author import BUDGET
     from voice.delegation.commandcode import CommandCodeTransport
     from voice.prototype.report import VOICE_HOME
     used = len(CachedAuthor(CommandCodeTransport(model), CACHE)._attempts())
-    return CachedAuthor(CommandCodeTransport(model), VOICE_HOME / "evidence" / "prewrite" / "author-cache",
+    return CachedAuthor(CommandCodeTransport(model, reasoning_effort),
+                        VOICE_HOME / "evidence" / "prewrite" / "author-cache",
                         budget=BUDGET - used)
 
 
@@ -203,6 +204,7 @@ def main():
     parser.add_argument("--latency", type=float, nargs="+", default=[0.5])
     parser.add_argument("--author", choices=["stand-in", "commandcode"], default="stand-in")
     parser.add_argument("--model", default=None, help="Command Code model id")
+    parser.add_argument("--reasoning-effort", default=None, help="sent as reasoning_effort; omitted when unset")
     parser.add_argument("--only", nargs="*", help="scenario ids to replay")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
@@ -210,7 +212,7 @@ def main():
         author = None
         if args.author == "commandcode":
             from voice.delegation.commandcode import MODEL, CommandCodeTransport
-            author = CachedAuthor(CommandCodeTransport(args.model or MODEL), CACHE)
+            author = CachedAuthor(CommandCodeTransport(args.model or MODEL, args.reasoning_effort), CACHE)
         result = run_scenarios(args.latency[0], author, args.only)
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
@@ -219,7 +221,7 @@ def main():
         author = None
         if args.author == "commandcode":
             from voice.delegation.commandcode import MODEL
-            author = clip_author(args.model or MODEL)
+            author = clip_author(args.model or MODEL, args.reasoning_effort)
         result = run_clips(args.run, args.latency, author)
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "prewrite-replay.json").write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")

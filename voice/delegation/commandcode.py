@@ -1,6 +1,7 @@
 """The Command Code transport: DeepSeek V4.1 Flash through Command Code's OpenAI-compatible API.
 
-The request carries no reasoning parameter, so the model runs on its default reasoning. The key file's path comes
+By default the request carries no reasoning parameter, so the model runs on its default reasoning. A transport
+made with `reasoning_effort` adds that one key to the body. The key file's path comes
 from VOICE_AUTHOR_KEY_FILE. The file is read at each send and the key goes only into the Authorization header.
 """
 
@@ -35,9 +36,10 @@ def _key():
     return key
 
 
-def body_for(request, model=MODEL):
+def body_for(request, model=MODEL, reasoning_effort=None):
     """The JSON body sent to Command Code. It is recorded in the cache as sent, and it never holds the key."""
-    return {"model": model, "max_tokens": request.max_tokens, "temperature": request.temperature,
+    effort = {} if reasoning_effort is None else {"reasoning_effort": reasoning_effort}
+    return {**effort, "model": model, "max_tokens": request.max_tokens, "temperature": request.temperature,
             "messages": [{"role": "system", "content": request.system}, {"role": "user", "content": request.user}],
             "response_format": {"type": "json_schema",
                                 "json_schema": {"name": DRAFT_NAME, "strict": True, "schema": request.schema}}}
@@ -57,8 +59,9 @@ def _content(body):
 
 
 class CommandCodeTransport:
-    def __init__(self, model=MODEL):
-        self.model = model
+    def __init__(self, model=MODEL, reasoning_effort=None):
+        self.model, self.reasoning_effort = model, reasoning_effort
+        self.setting = None if reasoning_effort is None else f"reasoning_effort={reasoning_effort}"
         self._conn = None
 
     def _connection(self):
@@ -67,7 +70,7 @@ class CommandCodeTransport:
         return self._conn
 
     def send(self, request):
-        sent = body_for(request, self.model)
+        sent = body_for(request, self.model, self.reasoning_effort)
         headers = {"Authorization": f"Bearer {_key()}", "Content-Type": "application/json"}
         started = time.perf_counter()
         try:

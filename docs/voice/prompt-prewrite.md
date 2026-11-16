@@ -1,14 +1,16 @@
 # Prompt pre-writing: drafts that are ready at dispatch
 
-Measured on 2026-11-16 from committed decider responses, from 84 live calls to DeepSeek V4.1 Flash through Command Code, and from the live timeline of the hybrid's prototype run on Mason's ten clips. Each claim says whether it is measured, inferred, or a guess.
+Measured on 2026-11-16 from committed decider responses, from 123 live calls to DeepSeek V4.1 Flash through Command Code, and from the live timeline of the hybrid's prototype run on Mason's ten clips. Each claim says whether it is measured, inferred, or a guess.
 
 `voice/delegation/` drafts the prompt that each task's frontier agent will receive while the user is still speaking. The hybrid segmenter's per-segment completion answer starts the draft.
 
 Only `deepseek/deepseek-v4.1-flash-ultrafast` is fast enough to get ahead of dispatch. Its median draft took 0.80 s and its p95 took 1.12 s. `-fast` took 4.09 s and 8.64 s, and default reasoning took 7.57 s and 11.99 s (measured, 22 matched drafts each). On Mason's clips, 5 of the 9 dispatched tasks complete 0.67 s to 2.49 s before dispatch (measured). With each draft landing after its own measured latency, ultrafast had all 5 drafts in hand at dispatch, and the other two settings had none (measured). Draft quality was about the same across the three. Default, `-fast`, and `-ultrafast` asked for exactly the span in 10, 11, and 11 of the 15 matched scenario drafts, and in all 7 clip drafts each (hand-checked). Each faster setting produced one draft that added an outside action, and `check` rejected both.
 
+A second race turned reasoning off. Command Code rejects `reasoning_effort: "minimal"` and accepts `off`, `low`, `medium`, `high`, `xhigh`, and `max` (measured, HTTP 400 on all three ids). With `off`, ultrafast's median draft took 0.52 s and its p95 took 0.70 s, against 0.88 s and 1.12 s on its default reasoning (measured, the same 12 drafts). Default and `-fast` with reasoning off took 1.99 s and 1.67 s medians, which is still too slow for 4 of the 5 early clip tasks (measured).
+
 ## Recommendation
 
-- Use `deepseek/deepseek-v4.1-flash-ultrafast` as the author. It is the only setting whose drafts land inside the lead the clips give, and its drafts were as faithful as default reasoning's on this sample (measured, small sample: 15 scenario and 7 clip drafts per model).
+- Use `deepseek/deepseek-v4.1-flash-ultrafast` with `reasoning_effort: "off"` as the author. It was the fastest setting tested, with a slowest draft of 0.96 s. Every early clip draft was in hand at dispatch, and its drafts were as faithful as the other settings' (measured, small sample: 5 scenario and 7 clip drafts). On its default reasoning, ultrafast also had every early clip draft in time, so either ultrafast setting works on these clips. Reasoning off leaves more margin under the 0.67 s tightest lead (measured, 0.47 s against 0.64 s on that clip).
 - Dispatch with the raw span when no current draft exists, and do not hold for a draft. 4 of the 9 clip tasks complete only at their dispatch point, so no author helps those (measured). `Prewriter.dispatch` already sends the raw span.
 - Fix `check` before it gates anything. It rejected both drafts that added an outside action. It also rejected 2 of ultrafast's 5 in-time clip drafts, and both of those were faithful (measured). The false rejections come from word-prefix matches: "in the order given" reads as a purchase, "what is scheduled" as a booking, and "(e.g., booking)" inside a confirmation constraint as an added booking. The next thing to try is to scan only the affirmed instruction and success criteria. That would have kept both catches here (inferred, not run, because it would be tuned on this same sample).
 - Change the author prompt before a wider run. Tell it not to restate other requests and not to write prohibitions. Every setting folded a neighboring request's read-only work into 3 to 5 of the 15 matched scenario drafts (measured).
@@ -53,7 +55,7 @@ The draft is untrusted model output. Deterministic code reads it at two points.
 - A stop when more than 20% of attempts draw a 429, after at least 5 attempts.
 - A stop on HTTP 402, or on any error that mentions a usage limit, a quota, billing, credit, payment, or the subscription.
 
-`voice/delegation/commandcode.py` is the Command Code transport. It posts to `https://api.commandcode.ai/provider/v1/chat/completions` with the model `deepseek/deepseek-v4.1-flash`. It reads the key at each send from the file that `VOICE_AUTHOR_KEY_FILE` names, and puts it only in the Authorization header. The body it sends has exactly five keys: `model`, `max_tokens`, `temperature`, `messages`, and `response_format` (measured, from the `sent` field of every cache record). It carries no reasoning parameter, so the model runs on its default reasoning. A test pins that key set.
+`voice/delegation/commandcode.py` is the Command Code transport. It posts to `https://api.commandcode.ai/provider/v1/chat/completions` with the model `deepseek/deepseek-v4.1-flash`. It reads the key at each send from the file that `VOICE_AUTHOR_KEY_FILE` names, and puts it only in the Authorization header. By default the body it sends has exactly five keys: `model`, `max_tokens`, `temperature`, `messages`, and `response_format` (measured, from the `sent` field of every default-reasoning cache record). It carries no reasoning parameter, so the model runs on its default reasoning. `CommandCodeTransport(model, reasoning_effort="off")` adds `reasoning_effort` as a sixth key and nothing else. The cache keys on that setting, so an answer from one reasoning setting is never reused for another. Tests pin both key sets.
 
 `max_tokens` is 4096. The first call used 600, and default reasoning spent 539 of them before the answer, so the reply came back cut off with no draft (measured, one call).
 
@@ -95,6 +97,41 @@ These are the two drafts that added an outside action.
 On the clips, ultrafast's 5 early drafts all landed before dispatch. The tightest was `09_run_on`, with a 0.67 s lead. `check` rejected 2 of the 5, in `08_cancel` and `09_run_on`, and both drafts were faithful (hand-checked). So 3 dispatched with their drafts.
 
 This is one run per request, on 15 scenario and 7 clip requests. Ultrafast's slowest draft (2.04 s) was faster than the default's median, so the latency ranking is unlikely to reverse on a rerun (inferred). The quality counts differ by one draft, which this sample cannot separate (inferred).
+
+## Reasoning off: a drag race
+
+Mason asked for a super small drag race on minimal reasoning.
+
+### What Command Code accepts
+
+Each id first got one request with `"reasoning_effort": "minimal"` added to the body. All three answered HTTP 400 with `Invalid option: expected one of "off"|"low"|"medium"|"high"|"xhigh"|"max"` and `param` `reasoning_effort` (measured). So `minimal` is not an option, and `off` is the lowest value Command Code accepts.
+
+The same request then went out with `"reasoning_effort": "off"`. The body was the five default keys plus `reasoning_effort` (measured, from the `sent` field). All three ids answered HTTP 200 with 0 reasoning tokens. On their defaults, the same request had used 860, 254, and 156 reasoning tokens for default, `-fast`, and `-ultrafast` (measured). So Command Code honors the setting on every id, and none of them ignored it.
+
+### The race
+
+The race used 12 draft requests per setting. 5 came from `10_side_effect_email` and `post_and_read`, the two scenarios where a faster setting had added an outside action. The other 7 came from Mason's clips, where each draft lands after its own measured latency. The baseline is ultrafast on its default reasoning, using the cached answers to the same 12 requests from the matched test above. `voice/delegation/results/race-off-<model>.json` holds the scenario drafts. The clip drafts stay under `$VOICE_HOME/evidence/prewrite/`.
+
+| Measurement, 12 drafts each | Ultrafast, default | Default id, off | `-fast`, off | `-ultrafast`, off |
+| --- | --- | --- | --- | --- |
+| Median latency | 0.88 s | 1.99 s | 1.67 s | 0.52 s |
+| p95 latency (nearest rank) | 1.12 s | 2.31 s | 1.95 s | 0.70 s |
+| Range | 0.51 s to 2.04 s | 1.59 s to 2.56 s | 1.30 s to 2.09 s | 0.34 s to 0.96 s |
+| Median reasoning tokens | 154 | 0 | 0 | 0 |
+| Clip tasks with the draft in hand at dispatch | 5 of 5 | 1 of 5 | 1 of 5 | 5 of 5 |
+| Clip tasks dispatched with the draft | 3 of 9 | 1 of 9 | 1 of 9 | 4 of 9 |
+| Scenario drafts that ask for exactly the span | 3 of 5 | 4 of 5 | 2 of 5 | 3 of 5 |
+| Scenario drafts that add an outside action | 1 | 0 | 2 | 1 |
+| Clip drafts that ask for exactly the span | 7 of 7 | 7 of 7 | 7 of 7 | 7 of 7 |
+| Drafts `check` rejected | 5 of 12 | 3 of 12 | 4 of 12 | 4 of 12 |
+
+All 36 race answers returned HTTP 200 with `finish_reason` `stop`, and every one parsed (measured).
+
+Turning reasoning off cut each id's latency. The default id went from 7.57 s to 1.99 s and `-fast` from 4.09 s to 1.67 s (medians). Those drafts still landed in time only for the clip task with the longest lead, `03_dependent` at 2.48 s. Ultrafast with reasoning off was ready for all 5 early clip tasks, including `09_run_on`, where the lead is 0.67 s and the draft took 0.47 s (measured).
+
+Turning reasoning off did not make the drafts worse in this sample. Every setting folded the gallery date lookup into "and post the message gallery opens soon" (measured). The outside-action additions moved around between settings. Ultrafast added an email to the room check on its default reasoning, and with reasoning off it added the post to "find the gallery opening date" instead. `check` rejected all 4 such drafts in the table (measured). With 5 scenario drafts per setting, a difference of one or two drafts is noise (inferred).
+
+The extra clip dispatch for ultrafast with reasoning off came from `08_cancel`. On its default reasoning, ultrafast had written "report what is scheduled", which `check` misread as a booking. With reasoning off it wrote "Check the user's calendar for Friday" and passed (measured). Both drafts ask for the same thing, so this is the check's false rejection, not a quality gap (hand-checked).
 
 ## Live drafts on the scenarios
 
@@ -175,7 +212,7 @@ This change does not touch `voice/prototype/`. Two hooks would connect it, both 
 
 ## Calls and cost
 
-This branch made 84 calls to Command Code, all HTTP 200, with no 429, no 402, and no limit message (measured). That is 84 of the 150-call cap. `voice/delegation/cache/calls.jsonl` holds the 63 scenario calls: the 600-token test call, 32 default drafts, and 15 drafts each for `-fast` and `-ultrafast`. The ledger under `$VOICE_HOME/evidence/prewrite/author-cache/` holds the 21 clip calls, 7 per model. No Flint call ran, through OpenRouter or any route. The replays made no decider call. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
+This branch made 123 calls to Command Code, with no 429, no 402, and no limit message (measured). That is 123 of the 150-call cap. 120 returned HTTP 200, and 3 were the HTTP 400 answers to `minimal`. `voice/delegation/cache/calls.jsonl` holds the 81 scenario calls: the 600-token test call, 32 default drafts, 15 drafts each for `-fast` and `-ultrafast`, the 3 `minimal` probes, and 5 drafts per id with reasoning off. The ledger under `$VOICE_HOME/evidence/prewrite/author-cache/` holds the 42 clip calls: 7 per id on its default reasoning and 7 per id with reasoning off. No Flint call ran, through OpenRouter or any route. The replays made no decider call. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
 
 ## Limits
 
@@ -184,3 +221,4 @@ This branch made 84 calls to Command Code, all HTTP 200, with no 429, no 402, an
 - The negation fix to `check` was chosen on the same 31 drafts it is scored on.
 - Draft quality on real speech rests on 7 clip requests per model.
 - The faster settings ran on 15 of the 33 scenario requests, chosen to cover each kind of task and most of default reasoning's scope additions.
+- The reasoning-off race ran on 5 scenario and 7 clip requests per id, with one run each. `low` and the higher efforts were not tested.
