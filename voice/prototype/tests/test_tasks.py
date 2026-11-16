@@ -138,15 +138,34 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual((snapshot["type"], snapshot["conversation_id"], snapshot["final_transcript"]),
                          ("utterance_snapshot", "conv_test", "the transcript"))
 
-    def test_corrected_tasks_are_left_out_and_the_correction_is_reported(self):
+    def test_a_corrected_task_is_listed_as_cancelled_so_the_voice_can_amend_it(self):
         segmenter = ScriptedSegmenter()
         segmenter.step(1, "Set a reminder for Tuesday at three, no wait, make it Wednesday.", final=True,
                        s1={"side_effect": True}, s2={"kind": "correction", "corrects": "replace_s1"})
         service = MockTaskService(segmenter, "conv_test")
         service.sync(now=0.0)
-        tasks = service.snapshot("utt_1", "")["tasks"]
-        self.assertEqual([(t["task_id"], t["status"]) for t in tasks], [("task_2", "held_for_confirmation")])
-        self.assertIn("make it Wednesday", tasks[0]["description"])
+        tasks = service.snapshot("utt_1", "", notes=True)["tasks"]
+        self.assertEqual([(t["task_id"], t["status"]) for t in tasks],
+                         [("task_1", "cancelled"), ("task_2", "held_for_confirmation")])
+        self.assertIn("amend_task can revive it", tasks[0]["note"])
+        self.assertIn("make it Wednesday", tasks[1]["description"])
+        result, _ = service.call_tool("amend_task", {"task_id": "task_1", "new_request": "make it Thursday"},
+                                      None, 1.0)
+        revived = next(t for t in segmenter.records() if t["task_id"] == result["task_id"])
+        self.assertEqual((result["replaces"], revived["revises"], revived["status"]),
+                         ("task_2", "task_2", "dispatched"))
+
+    def test_a_task_the_utterance_took_back_is_listed_as_cancelled(self):
+        segmenter = ScriptedSegmenter()
+        segmenter.step(1, "Check my calendar for Friday and text Sam, I'm running late. Actually, never mind the text.",
+                       final=True, s1={}, s2={"side_effect": True},
+                       s3={"kind": "correction", "corrects": "cancel_s2"})
+        service = MockTaskService(segmenter, "conv_test")
+        service.sync(now=0.0)
+        tasks = service.snapshot("utt_1", "", notes=True)["tasks"]
+        self.assertEqual([(t["task_id"], t["status"]) for t in tasks],
+                         [("task_1", "running"), ("task_2", "cancelled")])
+        self.assertIn("amend_task can revive it", tasks[1]["note"])
 
     def test_the_builder_reports_only_what_the_records_say(self):
         records = [{"task_id": "task_1", "status": "proposed", "instruction": "look it up", "depends_on": []}]
@@ -167,9 +186,9 @@ class HandoffToolsTest(unittest.TestCase):
                                          "email Dana the notes", 10.0)
         unflagged, _ = self.service.call_tool("delegate", {"instruction": "post the photo"}, "post the photo", 10.0)
         states = {k: v.state.value for k, v in self.service.executions.items()}
-        self.assertEqual(states[read["task_id"]], "running")
-        self.assertEqual(states[send["task_id"]], "held_for_confirmation")
-        self.assertEqual(states[unflagged["task_id"]], "held_for_confirmation")
+        self.assertEqual(states[read["task_ids"][0]], "running")
+        self.assertEqual(states[send["task_ids"][0]], "held_for_confirmation")
+        self.assertEqual(states[unflagged["task_ids"][0]], "held_for_confirmation")
 
     def test_a_completed_task_cannot_be_cancelled(self):
         self.service.poll(now=14.0)

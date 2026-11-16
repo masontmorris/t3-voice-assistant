@@ -46,7 +46,7 @@ The hybrid's stability rule still applies before the gate. A side-effect piece c
 
 There is no decider call, and no step settles tasks. `HybridSegmenter.close(..., settle=False)` only records that the utterance ended and works out the words no decision point read. A text-only LFM3 session then gets a snapshot that holds:
 
-- every task with its `task_id` and status;
+- every task with its `task_id` and status, including a task the utterance took back, shown as `cancelled` so the voice model can amend one;
 - a `note` on each task that has not run, saying why: the gate's weakest answer and its score, or that it was not ready yet;
 - `unreviewed_speech`, the words no decision point read.
 
@@ -92,7 +92,7 @@ These are the expected tasks that `decider` got right and `gated` did not (measu
 
 ### What I would change
 
-Each fix is an inference. None of them has run.
+Each fix is an inference. Two of them, plus the take-back visibility for 08, are implemented on `voice/gate-fixes`, stacked on the update backlog branch. No run has measured them yet; the doc for that branch lists the commands.
 
 - **Run waiting tasks that a delegate covers.** LFM3-Audio-2B tends to re-delegate the whole utterance instead of calling `run_task` on the tasks already listed. That happened on 05, 09, and `long`. The dedup rule could link a combined delegate to every waiting task whose words it covers, and run each of them. That would address those three clips and 03.
 - **Show tasks a correction withdrew.** If the snapshot listed them as `cancelled`, and `amend_task` could revive one, LFM3 could link a correction to the task it fixes. That would fix 04 and `correction`.
@@ -171,7 +171,7 @@ A third, text-only LFM3 session on the same `llama-server` (`-np 3`) gets the sn
 | --- | --- |
 | `delegate(instruction, side_effect)` | Reconciles it with the live tasks by the rule below. A new read-only task runs. A new side-effect task, or one with no flag, is held. |
 | `cancel_task(task_id)` | Withdraws an undispatched task or cancels a dispatched one. It refuses an unknown id, a task that is already superseded, withdrawn, or cancelled, and a task whose run has completed. |
-| `amend_task(task_id, new_request)` | Supersedes or cancels the task and makes a new one that revises it, with the instruction "old (corrected: new)". A completed task keeps its result. It refuses the same cases as `cancel_task`, except completion. |
+| `amend_task(task_id, new_request)` | Supersedes or cancels the task and makes a new one that revises it, with the instruction "old (corrected: new)". A completed task keeps its result. It also revives a task the decider withdrew, and amends the newest successor of a superseded one, which is how a correction made during speech gets linked to the words that replaced it. It refuses an unknown id and a task that is already cancelled. |
 
 A tool call is a request. `MockTaskService.call_tool` checks it and returns what happened. The voice session then hears the updated snapshot as prefixed user text, which is injection method (c) from PR #5, and it replies. The voice session never makes a tool call of its own.
 

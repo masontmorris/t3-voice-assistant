@@ -68,28 +68,62 @@ class VoiceTools(unittest.TestCase):
     def test_a_delegate_that_restates_a_task_links_to_it(self):
         orch = orchestrator_with(("Find last week's sales report", False))
         result = orch.delegate_from_voice("Find the sales report from last week", False, "and email it to Dana")
-        self.assertEqual(result["duplicate_of"], "task_1")
+        self.assertEqual(result["duplicate_of"], ["task_1"])
         self.assertEqual(len(orch.tasks), 1)
         self.assertEqual(orch.tasks["task_1"].sources, {"orchestrator", "lfm"})
 
-    def test_a_delegate_that_brings_words_from_the_unreviewed_tail_is_a_new_task(self):
+    def test_a_delegate_that_restates_two_tasks_links_to_both_and_runs_them(self):
+        orch = Orchestrator()
+        dad = orch._new_task("tell my dad I'm home", 0, {"orchestrator"}, side_effect=True)
+        lights = orch._new_task("turn the lights on", 0, {"orchestrator"}, side_effect=True)
+        result = orch.delegate_from_voice("Tell my dad I'm home, then turn the lights on", True, None, run_linked=True)
+        self.assertEqual(result["task_ids"], [dad.task_id, lights.task_id])
+        self.assertEqual(result["duplicate_of"], [dad.task_id, lights.task_id])
+        self.assertEqual((dad.status, lights.status), (Status.DISPATCHED, Status.DISPATCHED))
+        self.assertEqual(len(orch.tasks), 2)
+
+    def test_a_delegate_that_covers_a_task_and_brings_tail_words_makes_one_task_for_the_tail(self):
+        orch = Orchestrator()
+        milk = orch._new_task("Add milk to the shopping list.", 0, {"orchestrator"}, side_effect=True)
+        result = orch.delegate_from_voice("Add milk to the shopping list. Oh, and how long is the drive to Boulder?",
+                                          True, "drive to Boulder?", run_linked=True)
+        self.assertEqual(result["duplicate_of"], [milk.task_id])
+        self.assertEqual(milk.status, Status.DISPATCHED)
+        tail = orch.tasks[result["task_ids"][-1]]
+        self.assertEqual((tail.instruction, tail.status), ("drive to Boulder?", Status.DISPATCHED))
+
+    def test_a_delegate_that_covers_no_task_makes_one_new_task(self):
         orch = orchestrator_with(("Find last week's sales report", False))
-        result = orch.delegate_from_voice("Find last week's sales report and email it to Dana", False,
-                                          "and email it to Dana")
-        self.assertNotIn("duplicate_of", result)
-        self.assertEqual(orch.tasks[result["task_id"]].status, Status.DISPATCHED)
+        result = orch.delegate_from_voice("Book the cheapest flight to Chicago", False, "flight to Chicago")
+        self.assertEqual(result["duplicate_of"], [])
+        self.assertEqual(orch.tasks[result["task_ids"][0]].instruction, "Book the cheapest flight to Chicago")
+        self.assertEqual(orch.tasks[result["task_ids"][0]].status, Status.DISPATCHED)
+
+    def test_a_delegate_that_changes_the_request_does_not_link_to_the_task(self):
+        orch = orchestrator_with(("find the report", False))
+        result = orch.delegate_from_voice("delete the report", False, None)
+        self.assertEqual(result["duplicate_of"], [])
+        self.assertEqual(len(orch.tasks), 2)
 
     def test_a_delegate_that_claims_a_side_effect_the_task_lacks_is_not_a_duplicate(self):
         orch = orchestrator_with(("find the sales report", False))
         result = orch.delegate_from_voice("delete the sales report", True, None)
-        self.assertNotIn("duplicate_of", result)
-        self.assertTrue(orch.tasks[result["task_id"]].side_effect)
+        self.assertEqual(result["duplicate_of"], [])
+        self.assertTrue(orch.tasks[result["task_ids"][0]].side_effect)
 
     def test_a_read_only_claim_about_a_side_effect_task_links_and_keeps_the_hold(self):
         orch = orchestrator_with(("remind me at 3 to call the dentist", True))
         result = orch.delegate_from_voice("Remind me at 3 o'clock to call the dentist", False, None)
-        self.assertEqual(result["duplicate_of"], "task_1")
+        self.assertEqual(result["duplicate_of"], ["task_1"])
         self.assertTrue(orch.tasks["task_1"].side_effect)
+
+    def test_a_read_only_delegate_does_not_run_a_side_effect_task_it_links(self):
+        orch = Orchestrator()
+        reminder = orch._new_task("remind me at 3 to call the dentist", 0, {"orchestrator"}, side_effect=True)
+        orch._move(reminder, Status.HELD, "test")
+        orch.delegate_from_voice("Remind me at 3 o'clock to call the dentist", False, None, run_linked=True)
+        self.assertEqual(reminder.status, Status.HELD)
+        self.assertEqual(orch.dispatch_log, [])
 
     def test_cancel_withdraws_an_undispatched_task_and_cancels_a_dispatched_one(self):
         orch = orchestrator_with(("find the sales report", False))
@@ -109,7 +143,26 @@ class VoiceTools(unittest.TestCase):
         new = orch.tasks[result["task_id"]]
         self.assertEqual((old.status, new.revises, new.side_effect), (Status.SUPERSEDED, old.task_id, True))
         self.assertEqual(new.instruction, "set a reminder for tuesday (corrected: make it wednesday)")
-        self.assertFalse(orch.amend_from_voice(old.task_id, "make it thursday")["ok"])
+        self.assertEqual(orch.amend_from_voice("task_9", "make it thursday")["ok"], False)
+
+    def test_amend_of_a_superseded_task_amends_its_newest_successor(self):
+        orch = Orchestrator()
+        old = orch._new_task("set a reminder for tuesday", 0, {"orchestrator"}, side_effect=True)
+        orch._move(old, Status.HELD, "test")
+        first = orch.amend_from_voice(old.task_id, "make it wednesday")
+        second = orch.amend_from_voice(old.task_id, "make it thursday")
+        self.assertEqual(second["replaces"], first["task_id"])
+        self.assertEqual(orch.tasks[second["task_id"]].revises, first["task_id"])
+
+    def test_amend_revives_a_task_the_decider_withdrew(self):
+        orch = Orchestrator()
+        old = orch._new_task("set a reminder for tuesday", 0, {"orchestrator"}, side_effect=True)
+        orch._move(old, Status.WITHDRAWN, "corrected by segment \"make it wednesday\"")
+        result = orch.amend_from_voice(old.task_id, "make it wednesday")
+        new = orch.tasks[result["task_id"]]
+        self.assertTrue(result["ok"])
+        self.assertEqual((old.status, new.revises, new.status), (Status.WITHDRAWN, old.task_id, Status.DISPATCHED))
+        self.assertEqual(new.instruction, "set a reminder for tuesday (corrected: make it wednesday)")
 
 
 def gated(decider, gate=Gate(0.4, 0.9)):

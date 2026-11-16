@@ -211,31 +211,33 @@ class Orchestrator:
     def delegate_from_voice(self, instruction, side_effect, tail, run_linked=False):
         """The voice model's delegate call after `close`, reconciled in code.
 
-        It duplicates a live task when the two share at least 60% of the shorter one's content words, it brings no
-        content word from the unreviewed tail that the task lacks, and it does not claim a side effect the task lacks.
-        So "delete the report" never links to "find the report", while a read-only claim about a side-effect task
-        links and leaves its hold in place. A duplicate links to that task. With `run_linked`, a linked task that has
-        not run dispatches, because the voice model asked for it. Anything else becomes a new task and dispatches;
-        the task service holds it if it is a side effect and the service holds side effects."""
+        It links to every live task whose content words the delegate covers at 60% and whose side effect it does not
+        contradict, so a re-delegation of the whole utterance uses the task ids already listed instead of making one
+        combined duplicate. "delete the report" still never links to "find the report", and a read-only claim about a
+        side-effect task links and leaves its hold in place, so it never runs one. With `run_linked`, a linked task
+        that has not run dispatches, because the voice model asked for it. Content words the delegate brings from the
+        unreviewed tail that no linked task covers become one new task for the tail, so the words no decision point
+        read are not dropped. A delegate that covers no task becomes one new task, as before."""
         words, tail_words = content_words(instruction), content_words(tail)
-        best = None
-        for task in self.tasks.values():
-            theirs = content_words(task.instruction)
-            if task.status not in LIVE or (side_effect and not task.side_effect) or (words & tail_words) - theirs:
-                continue
-            share = overlap(words, theirs)
-            if share >= MATCH_THRESHOLD and (best is None or share > best[0]):
-                best = (share, task)
-        if best is not None:
-            task = best[1]
+        linked = [t for t in self.tasks.values()
+                  if t.status in LIVE and not (side_effect and not t.side_effect)
+                  and overlap(words, content_words(t.instruction)) >= MATCH_THRESHOLD]
+        if not linked:
+            task = self._new_task(instruction, None, {"lfm"}, side_effect=side_effect)
+            self._move(task, Status.DISPATCHED, "voice model delegated it")
+            return {"ok": True, "task_ids": [task.task_id], "duplicate_of": []}
+        covered = set().union(*(content_words(t.instruction) for t in linked))
+        for task in linked:
             task.sources.add("lfm")
             self._log(task, "linked_voice_delegate", instruction=instruction)
-            if run_linked and task.status in UNDISPATCHED:
+            if run_linked and task.status in UNDISPATCHED and (not task.side_effect or side_effect):
                 self._move(task, Status.DISPATCHED, "voice model delegated it")
-            return {"ok": True, "task_id": task.task_id, "duplicate_of": task.task_id}
-        task = self._new_task(instruction, None, {"lfm"}, side_effect=side_effect)
-        self._move(task, Status.DISPATCHED, "voice model delegated it")
-        return {"ok": True, "task_id": task.task_id}
+        ids = [t.task_id for t in linked]
+        if (words & tail_words) - covered:
+            new = self._new_task(tail.strip(), None, {"lfm"}, side_effect=side_effect)
+            self._move(new, Status.DISPATCHED, "voice model delegated the words no task covered")
+            ids.append(new.task_id)
+        return {"ok": True, "task_ids": ids, "duplicate_of": [t.task_id for t in linked]}
 
     def run_from_voice(self, task_id):
         """The voice model's run_task call: a task that has not run dispatches now."""
@@ -262,15 +264,20 @@ class Orchestrator:
 
     def amend_from_voice(self, task_id, request, finished=False):
         """The voice model's amend_task call. A new task revises the old one, which is superseded or cancelled.
-        A `finished` task keeps its result, and the new task runs beside it."""
+        A `finished` task keeps its result, and the new task runs beside it. A task the decider withdrew during
+        speech can be amended, and so can a superseded one, which amends its newest successor: that is how a
+        correction made before the end of the utterance gets linked to the words that replaced it."""
         task = self.tasks.get(task_id)
         if task is None:
             return {"ok": False, "error": f"no task {task_id}"}
-        if task.status not in LIVE:
+        if task.status == Status.SUPERSEDED:
+            task_id = self._successor(task_id)
+            task = self.tasks[task_id]
+        if task.status not in LIVE | {Status.WITHDRAWN}:
             return {"ok": False, "error": f"{task_id} is already {task.status.value}"}
         if task.status in UNDISPATCHED:
             self._move(task, Status.SUPERSEDED, "voice model amended it")
-        elif not finished:
+        elif task.status != Status.WITHDRAWN and not finished:
             self._move(task, Status.CANCEL_REQUESTED, "voice model amended it")
         new = self._new_task(request, None, {"lfm"}, revises=task_id, depends_on=list(task.depends_on),
                              side_effect=task.side_effect)

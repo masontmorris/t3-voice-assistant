@@ -77,7 +77,7 @@ def snapshot_status(record, execution):
     if status == "held":
         return Run.HELD.value
     if status in ("superseded", "withdrawn"):
-        return None
+        return "cancelled"
     return execution.state.value
 
 
@@ -90,12 +90,19 @@ def not_run_note(record):
     return "Not started: when the service last read it, it was not ready to run."
 
 
+def cancelled_note(record):
+    """Why a task is cancelled, so the voice model can link a correction to it."""
+    reason = next((h.get("reason") for h in reversed(record["history"])
+                   if h["event"] == "status" and h["new"] in ("withdrawn", "superseded")), None)
+    return f"Cancelled: {reason}. amend_task can revive it."
+
+
 def build_snapshot(records, executions, conversation_id, utterance_id, final_transcript, unreviewed=None,
                    notes=False):
     """The plan's `utterance_snapshot`, from task records alone. It reports only what the records say.
 
     `unreviewed` is the end of the transcript that no decision point read. With `notes`, each task that has not run
-    says why, for the gated turn's tools session."""
+    says why, for the gated turn's tools session, and each cancelled task says how to revive it."""
     tasks = []
     for record in records:
         execution = executions.get(record["task_id"])
@@ -109,6 +116,8 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
             entry["result_summary"] = execution.result_summary
         if notes and status in ("pending", Run.HELD) and execution is None:
             entry["note"] = not_run_note(record)
+        if notes and status == "cancelled":
+            entry["note"] = cancelled_note(record)
         tasks.append(entry)
     unclear = [r["instruction"] for r in records if r["status"] == "needs_clarification"]
     snapshot = {"type": "utterance_snapshot", "conversation_id": conversation_id, "utterance_id": utterance_id,
