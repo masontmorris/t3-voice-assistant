@@ -201,6 +201,7 @@ These changes were made in the bot-root spike. Its doc, `bot-root-handoff.md`, h
 - **The question rule asks who the question is for.** After it fires, the gate makes one decider call, `recipientRequest()`, with the open question's text from the thread. `tell_mason` puts a notice in the outbox and wakes no thread. `wake_pm`, or any failure, wakes the parent. On the live token question it chose `tell_mason` at p=0.91 (measured).
 - **Only the question rule decides while a question is open.** Change and silence triggers no longer ask the decider for that node, and each question id is routed once, even if the parent was woken about that state before. A live run found the old order: a silence ask woke the PM about a question meant for Mason, and suppression then blocked the routing.
 - **A finished T3 child is left alone.** Once a T3 child's run completes, it gets no silence asks and no backstop, because T3 already delivered its result to the parent.
+- **Delegated workers get only the fixed rules (hardening pass).** A T3 child of its parent gets the stall and question rules and `rule_child_end`, with no decider asks and no backstop. A child run its parent cancelled with `task_cancel` is dropped instead of waking the parent. Evidence is in `bot-root-handoff.md`.
 - **Promise-phrase matching is unchanged.** The conditional-promise and "waiting on CI" gaps below still stand.
 
 ## Decisions that differ from the briefs
