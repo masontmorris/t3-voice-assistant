@@ -1,8 +1,8 @@
-# Local decider: d1-2B on llama.cpp beside LFM3
+# Local decider: d1-2B on llama.cpp and mistral.rs beside LFM3
 
-Measured on the Desktop's RTX 3060 (12 GB) on 2026-11-16, with `LiquidAI/d1-2B-GGUF` file `d1-2B-Q4_K_M.gguf` served by llama.cpp b12428 on `/v1/systemone`. No run made an OpenRouter call. Every number below comes from `python -m voice.local_decider.report`, which writes `voice/local_decider/results/report.json` from the bench output under `$VOICE_HOME/evidence/local-decider/` and the committed scenario results. Run the report from the LFM3 venv so the clip section can import the prototype. Each claim says whether it is measured, inferred, or a guess.
+Measured on the Desktop's RTX 3060 (12 GB) on 2026-11-16, with `LiquidAI/d1-2B-GGUF` file `d1-2B-Q4_K_M.gguf` served by llama.cpp b12428 or by mistral.rs 0.10.0 on `/v1/systemone`. No run made an OpenRouter call. Every number below comes from `python -m voice.local_decider.report`, which writes `voice/local_decider/results/report.json` from the bench output under `$VOICE_HOME/evidence/local-decider/` and the committed scenario results. Run the report from the LFM3 venv so the clip section can import the prototype. Each claim says whether it is measured, inferred, or a guess.
 
-d1 fits beside LFM3 and keeps up with speech, but it loses too many scenarios to replace pplx-decider-flash as served today. The hybrid with d1 passed 8 of the original 11 scenarios and 7 of the held-out 18, against pplx's 11 and 14, and 6 of Mason's 10 clips against pplx's 7 (measured). Most of the new failures are corrections that d1 points at the wrong target or mode. Per call, d1 took a median of 395 ms while LFM3 listened, against the cloud's 101 ms (measured). The largest cost is that llama.cpp reads the whole state once per question, and d1's attention design rules out any cache that could share it.
+d1 fits beside LFM3 and keeps up with speech, but it loses too many scenarios to replace pplx-decider-flash as served today. The hybrid with d1 passed 8 of the original 11 scenarios and 7 of the held-out 18, against pplx's 11 and 14, and 6 of Mason's 10 clips against pplx's 7 (measured). Most of the new failures are corrections that d1 points at the wrong target or mode. Per call, d1 took a median of 395 ms while LFM3 listened, against the cloud's 101 ms (measured). The largest cost is that llama.cpp reads the whole state once per question, and d1's attention design rules out any cache that could share it. mistral.rs packs 16 questions behind one state read and cuts that token count by 4 on the largest requests, but its own kernels are slow enough that the gain does not reach the hybrid's small calls (measured, [below](#mistralrs-with-packing)).
 
 ## Recommendation
 
@@ -10,7 +10,7 @@ d1 fits beside LFM3 and keeps up with speech, but it loses too many scenarios to
 - Start LFM3 with `-c 32768`. Beside d1, total GPU memory fell from 7,154 MiB to 4,430 MiB, and the prototype gave the same result on every clip (measured, 10 clips at each context).
 - Do not adopt answer reuse. It cut 11% of the questions and changed 17% of the answers it reused (measured, 94 calls).
 - Do not retune thresholds on llama.cpp's d1 answers yet. The packed Transformers path answers differently, so tuning on one serving path would not carry over to the other (measured, 23 changed answers on 5 requests, below). Pick the serving path first, then retune on a fresh scenario set. That retune is a question-wording change for `corrects` and `depends` plus a tuning run, about one to two days of one worker (guess).
-- The next speed step is a packed serving path that fits in memory. Transformers' packed path was 2.2 times faster than llama.cpp on the slowest requests and agreed with pplx more often, but it peaked at 8.3 GB of allocated memory (measured). mistral.rs packs the same way with the small GGUF, but trying it is blocked on disk. See [mistral.rs is blocked on disk](#mistralrs-is-blocked-on-disk).
+- The next speed step is a packed serving path that fits in memory. mistral.rs now does this from the small GGUF, and its packing is proven: it reads the state once per group of 16 questions and cut the input tokens on the largest requests from 19,892 to 4,982 (measured). It does not make d1 faster at the median, because its own kernels run 2.4 times slower per token than llama.cpp's, so it is slower on requests under about 10 questions and faster only on the tail (measured). See [mistral.rs with packing](#mistralrs-with-packing).
 
 ## d1 alone
 
@@ -81,6 +81,7 @@ d1 found the same final segments as pplx in all but 3 of 29 scenarios, so the lo
 | Words no partial decision covered | 52 of 120 | 49 of 120 | 49 of 120 |
 
 - d1 failed `04_correction.wav` as well as the 3 clips pplx fails (measured). It is the same correction weakness as in the scenarios (inferred).
+- These clip runs predate the current turn flow. Re-run on today's code, d1 passes 2 of 10 on llama.cpp and 1 of 10 on mistral.rs, so use the columns above for the serving paths' latency and VRAM, not for a pass count (measured, [mistral.rs with packing](#mistralrs-with-packing)).
 - `-c 32768` cut total GPU memory by 2,724 MiB with d1 loaded (measured). The PM's estimate was about 2,250 MiB from the KV cache alone. Every clip passed or failed the same way at both contexts (measured).
 - Every d1 call in the clip runs finished in under 1 s (measured, max 961 ms). Transcript updates arrive in bursts about once a second, so d1 keeps up with speech on these clips (inferred).
 - The slow snapshots, 1.6 s on `08_cancel.wav` and 1.5 s on `09_run_on.wav`, are two calls in a row. A partial call that started just before the audio ended finished 0.68 s and 0.77 s after it, and the final-transcript call ran after that (measured, run timelines). The planned design makes no decider call at the end of an utterance, so these snapshots would have been ready at 0.68 s and 0.77 s (inferred).
@@ -138,26 +139,117 @@ Of the 93 answers it reused, 16 differed from a fresh answer to the full request
 - Packed answers changed 23 of llama.cpp's 144 answers on the slowest requests, by up to 0.55 in probability. One question at a time changed 6 (measured). Packing is d1's trained mode, and it agreed with pplx on 137 of 144 answers against llama.cpp's 123 (measured, 5 requests).
 - The model loaded at 3,787 MiB over idle, but torch's peak allocation reached 8,302 MiB and total GPU use reached 11,694 MiB (measured). That does not fit beside LFM3. The portable attention path builds full mask tensors for long packed rows (guess).
 
-## mistral.rs is blocked on disk
+## mistral.rs with packing
 
-mistral.rs serves d1-2B on `/v1/systemone` and packs questions in groups of `set_size`, 16 by default, so it could give the packed path's speed from the 1.1 GB GGUF. Disk is the only blocker. A source build would take C: below the 20 GB floor, so it was not installed.
+mistral.rs 0.10.0, commit `fb4cdc3730dc64b366724e7637a205a8b7747499`, built for CUDA on sm_86 and run in WSL Ubuntu 24.04, serves the same `d1-2B-Q4_K_M.gguf` and mmproj on `/v1/systemone`. It differs from llama.cpp in one way that matters: it packs questions in groups of `set_size` and reads the state once per group. All 24 layers ran on `cuda[0]` (measured, its own log line).
 
-The build has to come from source, which is an ordinary path on this machine. Rust and Visual Studio are already installed.
+### How the packing is configured
 
-- No release includes d1 support yet. It merged on 2026-11-01 as pull request 2530, after the newest release, v0.9.5 (2026-10-19) (measured, GitHub API).
-- Releases ship CUDA builds only for Linux. Windows gets only a CPU build (measured, GitHub releases). A Windows CUDA build is a `cargo build --release --features cuda` from the main branch.
-- The build needs the CUDA Toolkit components, about 2.5 to 3.5 GB, which this machine lacks. It also needs a build tree of about 5 to 10 GB and about 1 GB of crates. That totals about 8 to 14 GB (guess). C: has 20.4 GB free, so the build would leave about 7 to 12 GB (inferred).
-- The first compile probably takes 30 to 60 minutes (guess). Whether it compiles cleanly on Windows the first time is unknown. The flash-attention feature may not build there, and leaving it out costs only attention speed (guess).
-- The voice lane's own files that could go total about 1.1 GB, mostly the d1 GGUF. The large folders that are not the lane's are `voice/venv-lfm3` (3.5 GB), the d1-2B Hugging Face weights (3.6 GB), and `voice/llamacpp` (1.3 GB). Removing all of them still would not keep C: above 20 GB through a build (inferred).
-- Building elsewhere would work. Build mistral.rs with CUDA for the 3060's sm86 on a machine with free disk, then copy only the server binary and its CUDA libraries here. That copy is probably about 1 GB (guess).
+- `set_size` is a per-request field. `SystemOneRequest.set_size` is `Option<usize>` (`mistralrs-server-core/src/decisions.rs`), and `DecisionPrompt::prepare` uses `request.set_size.unwrap_or(config.d1_set_size)`. The default comes from the GGUF loader, `DEFAULT_SET_SIZE = 16` (`mistralrs-core/src/gguf/lfm3_d1_config.rs`) (read from source at this commit).
+- Groups are made inside one request, not across requests: `(0..request.questions.len()).step_by(size)` builds one prompt per group, each holding one copy of the state followed by up to `set_size` questions (`vision_models/lfm3_d1/prompt.rs`). The groups run one after another in a loop, one forward pass each (`vision_models/lfm3_d1/mod.rs`, `run_decision`).
+- Concurrent requests are not batched together. For `ModelCategory::Decision`, the pipeline loops over the sequences and calls the model once per sequence (`mistralrs-core/src/pipeline/mod.rs`). Two requests at once therefore take the same time as two in a row (measured, below).
+- One consequence: `set_size` is the only thing the client controls, and packing is d1's trained mode, so a packed answer is not expected to equal an unpacked one.
 
-Mason decides whether to take that route.
+### Packing is active: tokens follow the groups
+
+`python -m voice.local_decider.bench packing` sent mistral.rs's three largest recorded requests at five set sizes. Input tokens are the server's own `usage.input_tokens`, which sums each group's prompt length.
+
+| Questions | Groups | Set size | Input tokens | Latency |
+| --- | --- | --- | --- | --- |
+| 32 | 32 | 1 | 19,892 | 3,590 ms |
+| 32 | 16 | 2 | 11,940 | 2,372 ms |
+| 32 | 8 | 4 | 7,964 | 1,773 ms |
+| 32 | 4 | 8 | 5,976 | 1,501 ms |
+| 32 | 2 | 16 (default) | 4,982 | 1,444 ms |
+
+Measured, one call per cell. Each request's tokens fit `groups x state + question tokens` exactly: the state is 497 tokens and the questions 3,988 for this request; 557 and 4,024 for the next; 534 and 3,635 for the 29-question one. The state is read once per group and nowhere else. Latency follows the groups rather than the questions, though not proportionally, because each group's forward pass is not free.
+
+Two checks confirm it is the packing the Transformers path did and that it stops at the request boundary (measured):
+
+- On the ten requests the Transformers bench used, mistral.rs's packed input tokens equal Transformers' packed-16 tokens on every one, 26,019 in total, against llama.cpp's 98,194.
+- Two requests sent at the same time took 3.027 s, against 3.048 s for the same two sent back to back. The second call waited for the first (1,524 ms and 3,026 ms). No cross-request batching.
+
+### The replay
+
+`python -m voice.local_decider.bench replay --configs mr16,mr1 --rounds 2 --paged-attn off` sent all 590 recorded requests twice per config, alternating. `mr16` sends no `set_size` and gets the model's default 16 questions per state read; `mr1` sends 1, which is llama.cpp's one-state-read-per-question shape. No errors, and round 1 repeated round 0 within 2.5% at the median (measured).
+
+| Setting | Requests | Median | p95 | Max | Calls per second | Questions per second | Peak VRAM | Startup |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| mistral.rs, packed 16 | 590 | 153.4 ms | 504.9 ms | 1,533 ms | 4.32 | 27.4 | 3,400 MiB | 10.1 s |
+| mistral.rs, one question at a time | 590 | 232.1 ms | 1,022.6 ms | 4,063 ms | 2.46 | 15.6 | 2,665 MiB | 10.0 s |
+| llama.cpp, batch 2048 | 565 | 118.3 ms | 514.0 ms | 2,361 ms | 4.84 | 28.65 | 2,104 MiB | 1.2 s |
+
+The mistral.rs rows are round 0 of this run; round 1 moved the median by 2.5% and 0.9%. The llama.cpp row is its own earlier replay, which covers 565 of the 590 requests; the 25 it lacks are newer cache entries, so the per-request comparison below uses only the 565 both ran (measured).
+
+- Packing is worth 1.5 times the median, 2 times the p95 and 2.7 times the max against the same server unpacked (measured). That is the batching effect, and it is the reason to use mistral.rs at all.
+- Against llama.cpp, packing is a wash on the whole set: 30% slower at the median, 2% better at p95 and 35% better at the max, and 11% fewer calls per second (measured; over the 565 requests both ran, the medians are 150.1 ms against 118.3 ms). The fit says llama.cpp runs about 122 ms per 1,000 input tokens and mistral.rs about 292 ms, so mistral.rs's kernels are 2.4 times slower per token, and packing saves 4 times the tokens only on the largest requests (measured, `latency.fit`; the cause of the slower kernels is a guess, since neither GPU has a profile taken here).
+- The crossover is at about 10 questions per request. By question count, on the 565 requests both paths ran (medians):
+
+| Questions | Requests | llama.cpp | mistral.rs, packed 16 | mistral.rs, unpacked | 
+| --- | --- | --- | --- | --- |
+| 0 to 2 | 14 | 20.6 ms | 44.1 ms | 43.6 ms |
+| 3 to 5 | 343 | 79.8 ms | 110.6 ms | 151.5 ms |
+| 6 to 9 | 126 | 268.1 ms | 277.3 ms | 483.3 ms |
+| 10 to 19 | 74 | 425.6 ms | 403.2 ms | 720.9 ms |
+| 20 to 39 | 8 | 2,114.3 ms | 1,309.5 ms | 3,245.0 ms |
+
+- The hybrid's own 94 calls are small. On them llama.cpp took a median of 333.9 ms (p95 678.0, max 948.2), mistral.rs packed 329.7 ms (563.0, 765.6) and unpacked 558.5 ms (1,085.2, 1,565.2) (measured). So in the live call path the packing buys about 5% at the median and 17% at p95 over llama.cpp, not the 2 times it buys on the tail.
+
+### Agreement with pplx-decider-flash
+
+Same rule as the table above, over the same 94 hybrid requests (832 answers).
+
+| Question | Answers | llama.cpp | mistral.rs packed | mistral.rs unpacked |
+| --- | --- | --- | --- | --- |
+| `kind` | 175 | 94.3% | 91.4% | 94.3% |
+| `depends` | 82 | 91.5% | 90.2% | 92.7% |
+| `side_effect` | 175 | 91.4% | 93.1% | 90.9% |
+| `ready` | 175 | 80.6% | 81.1% | 82.9% |
+| `finished` | 70 | 80.0% | 74.3% | 81.4% |
+| `at` | 70 | 75.7% | 77.1% | 75.7% |
+| `corrects` | 82 | 74.4% | 78.0% | 74.4% |
+| `same_as` | 3 | 100% | 100% | 100% |
+| All | 832 | 85.8% | 85.6% | 86.4% |
+
+Packing changes answers: mistral.rs packed made a different decision from llama.cpp on 347 of 3,346 answers (10.4%), by up to 0.76 in probability, and unpacked on 26 (0.8%), by up to 0.07 (measured). Unpacked also reproduced llama.cpp's token count on every request, so the adapter feeds both servers the same prompt. Packed agreement is 2 answers below llama.cpp's overall and unpacked is 5 above, which is a spread this sample cannot separate (inferred: 832 answers, 6 answers is 0.7 points).
+
+On the ten requests the Transformers bench used (164 answers), against pplx's recorded answers: llama.cpp flipped 24, Transformers packed in bf16 flipped 10, mistral.rs packed in Q4 flipped 15, and mistral.rs unpacked flipped 25 (measured, from the same recorded answers). Fewer flips against pplx is better, and Q4 keeps two thirds of the gain bf16 packed showed. That run stored its flip counts and not its answers, so this compares counts; a per-answer diff against packed bf16 needs another Transformers run.
+
+### Paged attention
+
+`python -m voice.local_decider.bench replay --configs mr16 --rounds 1 --paged-attn on` ran the same 590 requests with `--paged-attn on`. Every answer was identical, with no probability movement on 3,744 answers and the same token count on 590 of 590 requests (measured). The median was 148.4 ms against 149.5 and 153.4 ms with it off, and the peak 3,362 MiB against 3,397 and 3,400 (measured). That is inside the off runs' own spread, so there is no measurable difference either way. It follows from the code: a decision request runs its own forward pass and does not use the KV cache (`pipeline/mod.rs`, the decision branch of `submit_step`), which is why the flag cannot change a decision.
+
+### Beside LFM3 at 32k
+
+`clips-beside-lfm.py` in the lane's `mistralrs-linux` folder starts the chosen d1 server, sets `VOICE_D1_URL`, and runs `python -m voice.prototype.run <10 clips> --inject c --decider d1 --lfm-ctx 32768` once per serving path, so both runs used the same code, clips and LFM3 flags.
+
+| Measurement | llama.cpp d1 | mistral.rs packed |
+| --- | --- | --- |
+| Decider server alone over idle | 1,411 MiB | 1,649 MiB |
+| Total GPU memory after LFM3 and d1 load | 4,542 MiB | 4,782 MiB |
+| Decider call while audio streams, median (p95, max) | 396.1 ms (859.1, 860.0) | 381.4 ms (707.7, 752.4) |
+| Decider call after the audio ends, median | 422.0 ms (1 call) | 369.5 ms (1 call) |
+| Clips passed | 2 of 10 | 1 of 10 |
+
+- Both servers fit beside LFM3 at 32k, at 4,542 and 4,782 MiB of the card's 12 GB (measured). mistral.rs runs higher after its largest requests because the CUDA allocator keeps the high-water mark: it sat at 3,229 MiB after the clips, so the worst case for the pair is about 5,600 MiB (measured for the 3,229 MiB, inferred for the total, since the clip run's largest request is much smaller than the replay's).
+- Beside LFM3 the hybrid's calls are small, as above, so mistral.rs is 4% faster at the median and 18% faster at p95 (measured, 15 calls against 18; the two runs did not make the same number of calls, so these are not paired, and the paired comparison is the 94-request replay above). Only one call per run came after the audio ended, so that row says little (measured).
+- 8 of the 10 clips fail on both paths, mostly on tasks the segmenter left `proposed` or that the voice model made itself, and both pass counts are far below the 6 of 10 this doc recorded earlier (measured, the failure lists). The earlier run predates today's turn flow: the `d1-c32k` records were written at 03:41 and the branch tip merged call-history turns at 15:26 (measured, file time against commit time). The one clip that separates the two paths is `08_cancel`, where the packed `corrects` answer withdrew the earlier task that llama.cpp left dispatched. Treat the clip pass counts in this doc as stale for the current code, and judge the serving paths by the 94 requests above until the turn flow is re-measured.
+
+### What blocks it from being the live decider
+
+- It is not faster where the hybrid calls. Below 10 questions per request it is slower than llama.cpp, and the median replay request has 3 to 5 questions (measured, 343 of 565).
+- Packing does not improve agreement. 85.6% against llama.cpp's 85.8% on the 94 requests, and the per-type columns move in both directions (measured).
+- It costs 8.9 s more to start and it needs WSL and a 1.2 GB Linux binary, against llama.cpp's single executable (measured).
+- Nothing here is a supervised service. The bench starts and stops the server itself, and no run has held it up for a whole session (measured: five starts, all from the bench).
+
+The build itself is already in place: a CUDA sm_86 build from source on a machine with free disk, copied here as one binary and its CUDA libraries under the lane's `mistralrs-linux` folder. See `STATE.md` there.
 
 ## Code
 
-- `voice/local_decider/client.py` holds `D1Client`, the same `call(route, body, label)` interface as the cloud client, and the one adapter between the two APIs. The request drops the OpenRouter `model` field. Each choice answer's `confidence` is rescaled from d1's top probability to pplx's scale, (p_max - 1/n) / (1 - 1/n). That matters because the hybrid holds a `dispatch_now` whose confidence is under 0.2, and a top probability over 3 options is never under 0.33 (measured on cached pplx answers).
+- `voice/local_decider/client.py` holds `D1Client`, the same `call(route, body, label)` interface as the cloud client, and the one adapter between the two APIs. The request drops the OpenRouter `model` and `user` fields. `set_size` is sent only when a run sets it, so llama.cpp never sees the field. Each choice answer's `confidence` is rescaled from d1's top probability to pplx's scale, (p_max - 1/n) / (1 - 1/n). That matters because the hybrid holds a `dispatch_now` whose confidence is under 0.2, and a top probability over 3 options is never under 0.33 (measured on cached pplx answers).
+- `client.py` also holds `MistralRsServer`, which starts mistral.rs in WSL through `serve-d1.sh` and stops it by its binary path, since killing `wsl.exe` leaves the Linux process running. It refuses to start over a server that is already up.
 - `voice/local_decider/reuse.py` is the answer-reuse layer, as `ReusingClient`.
-- `voice/local_decider/bench.py` and `voice/local_decider/transformers_bench.py` produce every bench in this doc.
+- `voice/local_decider/bench.py` and `voice/local_decider/transformers_bench.py` produce every bench in this doc. `replay --configs mr16,mr1` selects the mistral.rs configs and `--paged-attn` its KV mode; the `packing` subcommand is the set-size proof above.
 - `voice/prototype/realtime.py` takes extra LFM3 server arguments, for `--lfm-ctx`.
 - Offline tests: `python -m unittest discover -s voice/local_decider/tests -t .`.
 
