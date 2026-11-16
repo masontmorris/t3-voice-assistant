@@ -1,10 +1,12 @@
 import unittest
+from concurrent.futures import Future, wait
 
 from voice.prototype.tasks import DEFAULT_RESULT, MockTaskService, build_snapshot
 from voice.segmentation.contract import (Correction, CorrectionMode, Decisions, Kind, Readiness, SegmentDecision,
                                          TranscriptUpdate)
 from voice.segmentation.spans import clause_segments
 from voice.segmentation.tasks import Orchestrator
+from voice.tools.tests.replay import replay_registry
 
 
 def decide(sid, kind="request", ready="dispatch_now", depends=None, corrects=None, side_effect=False):
@@ -152,6 +154,83 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual(snapshot["tasks"], [{"task_id": "task_1", "description": "look it up", "status": "pending"}])
         self.assertIsNone(snapshot["clarification_needed"])
         self.assertEqual(build_snapshot([], {}, "conv", "utt", "")["tasks"], [])
+
+
+class RealLookupTest(unittest.TestCase):
+    def service(self, default_place="Denver"):
+        self.tools, self.fetch, self.mcp = replay_registry(default_place)
+        self.segmenter = ScriptedSegmenter()
+        service = MockTaskService(self.segmenter, "conv_test", tools=self.tools)
+        self.addCleanup(service.close)
+        return service
+
+    def finish(self, service, now):
+        wait(service.pending_calls(), timeout=5)
+        return service.poll(now)
+
+    def test_a_segmented_weather_task_completes_with_the_lookups_summary_and_record(self):
+        service = self.service()
+        self.segmenter.step(1, "What's the weather going to be in Denver this weekend, and what time is it in Tokyo?",
+                            final=True, s1={}, s2={})
+        service.sync(now=1.0)
+        self.assertEqual(self.finish(service, now=1.5), ["task_1", "task_2"])
+        tasks = service.snapshot("utt_1", "")["tasks"]
+        self.assertEqual([t["status"] for t in tasks], ["completed", "completed"])
+        self.assertTrue(tasks[0]["result_summary"].startswith("Forecast for Denver, Colorado. Saturday"))
+        self.assertTrue(tasks[1]["result_summary"].startswith("In Tokyo, Japan it is"))
+        record = service.executions["task_1"].tool
+        self.assertEqual((record["tool"], record["arguments"], record["outcome"]),
+                         ("weather", {"place": "Denver", "when": "weekend"}, "ok"))
+        self.assertEqual(record["summary"], tasks[0]["result_summary"])
+        self.assertGreaterEqual(record["latency_s"], 0.0)
+        self.assertEqual(service.executions["task_2"].tool["tool"], "time")
+
+    def test_a_delegated_request_takes_the_same_registry(self):
+        service = self.service()
+        self.segmenter.submit_delegate("what time is it in Tokyo")
+        self.segmenter.step(1, "What time is it in Tokyo right now?", final=True, delegates={"d1": "s1"}, s1={})
+        service.sync(now=0.0)
+        self.finish(service, now=0.5)
+        self.assertEqual(self.mcp.calls, [("get_current_time", {"timezone": "Asia/Tokyo"})])
+        self.assertEqual(service.executions["task_1"].state, "completed")
+
+    def test_a_failed_lookup_is_reported_as_failed_with_its_reason_exactly_once(self):
+        service = self.service(default_place=None)
+        self.segmenter.step(1, "I wonder if it's going to rain on Saturday.", final=True, s1={})
+        service.sync(now=0.0)
+        self.assertEqual(statuses(service.snapshot("utt_1", "")), {"I wonder if it's going to rain on Saturday.": "running"})
+        self.finish(service, now=0.2)
+        updates = service.take_updates()
+        self.assertEqual([(u["status"], u["result_summary"]) for u in updates],
+                         [("failed", "The weather lookup needs a place, and none was given.")])
+        self.assertEqual(service.take_updates(), [])
+
+    def test_requests_no_tool_covers_still_run_on_the_mock(self):
+        service = self.service()
+        self.segmenter.step(1, "Find last week's sales report", final=True, s1={})
+        service.sync(now=0.0)
+        self.assertEqual(service.pending_calls(), [])
+        self.assertEqual(service.poll(now=4.0), ["task_1"])
+        self.assertEqual(service.executions["task_1"].result_summary, "Mock file search: found Sales_Week45.xlsx.")
+        self.assertIsNone(service.executions["task_1"].tool)
+
+    def test_side_effect_tasks_never_reach_a_tool(self):
+        service = self.service()
+        self.segmenter.step(1, "Email Dana the weather in Denver.", final=True, s1={"side_effect": True})
+        service.sync(now=0.0)
+        self.assertEqual((service.pending_calls(), self.fetch.urls), ([], []))
+        self.assertEqual(service.executions["task_1"].state, "held_for_confirmation")
+
+    def test_a_lookup_that_never_returns_fails_at_its_deadline(self):
+        service = self.service()
+        self.segmenter.step(1, "What's the weather in Denver?", final=True, s1={})
+        service._pool.submit = lambda *args: Future()
+        service.sync(now=0.0)
+        self.assertEqual(service.poll(now=5.9), [])
+        self.assertEqual(service.poll(now=6.0), ["task_1"])
+        execution = service.executions["task_1"]
+        self.assertEqual((execution.state, execution.tool["outcome"]), ("failed", "timeout"))
+        self.assertEqual(execution.result_summary, "The weather lookup did not answer in time.")
 
 
 if __name__ == "__main__":

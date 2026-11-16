@@ -1,11 +1,16 @@
 """The local voice-assistant prototype, end to end: a WAV in, a spoken reply and a record of every event out.
 
     python -m voice.prototype.run CLIP.wav [CLIP.wav ...] [--inject a|b|c] [--segmenter hybrid|baseline] [--out DIR]
+        [--mock-tools] [--decider-cache DIR --decider-budget N]
 
 The clip streams at real-time pace into two sessions on one llama-server: a `realtime` voice session and a
 `?intent=transcription` session. Transcription deltas feed the segmenter, the segmenter's dispatches feed the mock
 task service, and at the turn boundary the task snapshot goes into the voice session before it replies. Mock tasks
 that finish after the reply reach the voice as a `task_update` at the next boundary.
+
+Read-only weather and time tasks make real lookups through `voice/tools/registry.py`: Open-Meteo, and the
+`mcp-server-time` MCP server over stdio, which runs for the whole run. VOICE_DEFAULT_PLACE is the place for a request
+that names none. --mock-tools sends every task to the mock worker instead.
 
 --inject picks how the snapshot enters the voice session:
   a  a client-made `function_call` item plus its `function_call_output`
@@ -25,6 +30,7 @@ import asyncio
 import json
 import time
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import nullcontext
 from pathlib import Path
 
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
@@ -32,13 +38,15 @@ from voice.prototype.segmenter import DECIDER_BUDGET, SEGMENTERS, coalesce, live
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.transcript import TranscriptAdapter
 from voice.segmentation import client as api
+from voice.tools.registry import open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
 PERSONA = (
     "You are a friendly voice assistant. A separate task service carries out what the user asks for. "
     "After the user speaks, you receive a task status snapshot as JSON. Talk to the user directly, as \"you\", in "
     "one or two short sentences, and say only what the snapshot says. running means the task has started. pending "
-    "means it is waiting. completed means it is done, and you may say its result_summary. held_for_confirmation "
+    "means it is waiting. completed means it is done, and you may say its result_summary. failed means it could not be "
+    "done, and you may say its result_summary. held_for_confirmation "
     "means you need the user's OK before doing it. needs_clarification means you must ask the user. Never say a task "
     "is done unless its status is completed, never promise a step the snapshot does not show, and never make up a "
     "result."
@@ -101,7 +109,17 @@ def user_text(prefix, payload):
             "content": [{"type": "input_text", "text": prefix + json.dumps(payload)}]}
 
 
-async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid"):
+async def wait_for_work(service, timeout_s):
+    """Sleep until the next mock task is due, or until a running lookup returns, whichever comes first."""
+    calls = [asyncio.wrap_future(call) for call in service.pending_calls()]
+    if calls:
+        await asyncio.wait(calls, timeout=max(0.0, timeout_s))
+    else:
+        await asyncio.sleep(max(0.0, timeout_s))
+
+
+async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
+                   tools=None):
     t0 = time.perf_counter()
 
     def clock():
@@ -115,7 +133,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         timeline.append({"t": round(clock(), 4), "kind": kind, **detail})
 
     segmenter = SEGMENTERS[segmenter_name](decider, stem)
-    service = MockTaskService(segmenter, f"conv_{stem}", delay_s)
+    service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools)
     adapter = TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -229,9 +247,9 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
 
         while (due := service.next_due()) is not None:
-            await asyncio.sleep(max(0.0, due - clock()))
+            await wait_for_work(service, due - clock())
             for task_id in service.poll(clock()):
-                log("service", task_id=task_id, event="completed")
+                log("service", task_id=task_id, event=service.executions[task_id].state.value)
         task_updates = service.take_updates()
         if task_updates:
             boundary = clock()
@@ -246,6 +264,7 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
         if worker is not None:
             worker.cancel()
         executor.shutdown()
+        service.close()
         await voice.close()
         await asr.close()
     final_t = next(e["t"] for e in timeline if e["kind"] == "transcript_update" and e["is_final"])
@@ -279,21 +298,25 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
 
 async def main_async(args):
-    use_decider_cache(EVIDENCE / "decider-cache", DECIDER_BUDGET)
+    use_decider_cache(args.decider_cache, args.decider_budget)
     decider = api.Client()
     out = args.out or EVIDENCE / f"inject-{args.inject}{'-status' if args.status_only else ''}"
     out.mkdir(parents=True, exist_ok=True)
-    with Server(args.port, out / "llama-server.log") as server:
+    tools_context = nullcontext() if args.mock_tools else open_registry()
+    with tools_context as tools, Server(args.port, out / "llama-server.log") as server:
+        if tools is not None:
+            print(f"MCP server {tools.mcp.server_info} up after {tools.mcp.startup_s:.2f} s", flush=True)
         print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
         for wav in args.clips:
             partial = {}
             try:
                 record = await run_clip(wav, args.inject, args.status_only,
                                         f"ws://127.0.0.1:{args.port}/v1/realtime", decider, args.delay, out, partial,
-                                        args.segmenter)
+                                        args.segmenter, tools)
             except Exception as exc:
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
             record["server_startup_s"] = server.startup_s
+            record["mcp_startup_s"] = tools.mcp.startup_s if tools is not None else None
             (out / f"{wav.stem}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
             print(wav.stem, json.dumps(record["metrics"]), flush=True)
 
@@ -307,6 +330,11 @@ def main():
     parser.add_argument("--out", type=Path)
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--port", type=int, default=8095)
+    parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
+    parser.add_argument("--decider-cache", type=Path, default=EVIDENCE / "decider-cache",
+                        help="decider cache and call ledger, kept out of the repo")
+    parser.add_argument("--decider-budget", type=int, default=DECIDER_BUDGET,
+                        help="stop when the ledger holds this many attempts")
     args = parser.parse_args()
     missing = [str(c) for c in args.clips if not c.is_file()]
     if missing:
