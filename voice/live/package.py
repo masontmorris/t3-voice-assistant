@@ -2,8 +2,8 @@
 
     python -m voice.live.package [--port 8770]
 
-The zip holds the client, its requirements, SETUP-LAPTOP.md, config.json naming this machine's Tailscale DNS name,
-and the shared secret. It stays under $VOICE_HOME, never in the repo. Send it with
+The zip holds the client, its recording module, its requirements, SETUP-LAPTOP.md, config.json naming this machine's
+Tailscale DNS name, and the shared secret. It stays under $VOICE_HOME, never in the repo. Send it with
 `tailscale file cp <zip> <laptop>:`.
 """
 
@@ -17,7 +17,7 @@ from pathlib import Path
 from voice.live.server import LIVE_HOME, shared_secret
 
 HERE = Path(__file__).resolve().parent
-FILES = ["client.py", "requirements-client.txt", "SETUP-LAPTOP.md"]
+FILES = ["client.py", "recording.py", "requirements-client.txt", "SETUP-LAPTOP.md"]
 
 
 def tailscale_dns_name():

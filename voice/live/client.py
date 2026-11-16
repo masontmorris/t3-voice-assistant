@@ -11,8 +11,9 @@ again to stop. Talking while a reply plays interrupts it: the server cancels the
 it buffered. --wav feeds clips in place of the microphone, which is how the Desktop loopback test runs.
 
 The server address and the shared secret come from config.json and the `secret` file beside this script unless
---server and --secret-file say otherwise. Metrics and the reply audio go to --log-dir ($VOICE_HOME/live-client, by
-default ~/voice/live-client). Stops on Ctrl+C, or after the last --wav clip's turn.
+--server and --secret-file say otherwise. Each run records what this client sent and played, plus the metrics, the
+reply audio and the control log, under a new timestamped directory in --log-dir ($VOICE_HOME/live-client by
+default). `--no-record` turns the recording off. Stops on Ctrl+C, or after the last --wav clip's turn.
 """
 
 import argparse
@@ -24,11 +25,15 @@ import sys
 import threading
 import time
 import wave
-from datetime import datetime
 from pathlib import Path
 
 import numpy as np
 import websockets
+
+if __package__:
+    from voice.live.recording import SessionRecorder, unique_session_dir
+else:
+    from recording import SessionRecorder, unique_session_dir
 
 HERE = Path(__file__).resolve().parent
 HEADER = "X-Voice-Secret"
@@ -55,8 +60,9 @@ def device(value):
 class Player:
     """Plays reply PCM16 through one output stream, after `prebuffer_ms` is queued or the reply ends."""
 
-    def __init__(self, output, prebuffer_ms):
+    def __init__(self, output, prebuffer_ms, recorder=None):
         self.output, self.prebuffer_ms = output, prebuffer_ms
+        self.recorder = recorder
         self.stream, self.rate = None, None
         self.buffer, self.lock = bytearray(), threading.Lock()
         self.playing, self.reply_done = False, True
@@ -96,6 +102,7 @@ class Player:
 
     def _callback(self, outdata, frames, _time, _status):
         need = frames * 2
+        now = time.perf_counter()
         with self.lock:
             if not self.playing:
                 outdata[:] = b"\x00" * need
@@ -108,7 +115,10 @@ class Player:
                 self.underruns += 1
             if not self.buffer:
                 self.playing = False
+            rate = self.rate
         outdata[:] = chunk + b"\x00" * (need - len(chunk))
+        if chunk and self.recorder is not None:
+            self.recorder.playback(chunk, rate, now)
 
     def close(self):
         if self.stream is not None:
@@ -122,7 +132,7 @@ async def mic_frames(input_device, queue):
     loop = asyncio.get_running_loop()
 
     def callback(indata, _frames, _time, _status):
-        loop.call_soon_threadsafe(queue.put_nowait, bytes(indata))
+        loop.call_soon_threadsafe(queue.put_nowait, (bytes(indata), time.perf_counter()))
 
     stream = sd.RawInputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=FRAME_SAMPLES,
                                device=input_device, callback=callback)
@@ -141,7 +151,7 @@ async def wav_frames(paths, queue, next_clip, lead_s=0.5):
             pending += read_wav_16k(clips.pop(0))
         frame = bytes(pending[:step])
         del pending[:step]
-        queue.put_nowait(frame + b"\x00" * (step - len(frame)))
+        queue.put_nowait((frame + b"\x00" * (step - len(frame)), time.perf_counter()))
         index += 1
         await asyncio.sleep(max(0.0, start + index * FRAME_MS / 1000 - time.perf_counter()))
 
@@ -149,14 +159,17 @@ async def wav_frames(paths, queue, next_clip, lead_s=0.5):
 class Client:
     def __init__(self, args):
         self.args = args
-        self.player = Player(device(args.output), args.prebuffer_ms)
+        self.log_dir = unique_session_dir(args.log_dir)
+        self.recorder = None
+        if getattr(args, "record", True):
+            self.recorder = SessionRecorder(self.log_dir, mode="ptt" if args.ptt else "vad",
+                                            input_source="wav" if args.wav else "mic", server=args.server)
+        self.player = Player(device(args.output), args.prebuffer_ms, recorder=self.recorder)
         self.rtts, self.done_turns, self.latest_turn = [], 0, None
         self.clips_left = max(0, len(args.wav or []) - 1)
         self.next_clip = asyncio.Event()
         self.turn_end_rx, self.trailing_s, self.reply_first = None, 0.0, None
         self.reply_audio, self.reply_turn, self.reply_t0 = bytearray(), None, None
-        self.log_dir = args.log_dir / datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.log_dir.mkdir(parents=True, exist_ok=True)
         self.log_file = open(self.log_dir / "client.jsonl", "a", encoding="utf-8")
         self.finished = asyncio.Event()
 
@@ -166,7 +179,10 @@ class Client:
 
     async def send_audio(self, ws, frames):
         while True:
-            await ws.send(await frames.get())
+            pcm, t = await frames.get()
+            await ws.send(pcm)
+            if self.recorder is not None:
+                self.recorder.mic(pcm, t)
 
     async def ping(self, ws):
         while True:
@@ -270,32 +286,55 @@ class Client:
                     raise
                 await asyncio.sleep(2)
 
+    def finalize_recording(self):
+        if self.recorder is None:
+            return
+        try:
+            self.recorder.finalize()
+        except Exception as exc:
+            print(f"recording was not finalized: {exc}", file=sys.stderr, flush=True)
+
     async def run(self):
-        secret = self.args.secret_file.read_text(encoding="utf-8").strip()
-        frames = asyncio.Queue()
-        self.player.open(self.args.output_rate)
-        ws = await self.connect(secret)
-        if self.args.wav:
-            source = wav_frames(self.args.wav, frames, self.next_clip)
-        else:
-            source = mic_frames(device(self.args.input), frames)
-        async with ws:
-            await ws.send(json.dumps({"type": "hello", "mode": "ptt" if self.args.ptt else "vad"}))
-            tasks = [asyncio.create_task(c) for c in (source, self.send_audio(ws, frames), self.ping(ws),
-                                                      self.receive(ws), self.finished.wait())]
-            if self.args.ptt:
-                threading.Thread(target=self.push_to_talk, args=(ws, asyncio.get_running_loop()),
-                                 daemon=True).start()
-            done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
-            for task in pending:
-                task.cancel()
-            for task in done:
-                if task.exception() is not None and not isinstance(task.exception(), websockets.ConnectionClosed):
-                    raise task.exception()
-        self.log("summary", rtt_median_s=self.rtt_median(), rtt_samples=len(self.rtts),
-                 rtt_max_s=round(max(self.rtts), 4) if self.rtts else None, turns=self.done_turns)
-        print(f"round trip over the socket: median {self.rtt_median()} s over {len(self.rtts)} pings", flush=True)
-        self.player.close()
+        try:
+            if self.recorder is not None:
+                print(f"recording this session to {self.log_dir}", flush=True)
+            secret = self.args.secret_file.read_text(encoding="utf-8").strip()
+            frames = asyncio.Queue()
+            self.player.open(self.args.output_rate)
+            ws = await self.connect(secret)
+            if self.args.wav:
+                source = wav_frames(self.args.wav, frames, self.next_clip)
+            else:
+                source = mic_frames(device(self.args.input), frames)
+            async with ws:
+                await ws.send(json.dumps({"type": "hello", "mode": "ptt" if self.args.ptt else "vad"}))
+                tasks = [asyncio.create_task(c) for c in (source, self.send_audio(ws, frames), self.ping(ws),
+                                                          self.receive(ws), self.finished.wait())]
+                if self.args.ptt:
+                    threading.Thread(target=self.push_to_talk, args=(ws, asyncio.get_running_loop()),
+                                     daemon=True).start()
+                done, pending = await asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED)
+                for task in pending:
+                    task.cancel()
+                await asyncio.gather(*pending, return_exceptions=True)
+                for task in done:
+                    if task.exception() is not None and not isinstance(task.exception(),
+                                                                       websockets.ConnectionClosed):
+                        raise task.exception()
+            self.log("summary", rtt_median_s=self.rtt_median(), rtt_samples=len(self.rtts),
+                     rtt_max_s=round(max(self.rtts), 4) if self.rtts else None, turns=self.done_turns)
+            print(f"round trip over the socket: median {self.rtt_median()} s over {len(self.rtts)} pings",
+                  flush=True)
+        finally:
+            try:
+                self.player.close()
+            except Exception as exc:
+                print(f"output stream was not closed cleanly: {exc}", file=sys.stderr, flush=True)
+            self.finalize_recording()
+            try:
+                self.log_file.close()
+            except Exception as exc:
+                print(f"client log was not closed cleanly: {exc}", file=sys.stderr, flush=True)
 
 
 def main():
@@ -317,6 +356,8 @@ def main():
     parser.add_argument("--output-rate", type=int, default=24_000, help="rate to open the output at before a reply")
     parser.add_argument("--wait-for-server", type=float, default=0, help="keep retrying the connection this many s")
     parser.add_argument("--log-dir", type=Path, default=LOG_DIR)
+    parser.add_argument("--no-record", dest="record", action="store_false",
+                        help="do not record this session's microphone, playback and conversation")
     args = parser.parse_args()
     if args.list_devices:
         import sounddevice as sd
