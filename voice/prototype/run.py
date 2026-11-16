@@ -58,7 +58,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from voice.live.facts import names_machinery, speaks_of_person, ungrounded
-from voice.live.recall import call_record, recall_note
+from voice.live.recall import recall_note
 from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.reuse import ReusingClient
@@ -427,9 +427,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
     `recall` says how a question about the call reaches the model. "off" is the shipped behaviour, the numbered
     `call_turns` inside the snapshot item. "note" keeps that list and adds one plain sentence naming the turn the
-    question asks about (voice/live/recall.py) as the newest item before the reply. "before-audio" sends every earlier
-    turn as one plain numbered line before the turn's audio instead of inside the snapshot, so the earlier turns are not
-    the newest text the model read when it answers.
+    question asks about (voice/live/recall.py) as the newest item before the reply.
 
     `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
@@ -555,10 +553,6 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
             log("snapshot_before_audio", snapshot=prior_snapshot)
-        if recall == "before-audio" and prior_utterances:
-            record = call_record(prior_utterances)
-            injection.append(await create_item(voice, plain_text(record)))
-            log("recall_before_audio", record=record)
         audio_end = await source.stream(voice, asr)
         audio_s = source.audio_s
         log("audio_end", audio_s=audio_s)
@@ -612,7 +606,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
             item = shown(answered, snapshot_mode, adapter.text())
-            if item is not None and prior_utterances and recall != "before-audio":
+            if item is not None and prior_utterances:
                 item = with_call_turns(item, prior_utterances)
                 log("history", turn_count=len(item["call_turns"]), omitted=item["omitted_turns"])
             if item is not None:

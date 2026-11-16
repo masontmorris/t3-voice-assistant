@@ -37,8 +37,7 @@ same place with everything, "before-audio" the call's task state as the turn sta
 
 --recall picks how the call's earlier turns reach the model when it is asked about them. "off" is the numbered
 `call_turns` list inside the snapshot item. "note" (the default) keeps that list and adds one plain sentence naming the
-turn the question asks about, as the newest item before the reply. "before-audio" sends every earlier turn as one plain
-numbered line before the turn's audio instead.
+turn the question asks about, as the newest item before the reply.
 
 A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
 reply and asks whether the person said them in this call or the newest machine note states them; the assistant's own
@@ -515,11 +514,10 @@ def main():
                         help="where the task snapshot enters the voice session: before the reply with the person's "
                              "own words dropped (default), before the reply with everything, before the turn's audio, "
                              "or not at all")
-    parser.add_argument("--recall", choices=["off", "note", "before-audio"], default="note",
+    parser.add_argument("--recall", choices=["off", "note"], default="note",
                         help="how a question about the call reaches the model: the numbered turns inside the "
-                             "snapshot item (off), one plain sentence naming the turn it asks about as the newest "
-                             "item before the reply (note, default), or every earlier turn as one plain numbered line "
-                             "before the turn's audio (before-audio)")
+                             "snapshot item (off), or those turns plus one plain sentence naming the turn the "
+                             "question asks about, as the newest item before the reply (note, default)")
     parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")

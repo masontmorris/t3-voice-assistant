@@ -84,11 +84,3 @@ class RecallNoteTest(unittest.TestCase):
 
     def test_the_first_turn_of_a_call_gets_no_note(self):
         self.assertIsNone(recall.recall_note("What did I ask first?", ()))
-
-
-class CallRecordTest(unittest.TestCase):
-    def test_every_turn_is_numbered_oldest_first_in_plain_words(self):
-        self.assertEqual(
-            recall.call_record(("Hey, can you hear me?", "What time is it in Tokyo?")),
-            recall.PREFIX + 'earlier turns of this call, already said, oldest first: turn 1: "Hey, can you hear me?"; '
-                            'turn 2: "What time is it in Tokyo?"')
