@@ -6,9 +6,11 @@ Mason talks into the laptop. The Desktop runs the whole assistant and streams th
 
 Live mode now runs the `gated` pipeline, the default on `voice/main` after PR #12 merged (measured: merge commit `4979ae3df`). Each turn takes the task gate, makes no decider call at the end of the utterance, and has LFM3's task session settle the tasks before the voice reply.
 
+One client connection is now one LFM3 voice session, so every turn of a call adds to the same conversation (measured: one session for all five turns of the scripted call below, and a probe that answers recall questions about its own earlier audio turn).
+
 A real-GPU loopback ran on `d6fb7f968`, the head before the playback-stop change described under [Talking over the reply](#talking-over-the-reply), on 2026-11-16 inside an ordinary `voice-live` lease and `quiet_run`, with no priority (measured). Five turns from Mason's clips went through the live client, the server and LFM3. The client received 24 kHz PCM16 for every reply, byte-identical to the reply WAVs the turn wrote, so the model's audio reached it through `run_clip` (measured: SHA-256 match on 6 of 6 client WAVs). Turn IDs ran 1 to 5 across two client connections. A pause in one clip continued into the next turn with 4.22 s of carried audio, and the real weather tool answered with specific forecasts (measured).
 
-The CPU suite passes at this head. That is 18 live tests, 37 prototype tests and 89 segmentation tests (measured on 2026-11-16). Two live tests are new. One drives the real `run_clip` against a scripted realtime server, so it fails when the voice session's events stop reaching the live callback. The other covers speech that starts after a turn has finished and its reply is still playing.
+The CPU suite passes at this head. That is 36 live tests (14 server, 6 endpointer, 7 recording, 9 client) and 41 prototype tests, plus 89 segmentation and 16 tools tests that this change does not touch (measured on 2026-11-16; the client tests run in the client venv, the rest in `$VOICE_HOME/venv-lfm3`). Two live tests are new: one asserts that a second turn reuses the first turn's voice session, and one that a long call closes it and seeds a new one with the call's own text. Two live tests changed: the barge-in test now also asserts the session stays open and the next turn uses it, and the prompt test asserts the call's rules follow the persona. Three prototype tests are new, and they assert that `run_clip` adds to a caller's session, sends its settings once and leaves it open. The seam test still drives the real `run_clip` against a scripted realtime server, so it fails when the voice session's events stop reaching the live callback.
 
 The built-in persona narrates the task before answering ("The task is to find out the weather...") and sometimes speaks about Mason in the third person (measured, turn records from the earlier loopback). Mason's chosen prompt is the fix, and the prompt is a file. The loopback above ran with the kit v2 reference prompt in that file, which the records name by hash (measured). No prompt has been chosen yet, so the demo still needs one dropped in.
 
@@ -20,12 +22,13 @@ The Desktop runs `python -m voice.live.server`. It starts llama-server with LFM3
 
 | File | What it does |
 | --- | --- |
-| `voice/live/server.py` | The WebSocket server, the shared secret, the bind check, and one `Conversation` per client that turns endpointer events into turns. |
+| `voice/live/server.py` | The WebSocket server, the shared secret, the bind check, and one `Conversation` per client that turns endpointer events into turns. It owns the call's one LFM3 voice session. |
 | `voice/live/endpoint.py` | The energy-and-silence endpointer. |
 | `voice/live/client.py` | The laptop client. It uses the microphone or WAV clips, plays the reply, and has a push-to-talk fallback. |
+| `voice/live/script.py` | Renders a scripted conversation to WAV clips with the running server's own TTS, for a `--wav` run. |
 | `voice/live/package.py` | Builds the laptop zip under `$VOICE_HOME/live/dist/`. |
 | `voice/live/SETUP-LAPTOP.md` | The laptop's install steps. It ships in the zip. |
-| `voice/prototype/run.py` | The hook. `run_clip` takes an audio source, a persona and a voice-event callback, hands each voice-session event to that callback, and keeps the prototype's `gated` default. `WavInput` keeps the clip path the same. |
+| `voice/prototype/run.py` | The hook. `run_clip` takes an audio source, a persona and a voice-event callback, hands each voice-session event to that callback, and keeps the prototype's `gated` default. `WavInput` keeps the clip path the same. Live mode also passes its own long-lived voice session as `voice=`. |
 
 ## Turn-taking
 
@@ -39,18 +42,47 @@ A split costs little when the second part starts before any reply audio. The ser
 
 ## Talking over the reply
 
-If speech starts while a turn has sent reply audio, the server cancels that turn. It does these things in order.
+If speech starts while a turn has sent reply audio, the server stops sending that turn's audio. It does these things in order.
 
 1. It marks the turn muted, so the sender drops the turn's audio frames that are still queued.
 2. It sends `barge_in` to the client. The client empties its playback buffer.
-3. It cancels the turn's task. Its voice, ASR and tool sessions close, and its decider wrapper refuses further calls.
-4. It starts the new turn after the old turn's teardown finishes, so the turns never hold more than llama-server's three slots.
+3. It lets the turn finish. Its voice session is the call's, so nothing is torn down and the reply it had started stays in the conversation's history.
 
 Speech that starts after a turn has finished still drops that turn's audio. The model streams a reply much faster than the client plays it. In the current-head loopback, 4.88 s of reply audio reached the client in 0.63 s (measured). So a turn is usually done while its audio is still playing, and waiting for the turn's task to finish before reacting would leave the old reply running over the new turn. A new turn now mutes the previous turn and sends `barge_in` even when that turn has finished, which clears the client's playback buffer (measured in the CPU test `test_speech_after_the_reply_stops_playback`).
 
-llama.cpp has no `response.cancel`, so closing the voice session is how the reply stops (inferred from the string search). A turn that is waiting for a task update when speech starts is cancelled the same way, and that update is lost.
+llama.cpp has no `response.cancel` (measured: a string search of the server DLL). Before this change a turn was cut off by closing its voice session, which also threw the call's history away. Now the reply is left to finish on the shared session and only its audio is dropped, so the next turn still knows what was said.
+
+A turn that is waiting for a task update when speech starts is muted the same way, and its update reply is generated but not sent.
 
 In the earlier head's loopback, barge-in reached the client 125 ms after the reply's first audio, with the client sending speech at once (measured, turn 3 of that record). That is the 100 ms start window, up to one 20 ms frame, and the socket trip.
+
+## Memory across a call
+
+A client connection is a call, and a call is one LFM3 voice session. The first turn opens it and every later turn adds its audio, its snapshot and its reply to the same conversation, so the model hears both sides of the call when it answers. The ASR, segmenter, task service and tools session are still built per turn, which is why `run_clip` keeps its shape and takes an optional already-open voice session instead of owning one.
+
+Two things follow from never being able to delete a conversation item (measured: llama.cpp b12428's server library names `conversation.item.create`, `added` and `done`, and nothing that removes an item).
+
+**Snapshots.** Every turn injects its task snapshot as a user text item with the machine prefix. Over a call those items pile up, and an old snapshot reads exactly like a current one. The call's instructions therefore say that only the newest snapshot is current, and that a task or result from an older snapshot must not be spoken. The rule lives in one place, in the session instructions, rather than in every injected item, so a snapshot costs the same as before.
+
+**A long call.** llama.cpp divides `-c` across its slots, so the voice session has 11,008 tokens at the default `-c 32768` and three slots (measured: `n_ctx_slot = 11008` in the server log). Past that a slot runs out of room, and what llama.cpp does then was not observed at this head (guess: it drops the oldest tokens, which is the start of the call). So a call that reaches `--call-max-turns` (default 8) closes its session and opens a new one seeded with the call's own transcript, up to `--call-keep-turns` earlier turns (default 6), as one machine-prefixed item. The seed is one item, so it cannot be mistaken for something the person said, and it is what would keep "what did I ask you first" answerable after the slot fills.
+
+**Checking it.** `voice/live/script.py` renders a file of one utterance per line to WAV clips with the running server's own TTS, and the client's `--wav` path plays them as one call, in order. Both run while the server holds the lease:
+
+```bash
+python -m voice.live.script --turns turns.txt --out clips --server http://127.0.0.1:8095
+"$VOICE_HOME/venv-live-client/Scripts/python" voice/live/client.py --server ws://127.0.0.1:8770 \
+  --secret-file "$VOICE_HOME/live/secret" --wav clips/turn_*.wav --log-dir "$VOICE_HOME/evidence/live/<run>/client"
+```
+
+`--barge-in-ms 300` sends the next clip 300 ms into a reply, which barges in on it, so one run can show both.
+
+**Checked, 2026-11-16.** The model's own TTS rendered five turns and a second three-turn set, and the real client played them as two calls over loopback, in an ordinary `voice-live-memory` lease under `quiet_run`, with no priority and no `--priority` (measured). Mason's `prompt.txt` was in place and the records name it (`sha256:02700e254b8f`, measured). The five-turn call kept one voice session for all five turns: turn 1 records `voice_session: started`, turns 2 to 5 record `shared`, and every turn records `voice_sessions: 1` (measured, from the turn records). Asked "And what about Saturday?" after "What's the weather in Denver tomorrow?", the reply was "I'm running the request to get the weather in Denver for Saturday", so the city and the follow-up both carried (measured, turn 2).
+
+`voice/live/probe.py` says what the runtime keeps, without the task pipeline in the way. One session, three exchanges: with text items it answered all three recall questions, and with one turn said as audio instead, the way live mode speaks, it answered "What did I just say?" with the clip's own words and "Which city did I mention?" with "Denver" (measured, 3 of 3 kept in both runs).
+
+What still limits the call is the reply, not the session. Every turn's snapshot enters as a user item just before the reply, and the persona says to say only what the snapshot says, so the model answers the snapshot: "What did I just ask you?" came back as "I just asked you, 'What did I just ask you?'" (measured, turn 3). Sharpening the call's instructions to answer from the conversation made it narrate in the third person instead ("The user asked, ...", measured in an earlier run of the same script, turn 2), so this change keeps only the snapshot rule and leaves the persona to Mason's choice. A persona that answers conversationally is what turns this session's memory into conversational replies.
+
+Timing, measured in the same run. Turn end to first audio was 0.47 to 0.62 s, median 0.53 s over five turns, against 0.32 to 0.70 s, median 0.61 s, for the earlier per-turn loopback. The client's speech end to first audio was 1.17 to 1.32 s, median 1.23 s, against 1.02 to 1.40 s before. First audio to playback stayed 0.004 to 0.039 s. So a normal turn costs nothing measurable here. The cost sits in a turn that follows a real barge-in: the muted turn runs to its end before the new one starts, and the turn after a barge-in waited 2.99 s once (measured, an earlier run of the same script, turn 8) when the muted turn still had a task update to speak. Speech ends that follow a barge-in on a turn with nothing left to do waited 0.53 s (measured, the shipped run, turn 7).
 
 ## Network and security
 
@@ -90,6 +122,10 @@ All of these ran at this head, CPU only, in `$VOICE_HOME/venv-lfm3` (measured on
 | Barge-in and continuation | `test_speech_during_the_reply_interrupts_it`, `test_speech_before_the_reply_continues_the_turn` | pass |
 | Speech after the turn ends stops playback | `test_speech_after_the_reply_stops_playback` | pass |
 | Voice events reach the live callback | `test_run_clip_hands_voice_audio_to_the_live_callback` | pass, real `run_clip` against a scripted realtime server |
+| One voice session per call | `test_a_call_keeps_one_voice_session` | pass, turn 2 is given turn 1's session |
+| A long call seeds a new session | `test_a_long_call_seeds_a_new_session_with_the_call_so_far` | pass, the seed holds the call's text |
+| A barge-in keeps the session | `test_speech_during_the_reply_interrupts_it` | pass, session open, next turn on it |
+| The hook adds to a caller's session | `test_a_callers_session_is_added_to_and_left_open` | pass, settings sent once, not closed |
 
 The other live tests use a fake `run_clip` that stands in for the GPU pipeline. They exercise the server, endpointer, outbox, chunking and records, not LFM3. The seam test above runs the real `run_clip` against a scripted server, and still not LFM3.
 
@@ -159,19 +195,21 @@ Use headphones. If silence detection misbehaves, add `--ptt` and press Enter to 
 
 **Swap the prompt.** Write Mason's chosen persona to `$VOICE_HOME/live/prompt.txt`. The next turn uses it. The record names the file and its hash. Delete the file to go back to the built-in persona.
 
-**Stop everything.** Press Ctrl+C in the laptop window. On the Desktop, press Ctrl+C in the server window, or run `touch "$VOICE_HOME/live/STOP"`. The server stops llama-server and the MCP time server on the way out, and the lease ends with it. Check with `python ~/.gpu/gpu_lease.py status`.
+**Stop everything.** Press Ctrl+C in the laptop window. On the Desktop, press Ctrl+C in the server window, or run `touch "$VOICE_HOME/live/STOP"`. The server stops llama-server and the MCP time server on the way out, and the lease ends with it. Check with `python ~/.gpu/gpu_lease.py status`. A run started with `--stop-file PATH` watches that file instead, so a worker's check cannot stop Mason's demo.
 
 ## Limits
 
-- Each turn is a fresh conversation. The voice session, the segmenter, the tool session and the task service start over, so turn 2 cannot refer to turn 1 or to its tasks. `run_clip` is one utterance by design. Multi-turn memory needs a session that outlives the turn.
+- The voice session keeps the call, but the ASR, segmenter, task service and tools session still start fresh on every turn. A follow-up whose meaning lives in the task layer ("And what about Saturday?") reaches that layer as its own words only, so the task it creates may be missing a place or a day the person named earlier. The voice model remembers; the task service does not.
+- A snapshot cannot be deleted from llama.cpp's conversation. Each turn adds one as a user text item, so a long call fills its slot with snapshots as well as speech. The instructions say only the newest one is current, and `--call-max-turns` bounds the rest.
 - There is no echo cancellation. Reply audio from speakers would cancel the reply.
 - The endpointer listens to loudness only. A cough starts a turn, and a long thinking pause ends one.
 - `gated` opens a tool session as well as the voice and ASR sessions. At this head that put the first reply audio 0.32 to 0.70 s after the audio ended (measured).
-- The CPU tests stand in for LFM3, except one, which drives the real `run_clip` against a scripted realtime server to cover the event seam. None of them covers LFM3's replies or its timing. Only a real-GPU loopback does.
+- The CPU tests stand in for LFM3, except one, which drives the real `run_clip` against a scripted realtime server to cover the event seam. The shared-session tests stand in for the same socket. None of them covers LFM3's replies, its memory or its timing. Only a real-GPU run does.
 - The current-head loopback ran on loopback, so the Tailscale hop and the firewall rule are unexercised at this head (measured: bind address in `server.out`).
-- Live barge-in while a reply plays was not observed at this head. The staged attempt missed the -50 dBFS floor, as described in [Loopback](#loopback). The CPU test covers the path, and the earlier head has a live record.
 
 ## Open decisions
 
-- The prompt. Mason's best prompt from the kit replaces the built-in persona through `prompt.txt`. The kit's campaign 2 stays held for the demo.
+- The prompt. Mason's best prompt from the kit replaces the built-in persona through `prompt.txt`. The kit's campaign 2 stays held for the demo. It is also what decides whether this session's memory reaches the reply: with the current prompt the model answers the snapshot and repeats the current question, and instructions that push it to answer from the conversation made it narrate in the third person instead (measured, two runs of the script below). The persona is Mason's choice, not the lane's.
 - Whether 700 ms is the right silence. Mason's own pauses will tell. `--silence-ms` changes it per run.
+- Whether a call should also give the task layer the call's earlier text. That is what "And what about Saturday?" needs to become a weather task for Denver, and it belongs to the segmenter and tool lane, not to this one.
+- `--call-max-turns 8` is a judgment, not a tuned value. The realtime path does not report its slot's token count, so what a turn costs was not measured; 8 turns of audio, snapshots and replies at 11,008 tokens a slot is the estimate behind it.

@@ -7,7 +7,8 @@
 The clip streams at real-time pace into two sessions on one llama-server: a `realtime` voice session and a
 `?intent=transcription` session. Transcription deltas feed the segmenter, the segmenter's dispatches feed the mock
 task service, and at the turn boundary the task snapshot goes into the voice session before it replies. Mock tasks
-that finish after the reply reach the voice as a `task_update` at the next boundary.
+that finish after the reply reach the voice as a `task_update` at the next boundary. Live mode passes its own
+long-lived voice session as `voice=`, so every turn of a call adds to one conversation.
 
 --eou picks how the turn runs and ends. gated, the default, is plan A. During speech, a task the orchestrator is
 about to dispatch runs only when the task gate (voice/segmentation/gate.py) passes it; otherwise it waits. There is
@@ -204,9 +205,14 @@ class WavInput:
 
 
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
-                   tools=None, eou="gated", persona=PERSONA, on_voice_event=None):
+                   tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
-    once streamed, and `stream(voice, asr)`, which returns the clock time the input ended."""
+    once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
+
+    `voice` is an already-open voice session the caller keeps across turns, as live mode does for a call. The turn
+    then adds its audio, its injections and its replies to that session's conversation instead of opening one, and
+    leaves it open. Its session settings are sent only when they change, so a reused session keeps its history. The
+    per-turn `asr` and `tools` sessions are still opened and closed here."""
     t0 = time.perf_counter()
 
     def clock():
@@ -276,7 +282,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             for _ in batch:
                 updates_q.task_done()
 
-    voice = await Session.open(url, "voice", clock, on_event=on_voice_event)
+    own_voice = voice is None
+    if own_voice:
+        voice = await Session.open(url, "voice", clock, on_event=on_voice_event)
+    voice_mark, voice_sent_mark = len(voice.events), len(voice.sent)
     asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
     def partial_close(update):
         return segmenter.close(update, settle=False)
@@ -292,7 +301,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             await tool_session.wait_for("session.updated")
         created = await voice.wait_for("session.created")
         out_rate = created["session"]["audio"]["output"]["format"]["rate"]
-        partial["events"] = {"voice": voice.events, "voice_sent": voice.sent, "asr": asr.events, "asr_sent": asr.sent}
+        partial["events"] = {"voice": voice.events[voice_mark:], "voice_sent": voice.sent[voice_sent_mark:],
+                             "asr": asr.events, "asr_sent": asr.sent}
         await asr.wait_for("session.created")
         rate = source.rate
         session = {"type": "realtime", "instructions": persona + FORMAT_LINES[inject],
@@ -303,8 +313,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             session["audio"] = {"input": {"format": {"type": "audio/pcm", "rate": rate}}}
             await asr.send(type="session.update", session={"audio": session["audio"]})
             await asr.wait_for("session.updated")
-        await voice.send(type="session.update", session=session)
-        await voice.wait_for("session.updated")
+        if getattr(voice, "config", None) != session:
+            await voice.send(type="session.update", session=session)
+            await voice.wait_for("session.updated")
+            voice.config = session
         worker = asyncio.create_task(segment_worker())
 
         audio_end = await source.stream(voice, asr)
@@ -396,7 +408,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             worker.cancel()
         executor.shutdown(wait=False, cancel_futures=True)
         service.close()
-        await voice.close()
+        if own_voice:
+            await voice.close()
         await asr.close()
         if tool_session is not None:
             await tool_session.close()
@@ -431,7 +444,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         "dispatch_log": segmenter.dispatch_log,
         "executions": {k: {**vars(v), "state": v.state.value} for k, v in service.executions.items()},
         "timeline": timeline,
-        "events": {"voice": voice.events, "voice_sent": voice.sent, "asr": asr.events, "asr_sent": asr.sent,
+        "events": {"voice": voice.events[voice_mark:], "voice_sent": voice.sent[voice_sent_mark:],
+                   "asr": asr.events, "asr_sent": asr.sent,
                    **({"tools": tool_session.events, "tools_sent": tool_session.sent}
                       if tool_session is not None else {})},
     }

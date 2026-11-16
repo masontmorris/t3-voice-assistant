@@ -18,6 +18,7 @@ SECRET = "s" * 64
 OUT_RATE = 24_000
 PERSONAS = []
 CALLS = []
+VOICES = []
 
 
 class FakeSession:
@@ -31,19 +32,48 @@ class FakeSession:
         self.audio_bytes += len(event.get("audio", ""))
 
 
-async def fake_run_clip(source, *args, persona, on_voice_event, **kwargs):
-    """Streams the turn's input, then sends 2 s of reply audio in 20 ms deltas after a 0.3 s think."""
+class FakeVoice:
+    """The call's voice session, standing in for llama-server's realtime socket."""
+
+    def __init__(self, name, on_event):
+        self.name, self.on_event, self.config = name, on_event, None
+        self.events, self.sent, self.audio = [], [], []
+        self.closed = False
+
+    @classmethod
+    async def open(cls, url, name, clock, on_event=None):
+        return cls(name, on_event)
+
+    async def send(self, **event):
+        self.sent.append(event)
+
+    async def wait_for(self, *types, after=0, timeout=120):
+        if "session.created" in types:
+            return {"type": "session.created",
+                    "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}}
+        return {"type": "conversation.item.added", "item": {}}
+
+    async def close(self):
+        self.closed = True
+
+
+async def fake_run_clip(source, *args, persona, voice=None, **kwargs):
+    """Streams the turn's input, then sends 2 s of reply audio in 20 ms deltas after a 0.3 s think, through the
+    live server's own voice-event dispatcher."""
     PERSONAS.append(persona)
     CALLS.append((*args, kwargs))
-    on_voice_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+    VOICES.append(voice)
+    emit = voice.on_event
+    emit({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
     await asyncio.sleep(0.3)
     delta = base64.b64encode(b"\x01\x00" * (OUT_RATE // 50)).decode()
     for _ in range(100):
-        on_voice_event({"type": "response.output_audio.delta", "delta": delta})
+        emit({"type": "response.output_audio.delta", "delta": delta})
         await asyncio.sleep(0.02)
-    on_voice_event({"type": "response.done"})
-    return {"clip": source.name, "final_transcript": "hello", "replies": [{"text": "hi"}], "metrics": {}}
+    emit({"type": "response.done"})
+    return {"clip": source.name, "final_transcript": f"words in {source.name}",
+            "replies": [{"text": f"reply to {source.name}"}], "metrics": {}}
 
 
 class LiveServerTest(unittest.IsolatedAsyncioTestCase):
@@ -51,14 +81,18 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.frames = []
         PERSONAS.clear()
         CALLS.clear()
+        VOICES.clear()
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
-                               segmenter="hybrid")
+                               segmenter="hybrid", call_max_turns=8, call_keep_turns=6)
         self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name))
-        patch = mock.patch.object(server, "run_clip", fake_run_clip)
-        patch.start()
-        self.addCleanup(patch.stop)
+        self.patch = mock.patch.object(server, "run_clip", fake_run_clip)
+        self.patch.start()
+        self.addCleanup(self.patch.stop)
+        session_patch = mock.patch.object(server.Session, "open", FakeVoice.open)
+        session_patch.start()
+        self.addCleanup(session_patch.stop)
         self.ws_server = await serve(self.live.handler, "127.0.0.1", 0, process_request=server.authorize(SECRET))
         self.url = f"ws://127.0.0.1:{self.ws_server.sockets[0].getsockname()[1]}"
 
@@ -114,9 +148,45 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         ws = await self.connect()
         await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
         await self.until(ws, "turn_done", [])
-        self.assertEqual(PERSONAS, ["Be brief."])
+        self.assertEqual(len(PERSONAS), 1)
+        self.assertTrue(PERSONAS[0].startswith("Be brief."))
+        self.assertIn(server.CALL_RULES, PERSONAS[0], "the call's rules follow the prompt")
         record = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
         self.assertTrue(record["live"]["prompt"].startswith("prompt.txt sha256:"))
+        await ws.close()
+
+    async def test_a_call_keeps_one_voice_session(self):
+        ws = await self.connect()
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+        await self.until(ws, "turn_done", [])
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
+        await self.until(ws, "turn_done", [])
+        self.assertEqual(len(VOICES), 2)
+        self.assertIs(VOICES[0], VOICES[1], "turn 2 adds to turn 1's session, it does not open one")
+        self.assertFalse(VOICES[0].closed)
+        first = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
+        second = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
+        self.assertEqual(second["live"]["call"], {"turn": 2, "session_turn": 2, "voice_session": "shared",
+                                                  "voice_sessions": 1})
+        self.assertNotEqual(first["live"]["call"], second["live"]["call"])
+        await ws.close()
+
+    async def test_a_long_call_seeds_a_new_session_with_the_call_so_far(self):
+        self.live.args.call_max_turns = 1
+        ws = await self.connect()
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+        await self.until(ws, "turn_done", [])
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
+        await self.until(ws, "turn_done", [])
+        self.assertEqual(len(VOICES), 2)
+        self.assertIsNot(VOICES[0], VOICES[1], "the second turn starts a new session")
+        self.assertTrue(VOICES[0].closed, "the old session is closed")
+        seed = next(send["item"] for send in VOICES[1].sent if send.get("type") == "conversation.item.create")
+        self.assertTrue(seed["content"][0]["text"].startswith(server.SEED_PREFIX))
+        self.assertIn("words in turn_001", seed["content"][0]["text"], "the call's own text carries over")
+        record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
+        self.assertEqual(record["live"]["call"]["voice_session"], "started")
+        self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
         await ws.close()
 
     async def test_speech_during_the_reply_interrupts_it(self):
@@ -133,8 +203,12 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         await self.send(ws, noise(900, seed=2))
         await self.until(ws, "turn_end", after)
         self.assertNotIn("audio", after[:after.index("turn_start")], "no audio from turn 1 after barge_in")
+        while (done := await self.until(ws, "turn_done", after))["turn"] != 2:
+            pass
         record = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
         self.assertEqual(record["live"]["cancelled"], "barge_in")
+        self.assertFalse(VOICES[0].closed, "a barge-in keeps the call's session, and its history, open")
+        self.assertIs(VOICES[0], VOICES[1], "the next turn continues on the same session")
         await ws.close()
 
     async def test_speech_before_the_reply_continues_the_turn(self):
