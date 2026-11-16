@@ -4,7 +4,7 @@ from voice.prototype.tasks import DEFAULT_RESULT, MockTaskService, build_snapsho
 from voice.segmentation.contract import (Correction, CorrectionMode, Decisions, Kind, Readiness, SegmentDecision,
                                          TranscriptUpdate)
 from voice.segmentation.spans import clause_segments
-from voice.segmentation.tasks import Orchestrator
+from voice.segmentation.tasks import Orchestrator, Status
 
 
 def decide(sid, kind="request", ready="dispatch_now", depends=None, corrects=None, side_effect=False):
@@ -152,6 +152,43 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual(snapshot["tasks"], [{"task_id": "task_1", "description": "look it up", "status": "pending"}])
         self.assertIsNone(snapshot["clarification_needed"])
         self.assertEqual(build_snapshot([], {}, "conv", "utt", "")["tasks"], [])
+
+
+class HandoffToolsTest(unittest.TestCase):
+    def setUp(self):
+        self.segmenter, self.service = service_after("Find the sales report.", s1={})
+
+    def test_a_read_only_delegate_runs_and_a_side_effect_delegate_is_held(self):
+        read, _ = self.service.call_tool("delegate", {"instruction": "check the weather in Denver",
+                                                      "side_effect": False}, "check the weather in Denver", 10.0)
+        send, _ = self.service.call_tool("delegate", {"instruction": "email Dana the notes", "side_effect": True},
+                                         "email Dana the notes", 10.0)
+        unflagged, _ = self.service.call_tool("delegate", {"instruction": "post the photo"}, "post the photo", 10.0)
+        states = {k: v.state.value for k, v in self.service.executions.items()}
+        self.assertEqual(states[read["task_id"]], "running")
+        self.assertEqual(states[send["task_id"]], "held_for_confirmation")
+        self.assertEqual(states[unflagged["task_id"]], "held_for_confirmation")
+
+    def test_a_completed_task_cannot_be_cancelled(self):
+        self.service.poll(now=14.0)
+        result, _ = self.service.call_tool("cancel_task", {"task_id": "task_1"}, None, 15.0)
+        self.assertFalse(result["ok"])
+        self.assertEqual(self.service.executions["task_1"].state.value, "completed")
+
+    def test_a_cancel_stops_the_running_task_and_a_bad_call_changes_nothing(self):
+        bad, _ = self.service.call_tool("cancel_task", {}, None, 11.0)
+        result, events = self.service.call_tool("cancel_task", {"task_id": "task_1"}, None, 11.0)
+        self.assertFalse(bad["ok"])
+        self.assertTrue(result["ok"])
+        self.assertEqual(events, [{"task_id": "task_1", "event": "cancelled"}])
+
+    def test_the_snapshot_reports_a_held_task_and_the_unreviewed_speech(self):
+        orch = self.segmenter.orch
+        held = orch._new_task("email dana", 0, {"orchestrator"}, side_effect=True)
+        orch._move(held, Status.HELD, "test")
+        snapshot = self.service.snapshot("utt_1", "", "and email Dana")
+        self.assertEqual(statuses(snapshot)["email dana"], "held_for_confirmation")
+        self.assertEqual(snapshot["unreviewed_speech"], "and email Dana")
 
 
 if __name__ == "__main__":

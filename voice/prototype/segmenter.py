@@ -4,6 +4,7 @@
 uniform side-effect hold: a side-effect task dispatches only on the final transcript.
 """
 
+import json
 from pathlib import Path
 from typing import Protocol
 
@@ -14,8 +15,9 @@ from voice.segmentation.run import Runner
 from voice.segmentation.spans import clause_segments
 from voice.segmentation.tasks import Orchestrator
 
-# The prototype round used 52 attempts in the prototype's ledger. The hybrid round adds 80 of its 250.
-DECIDER_BUDGET = 52 + 80
+# The prototype's ledger held 80 attempts when the end-of-utterance handoff round began. That round adds its 150.
+DECIDER_BUDGET = 80 + 150
+MAX_429_SHARE = 0.2
 
 
 class Segmenter(Protocol):
@@ -53,6 +55,25 @@ def coalesce(items):
 
 def live_calls():
     return api.ledger_attempts()
+
+
+def rate_limited_share(since):
+    """(attempts, share that drew a 429) among the ledger's attempts after the first `since`."""
+    if not api.LEDGER.exists():
+        return 0, 0.0
+    entries = [json.loads(line) for line in api.LEDGER.read_text(encoding="utf-8").splitlines()]
+    recent = [e for e in entries if e["route"] in api.ROUTES][since:]
+    return len(recent), (sum(e["status"] == 429 for e in recent) / len(recent) if recent else 0.0)
+
+
+class FreshClient:
+    """Sends every request live, even when cached, so a timing run pays each call's real latency."""
+
+    def __init__(self, client):
+        self.client = client
+
+    def call(self, route, body, label=""):
+        return self.client.call(route, body, label=label, fresh=True)
 
 
 class BaselineSegmenter:

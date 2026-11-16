@@ -156,10 +156,12 @@ class Client:
         return {"status": response.status, "body": body, "started_at": started_at, "ms": ms,
                 "connect_ms": connect_ms, "retry_after": response.getheader("retry-after")}
 
-    def call(self, route, body, label=""):
-        """Return the cached record for this request, calling the API at most once per distinct request."""
+    def call(self, route, body, label="", fresh=False):
+        """Return the cached record for this request, calling the API at most once per distinct request.
+
+        `fresh` sends the request even when it is cached, for timing runs, and never overwrites the cached entry."""
         assert body["model"].endswith(":free"), body["model"]
-        hit = cached(route, body)
+        hit = None if fresh else cached(route, body)
         if hit is not None:
             return hit
         if STOP.exists():
@@ -198,7 +200,8 @@ class Client:
                   "response": result.get("body"), "timing": {"started_at": result["started_at"],
                   "ms": result["ms"], "connect_ms": result["connect_ms"]}, "attempts": attempts}
         CACHE.mkdir(exist_ok=True)
-        cache_path(route, body).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        if not cache_path(route, body).exists():
+            cache_path(route, body).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         return record
 
     def key_info(self):
