@@ -20,8 +20,8 @@ import re
 from dataclasses import asdict, dataclass, replace
 
 from voice.segmentation import client as api
-from voice.segmentation.contract import (Decisions, Readiness, Segment, TranscriptUpdate, decision_request,
-                                         parse_decisions)
+from voice.segmentation.contract import (Decisions, Intent, Kind, Readiness, Segment, TranscriptUpdate,
+                                         decision_request, parse_decisions)
 from voice.segmentation.cursor import (ONE_ACTION, SNIPPET, THRESHOLDS, Verdict, _noul, _pick, _span, commits,
                                        judge, marked_text, markers, words)
 from voice.segmentation.intent import utterance_intent
@@ -175,6 +175,18 @@ def hold_near_tie(decision, is_final, margin):
     if is_final or decision.readiness != Readiness.DISPATCH_NOW or decision.confidence.get("ready", 1.0) >= margin:
         return decision
     return replace(decision, readiness=Readiness.WAIT)
+
+
+def as_request(decision):
+    """A correction that names nothing to correct, in an utterance that asks for something, is that request.
+
+    Measured on the live gate eval: "That was wrong, now find the sales report for week 45." came back as one segment
+    of kind `correction` with no target on all three readings, and the orchestrator, holding a correction of nothing,
+    made no task. The utterance's own intent is a request, and live mode only asks the decider when it is one, so the
+    words are a request the complaint leads into. A correction that names a target is left alone."""
+    if decision.kind == Kind.CORRECTION and decision.corrects is None:
+        return replace(decision, kind=Kind.REQUEST)
+    return decision
 
 
 def _jsonable(value):
@@ -373,6 +385,8 @@ class HybridSegmenter:
                                   for i, p in enumerate(tail) if not revised.filler(p)]
         raw = {sid: d for sid, d in decisions.segments.items() if sid in valid}
         kept = {sid: hold_near_tie(d, final, self.t.margin) for sid, d in raw.items()}
+        if final and utterance_intent(update.text).intent == Intent.REQUEST:
+            kept = {sid: as_request(d) for sid, d in kept.items()}
         delegates = {did: sid for did, sid in decisions.delegates.items() if sid is None or sid in valid}
         if applied:
             self.orch.apply(update, apply_segs, Decisions(kept, delegates, decisions.problems), raw)
