@@ -6,6 +6,12 @@ tools session delegated those words as a new request, and the assistant said it 
 and then that it was done. A correction is classified here only when the utterance as a whole is one; a request that
 corrects itself mid-utterance ("Saturday, no, Sunday") is the decider's per-segment CORRECTION.
 
+A question about this call's own earlier turns ("What did you tell me about Chicago?") is chit-chat too, in
+`asks_about_call`. Measured failure it exists for: on the twelve-question recall set every one of the twelve was
+labelled a request, the decider was asked about it, and for one of them the decider dispatched a failing task whose
+snapshot turned the reply into a refusal. The recall note reads the same predicate, so every question this file calls
+conversation is one the call's own record answers.
+
 What it cannot see: a correction worded outside the patterns below ("hmm, the other one"), a correction that also
 asks something new ("no, and set a timer"), and which earlier turn a correction means. "No, what's the time?" is a
 request, because it asks its own question.
@@ -42,6 +48,13 @@ CONVERSATION = re.compile(
     r"(?: in (?:this|the) conversation)?",
     re.IGNORECASE,
 )
+CALL_HISTORY = re.compile(
+    r"\b(?:did|do)\s+(?:i|you)\s+(?:ask|say|tell|mention|request)\b"
+    r"|\b(?:what|which|who|when|where|how|did|do)\b[^?]*?"
+    r"(?:\b(?:i|you)\s+(?:asked|said|told|mentioned|requested|answered)\b"
+    r"|\b(?:questions?|requests?|things?|messages?)\s+(?:i|you)\s+(?:made|asked|said)\b)",
+    re.IGNORECASE,
+)
 ACTION = re.compile(r"\b(?:please|can you|could you|would you|what|where|when|why|how|who|which|tell|give|find|show|set|send|book|check|look|get|play|call|text|remind|add|turn|open|search|fix|restart|translate)\b", re.IGNORECASE)
 
 
@@ -64,12 +77,16 @@ def _replacement(rest):
     return _clean(re.sub(r",\s*not\s+[^,]+$", "", _clean(rest), flags=re.IGNORECASE)) or None
 
 
+def asks_about_call(text):
+    """Whether the utterance asks about a turn of this call, so it is answered from the call and runs no task."""
+    said = _clean(text or "")
+    return bool(CONVERSATION.fullmatch(said) or CALL_HISTORY.search(said))
+
+
 def utterance_intent(text):
     """The intent of a whole final transcript."""
     said = _clean(text or "")
     if not said or _chat(said):
-        return UtteranceIntent(Intent.CHITCHAT)
-    if CONVERSATION.fullmatch(said):
         return UtteranceIntent(Intent.CHITCHAT)
     if REJECTS.fullmatch(said):
         return UtteranceIntent(Intent.CORRECTION)
@@ -86,6 +103,8 @@ def utterance_intent(text):
             return UtteranceIntent(Intent.CHITCHAT)
         if REJECTS.fullmatch(said):
             return UtteranceIntent(Intent.CORRECTION)
+        if asks_about_call(said):
+            return UtteranceIntent(Intent.CHITCHAT)
         if ASKS.match(said) or len(_words(said)) > MAX_REPLACEMENT_WORDS:
             return UtteranceIntent(Intent.REQUEST)
         return UtteranceIntent(Intent.CORRECTION, _replacement(said))
@@ -93,4 +112,6 @@ def utterance_intent(text):
         match = pattern.fullmatch(said)
         if match and len(_words(match["rest"])) <= MAX_REPLACEMENT_WORDS and not ASKS.match(match["rest"]):
             return UtteranceIntent(Intent.CORRECTION, _replacement(match["rest"]))
+    if asks_about_call(said):
+        return UtteranceIntent(Intent.CHITCHAT)
     return UtteranceIntent(Intent.REQUEST)

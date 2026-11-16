@@ -5,6 +5,9 @@ call's most recent request. The call's turns were already in the snapshot item a
 module turns the one turn the question names into one short sentence, which the live server puts in the voice session
 immediately before the reply, so the model answers from a stated fact rather than from the audio it just heard.
 
+Which questions are about the call is `intent.asks_about_call`, the same predicate that keeps them out of the
+decider, so a question classified as conversation here is one this note answers.
+
 The turn a question names is chosen here, in code, and never written here: the note is the person's own words and a
 turn number, and the model still composes the reply.
 
@@ -16,13 +19,9 @@ earlier replies, which this file reads only as far as the person's turn it follo
 import re
 
 from voice.segmentation.contract import Intent
-from voice.segmentation.intent import utterance_intent
+from voice.segmentation.intent import asks_about_call, utterance_intent
 
 PREFIX = "[call record, machine-generated, not spoken by the user] "
-HISTORICAL = re.compile(
-    r"\b(?:asked|said|told|mentioned|requested|answered)\b"
-    r"|\bdid (?:you|i) (?:ask|say|tell|mention|request)\b", re.IGNORECASE)
-PERSON = re.compile(r"\b(?:i|me|my)\b", re.IGNORECASE)
 FIRST = re.compile(r"\b(?:first|1st|earliest|original|beginning|so far|at the start)\b", re.IGNORECASE)
 LAST = re.compile(r"\b(?:last|latest|most recent|previous|prior|before this|before that|just now|just said"
                   r"|just asked)\b", re.IGNORECASE)
@@ -46,7 +45,7 @@ def question_kind(text):
 
     The kinds are ("first",), ("last",), ("request_number", n) and ("topic", topic as said, content words)."""
     said = text or ""
-    if not (HISTORICAL.search(said) and PERSON.search(said)):
+    if not asks_about_call(said):
         return None
     for word in _tokens(said):
         if word in ORDINALS:
