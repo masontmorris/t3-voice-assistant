@@ -32,6 +32,20 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(ledger.turns[0].delivery, "interrupted")
         self.assertEqual(ledger.conversation(), [{"user": "Hello"}])
 
+    def test_the_workers_context_has_both_sides_and_the_results(self):
+        ledger = ConversationLedger()
+        task = {"task_id": "task_1", "instruction": "weather", "status": "dispatched", "side_effect": False}
+        done = {"state": "completed", "result_summary": "Forecast for San Diego: a high of 70 degrees.",
+                "tool": {"tool": "weather", "arguments": {"place": "San Diego"}, "outcome": "ok"}}
+        ledger.record(record("turn_001", "What about San Diego?", "Checking that.", task, done), muted=False)
+        ledger.record({"clip": "turn_002", "cancelled": "continued"}, muted=True)
+        ledger.record(record("turn_003", "Do I need a jacket?", "Probably not."), muted=False)
+        self.assertEqual(ledger.context(), [
+            {"user": "What about San Diego?", "assistant": ["Checking that."],
+             "results": ["Forecast for San Diego: a high of 70 degrees."]},
+            {"user": "Do I need a jacket?", "assistant": ["Probably not."]}])
+        self.assertEqual(ledger.results(), ["Forecast for San Diego: a high of 70 degrees."])
+
     def test_queued_reply_is_not_assumed_played(self):
         ledger = ConversationLedger()
         ledger.record(record("turn_001", "Hello", "Hi"), muted=False)

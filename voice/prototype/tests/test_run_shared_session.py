@@ -321,8 +321,7 @@ class WithoutUtteranceTest(unittest.TestCase):
 
 
 class SessionOrderTest(unittest.IsolatedAsyncioTestCase):
-    """llama.cpp refuses new instructions once a session holds a message. A reseeded live call opens a new session and
-    seeds it, so the order of the settings and the seed decides whether the turn runs."""
+    """llama.cpp refuses new instructions once a session holds a message, and the turn must say so."""
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -336,16 +335,6 @@ class SessionOrderTest(unittest.IsolatedAsyncioTestCase):
         return await asyncio.wait_for(prototype.run_clip(
             Streams(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=voice, **kwargs), 10)
-
-    async def test_the_seed_goes_in_after_the_settings(self):
-        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
-        seed = prototype.user_text("[call so far] ", {"turns": [{"user": "earlier words"}]})
-        record = await self.turn(voice, seed=seed)
-        kinds = [e["type"] for e in voice.sent]
-        self.assertLess(kinds.index("session.update"), kinds.index("conversation.item.create"))
-        self.assertEqual(voice.sent[kinds.index("conversation.item.create")]["item"], seed)
-        self.assertIn("instructions", voice.configs[0], "the session took the persona")
-        self.assertEqual([r["text"] for r in record["replies"]], ["Sunny."])
 
     async def test_a_refused_update_ends_the_turn_with_the_servers_words(self):
         voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
@@ -388,7 +377,7 @@ class Delegating(FakeSession):
 
 
 MACHINERY_WORDS = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update",
-                   "note")
+                   "note", "lookup", "no answer yet")
 
 
 def spelled_out(text):

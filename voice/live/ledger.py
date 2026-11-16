@@ -53,5 +53,27 @@ class ConversationLedger:
                 result.append(item)
         return result
 
+    def results(self):
+        """Every lookup result the call has had, oldest first: what the assistant was given and may say again."""
+        return [execution["result_summary"] for turn in self.turns for execution in turn.executions.values()
+                if execution.get("state") == "completed" and execution.get("result_summary")]
+
+    def context(self):
+        """The call so far for a worker that needs it to resolve a request: each turn's words, the replies that
+        were spoken, and the lookup results, oldest first. The voice model never reads this as text."""
+        result = []
+        for turn in self.turns:
+            if not turn.transcript:
+                continue
+            item = {"user": turn.transcript}
+            if turn.generated:
+                item["assistant"] = list(turn.generated)
+            results = [execution["result_summary"] for execution in turn.executions.values()
+                       if execution.get("state") == "completed" and execution.get("result_summary")]
+            if results:
+                item["results"] = results
+            result.append(item)
+        return result
+
     def record_dict(self):
         return {"turns": [asdict(turn) for turn in self.turns]}

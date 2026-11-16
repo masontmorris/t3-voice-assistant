@@ -125,7 +125,8 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
         entry = {"task_id": record["task_id"], "description": record["instruction"], "status": status}
         if execution is not None and execution.tool and execution.tool.get("tool"):
             entry["capability"] = execution.tool["tool"]
-            entry["arguments"] = execution.tool.get("arguments", {})
+            # The general worker's arguments are the person's words and the call so far, which no snapshot repeats.
+            entry["arguments"] = {} if entry["capability"] == "agent" else execution.tool.get("arguments", {})
         if record["depends_on"]:
             entry["depends_on"] = record["depends_on"]
         if status in (Run.COMPLETED, Run.FAILED):
@@ -148,21 +149,22 @@ class MockTaskService:
     effect runs on the mock worker instead of waiting for confirmation. A side effect never reaches a real tool."""
 
     def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None, holds_side_effects=True,
-                 earlier=None, simulate=True):
+                 earlier=None, simulate=True, context=None):
         """`earlier` is the newest lookup the call resolved before this turn, a `ToolCall`, which a follow-up that
-        names no place continues."""
+        names no place continues. `context` is the call's recent turns, which the general lookup worker reads."""
         self.segmenter, self.conversation_id, self.delay_s, self.tools = segmenter, conversation_id, delay_s, tools
-        self.earlier = earlier
+        self.earlier, self.context = earlier, context
         self.simulate = simulate
         self.holds_side_effects = holds_side_effects
         self.executions: dict[str, Execution] = {}
         self.correction = None
+        self.extra = {}
         self._seen = 0
         self._calls = {}
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
 
     def _start(self, task_id, instruction, side_effect, now):
-        call = self.tools.route(instruction, self.earlier) if self.tools and not side_effect else None
+        call = self.tools.route(instruction, self.earlier, self.context) if self.tools and not side_effect else None
         if call is None:
             if not self.simulate:
                 return Execution(task_id, Run.FAILED, now, None,
@@ -171,8 +173,37 @@ class MockTaskService:
             return Execution(task_id, Run.RUNNING, now, now + self.delay_s, mode="simulated")
         self.earlier = call
         self._calls[task_id] = self._pool.submit(self.tools.run, call)
-        return Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_s + HUNG_LOOKUP_GRACE_S,
+        return Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_for(call) + HUNG_LOOKUP_GRACE_S,
                          tool={"tool": call.tool, "arguments": call.arguments})
+
+    def _records(self):
+        """Every task by id: the segmenter's records, and the lookups `ask` started outside them."""
+        return {**{r["task_id"]: r for r in self.segmenter.records()}, **self.extra}
+
+    def ask(self, instruction, now):
+        """Start a lookup for the person's words through the registry's general worker, outside the segmenter's
+        records: for a reply that stated a fact nothing gave it, or a correction that names no value the earlier
+        task had. Returns the service events, empty when there is no worker to ask."""
+        call = self.tools.ask(instruction, self.context) if self.tools else None
+        if call is None:
+            return []
+        task_id = f"ask_{len(self.extra) + 1}"
+        self.extra[task_id] = {"task_id": task_id, "instruction": instruction, "status": "dispatched",
+                               "depends_on": [], "side_effect": False}
+        self._calls[task_id] = self._pool.submit(self.tools.run, call)
+        self.executions[task_id] = Execution(
+            task_id, Run.RUNNING, now, now + self.tools.timeout_for(call) + HUNG_LOOKUP_GRACE_S,
+            tool={"tool": call.tool, "arguments": call.arguments})
+        return [{"task_id": task_id, "event": Run.RUNNING.value, "instruction": instruction}]
+
+    def update_entries(self, updates):
+        """Each task update with the tool and arguments its lookup ran, as a snapshot task entry has them."""
+        entries = []
+        for update in updates:
+            tool = self.executions[update["task_id"]].tool or {}
+            named = {"capability": tool["tool"], "arguments": tool.get("arguments", {})} if tool.get("tool") else {}
+            entries.append({**update, **named})
+        return entries
 
     def submit_delegate(self, instruction):
         """The voice model's delegate tool. The segmenter reconciles it with its own records."""
@@ -181,7 +212,7 @@ class MockTaskService:
     def sync(self, now):
         """Start executions for new dispatches and cancel running ones the segmenter asked to cancel."""
         events = []
-        records = {r["task_id"]: r for r in self.segmenter.records()}
+        records = self._records()
         for entry in self.segmenter.dispatch_log[self._seen:]:
             task_id = entry["task_id"]
             record = records[task_id]
@@ -201,7 +232,7 @@ class MockTaskService:
     def poll(self, now):
         """Finish every running execution that is due or whose lookup returned. Returns the task ids that finished."""
         done = []
-        records = {r["task_id"]: r for r in self.segmenter.records()}
+        records = self._records()
         for task_id, execution in self.executions.items():
             if execution.state != Run.RUNNING:
                 continue
@@ -281,7 +312,8 @@ class MockTaskService:
 
     def snapshot(self, utterance_id, final_transcript, unreviewed=None, notes=False):
         """Build the snapshot. Every completion it carries counts as told, so no later update repeats it."""
-        snapshot = build_snapshot(self.segmenter.records(), self.executions, self.conversation_id, utterance_id,
+        snapshot = build_snapshot([*self.segmenter.records(), *self.extra.values()], self.executions,
+                                  self.conversation_id, utterance_id,
                                   final_transcript, unreviewed, notes, self.correction)
         for entry in snapshot["tasks"]:
             if entry["status"] in (Run.COMPLETED, Run.FAILED):
@@ -290,7 +322,7 @@ class MockTaskService:
 
     def take_updates(self):
         """A `task_update` for each completion the voice has not been told about yet, each exactly once."""
-        records = {r["task_id"]: r for r in self.segmenter.records()}
+        records = self._records()
         updates = []
         for task_id, execution in self.executions.items():
             if execution.state in (Run.COMPLETED, Run.FAILED) and not execution.reported:

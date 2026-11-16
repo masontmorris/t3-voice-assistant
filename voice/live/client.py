@@ -384,7 +384,7 @@ class Client:
             self.log("barge_in", **message)
         elif kind == "turn_done":
             self.done_turns += 1
-            if message["metrics"].get("cancelled") == "continued":
+            if (message.get("cancelled") or message["metrics"].get("cancelled")) == "continued":
                 print(f"[turn {message['turn']}] you kept talking: it continues in the next turn", flush=True)
             else:
                 print(f"[turn {message['turn']}] heard: {message.get('transcript')!r}", flush=True)

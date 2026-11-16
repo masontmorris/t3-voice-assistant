@@ -52,7 +52,10 @@ WORD_RE = re.compile(r"[A-Za-z][a-z]*")
 # Words that belong to the machinery, not to the assistant's voice. A reply that says one of them is telling the
 # person about the note, the check or the task list instead of answering them. Measured cost of the bare "note" in
 # this list: 1 of 157 spoken replies on disk ("Got it, I've noted that ...") would be refused and asked again.
-MACHINERY = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update", "note")
+# "lookup" and "no answer yet" are a lookup note's own words. Measured on the callfix3 replay fix2, turns 21 and 23: "It
+# looks like the lookup is still running and has no answer yet."
+MACHINERY = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update", "note",
+             "lookup", "no answer yet")
 
 
 class Fact(NamedTuple):
@@ -61,10 +64,11 @@ class Fact(NamedTuple):
     key: tuple
 
 
-# The person named in the third person. A reply that says one is talking about the person instead of to them.
-# Measured on demo-corrections turn 3: "I need to know what information or details the user wants ...".
+# The person, or the assistant itself, named in the third person. A reply that says one is narrating the call
+# instead of talking to the person. Measured on demo-corrections turn 3: "I need to know what information or details
+# the user wants ...", and on the callfix3 probes: "The assistant responds with a friendly greeting ...".
 THIRD_PERSON = re.compile(
-    r"\bthe (?:user|person|caller|speaker|customer)\b"
+    r"\bthe (?:user|person|caller|speaker|customer|assistant)\b"
     r"|\b(?:they|he|she) (?:want|wants|wanted|mean|meant|asked|said|need|needs|would like|are asking|were asking)\b",
     re.IGNORECASE)
 
@@ -156,13 +160,15 @@ def facts_in(text, worded_numbers=False, any_case_places=False):
 
 def ungrounded(text, sources):
     """The facts in `text` that no source states, in the order they appear, with duplicates dropped."""
-    allowed = set()
+    allowed, said = set(), set()
     for source in sources:
         for piece in _strings(source):
             allowed.update(fact.key for fact in facts_in(piece, worded_numbers=True, any_case_places=True))
+            said.update(word.lower() for word in WORD_RE.findall(piece))
     seen, missing = set(), []
     for fact in facts_in(text or ""):
-        if fact.key in allowed or fact.key in seen:
+        # A place the person named with no preposition ("what about San Diego?") is still a place they named.
+        if fact.key in allowed or fact.key in seen or (fact.kind == "place" and fact.key[1] in said):
             continue
         seen.add(fact.key)
         missing.append(fact)

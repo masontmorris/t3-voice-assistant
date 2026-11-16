@@ -84,7 +84,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
-                               segmenter="hybrid", call_max_turns=8, call_keep_turns=6, snapshot="reply",
+                               segmenter="hybrid", snapshot="reply",
                                recall="note")
         self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name))
         self.patch = mock.patch.object(server, "run_clip", fake_run_clip)
@@ -167,8 +167,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(VOICES[0].closed)
         first = json.loads((Path(self.tmp.name) / "turn_001.json").read_text())
         second = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
-        self.assertEqual(second["live"]["call"], {"turn": 2, "session_turn": 2, "voice_session": "shared",
-                                                  "reopened": None, "voice_sessions": 1})
+        self.assertEqual(second["live"]["call"], {"turn": 2, "session_turn": 2})
         self.assertNotEqual(first["live"]["call"], second["live"]["call"])
         await ws.close()
 
@@ -186,28 +185,19 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["live"]["snapshot"], "before-audio", "the record says where the item went")
         await ws.close()
 
-    async def test_a_long_call_seeds_a_new_session_with_the_call_so_far(self):
-        self.live.args.call_max_turns = 1
+    async def test_a_long_call_stays_on_its_one_session(self):
         ws = await self.connect()
-        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
-        await self.until(ws, "turn_done", [])
-        await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
-        await self.until(ws, "turn_done", [])
-        self.assertEqual(len(VOICES), 2)
-        self.assertIsNot(VOICES[0], VOICES[1], "the second turn starts a new session")
-        self.assertTrue(VOICES[0].closed, "the old session is closed")
-        self.assertEqual(SENT_BEFORE[1], [], "nothing goes into the new session before run_clip sends its settings")
-        self.assertIsNone(CALLS[0][-1]["seed"], "the call's first session has nothing to carry")
-        seed = CALLS[1][-1]["seed"]["content"][0]["text"]
-        self.assertTrue(seed.startswith(server.SEED_PREFIX))
-        self.assertIn("words in turn_001", seed, "the call's own text carries over")
-        record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
-        self.assertEqual(record["live"]["call"]["voice_session"], "started")
-        self.assertEqual(record["live"]["call"]["reopened"], "turn limit")
-        self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
+        for seed in range(1, 11):
+            await self.send(ws, noise(500) + tone(600) + noise(900, seed=seed))
+            await self.until(ws, "turn_done", [])
+        self.assertEqual(len({id(voice) for voice in VOICES}), 1, "ten turns, one voice session, never restarted")
+        self.assertFalse(VOICES[0].closed)
+        self.assertNotIn("seed", CALLS[-1][-1], "nothing rebuilds the session from the call's text")
+        record = json.loads((Path(self.tmp.name) / "turn_010.json").read_text())
+        self.assertEqual(record["live"]["call"], {"turn": 10, "session_turn": 10})
         await ws.close()
 
-    async def test_a_new_prompt_mid_call_starts_a_new_session(self):
+    async def test_a_new_prompt_mid_call_waits_for_the_next_call(self):
         prompt = Path(self.tmp.name) / "prompt.txt"
         prompt.write_text("Be brief.\n", encoding="utf-8")
         ws = await self.connect()
@@ -216,13 +206,8 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         prompt.write_text("Be warm.\n", encoding="utf-8")
         await self.send(ws, noise(500) + tone(600) + noise(900, seed=2))
         await self.until(ws, "turn_done", [])
-        self.assertIsNot(VOICES[0], VOICES[1], "llama.cpp keeps the old instructions on a session that holds audio")
-        self.assertTrue(VOICES[0].closed)
-        self.assertTrue(PERSONAS[1].startswith("Be warm."))
-        self.assertIn("words in turn_001", CALLS[1][-1]["seed"]["content"][0]["text"], "the call carries over")
-        record = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
-        self.assertEqual(record["live"]["call"]["reopened"], "persona changed")
-        self.assertEqual(record["live"]["call"]["voice_sessions"], 2)
+        self.assertIs(VOICES[0], VOICES[1], "the call keeps its session")
+        self.assertTrue(PERSONAS[1].startswith("Be brief."), "and the persona it started with")
         await ws.close()
 
     def heard(self, text):
@@ -439,7 +424,7 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
 
 
 class ChunkTest(unittest.IsolatedAsyncioTestCase):
-    async def test_upstream_audio_goes_to_llama_in_40_ms_chunks(self):
+    async def test_upstream_audio_goes_to_the_asr_in_40_ms_chunks_and_to_the_voice_once_at_the_end(self):
         class Recorder(FakeSession):
             def __init__(self):
                 super().__init__()
@@ -454,17 +439,22 @@ class ChunkTest(unittest.IsolatedAsyncioTestCase):
         voice, asr = Recorder(), Recorder()
         await turn.stream(voice, asr)
         self.assertEqual(server.UP_CHUNK_BYTES, 1280, "40 ms of 16 kHz PCM16")
-        self.assertEqual(max(voice.chunks), server.UP_CHUNK_BYTES)
-        self.assertEqual(sum(voice.chunks), len(turn.pcm))
-        self.assertEqual(voice.chunks, asr.chunks, "the voice and ASR sessions get the same chunks")
+        self.assertEqual(max(asr.chunks), server.UP_CHUNK_BYTES)
+        self.assertEqual(sum(asr.chunks), len(turn.pcm))
+        self.assertEqual(voice.chunks, [], "a turn that is cancelled while streaming leaves the voice session empty")
+        await turn.send_voice(voice)
+        self.assertEqual(sum(voice.chunks), len(turn.pcm), "the voice session gets the whole turn when it ends")
 
 
 class DefaultsTest(unittest.TestCase):
-    def test_live_mode_drops_the_persons_words_unless_told_otherwise(self):
+    def test_live_mode_sends_only_a_lookup_note_unless_told_otherwise(self):
         argv = mock.patch("sys.argv", ["server"])
         with argv, mock.patch.object(server, "main_async") as main_async, mock.patch.object(server.asyncio, "run"):
             server.main()
-        self.assertEqual(main_async.call_args.args[0].snapshot, "reply-no-utterance")
+        self.assertEqual(main_async.call_args.args[0].snapshot, "note")
+
+    def test_the_note_persona_is_the_default_without_a_prompt_file(self):
+        self.assertEqual(server.load_persona(None, server.NOTE_PERSONA), (server.NOTE_PERSONA, "built-in default"))
 
     def test_live_mode_names_the_turn_a_question_asks_about_unless_told_otherwise(self):
         argv = mock.patch("sys.argv", ["server"])

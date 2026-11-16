@@ -57,6 +57,8 @@ from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 
+import numpy as np
+
 from voice.live.facts import names_machinery, speaks_of_person, ungrounded
 from voice.live.recall import recall_note
 from voice.local_decider.bench import gpu_used_mib
@@ -85,6 +87,16 @@ PERSONA = (
     "means you need the user's OK before doing it. needs_clarification means you must ask the user. Never say a task "
     "is done unless its status is completed, never promise a step the snapshot does not show, and never make up a "
     "result."
+)
+# Live mode's persona, for a call whose only machine text is a `task_note`. Measured on Mason's 37 recorded turns:
+# a longer persona, or one that describes the call ("a live call with one person"), made the model narrate itself in
+# the third person from the first turn, and a call's own text in the instructions made it answer that text instead of
+# the audio.
+NOTE_PERSONA = (
+    "You are the voice of a personal assistant, on a call with the person you help. Answer what they just said in "
+    "one or two short, warm sentences, speaking as \"I\" to \"you\". A bracketed note is private, about a lookup you "
+    "started for them: follow it for that one reply, never read it aloud, and never repeat an old result unless "
+    "they ask. With no note, just talk with them, and don't state numbers, dates or facts you weren't given."
 )
 FORMAT_LINES = {
     "a": "\n\nRespond with interleaved text and audio.",
@@ -173,6 +185,13 @@ RUNNING_REFUSAL = re.compile(
 # What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
 # no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
 FALLBACK_LINE = "Sorry, I can't confirm that right now."
+NOTE_OPEN = "[Note for you, not said by the person: "
+RETRY_NOTE = (NOTE_OPEN + "your last reply was not spoken. Reply again in one short sentence, as \"I\", talking to "
+              "them, using only what they said and what a note gave you.]")
+STILL_RUNNING_NOTE = (NOTE_OPEN + "the lookup is still running and has no answer yet. Just tell them you're "
+                      "checking, in a few words.]")
+ASK_NOTE = (NOTE_OPEN + "they said your last answer was not what they wanted, and did not say what they want "
+            "instead. Ask them what they would like instead, in one short sentence.]")
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -208,6 +227,52 @@ async def respond(session, rate, since, **response):
     return reply_summary(session, mark, since, rate)
 
 
+def retry_note(found, running):
+    """The note a refused reply is answered with. A reply that stated values nothing gave it is told which, because
+    asked again with a general note the model repeated the same sentence (measured: callfix3 replay fix1, turn 2)."""
+    if running:
+        return STILL_RUNNING_NOTE
+    values = [fact.split(" ", 1)[1] for fact in found.get("ungrounded", ())]
+    if not values:
+        return RETRY_NOTE
+    return (f"{NOTE_OPEN}your last reply was not spoken, because nothing gave you {', '.join(values)}. Reply again "
+            "without that. If they asked for something you were not given, say you can't look that up.]")
+
+
+def lookup_name(entry):
+    """What a note calls a task: its tool and place, never the person's words, which the model would repeat."""
+    tool = entry.get("capability")
+    if tool in (None, "agent"):
+        return "the lookup"
+    place = (entry.get("arguments") or {}).get("place")
+    return f"the {tool} lookup" + (f" for {place}" if place else "")
+
+
+def task_note(entry):
+    """One task's state as a private direction to the voice model, or None for a state that needs no words.
+
+    A note tells the model what to do with the state, because the model treats the newest text it reads as the
+    thing to answer. Measured on Mason's recorded turns: a bare status line was read aloud, and this wording was
+    not. A task that is pending or needs clarification gets no note, so the model answers the person's own words."""
+    status, name = entry["status"], lookup_name(entry)
+    if status == "running":
+        return f"{NOTE_OPEN}{name} is running and has no answer yet. Tell them you're checking, in a few words.]"
+    if status == "completed":
+        return (f"{NOTE_OPEN}{name} finished. Result: {entry['result_summary']} "
+                "Tell them this result in one or two sentences.]")
+    if status == "failed":
+        return f"{NOTE_OPEN}{name} could not be done. Tell them briefly that you couldn't check that.]"
+    if status == "cancelled":
+        return f"{NOTE_OPEN}{name} was dropped, as they asked. Tell them so in a few words.]"
+    return None
+
+
+def task_notes(entries):
+    """The notes for a turn's tasks as one text, or None when no task needs words."""
+    lines = [note for note in map(task_note, entries) if note]
+    return "\n".join(lines) or None
+
+
 def is_running(snapshot):
     """Screen refusals only when no failed task could make them truthful."""
     statuses = {task.get("status") for task in (snapshot or {}).get("tasks", ())}
@@ -223,7 +288,58 @@ def refused(text, sources, running=False):
     return found
 
 
-async def answer(session, rate, since, sources, log, fallback=None, running=False, **response):
+SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+PAUSE_SEARCH = 0.2
+PAUSE_WINDOW_S = 0.1
+PAUSE_RATIO = 0.25
+
+
+def cut_at_pause(pcm, rate, fraction):
+    """`pcm` up to the pause nearest `fraction` of the way through it, or None when there is no pause there.
+
+    The model's text and audio carry no alignment, so the end of a sentence is estimated from its share of the
+    reply's characters and then moved to the quietest 100 ms within a fifth of the clip either side. Only a window
+    well below the clip's own level counts as a pause, so a reply spoken without one is never cut mid-word."""
+    samples = np.frombuffer(pcm, dtype="<i2").astype(np.float64)
+    window, hop = int(rate * PAUSE_WINDOW_S), max(1, int(rate * 0.01))
+    if len(samples) < 4 * window:
+        return None
+    starts = np.arange(0, len(samples) - window, hop)
+    squares = np.concatenate(([0.0], np.cumsum(samples ** 2)))
+    level = np.sqrt((squares[starts + window] - squares[starts]) / window)
+    centre = fraction * len(samples)
+    near = np.abs(starts + window / 2 - centre) <= PAUSE_SEARCH * len(samples)
+    if not near.any():
+        return None
+    quietest = starts[near][np.argmin(level[near])]
+    if level[near].min() > PAUSE_RATIO * np.median(level):
+        return None
+    return pcm[:int(quietest + window / 2) * 2]
+
+
+def spoken_part(reply, pcm, rate, sources, running):
+    """The leading sentences of a refused reply that pass every screen, with their audio, or None.
+
+    Measured on the callfix3 probes: a reply to a running lookup often opened with "I'm checking the weather in
+    Durham." and then invented a forecast. Refused whole and asked again, the model repeated itself and the turn
+    said nothing. The opening sentence was the right reply, so it is spoken and the rest is dropped."""
+    sentences = SENTENCE_END.split((reply["text"] or "").strip())
+    kept = []
+    for sentence in sentences[:-1]:
+        if any(refused(" ".join([*kept, sentence]), sources, running).values()):
+            break
+        kept.append(sentence)
+    if not kept:
+        return None
+    text = " ".join(kept)
+    part = cut_at_pause(pcm, rate, len(text) / max(1, len(reply["text"].strip())))
+    if part is None:
+        return None
+    return {**reply, "text": text, "speech_s": len(part) / 2 / rate, "dropped": reply["text"][len(text):].strip()}, part
+
+
+async def answer(session, rate, since, sources, log, fallback=None, running=False, retry_item=None, escalate=None,
+                 keep_opening=False, **response):
     """A reply that states only facts the call gave it, and never names the machinery.
 
     `sources` is what the assistant may say: the person's words in this call and the newest machine note, never its
@@ -232,15 +348,38 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     says it lacks access while `running` holds, is not spoken: the turn says so in the record, sends one machine note,
     and asks again once. If the second answer is bad too, the turn speaks `fallback`'s one short line, and only if that
     turn has not said it yet. Nothing is substituted for a wrong value, because a different wrong value is worse than
-    saying less."""
+    saying less.
+
+    `retry_item` replaces the machine note a refused reply is answered with; given a function, it is called with
+    what the screens found and returns the item. `escalate`, when given, is called
+    with the facts a reply stated that nothing gave it: it may start a lookup for the person's words and return
+    the note for it, so a fact the model does not have is looked up instead of refused. The turn then says it is
+    checking, and the result arrives as a task update. With `keep_opening`, a refused reply whose opening
+    sentences pass is spoken up to there and not asked again (`spoken_part`)."""
     reply, pcm = await respond(session, rate, since, **response)
     if not any((found := refused(reply["text"], sources, running)).values()):
         return reply, pcm
+    if keep_opening and (part := spoken_part(reply, pcm, rate, sources, running)) is not None:
+        log("fact_check", reply=reply["text"], **found, kept=part[0]["text"])
+        return part
     log("fact_check", reply=reply["text"], **found, asked_again=True)
-    await create_item(session, user_text(FACT_CHECK_PREFIX, RUNNING_REJECTED if running else FACT_CHECK_REJECTED))
+    looked_up = None
+    if escalate is not None and found["ungrounded"] and not found["machinery"] and not found["third_person"]:
+        looked_up = escalate(found["ungrounded"])
+    if looked_up is not None:
+        log("escalated", note=looked_up)
+        sources, running = [*sources, looked_up], True
+        await create_item(session, plain_text(looked_up))
+    elif retry_item is not None:
+        await create_item(session, retry_item(found) if callable(retry_item) else retry_item)
+    else:
+        await create_item(session, user_text(FACT_CHECK_PREFIX, RUNNING_REJECTED if running else FACT_CHECK_REJECTED))
     retry, retry_pcm = await respond(session, rate, since, **response)
     if not any((again := refused(retry["text"], sources, running)).values()):
         return retry, retry_pcm
+    if keep_opening and (part := spoken_part(retry, retry_pcm, rate, sources, running)) is not None:
+        log("fact_check", reply=retry["text"], **again, kept=part[0]["text"])
+        return part
     blocked = {"reply": retry["text"], **again}
     log("fact_check", **blocked, blocked=True)
     if fallback is None or fallback.spoken:
@@ -398,18 +537,16 @@ def close_with_decider(segmenter, update):
 
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
-                   snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
+                   snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
-                   recall="off"):
+                   recall="off", context=(), prior_results=()):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
     `voice` is an already-open voice session the caller keeps across turns, as live mode does for a call. The turn
     then adds its audio, its injections and its replies to that session's conversation instead of opening one, and
     leaves it open. Its session settings are sent only when they change, so a reused session keeps its history. The
-    per-turn `asr` and `tools` sessions are still opened and closed here. `seed` is an item for a session the caller
-    has just opened. It goes in after the settings, because llama.cpp refuses new instructions once a session holds a
-    message, and before the turn's audio. A refused session.update raises SessionRefused with the server's error.
+    per-turn `asr` and `tools` sessions are still opened and closed here. A refused session.update raises SessionRefused with the server's error.
 
     `snapshot_mode` says where the task snapshot enters the voice session. "reply" is the shipped behaviour: one user
     item built after the turn's tools ran, immediately before the reply. "before-audio" sends the caller's
@@ -428,6 +565,15 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `recall` says how a question about the call reaches the model. "off" is the shipped behaviour, the numbered
     `call_turns` inside the snapshot item. "note" keeps that list and adds one plain sentence naming the turn the
     question asks about (voice/live/recall.py) as the newest item before the reply.
+
+    `snapshot_mode` "note" is live mode's default. The voice session then holds only the call itself: each turn's
+    audio and reply, plus one `task_notes` text after the audio on a turn that has a lookup to speak about. No
+    snapshot JSON, no list of earlier turns and no recall note go in, because the model answers the newest text it
+    reads in place of the audio (measured: 20261116-152653, where replies answered the previous turn's words). A
+    refused reply is asked again with one short note, and a reply that fails twice is not spoken; no fixed line is
+    played. A reply that states a fact nothing gave it starts a lookup for the person's words when the registry has
+    an agent. `context` is the call so far for that agent, as `ConversationLedger.context` gives it, and
+    `prior_results` is every lookup result the call has had, which the fact check accepts as said.
 
     `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
@@ -453,7 +599,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, True
     service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
                               earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")),
-                                           None), simulate=simulate_tasks)
+                                           None), simulate=simulate_tasks, context=list(context))
     adapter = TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -519,7 +665,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     def partial_close(update):
         return close_with_decider(segmenter, update) if final_decider else segmenter.close(update, settle=False)
 
-    tool_session = await Session.open(url, "tools", clock) if eou in TOOL_SESSIONS else None
+    tool_session = (await Session.open(url, "tools", clock) if eou in TOOL_SESSIONS and not final_decider
+                    else None)
     worker = None
     try:
         if tool_session is not None:
@@ -547,9 +694,6 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
         replies, tool_turn, injection, answered = [], None, [], None
         fallback = Fallback(fallback_pcm)
-        if seed is not None:
-            injection.append(await create_item(voice, seed))
-            log("seed", answer=injection[-1])
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
             log("snapshot_before_audio", snapshot=prior_snapshot)
@@ -558,6 +702,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         log("audio_end", audio_s=audio_s)
         adapter.end_input()
         await asr.send(type="input_audio_buffer.commit", final=True)
+        if getattr(source, "voice_at_end", False):
+            await source.send_voice(voice)
         await voice.send(type="input_audio_buffer.commit")
 
         if inject == "b":
@@ -602,6 +748,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     tool_results.append({"name": call.get("name"), "arguments": parse_arguments(call),
                                          "result": result})
                     log("tool_call", **tool_results[-1])
+            noted = snapshot_mode == "note"
+            if noted and service.correction is ASK_WHAT_CHANGED and intent.replacement:
+                for event in service.ask(adapter.text(), clock()):
+                    log("service", **event)
             service.poll(clock())
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
@@ -611,13 +761,37 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 log("history", turn_count=len(item["call_turns"]), omitted=item["omitted_turns"])
             if item is not None:
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
-            note = recall_note(adapter.text(), prior_utterances) if recall == "note" else None
+            note = recall_note(adapter.text(), prior_utterances) if recall == "note" and not noted else None
             if note is not None:
                 injection.append(await create_item(voice, plain_text(note)))
                 log("recall_note", note=note)
+            if noted:
+                asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
+                item = ASK_NOTE if asks else task_notes(answered["tasks"])
+                if item is not None:
+                    injection.append(await create_item(voice, plain_text(item)))
+                    log("task_note", note=item)
             log("injection", items=injection)
-            sources = [adapter.text(), *prior_utterances, read_before, item]
-            if service.correction is ASK_WHAT_CHANGED:
+            # An earlier lookup's values count as given only on a turn with no note of its own. Beside a note they
+            # would let the model say an old result for the new lookup (measured: callfix3 replay fix1, turn 25).
+            earlier_results = prior_results if noted and item is None else ()
+            sources = [adapter.text(), *prior_utterances, *earlier_results, read_before, item]
+
+            def look_up(_facts):
+                """Start a lookup for the person's words when the reply stated a fact nothing gave it."""
+                if answered["tasks"] or service.correction is not None:
+                    return None
+                events = service.ask(adapter.text(), clock())
+                for event in events:
+                    log("service", **event)
+                return STILL_RUNNING_NOTE if events else None
+
+            if noted:
+                running = is_running(answered)
+                reply, reply_pcm = await answer(
+                    voice, out_rate, audio_end, sources, log, running=running, escalate=look_up,
+                    keep_opening=True, retry_item=lambda found: plain_text(retry_note(found, running)))
+            elif service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
             else:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback,
@@ -662,13 +836,21 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 log("service", task_id=task_id, event=service.executions[task_id].state.value)
         task_updates = service.take_updates()
         updates = shown({"updates": task_updates}, snapshot_mode, adapter.text(), update=True) if task_updates else None
+        if snapshot_mode == "note" and task_updates:
+            updates = task_notes(service.update_entries(task_updates))
         if updates is not None:
             boundary = clock()
             log("task_updates", updates=task_updates)
-            injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
-            update_reply, update_pcm = await answer(voice, out_rate, boundary,
-                                                    [adapter.text(), *prior_utterances, updates], log,
-                                                    fallback=fallback, **extra)
+            if snapshot_mode == "note":
+                injection_update = await create_item(voice, plain_text(updates))
+                update_reply, update_pcm = await answer(
+                    voice, out_rate, boundary, [adapter.text(), *prior_utterances, updates], log,
+                    keep_opening=True, retry_item=lambda found: plain_text(retry_note(found, False)), **extra)
+            else:
+                injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
+                update_reply, update_pcm = await answer(voice, out_rate, boundary,
+                                                        [adapter.text(), *prior_utterances, updates], log,
+                                                        fallback=fallback, **extra)
             replies.append({"kind": "update", "injection": injection_update, **update_reply})
             log("reply", reply="update", text=update_reply["text"])
             if update_pcm:
