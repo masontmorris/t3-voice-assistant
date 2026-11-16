@@ -1,0 +1,13 @@
+{
+  "archive": "example",
+  "shots": [
+    { "kind": "card", "hold": 2.0, "title": "a timer, eventually", "sub": "synthetic run · 3 turns" },
+    { "kind": "play", "from": 0.4, "to": 5.6, "caption": "TWO REQUESTS IN ONE BREATH. THE DECIDER SPLITS THEM." },
+    { "kind": "freeze", "at": 5.6, "hold": 2.4, "zoom": { "region": "tasks", "scale": 1.6 },
+      "caption": "THE TIMER HAS A SIDE EFFECT. 0.61 < 0.80, SO IT WAITS.", "stamp": "HELD" },
+    { "kind": "play", "from": 5.6, "to": 17.4 },
+    { "kind": "play", "from": 17.4, "to": 22.75, "caption": "FIFTEEN, NOT TEN. THE PIECES MERGE INTO ONE." },
+    { "kind": "freeze", "at": 22.75, "hold": 1.8, "zoom": { "region": "lfm", "scale": 1.5 }, "stamp": "CUT OFF" },
+    { "kind": "play", "from": 22.75, "to": 25.7 }
+  ]
+}

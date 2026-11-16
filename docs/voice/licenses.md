@@ -83,3 +83,14 @@ These rows cover `voice/live/client.py` and [live-demo.md](live-demo.md). Versio
 | numpy | 2.5.5 | BSD-3-Clause with bundled 0BSD, MIT, Zlib, and CC0-1.0 parts | https://numpy.org | |
 | websockets | 17.4 | BSD-3-Clause | https://github.com/python-websockets/websockets | |
 | cffi, pycparser, typing_extensions | 2.1.1, 3.12, 4.16.0 | MIT-0, BSD-3-Clause, PSF | PyPI | Pulled in by sounddevice and soundfile. |
+
+## Loop visualization
+
+These rows cover `voice/viz/` and [loop-viz.md](loop-viz.md). Versions come from each package's installed `package.json`, read on 2026-11-16.
+
+| Name | Version or revision | License | Source | Notable terms |
+| --- | --- | --- | --- | --- |
+| Remotion (`remotion`, `@remotion/cli`, `@remotion/media`, `@remotion/google-fonts`) | 4.0.544 | Remotion License, free tier | https://www.remotion.dev/docs/license | Free for an individual, a for-profit company with up to 3 employees, or a non-profit. A larger for-profit company needs a company license. This project is Mason's own, so the free tier applies (inferred). The license text is `node_modules/remotion/LICENSE.md`. |
+| React and React DOM | 19.3.1 | MIT | https://github.com/facebook/react | Keep the copyright notice. |
+| Space Grotesk | Google Fonts, loaded at render time by `@remotion/google-fonts` | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Space+Grotesk | The font may be used and embedded freely. It cannot be sold on its own. |
+| IBM Plex Mono | Google Fonts, loaded at render time by `@remotion/google-fonts` | SIL Open Font License 1.1 | https://fonts.google.com/specimen/IBM+Plex+Mono | Same terms as Space Grotesk. |
