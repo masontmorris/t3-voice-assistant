@@ -1,0 +1,403 @@
+{
+  "scenario": "02_two_dependent",
+  "covers": "Two dependent requests. The second needs the first one's result.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "02_two_dependent:r1",
+      "cursor": 0,
+      "markers": [
+        3
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r1",
+          "route": "decisions",
+          "file": "decisions-d70c6911ff932e005fb9847b.json",
+          "status": 200,
+          "ms": 98.1,
+          "started_at": "2026-11-16T01:08:10.035+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "nothing",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.04431807549831257,
+        "at": {
+          "choice": "none",
+          "margin": 0.5212190012484709,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.029811630973516082,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "02_two_dependent:r2",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r2",
+          "route": "decisions",
+          "file": "decisions-07ece297fdfa67776cef1b49.json",
+          "status": 200,
+          "ms": 99.9,
+          "started_at": "2026-11-16T01:08:11.235+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "find last quarter's sales report",
+      "committed": null,
+      "answer": {
+        "finished": 0.9061269224271373,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7836831808667652,
+          "runner_up": "none"
+        },
+        "side_effect": 0.038411661646617426,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "02_two_dependent:r3",
+      "cursor": 0,
+      "markers": [
+        5,
+        7
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r3",
+          "route": "decisions",
+          "file": "decisions-c304cb7743c67368d1f128dd.json",
+          "status": 200,
+          "ms": 95.7,
+          "started_at": "2026-11-16T01:08:14.501+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "disagree",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.47262309945379205,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8548669409163275,
+          "runner_up": "none"
+        },
+        "side_effect": 0.040519673605700385,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "02_two_dependent:r4",
+      "cursor": 0,
+      "markers": [
+        5,
+        9
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r4",
+          "route": "decisions",
+          "file": "decisions-cd24cc279389d8fbf18a1474.json",
+          "status": 200,
+          "ms": 79.4,
+          "started_at": "2026-11-16T01:08:15.701+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "find last quarter's sales report",
+      "committed": null,
+      "answer": {
+        "finished": 0.7215336279867671,
+        "at": {
+          "choice": "m1",
+          "margin": 0.6392950732015199,
+          "runner_up": "none"
+        },
+        "side_effect": 0.021683890440789857,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "02_two_dependent:r5",
+      "cursor": 0,
+      "markers": [
+        5,
+        13
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r5",
+          "route": "decisions",
+          "file": "decisions-26fc46dc5d38c3f9991ccff8.json",
+          "status": 200,
+          "ms": 87.2,
+          "started_at": "2026-11-16T01:08:16.901+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "find last quarter's sales report",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.8054780290320912,
+        "at": {
+          "choice": "m1",
+          "margin": 0.6430069825697248,
+          "runner_up": "none"
+        },
+        "side_effect": 0.016997909742238228,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "02_two_dependent:r6",
+      "cursor": 5,
+      "markers": [
+        13
+      ],
+      "calls": [
+        {
+          "label": "02_two_dependent:r6",
+          "route": "decisions",
+          "file": "decisions-187454585ed1e3ccae425f49.json",
+          "status": 200,
+          "ms": 185.3,
+          "started_at": "2026-11-16T01:12:25.715+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 13,
+      "candidate": "and then summarize it in three bullet points",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.8711104938538323,
+        "at": {
+          "choice": "m1",
+          "margin": 0.44861236315286,
+          "runner_up": "none"
+        },
+        "side_effect": 0.01239576328981981,
+        "depends": {
+          "choice": "s1",
+          "margin": 0.9453157968207534,
+          "runner_up": "none"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.7349357364623562,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "dispatched",
+      "segment_text": "Find last quarter's sales report",
+      "instruction": "find last quarter's sales report",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 5,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "find last quarter's sales report"
+        },
+        {
+          "revision": 5,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "find last quarter's sales report",
+          "new": "Find last quarter's sales report"
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "ready",
+      "segment_text": "and then summarize it in three bullet points.",
+      "instruction": "and then summarize it in three bullet points.",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [
+        "task_1"
+      ],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "and then summarize it in three bullet points."
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "ready",
+          "reason": "waiting on dependency"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 5,
+      "text": "Find last quarter's sales report"
+    },
+    {
+      "sid": "s2",
+      "w0": 5,
+      "w1": 13,
+      "text": "and then summarize it in three bullet points."
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 5,
+      "is_final": false,
+      "instruction": "find last quarter's sales report",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_02_two_dependent",
+    "final_transcript": "Find last quarter's sales report and then summarize it in three bullet points.",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "find last quarter's sales report",
+        "status": "running"
+      },
+      {
+        "task_id": "task_2",
+        "description": "and then summarize it in three bullet points.",
+        "status": "pending",
+        "depends_on": [
+          "task_1"
+        ]
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "sales",
+          "report"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "summarize"
+        ],
+        "status": [
+          "ready"
+        ],
+        "depends_on": [
+          [
+            "T1"
+          ]
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": true,
+    "failures": [],
+    "premature_dispatches": 0,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [],
+    "dispatch_count": 1
+  }
+}

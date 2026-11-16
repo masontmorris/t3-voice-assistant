@@ -1,0 +1,146 @@
+[
+  {
+    "scenario": "01_two_independent",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 6,
+    "calls": 6,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "02_two_dependent",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 6,
+    "calls": 6,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "03_topic_change",
+    "pass": false,
+    "revisions": 6,
+    "decision_points": 7,
+    "calls": 7,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['banana']",
+      "T1: status cancel_requested, expected one of ['dispatched']",
+      "task_2: unexpected dispatched task \"Anyway,\""
+    ]
+  },
+  {
+    "scenario": "04_mid_sentence_correction",
+    "pass": false,
+    "revisions": 7,
+    "decision_points": 7,
+    "calls": 7,
+    "premature": 1,
+    "duplicate": 0,
+    "missed_corrections": 1,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['six']",
+      "T1: status dispatched, expected one of ['superseded', 'withdrawn']",
+      "T1: dispatched but should never dispatch"
+    ]
+  },
+  {
+    "scenario": "05_correction_after_dispatch",
+    "pass": true,
+    "revisions": 7,
+    "decision_points": 7,
+    "calls": 7,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "06_description_not_request",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 6,
+    "calls": 6,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "07_intentional_repeat",
+    "pass": false,
+    "revisions": 4,
+    "decision_points": 5,
+    "calls": 5,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T1: status cancel_requested, expected one of ['dispatched']"
+    ]
+  },
+  {
+    "scenario": "08_delegate_after_dispatch",
+    "pass": false,
+    "revisions": 5,
+    "decision_points": 6,
+    "calls": 6,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": [
+      "T2: no task matches ['travel']"
+    ]
+  },
+  {
+    "scenario": "09_delegate_before_segment",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 7,
+    "calls": 7,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "10_side_effect_email",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 7,
+    "calls": 7,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  },
+  {
+    "scenario": "11_filler_false_starts",
+    "pass": true,
+    "revisions": 6,
+    "decision_points": 6,
+    "calls": 6,
+    "premature": 0,
+    "duplicate": 0,
+    "missed_corrections": 0,
+    "problems": 0,
+    "failures": []
+  }
+]

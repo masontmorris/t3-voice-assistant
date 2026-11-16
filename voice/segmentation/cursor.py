@@ -30,7 +30,6 @@ SNIPPET = 4
 @dataclass(frozen=True)
 class Thresholds:
     finished: float = 0.5
-    noul_band: float = 0.1
     margin: float = 0.2
     side_effect: float = 0.5
 
@@ -52,10 +51,10 @@ def words(text):
 def markers(text, ws, cursor):
     """Candidate break gaps after the cursor, as word indices (a gap sits before that word). The last is the end."""
     n = len(ws)
-    gaps, i = set(), cursor + 1
+    gaps, i = set(), cursor
     while i < n:
         phrase = next((p for p in CONNECTIVES if tuple(w.text for w in ws[i:i + len(p)]) == p), None)
-        if phrase or CLAUSE_PUNCT.search(text[ws[i - 1].end:ws[i].start]):
+        if i > cursor and (phrase or CLAUSE_PUNCT.search(text[ws[i - 1].end:ws[i].start])):
             gaps.add(i)
         i += len(phrase) if phrase else 1
     bounds = sorted(gaps | {cursor, n})
@@ -80,20 +79,25 @@ def _quote(ws, a, b):
     return " ".join(w.text for w in ws[a:b])
 
 
+def _span(ws, a, b):
+    if b - a <= 2 * SNIPPET + 1:
+        return _quote(ws, a, b)
+    return f"{_quote(ws, a, a + SNIPPET)} ... {_quote(ws, b - SNIPPET, b)}"
+
+
 def marker_criteria(ws, cursor, gaps):
+    """One option per marker, each naming the request it would close, plus `none`."""
     out = {}
     for k, gap in enumerate(gaps, 1):
-        before = _quote(ws, max(cursor, gap - SNIPPET), gap)
-        if gap == len(ws):
-            out[f"m{k}"] = f"It ends at [{k}], the end of the speech so far, after \"{before}\"."
-        else:
-            out[f"m{k}"] = (f"It ends at [{k}], after \"{before}\" and before "
-                            f"\"{_quote(ws, gap, min(len(ws), gap + SNIPPET))}\".")
+        where = "the end of the speech so far" if gap == len(ws) else f"[{k}]"
+        out[f"m{k}"] = f"The first request ends at {where}. It is \"{_span(ws, cursor, gap)}\"."
     out["none"] = "No request in new_speech is finished yet."
     return out
 
 
 FIRST = "the first finished request in new_speech"
+ONE_ACTION = ("A request is one action for one worker. \"And\", \"then\" or \"also\" followed by a second action "
+              "starts a new request, and so does a correction such as \"no wait\" or \"actually\".")
 
 
 def cursor_request(update, ws, cursor, gaps, earlier, extra=False):
@@ -101,12 +105,13 @@ def cursor_request(update, ws, cursor, gaps, earlier, extra=False):
     questions = {
         "finished": {"type": "noul",
                      "instructions": "In new_speech, has the speaker finished explicitly asking the assistant for an "
-                                     "actionable task, or for a change or withdrawal of an earlier request?",
+                                     "actionable task, or for a change or withdrawal of an earlier request? "
+                                     + ONE_ACTION,
                      "criteria": {"true": "At least one request in new_speech is complete: a worker could act on it "
                                           "as spoken.",
                                   "false": "new_speech holds only filler, small talk, a description of a task, or a "
                                            "request still being spoken."}},
-        "at": {"type": "choice", "instructions": f"At which marker does {FIRST} end?",
+        "at": {"type": "choice", "instructions": f"At which marker does {FIRST} end? {ONE_ACTION}",
                "criteria": marker_criteria(ws, cursor, gaps)},
         "side_effect": {"type": "noul",
                         "instructions": f"Would carrying out {FIRST} change something outside the conversation?",
@@ -123,7 +128,8 @@ def cursor_request(update, ws, cursor, gaps, earlier, extra=False):
         questions["corrects"] = {
             "type": "choice", "instructions": f"Does {FIRST} change or withdraw an earlier request?",
             "criteria": {"none": "It does not change any earlier request.",
-                         **{f"replace_{sid}": f"It states a new version of {sid} (\"{t}\")."
+                         **{f"replace_{sid}": f"It changes what {sid} (\"{t}\") asked for, so {sid} as first "
+                                              "spoken should not be done."
                             for sid, t in earlier.items()},
                          **{f"cancel_{sid}": f"It withdraws {sid} (\"{t}\") with no replacement."
                             for sid, t in earlier.items()}}}
@@ -233,11 +239,18 @@ class Verdict(StrEnum):
     NEAR_TIE = "near_tie"
 
 
-def judge(answer, gaps, t=THRESHOLDS):
-    """Apply the condition the API cannot express. Returns (verdict, boundary gap or None)."""
-    if abs(answer.finished - t.finished) < t.noul_band or answer.at.margin < t.margin:
-        return Verdict.NEAR_TIE, None
+def judge(answer, gaps, is_final, t=THRESHOLDS):
+    """Apply the condition the API cannot express. Returns (verdict, boundary gap or None).
+
+    On a partial, a near-tie or a disagreement waits for the next revision. The final transcript has no next
+    revision, so when the request is finished it takes the earlier marker among the top two choices.
+    """
     finished, located = answer.finished >= t.finished, answer.at.choice != "none"
+    if is_final and finished and (answer.at.margin < t.margin or not located):
+        top_two = [c for c in (answer.at.choice, answer.at.runner_up) if c not in (None, "none")]
+        return (Verdict.CANDIDATE, gaps[min(int(c[1:]) for c in top_two) - 1]) if top_two else (Verdict.DISAGREE, None)
+    if answer.at.margin < t.margin:
+        return Verdict.NEAR_TIE, None
     if finished and located:
         return Verdict.CANDIDATE, gaps[int(answer.at.choice[1:]) - 1]
     return (Verdict.DISAGREE if finished or located else Verdict.NOTHING), None
@@ -384,7 +397,7 @@ class CursorRunner:
         calls = []
         cursor = orch.cursor
         gaps, answer, problems = self._ask(orch, update, label, calls)
-        verdict, gap = (Verdict.NOTHING, None) if answer is None else judge(answer, gaps, self.t)
+        verdict, gap = (Verdict.NOTHING, None) if answer is None else judge(answer, gaps, update.is_final, self.t)
         candidate = tuple(w.text for w in orch.ws[cursor:gap]) if gap is not None else None
         side = answer is not None and answer.side_effect >= self.t.side_effect
         committed = None

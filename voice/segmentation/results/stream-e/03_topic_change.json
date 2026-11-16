@@ -1,0 +1,486 @@
+{
+  "scenario": "03_topic_change",
+  "covers": "A topic change between two unrelated requests. The transition sentence creates no task.",
+  "option": "e",
+  "mode": "stream",
+  "revisions": 6,
+  "decision_points": [
+    {
+      "revision": 1,
+      "is_final": false,
+      "label": "03_topic_change:r1",
+      "cursor": 0,
+      "markers": [
+        5
+      ],
+      "calls": [
+        {
+          "label": "03_topic_change:r1",
+          "route": "decisions",
+          "file": "decisions-0ba6ebc65558b59e8d8d1410.json",
+          "status": 200,
+          "ms": 91.4,
+          "started_at": "2026-11-16T01:08:19.302+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 5,
+      "candidate": "look up the score of",
+      "committed": null,
+      "answer": {
+        "finished": 0.5776347410753914,
+        "at": {
+          "choice": "m1",
+          "margin": 0.44551469708422897,
+          "runner_up": "none"
+        },
+        "side_effect": 0.015041654286245317,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 2,
+      "is_final": false,
+      "label": "03_topic_change:r2",
+      "cursor": 0,
+      "markers": [
+        8
+      ],
+      "calls": [
+        {
+          "label": "03_topic_change:r2",
+          "route": "decisions",
+          "file": "decisions-41750b480ad6cbde83bdee0b.json",
+          "status": 200,
+          "ms": 84.0,
+          "started_at": "2026-11-16T01:08:22.550+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "look up the score of the nuggets game",
+      "committed": null,
+      "answer": {
+        "finished": 0.9401734495982912,
+        "at": {
+          "choice": "m1",
+          "margin": 0.8242093582695287,
+          "runner_up": "none"
+        },
+        "side_effect": 0.011700550241108252,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 3,
+      "is_final": false,
+      "label": "03_topic_change:r3",
+      "cursor": 0,
+      "markers": [
+        8,
+        10
+      ],
+      "calls": [
+        {
+          "label": "03_topic_change:r3",
+          "route": "decisions",
+          "file": "decisions-89239baa72411a97fdb40d8b.json",
+          "status": 200,
+          "ms": 87.3,
+          "started_at": "2026-11-16T01:08:29.844+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 8,
+      "candidate": "look up the score of the nuggets game",
+      "committed": "s1",
+      "answer": {
+        "finished": 0.7875604591790147,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7544236590719144,
+          "runner_up": "m2"
+        },
+        "side_effect": 0.013286996824066364,
+        "depends": null,
+        "corrects": null,
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 4,
+      "is_final": false,
+      "label": "03_topic_change:r4",
+      "cursor": 8,
+      "markers": [
+        15
+      ],
+      "calls": [
+        {
+          "label": "03_topic_change:r4",
+          "route": "decisions",
+          "file": "decisions-40242d6f7920a01d9dd12156.json",
+          "status": 200,
+          "ms": 83.6,
+          "started_at": "2026-11-16T01:08:31.045+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "nothing",
+      "boundary": null,
+      "candidate": null,
+      "committed": null,
+      "answer": {
+        "finished": 0.06537170091557405,
+        "at": {
+          "choice": "none",
+          "margin": 0.7031315698245367,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.018794197439414163,
+        "depends": {
+          "choice": "none",
+          "margin": 0.966252079950618,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.34495853884310584,
+          "runner_up": "cancel_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 5,
+      "is_final": false,
+      "label": "03_topic_change:r5",
+      "cursor": 8,
+      "markers": [
+        19
+      ],
+      "calls": [
+        {
+          "label": "03_topic_change:r5",
+          "route": "decisions",
+          "file": "decisions-d48ee92a104a50611fe3748a.json",
+          "status": 200,
+          "ms": 94.1,
+          "started_at": "2026-11-16T01:08:32.245+00:00"
+        }
+      ],
+      "pause": false,
+      "verdict": "candidate",
+      "boundary": 19,
+      "candidate": "anyway totally different thing what's a good recipe for banana bread",
+      "committed": null,
+      "answer": {
+        "finished": 0.8618584847983768,
+        "at": {
+          "choice": "m1",
+          "margin": 0.7740409215492893,
+          "runner_up": "none"
+        },
+        "side_effect": 0.009868070443055401,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9946730673850206,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "replace_s1",
+          "margin": 0.03649537400027436,
+          "runner_up": "none"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "03_topic_change:r6",
+      "cursor": 8,
+      "markers": [
+        9,
+        12,
+        19
+      ],
+      "calls": [
+        {
+          "label": "03_topic_change:r6",
+          "route": "decisions",
+          "file": "decisions-b90a2cf4b6d39d29aa652892.json",
+          "status": 200,
+          "ms": 95.6,
+          "started_at": "2026-11-16T01:08:33.445+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 9,
+      "candidate": "anyway",
+      "committed": "s2",
+      "answer": {
+        "finished": 0.9164674653041539,
+        "at": {
+          "choice": "m2",
+          "margin": 0.12494025115329963,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.015269421777290801,
+        "depends": {
+          "choice": "none",
+          "margin": 0.9619070931035482,
+          "runner_up": "s1"
+        },
+        "corrects": {
+          "choice": "none",
+          "margin": 0.39525051241941134,
+          "runner_up": "cancel_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    },
+    {
+      "revision": 6,
+      "is_final": true,
+      "label": "03_topic_change:r6:drain1",
+      "cursor": 9,
+      "markers": [
+        12,
+        19
+      ],
+      "calls": [
+        {
+          "label": "03_topic_change:r6:drain1",
+          "route": "decisions",
+          "file": "decisions-3a208672a548fd140f6014e6.json",
+          "status": 200,
+          "ms": 104.1,
+          "started_at": "2026-11-16T01:08:34.646+00:00"
+        }
+      ],
+      "pause": true,
+      "verdict": "candidate",
+      "boundary": 19,
+      "candidate": "totally different thing what's a good recipe for banana bread",
+      "committed": "s3",
+      "answer": {
+        "finished": 0.9343287780539256,
+        "at": {
+          "choice": "m2",
+          "margin": 0.8167561012572345,
+          "runner_up": "m1"
+        },
+        "side_effect": 0.011928980405246469,
+        "depends": {
+          "choice": "none",
+          "margin": 0.977610215169333,
+          "runner_up": "s2"
+        },
+        "corrects": {
+          "choice": "cancel_s1",
+          "margin": 0.2484105676748189,
+          "runner_up": "replace_s1"
+        },
+        "extra": {}
+      },
+      "problems": []
+    }
+  ],
+  "tasks": [
+    {
+      "task_id": "task_1",
+      "status": "cancel_requested",
+      "segment_text": "Look up the score of the Nuggets game.",
+      "instruction": "look up the score of the nuggets game",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "look up the score of the nuggets game"
+        },
+        {
+          "revision": 3,
+          "is_final": false,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "segment_text",
+          "old": "look up the score of the nuggets game",
+          "new": "Look up the score of the Nuggets game."
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "dispatched",
+          "new": "cancel_requested",
+          "reason": "corrected by segment \"totally different thing. What's a good recipe for banana bread?\""
+        }
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "status": "dispatched",
+      "segment_text": "Anyway,",
+      "instruction": "Anyway,",
+      "sources": [
+        "orchestrator"
+      ],
+      "depends_on": [],
+      "revises": null,
+      "side_effect": false,
+      "history": [
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "created",
+          "sources": [
+            "orchestrator"
+          ],
+          "segment_text": "Anyway,"
+        },
+        {
+          "revision": 6,
+          "is_final": true,
+          "event": "status",
+          "old": "proposed",
+          "new": "dispatched",
+          "reason": "ready"
+        }
+      ]
+    }
+  ],
+  "segments": [
+    {
+      "sid": "s1",
+      "w0": 0,
+      "w1": 8,
+      "text": "Look up the score of the Nuggets game."
+    },
+    {
+      "sid": "s2",
+      "w0": 8,
+      "w1": 9,
+      "text": "Anyway,"
+    },
+    {
+      "sid": "s3",
+      "w0": 9,
+      "w1": 19,
+      "text": "totally different thing. What's a good recipe for banana bread?"
+    }
+  ],
+  "dispatch_log": [
+    {
+      "task_id": "task_1",
+      "revision": 3,
+      "is_final": false,
+      "instruction": "look up the score of the nuggets game",
+      "sources": [
+        "orchestrator"
+      ]
+    },
+    {
+      "task_id": "task_2",
+      "revision": 6,
+      "is_final": true,
+      "instruction": "Anyway,",
+      "sources": [
+        "orchestrator"
+      ]
+    }
+  ],
+  "snapshot": {
+    "type": "utterance_snapshot",
+    "conversation_id": "conv_stage2",
+    "utterance_id": "utt_03_topic_change",
+    "final_transcript": "Look up the score of the Nuggets game. Anyway, totally different thing. What's a good recipe for banana bread?",
+    "tasks": [
+      {
+        "task_id": "task_1",
+        "description": "look up the score of the nuggets game",
+        "status": "cancel_requested"
+      },
+      {
+        "task_id": "task_2",
+        "description": "Anyway,",
+        "status": "running"
+      }
+    ],
+    "clarification_needed": null
+  },
+  "expected": {
+    "tasks": [
+      {
+        "key": "T1",
+        "match": [
+          "nuggets"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      },
+      {
+        "key": "T2",
+        "match": [
+          "banana"
+        ],
+        "status": [
+          "dispatched"
+        ],
+        "depends_on": [
+          []
+        ]
+      }
+    ],
+    "clarification_needed": false
+  },
+  "score": {
+    "pass": false,
+    "failures": [
+      "T2: no task matches ['banana']",
+      "T1: status cancel_requested, expected one of ['dispatched']",
+      "task_2: unexpected dispatched task \"Anyway,\""
+    ],
+    "premature_dispatches": 1,
+    "duplicate_dispatches": 0,
+    "missed_corrections": 0,
+    "extra_tasks": [
+      "task_2"
+    ],
+    "dispatch_count": 2
+  }
+}
