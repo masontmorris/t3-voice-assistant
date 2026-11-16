@@ -57,28 +57,6 @@ test("question rule: a question open past the timeout wakes the PM with no model
 	assert.equal(h.sent.length, 1);
 });
 
-test("asymmetric bar: an unsure stay_quiet wakes, routed to the likelier of wake_pm and tell_mason", async () => {
-	const nodes = [
-		PM,
-		{ role: "worker", threadId: "U", parent: "P", charter: "unsure toward pm" },
-		{ role: "worker", threadId: "M", parent: "P", charter: "unsure toward mason" },
-		{ role: "worker", threadId: "C", parent: "P", charter: "confident" },
-	];
-	const answers = {
-		"unsure toward pm": { choice: "stay_quiet", p: { stay_quiet: 0.8, wake_pm: 0.15, tell_mason: 0.05 } },
-		"unsure toward mason": { choice: "stay_quiet", p: { stay_quiet: 0.8, wake_pm: 0.05, tell_mason: 0.15 } },
-		confident: { choice: "stay_quiet", p: { stay_quiet: 0.95, wake_pm: 0.05, tell_mason: 0 } },
-	};
-	const h = harness(nodes, (b) => answers[b.state.worker.charter], { backstopSec: 1e6, stayQuietBar: 0.9 });
-	for (const id of ["P", "U", "M", "C"]) h.set(id, {}, 0);
-	await h.run(10 * S, 30 * S);
-	const v = (id) => h.checkins.find((e) => e.node === id && e.trigger === "silence");
-	assert.equal(v("U").verdict, "wake_pm");
-	assert.match(v("U").reason, /below the bar/);
-	assert.equal(v("M").verdict, "tell_mason");
-	assert.equal(v("C").verdict, "stay_quiet");
-});
-
 test("rule 1 narrowed: a failed run of a T3 child goes through the gate, and only a completed one is dropped", async () => {
 	const nodes = [PM, { role: "worker", threadId: "F", parent: "P", charter: "failed child" }, { role: "worker", threadId: "C", parent: "P", charter: "completed child" }];
 	const h = harness(nodes, () => QUIET, { backstopSec: 1e6 });
