@@ -93,6 +93,24 @@ class Quiet(DemoSession):
         await super().send(**event)
 
 
+class Mixed(DemoSession):
+    """Two delegates in one turn: the person's request, which the slow lookup answers after the turn reads its
+    snapshot, and a request no tool claims, which the mock worker finishes inside the tools turn."""
+
+    SECOND = "Remind me to stretch at noon."
+
+    async def send(self, **event):
+        if self.name == "tools" and event.get("type") == "response.create":
+            self.sent.append(event)
+            first = json.loads(self.last_item_text().split("] ", 1)[1])["unreviewed_speech"]
+            calls = [{"type": "function_call", "name": "delegate", "call_id": f"call_{n}",
+                      "arguments": json.dumps({"instruction": words, "side_effect": False})}
+                     for n, words in enumerate((first, self.SECOND), 1)]
+            await self.push({"type": "response.done", "response": {"status": "completed", "output": calls}})
+            return
+        await super().send(**event)
+
+
 class Call(unittest.IsolatedAsyncioTestCase):
     """One call, one voice session, one turn per utterance, carrying what the live server carries between turns."""
 
@@ -186,6 +204,39 @@ class ChitChatTest(Call):
         self.assertEqual([r["kind"] for r in records[0]["replies"]], ["snapshot"])
         self.assertFalse(records[0]["replies"][0].get("fixed"), "the reply is the model's, not the opener")
         self.assertEqual(records[0]["task_updates"], [])
+
+
+class FinishedTaskTest(Call):
+    """A snapshot that holds a finished task beside a running one composes, so the result it already has can be said."""
+
+    tools_session = Mixed
+
+    async def test_a_finished_task_beside_a_running_one_does_not_get_the_placeholder(self):
+        records, spoken, _ = await self.call(WEATHER)
+        snapshot = next(e["snapshot"] for e in records[0]["timeline"] if e["kind"] == "snapshot_after_tools")
+        self.assertEqual(sorted(task["status"] for task in snapshot["tasks"]), ["completed", "running"],
+                         "the case under test: one task finished, one still running")
+        finished = next(task for task in snapshot["tasks"] if task["status"] == "completed")
+        self.assertIn("result_summary", finished, "and the snapshot carries the finished result")
+        self.assertNotIn(prototype.OPENER_LINE, [text for text, _ in spoken[0]],
+                         "the placeholder is not said over a result the turn already has")
+        self.assertEqual(records[0]["replies"][0]["text"], spoken[0][0][0], "the model composed the opening reply")
+        self.assertFalse(records[0]["replies"][0].get("fixed"), "nothing fixed stands in for it")
+
+
+class StartedTest(unittest.TestCase):
+    def test_only_a_snapshot_of_running_tasks_opens_the_turn(self):
+        def snapshot(*statuses):
+            return {"tasks": [{"task_id": f"task_{n}", "status": status} for n, status in enumerate(statuses, 1)]}
+
+        self.assertTrue(prototype.started(snapshot("running")))
+        self.assertTrue(prototype.started(snapshot("running", "running")), "every task still running")
+        self.assertFalse(prototype.started(snapshot("running", "completed")), "a finished task is not swallowed")
+        self.assertFalse(prototype.started(snapshot("running", "pending")))
+        self.assertFalse(prototype.started(snapshot("running", "held")))
+        self.assertFalse(prototype.started(snapshot("running", "failed")))
+        self.assertFalse(prototype.started(snapshot("completed")))
+        self.assertFalse(prototype.started(snapshot()), "no task, no opener")
 
 
 class OpenerLineTest(unittest.TestCase):

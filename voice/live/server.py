@@ -35,11 +35,12 @@ default) after the turn's tools ran and immediately before the reply, with the p
 same place with everything, "before-audio" the call's task state as the turn started and before the turn's audio,
 "off" no machine text in the voice session at all.
 
-A turn over a task that has started opens before any tool has answered, and the model writes none of it. The opener
-is `OPENER_LINE`, "Checking that.", rendered at startup in this server's own voice and kept under `$VOICE_HOME/live/`
-with the other fixed lines, so it costs no model request and can name no day, place or number that no tool returned.
-The task update that follows still carries the facts and is still the model's to compose. A chit-chat turn, and a task
-that finished before the turn read its snapshot, compose their reply as before.
+A turn whose snapshot holds only tasks that are still running opens before any tool has answered, and the model writes
+none of it. The opener is `OPENER_LINE`, "Checking that.", rendered at startup in this server's own voice and kept
+under `$VOICE_HOME/live/` with the other fixed lines, so it costs no model request and can name no day, place or number
+that no tool returned. The task update that follows still carries the facts and is still the model's to compose. A
+chit-chat turn, a task that finished before the turn read its snapshot, and a snapshot that also holds a pending or
+held task compose their reply as before, so a result the snapshot carries is never replaced by the opener.
 
 A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
 reply and asks whether the person said them in this call or the newest machine note states them; the assistant's own

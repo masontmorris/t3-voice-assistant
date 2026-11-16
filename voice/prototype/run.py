@@ -150,9 +150,10 @@ FACT_CHECK_REJECTED = {
 # What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
 # no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
 FALLBACK_LINE = "Sorry, I can't confirm that right now."
-# What a turn says over a task that has started and has nothing to report yet. Fixed text, rendered before the call,
-# so the opener costs no model request: measured 3.44 s of model speech on the demo before it was fixed, and it was
-# the last place a day, a place or a number could reach the speaker before a tool returned one.
+# What a turn says over a task that has started and has nothing to report yet, when every task in its snapshot is
+# still running. Fixed text, rendered before the call, so the opener costs no model request: measured 3.44 s of model
+# speech on the demo before it was fixed, and it was the last place a day, a place or a number could reach the speaker
+# before a tool returned one.
 OPENER_LINE = "Checking that."
 SYNTHETIC_CALL_ID = "snapshot_1"
 
@@ -229,9 +230,11 @@ def fixed_reply(line, pcm, rate, after_s):
 
 
 def started(snapshot):
-    """True when the snapshot holds a task that has begun and has no result yet, so a turn over it opens before any
-    tool has answered."""
-    return any(task.get("status") == Run.RUNNING for task in snapshot.get("tasks") or ())
+    """True when every task in the snapshot has started and none has a result yet, so the turn can open before any
+    tool answers. A snapshot holding a finished, pending or held task is not this case: the turn composes its reply as
+    usual, so a result the snapshot already carries can never be swallowed by the opener."""
+    tasks = snapshot.get("tasks") or ()
+    return bool(tasks) and all(task.get("status") == Run.RUNNING for task in tasks)
 
 
 async def create_item(session, item):
@@ -375,8 +378,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
     audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply.
-    `opener_pcm` is the audio for `OPENER_LINE`, which a turn over a task that has started speaks instead of asking the
-    model for an opening sentence; without it the turn opens with nothing."""
+    `opener_pcm` is the audio for `OPENER_LINE`, which a turn whose snapshot holds only running tasks speaks instead of
+    asking the model for an opening sentence; without it the turn opens with nothing."""
     t0 = time.perf_counter()
 
     def clock():
