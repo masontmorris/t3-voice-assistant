@@ -57,32 +57,20 @@ def device(value):
     return int(value) if value is not None and value.isdigit() else value
 
 
-HEADPHONE_WORDS = ("headphone", "headset", "earphone", "earbud", "buds", "airpods", "pods")
-
-
 def auto_output():
-    """Picks the plugged-in headphones, or Windows' default output when there are none.
-
-    WASAPI lists only endpoints that are actually connected, unlike the MME and WDM-KS driver channels, which
-    include empty jacks. So the choice is made among WASAPI outputs and then mapped to the same device under MME,
-    which resamples for us. MME truncates names to 31 characters. Hands-free (Bluetooth call profile) endpoints
-    are skipped because they sound bad. Returns (index or None, description)."""
+    """Uses Windows' current default output, which is what Windows itself is playing through. Plugging in
+    headphones normally makes them the default, so the reply follows them, and any device the person has chosen
+    as default is respected (virtual mixer outputs included). Opening device None means that default. Returns
+    (None, description)."""
     import sounddevice as sd
-    devices, apis = sd.query_devices(), sd.query_hostapis()
-    wasapi = next((i for i, a in enumerate(apis) if "WASAPI" in a["name"]), None)
-    mme = next((i for i, a in enumerate(apis) if a["name"] == "MME"), None)
-    if wasapi is None or mme is None:
-        return None, "system default output"
-    outs = [(i, d) for i, d in enumerate(devices) if d["hostapi"] == wasapi and d["max_output_channels"] > 0]
-    phones = [(i, d) for i, d in outs if any(w in d["name"].lower() for w in HEADPHONE_WORDS)
-              and "hands-free" not in d["name"].lower()]
-    if not phones:
-        return None, "system default output (no headphones found)"
-    name = phones[0][1]["name"]
-    for i, d in enumerate(devices):
-        if d["hostapi"] == mme and d["max_output_channels"] > 0 and name.startswith(d["name"][:31].rstrip()):
-            return i, f"headphones: {d['name']}"
-    return phones[0][0], f"headphones (WASAPI): {name}"
+    try:
+        apis = sd.query_hostapis()
+        wasapi = next((a for a in apis if "WASAPI" in a["name"]), None)
+        index = wasapi["default_output_device"] if wasapi else sd.default.device[1]
+        name = sd.query_devices(index)["name"]
+    except Exception:
+        name = "unknown"
+    return None, f"Windows default output: {name}"
 
 
 class Player:
@@ -376,7 +364,7 @@ def main():
     parser.add_argument("--server", default=config.get("server"), help="ws://HOST:PORT; config.json gives it")
     parser.add_argument("--secret-file", type=Path, default=HERE / "secret")
     parser.add_argument("--input", help="microphone: device index or part of its name (see --list-devices)")
-    parser.add_argument("--output", help="speakers or headphones: device index or part of its name (default: plugged-in headphones, else the Windows default)")
+    parser.add_argument("--output", help="speakers or headphones: device index or part of its name (default: the Windows default output)")
     parser.add_argument("--list-devices", action="store_true")
     parser.add_argument("--ptt", action="store_true", help="push-to-talk with Enter instead of silence detection")
     parser.add_argument("--wav", type=Path, nargs="+",
