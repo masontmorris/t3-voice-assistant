@@ -58,3 +58,26 @@ test("outbox: a tell_mason verdict from the gate lands in the outbox, and a wake
 	assert.deepEqual(h.outbox.map((o) => [o.source, o.node]), [["tell_mason", "M"]]);
 	assert.equal(h.sent.filter((m) => m.to === "P").length, 1, "only the wake_pm verdict wakes the PM");
 });
+
+test("open question: only the question rule decides, so an earlier silence ask cannot pre-empt the recipient routing", async () => {
+	const asked = [];
+	const h = harness([PM, { role: "worker", threadId: "W", parent: "P", charter: "worker" }], (b) => {
+		asked.push(Object.keys(b.questions)[0]);
+		return b.questions.recipient ? "tell_mason" : "wake_pm";
+	}, { backstopSec: 1e6, silenceSec: 30, questionTimeoutSec: 60 });
+	h.set("P", {}, 0);
+	h.set("W", card, 0);
+	await h.run(10 * S, 120 * S);
+	assert.deepEqual(asked, ["recipient"], "no verdict question is asked while the question is open");
+	assert.equal(h.sent.length, 0);
+	assert.deepEqual(h.outbox.map((o) => o.source), ["tell_mason"]);
+});
+
+test("completed T3 child: no silence asks and no backstop, since T3 delivered its result", async () => {
+	const h = harness([PM, { role: "worker", threadId: "C", parent: "P", charter: "delegated child" }], () => "wake_pm", { backstopSec: 100, silenceSec: 30 });
+	h.set("P", {}, 0);
+	h.set("C", { status: "completed", lineage: { parentThreadId: "P" } }, 0);
+	await h.run(10 * S, 300 * S);
+	assert.equal(h.attempts(), 0, "no decider call");
+	assert.equal(h.sent.length, 0, "no wake");
+});

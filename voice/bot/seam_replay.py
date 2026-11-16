@@ -30,7 +30,7 @@ def main():
     from root_tasks import RootTaskService
     from voice.prototype.replay import updates
     from voice.prototype.report import VOICE_HOME
-    from voice.prototype.segmenter import DECIDER_BUDGET, SEGMENTERS, live_calls, use_decider_cache
+    from voice.prototype.segmenter import DECIDER_BUDGET, SEGMENTERS, use_decider_cache
     from voice.segmentation.run import OfflineClient
 
     use_decider_cache(VOICE_HOME / "evidence" / "prototype" / "decider-cache", DECIDER_BUDGET)
@@ -55,12 +55,12 @@ def main():
     bot_snapshot = service._call("GET", "/snapshot?" + __import__("urllib.parse").parse.urlencode(
         {"conversation": service.conversation_id, "utterance": "utt_2", "transcript": "", "prefix": service.conversation_id + ":"}))
     args.out.mkdir(parents=True, exist_ok=True)
-    out = {"clip": args.clip, "conversation_id": service.conversation_id, "live_decider_calls": live_calls(),
+    out = {"clip": args.clip, "conversation_id": service.conversation_id, "decider": "OfflineClient: cache hits only, misses refused",
            "tasks": segmenter.records(), "dispatch_log": segmenter.dispatch_log,
            "executions": {k: {**vars(v), "state": v.state.value} for k, v in service.executions.items()},
            "timeline": timeline, "bot_snapshot": bot_snapshot}
     (args.out / f"{args.clip}.json").write_text(json.dumps(out, indent=1) + "\n", encoding="utf-8")
-    print(f"live decider calls {live_calls()}")
+    print("segmenter decider: cache only (OfflineClient refuses a miss, so this run makes no live call)")
     for task_id, e in service.executions.items():
         print(f"{task_id}: {e.state.value} after {e.finished_at if e.finished_at is not None else '-'} s")
     print(f"snapshot at end of utterance: {[(t['task_id'], t['status']) for t in snapshot['tasks']]}")
