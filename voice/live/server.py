@@ -238,12 +238,16 @@ class Conversation:
             self.ptt_down = down
 
     def start_turn(self, pcm):
+        """A new turn starts. Speech after a turn has sent reply audio drops that audio, even once the turn's own
+        task has finished: the model streams a reply faster than the client plays it."""
         prior, carry = self.turn, b""
-        if prior is not None and not prior.task.done():
+        if prior is not None:
             if prior.reply_started:
-                prior.cancel("barge_in")
+                prior.muted = True
+                if not prior.task.done():
+                    prior.cancel("barge_in")
                 self.post({"type": "barge_in", "turn": prior.n})
-            else:
+            elif not prior.task.done():
                 prior.cancel("continued")
                 carry = bytes(prior.pcm)
         self.live.turns += 1

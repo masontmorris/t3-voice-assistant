@@ -12,6 +12,7 @@ from websockets.asyncio.server import serve
 
 from voice.live import server
 from voice.live.tests.test_endpoint import noise, tone
+from voice.prototype.run import run_clip
 
 SECRET = "s" * 64
 OUT_RATE = 24_000
@@ -148,6 +149,19 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("barge_in", log)
         await ws.close()
 
+    async def test_speech_after_the_reply_stops_playback(self):
+        ws = await self.connect()
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+        await self.until(ws, "turn_done", [])
+        log = []
+        await self.send(ws, tone(400))
+        barge = await self.until(ws, "barge_in", log)
+        self.assertEqual(barge["turn"], 1, "the finished turn's audio is dropped once speech starts")
+        started = await self.until(ws, "turn_start", log)
+        self.assertEqual(started["turn"], 2)
+        self.assertEqual(log, ["barge_in", "turn_start"], "stop playback before the new turn starts")
+        await ws.close()
+
     async def test_a_second_client_is_turned_away(self):
         first = await self.connect()
         second = await websockets.connect(self.url, additional_headers={server.HEADER: SECRET})
@@ -155,6 +169,50 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
             await second.recv()
         self.assertEqual(second.close_code, 1013)
         await first.close()
+
+
+class VoiceEventSeamTest(unittest.IsolatedAsyncioTestCase):
+    async def test_run_clip_hands_voice_audio_to_the_live_callback(self):
+        """The voice session is the only source of reply audio, so a delta the model sends has to reach the callback
+        run_clip was given. The live server's outbox follows that callback."""
+        got = []
+        delta = asyncio.Event()
+
+        async def handler(ws):
+            await ws.send(json.dumps({"type": "session.created",
+                                      "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}}))
+            await ws.send(json.dumps({"type": "response.output_audio.delta",
+                                      "delta": base64.b64encode(b"\x01\x00" * 480).decode()}))
+            async for raw in ws:
+                if json.loads(raw).get("type") == "session.update":
+                    await ws.send(json.dumps({"type": "session.updated"}))
+
+        class Source:
+            name = stem = "turn_001"
+            rate, audio_s = 16_000, 0.0
+
+            async def stream(self, voice, asr):
+                return 0.0
+
+        def on_voice_event(event):
+            got.append(event["type"])
+            if event["type"] == "response.output_audio.delta":
+                delta.set()
+
+        fake = await serve(handler, "127.0.0.1", 0)
+        url = f"ws://127.0.0.1:{fake.sockets[0].getsockname()[1]}/v1/realtime"
+        with tempfile.TemporaryDirectory() as tmp:
+            turn = asyncio.create_task(run_clip(Source(), "c", False, url, None, 0.0, Path(tmp), {}, "hybrid",
+                                                None, "gated", on_voice_event=on_voice_event))
+            try:
+                await asyncio.wait_for(delta.wait(), 10)
+            finally:
+                turn.cancel()
+                await asyncio.gather(turn, return_exceptions=True)
+                fake.close()
+                await fake.wait_closed()
+        self.assertIn("session.created", got)
+        self.assertIn("response.output_audio.delta", got, "the turn's voice deltas reach the live client")
 
 
 class ChunkTest(unittest.IsolatedAsyncioTestCase):
@@ -180,7 +238,7 @@ class ChunkTest(unittest.IsolatedAsyncioTestCase):
 
 class BindTest(unittest.TestCase):
     def test_only_tailnet_or_loopback(self):
-        for host in ("100.86.25.114", "127.0.0.1"):
+        for host in ("100.64.0.1", "127.0.0.1"):
             self.assertEqual(server.check_bind(host), host)
         for host in ("0.0.0.0", "192.168.0.10", "10.0.0.5"):
             with self.assertRaises(SystemExit):
