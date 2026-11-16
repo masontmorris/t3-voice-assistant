@@ -16,7 +16,7 @@ The code is in [`voice/bot/`](../../voice/bot). This page explains the design as
 2. **Deterministic gate.** A timer ticks every `tickSec`. Every node with a parent is watched, and its parent is the thread the bot wakes about it. `gate()` compares a fingerprint of the thread (`status`, `activeRunId`, `latestRunId`, and the pending request id) with the one seen at the last tick. A changed field is a `change` trigger. If nothing changed, the silence timer may give a `silence` trigger. Otherwise the tick ends with no model call.
 3. **Delta filter.** A change caused only by a run that the bot's own wake message started is dropped. A completed run of a node that is a T3 child of its parent is dropped too (rule 1), because T3 already wakes the parent. Failed, cancelled and interrupted child runs go through the gate. Both drops are logged with their reason.
 4. **Fixed rules.** Every tick, before any model call, `ruleVerdict()` checks three rules: the stall rule, the promise rule and the question rule (see Round 3). A rule that fires wakes the parent and skips the decider for that tick.
-5. **System one.** On a trigger that no rule caught, the bot sends the free decider one Decisions request. The request holds the node's charter, status, quiet time and last reply (300 characters at most), the parent's charter, the trigger and the delta. The single question is a choice among `stay_quiet`, `wake_pm` and `tell_mason`. A `stay_quiet` below the bar of 0.88 becomes a wake.
+5. **System one.** On a trigger that no rule caught, the bot sends the free decider one Decisions request. The request holds the node's charter, status, quiet time and last reply (300 characters at most), the parent's charter, the trigger and the delta. The single question is a choice among `stay_quiet`, `wake_pm` and `tell_mason`. A `tell_mason` verdict goes to the outbox (see `bot-root-handoff.md`) and wakes no thread. Round 3's stay_quiet bar is deleted.
 6. **Wake.** On `wake_pm`, the bot sends a `message.dispatch` to the parent thread, which starts a turn or queues one behind a running turn. When that run completes, the bot reads the thread and logs `wake_confirmed` with the run id. `tell_mason` is logged only.
 7. **Backstop.** The backstop is per node. It wakes the parent without asking system one when the parent has not looked at this node for `backstopSec`.
 
@@ -33,7 +33,7 @@ The spike's defaults are `backstopSec` 180 and `ceilingSec` 1440, so the ceiling
 
 - **Node.** `role` (`orchestrator`, `pm` or `worker`), `threadId`, `parent`, `charter`, an optional `quietBudgetMin`, plus `status` and `lastEventAt` from the stream.
 - **Watch, one per watched node.** `seen` and the silence timer drive the gate. `lookedAt` and `lookedFp` record when the parent was last woken about this node and what the node's state was then. `lastReply` is read again on each change, and `question` holds the open question's id and the time it opened.
-- **Check-in log entry** (`state/checkins.jsonl`). `at`, `node`, `trigger` (`change`, `silence` or `backstop`), `delta`, `verdict`, `reason` and `source` (`system_one`, `forced`, `fail_open`, `backstop`, `rule_stall`, `rule_promise` or `rule_question`). A system-one entry also has `modelChoice`, which differs from `verdict` when the bar or the test switch changed it. A wake adds `wakeMessageId`, or `suppressed` or `wakeError`. A dropped delta has `dropped` and a reason, and no verdict. A later `wake_confirmed` entry names the run the wake started.
+- **Check-in log entry** (`state/checkins.jsonl`). `at`, `node`, `trigger` (`change`, `silence` or `backstop`), `delta`, `verdict`, `reason` and `source` (`system_one`, `forced`, `fail_open`, `backstop`, `rule_stall`, `rule_promise` or `rule_question`). A system-one entry also has `modelChoice`, which differs from `verdict` when the test switch changed it. A wake adds `wakeMessageId`, or `suppressed` or `wakeError`. A dropped delta has `dropped` and a reason, and no verdict. A later `wake_confirmed` entry names the run the wake started.
 - **Tick ledger** (`state/ticks.jsonl`). One line per tick with its triggers and the number of model calls it made.
 - **Call ledger** (`state/calls.jsonl`). One line per HTTP attempt to the decider. The client refuses to call once the ledger reaches the budget, which is 120 from round 3.
 
@@ -128,7 +128,7 @@ Round 2's probabilities showed the decider could not tell a stall from a healthy
 - **Question rule.** A question open longer than `questionTimeoutSec` (default 600) wakes the parent. The open time comes from the request's `createdAt`.
 - **The bar.** `applyBar()` accepts `stay_quiet` only at p of 0.88 or more. Below the bar, the gate wakes the likelier of `wake_pm` and `tell_mason`, and `wake_pm` on a tie, because the PM can still escalate to Mason.
 
-Each rule wake follows the one-wake-per-state rule, so a stall that the parent already saw does not wake it again until the state changes or the ceiling passes.
+The bar was deleted after round 3 (see Changes after round 3). Each rule wake follows the one-wake-per-state rule, so a stall that the parent already saw does not wake it again until the state changes or the ceiling passes.
 
 ### What the expectation could and couldn't express
 
@@ -192,6 +192,16 @@ The round 3 live runs used a test PM and three Haiku workers in `approval-requir
 Across the three runs, the log has 8 verdict entries, and none lacks a field. The 14 ticks made 2 calls.
 
 Two fixtures needed a second prompt. Haiku refused to state a false upload line, so the promise worker promised something true instead: to report back once the PM sends a bundle name. In `approval-required`, `echo` ran without an approval prompt, so the question worker opened a multiple-choice question instead.
+
+## Changes after round 3
+
+These changes were made in the bot-root spike. Its doc, `bot-root-handoff.md`, has the live evidence.
+
+- **The stay_quiet bar is deleted.** It decided none of the 22 held cases, and a bar high enough to catch a confident wrong stay_quiet wakes healthy work. The round 3 eval runner now runs the rules and then the decider. Run from cache, its held gate verdicts match round 3's exactly (`eval/r3/results-held-nobar.json`, 0 calls). The bar's test is deleted with it.
+- **The question rule asks who the question is for.** After it fires, the gate makes one decider call, `recipientRequest()`, with the open question's text from the thread. `tell_mason` puts a notice in the outbox and wakes no thread. `wake_pm`, or any failure, wakes the parent. On the live token question it chose `tell_mason` at p=0.91 (measured).
+- **Only the question rule decides while a question is open.** Change and silence triggers no longer ask the decider for that node, and each question id is routed once, even if the parent was woken about that state before. A live run found the old order: a silence ask woke the PM about a question meant for Mason, and suppression then blocked the routing.
+- **A finished T3 child is left alone.** Once a T3 child's run completes, it gets no silence asks and no backstop, because T3 already delivered its result to the parent.
+- **Promise-phrase matching is unchanged.** The conditional-promise and "waiting on CI" gaps below still stand.
 
 ## Decisions that differ from the briefs
 
