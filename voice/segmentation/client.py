@@ -11,6 +11,7 @@ import json
 import os
 import socket
 import time
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -21,12 +22,29 @@ ROOT = Path(__file__).resolve().parent
 CACHE = ROOT / "cache"
 LEDGER = ROOT / "calls.jsonl"
 STOP = ROOT / "BILLING_STOP"
-# Round 2 used 157 ledger attempts; the variants round adds its own cap of 400.
-BUDGET = 157 + 400
+# Round 2 used 157 ledger attempts and the variants round 363. The hybrid round adds its own cap of 250, shared with
+# the prototype's ledger, so this ledger gets 170 of them.
+BUDGET = 157 + 363 + 170
 TIMEOUT_S = 30
-# The free tier answered bursts of back-to-back calls with 429s, and 1.2 s spacing still drew 24 of them in 92.
-MIN_INTERVAL_S = 3.1
 MAX_ATTEMPTS = 5
+
+
+@dataclass
+class Pacer:
+    """Spacing between attempts. None until a 429; then it doubles on each 429 and halves on each success.
+
+    The variants round drew 429s at 1.2 s and at 3.1 s spacing alike, so a fixed gap bought nothing but latency.
+    """
+    gap_s: float = 0.0
+    first_s: float = 2.0
+    cap_s: float = 30.0
+    floor_s: float = 0.5
+
+    def on_429(self, retry_after_s=None):
+        self.gap_s = min(self.cap_s, max(self.first_s, 2 * self.gap_s, retry_after_s or 0.0))
+
+    def on_success(self):
+        self.gap_s = self.gap_s / 2 if self.gap_s / 2 >= self.floor_s else 0.0
 
 
 class BillingStop(RuntimeError):
@@ -93,10 +111,11 @@ def _nonzero_cost(body):
 class Client:
     """One persistent HTTPS connection, one request in flight."""
 
-    def __init__(self):
+    def __init__(self, pacer=None):
         self._conn = None
         self._key = None
         self._last = None
+        self.pacer = pacer or Pacer()
 
     def _connection(self):
         if self._conn is not None:
@@ -150,8 +169,8 @@ class Client:
         for attempt in range(MAX_ATTEMPTS):
             if ledger_attempts() >= BUDGET:
                 raise BudgetExhausted(f"{BUDGET} attempts used")
-            if self._last is not None:
-                time.sleep(max(0.0, MIN_INTERVAL_S - (time.monotonic() - self._last)))
+            if self._last is not None and self.pacer.gap_s:
+                time.sleep(max(0.0, self.pacer.gap_s - (time.monotonic() - self._last)))
             self._last = time.monotonic()
             result = self._send("POST", ROUTES[route], payload)
             entry = {"at": result["started_at"], "route": route, "hash": request_hash(route, body)[:24],
@@ -166,12 +185,14 @@ class Client:
                     or (status == 200 and _nonzero_cost(result["body"])):
                 STOP.write_text(json.dumps({"at": entry["at"], "status": status, "label": label}), encoding="utf-8")
                 raise BillingStop(f"status {status} on {label}")
-            if status in (429, 500, 502, 503, 524, 529) or status is None:
-                delay = 2 ** (attempt + 1)
-                if status == 429 and (result.get("retry_after") or "").isdigit():
-                    delay = max(delay, int(result["retry_after"]))
-                time.sleep(delay)
+            if status == 429:
+                retry_after = result.get("retry_after") or ""
+                self.pacer.on_429(int(retry_after) if retry_after.isdigit() else None)
                 continue
+            if status in (500, 502, 503, 524, 529) or status is None:
+                time.sleep(2 ** (attempt + 1))
+                continue
+            self.pacer.on_success()
             break
         record = {"route": route, "label": label, "request": body, "status": result["status"],
                   "response": result.get("body"), "timing": {"started_at": result["started_at"],
