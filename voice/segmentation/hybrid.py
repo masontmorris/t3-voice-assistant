@@ -11,6 +11,9 @@ E's two break questions for every piece whose end is in doubt. A piece commits w
 decision points, or at a pause, and both for a side effect. Until it commits its task is held. On the final transcript
 nothing is applied until the break answers stop changing the pieces, so every segment is read before any dispatch.
 The baseline's Orchestrator owns the tasks, corrections, delegates and dispatch policy.
+
+Under the end-of-utterance handoff, `close` takes the final transcript instead of `update`. It makes no call: the last
+decision point's answers settle what they covered, and the words after it go to the voice model as unreviewed speech.
 """
 
 import re
@@ -196,6 +199,7 @@ class HybridSegmenter:
         self.last = None
         self.ws = []
         self.points: list[dict] = []
+        self.reviewed: tuple = ()
 
     @property
     def dispatch_log(self):
@@ -230,6 +234,34 @@ class HybridSegmenter:
         if self.last is None:
             return None
         return self._point(self.last, self._proposal(), False, "delegate")
+
+    def close(self, update, settle=True):
+        """The final transcript with no decider call. Returns the close as a point record.
+
+        With `settle`, the handoff's close rule settles the tasks. Without it, as in the gated turn, the tasks stay as
+        the last decision point left them, and the close only reports what no decision point read."""
+        self.last, self.ws = update, words(update.text)
+        current = tuple(w.text for w in self.ws)
+        self.soft = {g for g in self.soft if current[:g] == self.soft_words[:g]}
+        proposal = self._proposal()
+        k = len(self.committed)
+        segments = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(self.committed) if c.w0 < len(self.ws)]
+        segments += [self._segment(f"s{k + i + 1}", p, False) for i, p in enumerate(proposal.pieces)
+                     if not proposal.filler(p)]
+        if settle:
+            self.orch.close(update, segments)
+        else:
+            self.orch.end(update)
+        covered = next((i for i, (a, b) in enumerate(zip(current, self.reviewed)) if a != b),
+                       min(len(current), len(self.reviewed)))
+        tail = update.text[self.ws[covered].start:].strip() if covered < len(self.ws) else None
+        point = {"revision": update.revision, "is_final": True, "label": f"{self.label}:r{update.revision}:close",
+                 "kind": "close", "cursor": proposal.cursor, "pause": False,
+                 "pieces": [[p.w0, p.w1] for p in proposal.pieces], "hard": sorted(proposal.hard),
+                 "soft": sorted(self.soft), "segments": [asdict(s) for s in segments], "calls": [],
+                 "covered_words": covered, "tail_words": len(self.ws) - covered, "unreviewed_speech": tail}
+        self.points.append(point)
+        return point
 
     def _proposal(self):
         return Proposal(self.last.text, self.ws, self.cursor, self.soft)
@@ -269,6 +301,7 @@ class HybridSegmenter:
                 "started_at": record["timing"]["started_at"]}
         if record["status"] != 200:
             return asked_segs, call, Decisions({}, {}, [f"decisions http {record['status']}"]), {}, []
+        self.reviewed = tuple(w.text for w in self.ws)
         answers = (record["response"] or {}).get("answers") or {}
         verdicts, problems = parse_breaks(answers, asked, gaps, body, final, self.t)
         return asked_segs, call, parse_decisions(record["response"], body), verdicts, problems
@@ -303,10 +336,11 @@ class HybridSegmenter:
 
         apply_segs = committed + [self._segment(f"s{k + i + 1}", p, f"s{k + i + 1}" not in newly)
                                   for i, p in enumerate(tail) if not revised.filler(p)]
-        kept = {sid: hold_near_tie(d, final, self.t.margin) for sid, d in decisions.segments.items() if sid in valid}
+        raw = {sid: d for sid, d in decisions.segments.items() if sid in valid}
+        kept = {sid: hold_near_tie(d, final, self.t.margin) for sid, d in raw.items()}
         delegates = {did: sid for did, sid in decisions.delegates.items() if sid is None or sid in valid}
         if applied:
-            self.orch.apply(update, apply_segs, Decisions(kept, delegates, decisions.problems))
+            self.orch.apply(update, apply_segs, Decisions(kept, delegates, decisions.problems), raw)
         self.called_on = self._signature(self._proposal())
         point = {"revision": update.revision, "is_final": final, "label": call["label"], "kind": kind,
                  "cursor": proposal.cursor, "pause": pause, "pieces": [[p.w0, p.w1] for p in proposal.pieces],

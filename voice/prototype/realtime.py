@@ -38,13 +38,13 @@ def write_pcm16(path, pcm, rate):
 class Server:
     """Starts llama-server with every layer on the GPU and stops that one process on exit."""
 
-    def __init__(self, port, log_path, extra_args=()):
-        self.port, self.log_path, self.proc, self.extra_args = port, log_path, None, list(extra_args)
+    def __init__(self, port, log_path, extra_args=(), slots=2):
+        self.port, self.log_path, self.proc, self.extra_args, self.slots = port, log_path, None, list(extra_args), slots
 
     def __enter__(self):
         command = [str(SERVER), "-m", str(GGUF / "LFM3-Audio-2B-Q4_K_M.gguf"),
                    "-mm", str(GGUF / "mmproj-LFM3-Audio-2B-Q8_0.gguf"),
-                   "--host", "127.0.0.1", "--port", str(self.port), "--temp", "0", "-np", "2", "-ngl", "99",
+                   "--host", "127.0.0.1", "--port", str(self.port), "--temp", "0", "-np", str(self.slots), "-ngl", "99",
                    *self.extra_args]
         self.log = open(self.log_path, "w")
         started = time.perf_counter()
