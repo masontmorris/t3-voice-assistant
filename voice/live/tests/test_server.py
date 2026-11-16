@@ -381,5 +381,40 @@ class BindTest(unittest.TestCase):
             self.assertTrue(label.startswith("prompt.txt sha256:"))
 
 
+class FallbackAudioTest(unittest.TestCase):
+    """The line a failed turn says reaches the client as audio at the session's own rate."""
+
+    ARGS = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
+                           max_turn_s=30.0, prompt=None, lfm_port=8099)
+
+    def live(self, tmp):
+        return server.Live(self.ARGS, "ws://unused", None, None, Path(tmp))
+
+    def test_no_rendered_clip_means_no_audio(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live = self.live(tmp)
+            live.fallback_error = "no TTS"
+            self.assertEqual(live.fallback_pcm(OUT_RATE), b"",
+                             "the turn still says the line in its record, but plays nothing")
+
+    def test_a_rendered_clip_is_pcm_at_the_session_rate(self):
+        from voice.live.tests.test_fallback import wav_bytes
+        with tempfile.TemporaryDirectory() as tmp:
+            live = self.live(tmp)
+            live.fallback_wav = wav_bytes(16_000, [0] * 1600)
+            self.assertEqual(len(live.fallback_pcm(OUT_RATE)) // 2, 2400)
+            self.assertEqual(live.fallback_pcm(OUT_RATE), live.fallback_pcm(OUT_RATE),
+                             "one conversion per rate, kept for the call")
+
+    def test_a_failed_render_is_reported_and_changes_nothing_else(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.object(server.fallback, "wav", side_effect=OSError("no TTS")):
+                live = self.live(tmp)
+                live.render_fallback()
+            self.assertEqual(live.fallback_wav, b"")
+            self.assertIn("no TTS", live.fallback_error)
+            self.assertEqual(live.fallback_pcm(OUT_RATE), b"")
+
+
 if __name__ == "__main__":
     unittest.main()

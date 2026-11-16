@@ -49,10 +49,22 @@ PLACE_RUN = re.compile(r"\b" + LOCATIVES + r"\s+([A-Za-z][a-z]*(?:,\s*[A-Za-z][a
 WORD_RE = re.compile(r"[A-Za-z][a-z]*")
 
 
+# Words that belong to the machinery, not to the assistant's voice. A reply that says one of them is telling the
+# person about the note, the check or the task list instead of answering them. Measured cost of the bare "note" in
+# this list: 1 of 157 spoken replies on disk ("Got it, I've noted that ...") would be refused and asked again.
+MACHINERY = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update", "note")
+
+
 class Fact(NamedTuple):
     kind: str
     surface: str
     key: tuple
+
+
+def names_machinery(text):
+    """The machinery words `text` says, in the order they appear. Empty when it names none."""
+    low = (text or "").lower()
+    return [word for word in MACHINERY if word in low]
 
 
 def _strings(payload):

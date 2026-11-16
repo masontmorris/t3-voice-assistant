@@ -7,12 +7,14 @@ turn. They stand in for llama.cpp, so they say nothing about what the model reme
 
 import asyncio
 import base64
+import json
 import tempfile
 import unittest
 from pathlib import Path
 from unittest import mock
 
 from voice.prototype import run as prototype
+from voice.live.facts import names_machinery, ungrounded
 from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.transcript import COMPLETED
 
@@ -25,6 +27,8 @@ REFUSAL = "session.update: instructions cannot change after the first audio or m
 class FakeSession:
     """A realtime session that answers the few requests run_clip makes, in memory. Like llama.cpp, it refuses new
     instructions once it holds audio or a message."""
+
+    transcript = "what's the weather in Denver"
 
     def __init__(self, name, on_event):
         self.name, self.on_event = name, on_event
@@ -65,7 +69,7 @@ class FakeSession:
         elif kind == "conversation.item.create":
             await self.push({"type": "conversation.item.added", "item": event["item"]})
         elif kind == "input_audio_buffer.commit" and self.name == "asr":
-            await self.push({"type": COMPLETED, "item_id": "item_1", "transcript": "what's the weather in Denver"})
+            await self.push({"type": COMPLETED, "item_id": "item_1", "transcript": self.transcript})
         elif kind == "response.create":
             await self.push({"type": "response.output_text.delta", "delta": "Sunny."})
             await self.push({"type": "response.output_audio.delta",
@@ -304,6 +308,28 @@ class Scripted(FakeSession):
         await super().send(**event)
 
 
+class Delegating(FakeSession):
+    """The gated tool session: it delegates the person's own words, so the note loses its description and needs a
+    subject, the way the demo's turn 3 did."""
+
+    async def send(self, **event):
+        if event.get("type") == "response.create":
+            self.sent.append(event)
+            call = {"type": "function_call", "name": "delegate", "call_id": "call_1",
+                    "arguments": json.dumps({"instruction": "That's not what I meant.", "side_effect": False})}
+            await self.push({"type": "response.done", "response": {"status": "completed", "output": [call]}})
+            return
+        await super().send(**event)
+
+
+MACHINERY_WORDS = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update",
+                   "note")
+
+
+def spelled_out(text):
+    return [(word, text.lower().count(word)) for word in MACHINERY_WORDS if word in text.lower()]
+
+
 class FactCheckTest(unittest.IsolatedAsyncioTestCase):
     """The three turns of the demo call, with the voice session scripted to answer as the model did on turn 3."""
 
@@ -325,12 +351,12 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
         self.spoken = []
         self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
 
-    async def turn(self, script, snapshot_mode="reply-no-utterance"):
+    async def turn(self, script, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480):
         self.voice.script = script
         self.voice.asked = 0
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
-            voice=self.voice, snapshot_mode=snapshot_mode,
+            voice=self.voice, snapshot_mode=snapshot_mode, fallback_pcm=fallback_pcm,
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
             speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
 
@@ -351,15 +377,35 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(checks[0]["ungrounded"], ["weekday Sunday"])
         self.assertTrue(checks[0]["asked_again"])
 
-    async def test_a_second_ungrounded_reply_is_not_spoken(self):
-        """If the re-ask invents again, the turn says nothing rather than a different wrong day."""
+    async def test_a_second_bad_reply_is_not_spoken_and_the_turn_says_one_line(self):
+        """If the re-ask invents again, the turn says the fixed line rather than a different wrong day."""
         record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
                                   "I'm running the task to get the weather in Denver for Monday."])
-        self.assertEqual(self.spoken, [], "no invented reply reaches the speaker")
-        self.assertEqual([reply["text"] for reply in record["replies"]], [""])
+        self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE],
+                         "one short line reaches the speaker, not the invented day")
+        self.assertGreater(self.spoken[0][1], 0, "and it has audio, so the turn is not silent")
+        self.assertEqual([reply["text"] for reply in record["replies"]], [prototype.FALLBACK_LINE])
         self.assertEqual(record["replies"][0]["blocked"]["ungrounded"], ["weekday Monday"],
                          "the record keeps the text it refused to say")
         self.assertTrue([entry for entry in record["timeline"] if entry.get("blocked")])
+
+    async def test_a_reply_that_names_the_check_is_replaced_by_the_line(self):
+        """The recorded pair: the invented day, then an answer about the check itself. Neither is said."""
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I do not have the information needed to answer the fact check."])
+        self.assertEqual(self.voice.asked, 2, "the bad reply, and the one re-ask")
+        self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE])
+        self.assertEqual(spelled_out(self.spoken[0][0]), [], "the spoken line names no machinery")
+        self.assertEqual(record["replies"][0]["blocked"]["machinery"], ["fact check"],
+                         "the record says why the second answer was refused")
+
+    async def test_no_spoken_text_names_the_machinery(self):
+        """Every line this turn speaks is clean, whatever the model wrote on the way there."""
+        await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                         "This snapshot says the task description was not available, so check the note."])
+        self.assertTrue(self.spoken, "the turn still says something")
+        for text, _ in self.spoken:
+            self.assertEqual(spelled_out(text), [], f"{text!r} names the machinery")
 
     async def test_a_grounded_reply_is_spoken_once(self):
         record = await self.turn(["I'm running the task to get the weather in Denver for Saturday."])
@@ -368,6 +414,107 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([entry["kind"] for entry in record["timeline"] if entry["kind"] == "fact_check"], [])
         self.assertEqual([reply["text"] for reply in record["replies"]],
                          ["I'm running the task to get the weather in Denver for Saturday."])
+
+
+class FakeDecider:
+    """The free decision model's extraction route, returning the subject the real one returned on the probe."""
+
+    def __init__(self, subject=None, status=200):
+        self.subject, self.status, self.requests = subject, status, []
+
+    def call(self, route, body, label=""):
+        self.requests.append({"route": route, "body": body, "label": label})
+        return {"status": self.status, "response": {"answers": {"subject": {"type": "text", "value": self.subject}}}}
+
+
+class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
+    """A turn with a task of its own: the note it receives, and the one line it may say when both replies fail."""
+
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.original_open = prototype.Session.open
+        self.voice = None
+
+        async def open_session(url, name, clock, on_event=None):
+            if name == "voice":
+                self.voice = await Scripted.open(url, name, clock, on_event)
+                return self.voice
+            session = await (Delegating if name == "tools" else FakeSession).open(url, name, clock, on_event)
+            if name == "asr":
+                session.transcript = "That's not what I meant."
+            return session
+
+        prototype.Session.open = open_session
+        self.addCleanup(setattr, prototype.Session, "open", self.original_open)
+        self.spoken = []
+        self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
+
+    async def turn(self, script, decider=None, delay_s=0.05):
+        self.voice.script = script
+        self.voice.asked = 0
+        return await prototype.run_clip(
+            Source(), "c", False, "ws://unused", decider, delay_s, Path(self.tmp.name), {}, "hybrid", None, "gated",
+            voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480,
+            prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
+            speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
+
+    def notes(self, prefix):
+        return [json.loads(event["item"]["content"][0]["text"][len(prefix):]) for event in self.voice.sent
+                if event.get("type") == "conversation.item.create"
+                and event["item"]["content"][0]["text"].startswith(prefix)]
+
+    def subject_events(self, record):
+        return [entry for entry in record["timeline"] if entry["kind"] == "subject"]
+
+    async def test_a_reply_and_an_update_that_both_fail_say_one_line(self):
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I do not have the information needed to answer the fact check.",
+                                  "The task to get the weather in Denver for Monday has been completed.",
+                                  "I cannot read the task description in the note."])
+        self.assertEqual(self.voice.asked, 4, "two bad answers and two re-asks")
+        self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE],
+                         "the turn says the line once, not once per failed reply")
+        self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"],
+                         "both replies are still in the record")
+        self.assertEqual([reply["text"] for reply in record["replies"]],
+                         [prototype.FALLBACK_LINE, ""], "the update is dropped, the line already went out")
+
+    async def test_a_failed_reply_and_a_clean_update_say_the_line_and_the_update(self):
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I do not have the information needed to answer the fact check.",
+                                  "The task to get the weather in Denver for Saturday is done."])
+        self.assertEqual([text for text, _ in self.spoken],
+                         [prototype.FALLBACK_LINE, "The task to get the weather in Denver for Saturday is done."],
+                         "the line comes once, and the update still reaches the speaker")
+        self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"])
+
+    async def test_the_subject_fills_the_description_the_note_lost(self):
+        decider = FakeDecider("weather")
+        record = await self.turn(["I'm running the task to get the weather in Denver for Saturday."], decider)
+        self.assertEqual([request["route"] for request in decider.requests], ["extractions"],
+                         "one extraction, and no decision calls: the fake segmenter needs none on a final revision")
+        snapshot = self.notes(prototype.SNAPSHOT_PREFIX)[0]
+        self.assertEqual(snapshot["tasks"][0]["subject"], "weather", "the running task now says what it is about")
+        self.assertNotIn("description", snapshot["tasks"][0])
+        self.assertEqual(self.subject_events(record)[0]["text"], "weather")
+
+    async def test_a_subject_that_repeats_the_person_is_dropped(self):
+        decider = FakeDecider("That's not what I meant")
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I don't have the day for that yet."], decider)
+        snapshot = self.notes(prototype.SNAPSHOT_PREFIX)[0]
+        self.assertNotIn("subject", snapshot["tasks"][0], "the person's own words do not come back in through the side")
+        self.assertIn("repeats", self.subject_events(record)[0]["dropped"])
+
+    async def test_a_subject_that_names_an_ungrounded_fact_is_dropped(self):
+        decider = FakeDecider("weather on Sunday")
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I don't have the day for that yet."], decider)
+        snapshot = self.notes(prototype.SNAPSHOT_PREFIX)[0]
+        self.assertNotIn("subject", snapshot["tasks"][0])
+        self.assertIn("weekday Sunday", self.subject_events(record)[0]["dropped"])
 
 
 class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):
@@ -421,6 +568,15 @@ class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):
         voice = next(s for s in self.opened if s.name == "voice")
         self.assertTrue(voice.closed, "a turn that opened the session still closes it, as the prototype needs")
         self.assertEqual([r["text"] for r in record["replies"]], ["Sunny."])
+
+
+class FallbackLineTest(unittest.TestCase):
+    """The one line a failed turn says, judged by the reply rules it has to meet."""
+
+    def test_it_is_short_persona_speech(self):
+        self.assertLess(len(prototype.FALLBACK_LINE.split()), 8, "under eight words")
+        self.assertEqual(names_machinery(prototype.FALLBACK_LINE), [], "it names no machinery")
+        self.assertEqual(ungrounded(prototype.FALLBACK_LINE, []), [], "it names no fact")
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 import unittest
 
-from voice.live.facts import ungrounded
+from voice.live.facts import names_machinery, ungrounded
 
 # The three turns of the demo call in $VOICE_HOME/evidence/live/memory-20261116/ablation/demo-runC, text side only:
 # what the person said, the machine note the voice session received, and what the assistant said. Turn 3 is the
@@ -79,6 +79,30 @@ class WeekdayInventedFromCorrectionTest(unittest.TestCase):
     def test_a_reply_with_no_facts_passes(self):
         self.assertEqual(ungrounded("I'm still on it.", sources_for(CALL[2])), [])
         self.assertEqual(ungrounded("", sources_for(CALL[2])), [])
+
+
+class MachineryTest(unittest.TestCase):
+    def test_the_recorded_refusals_are_machinery(self):
+        """Both sentences the demo actually said on turn 3 name the check, and one names the note."""
+        self.assertEqual(names_machinery("I do not have the information needed to answer the fact check."),
+                         ["fact check"])
+        self.assertEqual(names_machinery("I cannot read the task description in the machine note."),
+                         ["machine note", "task description", "note"])
+
+    def test_every_listed_word_is_caught(self):
+        for word in ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update",
+                     "note"):
+            with self.subTest(word=word):
+                self.assertTrue(names_machinery(f"Here is the {word}."), word)
+
+    def test_an_ordinary_reply_is_clean(self):
+        for reply in ("I'm running the task to get the weather in Denver for Saturday.",
+                      "The forecast is a high of 69 degrees.",
+                      "I don't have the day for that yet.",
+                      "Sorry, I can't confirm that right now.",
+                      ""):
+            with self.subTest(reply=reply):
+                self.assertEqual(names_machinery(reply), [])
 
 
 if __name__ == "__main__":

@@ -53,7 +53,7 @@ from concurrent.futures import ThreadPoolExecutor
 from contextlib import nullcontext
 from pathlib import Path
 
-from voice.live.facts import ungrounded
+from voice.live.facts import names_machinery, ungrounded
 from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.reuse import ReusingClient
@@ -63,6 +63,7 @@ from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS
 from voice.prototype.tasks import MockTaskService
 from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
+from voice.segmentation.client import MODEL as DECIDER_MODEL
 from voice.tools.registry import open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
@@ -136,11 +137,30 @@ FACT_CHECK_PREFIX = "[fact check, machine-generated, not spoken by the user] "
 FACT_CHECK_REJECTED = {
     "type": "fact_check",
     "result": "rejected",
-    "reason": "the last reply named a day, date, time, number or place that nothing in this call said or stated",
-    "instruction": "Answer again with only facts the person said or this note states. If you do not have a value, "
-                   "say plainly that you do not have it. Never guess one.",
+    "reason": "the last reply named a day, date, time, number or place that nothing in this call said or stated, or "
+              "described this note instead of answering",
+    "instruction": "Answer again as yourself, using only what the person said or this note states. If you do not have "
+                   "a value, say plainly that you do not have it. Never guess one, and never talk about this note.",
 }
+# What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
+# no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
+FALLBACK_LINE = "Sorry, I can't confirm that right now."
+SUBJECT_INSTRUCTIONS = (
+    "The subject of what the person is asking about, in two to five words. Name no day, date, time, number or place "
+    "the transcript does not state."
+)
+SUBJECT_WORDS = 6
+SUBJECT_TIMEOUT_S = 2.0
 SYNTHETIC_CALL_ID = "snapshot_1"
+
+
+class Fallback:
+    """The one short line a turn may speak when the check fails twice, and the audio for it.
+
+    One per turn, shared by the snapshot reply and the task update, so a turn that loses both says it once."""
+
+    def __init__(self, pcm=b"", line=FALLBACK_LINE):
+        self.line, self.pcm, self.spoken = line, pcm, False
 
 
 def reply_summary(session, mark, since, rate):
@@ -166,28 +186,34 @@ async def respond(session, rate, since, **response):
     return reply_summary(session, mark, since, rate)
 
 
-async def answer(session, rate, since, sources, log, **response):
-    """A reply that states only facts the call gave it.
+async def answer(session, rate, since, sources, log, fallback=None, **response):
+    """A reply that states only facts the call gave it, and never names the machinery.
 
     `sources` is what the assistant may say: the person's words in this call and the newest machine note, never its
-    own earlier replies. A reply that names a day, date, time, number or place no source states is not spoken: the
-    turn says so in the record, sends one machine note saying the value is not available, and asks again once. A
-    second bad answer is dropped rather than said, and the record keeps both texts. Nothing is substituted for a
-    wrong value, because a different wrong value is worse than saying less."""
+    own earlier replies. A reply that names a day, date, time, number or place no source states, or that talks about
+    the note, the check or the task list, is not spoken: the turn says so in the record, sends one machine note, and
+    asks again once. If the second answer is bad too, the turn speaks `fallback`'s one short line, and only if that
+    turn has not said it yet. Nothing is substituted for a wrong value, because a different wrong value is worse than
+    saying less."""
     reply, pcm = await respond(session, rate, since, **response)
-    missing = ungrounded(reply["text"], sources)
-    if not missing:
+    missing, machinery = ungrounded(reply["text"], sources), names_machinery(reply["text"])
+    if not missing and not machinery:
         return reply, pcm
     log("fact_check", reply=reply["text"], ungrounded=[f"{fact.kind} {fact.surface}" for fact in missing],
-        asked_again=True)
+        machinery=machinery, asked_again=True)
     await create_item(session, user_text(FACT_CHECK_PREFIX, FACT_CHECK_REJECTED))
     retry, retry_pcm = await respond(session, rate, since, **response)
-    again = ungrounded(retry["text"], sources)
-    if not again:
+    again, again_machinery = ungrounded(retry["text"], sources), names_machinery(retry["text"])
+    if not again and not again_machinery:
         return retry, retry_pcm
-    log("fact_check", reply=retry["text"], ungrounded=[f"{fact.kind} {fact.surface}" for fact in again], blocked=True)
-    return {**retry, "text": "", "blocked": {"reply": retry["text"],
-                                             "ungrounded": [f"{fact.kind} {fact.surface}" for fact in again]}}, b""
+    blocked = {"reply": retry["text"], "ungrounded": [f"{fact.kind} {fact.surface}" for fact in again],
+               "machinery": again_machinery}
+    log("fact_check", **blocked, blocked=True)
+    if fallback is None or fallback.spoken:
+        return {**retry, "text": "", "blocked": blocked}, b""
+    fallback.spoken = True
+    log("fallback", text=fallback.line, blocked=blocked)
+    return {**retry, "text": fallback.line, "blocked": blocked, "fallback": True}, fallback.pcm
 
 
 async def create_item(session, item):
@@ -272,6 +298,74 @@ async def update_session(session, settings):
         raise SessionRefused(f"{session.name} session.update refused: {answer.get('error')}")
 
 
+def subject_request(earlier, now):
+    """One extraction that names the subject of the turn, from the call's own words.
+
+    The parroting fix drops the task description when it is the person's words, which on "That's not what I meant."
+    left the note with a running task and no subject, and the model filled the hole with an invented day. This asks
+    the free decision model for the subject so the note can carry it. The state holds only what the person said."""
+    said = [text for text in earlier if text]
+    lines = "".join(f"- {text}\n" for text in said)
+    state = (f"Earlier in the call:\n{lines}The person just said: {now}" if said
+             else f"The person just said: {now}")
+    return {"model": DECIDER_MODEL, "state": state,
+            "fields": {"subject": {"type": "text", "instructions": SUBJECT_INSTRUCTIONS}}}
+
+
+def subject_of(record, transcript, sources):
+    """The subject the extraction returned, or why it was dropped. It never is the person's words from this turn,
+    never a value no source states, and never longer than `SUBJECT_WORDS`."""
+    answer = ((record or {}).get("response") or {}).get("answers") or {}
+    value = (answer.get("subject") or {}).get("value")
+    if not isinstance(value, str) or not value.strip():
+        return None, "no subject returned"
+    subject = " ".join(value.split())
+    if overlaps(subject, transcript):
+        return None, "repeats the person's words from this turn"
+    missing = ungrounded(subject, sources)
+    if missing:
+        return None, "names " + ", ".join(f"{fact.kind} {fact.surface}" for fact in missing)
+    if len(subject.split()) > SUBJECT_WORDS:
+        return None, f"longer than {SUBJECT_WORDS} words"
+    return subject, None
+
+
+def with_subject(payload, subject, key):
+    """Adds `subject` to each task entry under `key` that no longer carries a description, so a note that lost the
+    person's words still says what the task is about."""
+    entries = payload.get(key) if isinstance(payload, dict) else None
+    if not subject or not isinstance(entries, list):
+        return payload
+    filled = [{**entry, "subject": subject} if isinstance(entry, dict) and "description" not in entry
+              and "subject" not in entry else entry for entry in entries]
+    return {**payload, key: filled}
+
+
+def start_subject(executor, decider, earlier, now):
+    """The turn's subject, asked of the free decision model before the tool turn so most of its latency hides there."""
+    if decider is None:
+        return None
+    body = subject_request(earlier, now)
+    loop = asyncio.get_running_loop()
+    return asyncio.create_task(asyncio.wait_for(
+        loop.run_in_executor(executor, lambda: decider.call("extractions", body, label="subject")), SUBJECT_TIMEOUT_S))
+
+
+async def finish_subject(work, transcript, earlier, log):
+    """What `start_subject` asked for, logged with the time the turn waited for it past the tool turn."""
+    if work is None:
+        return None
+    started = time.perf_counter()
+    try:
+        subject, why = subject_of(await work, transcript, [transcript, *earlier])
+    except asyncio.TimeoutError:
+        subject, why = None, f"no answer in {SUBJECT_TIMEOUT_S} s"
+    except Exception as exc:
+        subject, why = None, repr(exc)
+    log("subject", text=subject, dropped=why, waited_s=round(time.perf_counter() - started, 4))
+    return subject
+
+
 def parse_arguments(call):
     try:
         arguments = json.loads(call.get("arguments") or "{}")
@@ -304,7 +398,8 @@ class WavInput:
 
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
-                   snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=()):
+                   snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
+                   fallback_pcm=b""):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -320,13 +415,16 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `prior_snapshot`, the call's task state when the turn started, before the turn's audio and answers with no item
     after the tools turn; the turn's own transcript is then not in the text the model reads. "reply-no-utterance" is
     "reply" with the person's words dropped from the snapshot and from the task update (see `without_utterance`), so
-    the item still carries the task list, its statuses and its results. "off" sends no machine text at all, whatever
-    `eou` and `inject` are. The task service, the tool session and its snapshot are the same in all four.
+    the item still carries the task list, its statuses and its results; a task that lost its description is given the
+    turn's `subject`, which the free decision model names, so a status is not all the note says. "off" sends no
+    machine text at all, whatever `eou` and `inject` are. The task service, the tool session and its snapshot are the
+    same in all four.
 
     `speak` takes the reply text and PCM that passed the fact check, when the caller streams the reply itself, as live
     mode does. The turn writes `CLIP_reply.wav` and `CLIP_update.wav` either way, so a record is readable without the
     client's copy. `prior_utterances` is what the person said earlier in the call, which the fact check needs because
-    the shipped snapshot no longer carries their words."""
+    the shipped snapshot no longer carries their words. `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
+    the caller; without it a turn that loses both replies still says the line in its record and plays nothing."""
     t0 = time.perf_counter()
 
     def clock():
@@ -431,6 +529,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         worker = asyncio.create_task(segment_worker())
 
         replies, tool_turn, injection = [], None, []
+        fallback, subject = Fallback(fallback_pcm), None
         if seed is not None:
             injection.append(await create_item(voice, seed))
             log("seed", answer=injection[-1])
@@ -463,6 +562,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)
         log("snapshot", snapshot=snapshot)
         read_before = prior_snapshot if snapshot_mode == "before-audio" else None
+        subject_work = (start_subject(executor, decider, [*prior_utterances], adapter.text())
+                        if snapshot_mode == "reply-no-utterance" and eou in TOOL_SESSIONS else None)
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
@@ -481,10 +582,13 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
             if (item := shown(answered, snapshot_mode, adapter.text())) is not None:
+                if snapshot_mode == "reply-no-utterance":
+                    subject = await finish_subject(subject_work, adapter.text(), [*prior_utterances], log)
+                    item = with_subject(item, subject, "tasks")
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
             log("injection", items=injection)
             sources = [adapter.text(), *prior_utterances, read_before, item]
-            reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log)
+            reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback)
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             if reply_pcm:
@@ -510,7 +614,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         if eou not in TOOL_SESSIONS:
             log("injection", items=injection)
             reply, reply_pcm = await answer(voice, out_rate, audio_end,
-                                            [adapter.text(), *prior_utterances, read_before, item], log, **extra)
+                                            [adapter.text(), *prior_utterances, read_before, item], log,
+                                            fallback=fallback, **extra)
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             if reply_pcm:
@@ -527,9 +632,12 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         if updates is not None:
             boundary = clock()
             log("task_updates", updates=task_updates)
+            if snapshot_mode == "reply-no-utterance":
+                updates = with_subject(updates, subject, "updates")
             injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
             update_reply, update_pcm = await answer(voice, out_rate, boundary,
-                                                    [adapter.text(), *prior_utterances, updates], log, **extra)
+                                                    [adapter.text(), *prior_utterances, updates], log,
+                                                    fallback=fallback, **extra)
             replies.append({"kind": "update", "injection": injection_update, **update_reply})
             log("reply", reply="update", text=update_reply["text"])
             if update_pcm:
