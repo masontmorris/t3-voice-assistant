@@ -116,6 +116,34 @@ Verdict, and it is why the subject is not in this branch: the model still invent
 What this does not say: one word from one free model on one call is not proof that no subject-shaped note can help. A note that names the value the model is reaching for, or a persona line that says not to add a day the call has not stated, is a different change and untested (inferred).
 
 
+## A persona line that forbids unstated values, tried and dropped
+
+The check keeps the invented day out of the person's ear, but the turn still costs them the fixed line, so the next smallest change was at the source. The persona already carries a numbers rule ("Use exactly the numbers, times, days and names in the note") and the model broke it on this turn, so the question this run asked is whether a rule written for the failure itself does better than a rule about where values come from. The line added, one paragraph after the numbers rule, in the persona's own register:
+
+> Never state a day, date, time, number or place the call has not given: if the note does not carry it, say you do not have it rather than choosing one.
+
+Measured: it changed nothing on the failing turn.
+
+The run (`ablation/demo-persona/`) used the same three-turn call as `demo-subject`, with the line in a copy of the shared persona (`ablation/persona-fact-line.txt`, `sha256:fb60db533ad0`, against `prompt.txt`'s `02700e254b8f`). The copy went in through the server's own `--prompt`, so no other lane's persona moved, and every turn record carries `live.prompt: persona-fact-line.txt sha256:fb60db533ad0` (measured), which is how the run knows the line reached the model.
+
+| Turn | Person | Reply, as spoken | First reply audio after the turn's audio | Check fires |
+| --- | --- | --- | --- | --- |
+| 1 | "What's the weather in Denver tomorrow?" | "I'm running the task to get the weather in Denver tomorrow." then "The forecast for Denver, Colorado on Tuesday, November 17th shows a high of 69 degrees Fahrenheit and a 0 percent chance of precipitation." | 0.620 s, and 1.076 s from the client's own turn end (was 0.638 s and 1.051 s) | 0 |
+| 2 | "And what about Saturday?" | "I'm running the task to get the weather in Denver for Saturday." then "The task to get the weather in Denver for Saturday has been completed, but no real work was done." | 0.523 s, and 1.030 s from the client's turn end (was 0.534 s and 1.012 s) | 0 |
+| 3 | "That's not what I meant." | "Sorry, I can't confirm that right now." once; the task update said nothing | 2.538 s from the client's turn end (was 2.266 s) | 4, 2 of them blocked |
+
+Turn 3's first reply was, word for word, `demo-subject`'s: "I'm running the task to get the weather in Denver for Sunday." The check dropped it at t 2.87 with `ungrounded: ["weekday Sunday"]`. The update's first reply said "for Sunday" too ("The task to get the weather in Denver for Sunday has been completed, but no real work was done.") and was dropped at t 7.34 (measured, `server/turn_003.json`).
+
+Turns 1 and 2 got no worse (measured): no refusal, no fallback, Denver and Saturday both kept, and `score.py` marks both turns grounded. The only wording that moved is turn 2's update, which dropped its trailing clause "as the mock worker finished without actual processing" (measured); it is still grounded and still a completed status. Recall is ok on turn 2 and parroting, last-sentence echo, third-person narration and clarification asks are none in all three turns, the same as `demo-subject`.
+
+Both re-asks came back in the new wording, "I do not have the information needed to answer the fact check as nothing in this conversation refers to a specific day, date, time, number, or place that was named or described." Both named the check and were refused. That sentence is close to what the persona line asks for, but it arrived only after the check spoke, and the check's own note asks for exactly that, so this run does not separate the line from the note as its cause (inferred).
+
+Verdict: the line is out. The shared persona never carried it, so this experiment adds no product change, and the branch carries this record instead.
+
+What the run shows is a limit on persona rules. The model does not apply a rule in its own persona in the reply that invents the day, even when the rule names that exact failure. This is the second measured case of a persona rule about values being broken, the numbers rule being the first, and the persona carried that rule on every recorded run. Rewording the rule is unlikely to reach the first reply (inferred). The correction names no referent, and neither the note nor the persona supplies one without the person's own words.
+
+What this run cannot see: one call, one seed, one model. A persona line that fails on this turn can still change other turns, and a different line with the same meaning was not tried, which the brief deliberately allowed only one of per run.
+
 ## Tests
 
 | Suite | Result |
@@ -145,7 +173,7 @@ python "$VOICE_HOME/evidence/live/memory-20261116/ablation/score.py" --repo <che
 python -m unittest discover -s voice/live/tests -t . ; python -m unittest discover -s voice/prototype/tests -t .
 ```
 
-The GPU run is `ablation/run.py --snapshot reply-no-utterance --turns-a turns-demo.txt --clips <01_single.wav> <clips-a/turn_002.wav> <clips-a/turn_003.wav>`. The first attempt at it, `ablation/demo-facts-cutshort/`, handed the client one clip instead of three and stopped after turn 1; it is kept as evidence of the mistake and proves nothing. The subject run is the same command with `--out .../demo-subject` and `--turns-b` added, since `run.py` requires it even when `--clips` makes the second call unused.
+The GPU run is `ablation/run.py --snapshot reply-no-utterance --turns-a turns-demo.txt --clips <01_single.wav> <clips-a/turn_002.wav> <clips-a/turn_003.wav>`. The first attempt at it, `ablation/demo-facts-cutshort/`, handed the client one clip instead of three and stopped after turn 1; it is kept as evidence of the mistake and proves nothing. The subject run is the same command with `--out .../demo-subject` and `--turns-b` added, since `run.py` requires it even when `--clips` makes the second call unused. The persona run is `ablation/run_persona.py` with the same arguments plus `--prompt ablation/persona-fact-line.txt` and `--out .../demo-persona`.
 
 ## Files
 
@@ -159,6 +187,9 @@ The GPU run is `ablation/run.py --snapshot reply-no-utterance --turns-a turns-de
 | `$VOICE_HOME/evidence/live/subject-probe/` | the 16 subject probes' cached requests and answers | 25 KB |
 | `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts/` | the run's records, client logs and audio | 5.1 MB |
 | `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-subject/` | the subject run's records, client logs and audio | 6.4 MB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-persona/` | the persona line's run, records, client log and audio | 5.7 MB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/persona-fact-line.txt` | the persona copy that run used, one paragraph longer than `prompt.txt` | 1.8 KB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/run_persona.py` | `run.py` with the server's `--prompt` passed through, so a persona test need not touch the shared file | 5.9 KB |
 | `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts-cutshort/` | the aborted first attempt | 1.6 MB |
 | `$VOICE_HOME/evidence/live/memory-20261116/ablation/scores-demo-facts.json` | `score.py`'s output for both demos | 4.7 KB |
 | `$VOICE_HOME/live/fallback-0570ec7a3663.wav` | the rendered fallback line | 131 KB |
