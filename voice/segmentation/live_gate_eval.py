@@ -271,12 +271,15 @@ def main():
     parser.add_argument("--repeats", type=int, default=REPEATS)
     parser.add_argument("--budget", type=int, default=CALL_BUDGET)
     parser.add_argument("--only", default=None, help="one item id, for a smoke test")
-    parser.add_argument("--traces", type=Path, default=EVIDENCE / "traces.jsonl")
+    parser.add_argument("--traces", type=Path, default=None,
+                        help="saved traces; default: traces.jsonl for --gate before, traces_after.jsonl for now")
     parser.add_argument("--score-only", action="store_true", help="score the saved traces, no call")
     parser.add_argument("--sweep", action="store_true", help="print the threshold sweep over the saved traces")
     parser.add_argument("--gate", choices=["now", "before"], default="now",
                         help="which gate rule to score with: the shipped one, or the one that still scored `kind`")
     args = parser.parse_args()
+    if args.traces is None:
+        args.traces = EVIDENCE / ("traces.jsonl" if args.gate == "before" else "traces_after.jsonl")
     items = [json.loads(line) for line in EVAL.read_text(encoding="utf-8").splitlines() if line.strip()]
     if args.only:
         items = [item for item in items if item["id"] == args.only]
