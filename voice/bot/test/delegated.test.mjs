@@ -42,3 +42,10 @@ test("a delegated worker gets only the fixed rules: no decider calls while quiet
 	const wakes = h.checkins.filter((e) => e.node === CHILD && e.verdict === "wake_pm" && !e.suppressed);
 	assert.deepEqual(wakes.map((e) => [e.source, Date.parse(e.at) / S]), [["rule_stall", 300]], "one wake, from the stall rule, and no backstop");
 });
+
+test("the cancel is found in T3's HTTP snapshot shape too, where toolName and input sit on the item with no text", async () => {
+	const h = endedChild([{ type: "dynamic_tool", runId: "P-r3", toolName: "mcp__t3-code__task_cancel", input: { taskId: "node:delegated-task:command%3Amcp%3Aabc%3Adelegate-task%3A1234" }, outputOmitted: true }]);
+	await h.run(10 * S, 200 * S);
+	assert.equal(h.sent.length, 0, "the parent is not woken");
+	assert.ok(h.checkins.some((e) => e.node === CHILD && e.dropped && /cancelled it/.test(e.reason)));
+});
