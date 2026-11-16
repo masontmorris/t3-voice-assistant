@@ -75,7 +75,7 @@ def snapshot_status(record, execution):
     if status == "needs_clarification":
         return "needs_clarification"
     if status == "held":
-        return Run.HELD.value
+        return "pending"
     if status in ("superseded", "withdrawn"):
         return None
     return execution.state.value

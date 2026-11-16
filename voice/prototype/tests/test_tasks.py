@@ -184,12 +184,12 @@ class HandoffToolsTest(unittest.TestCase):
         self.assertTrue(result["ok"])
         self.assertEqual(events, [{"task_id": "task_1", "event": "cancelled"}])
 
-    def test_the_snapshot_reports_a_held_task_and_the_unreviewed_speech(self):
+    def test_the_snapshot_reports_a_dispatch_hold_as_pending_and_keeps_unreviewed_speech(self):
         orch = self.segmenter.orch
         held = orch._new_task("email dana", 0, {"orchestrator"}, side_effect=True)
         orch._move(held, Status.HELD, "test")
         snapshot = self.service.snapshot("utt_1", "", "and email Dana")
-        self.assertEqual(statuses(snapshot)["email dana"], "held_for_confirmation")
+        self.assertEqual(statuses(snapshot)["email dana"], "pending")
         self.assertEqual(snapshot["unreviewed_speech"], "and email Dana")
 
 
@@ -271,6 +271,18 @@ class RealLookupTest(unittest.TestCase):
 
 
 class GatedServiceTest(unittest.TestCase):
+    def test_confidence_holds_are_pending_not_confirmation_requests(self):
+        for instruction, side_effect in [("check the weather in Denver", False), ("email Dana the notes", True)]:
+            with self.subTest(instruction=instruction):
+                segmenter = ScriptedSegmenter()
+                service = MockTaskService(segmenter, "conv_test", holds_side_effects=False)
+                self.addCleanup(service.close)
+                task = segmenter.orch._new_task(instruction, 0, {"orchestrator"}, side_effect=side_effect)
+                segmenter.orch._log(task, "gate", passed=False, score=0.31, weakest="ready", threshold=0.8)
+                segmenter.orch._move(task, Status.HELD, "gate")
+                self.assertEqual(service.snapshot("utt_1", instruction, notes=True)["tasks"][0]["status"], "pending")
+                self.assertEqual(segmenter.orch.snapshot("conv_test", "utt_1")["tasks"][0]["status"], "pending")
+
     def test_a_dispatched_side_effect_runs_on_the_mock_and_never_reaches_a_tool(self):
         tools, fetch, _ = replay_registry("Denver")
         segmenter = ScriptedSegmenter()
