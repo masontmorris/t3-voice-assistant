@@ -19,7 +19,8 @@ from voice.segmentation.cursor import words
 from voice.segmentation.gate_tune import label
 from voice.segmentation.score import _matches, score
 
-TIMED = ("final_transcript_after_audio_end_s", "snapshot_ready_after_audio_end_s", "first_reply_audio_after_audio_end_s")
+TIMED = ("final_transcript_after_audio_end_s", "snapshot_ready_after_audio_end_s",
+         "first_reply_audio_after_audio_end_s")
 OUTCOMES = ("pass", "correct", "expected", "premature", "duplicate", "missed", "extra")
 
 
@@ -164,7 +165,8 @@ def main():
     for key in TIMED:
         print(row(key, [spread(runs[n][c]["metrics"][key] for c in clips) for n in names]))
     print(row("tools session turn after the snapshot", [spread(tool_turn_s(runs[n][c]) for c in clips) for n in names]))
-    print(row("decider lag behind speech, partials", [spread(x for c in clips for x in lags(runs[n][c])) for n in names]))
+    print(row("decider lag behind speech, partials",
+              [spread(x for c in clips for x in lags(runs[n][c])) for n in names]))
 
     print("\n## Totals\n")
     print(row("Measurement", names) + "\n| --- |" + " --- |" * len(names))

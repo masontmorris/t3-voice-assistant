@@ -2,7 +2,7 @@
 
 The prototype runs the whole assistant loop on this Desktop. A WAV file streams into LFM3-Audio-2B on llama.cpp's realtime server, the live transcript drives the Stage 2 segmenter with the free decider, tasks go to a mock task service, and the task snapshot goes back into the voice session before the model speaks. Each claim below carries a label. "Measured" means a run on this machine produced it, "inferred" means I reasoned it from code or docs, and "guess" means neither.
 
-The turn this doc measures ends with a decider call on the final transcript. The prototype now defaults to the end-of-utterance handoff, which makes no call there, and `--eou decider` runs the turn described here. See [eou-handoff.md](eou-handoff.md).
+The turn this doc measures ends with a decider call on the final transcript. The prototype now defaults to the gated turn, which gates each task during speech and makes no call at the end, and `--eou decider` runs the turn described here. See [eou-handoff.md](eou-handoff.md).
 
 ## Result
 

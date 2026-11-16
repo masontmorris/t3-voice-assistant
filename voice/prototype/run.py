@@ -317,7 +317,8 @@ async def run_clip(wav, inject, status_only, url, decider, delay_s, out, partial
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
-            for_tools = service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated" else snapshot
+            for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated"
+                         else snapshot)
             injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, for_tools)))
             tool_turn, _ = await respond(tool_session, out_rate, audio_end, tool_choice="auto")
             log("tool_turn", calls=tool_turn["function_calls"], text=tool_turn["text"])
