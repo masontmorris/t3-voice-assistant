@@ -11,13 +11,16 @@ import numpy as np
 RAW_STREAM_OPTION = 1
 
 
-def wasapi_input(sd, wanted):
-    """The WASAPI input device for `wanted` (None for the default, an index, or part of a name), or None."""
+def wasapi_input(sd, wanted, communications=None):
+    """The WASAPI input device for `wanted` (an index or part of a name), or None. With no `wanted`, Windows'
+    default communications microphone when `communications` names one, else WASAPI's default input."""
     apis = sd.query_hostapis()
     wasapi = next((i for i, api in enumerate(apis) if "WASAPI" in api["name"]), None)
     if wasapi is None:
         return None
     devices = sd.query_devices()
+    if wanted is None and communications:
+        wanted = communications
     if wanted is None:
         index = apis[wasapi]["default_input_device"]
         return index if index is not None and index >= 0 else None
@@ -63,10 +66,10 @@ class Decimator:
         return out
 
 
-def open_raw(sd, wanted, rate, block_samples, on_frame):
+def open_raw(sd, wanted, rate, block_samples, on_frame, communications=None):
     """A started-ready raw input stream that calls `on_frame(pcm16_bytes)` with mono 16-bit frames of
     `block_samples` at `rate`, plus a description of the device; or (None, reason) when raw capture is unavailable."""
-    index = wasapi_input(sd, wanted)
+    index = wasapi_input(sd, wanted, communications)
     if index is None:
         return None, "no WASAPI input for this device"
     native = int(sd.query_devices(index)["default_samplerate"])

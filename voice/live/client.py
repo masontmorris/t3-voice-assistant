@@ -35,10 +35,12 @@ import websockets
 
 if __package__:
     from voice.live.aec import EchoCanceller
+    from voice.live.comms import CAPTURE, RENDER, default_name
     from voice.live.rawmic import open_raw
     from voice.live.recording import SessionRecorder, unique_session_dir
 else:
     from aec import EchoCanceller
+    from comms import CAPTURE, RENDER, default_name
     from rawmic import open_raw
     from recording import SessionRecorder, unique_session_dir
 
@@ -64,12 +66,28 @@ def device(value):
     return int(value) if value is not None and value.isdigit() else value
 
 
+def mme_output(sd, name):
+    """The MME output device whose name begins Windows' `name` (MME cuts names at 31 characters), or None. MME
+    converts the reply's rate to the device's, which a WASAPI shared stream would not."""
+    apis = sd.query_hostapis()
+    mme = next((i for i, api in enumerate(apis) if api["name"] == "MME"), None)
+    matches = [i for i, d in enumerate(sd.query_devices())
+               if d["hostapi"] == mme and d["max_output_channels"] > 0 and name.startswith(d["name"])]
+    return max(matches, key=lambda i: len(sd.query_devices(i)["name"])) if matches else None
+
+
 def auto_output():
-    """Uses Windows' current default output, which is what Windows itself is playing through. Plugging in
-    headphones normally makes them the default, so the reply follows them, and any device the person has chosen
-    as default is respected (virtual mixer outputs included). Opening device None means that default. Returns
-    (None, description)."""
+    """Uses Windows' default communications output, the speakers or headset chosen for calls, and otherwise the
+    current default output. Plugging in headphones normally makes them the default, so the reply follows them.
+    Returns (device, description); device None means the default."""
     import sounddevice as sd
+    try:
+        name = default_name(RENDER)
+        index = mme_output(sd, name) if name else None
+        if index is not None:
+            return index, f"Windows communications output: {name}"
+    except Exception:
+        pass
     try:
         apis = sd.query_hostapis()
         wasapi = next((a for a in apis if "WASAPI" in a["name"]), None)
@@ -174,7 +192,9 @@ async def mic_frames(input_device, queue, raw=True):
     def on_frame(pcm):
         loop.call_soon_threadsafe(queue.put_nowait, (pcm, time.perf_counter()))
 
-    stream, how = open_raw(sd, input_device, RATE, FRAME_SAMPLES, on_frame) if raw else (None, "--no-raw-mic")
+    communications = default_name(CAPTURE) if input_device is None else None
+    stream, how = (open_raw(sd, input_device, RATE, FRAME_SAMPLES, on_frame, communications) if raw
+                   else (None, "--no-raw-mic"))
     if stream is None:
         print(f"input: driver-processed capture ({how})", flush=True)
         stream = sd.RawInputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=FRAME_SAMPLES,

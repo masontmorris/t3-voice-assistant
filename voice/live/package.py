@@ -17,7 +17,7 @@ from pathlib import Path
 from voice.live.server import LIVE_HOME, shared_secret
 
 HERE = Path(__file__).resolve().parent
-FILES = ["client.py", "recording.py", "aec.py", "rawmic.py", "requirements-client.txt", "SETUP-LAPTOP.md"]
+FILES = ["client.py", "recording.py", "aec.py", "rawmic.py", "comms.py", "requirements-client.txt", "SETUP-LAPTOP.md"]
 
 
 def tailscale_dns_name():

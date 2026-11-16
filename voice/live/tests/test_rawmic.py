@@ -12,8 +12,8 @@ class FakeSd:
     def query_hostapis(self):
         return self.apis
 
-    def query_devices(self):
-        return self.devices
+    def query_devices(self, index=None):
+        return self.devices if index is None else self.devices[index]
 
 
 APIS = [{"name": "MME", "default_input_device": 1}, {"name": "Windows WASAPI", "default_input_device": 3}]
@@ -35,6 +35,13 @@ class WasapiInputTest(unittest.TestCase):
 
     def test_a_name_fragment_finds_the_wasapi_input(self):
         self.assertEqual(wasapi_input(FakeSd(DEVICES, APIS), "microphone array"), 3)
+
+    def test_with_no_device_named_the_communications_microphone_wins(self):
+        devices = DEVICES + [{"name": "Headset Microphone (USB Audio)", "hostapi": 1, "max_input_channels": 1}]
+        self.assertEqual(wasapi_input(FakeSd(devices, APIS), None, "Headset Microphone (USB Audio)"), 4)
+
+    def test_a_named_device_overrides_the_communications_microphone(self):
+        self.assertEqual(wasapi_input(FakeSd(DEVICES, APIS), "microphone array", "Headset"), 3)
 
     def test_no_wasapi_means_no_raw_capture(self):
         self.assertIsNone(wasapi_input(FakeSd(DEVICES[:2], APIS[:1]), None))
