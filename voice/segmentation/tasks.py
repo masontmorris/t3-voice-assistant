@@ -187,12 +187,16 @@ class Orchestrator:
             if task is not None and decision is not None:
                 self.decided[task.task_id] = (decision, tuple(_words(seg.text)))
 
+    def end(self, update):
+        """Record that the utterance ended, so later dispatches log as after the final transcript. Settles nothing."""
+        self.revision, self.is_final, self.text = update.revision, True, update.text
+
     def close(self, update, segments):
         """End the utterance with no decision call. A task whose words have not changed since its last decision is
         settled by that decision, as on a final transcript. A task whose words changed is held. No decider read the
         new words, so code cannot tell whether they made it a side effect, as when "and if any are under three
         hundred" grows into "...book the cheapest one"."""
-        self.revision, self.is_final, self.text = update.revision, True, update.text
+        self.end(update)
         bound = self.bind(segments)
         for seg in segments:
             task = bound.get(seg.sid)

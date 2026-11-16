@@ -250,6 +250,8 @@ class HybridSegmenter:
                      if not proposal.filler(p)]
         if settle:
             self.orch.close(update, segments)
+        else:
+            self.orch.end(update)
         covered = next((i for i, (a, b) in enumerate(zip(current, self.reviewed)) if a != b),
                        min(len(current), len(self.reviewed)))
         tail = update.text[self.ws[covered].start:].strip() if covered < len(self.ws) else None

@@ -66,10 +66,21 @@ def tail_words(record):
     return final - max((n for _, n, is_final in points(record) if not is_final), default=0)
 
 
+def after_the_utterance(record):
+    """The dispatch log, with every dispatch a voice-model call caused marked as after the final transcript.
+
+    Before `Orchestrator.end`, the gated close left the last partial's revision in place, so those dispatches logged
+    as partial ones. Every tool call comes after the snapshot in the timeline."""
+    by_voice = {t["task_id"] for t in record["tasks"]
+                if any(h["event"] == "status" and h["new"] == "dispatched" and h["reason"].startswith("voice model")
+                       for h in t["history"])}
+    return [{**d, "is_final": True} if d["task_id"] in by_voice else d for d in record["dispatch_log"]]
+
+
 def graded_records(record):
     """Every task. A held side effect scores as a final dispatch, because it ends as held_for_confirmation, as a
     dispatched side effect the service holds does. A held read-only task scores as undispatched."""
-    records, log = [], list(record["dispatch_log"])
+    records, log = [], after_the_utterance(record)
     for t in record["tasks"]:
         if t["status"] == "held" and not t["side_effect"]:
             t = {**t, "status": "ready"}
@@ -93,10 +104,20 @@ def outcomes(record, expected):
 
 
 def side_effects_run(record, expected):
-    """Expected side-effect requests (dispatch only on the final transcript) that a task started running."""
+    """Expected side-effect requests (dispatch only on the final transcript) that a task started running, and how many
+    of those ran on a dispatch the gate's labels call wrong."""
     states = {k: v["state"] for k, v in record["executions"].items()}
-    return sum(any(_matches(e, t) and states.get(t["task_id"]) in ("running", "completed") for t in record["tasks"])
-               for e in expected["tasks"] if e.get("dispatch_only_on_final"))
+    log = after_the_utterance(record)
+    ran = wrong = 0
+    for e in expected["tasks"]:
+        if not e.get("dispatch_only_on_final"):
+            continue
+        runs = [t for t in record["tasks"] if _matches(e, t) and states.get(t["task_id"]) in ("running", "completed")]
+        ran += bool(runs)
+        for t in runs[:1]:
+            i = next(i for i, d in enumerate(log) if d["task_id"] == t["task_id"])
+            wrong += label(log[i], expected, {d["task_id"] for d in log[:i]})[0] == "wrong"
+    return ran, wrong
 
 
 def gate_counts(record, expected):
@@ -149,8 +170,9 @@ def main():
     print(row("Measurement", names) + "\n| --- |" + " --- |" * len(names))
     for key in OUTCOMES:
         print(row(key, [sum(graded[n][c][key] for c in clips) for n in names]))
-    print(row("expected side-effect requests that ran",
-              [sum(side_effects_run(runs[n][c], expected[c]) for c in clips) for n in names]))
+    ran = {n: [side_effects_run(runs[n][c], expected[c]) for c in clips] for n in names}
+    print(row("expected side-effect requests that ran", [sum(r for r, _ in ran[n]) for n in names]))
+    print(row("of those, on a wrong dispatch", [sum(w for _, w in ran[n]) for n in names]))
     print(row("decider calls per utterance, mean",
               [f"{statistics.mean(runs[n][c]['metrics']['decider_calls'] for c in clips):.2f}" for n in names]))
     print(row("LFM3 tool calls", [sum(runs[n][c]["metrics"].get("tool_calls", 0) for c in clips) for n in names]))

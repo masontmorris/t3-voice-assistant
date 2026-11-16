@@ -160,6 +160,14 @@ class TaskGate(unittest.TestCase):
                          [(t["task_id"], t["status"]) for t in before])
         self.assertEqual(point["calls"], [])
 
+    def test_a_voice_dispatch_after_the_gated_close_logs_as_after_the_final_transcript(self):
+        seg = gated(FakeDecider(starters={"then"}, ready_margin=0.3))
+        for i, text in enumerate(SOUP, 1):
+            seg.update(TranscriptUpdate(i, text, False))
+        seg.close(TranscriptUpdate(3, "Find the recipe for lentil soup, then make a list.", True), settle=False)
+        seg.orch.run_from_voice(task(seg, "soup")["task_id"])
+        self.assertEqual([(d["revision"], d["is_final"]) for d in seg.dispatch_log], [(3, True)])
+
     def test_run_task_starts_a_task_that_waits_and_refuses_one_that_ran(self):
         orch = orchestrator_with(("find the sales report", False))
         held = orch._new_task("email dana", 0, {"orchestrator"}, side_effect=True)
