@@ -1,18 +1,17 @@
 # Prompt pre-writing: drafts that are ready at dispatch
 
-Measured on 2026-11-16 from committed decider responses, from 32 live calls to DeepSeek V4.1 Flash through Command Code on the synthetic scenarios, and from the live timeline of the hybrid's prototype run on Mason's ten clips. Each claim says whether it is measured, inferred, or a guess.
+Measured on 2026-11-16 from committed decider responses, from 84 live calls to DeepSeek V4.1 Flash through Command Code, and from the live timeline of the hybrid's prototype run on Mason's ten clips. Each claim says whether it is measured, inferred, or a guess.
 
 `voice/delegation/` drafts the prompt that each task's frontier agent will receive while the user is still speaking. The hybrid segmenter's per-segment completion answer starts the draft.
 
-On default reasoning the author is too slow to get ahead of dispatch. Its median answer took 7.0 s and its p95 took 12.0 s (measured, n=31). On Mason's clips, the 5 tasks that complete before their dispatch point do so 0.67 s to 2.49 s early (measured). So at the author's median latency, none of the 9 dispatched clip tasks would go out with its draft (measured with the stand-in author at 7.0 s). The drafts themselves are mostly faithful: 26 of 31 ask for exactly what the span asks (hand-checked). The other 5 fold a neighboring request's read-only work into the task. None adds an outside action.
+Only `deepseek/deepseek-v4.1-flash-ultrafast` is fast enough to get ahead of dispatch. Its median draft took 0.80 s and its p95 took 1.12 s. `-fast` took 4.09 s and 8.64 s, and default reasoning took 7.57 s and 11.99 s (measured, 22 matched drafts each). On Mason's clips, 5 of the 9 dispatched tasks complete 0.67 s to 2.49 s before dispatch (measured). With each draft landing after its own measured latency, ultrafast had all 5 drafts in hand at dispatch, and the other two settings had none (measured). Draft quality was about the same across the three. Default, `-fast`, and `-ultrafast` asked for exactly the span in 10, 11, and 11 of the 15 matched scenario drafts, and in all 7 clip drafts each (hand-checked). Each faster setting produced one draft that added an outside action, and `check` rejected both.
 
 ## Recommendation
 
-- Do not hold dispatch for a draft on default reasoning. Holding would add about 6.3 s to every clip task (median, measured at 7.0 s latency). Send the raw span when no current draft exists. `Prewriter.dispatch` already does that.
-- Ask Mason whether a faster setting is acceptable. Command Code also lists `deepseek/deepseek-v4.1-flash-fast` and `deepseek/deepseek-v4.1-flash-ultrafast` (measured, model list). An answer under about 0.7 s would cover all 5 clip tasks that complete early (measured with the stand-in). Whether either variant is that fast is untested. Default reasoning spent a median of 769 reasoning tokens per answer (measured), so a setting with less reasoning is the likely lever (inferred).
-- Keep drafts where a task waits anyway. A task held on a dependency waits for another task's result, so a 7 s draft can still be ready when it is released (inferred, not measured, because the mock service's task times are not real).
-- Change the author prompt before the next pass. Tell it not to restate other requests and not to write prohibitions. 5 of 31 drafts restated a neighbor's request, and most of the drafts that `check` rejected were rejected for prohibitions such as "Do not book or purchase any flights" (measured).
-- Do not treat the action check as a safety gate yet. In this sample, no draft added an outside action, the check caught 2 of the 5 scope additions for an unrelated reason, and it rejected 6 of the 26 faithful drafts (measured, after the negation fix described below).
+- Use `deepseek/deepseek-v4.1-flash-ultrafast` as the author. It is the only setting whose drafts land inside the lead the clips give, and its drafts were as faithful as default reasoning's on this sample (measured, small sample: 15 scenario and 7 clip drafts per model).
+- Dispatch with the raw span when no current draft exists, and do not hold for a draft. 4 of the 9 clip tasks complete only at their dispatch point, so no author helps those (measured). `Prewriter.dispatch` already sends the raw span.
+- Fix `check` before it gates anything. It rejected both drafts that added an outside action. It also rejected 2 of ultrafast's 5 in-time clip drafts, and both of those were faithful (measured). The false rejections come from word-prefix matches: "in the order given" reads as a purchase, "what is scheduled" as a booking, and "(e.g., booking)" inside a confirmation constraint as an added booking. The next thing to try is to scan only the affirmed instruction and success criteria. That would have kept both catches here (inferred, not run, because it would be tuned on this same sample).
+- Change the author prompt before a wider run. Tell it not to restate other requests and not to write prohibitions. Every setting folded a neighboring request's read-only work into 3 to 5 of the 15 matched scenario drafts (measured).
 
 ## How drafting works
 
@@ -60,7 +59,42 @@ The draft is untrusted model output. Deterministic code reads it at two points.
 
 ## The model
 
-Command Code lists 100 models. The only V4.1 Flash id at default speed is `deepseek/deepseek-v4.1-flash`, named "DeepSeek V4.1 Flash (latest)" (measured, 2026-11-16). Every reply named that id as its model and had an empty `system_fingerprint` (measured, 31 of 31). So the API does not say whether it serves the 1017 build. Hugging Face has both `deepseek-ai/DeepSeek-V4.1-Flash-1017`, created 2026-10-17, and `deepseek-ai/DeepSeek-V4.1-Flash`. Whether "latest" means 1017 is a guess until Command Code says so.
+Command Code lists 100 models. The only V4.1 Flash id at default speed is `deepseek/deepseek-v4.1-flash`, named "DeepSeek V4.1 Flash (latest)" (measured, 2026-11-16). Every reply named that id as its model and had an empty `system_fingerprint` (measured, 31 of 31). So the API does not say whether it serves the 1017 build. Hugging Face has both `deepseek-ai/DeepSeek-V4.1-Flash-1017`, created 2026-10-17, and `deepseek-ai/DeepSeek-V4.1-Flash`. Whether "latest" means 1017 is a guess until Command Code says so. Mason called the build question a non-issue, so this doc leaves it open.
+
+Command Code also lists `deepseek/deepseek-v4.1-flash-fast`, named "DeepSeek V4.1 Flash Fast (latest)", and `deepseek/deepseek-v4.1-flash-ultrafast`, named "DeepSeek V4.1 Flash Ultrafast" (measured, model list). The listing does not say how they differ from the default. They spent fewer reasoning tokens per draft (median 494 and 155, against 782), so a lighter reasoning setting is one difference (inferred). Whether they also run on different hardware or a smaller model is unknown. The transport takes the id as `CommandCodeTransport(model)`, and the replay takes it as `--model`.
+
+## Faster settings: a small matched test
+
+Mason asked for very small but representative tests of `deepseek/deepseek-v4.1-flash-fast` and `deepseek/deepseek-v4.1-flash-ultrafast`. Both ran on the same requests as default reasoning, with no reasoning parameter, through the same adapter and cache.
+
+- Scenarios: the 15 draft requests from `01_two_independent`, `05_correction_after_dispatch`, `08_delegate_after_dispatch`, `10_side_effect_email`, and `post_and_read`. They cover a plain lookup, a correction, a voice delegate, a dependency, two side-effect tasks, and 4 of the 5 requests where default reasoning folded in a neighbor's task. `voice/delegation/results/subset-<model>.json` holds each model's drafts.
+- Clips: the 7 draft requests from Mason's clips. Each draft lands after its own measured latency, so the clip result is a direct readiness measurement, not a sweep. The clip drafts and their cache hold transcripts, so they stay under `$VOICE_HOME/evidence/prewrite/`.
+
+| Measurement | Default | `-fast` | `-ultrafast` |
+| --- | --- | --- | --- |
+| Median latency, 22 drafts | 7.57 s | 4.09 s | 0.80 s |
+| p95 latency (nearest rank) | 11.99 s | 8.64 s | 1.12 s |
+| Range | 2.47 s to 14.79 s | 2.91 s to 8.80 s | 0.51 s to 2.04 s |
+| Median reasoning tokens | 782 | 494 | 155 |
+| Answers nested under the schema name | 5 of 22 | 0 | 0 |
+| Clip tasks with the draft in hand at dispatch | 0 of 5 | 0 of 5 | 5 of 5 |
+| Clip tasks dispatched with the draft | 0 of 9 | 0 of 9 | 3 of 9 |
+| Scenario drafts that ask for exactly the span | 10 of 15 | 11 of 15 | 11 of 15 |
+| Scenario drafts that fold in a neighbor's read-only task | 5 | 3 | 3 |
+| Scenario drafts that add an outside action | 0 | 1 | 1 |
+| Clip drafts that ask for exactly the span | 7 of 7 | 7 of 7 | 7 of 7 |
+| Drafts `check` rejected, scenarios and clips | 6 of 22 | 5 of 22 | 6 of 22 |
+
+All 66 answers in this test returned HTTP 200 with `finish_reason` `stop`, and every one parsed (measured). Each reply named the model that was asked for.
+
+These are the two drafts that added an outside action.
+
+- `-fast` turned "find the gallery opening date" in `post_and_read` into "Find the gallery opening date and post the message". `check` rejected it.
+- `-ultrafast` turned "and then check if room four b is free" in `10_side_effect_email` into a draft that emails Dana first. `check` rejected it.
+
+On the clips, ultrafast's 5 early drafts all landed before dispatch. The tightest was `09_run_on`, with a 0.67 s lead. `check` rejected 2 of the 5, in `08_cancel` and `09_run_on`, and both drafts were faithful (hand-checked). So 3 dispatched with their drafts.
+
+This is one run per request, on 15 scenario and 7 clip requests. Ultrafast's slowest draft (2.04 s) was faster than the default's median, so the latency ranking is unlikely to reverse on a rerun (inferred). The quality counts differ by one draft, which this sample cannot separate (inferred).
 
 ## Live drafts on the scenarios
 
@@ -104,7 +138,7 @@ This table assumes each draft lands within one decision point. At 7.0 s per answ
 
 ## The time a draft has on Mason's clips
 
-The clip replay uses the as-run updates from the hybrid's prototype run (`$VOICE_HOME/evidence/hybrid/run-h-c`). It reproduced that run's task records and dispatch logs on all 10 clips (measured). Each decision point happens at the second it finished in the live run. The author is the stand-in at fixed latencies, because Mason's transcripts go to no service but the free decider.
+The clip replay uses the as-run updates from the hybrid's prototype run (`$VOICE_HOME/evidence/hybrid/run-h-c`). It reproduced that run's task records and dispatch logs on all 10 clips, with every author (measured). Each decision point happens at the second it finished in the live run. The sweep below uses the stand-in author at fixed latencies. [Faster settings](#faster-settings-a-small-matched-test) has the live clip drafts.
 
 | Clip | Task | Dispatched on | First completion to dispatch, s | First completion to final transcript, s |
 | --- | --- | --- | --- | --- |
@@ -141,11 +175,12 @@ This change does not touch `voice/prototype/`. Two hooks would connect it, both 
 
 ## Calls and cost
 
-This branch made 32 calls to Command Code, all HTTP 200, with no 429, no 402, and no limit message (measured, `voice/delegation/cache/calls.jsonl`). One was the 600-token test call, and 31 were scenario drafts. That is 32 of the 150-call cap. No Flint call ran, through OpenRouter or any route. The replays made no decider call. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
+This branch made 84 calls to Command Code, all HTTP 200, with no 429, no 402, and no limit message (measured). That is 84 of the 150-call cap. `voice/delegation/cache/calls.jsonl` holds the 63 scenario calls: the 600-token test call, 32 default drafts, and 15 drafts each for `-fast` and `-ultrafast`. The ledger under `$VOICE_HOME/evidence/prewrite/author-cache/` holds the 21 clip calls, 7 per model. No Flint call ran, through OpenRouter or any route. The replays made no decider call. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
 
 ## Limits
 
 - Each draft request ran once. Latency on a different hour or a longer session is untested.
 - The quality check is one reader's judgment on 31 drafts.
 - The negation fix to `check` was chosen on the same 31 drafts it is scored on.
-- No draft ran on Mason's clips, so draft quality on real speech is unmeasured.
+- Draft quality on real speech rests on 7 clip requests per model.
+- The faster settings ran on 15 of the 33 scenario requests, chosen to cover each kind of task and most of default reasoning's scope additions.

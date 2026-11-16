@@ -1,14 +1,16 @@
 """Replay recorded hybrid runs with a Prewriter attached, from the decider cache only.
 
-    python -m voice.delegation.replay scenarios [--author stand-in|commandcode] [--latency 0.5] --out FILE
-    python -m voice.delegation.replay clips RUN_DIR [--latency 0.5 1 2] --out DIR
+    python -m voice.delegation.replay scenarios [--author stand-in|commandcode] [--model ID] [--latency 0.5] --out FILE
+    python -m voice.delegation.replay clips RUN_DIR [--author stand-in|commandcode] [--model ID] [--latency 0.5 1]
+        --out DIR
 
 The stand-in author returns a valid draft of the instruction, so it measures timing and staleness, not quality.
-`--author commandcode` sends each scenario draft request to Command Code through `CachedAuthor`, with the key file
-named by VOICE_AUTHOR_KEY_FILE, and keeps every landed draft for review. Clips always use the stand-in, because
-Mason's transcripts go to no service but the free decider. Scenarios have no clock, so decision point i happens at
-time i, and a latency below 1 means a draft lands before the next point. A clip's decision points happen at the
-seconds they finished in the live run. Clip output holds transcripts, so --out must be outside the repo there.
+`--author commandcode` sends each draft request to Command Code through `CachedAuthor`, with the key file named by
+VOICE_AUTHOR_KEY_FILE, and keeps every draft for review. Scenarios have no clock, so decision point i happens at
+time i, every draft lands `--latency` after its request, and a latency below 1 means it lands before the next point.
+A clip's decision points happen at the seconds they finished in the live run. A live clip draft lands after the
+latency its own request measured, and a stand-in clip draft after each `--latency`. Clip output and the clip
+author cache hold transcripts, so they live under $VOICE_HOME, outside the repo.
 """
 
 import argparse
@@ -32,13 +34,14 @@ SCENARIO_DIRS = {"original": ROOT / "segmentation" / "scenarios", "heldout": ROO
 
 def stand_in(source):
     return {"instruction": source.instruction, "context": "", "constraints": [],
-            "success_criteria": ["The request above is done."], "open_questions": []}
+            "success_criteria": ["The request above is done."], "open_questions": []}, None
 
 
-def simulate(steps, label, latency, author=stand_in):
+def simulate(steps, label, latency, author=stand_in, measured=False):
     """Run (time, event) steps through a hybrid and a Prewriter. Returns one row per dispatched task.
 
-    `author` maps a DraftInput to the author's JSON answer. Each answer lands `latency` after its request.
+    `author` maps a DraftInput to (JSON answer, seconds it took or None). An answer lands `latency` after its
+    request, or after the seconds it took when `measured` is set.
     """
     seg, pre = HybridSegmenter(OfflineClient(), label), Prewriter()
     pending, order, first_done, final_t = [], 0, {}, None
@@ -48,12 +51,14 @@ def simulate(steps, label, latency, author=stand_in):
         nonlocal order
         for source in sources:
             order += 1
-            heapq.heappush(pending, (now + latency, order, source))
+            content, seconds = author(source)
+            delay = seconds if measured and seconds is not None else latency
+            heapq.heappush(pending, (now + delay, order, source, content))
 
     def land_until(now):
         while pending and pending[0][0] <= now:
-            _, _, source = heapq.heappop(pending)
-            send(pre.land(source, author(source), seg.orch.tasks[source.task_id]), now)
+            _, _, source, content = heapq.heappop(pending)
+            send(pre.land(source, content, seg.orch.tasks[source.task_id]), now)
 
     for now, event in steps:
         land_until(now)
@@ -71,7 +76,7 @@ def simulate(steps, label, latency, author=stand_in):
         for entry in seg.dispatch_log[before:]:
             task = seg.orch.tasks[entry["task_id"]]
             choice = pre.dispatch(task)
-            landing = next((t for t, _, s in pending if s.task_id == task.task_id
+            landing = next((t for t, _, s, _ in pending if s.task_id == task.task_id
                             and s.instruction == task.instruction), None)
             rows.append({"task_id": task.task_id, "used_draft": choice.used_draft, "reason": choice.reason,
                          "is_final": entry["is_final"], "dispatched_at": now, "first_done": first_done.get(task.task_id),
@@ -129,7 +134,7 @@ def live(author, label, landed):
                        "usage": record.get("usage"), "meta": record.get("meta"),
                        "draft": draft and asdict(draft), "parse_problems": list(problems),
                        "wrapped": unwrap(record["content"]) is not record["content"]})
-        return record["content"]
+        return record["content"], record["ms"] / 1000
     return write
 
 
@@ -152,18 +157,19 @@ def run_scenarios(latency, author=None, only=None):
     return out
 
 
-def run_clips(run_dir, latencies):
+def run_clips(run_dir, latencies, author=None):
     from voice.prototype.report import VOICE_HOME
     from voice.prototype.segmenter import DECIDER_BUDGET, use_decider_cache
     use_decider_cache(VOICE_HOME / "evidence" / "prototype" / "decider-cache", DECIDER_BUDGET)
     records = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(run_dir.glob("*.json"))
                if p.name != "summary.json"]
-    out, same = {}, True
-    for latency in latencies:
+    out, same, landed = {}, True, []
+    for latency in (["measured"] if author is not None else latencies):
         rows, requests, drafted, per = [], 0, 0, {}
         for record in records:
             stem = Path(record["clip"]).stem
-            got, pre, seg = simulate(clip_steps(record), stem, latency)
+            fn = stand_in if author is None else live(author, stem, landed)
+            got, pre, seg = simulate(clip_steps(record), stem, 0.0 if author else latency, fn, author is not None)
             same &= seg.records() == record["tasks"] and seg.dispatch_log == record["dispatch_log"]
             audio_end = record["audio_end"]
             for row in got:
@@ -174,7 +180,20 @@ def run_clips(run_dir, latencies):
             drafted += len({s.task_id for s in pre.requests})
         out[str(latency)] = {"summary": {**summarize(rows, len(records), requests, drafted), "same_as_run": same},
                              "clips": per}
+    if author is not None:
+        out["drafts"] = landed
     return out
+
+
+def clip_author(model):
+    """A Command Code author for clips. Its cache holds transcripts, so it lives under $VOICE_HOME, and it gets
+    what is left of the shared budget after the repo's scenario ledger."""
+    from voice.delegation.author import BUDGET
+    from voice.delegation.commandcode import CommandCodeTransport
+    from voice.prototype.report import VOICE_HOME
+    used = len(CachedAuthor(CommandCodeTransport(model), CACHE)._attempts())
+    return CachedAuthor(CommandCodeTransport(model), VOICE_HOME / "evidence" / "prewrite" / "author-cache",
+                        budget=BUDGET - used)
 
 
 def main():
@@ -182,25 +201,29 @@ def main():
     parser.add_argument("what", choices=["scenarios", "clips"])
     parser.add_argument("run", type=Path, nargs="?")
     parser.add_argument("--latency", type=float, nargs="+", default=[0.5])
-    parser.add_argument("--author", choices=["stand-in", "commandcode"], default="stand-in",
-                        help="commandcode sends scenario drafts to Command Code; clips always use the stand-in")
+    parser.add_argument("--author", choices=["stand-in", "commandcode"], default="stand-in")
+    parser.add_argument("--model", default=None, help="Command Code model id")
     parser.add_argument("--only", nargs="*", help="scenario ids to replay")
     parser.add_argument("--out", type=Path, required=True)
     args = parser.parse_args()
     if args.what == "scenarios":
         author = None
         if args.author == "commandcode":
-            from voice.delegation.commandcode import CommandCodeTransport
-            author = CachedAuthor(CommandCodeTransport(), CACHE)
+            from voice.delegation.commandcode import MODEL, CommandCodeTransport
+            author = CachedAuthor(CommandCodeTransport(args.model or MODEL), CACHE)
         result = run_scenarios(args.latency[0], author, args.only)
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
         summaries = {k: v["summary"] for k, v in result.items() if k != "drafts"}
     else:
-        result = run_clips(args.run, args.latency)
+        author = None
+        if args.author == "commandcode":
+            from voice.delegation.commandcode import MODEL
+            author = clip_author(args.model or MODEL)
+        result = run_clips(args.run, args.latency, author)
         args.out.mkdir(parents=True, exist_ok=True)
         (args.out / "prewrite-replay.json").write_text(json.dumps(result, indent=1) + "\n", encoding="utf-8")
-        summaries = {k: v["summary"] for k, v in result.items()}
+        summaries = {k: v["summary"] for k, v in result.items() if k != "drafts"}
     print(json.dumps(summaries, indent=1))
 
 
