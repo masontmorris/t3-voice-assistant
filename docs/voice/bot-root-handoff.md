@@ -25,10 +25,10 @@ All state lives in `state/tree.json`, and only the `serve.mjs` process writes it
 - **Root.** `root` is the orchestrator's thread id. `ensureTree()` reuses it while the thread is live in T3, and creates a new root and research PM only when it is missing. The charters are placeholders (`rootCharter()`, `pmCharter()`).
 - **Registry.** `nodes` holds every node: `role`, `threadId`, `parent`, `charter`, and round 3's optional `quietBudgetMin`. A node found from T3 lineage has `discovered: true`.
 - **Handoff.** `handoffs[requestId]` holds the text, the utterance it came from, the time, the root message id, and a status of `sending` or `sent`. The root gets `[request <id>] <text>`. A `sending` handoff found again is checked against the root's messages before it is sent again, so a crash mid-send makes no second task.
-- **Outbox.** `outbox` is one ordered list. Each entry has an `id` (`o1`, `o2`, and so on), a time, a `source` (`root_reply`, `task_result` or `tell_mason`), the `node`, the `requestId` it answers or null, the `text`, and `delivered`. A completed root run started by a handoff message is that request's `root_reply`. Any other completed root run whose reply carries a `[request <id>]` tag is its `task_result`. A `tell_mason` verdict from the gate is a `tell_mason` entry.
+- **Outbox.** `outbox` is one ordered list. Each entry has an `id` (`o1`, `o2`, and so on), a time, a `source` (`root_reply`, `task_result` or `tell_mason`), the `node`, the `requestId` it answers or null, the `text`, and `delivered`. A task result also has `chain` (see the hardening pass below). A completed root run started by a handoff message is that request's `root_reply`. Any other completed root run gives one `task_result` for each `[request <id>]` segment of its reply. A `tell_mason` verdict from the gate is a `tell_mason` entry.
 - **Snapshot.** `snapshot()` builds the plan's `utterance_snapshot` from the handoffs and the outbox alone. A handoff with a task result is `completed`, with the result as `result_summary`, and any other handoff is `running`. Undelivered `tell_mason` entries ride along as `for_mason`. It makes no model call.
 
-The server exposes the same shapes on `127.0.0.1:8787`: `POST /handoff`, `GET /outbox` (with a long-poll `waitMs`), `POST /outbox/ack`, `GET /snapshot` and `GET /registry`. There is no authentication, because the spike binds to localhost only. A shared machine would need a token.
+The server exposes the same shapes on `127.0.0.1:8787`: `POST /handoff`, `GET /outbox` (with a long-poll `waitMs`), `POST /outbox/ack`, `GET /snapshot` and `GET /registry`. Every route needs the shared secret from `state/api-secret` in the `x-bot-secret` header, refuses any request with an `Origin` header, and takes POST bodies only as `application/json` (see the hardening pass below).
 
 ## How node discovery works
 
@@ -87,11 +87,61 @@ The spike spent 27 test-thread turns (measured from every run in the registry, p
 
 The decider ledger went from 84 to 116 of 120: 32 calls. Serve C spent 24 of them in 5 minutes on silence asks across 8 nodes, mostly finished delegated workers, before the fix that leaves finished T3 children alone. Serve D spent 4. The recipient question used 1.
 
+## Hardening pass
+
+The hardening pass made four changes on this branch. Each has tests that fail on the commit before it and pass after (measured, `node --test`), and each was re-run live on 2026-11-16 (UTC).
+
+### 1. The local API is locked down
+
+Binding to 127.0.0.1 was not enough. Any web page in a browser on this machine could send `POST /handoff` as a `text/plain` body, which needs no preflight, and instruct the tree. It could also read `/outbox` and `/registry`. `api.mjs` now checks every request, in this order:
+
+1. A request with an `Origin` header gets 403. Browsers send one on cross-site requests.
+2. A request without the shared secret in `x-bot-secret` gets 401. The secret is compared in constant time. A web page cannot set a custom header without a preflight, and this server never answers one.
+3. A POST whose content type is not `application/json` gets 415.
+
+`serve.mjs` creates the secret once in `state/api-secret`, which is git-ignored, and never prints or logs it. `root_tasks.py` reads it in-process.
+
+The tests in `test/api.test.mjs` fail on the refactor-only handler (`97aa209`) and pass from `f22dce4`. Live, on serve E at 10:05:37 and again on serve F at 10:16:39, the probe got these results (measured):
+- 401 with no secret, and 401 with a wrong secret;
+- 403 for a no-secret `text/plain` POST with an `Origin` header, as a web page would send it;
+- 403 for the secret with an `Origin` header;
+- 415 for the secret with `text/plain`;
+- 200 for a correct request.
+
+The server log shows no handoff from any refused request.
+
+### 2. A parent's own cancel is not a failure
+
+Before the gate wakes a parent about a child run that ended interrupted or cancelled, `parentCancelled()` reads the parent's turn items for a `task_cancel` (T3 names the child's task `node:...` where its thread is `thread:...`) or a `t3_thread_interrupt` aimed at that child. If it finds one, it drops the change with a logged reason. A child run that ends badly without such a cancel wakes the parent through `rule_child_end`, with no model call.
+
+The tests in `test/delegated.test.mjs` fail on `c405090` and pass from `f956f67`. The first live run failed. On serve F at 10:17:46, the PM had cancelled its worker, but the bot woke it anyway. T3's HTTP thread snapshot puts `toolName` and `input` on the item, while `parentCancelled()` only read the JSON text that the MCP reader shows. A test in that shape failed (`cf902ca`), and the fix passed it (`4ade55a`). On serve G at 10:19:39, the PM delegated a counting worker (`...1935657d`) and cancelled it at once. The bot logged "the run ended interrupted because its parent cancelled it", with no wake and no decider call (measured).
+
+### 3. Delegated workers get only the fixed rules
+
+A delegated worker (a T3 child of its parent) now gets the stall and question rules, plus `rule_child_end`. It gets no decider asks, no promise rule and no backstop, since T3 reports its completion. The one decider call left is the recipient question, when a delegated worker's question rule fires. The tests fail on `c405090` and pass from `f956f67`.
+
+**The idle-tree call rate.** On serve G, I left a tree of 10 nodes idle for 15 min 7 s, from 10:21:39 to 10:36:46: the root, the PM and 8 delegated workers (6 completed and 2 cancelled by the PM), all quiet, at the standing-bot timings (silence ask 10 min, backstop 30 min, ceiling 4 h). Over 91 ticks, the bot made 1 decider call: the PM's first silence ask at 602 s quiet, which chose stay_quiet at p=0.91. It woke nobody. The 8 delegated workers made 0 calls (measured). That is 1 call in 15.1 minutes, or about 4 calls per hour over this window.
+
+The window is too short to show the steady state, which follows from the timings (inferred, not measured). Each non-delegated node gets silence asks at 10, 30, 70, 150 and 310 minutes of quiet, doubling after that, so an idle PM costs about 2 calls in its first hour and fewer every hour after. The root is not watched. The backstop makes no decider call, but it costs one frontier turn in the parent per node: once 30 minutes after the bot starts, then once per 4-hour ceiling while the state is unchanged. A tree left idle for a day costs about 7 decider calls and 6 root turns per persistent PM.
+
+### 4. Results are tied to requests by tag, checked by the sender chain
+
+The sender id is on the messages. A message that `t3_thread_send` delivers names its sender in `senderThreadId` (measured). But two live facts keep the chain from being the tie.
+- **The bot's view of T3 omits tool outputs.** In the HTTP thread snapshot the bot reads, a tool call has `outputOmitted: true`, so the id of the message it created is missing. The bot can still match a received message to its sender's `t3_thread_send` call by recipient and exact text.
+- **T3 batches messages that arrive together into one run.** On serve E at 10:05:44, two handoffs sent 20 ms apart went to the PM as one run (PM run 3), and both results came back to the root as one run (root run 4), whose single reply had both tags. So a result's chain leads back to the set of requests that run served, not to one request.
+
+The tag therefore stays the tie: each `[request <id>]` segment of a root reply is its own task result. The chain checks it, and `chain` is `confirmed` when the run leads back to that request, `not_in_chain` when it does not, and `unavailable` without a thread reader. Before this change, the batched reply's second result was lost. On serve E, `two:b` ("Canberra") never reached the outbox.
+
+The first chain-tie test (`d00d9d2`) assumed one request per run. It was replaced by a test with the batched shape (`00ca76d`), which fails on `d0f9e5b` and passes from `922a465`. Live on serve F at 10:16:39, two handoffs in flight (`two:c`, `two:d`) were again batched into one PM run and one root run. The reply split into `o6` (`two:c`, "About 70 miles...") and `o7` (`two:d`, "Ottawa."), both `chain: confirmed`, 31 s after the handoffs (measured). The seam replay on serve G (`conv_05_seam3`) also came back `confirmed`.
+
+### Calls and turns in the hardening pass
+
+The hardening pass used 13 decider calls (the ledger went from 116 to 129 of 160) and 25 test-thread turns (measured from every run in the new tree): setup 3, two-in-flight on serve E 4 and on serve F 4, the parent-cancel tests 4, the seam 3, the delegated workers those requests used 6, and 1 wrong wake from the first parent-cancel run. A gate sample of 12 real verdicts with their inputs, including the known-wrong ones, is saved outside the repo for the PM to read.
+
 ## Gaps
 
-- **A parent's own cancel looks like a failure.** A worker the PM cancelled ends `interrupted`, and the gate woke the PM about it three times, each a PM turn the PM answered with "I cancelled that". Narrowing rule 1 sends interrupted children to the gate on purpose. Telling a parent's `task_cancel` from a real failure needs one more look at the parent's turn items (inferred).
-- **The tag convention depends on the model.** The root kept the `[request <id>]` tag on 3 of 3 results here, and an untagged result would never reach the outbox. Reading the message chain through `senderThreadId` would remove the dependence.
-- **The gate's cost grows with the tree.** Every discovered node is watched. The next step is to watch a delegated worker only through the stall and question rules, which need no model call, since T3 reports its completion.
+- **The tag convention depends on the model.** The root kept the `[request <id>]` tag on every result in both passes. An untagged result never reaches the outbox, and the sender chain cannot replace the tag while T3 batches requests (see the hardening pass).
+- **The gate's cost still grows with the non-delegated nodes.** Delegated workers cost nothing now, but each persistent PM still gets decider asks on its changes and its silence (see the idle measurement).
 - **Workers in `approval-required` can stall on a command approval** that nobody grants. Here the PM caught it. The question rule would catch it after `questionTimeoutSec` (inferred, not run).
 - **Cancellation does not reach the root.** A cancelled prototype task stays running in the tree.
-- **No authentication on the localhost API.**
+- **The API secret is a file.** Anything that can read the bot's state dir can use the API. That is the same trust as the T3 Tots token next to it.
