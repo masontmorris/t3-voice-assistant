@@ -134,3 +134,12 @@ export function lastAssistantText(snap) {
 	const last = list.filter((i) => i.type === "assistant_message" && i.text).at(-1);
 	return last ? String(last.text) : "";
 }
+
+// The text of an open question or approval request, from the thread's turn items, or "" when it is not there.
+export function openQuestionText(snap, requestId) {
+	const items = (snap.projection || snap).turnItems || [];
+	const it = (Array.isArray(items) ? items : Object.values(items)).find((i) => i.requestId === requestId && /request$/.test(i.type || ""));
+	if (!it) return "";
+	if (it.questions) return it.questions.map((q) => `${q.question} Options: ${(q.options || []).map((o) => o.label).join(", ")}.`).join(" ");
+	return it.prompt || "";
+}

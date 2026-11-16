@@ -9,7 +9,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHeartbeat, VERDICTS } from "./core.mjs";
 import { decider } from "./decider.mjs";
-import { connect, lastAssistantText, runOf } from "./t3.mjs";
+import { connect, lastAssistantText, openQuestionText, runOf } from "./t3.mjs";
 
 const STATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "state");
 const CONFIG = path.join(STATE, "config.json");
@@ -65,7 +65,7 @@ async function run(overridesFile) {
 		{
 			t3,
 			decider: d1,
-			helpers: { lastAssistantText, runOf },
+			helpers: { lastAssistantText, openQuestionText, runOf },
 			logCheckin: (e) => append(CHECKINS, e),
 			logTick: (e) => append(TICKS, e),
 			say,

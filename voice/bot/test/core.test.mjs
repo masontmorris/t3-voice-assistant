@@ -50,13 +50,13 @@ test("fix 3: the backstop skips a worker whose state has not changed since the P
 	assert.ok(h.checkins.some((e) => e.trigger === "backstop" && e.suppressed && /unchanged/.test(e.reason)), "the skipped backstop is logged with its reason");
 });
 
-test("fix 4: in a tree with depth, a watched PM's own change is asked about, and a run the bot started is not", async () => {
+test("fix 4: in a tree with depth, a watched PM's own question reaches its parent, and a run the bot started is not a change", async () => {
 	const nodes = [
 		{ role: "orchestrator", threadId: "O", parent: null, charter: "orchestrator" },
 		{ role: "pm", threadId: "P", parent: "O", charter: "pm under the orchestrator" },
 		{ role: "worker", threadId: "W", parent: "P", charter: "stalled worker" },
 	];
-	const h = harness(nodes, (b) => (b.state.delta.pendingRequest || b.state.worker.charter.includes("stalled") ? "wake_pm" : "stay_quiet"), { backstopSec: 10000 });
+	const h = harness(nodes, (b) => (b.questions.recipient || b.state.worker.charter.includes("stalled") ? "wake_pm" : "stay_quiet"), { backstopSec: 10000, questionTimeoutSec: 0 });
 	for (const id of ["O", "P", "W"]) h.set(id, {}, 0);
 	await h.run(10 * S, 30 * S);
 	const wake = h.sent.find((m) => m.to === "P");
@@ -68,7 +68,7 @@ test("fix 4: in a tree with depth, a watched PM's own change is asked about, and
 	assert.equal(h.sent.filter((m) => m.to === "O").length, 0, "nothing has woken the orchestrator yet");
 	await h.set("P", { status: "running", activeRunId: "P-r2", latestRunId: "P-r2", pendingRuntimeRequest: { id: "q1" } }, 45 * S);
 	await h.run(50 * S, 50 * S);
-	assert.ok(h.checkins.some((e) => e.node === "P" && e.trigger === "change" && e.delta.pendingRequest), "a question the PM opened is asked about");
+	assert.ok(h.checkins.some((e) => e.node === "P" && e.source === "rule_question"), "a question the PM opened is routed by the question rule");
 	assert.equal(h.sent.filter((m) => m.to === "O").length, 1, "the orchestrator is woken once about its PM's question");
 });
 
