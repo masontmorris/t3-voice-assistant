@@ -35,6 +35,11 @@ default) after the turn's tools ran and immediately before the reply, with the p
 same place with everything, "before-audio" the call's task state as the turn started and before the turn's audio,
 "off" no machine text in the voice session at all.
 
+--recall picks how the call's earlier turns reach the model when it is asked about them. "off" is the numbered
+`call_turns` list inside the snapshot item. "note" (the default) keeps that list and adds one plain sentence naming the
+turn the question asks about, as the newest item before the reply. "before-audio" sends every earlier turn as one plain
+numbered line before the turn's audio instead.
+
 A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
 reply and asks whether the person said them in this call or the newest machine note states them; the assistant's own
 earlier replies do not count. A reply that fails is not sent: the turn says so in its record, sends one machine note
@@ -391,7 +396,8 @@ class Conversation:
                                                            if "user" in turn_text),
                                     fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.ledger.tasks),
                                     ask_pcm=live.ask.pcm(turn.out_rate),
-                                    simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True)
+                                    simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True,
+                                    recall=live.args.recall)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -402,7 +408,7 @@ class Conversation:
         self.ledger.record(record, muted=turn.muted)
         record["ledger"] = self.ledger.record_dict()
         record["live"] = {**turn.metrics(), "prompt": prompt_source, "endpointer": vars(live.settings),
-                          "mode": self.mode, "snapshot": live.args.snapshot,
+                          "mode": self.mode, "snapshot": live.args.snapshot, "recall": live.args.recall,
                           "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns,
                                    "voice_session": "shared" if reopened is None else "started",
                                    "reopened": reopened, "voice_sessions": self.sessions}}
@@ -509,6 +515,11 @@ def main():
                         help="where the task snapshot enters the voice session: before the reply with the person's "
                              "own words dropped (default), before the reply with everything, before the turn's audio, "
                              "or not at all")
+    parser.add_argument("--recall", choices=["off", "note", "before-audio"], default="note",
+                        help="how a question about the call reaches the model: the numbered turns inside the "
+                             "snapshot item (off), one plain sentence naming the turn it asks about as the newest "
+                             "item before the reply (note, default), or every earlier turn as one plain numbered line "
+                             "before the turn's audio (before-audio)")
     parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")

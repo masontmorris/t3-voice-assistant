@@ -84,7 +84,8 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
-                               segmenter="hybrid", call_max_turns=8, call_keep_turns=6, snapshot="reply")
+                               segmenter="hybrid", call_max_turns=8, call_keep_turns=6, snapshot="reply",
+                               recall="note")
         self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name))
         self.patch = mock.patch.object(server, "run_clip", fake_run_clip)
         self.patch.start()
@@ -354,6 +355,12 @@ class DefaultsTest(unittest.TestCase):
         with argv, mock.patch.object(server, "main_async") as main_async, mock.patch.object(server.asyncio, "run"):
             server.main()
         self.assertEqual(main_async.call_args.args[0].snapshot, "reply-no-utterance")
+
+    def test_live_mode_names_the_turn_a_question_asks_about_unless_told_otherwise(self):
+        argv = mock.patch("sys.argv", ["server"])
+        with argv, mock.patch.object(server, "main_async") as main_async, mock.patch.object(server.asyncio, "run"):
+            server.main()
+        self.assertEqual(main_async.call_args.args[0].recall, "note")
 
 
 class BindTest(unittest.TestCase):

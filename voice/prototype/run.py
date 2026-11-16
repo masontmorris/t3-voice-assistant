@@ -58,6 +58,7 @@ from dataclasses import asdict
 from pathlib import Path
 
 from voice.live.facts import names_machinery, speaks_of_person, ungrounded
+from voice.live.recall import call_record, recall_note
 from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.reuse import ReusingClient
@@ -274,6 +275,11 @@ def user_text(prefix, payload):
             "content": [{"type": "input_text", "text": prefix + json.dumps(payload)}]}
 
 
+def plain_text(text):
+    """A machine item whose body is already words, so a short note does not arrive as JSON."""
+    return {"type": "message", "role": "user", "content": [{"type": "input_text", "text": text}]}
+
+
 PERSON_FIELDS = frozenset({"final_transcript", "unreviewed_speech", "segment_text", "instruction", "description",
                            "clarification_needed"})
 CONTRACTIONS = (("n't", " not"), ("'re", " are"), ("'s", " is"), ("'ll", " will"), ("'m", " am"), ("'ve", " have"),
@@ -393,7 +399,8 @@ def close_with_decider(segmenter, update):
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
-                   fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False):
+                   fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
+                   recall="off"):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -417,6 +424,13 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     client's copy. `prior_utterances` is what the person said earlier in the call, which the fact check needs because
     the shipped snapshot no longer carries their words. The last `HISTORY_TURNS` of them also go into the snapshot item
     as numbered `call_turns`, so a question about what was said earlier has the call's own text to read.
+
+    `recall` says how a question about the call reaches the model. "off" is the shipped behaviour, the numbered
+    `call_turns` inside the snapshot item. "note" keeps that list and adds one plain sentence naming the turn the
+    question asks about (voice/live/recall.py) as the newest item before the reply. "before-audio" sends every earlier
+    turn as one plain numbered line before the turn's audio instead of inside the snapshot, so the earlier turns are not
+    the newest text the model read when it answers.
+
     `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
@@ -541,6 +555,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
             log("snapshot_before_audio", snapshot=prior_snapshot)
+        if recall == "before-audio" and prior_utterances:
+            record = call_record(prior_utterances)
+            injection.append(await create_item(voice, plain_text(record)))
+            log("recall_before_audio", record=record)
         audio_end = await source.stream(voice, asr)
         audio_s = source.audio_s
         log("audio_end", audio_s=audio_s)
@@ -594,11 +612,15 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
             item = shown(answered, snapshot_mode, adapter.text())
-            if item is not None and prior_utterances:
+            if item is not None and prior_utterances and recall != "before-audio":
                 item = with_call_turns(item, prior_utterances)
                 log("history", turn_count=len(item["call_turns"]), omitted=item["omitted_turns"])
             if item is not None:
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
+            note = recall_note(adapter.text(), prior_utterances) if recall == "note" else None
+            if note is not None:
+                injection.append(await create_item(voice, plain_text(note)))
+                log("recall_note", note=note)
             log("injection", items=injection)
             sources = [adapter.text(), *prior_utterances, read_before, item]
             if service.correction is ASK_WHAT_CHANGED:

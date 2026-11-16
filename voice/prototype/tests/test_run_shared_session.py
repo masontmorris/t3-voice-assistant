@@ -184,6 +184,36 @@ class SnapshotPlacementTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn('"omitted_turns": 2', text)
         self.assertIn('"turn": 3', text, "the numbers stay the call's own turn numbers")
 
+    async def test_the_recall_note_is_the_newest_item_before_the_reply(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        prior = ("Hey, can you hear me?", "What time is it in Tokyo right now?",
+                 "What's the weather in Denver tomorrow?")
+        with mock.patch.object(FakeSession, "transcript", "What was the first thing I asked you?"):
+            await self.turn(voice, prior_utterances=prior, recall="note")
+        sent = self.voice_sent(voice)
+        self.assertEqual([e["type"] for _, e in sent],
+                         ["input_audio_buffer.append", "conversation.item.create", "conversation.item.create"],
+                         "the note goes after the snapshot and after the audio")
+        note = sent[2][1]["item"]["content"][0]["text"]
+        self.assertIn("first request of this call, turn 2 of 3", note)
+        self.assertIn("Tokyo", note)
+
+    async def test_no_recall_note_when_the_question_is_not_about_the_call(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        await self.turn(voice, prior_utterances=("Hey, can you hear me?",), recall="note")
+        self.assertEqual(len(self.voice_sent(voice)), 2, "only the audio and the snapshot item")
+
+    async def test_before_audio_puts_the_call_record_ahead_of_the_audio_and_out_of_the_snapshot(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        prior = ("Hey, can you hear me?", "What time is it in Tokyo right now?")
+        with mock.patch.object(FakeSession, "transcript", "What did I ask first?"):
+            await self.turn(voice, prior_utterances=prior, recall="before-audio")
+        sent = self.voice_sent(voice)
+        self.assertEqual([e["type"] for _, e in sent],
+                         ["conversation.item.create", "input_audio_buffer.append", "conversation.item.create"])
+        self.assertIn('turn 2: "What time is it in Tokyo right now?"', sent[0][1]["item"]["content"][0]["text"])
+        self.assertNotIn("call_turns", sent[2][1]["item"]["content"][0]["text"])
+
     async def test_before_audio_sends_the_prior_state_ahead_of_the_turn_audio(self):
         voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
         record = await self.turn(voice, snapshot_mode="before-audio",
