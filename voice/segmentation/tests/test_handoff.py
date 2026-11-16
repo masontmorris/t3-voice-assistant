@@ -125,6 +125,16 @@ class VoiceTools(unittest.TestCase):
         self.assertEqual(reminder.status, Status.HELD)
         self.assertEqual(orch.dispatch_log, [])
 
+    def test_a_delegate_leaves_a_task_for_clarification_and_a_task_waiting_on_its_dependency(self):
+        orch = Orchestrator()
+        unclear = orch._new_task("help me plan tomorrow", 0, {"orchestrator"})
+        orch._move(unclear, Status.NEEDS_CLARIFICATION, "readiness clarify")
+        send = orch._new_task("send the slides to the team", 0, {"orchestrator"}, depends_on=["task_1"])
+        orch._move(send, Status.READY, "waiting on dependency")
+        orch.delegate_from_voice("Help me plan tomorrow and send the slides to the team", False, None, run_linked=True)
+        self.assertEqual((unclear.status, send.status), (Status.NEEDS_CLARIFICATION, Status.READY))
+        self.assertEqual(orch.dispatch_log, [])
+
     def test_cancel_withdraws_an_undispatched_task_and_cancels_a_dispatched_one(self):
         orch = orchestrator_with(("find the sales report", False))
         held = orch._new_task("email dana", 0, {"orchestrator"}, side_effect=True)

@@ -230,7 +230,7 @@ class Orchestrator:
         for task in linked:
             task.sources.add("lfm")
             self._log(task, "linked_voice_delegate", instruction=instruction)
-            if run_linked and task.status in UNDISPATCHED and (not task.side_effect or side_effect):
+            if run_linked and self._delegate_may_run(task, side_effect):
                 self._move(task, Status.DISPATCHED, "voice model delegated it")
         ids = [t.task_id for t in linked]
         if (words & tail_words) - covered:
@@ -238,6 +238,13 @@ class Orchestrator:
             self._move(new, Status.DISPATCHED, "voice model delegated the words no task covered")
             ids.append(new.task_id)
         return {"ok": True, "task_ids": ids, "duplicate_of": [t.task_id for t in linked]}
+
+    def _delegate_may_run(self, task, side_effect):
+        """A linked task runs on a delegate only when it has not run, waits on nothing, and the delegate's claim does
+        not contradict it. A task the service left for clarification stays there, because a restatement adds no
+        answer, and a task waiting on a dependency waits for it."""
+        return (task.status in UNDISPATCHED - {Status.NEEDS_CLARIFICATION} and not task.depends_on
+                and (not task.side_effect or side_effect))
 
     def run_from_voice(self, task_id):
         """The voice model's run_task call: a task that has not run dispatches now."""

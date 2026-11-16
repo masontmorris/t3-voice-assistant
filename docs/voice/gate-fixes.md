@@ -14,6 +14,8 @@ The recorded cause it targets is a whole-utterance re-delegation. LFM3-Audio-2B 
 
 Two rules are unchanged. "delete the report" still never links to "find the report", because it shares one of the task's two content words. A read-only claim about a side-effect task still links and keeps the hold; it no longer runs the task even when `run_linked` is set, which the old code allowed.
 
+A linked task runs on a delegate only when it has not run, waits on no dependency, and the delegate's claim does not contradict it. A task the service left for clarification is not run by a restatement, because the restatement adds no answer.
+
 Words the delegate brings from the unreviewed tail that no linked task covers become one new task made from the tail, so a correction's replacement words are not dropped. The cost is that the tail task repeats any tail words a linked task already shows (inferred from the code, visible in the tests).
 
 ### 2. A task the utterance took back is visible
@@ -35,20 +37,20 @@ python -m unittest discover -s voice/segmentation/tests -t .
 python -m unittest discover -s voice/prototype/tests -t .
 ```
 
-94 tests and 44 tests. The new cases cover a delegate that links to two tasks and runs both, a delegate that covers one task and makes the tail task, a delegate that covers nothing and makes one task, a read-only claim that leaves a side-effect task held, the delete-versus-find refusal, amend of a withdrawn task, amend of a superseded task through its successor, and both snapshot cases (a corrected task and a task taken back, each listed as `cancelled` beside the live one). A mutation that drops the tail task and a mutation that links only one task each fail the suite (checked).
+94 tests and 44 tests. The new cases cover a delegate that links to two tasks and runs both, a delegate that covers one task and makes the tail task, a delegate that covers nothing and makes one task, a read-only claim that leaves a side-effect task held, a task left for clarification and a task waiting on its dependency, the delete-versus-find refusal, amend of a withdrawn task, amend of a superseded task through its successor, and both snapshot cases (a corrected task and a task taken back, each listed as `cancelled` beside the live one). A mutation that drops the tail task and a mutation that links only one task each fail the suite (checked).
 
 ## What the runs must show
 
-For each of the 14 clips, the same table as PR #12: first reply audio, expected tasks correct, clips passed, side-effect requests that ran, inventions, the share the gate ran, and decider calls per utterance. The specific claims to check first:
+For each of the 14 clips, the same table as PR #12: first reply audio, expected tasks correct, clips passed, side-effect requests that ran, inventions, the share the gate ran, and decider calls per utterance. The mechanism each fix must change, and what a pass would need to show:
 
-- `05_topic_change`: the milk task runs and the drive request becomes its own task, so T1 passes and T2 keeps passing (inferred from the record).
-- `09_run_on`: the Robo Rock tail task runs, so T3 passes; T1 and T2 still fail if the read-only claim keeps the lights task held (inferred).
-- `long`: no expected change. T4, the dentist reminder, stays held on the read-only claim, and T1, T2, T3 and T5 already pass (measured from the record).
-- `04_correction` and `correction`: LFM3 amends the visible cancelled task, so T2 carries `revises` and passes (inferred).
-- `08_cancel`: LFM3 does not cancel the calendar search, so T1 passes (inferred).
+- `05_topic_change`: the milk task links and runs, and the drive words become their own task, so T1 has a dispatched task. The stale partial task `task_2` stays proposed and may still fail the clip as an extra, which this branch does not touch (measured in the record).
+- `09_run_on`: the Robo Rock tail words become their own task, so T3 has a dispatched task. T1 and T2 stay on the proposed lights task while the delegate claims read-only, so those two stay failed (inferred).
+- `long`: the coffee tail words become their own task, which T5 already matched through the combined delegate in the old run (measured). T4, the dentist reminder, stays proposed on the read-only claim (inferred). A task left for clarification is not run by a restatement, so `task_1` stays `needs_clarification` (a unit test pins this).
+- `04_correction` and `correction`: the cancelled task is visible, so LFM3 can amend it. Whether it does is the model's decision and cannot be known before the run.
+- `08_cancel`: the taken-back text task is visible, so LFM3 has a target and no reason to cancel the calendar search. Again, the model's next call decides.
 - `03_dependent`: unchanged. The delegate and the stub task share no content word, so the dependency still comes from the decider's partial-word answer (measured from the record).
 
-Those five gains would take 18 tasks to 23 of 26, and 7 clips to 11 of 14: `04_correction`, `05_topic_change`, `08_cancel` and `correction` would pass, while `03_dependent`, `09_run_on` and `long` would still fail one task each. That is a prediction, not a result.
+An offline replay of the recorded delegate calls against the recorded snapshot states (not a model run) confirms the code's side of this: `05_topic_change` links the milk task and makes `drive to Boulder?`, `09_run_on` makes `start the Robo Rock.` and leaves the lights task, `long` makes `more coffee for the office.` and leaves the clarification, and `03_dependent` creates the same combined task as before. The replay rebuilds statuses from the snapshot, so it cannot score a clip. Whether the count moves is unknown until the GPU runs.
 
 ## Validation commands
 
