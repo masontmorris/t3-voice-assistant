@@ -64,9 +64,10 @@ from voice.local_decider.reuse import ReusingClient
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
-from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskService, Run
+from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskService
 from voice.segmentation.contract import Intent
 from voice.segmentation.gate import PLAN_A
+from voice.segmentation.intent import utterance_intent
 from voice.prototype.transcript import TranscriptAdapter
 from voice.tools.registry import ToolCall, open_registry
 
@@ -74,7 +75,8 @@ EVIDENCE = VOICE_HOME / "evidence" / "prototype"
 PERSONA = (
     "You are a friendly voice assistant. A separate task service carries out what the user asks for. "
     "After the user speaks, you receive a task status snapshot as JSON. Talk to the user directly, as \"you\", in "
-    "one or two short sentences, and say only what the snapshot says. running means the task has started. pending "
+    "one or two short sentences, and say only what the snapshot says. When work is running, briefly acknowledge it, "
+    "such as 'Checking that', without repeating the request or inventing details. running means the task has started. pending "
     "means it is waiting on the service, not waiting for the user's permission. An explicit request in this turn "
     "authorizes carrying it out, including external actions; do not ask again just because it is external. "
     "completed means it is done, and you may say its result_summary. failed means it could not be "
@@ -110,6 +112,9 @@ GATED_INSTRUCTIONS = (
     "task has not run, and its note says why. unreviewed_speech, when present, holds the user's last words, which "
     "the service has not read. Your calls are final. The user's explicit request authorizes carrying it out, "
     "including external actions. Low service confidence is not a request for user confirmation. "
+    "Read the complete final_transcript for context before acting on its unreviewed tail. A fragment alone is not a "
+    "request. Greetings, reactions, questions about this conversation, and descriptions of a problem are not tasks; "
+    "the voice assistant answers them directly. "
     "For a task that has not run, call run_task if the user wants it "
     "as it is, amend_task with the change if the user changed it, or cancel_task if the user took it back. If "
     "unreviewed_speech asks for something new that no task covers, call delegate with just that request. If the "
@@ -138,6 +143,7 @@ TOOL_SESSIONS = {"handoff": (HANDOFF_INSTRUCTIONS, HANDOFF_TOOLS), "gated": (GAT
 SNAPSHOT_PREFIX = "[task service snapshot, machine-generated, not spoken by the user] "
 UPDATE_PREFIX = "[task service update, machine-generated, not spoken by the user] "
 FACT_CHECK_PREFIX = "[fact check, machine-generated, not spoken by the user] "
+HISTORY_TURNS = 8
 FACT_CHECK_REJECTED = {
     "type": "fact_check",
     "result": "rejected",
@@ -147,14 +153,25 @@ FACT_CHECK_REJECTED = {
                    "states. If you do not have a value, say plainly that you do not have it. Never guess one, and "
                    "never talk about this note.",
 }
+RUNNING_REJECTED = {
+    "type": "fact_check",
+    "result": "rejected",
+    "reason": "a task for the person's request is already running, so the reply may say it is checking it, not that "
+              "it lacks access or cannot do it",
+    "instruction": "Answer again as yourself, in one short sentence. A task for the person's request is already "
+                   "running, so say you are checking it. Use only values the person said or this note states. Do not "
+                   "say you lack access, cannot do it, or suggest another app or service.",
+}
+RUNNING_REFUSAL = re.compile(
+    r"\b(?:i (?:do not|don't) have (?:access|real[- ]time|live|the ability)"
+    r"|i (?:cannot|can't|could not|couldn't) (?:access|provide|check|get|look|tell|give|help)"
+    r"|i(?:'m| am) (?:unable|not able)"
+    r"|no (?:access to )?(?:real[- ]time|live) (?:data|information|weather)"
+    r"|you (?:might|may|should) (?:want to |need to )?(?:check|use|try|consult)"
+    r"|you(?:'ll| will) need to)\b", re.IGNORECASE)
 # What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
 # no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
 FALLBACK_LINE = "Sorry, I can't confirm that right now."
-# What a turn says over a task that has started and has nothing to report yet, when every task in its snapshot is
-# still running. Fixed text, rendered before the call, so the opener costs no model request: measured 3.44 s of model
-# speech on the demo before it was fixed, and it was the last place a day, a place or a number could reach the speaker
-# before a tool returned one.
-OPENER_LINE = "Checking that."
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -190,28 +207,38 @@ async def respond(session, rate, since, **response):
     return reply_summary(session, mark, since, rate)
 
 
-def refused(text, sources):
+def is_running(snapshot):
+    """Screen refusals only when no failed task could make them truthful."""
+    statuses = {task.get("status") for task in (snapshot or {}).get("tasks", ())}
+    return "running" in statuses and "failed" not in statuses
+
+
+def refused(text, sources, running=False):
     """Why a reply may not be spoken, by screen. Every list is empty for a reply that may."""
-    return {"ungrounded": [f"{fact.kind} {fact.surface}" for fact in ungrounded(text, sources)],
-            "machinery": names_machinery(text), "third_person": speaks_of_person(text)}
+    found = {"ungrounded": [f"{fact.kind} {fact.surface}" for fact in ungrounded(text, sources)],
+             "machinery": names_machinery(text), "third_person": speaks_of_person(text)}
+    if running and (refusals := [match.group(0) for match in RUNNING_REFUSAL.finditer(text or "")]):
+        found["contradicts"] = refusals
+    return found
 
 
-async def answer(session, rate, since, sources, log, fallback=None, **response):
+async def answer(session, rate, since, sources, log, fallback=None, running=False, **response):
     """A reply that states only facts the call gave it, and never names the machinery.
 
     `sources` is what the assistant may say: the person's words in this call and the newest machine note, never its
     own earlier replies. A reply that names a day, date, time, number or place no source states, that talks about
-    the note, the check or the task list, or that speaks of the person in the third person ("the user wants"), is
-    not spoken: the turn says so in the record, sends one machine note, and asks again once. If the second answer is
-    bad too, the turn speaks `fallback`'s one short line, and only if that turn has not said it yet. Nothing is
-    substituted for a wrong value, because a different wrong value is worse than saying less."""
+    the note, the check or the task list, that speaks of the person in the third person ("the user wants"), or that
+    says it lacks access while `running` holds, is not spoken: the turn says so in the record, sends one machine note,
+    and asks again once. If the second answer is bad too, the turn speaks `fallback`'s one short line, and only if that
+    turn has not said it yet. Nothing is substituted for a wrong value, because a different wrong value is worse than
+    saying less."""
     reply, pcm = await respond(session, rate, since, **response)
-    if not any((found := refused(reply["text"], sources)).values()):
+    if not any((found := refused(reply["text"], sources, running)).values()):
         return reply, pcm
     log("fact_check", reply=reply["text"], **found, asked_again=True)
-    await create_item(session, user_text(FACT_CHECK_PREFIX, FACT_CHECK_REJECTED))
+    await create_item(session, user_text(FACT_CHECK_PREFIX, RUNNING_REJECTED if running else FACT_CHECK_REJECTED))
     retry, retry_pcm = await respond(session, rate, since, **response)
-    if not any((again := refused(retry["text"], sources)).values()):
+    if not any((again := refused(retry["text"], sources, running)).values()):
         return retry, retry_pcm
     blocked = {"reply": retry["text"], **again}
     log("fact_check", **blocked, blocked=True)
@@ -227,14 +254,6 @@ def fixed_reply(line, pcm, rate, after_s):
     record still says the line, and nothing plays."""
     return {"text": line, "status": "fixed", "fixed": True, "function_calls": [],
             "first_audio_after_s": after_s if pcm else None, "speech_s": len(pcm) / 2 / rate, "done_at": None}
-
-
-def started(snapshot):
-    """True when every task in the snapshot has started and none has a result yet, so the turn can open before any
-    tool answers. A snapshot holding a finished, pending or held task is not this case: the turn composes its reply as
-    usual, so a result the snapshot already carries can never be swallowed by the opener."""
-    tasks = snapshot.get("tasks") or ()
-    return bool(tasks) and all(task.get("status") == Run.RUNNING for task in tasks)
 
 
 async def create_item(session, item):
@@ -307,6 +326,15 @@ def shown(payload, snapshot_mode, transcript, update=False):
     return None
 
 
+def with_call_turns(item, prior_utterances, keep=HISTORY_TURNS):
+    """The snapshot plus the person's own earlier turns, numbered oldest first, so a question about what they asked
+    has the call's text in the item the model already reads for task state."""
+    recent = list(prior_utterances[-keep:])
+    first = len(prior_utterances) - len(recent) + 1
+    return {**item, "omitted_turns": first - 1,
+            "call_turns": [{"turn": first + i, "user": text} for i, text in enumerate(recent)]}
+
+
 class SessionRefused(RuntimeError):
     """llama.cpp answered a session.update with an error, so the session does not have those settings."""
 
@@ -349,10 +377,23 @@ class WavInput:
         return max(voice_end, asr_end)
 
 
+def close_with_decider(segmenter, update):
+    decision, error = None, None
+    if utterance_intent(update.text).intent == Intent.REQUEST:
+        try:
+            decision = segmenter.update(update)
+        except Exception as exc:
+            error = repr(exc)
+    close = segmenter.close(update, settle=False)
+    close["final_decision"] = decision
+    close["final_decision_error"] = error
+    return close
+
+
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
-                   fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", opener_pcm=b""):
+                   fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -374,12 +415,12 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `speak` takes the reply text and PCM that passed the fact check, when the caller streams the reply itself, as live
     mode does. The turn writes `CLIP_reply.wav` and `CLIP_update.wav` either way, so a record is readable without the
     client's copy. `prior_utterances` is what the person said earlier in the call, which the fact check needs because
-    the shipped snapshot no longer carries their words. `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
+    the shipped snapshot no longer carries their words. The last `HISTORY_TURNS` of them also go into the snapshot item
+    as numbered `call_turns`, so a question about what was said earlier has the call's own text to read.
+    `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
-    audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply.
-    `opener_pcm` is the audio for `OPENER_LINE`, which a turn whose snapshot holds only running tasks speaks instead of
-    asking the model for an opening sentence; without it the turn opens with nothing."""
+    audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply."""
     t0 = time.perf_counter()
 
     def clock():
@@ -393,11 +434,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         timeline.append({"t": round(clock(), 4), "kind": kind, **detail})
 
     segmenter = SEGMENTERS[segmenter_name](decider, stem)
+    if segmenter_name == "hybrid":
+        segmenter.prior_resolved_tasks = tuple(t for t in prior_tasks if t.get("call"))[-3:]
+        segmenter.conversation_mode = final_decider
     if eou == "gated":
-        segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, False
+        segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, True
     service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
                               earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")),
-                                           None))
+                                           None), simulate=simulate_tasks)
     adapter = TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -438,6 +482,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     point = None
                 if point is not None and point["kind"] == "close":
                     closed.update(point)
+                    if point.get("final_decision") is not None:
+                        log("final_decision", decision=point["final_decision"])
+                    if point.get("final_decision_error") is not None:
+                        log("final_decision_error", error=point["final_decision_error"])
                     log("close", revision=point["revision"], started=round(started, 4), intent=asdict(point["intent"]),
                         covered_words=point["covered_words"], tail_words=point["tail_words"],
                         unreviewed_speech=point["unreviewed_speech"], segments=[s["text"] for s in point["segments"]])
@@ -457,7 +505,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     voice_mark, voice_sent_mark = len(voice.events), len(voice.sent)
     asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
     def partial_close(update):
-        return segmenter.close(update, settle=False)
+        return close_with_decider(segmenter, update) if final_decider else segmenter.close(update, settle=False)
 
     tool_session = await Session.open(url, "tools", clock) if eou in TOOL_SESSIONS else None
     worker = None
@@ -485,7 +533,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             voice.config = session
         worker = asyncio.create_task(segment_worker())
 
-        replies, tool_turn, injection = [], None, []
+        replies, tool_turn, injection, answered = [], None, [], None
         fallback = Fallback(fallback_pcm)
         if seed is not None:
             injection.append(await create_item(voice, seed))
@@ -527,7 +575,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 for event in service.correct(intent.replacement, prior_tasks, clock()):
                     log("service", **event)
                 log("correction", replacement=intent.replacement, outcome=service.correction)
-            else:
+            elif not final_decider and (intent is None or intent.intent != Intent.CHITCHAT):
                 for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated"
                              else snapshot)
                 injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, for_tools)))
@@ -545,16 +593,19 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             service.poll(clock())
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
-            if (item := shown(answered, snapshot_mode, adapter.text())) is not None:
+            item = shown(answered, snapshot_mode, adapter.text())
+            if item is not None and prior_utterances:
+                item = with_call_turns(item, prior_utterances)
+                log("history", turn_count=len(item["call_turns"]), omitted=item["omitted_turns"])
+            if item is not None:
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
             log("injection", items=injection)
             sources = [adapter.text(), *prior_utterances, read_before, item]
             if service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
-            elif started(answered):
-                reply, reply_pcm = fixed_reply(OPENER_LINE, opener_pcm, out_rate, clock() - audio_end), opener_pcm
             else:
-                reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback)
+                reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback,
+                                                running=is_running(answered))
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             if reply_pcm:
@@ -581,7 +632,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             log("injection", items=injection)
             reply, reply_pcm = await answer(voice, out_rate, audio_end,
                                             [adapter.text(), *prior_utterances, read_before, item], log,
-                                            fallback=fallback, **extra)
+                                            fallback=fallback, running=is_running(snapshot), **extra)
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             if reply_pcm:
@@ -640,6 +691,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         },
         "final_transcript": adapter.text(),
         "snapshot": snapshot,
+        "snapshot_after_tools": answered,
         "unreviewed_speech": closed.get("unreviewed_speech"),
         "tool_results": tool_results,
         "injection": injection,

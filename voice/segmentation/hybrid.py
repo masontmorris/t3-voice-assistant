@@ -201,6 +201,8 @@ class HybridSegmenter:
         self.ws = []
         self.points: list[dict] = []
         self.reviewed: tuple = ()
+        self.prior_resolved_tasks = ()
+        self.conversation_mode = False
 
     @property
     def dispatch_log(self):
@@ -294,6 +296,36 @@ class HybridSegmenter:
         tasks = [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
                   "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
         body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates))
+        if self.conversation_mode:
+            for name, question in body["questions"].items():
+                if name.endswith("_side_effect"):
+                    question["criteria"] = dict(question["criteria"])
+                    question["criteria"]["true"] += " Sending or writing anything is a side effect."
+                    question["criteria"]["false"] += (" Reading or searching stored data, such as email, files or "
+                                                       "a calendar, without changing it is a lookup.")
+                if name.endswith("_kind"):
+                    question["criteria"]["request"] = ("The speaker asks for work requiring an external lookup, tool, "
+                                                        "agent, or action. Questions answerable from this conversation "
+                                                        "are not external work.")
+                    question["criteria"]["chitchat"] = ("Conversation, greetings, reactions, or questions the voice "
+                                                         "assistant can answer from this conversation or its own "
+                                                         "knowledge without an external tool.")
+                    if self.prior_resolved_tasks:
+                        question["criteria"]["request"] += (" A short follow-up that continues an earlier request or "
+                                                             "lookup in prior_resolved_tasks is external work, even "
+                                                             "when it names only a new time or place.")
+        if self.prior_resolved_tasks:
+            body["state"]["prior_resolved_tasks"] = list(self.prior_resolved_tasks)
+            for name, question in body["questions"].items():
+                if name.endswith("_ready"):
+                    question["instructions"] += (" Use prior_resolved_tasks for a follow-up; a completed lookup's "
+                                                 "subject and arguments are available to continue. A follow-up that "
+                                                 "changes one part of that task is complete.")
+                    question["criteria"]["dispatch_now"] += (" If this segment continues an earlier resolved task "
+                                                             "and leaves out words that task supplied, it is "
+                                                             "complete; otherwise judge it on its own words. A search "
+                                                             "or lookup can start from the words given, even when "
+                                                             "they are broad: the worker reports what it finds.")
         asked, gaps, marked, questions = break_questions(proposal, sids, final)
         body["state"]["new_speech"] = marked
         body["questions"].update(questions)

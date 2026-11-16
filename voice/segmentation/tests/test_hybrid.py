@@ -184,6 +184,29 @@ class Hybrid(unittest.TestCase):
                          ["Find the moonrise time in Perth,", "check the train fare."])
         self.assertTrue(all(d["is_final"] for d in seg.dispatch_log))
 
+    def test_a_follow_up_is_told_that_the_earlier_resolved_task_supplies_its_missing_words(self):
+        earlier = ({"ref": "turn_002:task_1", "instruction": "what is the weather in Denver tomorrow?",
+                    "side_effect": False, "call": {"tool": "weather",
+                                                    "arguments": {"place": "Denver", "when": "tomorrow"}}},)
+        decider = FakeDecider()
+        seg = HybridSegmenter(decider, "test")
+        seg.conversation_mode, seg.prior_resolved_tasks = True, earlier
+        seg.update(TranscriptUpdate(1, "And what about Saturday?", True))
+        body = decider.bodies[-1]
+        self.assertEqual(body["state"]["prior_resolved_tasks"], list(earlier))
+        self.assertIn("follow-up", body["questions"]["s1_kind"]["criteria"]["request"])
+        self.assertIn("earlier resolved task", body["questions"]["s1_ready"]["criteria"]["dispatch_now"])
+
+    def test_live_side_effect_criteria_do_not_change_recorded_decision_contract(self):
+        live = FakeDecider()
+        segmenter = HybridSegmenter(live, "live")
+        segmenter.conversation_mode = True
+        segmenter.update(TranscriptUpdate(1, "Search my email.", True))
+        self.assertIn("Reading or searching", live.bodies[-1]["questions"]["s1_side_effect"]["criteria"]["false"])
+        baseline = FakeDecider()
+        HybridSegmenter(baseline, "baseline").update(TranscriptUpdate(1, "Search my email.", True))
+        self.assertNotIn("Reading or searching", baseline.bodies[-1]["questions"]["s1_side_effect"]["criteria"]["false"])
+
     def test_a_voice_delegate_links_to_its_segment_and_dispatches_once(self):
         seg = stream(["look up tomorrow's weather in seattle", "look up tomorrow's weather in seattle and um",
                       "look up tomorrow's weather in seattle and um what time does the ferry leave",

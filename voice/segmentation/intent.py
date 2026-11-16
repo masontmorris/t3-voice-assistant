@@ -30,12 +30,19 @@ RESTATED = re.compile(r"(?:i (?:meant|mean|said|asked for|asked about|wanted)|i 
                       r"|make (?:it|that)|change (?:it|that) to)[\s,]+(?P<rest>.+)", re.IGNORECASE)
 NOT_THIS_BUT = re.compile(r"not\s+(?P<old>[^,]+?)(?:,|\s+but)\s+(?P<rest>.+)", re.IGNORECASE)
 THIS_NOT = re.compile(r"(?P<rest>[^,]+),\s*not\s+(?P<old>[^,]+)", re.IGNORECASE)
-ASKS = re.compile(r"(?:what|what's|whats|how|when|where|who|which|why|is|are|will|can|could|would|should|do|does|did"
+ASKS = re.compile(r"\b(?:what|what's|whats|how|when|where|who|which|why|is|are|will|can|could|would|should|do|does|did"
                   r"|tell|give|find|show|set|send|book|check|look|get|play|call|text|remind|add|turn|open|search"
                   r"|let's|i want|i need|i'd like)\b", re.IGNORECASE)
 CHAT_WORDS = frozenset("thanks thank you ok okay cool great nice awesome perfect got it sounds good alright all right "
                        "hello hi hey bye goodbye yes yeah yep sure wow so much very that's that is lovely".split())
 MAX_REPLACEMENT_WORDS = 5
+CONVERSATION = re.compile(
+    r"(?:hey[\s,]+)*(?:can|could) you hear me|"
+    r"(?:what|which) (?:was|is) (?:my|the) (?:first|last|previous) (?:message|question|request)"
+    r"(?: in (?:this|the) conversation)?",
+    re.IGNORECASE,
+)
+ACTION = re.compile(r"\b(?:please|can you|could you|would you|what|where|when|why|how|who|which|tell|give|find|show|set|send|book|check|look|get|play|call|text|remind|add|turn|open|search|fix|restart|translate)\b", re.IGNORECASE)
 
 
 def _words(text):
@@ -62,11 +69,16 @@ def utterance_intent(text):
     said = _clean(text or "")
     if not said or _chat(said):
         return UtteranceIntent(Intent.CHITCHAT)
+    if CONVERSATION.fullmatch(said):
+        return UtteranceIntent(Intent.CHITCHAT)
     if REJECTS.fullmatch(said):
         return UtteranceIntent(Intent.CORRECTION)
     rejected = REJECTS_THEN.fullmatch(said)
     if rejected:
         said = _clean(rejected["rest"])
+    if (re.match(r"(?:okay[\s,]+)?(?:this|we're|we are)\b", said, re.IGNORECASE)
+            and not (text or "").strip().endswith("?") and not ACTION.search(said)):
+        return UtteranceIntent(Intent.CHITCHAT)
     if match := RESTATED.fullmatch(said):
         return UtteranceIntent(Intent.CORRECTION, _replacement(match["rest"]))
     if rejected:

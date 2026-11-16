@@ -36,6 +36,15 @@ CASES = [
     ("Okay, thank you so much!", CHITCHAT, None),
     ("No thanks.", CHITCHAT, None),
     ("Yes please.", CHITCHAT, None),
+    ("Hey, hey, can you hear me?", CHITCHAT, None),
+    ("Oh no, we're still on the dumb build.", CHITCHAT, None),
+    ("Okay, this sucks.", CHITCHAT, None),
+    ("Okay, this is frustrating.", CHITCHAT, None),
+    ("What was my first message in this conversation?", CHITCHAT, None),
+    ("Can you check the weather?", REQUEST, None),
+    ("This is broken, please restart it.", REQUEST, None),
+    ("This is frustrating, and what is the weather in Denver", REQUEST, None),
+    ("What was the weather in Denver yesterday?", REQUEST, None),
     ("", CHITCHAT, None),
 ]
 

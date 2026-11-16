@@ -137,6 +137,22 @@ class SnapshotPlacementTest(unittest.IsolatedAsyncioTestCase):
         return await prototype.run_clip(Streams(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {},
                                         "hybrid", None, "gated", voice=voice, **snapshot)
 
+    async def test_conversation_does_not_delegate_or_report_a_mock_task(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        with mock.patch.object(FakeSession, "transcript", "Hey, hey, can you hear me?"):
+            record = await self.turn(voice)
+        self.assertEqual(record["tasks"], [])
+        self.assertEqual(record["task_updates"], [])
+        self.assertIsNone(record["tool_turn"])
+        self.assertEqual(len(record["replies"]), 1)
+
+    async def test_failed_final_decider_does_not_bypass_gate_via_voice_tool(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn(voice, final_decider=True)
+        self.assertIsNone(record["tool_turn"])
+        self.assertEqual(record["executions"], {})
+        self.assertTrue(any(event["kind"] == "final_decision_error" for event in record["timeline"]))
+
     async def test_the_shipped_snapshot_is_the_newest_item_before_the_reply(self):
         voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
         record = await self.turn(voice)
@@ -145,6 +161,28 @@ class SnapshotPlacementTest(unittest.IsolatedAsyncioTestCase):
                          "the shipped mode puts the snapshot after the audio, as the newest user item")
         text = sent[1][1]["item"]["content"][0]["text"]
         self.assertIn(record["final_transcript"], text, "it carries the turn's own transcript")
+
+    async def test_the_snapshot_carries_the_earlier_turns_numbered_oldest_first(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        await self.turn(voice, prior_utterances=("first thing I asked", "second thing I asked"))
+        sent = self.voice_sent(voice)
+        self.assertEqual([e["type"] for _, e in sent], ["input_audio_buffer.append", "conversation.item.create"],
+                         "one machine item after the audio, and it stays the newest user item")
+        text = sent[1][1]["item"]["content"][0]["text"]
+        self.assertIn("task service snapshot", text)
+        self.assertLess(text.index("first thing I asked"), text.index("second thing I asked"))
+        self.assertIn('"turn": 1', text)
+        self.assertIn('"turn": 2', text)
+
+    async def test_the_call_turns_keep_only_the_last_turns_and_say_how_many_it_dropped(self):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        turns = tuple(f"turn {i}" for i in range(prototype.HISTORY_TURNS + 2))
+        await self.turn(voice, prior_utterances=turns)
+        text = self.voice_sent(voice)[1][1]["item"]["content"][0]["text"]
+        self.assertNotIn("turn 0", text)
+        self.assertIn(f"turn {prototype.HISTORY_TURNS + 1}", text)
+        self.assertIn('"omitted_turns": 2', text)
+        self.assertIn('"turn": 3', text, "the numbers stay the call's own turn numbers")
 
     async def test_before_audio_sends_the_prior_state_ahead_of_the_turn_audio(self):
         voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
@@ -414,10 +452,28 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([reply["text"] for reply in record["replies"]],
                          ["I'm running the task to get the weather in Denver for Saturday."])
 
+    def test_a_refusal_is_refused_only_while_a_task_is_running(self):
+        refusal = "I don't have access to real-time weather data. You might want to check a weather app."
+        self.assertTrue(prototype.refused(refusal, [], running=True)["contradicts"])
+        self.assertFalse(prototype.refused(refusal, [], running=False).get("contradicts", []),
+                         "a task that already failed may be refused")
+        self.assertFalse(prototype.refused("I'm checking the weather in Denver for tomorrow.", [], running=True)
+                         .get("contradicts", []), "an acknowledgement is not a refusal")
+
+    def test_is_running_reads_the_snapshot_status(self):
+        self.assertTrue(prototype.is_running({"tasks": [{"status": "running"}]}))
+        self.assertFalse(prototype.is_running({"tasks": [{"status": "completed"}]}))
+        self.assertFalse(prototype.is_running(None))
+
+    def test_unavailable_request_may_be_reported_while_another_task_runs(self):
+        snapshot = {"tasks": [{"status": "running"}, {"status": "failed"}]}
+        self.assertFalse(prototype.is_running(snapshot))
+        self.assertFalse(prototype.refused("I can't access your email while I check the weather.", [],
+                                           running=prototype.is_running(snapshot)).get("contradicts", []))
+
 
 class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
-    """A turn that ends with a task update of its own. The opener is fixed now, so the update is the one reply the
-    check can lose."""
+    """A turn that ends with a task update of its own, so the reply and the update can each lose the check."""
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -449,24 +505,26 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
             speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
 
-    async def test_an_update_that_fails_twice_says_the_one_line(self):
-        record = await self.turn(["I do not have the information needed to answer the fact check.",
+    async def test_a_reply_and_an_update_that_both_fail_say_one_line(self):
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I do not have the information needed to answer the fact check.",
+                                  "The task to get the weather in Denver for Monday has been completed.",
                                   "I cannot read the task description in the note."])
-        self.assertEqual(self.voice.asked, 2, "the bad answer and its one re-ask")
+        self.assertEqual(self.voice.asked, 4, "two bad answers and two re-asks")
         self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE],
-                         "the line reaches the speaker, and nothing the model wrote")
+                         "the turn says the line once, not once per failed reply")
         self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"],
                          "both replies are still in the record")
         self.assertEqual([reply["text"] for reply in record["replies"]],
-                         [prototype.OPENER_LINE, prototype.FALLBACK_LINE],
-                         "the fixed opener, then the line in place of the lost update")
+                         [prototype.FALLBACK_LINE, ""], "the update is dropped, the line already went out")
 
-    async def test_a_refused_update_is_asked_again_and_the_clean_answer_is_spoken(self):
-        record = await self.turn(["I do not have the information needed to answer the fact check.",
+    async def test_a_failed_reply_and_a_clean_update_say_the_line_and_the_update(self):
+        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
+                                  "I do not have the information needed to answer the fact check.",
                                   "The task to get the weather in Denver for Saturday is done."])
         self.assertEqual([text for text, _ in self.spoken],
-                         ["The task to get the weather in Denver for Saturday is done."],
-                         "the clean answer, with no line in front of it")
+                         [prototype.FALLBACK_LINE, "The task to get the weather in Denver for Saturday is done."],
+                         "the line comes once, and the update still reaches the speaker")
         self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"])
 
 

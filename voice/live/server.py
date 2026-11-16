@@ -35,13 +35,6 @@ default) after the turn's tools ran and immediately before the reply, with the p
 same place with everything, "before-audio" the call's task state as the turn started and before the turn's audio,
 "off" no machine text in the voice session at all.
 
-A turn whose snapshot holds only tasks that are still running opens before any tool has answered, and the model writes
-none of it. The opener is `OPENER_LINE`, "Checking that.", rendered at startup in this server's own voice and kept
-under `$VOICE_HOME/live/` with the other fixed lines, so it costs no model request and can name no day, place or number
-that no tool returned. The task update that follows still carries the facts and is still the model's to compose. A
-chit-chat turn, a task that finished before the turn read its snapshot, and a snapshot that also holds a pending or
-held task compose their reply as before, so a result the snapshot carries is never replaced by the opener.
-
 A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
 reply and asks whether the person said them in this call or the newest machine note states them; the assistant's own
 earlier replies do not count. A reply that fails is not sent: the turn says so in its record, sends one machine note
@@ -83,7 +76,8 @@ from voice.live import fallback
 from voice.live.endpoint import RATE, Audio, End, Endpointer, Settings, Start
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, OPENER_LINE, PERSONA, carried_tasks, run_clip, user_text
+from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, PERSONA, run_clip, user_text
+from voice.live.ledger import ConversationLedger
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -99,7 +93,9 @@ DOWN_CHUNK_MS = 40
 CALL_RULES = (
     "\n\nThis is one ongoing call, so what you and the person said earlier in it is still here. Only the newest "
     "task snapshot is current: earlier snapshots belong to earlier turns and may be out of date, so never speak a "
-    "task or a result from one unless the newest snapshot has it."
+    "task or a result from one unless the newest snapshot has it. A question about what was said earlier is answered "
+    "from the snapshot's call_turns, which lists the person's own turns oldest first and numbered; the task list says "
+    "only where tasks stand, not what the person asked."
 )
 SEED_PREFIX = "[call so far, machine-generated, not spoken by the user] "
 
@@ -238,8 +234,8 @@ class Conversation:
         self.outbox = asyncio.Queue()
         self.sender = asyncio.create_task(self._send_loop())
         self.voice, self.voice_turn, self.session_turns, self.persona = None, None, 0, None
-        self.sessions, self.call, self.out_rate = 0, [], None
-        self.snapshot, self.tasks = None, []
+        self.sessions, self.out_rate = 0, None
+        self.ledger = ConversationLedger()
         self.pending, self.started = set(), time.perf_counter()
 
     def voice_clock(self):
@@ -360,10 +356,11 @@ class Conversation:
         recent history survives. The seed is not sent here: llama.cpp refuses instructions once a session holds a
         message."""
         seed = None
-        if self.call:
+        call = self.ledger.conversation()
+        if call:
             keep = self.live.args.call_keep_turns
-            seed = user_text(SEED_PREFIX, {"turns_so_far": len(self.call), "omitted": max(0, len(self.call) - keep),
-                                           "turns": self.call[-keep:]})
+            seed = user_text(SEED_PREFIX, {"turns_so_far": len(call), "omitted": max(0, len(call) - keep),
+                                           "turns": call[-keep:]})
         if self.voice is not None:
             await self.voice.close()
         voice = await Session.open(self.live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
@@ -388,12 +385,13 @@ class Conversation:
             turn.out_rate, self.started = self.out_rate, time.perf_counter()
             record = await run_clip(turn, "c", False, live.url, turn.decider, live.args.delay, live.out, partial,
                                     live.args.segmenter, live.tools, "gated", persona=persona, voice=voice,
-                                    snapshot_mode=live.args.snapshot, prior_snapshot=self.snapshot, seed=seed,
+                                    snapshot_mode=live.args.snapshot, prior_snapshot=self.ledger.snapshot, seed=seed,
                                     speak=lambda text, pcm: self.speak(turn, text, pcm),
-                                    prior_utterances=tuple(turn_text["user"] for turn_text in self.call
+                                    prior_utterances=tuple(turn_text["user"] for turn_text in self.ledger.conversation()
                                                            if "user" in turn_text),
-                                    fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.tasks),
-                                    ask_pcm=live.ask.pcm(turn.out_rate), opener_pcm=live.opener.pcm(turn.out_rate))
+                                    fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.ledger.tasks),
+                                    ask_pcm=live.ask.pcm(turn.out_rate),
+                                    simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -401,14 +399,11 @@ class Conversation:
         finally:
             self.voice_turn = None
         turn.decider.closed = True
-        spoken = " ".join(text for text in (r.get("text") for r in record.get("replies", [])) if text)
-        self.call.append({kind: text for kind, text in (("user", record.get("final_transcript")),
-                                                        ("assistant", spoken)) if text})
-        self.snapshot = record.get("snapshot") or self.snapshot
-        self.tasks += carried_tasks(record)
+        self.ledger.record(record, muted=turn.muted)
+        record["ledger"] = self.ledger.record_dict()
         record["live"] = {**turn.metrics(), "prompt": prompt_source, "endpointer": vars(live.settings),
                           "mode": self.mode, "snapshot": live.args.snapshot,
-                          "call": {"turn": len(self.call), "session_turn": self.session_turns,
+                          "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns,
                                    "voice_session": "shared" if reopened is None else "started",
                                    "reopened": reopened, "voice_sessions": self.sessions}}
         write_pcm16(live.out / f"{turn.name}_input.wav", bytes(turn.pcm), RATE)
@@ -437,12 +432,11 @@ class Live:
                                  floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s)
         self.prompt_file, self.decider_lock = args.prompt, threading.Lock()
         self.active, self.turns = None, 0
-        self.opener, self.fallback, self.ask = (fallback.Clip(OPENER_LINE), fallback.Clip(FALLBACK_LINE),
-                                                fallback.Clip(ASK_INSTEAD_LINE))
+        self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
 
     def render_lines(self):
         """Render the fixed lines in the server's own TTS voice before any client connects, so no turn pays for it."""
-        for clip in (self.opener, self.fallback, self.ask):
+        for clip in (self.fallback, self.ask):
             clip.render(f"http://127.0.0.1:{self.args.lfm_port}")
 
     async def handler(self, ws):

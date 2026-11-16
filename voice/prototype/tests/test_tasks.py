@@ -1,7 +1,7 @@
 import unittest
 from concurrent.futures import Future, wait
 
-from voice.prototype.tasks import DEFAULT_RESULT, MockTaskService, build_snapshot
+from voice.prototype.tasks import DEFAULT_RESULT, Execution, MockTaskService, Run, build_snapshot
 from voice.segmentation.contract import (Correction, CorrectionMode, Decisions, Kind, Readiness, SegmentDecision,
                                          TranscriptUpdate)
 from voice.segmentation.spans import clause_segments
@@ -51,6 +51,26 @@ def statuses(snapshot):
 
 
 class MockWorkerTest(unittest.TestCase):
+    def test_snapshot_reports_the_actual_running_lookup(self):
+        segmenter = ScriptedSegmenter()
+        segmenter.step(1, "What about Saturday?", final=True, s1={})
+        execution = Execution("task_1", Run.RUNNING, 0, 5,
+                              tool={"tool": "weather", "arguments": {"place": "Denver", "when": "saturday"}})
+        snapshot = build_snapshot(segmenter.records(), {"task_1": execution}, "conv", "utt", "What about Saturday?")
+        self.assertEqual(snapshot["tasks"][0]["capability"], "weather")
+        self.assertEqual(snapshot["tasks"][0]["arguments"], {"place": "Denver", "when": "saturday"})
+
+    def test_live_unavailable_task_is_failed_without_mock_completion(self):
+        segmenter = ScriptedSegmenter()
+        service = MockTaskService(segmenter, "conv_test", simulate=False)
+        segmenter.step(1, "Translate this page.", final=True, s1={})
+        service.sync(now=10.0)
+        task = service.snapshot("utt_1", "Translate this page.")["tasks"][0]
+        self.assertEqual(task["status"], "failed")
+        self.assertIn("can't carry out", task["result_summary"])
+        self.assertEqual(service.executions["task_1"].mode, "unavailable")
+        self.assertEqual(service.poll(now=100), [])
+
     def test_a_read_only_task_completes_after_the_delay_with_a_canned_result(self):
         _, service = service_after("What's the weather in Denver tomorrow?", s1={})
         self.assertEqual(service.poll(now=13.9), [])
@@ -249,7 +269,7 @@ class RealLookupTest(unittest.TestCase):
         self.assertEqual(service.pending_calls(), [])
         self.assertEqual(service.poll(now=4.0), ["task_1"])
         self.assertEqual(service.executions["task_1"].result_summary, "Mock file search: found Sales_Week45.xlsx.")
-        self.assertIsNone(service.executions["task_1"].tool)
+        self.assertEqual(service.executions["task_1"].mode, "simulated")
 
     def test_side_effect_tasks_never_reach_a_tool(self):
         service = self.service()

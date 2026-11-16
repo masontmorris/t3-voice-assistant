@@ -83,6 +83,7 @@ class Execution:
     finished_at: float | None = None
     reported: bool = False
     tool: dict | None = None
+    mode: str = "tool"
 
 
 def snapshot_status(record, execution):
@@ -122,6 +123,9 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
         if status is None:
             continue
         entry = {"task_id": record["task_id"], "description": record["instruction"], "status": status}
+        if execution is not None and execution.tool and execution.tool.get("tool"):
+            entry["capability"] = execution.tool["tool"]
+            entry["arguments"] = execution.tool.get("arguments", {})
         if record["depends_on"]:
             entry["depends_on"] = record["depends_on"]
         if status in (Run.COMPLETED, Run.FAILED):
@@ -144,11 +148,12 @@ class MockTaskService:
     effect runs on the mock worker instead of waiting for confirmation. A side effect never reaches a real tool."""
 
     def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None, holds_side_effects=True,
-                 earlier=None):
+                 earlier=None, simulate=True):
         """`earlier` is the newest lookup the call resolved before this turn, a `ToolCall`, which a follow-up that
         names no place continues."""
         self.segmenter, self.conversation_id, self.delay_s, self.tools = segmenter, conversation_id, delay_s, tools
         self.earlier = earlier
+        self.simulate = simulate
         self.holds_side_effects = holds_side_effects
         self.executions: dict[str, Execution] = {}
         self.correction = None
@@ -159,7 +164,11 @@ class MockTaskService:
     def _start(self, task_id, instruction, side_effect, now):
         call = self.tools.route(instruction, self.earlier) if self.tools and not side_effect else None
         if call is None:
-            return Execution(task_id, Run.RUNNING, now, now + self.delay_s)
+            if not self.simulate:
+                return Execution(task_id, Run.FAILED, now, None,
+                                 result_summary="I can't carry out that request with the tools available.",
+                                 finished_at=now, mode="unavailable")
+            return Execution(task_id, Run.RUNNING, now, now + self.delay_s, mode="simulated")
         self.earlier = call
         self._calls[task_id] = self._pool.submit(self.tools.run, call)
         return Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_s + HUNG_LOOKUP_GRACE_S,
