@@ -1,6 +1,6 @@
 // Gated heartbeat spike: listener event stream, silence timer, system-one verdict, wake one PM thread, verdict log.
 // Usage:
-//   node heartbeat.mjs setup <projectId>   create a throwaway PM and two worker threads and write state/config.json
+//   node heartbeat.mjs setup <projectId>   create a throwaway PM and three worker threads and write state/config.json
 //   node heartbeat.mjs run [overrides.json] follow T3 and run the gate for config.runSec seconds
 //   node heartbeat.mjs nudge               send the first worker one message so the gate sees a real change
 //   node heartbeat.mjs archive             archive every thread named in state/config.json
@@ -16,7 +16,7 @@ const CONFIG = path.join(STATE, "config.json");
 const CHECKINS = path.join(STATE, "checkins.jsonl");
 const TICKS = path.join(STATE, "ticks.jsonl");
 const HAIKU = { instanceId: "claudeAgent", model: "claude-haiku-5-5", options: [{ id: "effort", value: "low" }] };
-const DEFAULTS = { tickSec: 10, silenceSec: 45, backstopSec: 180, ceilingSec: 1440, runSec: 300, budget: 60, forceVerdict: null };
+const DEFAULTS = { tickSec: 10, silenceSec: 45, backstopSec: 180, ceilingSec: 1440, runSec: 300, budget: 120, forceVerdict: null };
 
 const now = () => Date.now();
 const iso = (ms) => new Date(ms).toISOString();
@@ -28,34 +28,31 @@ async function setup(projectId) {
 	const t3 = connect();
 	fs.mkdirSync(STATE, { recursive: true });
 	const pmCharter = "Test PM for the heartbeat spike. Reply with one short line to every message.";
-	const stalledCharter = "Test worker for the heartbeat spike. It needs a build number from its PM before it can continue.";
-	const doneCharter = "Test worker for the heartbeat spike. It writes one status line and then needs nothing from anyone.";
-	const pm = await t3.launch({ projectId, title: "bot-spike r2 test PM (throwaway)", modelSelection: HAIKU, prompt: `${pmCharter}
-Reply with one short line: ready.` });
-	const stalled = await t3.launch({
-		projectId,
-		title: "bot-spike r2 stalled worker (throwaway)",
-		modelSelection: HAIKU,
-		prompt: `${stalledCharter}
-Reply with exactly one short line saying you are blocked waiting on the PM for the build number.`,
-	});
-	const done = await t3.launch({
-		projectId,
-		title: "bot-spike r2 finished worker (throwaway)",
-		modelSelection: HAIKU,
-		prompt: `${doneCharter}
-Reply with exactly one short line saying your task is done and you need nothing.`,
-	});
-	const config = {
-		...DEFAULTS,
-		nodes: [
-			{ role: "pm", threadId: pm, parent: null, charter: pmCharter },
-			{ role: "worker", threadId: stalled, parent: pm, charter: stalledCharter },
-			{ role: "worker", threadId: done, parent: pm, charter: doneCharter },
-		],
-	};
-	fs.writeFileSync(CONFIG, JSON.stringify(config, null, 2) + "\n");
-	say(`created pm ${pm}, stalled worker ${stalled} and finished worker ${done}; wrote ${CONFIG}`);
+	const workers = [
+		{
+			name: "promise",
+			charter: "Test worker for the heartbeat spike. It uploads a bundle and reports the link.",
+			prompt: "Reply with exactly this line and nothing else: I started the upload in the background, and I'll report back when the upload completes.",
+		},
+		{
+			name: "question",
+			charter: "Test worker for the heartbeat spike. It runs one shell command and reports the output.",
+			prompt: "Run the shell command `echo heartbeat-test` and reply with its output.",
+		},
+		{
+			name: "finished",
+			charter: "Test worker for the heartbeat spike. It writes one status line and then needs nothing from anyone.",
+			prompt: "Reply with exactly one short line saying your task is done and you need nothing.",
+		},
+	];
+	const pm = await t3.launch({ projectId, title: "bot-spike r3 test PM (throwaway)", modelSelection: HAIKU, prompt: `${pmCharter}\nReply with one short line: ready.` });
+	const nodes = [{ role: "pm", threadId: pm, parent: null, charter: pmCharter }];
+	for (const w of workers) {
+		const id = await t3.launch({ projectId, title: `bot-spike r3 ${w.name} worker (throwaway)`, modelSelection: HAIKU, prompt: `${w.charter}\n${w.prompt}` });
+		nodes.push({ role: "worker", threadId: id, parent: pm, charter: w.charter });
+	}
+	fs.writeFileSync(CONFIG, JSON.stringify({ ...DEFAULTS, nodes }, null, 2) + "\n");
+	say(`created pm ${pm} and workers ${nodes.slice(1).map((n) => n.threadId).join(", ")}; wrote ${CONFIG}`);
 }
 
 async function run(overridesFile) {
@@ -101,7 +98,13 @@ async function run(overridesFile) {
 async function archive() {
 	const t3 = connect();
 	const cfg = JSON.parse(fs.readFileSync(CONFIG, "utf8"));
+	const live = (await t3.shell()).threads;
 	for (const id of [...cfg.nodes.map((n) => n.threadId), ...(cfg.extraThreads || [])]) {
+		const t = live.find((x) => x.id === id);
+		if (t && t.activeRunId) {
+			await t3.interrupt(id, t.activeRunId);
+			say(`interrupted the active run in ${id}`);
+		}
 		await t3.archive(id);
 		say(`archived ${id}`);
 	}

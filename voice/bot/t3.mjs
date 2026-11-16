@@ -120,6 +120,7 @@ export function connect() {
 			return messageId;
 		},
 		archive: (id) => dispatch("thread.archive", id),
+		interrupt: (id, runId) => dispatch("run.interrupt", id, { runId, reason: "bot spike cleanup", holdQueue: true }),
 	};
 }
 
