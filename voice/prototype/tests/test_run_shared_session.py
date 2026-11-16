@@ -309,8 +309,7 @@ class Scripted(FakeSession):
 
 
 class Delegating(FakeSession):
-    """The gated tool session: it delegates the person's own words, so the note loses its description and needs a
-    subject, the way the demo's turn 3 did."""
+    """The gated tool session: it hands the person's own words to the task service, as the demo's turn 3 did."""
 
     async def send(self, **event):
         if event.get("type") == "response.create":
@@ -416,19 +415,8 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
                          ["I'm running the task to get the weather in Denver for Saturday."])
 
 
-class FakeDecider:
-    """The free decision model's extraction route, returning the subject the real one returned on the probe."""
-
-    def __init__(self, subject=None, status=200):
-        self.subject, self.status, self.requests = subject, status, []
-
-    def call(self, route, body, label=""):
-        self.requests.append({"route": route, "body": body, "label": label})
-        return {"status": self.status, "response": {"answers": {"subject": {"type": "text", "value": self.subject}}}}
-
-
 class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
-    """A turn with a task of its own: the note it receives, and the one line it may say when both replies fail."""
+    """A turn that ends with a task update of its own, so the reply and the update can each lose the check."""
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -451,22 +439,14 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
         self.spoken = []
         self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
 
-    async def turn(self, script, decider=None, delay_s=0.05):
+    async def turn(self, script):
         self.voice.script = script
         self.voice.asked = 0
         return await prototype.run_clip(
-            Source(), "c", False, "ws://unused", decider, delay_s, Path(self.tmp.name), {}, "hybrid", None, "gated",
+            Source(), "c", False, "ws://unused", None, 0.05, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480,
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
             speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
-
-    def notes(self, prefix):
-        return [json.loads(event["item"]["content"][0]["text"][len(prefix):]) for event in self.voice.sent
-                if event.get("type") == "conversation.item.create"
-                and event["item"]["content"][0]["text"].startswith(prefix)]
-
-    def subject_events(self, record):
-        return [entry for entry in record["timeline"] if entry["kind"] == "subject"]
 
     async def test_a_reply_and_an_update_that_both_fail_say_one_line(self):
         record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
@@ -489,32 +469,6 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
                          [prototype.FALLBACK_LINE, "The task to get the weather in Denver for Saturday is done."],
                          "the line comes once, and the update still reaches the speaker")
         self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"])
-
-    async def test_the_subject_fills_the_description_the_note_lost(self):
-        decider = FakeDecider("weather")
-        record = await self.turn(["I'm running the task to get the weather in Denver for Saturday."], decider)
-        self.assertEqual([request["route"] for request in decider.requests], ["extractions"],
-                         "one extraction, and no decision calls: the fake segmenter needs none on a final revision")
-        snapshot = self.notes(prototype.SNAPSHOT_PREFIX)[0]
-        self.assertEqual(snapshot["tasks"][0]["subject"], "weather", "the running task now says what it is about")
-        self.assertNotIn("description", snapshot["tasks"][0])
-        self.assertEqual(self.subject_events(record)[0]["text"], "weather")
-
-    async def test_a_subject_that_repeats_the_person_is_dropped(self):
-        decider = FakeDecider("That's not what I meant")
-        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I don't have the day for that yet."], decider)
-        snapshot = self.notes(prototype.SNAPSHOT_PREFIX)[0]
-        self.assertNotIn("subject", snapshot["tasks"][0], "the person's own words do not come back in through the side")
-        self.assertIn("repeats", self.subject_events(record)[0]["dropped"])
-
-    async def test_a_subject_that_names_an_ungrounded_fact_is_dropped(self):
-        decider = FakeDecider("weather on Sunday")
-        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I don't have the day for that yet."], decider)
-        snapshot = self.notes(prototype.SNAPSHOT_PREFIX)[0]
-        self.assertNotIn("subject", snapshot["tasks"][0])
-        self.assertIn("weekday Sunday", self.subject_events(record)[0]["dropped"])
 
 
 class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):

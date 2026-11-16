@@ -63,7 +63,6 @@ from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS
 from voice.prototype.tasks import MockTaskService
 from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
-from voice.segmentation.client import MODEL as DECIDER_MODEL
 from voice.tools.registry import open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
@@ -145,12 +144,6 @@ FACT_CHECK_REJECTED = {
 # What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
 # no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
 FALLBACK_LINE = "Sorry, I can't confirm that right now."
-SUBJECT_INSTRUCTIONS = (
-    "The subject of what the person is asking about, in two to five words. Name no day, date, time, number or place "
-    "the transcript does not state."
-)
-SUBJECT_WORDS = 6
-SUBJECT_TIMEOUT_S = 2.0
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -298,74 +291,6 @@ async def update_session(session, settings):
         raise SessionRefused(f"{session.name} session.update refused: {answer.get('error')}")
 
 
-def subject_request(earlier, now):
-    """One extraction that names the subject of the turn, from the call's own words.
-
-    The parroting fix drops the task description when it is the person's words, which on "That's not what I meant."
-    left the note with a running task and no subject, and the model filled the hole with an invented day. This asks
-    the free decision model for the subject so the note can carry it. The state holds only what the person said."""
-    said = [text for text in earlier if text]
-    lines = "".join(f"- {text}\n" for text in said)
-    state = (f"Earlier in the call:\n{lines}The person just said: {now}" if said
-             else f"The person just said: {now}")
-    return {"model": DECIDER_MODEL, "state": state,
-            "fields": {"subject": {"type": "text", "instructions": SUBJECT_INSTRUCTIONS}}}
-
-
-def subject_of(record, transcript, sources):
-    """The subject the extraction returned, or why it was dropped. It never is the person's words from this turn,
-    never a value no source states, and never longer than `SUBJECT_WORDS`."""
-    answer = ((record or {}).get("response") or {}).get("answers") or {}
-    value = (answer.get("subject") or {}).get("value")
-    if not isinstance(value, str) or not value.strip():
-        return None, "no subject returned"
-    subject = " ".join(value.split())
-    if overlaps(subject, transcript):
-        return None, "repeats the person's words from this turn"
-    missing = ungrounded(subject, sources)
-    if missing:
-        return None, "names " + ", ".join(f"{fact.kind} {fact.surface}" for fact in missing)
-    if len(subject.split()) > SUBJECT_WORDS:
-        return None, f"longer than {SUBJECT_WORDS} words"
-    return subject, None
-
-
-def with_subject(payload, subject, key):
-    """Adds `subject` to each task entry under `key` that no longer carries a description, so a note that lost the
-    person's words still says what the task is about."""
-    entries = payload.get(key) if isinstance(payload, dict) else None
-    if not subject or not isinstance(entries, list):
-        return payload
-    filled = [{**entry, "subject": subject} if isinstance(entry, dict) and "description" not in entry
-              and "subject" not in entry else entry for entry in entries]
-    return {**payload, key: filled}
-
-
-def start_subject(executor, decider, earlier, now):
-    """The turn's subject, asked of the free decision model before the tool turn so most of its latency hides there."""
-    if decider is None:
-        return None
-    body = subject_request(earlier, now)
-    loop = asyncio.get_running_loop()
-    return asyncio.create_task(asyncio.wait_for(
-        loop.run_in_executor(executor, lambda: decider.call("extractions", body, label="subject")), SUBJECT_TIMEOUT_S))
-
-
-async def finish_subject(work, transcript, earlier, log):
-    """What `start_subject` asked for, logged with the time the turn waited for it past the tool turn."""
-    if work is None:
-        return None
-    started = time.perf_counter()
-    try:
-        subject, why = subject_of(await work, transcript, [transcript, *earlier])
-    except asyncio.TimeoutError:
-        subject, why = None, f"no answer in {SUBJECT_TIMEOUT_S} s"
-    except Exception as exc:
-        subject, why = None, repr(exc)
-    log("subject", text=subject, dropped=why, waited_s=round(time.perf_counter() - started, 4))
-    return subject
-
-
 def parse_arguments(call):
     try:
         arguments = json.loads(call.get("arguments") or "{}")
@@ -415,10 +340,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `prior_snapshot`, the call's task state when the turn started, before the turn's audio and answers with no item
     after the tools turn; the turn's own transcript is then not in the text the model reads. "reply-no-utterance" is
     "reply" with the person's words dropped from the snapshot and from the task update (see `without_utterance`), so
-    the item still carries the task list, its statuses and its results; a task that lost its description is given the
-    turn's `subject`, which the free decision model names, so a status is not all the note says. "off" sends no
-    machine text at all, whatever `eou` and `inject` are. The task service, the tool session and its snapshot are the
-    same in all four.
+    the item still carries the task list, its statuses and its results. "off" sends no machine text at all, whatever
+    `eou` and `inject` are. The task service, the tool session and its snapshot are the same in all four.
 
     `speak` takes the reply text and PCM that passed the fact check, when the caller streams the reply itself, as live
     mode does. The turn writes `CLIP_reply.wav` and `CLIP_update.wav` either way, so a record is readable without the
@@ -529,7 +452,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         worker = asyncio.create_task(segment_worker())
 
         replies, tool_turn, injection = [], None, []
-        fallback, subject = Fallback(fallback_pcm), None
+        fallback = Fallback(fallback_pcm)
         if seed is not None:
             injection.append(await create_item(voice, seed))
             log("seed", answer=injection[-1])
@@ -562,8 +485,6 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)
         log("snapshot", snapshot=snapshot)
         read_before = prior_snapshot if snapshot_mode == "before-audio" else None
-        subject_work = (start_subject(executor, decider, [*prior_utterances], adapter.text())
-                        if snapshot_mode == "reply-no-utterance" and eou in TOOL_SESSIONS else None)
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
@@ -582,9 +503,6 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
             if (item := shown(answered, snapshot_mode, adapter.text())) is not None:
-                if snapshot_mode == "reply-no-utterance":
-                    subject = await finish_subject(subject_work, adapter.text(), [*prior_utterances], log)
-                    item = with_subject(item, subject, "tasks")
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
             log("injection", items=injection)
             sources = [adapter.text(), *prior_utterances, read_before, item]
@@ -632,8 +550,6 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         if updates is not None:
             boundary = clock()
             log("task_updates", updates=task_updates)
-            if snapshot_mode == "reply-no-utterance":
-                updates = with_subject(updates, subject, "updates")
             injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
             update_reply, update_pcm = await answer(voice, out_rate, boundary,
                                                     [adapter.text(), *prior_utterances, updates], log,
