@@ -64,16 +64,17 @@ from voice.tools.registry import open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
 PERSONA = (
-    "You are a friendly voice assistant. A separate task service carries out what the user asks for. "
-    "After the user speaks, you receive a task status snapshot as JSON. Talk to the user directly, as \"you\", in "
-    "one or two short sentences, and say only what the snapshot says. running means the task has started. pending "
-    "means it is waiting on the service, not waiting for the user's permission. An explicit request in this turn "
-    "authorizes carrying it out, including external actions; do not ask again just because it is external. "
-    "completed means it is done, and you may say its result_summary. failed means it could not be "
-    "done, and you may say its result_summary. held_for_confirmation "
-    "means you need the user's OK before doing it. needs_clarification means you must ask the user. Never say a task "
-    "is done unless its status is completed, never promise a step the snapshot does not show, and never make up a "
-    "result."
+    "You are the assistant, on a call with the person you help. You hear what they say and answer out loud. "
+    "Sometimes the task service also sends a private machine-written note about their tasks; never read it out and "
+    "never mention it. Speak to the person as \"you\", in the first person, in one or two short sentences. Never "
+    "start a reply with \"The user\" and never repeat their words back. When the note names no task, or there is no "
+    "note, just answer what they said naturally. When it names tasks, tell the person where each stands in plain "
+    "words, as your own work; never mention a note, a snapshot or a service. running "
+    "means you are on it now. pending means the service has not started it yet; it does not mean the user must "
+    "confirm. completed means give the result in plain words. failed means say it did not work. "
+    "held_for_confirmation means ask only when the note names authorization that is actually missing. "
+    "needs_clarification means ask the one question you need. Never say a task is done unless it is completed, "
+    "never promise a step the note does not show, and never make up a result."
 )
 FORMAT_LINES = {
     "a": "\n\nRespond with interleaved text and audio.",
@@ -97,19 +98,29 @@ HANDOFF_INSTRUCTIONS = (
 )
 GATED_INSTRUCTIONS = (
     "You decide what happens to a voice assistant's tasks now that the user has finished speaking. You receive a "
-    "task service snapshot as JSON. It lists every task with its task_id and status, and final_transcript, which is "
-    "everything the user said. A running or completed task has already started. A pending or held_for_confirmation "
-    "task has not run, and its note says why. unreviewed_speech, when present, holds the user's last words, which "
-    "the service has not read. Your calls are final. The user's explicit request authorizes carrying it out, "
-    "including external actions. Low service confidence is not a request for user confirmation. "
-    "For a task that has not run, call run_task if the user wants it "
-    "as it is, amend_task with the change if the user changed it, or cancel_task if the user took it back. If "
-    "unreviewed_speech asks for something new that no task covers, call delegate with just that request. If the "
-    "user took back a running task, call cancel_task. If nothing needs doing, call no tool and answer none."
+    "task service snapshot as JSON with every task and its status, final_transcript, the last words in "
+    "unreviewed_speech, and decider, what the classifier already read. Your calls are final. "
+    "Conversation gets no tool call, because the assistant answers it itself: a question about you, this "
+    "conversation, or what you heard (\"Are you there?\", \"What did you catch?\"); an insult or a reaction "
+    "(\"That's rubbish.\", \"That's silly.\"); thanks; a greeting; or a statement of fact, including something "
+    "already done (\"Appreciate it.\", \"I already sent it.\"). "
+    "Everything else is work. A fact the user wants to know is work, whether it is a question (\"What's the forecast "
+    "in Paris?\", \"What time is it in Osaka?\") or a wish (\"I wonder if the coffee shop is open yet.\"). Something "
+    "they want done is work (\"Remind me at four.\", \"Email the notes to Dana.\"). "
+    "When the words are work, use the tasks you have: if a listed task covers what the user wants, never delegate, "
+    "call run_task; amend_task if the user changed a listed task; cancel_task if the user took one back. Call "
+    "delegate with just the new request only when no listed task covers it. Only call run_task, amend_task or "
+    "cancel_task with a task_id that appears in tasks. The user's explicit request authorizes carrying it out, "
+    "including external actions. Low service confidence is not a request for user confirmation. Always pass the "
+    "user's own words into delegate, never an example."
     "\n\nRespond with function calls, and interleaved text and audio.\n\nList of tools:"
 )
 HANDOFF_TOOLS = [
-    {"type": "function", "name": "delegate", "description": "Hand a new request from the user to the task service.",
+    {"type": "function", "name": "delegate", "description": "Start work the user asked for. Use only for an action or "
+                                                             "a fact to find out, such as find, look up, check, "
+                                                             "email, send, book, set, add or turn on. Never for "
+                                                             "conversation, an insult, a reaction, thanks, or a "
+                                                             "question about you or this conversation.",
      "parameters": {"type": "object", "properties": {
          "instruction": {"type": "string", "description": "The request, in the user's words."},
          "side_effect": {"type": "boolean",
@@ -171,6 +182,15 @@ async def create_item(session, item):
 def user_text(prefix, payload):
     return {"type": "message", "role": "user",
             "content": [{"type": "input_text", "text": prefix + json.dumps(payload)}]}
+
+
+def note_or_transcript(snapshot):
+    """The voice session's item for the reply. With no task to report, the plain transcript, so the voice answers the
+    person instead of narrating a machine note. Otherwise the JSON snapshot."""
+    if not snapshot["tasks"] and not snapshot["clarification_needed"]:
+        return {"type": "message", "role": "user",
+                "content": [{"type": "input_text", "text": snapshot["final_transcript"]}]}
+    return user_text(SNAPSHOT_PREFIX, snapshot)
 
 
 def parse_arguments(call):
@@ -331,13 +351,15 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         await updates_q.join()
         service.poll(clock())
         unreviewed = closed.get("unreviewed_speech")
-        snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)
+        read = segmenter.read_summary()
+        snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None,
+                                    decider=read)
         log("snapshot", snapshot=snapshot)
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
-            for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated"
-                         else snapshot)
+            for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True, decider=read)
+                         if eou == "gated" else snapshot)
             injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, for_tools)))
             tool_turn, _ = await respond(tool_session, out_rate, audio_end, tool_choice="auto")
             log("tool_turn", calls=tool_turn["function_calls"], text=tool_turn["text"])
@@ -348,9 +370,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 tool_results.append({"name": call.get("name"), "arguments": parse_arguments(call), "result": result})
                 log("tool_call", **tool_results[-1])
             service.poll(clock())
-            answered = service.snapshot("utt_1", adapter.text(), unreviewed)
+            answered = service.snapshot("utt_1", adapter.text(), unreviewed, decider=read)
             log("snapshot_after_tools", snapshot=answered)
-            injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, answered)))
+            injection.append(await create_item(voice, note_or_transcript(answered)))
             log("injection", items=injection)
             reply, reply_pcm = await respond(voice, out_rate, audio_end)
             replies.append({"kind": "snapshot", **reply})

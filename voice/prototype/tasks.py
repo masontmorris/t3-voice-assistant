@@ -91,11 +91,12 @@ def not_run_note(record):
 
 
 def build_snapshot(records, executions, conversation_id, utterance_id, final_transcript, unreviewed=None,
-                   notes=False):
+                   notes=False, decider=None):
     """The plan's `utterance_snapshot`, from task records alone. It reports only what the records say.
 
     `unreviewed` is the end of the transcript that no decision point read. With `notes`, each task that has not run
-    says why, for the gated turn's tools session."""
+    says why, for the gated turn's tools session. `decider` is what the segmenter's last decision point read and
+    what kinds it found there, so the voice model can tell conversation from a request it has not seen."""
     tasks = []
     for record in records:
         execution = executions.get(record["task_id"])
@@ -113,6 +114,8 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
     unclear = [r["instruction"] for r in records if r["status"] == "needs_clarification"]
     snapshot = {"type": "utterance_snapshot", "conversation_id": conversation_id, "utterance_id": utterance_id,
                 "final_transcript": final_transcript, "tasks": tasks, "clarification_needed": unclear or None}
+    if decider is not None:
+        snapshot["decider"] = decider
     if unreviewed is not None:
         snapshot["unreviewed_speech"] = unreviewed
     return snapshot
@@ -224,10 +227,10 @@ class MockTaskService:
         events = self.sync(now)
         return result, events
 
-    def snapshot(self, utterance_id, final_transcript, unreviewed=None, notes=False):
+    def snapshot(self, utterance_id, final_transcript, unreviewed=None, notes=False, decider=None):
         """Build the snapshot. Every completion it carries counts as told, so no later update repeats it."""
         snapshot = build_snapshot(self.segmenter.records(), self.executions, self.conversation_id, utterance_id,
-                                  final_transcript, unreviewed, notes)
+                                  final_transcript, unreviewed, notes, decider)
         for entry in snapshot["tasks"]:
             if entry["status"] in (Run.COMPLETED, Run.FAILED):
                 self.executions[entry["task_id"]].reported = True

@@ -1,6 +1,7 @@
 import unittest
 from concurrent.futures import Future, wait
 
+from voice.prototype.run import note_or_transcript
 from voice.prototype.tasks import DEFAULT_RESULT, MockTaskService, build_snapshot
 from voice.segmentation.contract import (Correction, CorrectionMode, Decisions, Kind, Readiness, SegmentDecision,
                                          TranscriptUpdate)
@@ -154,6 +155,23 @@ class SnapshotTest(unittest.TestCase):
         self.assertEqual(snapshot["tasks"], [{"task_id": "task_1", "description": "look it up", "status": "pending"}])
         self.assertIsNone(snapshot["clarification_needed"])
         self.assertEqual(build_snapshot([], {}, "conv", "utt", "")["tasks"], [])
+
+    def test_the_decider_read_is_carried_only_when_a_decision_ran(self):
+        read = {"read": [{"text": "Okay, this", "kind": "chitchat"}], "contains_request": False}
+        snapshot = build_snapshot([], {}, "conv", "utt", "Okay, this is bad.", "is bad.", decider=read)
+        self.assertEqual(snapshot["decider"], read)
+        self.assertEqual(snapshot["unreviewed_speech"], "is bad.")
+        self.assertNotIn("decider", build_snapshot([], {}, "conv", "utt", "Okay, this is bad.", "is bad."))
+
+    def test_a_no_task_turn_gets_the_transcript_and_a_task_turn_gets_the_note(self):
+        empty = build_snapshot([], {}, "conv", "utt", "Okay, this is bad.")
+        item = note_or_transcript(empty)
+        self.assertEqual(item["content"][0]["text"], "Okay, this is bad.")
+        task = build_snapshot([{"task_id": "task_1", "status": "proposed", "instruction": "look it up",
+                                "depends_on": []}], {}, "conv", "utt", "look it up")
+        item = note_or_transcript(task)
+        self.assertTrue(item["content"][0]["text"].startswith("[task service snapshot"))
+        self.assertIn('"task_1"', item["content"][0]["text"])
 
 
 class HandoffToolsTest(unittest.TestCase):

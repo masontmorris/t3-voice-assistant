@@ -200,5 +200,36 @@ class Hybrid(unittest.TestCase):
         self.assertTrue(seg.points[-1]["problems"])
 
 
+class ConversationDecider(FakeDecider):
+    """FakeDecider, except a piece that opens with "okay" is chitchat."""
+
+    def call(self, route, body, label=""):
+        record = super().call(route, body, label)
+        answers = record["response"]["answers"]
+        for name, question in body["questions"].items():
+            sid, _, kind = name.partition("_")
+            if kind == "kind" and (body["state"]["segments"].get(sid) or "").lower().startswith("okay"):
+                answers[name] = choice("chitchat", list(question["criteria"]))
+        return record
+
+
+class DeciderRead(unittest.TestCase):
+    def test_read_reports_conversation_and_covers_only_the_words_it_read(self):
+        seg = HybridSegmenter(ConversationDecider(), "test")
+        seg.update(TranscriptUpdate(1, "okay, this", False))
+        close = seg.close(TranscriptUpdate(2, "Okay, this is bad.", True), settle=False)
+        self.assertEqual(seg.read_summary(), {"read": [{"text": "okay, this", "kind": "chitchat"}],
+                                              "contains_request": False})
+        self.assertEqual(close["unreviewed_speech"], "is bad.")
+
+    def test_read_reports_a_request_it_heard(self):
+        seg = HybridSegmenter(FakeDecider(), "test")
+        seg.update(TranscriptUpdate(1, "find the weather and the tide", False))
+        self.assertEqual(seg.read_summary()["contains_request"], True)
+
+    def test_no_decision_point_means_no_read(self):
+        self.assertIsNone(HybridSegmenter(FakeDecider(), "empty").read_summary())
+
+
 if __name__ == "__main__":
     unittest.main()

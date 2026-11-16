@@ -30,6 +30,8 @@ class Segmenter(Protocol):
 
     def records(self) -> list[dict]: ...
 
+    def read_summary(self) -> dict | None: ...
+
 
 def use_decider_cache(directory: Path, budget: int):
     """Keep this run's decider cache and call ledger out of the repo, and cap its live calls at `budget`.
@@ -104,6 +106,10 @@ class BaselineSegmenter:
 
     def records(self):
         return self.orch.task_records()
+
+    def read_summary(self):
+        """The baseline keeps no per-segment kinds, so the gated turn's snapshot carries no decider field."""
+        return None
 
 
 SEGMENTERS = {"hybrid": HybridSegmenter, "baseline": BaselineSegmenter}

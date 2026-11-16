@@ -200,6 +200,7 @@ class HybridSegmenter:
         self.ws = []
         self.points: list[dict] = []
         self.reviewed: tuple = ()
+        self.read: list[tuple[str, str]] = []
 
     @property
     def dispatch_log(self):
@@ -211,6 +212,15 @@ class HybridSegmenter:
 
     def records(self):
         return self.orch.task_records()
+
+    def read_summary(self):
+        """What the last applied decision point read and the kinds it found, for the end-of-utterance snapshot.
+        None when no decision point ran. It covers only the speech it names, so a request in the unreviewed tail
+        is still possible."""
+        if not self.read:
+            return None
+        return {"read": [{"text": text, "kind": kind} for text, kind in self.read],
+                "contains_request": any(kind in ("request", "correction") for _, kind in self.read)}
 
     def update(self, update):
         """One transcript revision. Returns its decision point, or None when no call was needed."""
@@ -340,6 +350,7 @@ class HybridSegmenter:
         kept = {sid: hold_near_tie(d, final, self.t.margin) for sid, d in raw.items()}
         delegates = {did: sid for did, sid in decisions.delegates.items() if sid is None or sid in valid}
         if applied:
+            self.read = [(seg.text, kept[seg.sid].kind.value) for seg in apply_segs if seg.sid in kept]
             self.orch.apply(update, apply_segs, Decisions(kept, delegates, decisions.problems), raw)
         self.called_on = self._signature(self._proposal())
         point = {"revision": update.revision, "is_final": final, "label": call["label"], "kind": kind,
