@@ -1,16 +1,16 @@
 // Round 3 eval. `tune` runs the tune cases and prints the bar that the rule in cases.json picks.
-// `held` runs the held cases once with STAY_QUIET_BAR from core.mjs and prints the whole-gate and decider-alone tables.
-// Usage: node eval/r3/run.mjs <tune|held>
+// `held` runs the held cases and prints the whole-gate and decider-alone tables. Round 3 ran it with a stay_quiet bar of 0.88,
+// which decided no held case and was then deleted, so this version runs the rules and then the decider.
+// Usage: node eval/r3/run.mjs <tune|held>. Results go to results-<split>-nobar.json, leaving the round 3 files as recorded.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { applyBar, ruleVerdict, STAY_QUIET_BAR, VERDICTS, verdictRequest } from "../../core.mjs";
+import { ruleVerdict, VERDICTS, verdictRequest } from "../../core.mjs";
 import { decider } from "../../decider.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const split = process.argv[2];
 if (!["tune", "held"].includes(split)) throw new Error("usage: node eval/r3/run.mjs <tune|held>");
-if (split === "held" && STAY_QUIET_BAR == null) throw new Error("freeze STAY_QUIET_BAR in core.mjs before the held run");
 const set = JSON.parse(fs.readFileSync(path.join(HERE, "cases.json"), "utf8"));
 const d1 = decider({ dir: path.join(HERE, "..", "..", "state"), budget: 120 });
 
@@ -21,9 +21,8 @@ for (const c of set.cases.filter((x) => x.split === split)) {
 	const a = record.status === 200 ? record.response.answers.verdict : null;
 	const decider_ = a ? a.choice : "wake_pm";
 	const rule = ruleVerdict({ role: "worker", ...c }, {});
-	const barred = split === "held" ? applyBar(decider_, a && a.probabilities, {}) : null;
-	const gate = rule ? "wake_pm" : barred ? barred.verdict : null;
-	const layer = rule ? rule.source : barred && barred.note ? "bar" : "decider";
+	const gate = split === "held" ? (rule ? "wake_pm" : decider_) : null;
+	const layer = rule ? rule.source : "decider";
 	rows.push({ id: c.id, situation: c.situation, expected: c.expected, decider: decider_, p: a ? a.probabilities : null, rule: rule && rule.source, gate, layer, cached });
 	console.log(
 		`${c.id.padEnd(18)} expected ${c.expected.padEnd(10)} decider ${decider_.padEnd(10)} stay_quiet=${a ? a.probabilities.stay_quiet.toFixed(2) : "-"}  rule ${(rule ? rule.source : "-").padEnd(13)}${gate ? ` gate ${gate} (${layer})` : ""}`,
@@ -51,11 +50,11 @@ if (split === "tune") {
 	console.log(`bar by the cases.json rule: ${bar}`);
 	table("decider alone, tune", "decider");
 } else {
-	table("whole gate (rules, then decider with bar " + STAY_QUIET_BAR + ")", "gate");
+	table("whole gate (rules, then decider)", "gate");
 	table("decider alone", "decider");
 	const layers = {};
 	for (const r of rows) layers[r.layer] = (layers[r.layer] || 0) + 1;
 	console.log(`\nlayer that decided each held case: ${JSON.stringify(layers)}`);
 }
-fs.writeFileSync(path.join(HERE, `results-${split}.json`), JSON.stringify({ split, bar: split === "tune" ? bar : STAY_QUIET_BAR, rows, ledgerAttempts: d1.attempts() }, null, 2) + "\n");
+fs.writeFileSync(path.join(HERE, `results-${split}-nobar.json`), JSON.stringify({ split, rows, ledgerAttempts: d1.attempts() }, null, 2) + "\n");
 console.log(`\nledger attempts ${d1.attempts()} of 120`);

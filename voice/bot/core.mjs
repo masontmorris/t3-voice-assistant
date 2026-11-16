@@ -60,7 +60,6 @@ const RUN_KEYS = ["status", "activeRunId", "latestRunId"];
 // The quiet time a running node may have before the stall rule wakes its parent, by role, when nothing more specific is known.
 export const ROLE_BUDGET_MIN = { worker: 30, pm: 60, orchestrator: 120 };
 export const RULE_DEFAULTS = { questionTimeoutSec: 600, promiseGraceSec: 300, estimateSlack: 2 };
-export const STAY_QUIET_BAR = 0.88;
 
 const NUMBER_WORDS = { a: 1, an: 1, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, fifteen: 15, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, ninety: 90 };
 const ESTIMATE_RE = new RegExp(
@@ -111,13 +110,26 @@ export function ruleVerdict(f, cfg) {
 	return null;
 }
 
-// stay_quiet counts only when its probability clears the bar. Below it, the gate wakes whichever of wake_pm and tell_mason
-// the decider found likelier, and wake_pm on a tie, because the PM can still escalate to Mason.
-export function applyBar(choice, p, cfg) {
-	const bar = cfg.stayQuietBar === undefined ? STAY_QUIET_BAR : cfg.stayQuietBar;
-	if (choice !== "stay_quiet" || bar == null || (p && p.stay_quiet >= bar)) return { verdict: choice, note: null };
-	const verdict = (p.tell_mason || 0) > (p.wake_pm || 0) ? "tell_mason" : "wake_pm";
-	return { verdict, note: `stay_quiet p=${(p.stay_quiet || 0).toFixed(2)} is below the bar ${bar}, so the gate routed it to ${verdict}` };
+// Asked only after the question rule fires: who must answer the open question, the PM or Mason.
+export function recipientRequest(node, parent, questionText) {
+	return {
+		model: MODEL,
+		state: {
+			node: { role: node.role, charter: node.charter },
+			parent: { role: parent.role, charter: parent.charter },
+			open_question: questionText.slice(0, 500),
+		},
+		questions: {
+			recipient: {
+				type: "choice",
+				instructions: "An agent thread has asked a question that nobody has answered. Decide who must answer it.",
+				criteria: {
+					wake_pm: "Its parent agent can answer it: a choice inside the work's charter, such as an option, a name, a format or a priority.",
+					tell_mason: "Only the human owner can answer it: it needs money, an account, a credential or token, or a decision outside the parent's charter.",
+				},
+			},
+		},
+	};
 }
 
 export function verdictRequest(worker, pm, trigger, quietSec, lastReply) {
@@ -150,6 +162,7 @@ const wakeText = (node, why) =>
 // logCheckin(entry), logTick(entry), say(msg). Every node with a parent is watched, and its parent is the one woken about it.
 export function createHeartbeat(cfg, deps, startedAt) {
 	const { t3, decider, helpers, logCheckin, logTick, say } = deps;
+	const toOutbox = deps.toOutbox || (() => {});
 	const nodes = new Map(cfg.nodes.map((n) => [n.threadId, { ...n, status: null, lastEventAt: null, thread: null }]));
 	const watched = [...nodes.values()].filter((n) => n.parent && nodes.has(n.parent));
 	const watches = new Map();
@@ -200,6 +213,38 @@ export function createHeartbeat(cfg, deps, startedAt) {
 			watch.lookedFp = fp;
 		} catch (e) {
 			entry.wakeError = e.message;
+		}
+	}
+
+	// Puts a notice for Mason in the outbox unless the suppression rule blocks it. Marks the node as looked at, like a wake.
+	async function notify(node, entry, t, text) {
+		const watch = watches.get(node.threadId);
+		const fp = fingerprint(node.thread);
+		const block = wakeBlock(watch, fp, t, cfg);
+		if (block) {
+			entry.suppressed = true;
+			entry.reason += `; notice suppressed: ${block}`;
+			return;
+		}
+		entry.outboxId = toOutbox({ source: "tell_mason", node: node.threadId, requestId: null, text: `${node.role} thread ${node.threadId} needs Mason: ${text}` });
+		watch.lookedAt = t;
+		watch.lookedFp = fp;
+	}
+
+	// The one decider call the question rule makes. Any failure routes the question to the parent.
+	async function askRecipient(node, t) {
+		const watch = watches.get(node.threadId);
+		let text = watch.lastReply || "";
+		try {
+			const snap = await t3.thread(node.threadId);
+			text = (helpers.openQuestionText && helpers.openQuestionText(snap, watch.question && watch.question.id)) || text;
+			const { record, cached } = await decider.call(recipientRequest(node, nodes.get(node.parent), text), `recipient:${node.threadId.slice(-8)}`);
+			const a = record.status === 200 && record.response.answers && record.response.answers.recipient;
+			if (a && (a.choice === "wake_pm" || a.choice === "tell_mason"))
+				return { verdict: a.choice, text, cached, note: `recipient question chose ${a.choice} (p=${a.probabilities[a.choice].toFixed(2)})` };
+			return { verdict: "wake_pm", text, note: `recipient question gave no usable answer (http ${record.status}), so the parent gets it` };
+		} catch (e) {
+			return { verdict: "wake_pm", text, note: `recipient question failed (${e.message}), so the parent gets it` };
 		}
 	}
 
@@ -262,10 +307,9 @@ export function createHeartbeat(cfg, deps, startedAt) {
 			const answer = record.status === 200 && record.response.answers && record.response.answers.verdict;
 			const modelVerdict = answer && VERDICTS.includes(answer.choice) ? answer.choice : null;
 			const p = answer && answer.probabilities ? answer.probabilities[answer.choice] : null;
-			const barred = modelVerdict ? applyBar(modelVerdict, answer.probabilities, cfg) : null;
-			verdict = barred ? barred.verdict : "wake_pm";
+			verdict = modelVerdict || "wake_pm";
 			entry.reason = modelVerdict
-				? `${trigger.kind} ${JSON.stringify(trigger.delta)}; system one chose ${modelVerdict} (p=${p && p.toFixed(2)})${barred.note ? `; ${barred.note}` : ""}`
+				? `${trigger.kind} ${JSON.stringify(trigger.delta)}; system one chose ${modelVerdict} (p=${p && p.toFixed(2)})`
 				: `${trigger.kind}; system one gave no usable verdict (http ${record.status}), failing open`;
 			entry.source = modelVerdict ? "system_one" : "fail_open";
 			if (modelVerdict) entry.modelChoice = modelVerdict;
@@ -282,7 +326,7 @@ export function createHeartbeat(cfg, deps, startedAt) {
 		}
 		entry.verdict = verdict;
 		if (verdict === "wake_pm") await wake(node, entry, t);
-		if (verdict === "tell_mason") entry.note = "spike: logged only, Mason not notified";
+		if (verdict === "tell_mason") await notify(node, entry, t, watches.get(node.threadId).lastReply || entry.reason);
 		logCheckin(entry);
 		say(`verdict ${verdict}${entry.suppressed ? " (suppressed)" : ""} for ${node.role} ${node.threadId.slice(-8)}: ${entry.reason}`);
 	}
@@ -331,9 +375,15 @@ export function createHeartbeat(cfg, deps, startedAt) {
 				if (rule) {
 					triggers.push(rule.source);
 					const entry = { at: iso(t), node: n.threadId, role: n.role, trigger: trigger ? trigger.kind : "rule", delta: trigger ? trigger.delta : {}, verdict: "wake_pm", reason: rule.reason, source: rule.source };
-					await wake(n, entry, t);
+					const recipient = rule.source === "rule_question" ? await askRecipient(n, t) : null;
+					if (recipient) {
+						entry.verdict = recipient.verdict;
+						entry.reason += `; ${recipient.note}`;
+					}
+					if (entry.verdict === "tell_mason") await notify(n, entry, t, recipient.text);
+					else await wake(n, entry, t);
 					logCheckin(entry);
-					say(`${rule.source} wake for ${n.role} ${n.threadId.slice(-8)}: ${rule.reason}`);
+					say(`${rule.source} ${entry.verdict} for ${n.role} ${n.threadId.slice(-8)}: ${entry.reason}`);
 				} else if (trigger) {
 					triggers.push(trigger.kind);
 					await ask(n, trigger, t);
