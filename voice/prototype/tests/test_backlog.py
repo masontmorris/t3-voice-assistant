@@ -26,11 +26,34 @@ class DecideTest(unittest.TestCase):
         self.assertEqual(tell, [])
         self.assertFalse(backlog.history[0]["reprompt"])
 
+    def test_a_result_in_the_snapshot_is_skipped_while_a_newer_one_is_told(self):
+        backlog = Backlog()
+        backlog.record("task_1", "running", "completed", "Forecast: sunny.", 1.0, "first reply")
+        backlog.record("task_2", "running", "completed", "Forecast: rain.", 2.0, "first reply")
+        tell = backlog.decide(backlog.drain(), executions(task_1=True, task_2=False), 3.0)
+        self.assertEqual([e.task_id for e in tell], ["task_2"])
+
     def test_draining_empties_the_backlog_so_the_next_reply_starts_a_new_one(self):
         backlog = Backlog()
         backlog.record("task_1", "running", "completed", "x", 1.0, "first reply")
         self.assertEqual(len(backlog.drain()), 1)
         self.assertEqual(backlog.drain(), [])
+
+    def test_a_result_that_lands_during_the_update_reply_waits_for_the_next_decision(self):
+        backlog = Backlog()
+        backlog.record("task_1", "running", "completed", "Forecast: sunny.", 1.0, "first reply")
+        first = backlog.decide(backlog.drain(), executions(task_1=False, task_2=False), 2.0)
+        backlog.record("task_2", "running", "completed", "Forecast: rain.", 3.0, "update reply")
+        second = backlog.decide(backlog.drain(), executions(task_1=True, task_2=False), 4.0)
+        self.assertEqual([e.task_id for e in first], ["task_1"])
+        self.assertEqual([e.task_id for e in second], ["task_2"])
+        self.assertEqual([d["reprompt"] for d in backlog.history], [True, True])
+
+    def test_an_empty_backlog_records_a_decision_without_a_re_prompt(self):
+        backlog = Backlog()
+        tell = backlog.decide(backlog.drain(), {}, 2.0)
+        self.assertEqual(tell, [])
+        self.assertEqual(backlog.history, [{"at": 2.0, "backlog": [], "tell": [], "reprompt": False}])
 
 
 if __name__ == "__main__":
