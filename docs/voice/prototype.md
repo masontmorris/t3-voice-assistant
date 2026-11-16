@@ -2,6 +2,8 @@
 
 The prototype runs the whole assistant loop on this Desktop. A WAV file streams into LFM3-Audio-2B on llama.cpp's realtime server, the live transcript drives the Stage 2 segmenter with the free decider, tasks go to a mock task service, and the task snapshot goes back into the voice session before the model speaks. Each claim below carries a label. "Measured" means a run on this machine produced it, "inferred" means I reasoned it from code or docs, and "guess" means neither.
 
+The turn this doc measures ends with a decider call on the final transcript. The prototype now defaults to the end-of-utterance handoff, which makes no call there, and `--eou decider` runs the turn described here. See [eou-handoff.md](eou-handoff.md).
+
 ## Result
 
 `python -m voice.prototype.run CLIP.wav` runs end to end on all 14 clips: Mason's 10 recordings and Stage 1's 4 synthetic clips. It saves the spoken reply as a WAV and every event as JSON (measured, three passes, no clip failed). With injection method (c), the snapshot goes in as user text with a machine prefix. 13 of 14 snapshot replies invented nothing about the tasks, and the voice started speaking 0.28 s after the audio ended once the decider answers were cached (median of 14 clips, measured).
