@@ -64,7 +64,7 @@ from voice.local_decider.reuse import ReusingClient
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
-from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskService
+from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskService, Run
 from voice.segmentation.contract import Intent
 from voice.segmentation.gate import PLAN_A
 from voice.prototype.transcript import TranscriptAdapter
@@ -150,6 +150,10 @@ FACT_CHECK_REJECTED = {
 # What a turn says when the check fails twice. Under eight words, in the persona's own register, naming no fact and
 # no machinery. Measured context: 1 of 157 spoken replies on disk contains "note", which the screen below refuses.
 FALLBACK_LINE = "Sorry, I can't confirm that right now."
+# What a turn says over a task that has started and has nothing to report yet. Fixed text, rendered before the call,
+# so the opener costs no model request: measured 3.44 s of model speech on the demo before it was fixed, and it was
+# the last place a day, a place or a number could reach the speaker before a tool returned one.
+OPENER_LINE = "Checking that."
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -222,6 +226,12 @@ def fixed_reply(line, pcm, rate, after_s):
     record still says the line, and nothing plays."""
     return {"text": line, "status": "fixed", "fixed": True, "function_calls": [],
             "first_audio_after_s": after_s if pcm else None, "speech_s": len(pcm) / 2 / rate, "done_at": None}
+
+
+def started(snapshot):
+    """True when the snapshot holds a task that has begun and has no result yet, so a turn over it opens before any
+    tool has answered."""
+    return any(task.get("status") == Run.RUNNING for task in snapshot.get("tasks") or ())
 
 
 async def create_item(session, item):
@@ -339,7 +349,7 @@ class WavInput:
 async def run_clip(source, inject, status_only, url, decider, delay_s, out, partial, segmenter_name="hybrid",
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, seed=None, speak=None, prior_utterances=(),
-                   fallback_pcm=b"", prior_tasks=(), ask_pcm=b""):
+                   fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", opener_pcm=b""):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -364,7 +374,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     the shipped snapshot no longer carries their words. `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
-    audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply."""
+    audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply.
+    `opener_pcm` is the audio for `OPENER_LINE`, which a turn over a task that has started speaks instead of asking the
+    model for an opening sentence; without it the turn opens with nothing."""
     t0 = time.perf_counter()
 
     def clock():
@@ -536,6 +548,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             sources = [adapter.text(), *prior_utterances, read_before, item]
             if service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
+            elif started(answered):
+                reply, reply_pcm = fixed_reply(OPENER_LINE, opener_pcm, out_rate, clock() - audio_end), opener_pcm
             else:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback)
             replies.append({"kind": "snapshot", **reply})

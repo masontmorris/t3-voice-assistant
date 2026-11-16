@@ -416,7 +416,8 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
 
 
 class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
-    """A turn that ends with a task update of its own, so the reply and the update can each lose the check."""
+    """A turn that ends with a task update of its own. The opener is fixed now, so the update is the one reply the
+    check can lose."""
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -448,26 +449,24 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
             speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
 
-    async def test_a_reply_and_an_update_that_both_fail_say_one_line(self):
-        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I do not have the information needed to answer the fact check.",
-                                  "The task to get the weather in Denver for Monday has been completed.",
+    async def test_an_update_that_fails_twice_says_the_one_line(self):
+        record = await self.turn(["I do not have the information needed to answer the fact check.",
                                   "I cannot read the task description in the note."])
-        self.assertEqual(self.voice.asked, 4, "two bad answers and two re-asks")
+        self.assertEqual(self.voice.asked, 2, "the bad answer and its one re-ask")
         self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE],
-                         "the turn says the line once, not once per failed reply")
+                         "the line reaches the speaker, and nothing the model wrote")
         self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"],
                          "both replies are still in the record")
         self.assertEqual([reply["text"] for reply in record["replies"]],
-                         [prototype.FALLBACK_LINE, ""], "the update is dropped, the line already went out")
+                         [prototype.OPENER_LINE, prototype.FALLBACK_LINE],
+                         "the fixed opener, then the line in place of the lost update")
 
-    async def test_a_failed_reply_and_a_clean_update_say_the_line_and_the_update(self):
-        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I do not have the information needed to answer the fact check.",
+    async def test_a_refused_update_is_asked_again_and_the_clean_answer_is_spoken(self):
+        record = await self.turn(["I do not have the information needed to answer the fact check.",
                                   "The task to get the weather in Denver for Saturday is done."])
         self.assertEqual([text for text, _ in self.spoken],
-                         [prototype.FALLBACK_LINE, "The task to get the weather in Denver for Saturday is done."],
-                         "the line comes once, and the update still reaches the speaker")
+                         ["The task to get the weather in Denver for Saturday is done."],
+                         "the clean answer, with no line in front of it")
         self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"])
 
 

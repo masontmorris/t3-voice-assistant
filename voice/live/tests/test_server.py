@@ -184,6 +184,16 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["live"]["snapshot"], "before-audio", "the record says where the item went")
         await ws.close()
 
+    async def test_the_turn_gets_the_rendered_opener(self):
+        from voice.live.tests.test_fallback import wav_bytes
+        self.live.opener.wav = wav_bytes(OUT_RATE, [0] * 480)
+        ws = await self.connect()
+        await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+        await self.until(ws, "turn_done", [])
+        self.assertEqual(CALLS[0][-1]["opener_pcm"], self.live.opener.pcm(OUT_RATE))
+        self.assertNotEqual(CALLS[0][-1]["opener_pcm"], b"", "the turn gets the rendered opener, not the fallback's")
+        await ws.close()
+
     async def test_a_long_call_seeds_a_new_session_with_the_call_so_far(self):
         self.live.args.call_max_turns = 1
         ws = await self.connect()
@@ -393,7 +403,7 @@ class FallbackAudioTest(unittest.TestCase):
     def test_no_rendered_clip_means_no_audio(self):
         with tempfile.TemporaryDirectory() as tmp:
             live = self.live(tmp)
-            for clip in (live.fallback, live.ask):
+            for clip in (live.opener, live.fallback, live.ask):
                 self.assertEqual(clip.pcm(OUT_RATE), b"",
                                  "the turn still says the line in its record, but plays nothing")
 
@@ -411,17 +421,18 @@ class FallbackAudioTest(unittest.TestCase):
             with mock.patch.object(server.fallback, "wav", side_effect=OSError("no TTS")):
                 live = self.live(tmp)
                 live.render_lines()
-            for clip in (live.fallback, live.ask):
+            for clip in (live.opener, live.fallback, live.ask):
                 self.assertEqual(clip.wav, b"")
                 self.assertIn("no TTS", clip.error)
                 self.assertEqual(clip.pcm(OUT_RATE), b"")
 
-    def test_both_lines_are_rendered_in_the_servers_voice(self):
+    def test_every_fixed_line_is_rendered_in_the_servers_voice(self):
         with tempfile.TemporaryDirectory() as tmp:
             with mock.patch.object(server.fallback, "wav", side_effect=lambda url, line: line.encode()) as render:
                 self.live(tmp).render_lines()
             self.assertEqual([call.args for call in render.call_args_list],
-                             [("http://127.0.0.1:8099", server.FALLBACK_LINE),
+                             [("http://127.0.0.1:8099", server.OPENER_LINE),
+                              ("http://127.0.0.1:8099", server.FALLBACK_LINE),
                               ("http://127.0.0.1:8099", server.ASK_INSTEAD_LINE)])
 
 
