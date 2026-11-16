@@ -16,7 +16,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createHeartbeat } from "./core.mjs";
 import { decider } from "./decider.mjs";
-import { ack, addOutbox, discover, ensureTree, handoff, ingestRoot, openStore, snapshot } from "./root.mjs";
+import { createApiHandler } from "./api.mjs";
+import { addOutbox, discover, ensureTree, ingestRoot, openStore } from "./root.mjs";
 import { connect, lastAssistantText, openQuestionText, runOf } from "./t3.mjs";
 
 const STATE = path.join(path.dirname(fileURLToPath(import.meta.url)), "state");
@@ -116,55 +117,7 @@ async function serve(overridesFile) {
 		} else if (v.kind === "thread.updated") learn(v.thread, at);
 	});
 
-	const json = (res, code, body) => {
-		res.writeHead(code, { "content-type": "application/json" });
-		res.end(JSON.stringify(body));
-	};
-	const body = (req) => new Promise((resolve) => {
-		let s = "";
-		req.on("data", (c) => (s += c));
-		req.on("end", () => resolve(s ? JSON.parse(s) : {}));
-	});
-	const after = (id) => data.outbox.slice(id ? data.outbox.findIndex((e) => e.id === id) + 1 : 0);
-	const server = http.createServer(async (req, res) => {
-		try {
-			const url = new URL(req.url, "http://127.0.0.1");
-			if (req.method === "POST" && url.pathname === "/handoff") {
-				const r = await body(req);
-				if (!r.requestId || !r.text) return json(res, 400, { error: "requestId and text are required" });
-				const out = await handoff(data, t3, r, store.save);
-				say(`handoff ${r.requestId}: ${out.status}`);
-				return json(res, 200, out);
-			}
-			if (req.method === "GET" && url.pathname === "/outbox") {
-				const since = url.searchParams.get("after");
-				const waitMs = Math.min(Number(url.searchParams.get("waitMs") || 0), 60000);
-				if (!after(since).length && waitMs > 0)
-					await new Promise((resolve) => {
-						const done = () => {
-							waiters.delete(done);
-							resolve();
-						};
-						waiters.add(done);
-						setTimeout(done, waitMs);
-					});
-				return json(res, 200, { entries: after(since) });
-			}
-			if (req.method === "POST" && url.pathname === "/outbox/ack") {
-				ack(data, (await body(req)).ids || []);
-				store.save();
-				return json(res, 200, { ok: true });
-			}
-			if (req.method === "GET" && url.pathname === "/snapshot") {
-				const q = url.searchParams;
-				return json(res, 200, snapshot(data, { conversationId: q.get("conversation"), utteranceId: q.get("utterance"), finalTranscript: q.get("transcript") || "", requestPrefix: q.get("prefix") || "" }));
-			}
-			if (req.method === "GET" && url.pathname === "/registry") return json(res, 200, { root: data.root, nodes: data.nodes });
-			json(res, 404, { error: "not found" });
-		} catch (e) {
-			json(res, 500, { error: e.message });
-		}
-	});
+	const server = http.createServer(createApiHandler({ data, save: store.save, t3, waiters, say }));
 	server.listen(cfg.port, "127.0.0.1");
 	fs.writeFileSync(path.join(STATE, "serve.json"), JSON.stringify({ pid: process.pid, port: cfg.port, startedAt: iso(now()) }) + "\n");
 	const timer = setInterval(() => hb.tick(now()), cfg.tickSec * 1000);
