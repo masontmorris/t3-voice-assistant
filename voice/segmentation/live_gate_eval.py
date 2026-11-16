@@ -116,6 +116,17 @@ def current_rule(task):
     return score is not None and score >= PLAN_A.bar(task["side_effect"])
 
 
+def kind_in_score(task):
+    """The gate before this round: the weakest of every answer, including the five-way `kind` margin.
+
+    Kept so the eval can score the traces recorded under it. `verify` refuses a replay whose rule disagrees with what
+    the trace recorded, which is what makes the before and after numbers legible as two rules rather than two runs.
+    """
+    scaled = scores({name: value for name, value in task["confidence"].items()
+                     if name in ("ready", "side_effect", "kind")})
+    return bool(scaled) and min(scaled.values()) >= PLAN_A.bar(task["side_effect"])
+
+
 def threshold_rule(threshold, side_effect_threshold):
     def rule(task):
         score = weakest(task)
@@ -138,10 +149,9 @@ def replayed(trace, rule):
     return any(task["gate_reached"] and rule(trace, task) for task in trace["tasks"])
 
 
-def verify(traces):
+def verify(traces, rule):
     """A replay must reproduce what the shipped gate did, or the traces are not a faithful record."""
-    wrong = [t["id"] for t in traces
-             if replayed(t, lambda trace, task: current_rule(task)) != t["dispatched"]]
+    wrong = [t["id"] for t in traces if replayed(t, lambda trace, task: rule(task)) != t["dispatched"]]
     assert not wrong, f"replay disagrees with the recorded dispatch on {wrong}"
 
 
@@ -264,6 +274,8 @@ def main():
     parser.add_argument("--traces", type=Path, default=EVIDENCE / "traces.jsonl")
     parser.add_argument("--score-only", action="store_true", help="score the saved traces, no call")
     parser.add_argument("--sweep", action="store_true", help="print the threshold sweep over the saved traces")
+    parser.add_argument("--gate", choices=["now", "before"], default="now",
+                        help="which gate rule to score with: the shipped one, or the one that still scored `kind`")
     args = parser.parse_args()
     items = [json.loads(line) for line in EVAL.read_text(encoding="utf-8").splitlines() if line.strip()]
     if args.only:
@@ -282,9 +294,10 @@ def main():
         args.traces.parent.mkdir(parents=True, exist_ok=True)
         args.traces.write_text("\n".join(json.dumps(t) for t in traces) + "\n", encoding="utf-8")
     traces = [json.loads(line) for line in args.traces.read_text(encoding="utf-8").splitlines() if line.strip()]
-    verify(traces)
+    shipped = current_rule if args.gate == "now" else kind_in_score
+    verify(traces, shipped)
     firsts = [t for t in traces if t["repeat"] == 1]
-    print_table(summarise(firsts, lambda trace, task: current_rule(task)), "SHIPPED GATE, one reading per item")
+    print_table(summarise(firsts, lambda trace, task: shipped(task)), f"GATE {args.gate.upper()}, one reading per item")
     effects = spread(traces, PLAN_A.threshold)
     print(f"\nscore spread on {effects['items']} items over {args.repeats} readings: median {effects['median']:.3f}, "
           f"mean {effects['mean']:.3f}, max {effects['max']:.3f}; {effects['straddles']} straddle "
