@@ -1,5 +1,7 @@
 import {
+  idleCompactionOf,
   RuntimeRequestId,
+  type OrchestrationV2ConversationMessage,
   type OrchestrationV2Run,
   type OrchestrationV2RuntimeRequest,
   type OrchestrationV2ThreadProjection,
@@ -105,15 +107,50 @@ export const readPendingJoin = Effect.fn("VoiceSeam.outcome.readPendingJoin")(fu
   return pendingJoin(shell, { runtimeRequests, turnItems: prompts });
 });
 
+/** An assistant message a voice may speak: the text is final and a run owns it. */
+export const isFinishedReply = (
+  message: OrchestrationV2ConversationMessage,
+): message is OrchestrationV2ConversationMessage & { readonly runId: RunId } =>
+  message.role === "assistant" &&
+  message.runId !== null &&
+  !message.streaming &&
+  message.text.trim().length > 0;
+
+export const newestFirst = (
+  left: OrchestrationV2ConversationMessage,
+  right: OrchestrationV2ConversationMessage,
+) => DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt);
+
+/**
+ * The newest finished reply among `runs`, leaving out a run T3 started on its own to compact the
+ * thread: its user message is T3's idle `/compact`, and the user never saw it as a turn.
+ */
+const newestVisibleReply = (
+  runs: ReadonlyArray<OrchestrationV2Run>,
+  messages: ReadonlyArray<OrchestrationV2ConversationMessage>,
+) => {
+  const compactionRunIds = new Set(
+    runs.flatMap((run) => {
+      const prompt = messages.find((message) => message.id === run.userMessageId);
+      return prompt !== undefined && idleCompactionOf(prompt) !== undefined ? [run.id] : [];
+    }),
+  );
+  return messages
+    .filter(isFinishedReply)
+    .filter((message) => !compactionRunIds.has(message.runId))
+    .toSorted(newestFirst)[0];
+};
+
 /**
  * The thread now, in one read-only transaction: its sequence first, so a need committed after it
- * shows in the records or in a later re-read, then the shell, its pending needs, and the result
- * records of the runs `runIdsOf` names. Null when the shell read finds no thread.
+ * shows in the records or a later re-read. Null when no thread. `earlierRuns` also reads an earlier
+ * run's reply when the latest has none.
  */
 export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(function* (
   sources: ReadSources,
   threadId: ThreadId,
   runIdsOf: (shell: OrchestrationV2ThreadShell) => ReadonlyArray<RunId>,
+  earlierRuns = 0,
 ) {
   const { threads } = sources;
   return yield* sources.sql
@@ -135,12 +172,22 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
             turnItemTypes: RESULT_ITEM_TYPES,
           },
         );
-        return {
-          asOfSequence,
-          shell,
-          join,
-          records,
-        };
+        const earlierReply =
+          earlierRuns === 0 || records.messages.some(isFinishedReply)
+            ? undefined
+            : yield* Effect.gen(function* () {
+                const { runs } = yield* threads.getThreadRecords(threadId, ["runs"], {
+                  latestRunLimit: earlierRuns + 1,
+                });
+                const earlier = runs.filter((run) => !runIds.includes(run.id));
+                if (earlier.length === 0) return undefined;
+                const { messages } = yield* threads.getThreadRecords(threadId, ["messages"], {
+                  messageRoles: ["user", "assistant"],
+                  messageRunIds: earlier.map((run) => run.id),
+                });
+                return newestVisibleReply(earlier, messages);
+              });
+        return { asOfSequence, shell, join, records, earlierReply };
       }),
     )
     .pipe(NodeSqliteClient.readOnly);

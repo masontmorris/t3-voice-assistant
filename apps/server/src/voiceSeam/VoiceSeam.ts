@@ -22,6 +22,8 @@ import * as ThreadManagementService from "../orchestration-v2/ThreadManagementSe
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import {
   cutAtSentence,
+  isFinishedReply,
+  newestFirst,
   readPendingJoin,
   readThreadNow,
   runResult,
@@ -109,8 +111,12 @@ export interface VoiceThreadState {
     readonly startedAt: string | null;
   } | null;
   readonly pending: VoicePending | null;
-  /** A settled terminal run's result, else the latest run's newest final assistant message. */
-  readonly lastReply: (VoiceRunResult & { readonly at: string }) | null;
+  /**
+   * A settled terminal run's result, else the newest final assistant message of the latest run, else
+   * of an earlier run. `runId` names the run it came from, which is not `run` when the latest run has
+   * not replied yet.
+   */
+  readonly lastReply: (VoiceRunResult & { readonly runId: RunId; readonly at: string }) | null;
   /** This thread's event sequence, read first in the same read-only transaction as the rest. */
   readonly asOfSequence: number;
 }
@@ -134,6 +140,9 @@ export class VoiceSeam extends Context.Service<
 
 /** The most threads a list carries; Python's picker reads at most this many. */
 const LIST_LIMIT = 200;
+
+/** How many runs before the latest one a read looks through for a reply the latest run lacks. */
+const EARLIER_REPLY_RUNS = 5;
 
 const TERMINAL_ACTIVITY = {
   completed: "finished",
@@ -178,25 +187,15 @@ const activityOf = (shell: OrchestrationV2ThreadShell, join: PendingJoin): Threa
 
 const iso = (time: DateTime.Utc) => DateTime.formatIso(time);
 
-/** The latest run's newest final assistant message, for a thread that has not settled. */
-const latestFinalReply = (
-  messages: ReadonlyArray<OrchestrationV2ConversationMessage>,
-): VoiceThreadState["lastReply"] => {
-  const message = messages
-    .filter((candidate) => !candidate.streaming && candidate.text.trim().length > 0)
-    .toSorted(
-      (left, right) =>
-        DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt),
-    )[0];
-  return message === undefined
-    ? null
-    : {
-        text: cutAtSentence(message.text),
-        messageId: message.id,
-        turnItemId: null,
-        at: iso(message.updatedAt),
-      };
-};
+const replyOf = (
+  message: OrchestrationV2ConversationMessage & { readonly runId: RunId },
+): NonNullable<VoiceThreadState["lastReply"]> => ({
+  text: cutAtSentence(message.text),
+  messageId: message.id,
+  turnItemId: null,
+  runId: message.runId,
+  at: iso(message.updatedAt),
+});
 
 const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
   const sql = yield* SqlClient.SqlClient;
@@ -285,20 +284,31 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
     yield* threads
       .ensureLegacyTranscript(threadId)
       .pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
-    const read = yield* readThreadNow({ sql, threads }, threadId, (shell) =>
-      shell.latestRunId === null ? [] : [shell.latestRunId],
+    const read = yield* readThreadNow(
+      { sql, threads },
+      threadId,
+      (shell) => (shell.latestRunId === null ? [] : [shell.latestRunId]),
+      EARLIER_REPLY_RUNS,
     ).pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
     if (read === null || !isVisible(read.shell)) return yield* VoiceSeamRefusal.notFound();
     const { shell, records } = read;
     const pending = read.join.kind === "need" ? read.join.pending : null;
     const activity = activityOf(shell, read.join);
     const run = records.runs.find((candidate) => candidate.id === shell.latestRunId) ?? null;
+    const reply =
+      records.messages.filter(isFinishedReply).toSorted(newestFirst)[0] ?? read.earlierReply;
     const lastReply =
       run === null
         ? null
         : TERMINAL_ACTIVITIES.has(activity)
-          ? { ...runResult(records, run), at: iso(run.completedAt ?? run.requestedAt) }
-          : latestFinalReply(records.messages);
+          ? {
+              ...runResult(records, run),
+              runId: run.id,
+              at: iso(run.completedAt ?? run.requestedAt),
+            }
+          : reply === undefined
+            ? null
+            : replyOf(reply);
     return {
       threadId,
       projectId: shell.projectId,

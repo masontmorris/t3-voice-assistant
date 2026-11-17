@@ -5,7 +5,9 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2RuntimeRequest,
   type OrchestrationV2StoredEvent,
+  MessageId,
   ProjectId,
+  RunId,
   RuntimeRequestId,
   ThreadId,
 } from "@t3tools/contracts";
@@ -569,6 +571,80 @@ const PLAIN_THREAD = PLAIN[0]!.event.threadId;
 const BEFORE_REPLY = indexOf(
   PLAIN,
   (event) => event.type === "message.updated" && event.payload.role === "assistant",
+);
+
+const FIRST_RUN_ID = PLAIN.flatMap((stored) =>
+  stored.event.type === "run.created" ? [stored.event.payload.id] : [],
+)[0]!;
+const FIRST_REPLY_EVENT = PLAIN.flatMap((stored) =>
+  stored.event.type === "message.updated" && stored.event.payload.role === "assistant"
+    ? [stored.event]
+    : [],
+)[0]!;
+const FIRST_REPLY = FIRST_REPLY_EVENT.payload;
+const SECOND_RUN_ID = RunId.make("run:second");
+
+/** The fixture's whole first run, then a second run that is still going, with `replies` it has said. */
+const secondRunAfterReply = (replies: ReadonlyArray<{ text: string; streaming: boolean }>) => {
+  const created = PLAIN.flatMap((stored) =>
+    stored.event.type === "run.created" ? [stored.event] : [],
+  )[0]!;
+  const later = DateTime.add(FIRST_REPLY.updatedAt, { minutes: 5 });
+  const run: OrchestrationV2DomainEvent = {
+    ...created,
+    id: EventId.make("second-run-created"),
+    runId: SECOND_RUN_ID,
+    payload: {
+      ...created.payload,
+      id: SECOND_RUN_ID,
+      ordinal: 2,
+      status: "running",
+      requestedAt: later,
+      startedAt: later,
+    },
+  };
+  const said = replies.map((reply, index): OrchestrationV2DomainEvent => ({
+    ...FIRST_REPLY_EVENT,
+    id: EventId.make(`second-reply-${index}`),
+    runId: SECOND_RUN_ID,
+    payload: {
+      ...FIRST_REPLY,
+      id: MessageId.make(`second-reply-${index}`),
+      runId: SECOND_RUN_ID,
+      text: reply.text,
+      streaming: reply.streaming,
+      createdAt: DateTime.add(later, { seconds: index + 1 }),
+      updatedAt: DateTime.add(later, { seconds: index + 1 }),
+    },
+  }));
+  return [...PLAIN.slice(0, -1).map((stored) => stored.event), run, ...said];
+};
+
+it.effect.each([
+  {
+    case: "has not replied",
+    replies: [],
+    reply: { text: "first fixture turn complete", runId: FIRST_RUN_ID },
+  },
+  {
+    case: "is still streaming its first reply",
+    replies: [{ text: "second so", streaming: true }],
+    reply: { text: "first fixture turn complete", runId: FIRST_RUN_ID },
+  },
+  {
+    case: "has finished a reply",
+    replies: [{ text: "second reply", streaming: false }],
+    reply: { text: "second reply", runId: SECOND_RUN_ID },
+  },
+] as const)("reads the last reply of a thread whose latest run $case", ({ replies, reply }) =>
+  Effect.gen(function* () {
+    yield* write(secondRunAfterReply(replies));
+
+    const state = yield* readThread(PLAIN_THREAD);
+
+    assert.strictEqual(state.activity, "working");
+    assert.deepInclude(state.lastReply, reply);
+  }).pipe(provideSeam),
 );
 
 /** The production watch from `afterSequence`, run to its first `done`. */
