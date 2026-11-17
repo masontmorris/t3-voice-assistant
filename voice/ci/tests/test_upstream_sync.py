@@ -23,6 +23,13 @@ CHECK_SEAM = CI_DIR / "check_seam.py"
 SEAM_MD = "# Upstream files\n\n| Path | Reason |\n| --- | --- |\n"
 PASSING_TEST = '#!/usr/bin/env bash\necho "voice tests OK: 0 python tests ran in 0.0s, 0 known failure(s)."\nexit 0\n'
 FAILING_TEST = '#!/usr/bin/env bash\necho "voice tests FAILED: 1 failure(s) not in the baseline."\necho "  test_a_thing (fail)"\nexit 1\n'
+SLOW_TEST = (
+    '#!/usr/bin/env bash\n'
+    'printf \'in the test step\\n\' >"$VOICE_SYNC_TEST_STARTED"\n'
+    'read -r _release\n'
+    'echo "voice tests OK: 0 python tests ran in 0.0s, 0 known failure(s)."\n'
+    'exit 0\n'
+)
 
 
 def git(*args: str, cwd: Path | None = None) -> str:
@@ -151,27 +158,69 @@ class UpstreamSyncTest(unittest.TestCase):
         self.addCleanup(self._temp.cleanup)
         self.fixture = Fixture(Path(self._temp.name) / "fixture")
 
-    def sync(self, *args: str, worktree: str | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
-        run_env = dict(os.environ, VOICE_PYTHON=sys.executable, VOICE_SYNC_VOICE_BRANCH="voice/main")
-        run_env.update(env or {})
+    def run_env(self, env: dict[str, str] | None = None) -> dict[str, str]:
+        result = dict(os.environ, VOICE_PYTHON=sys.executable, VOICE_SYNC_VOICE_BRANCH="voice/main")
+        result.update(env or {})
+        return result
+
+    def command(self, *args: str, worktree: str | None = None) -> list[str]:
+        return [
+            self.bash,
+            posix(SCRIPT),
+            *args,
+            "--repo",
+            posix(self.fixture.source),
+            "--worktree",
+            worktree or posix(self.fixture.worktree),
+            "--log",
+            posix(self.fixture.voice_home / "sync" / "sync.log"),
+        ]
+
+    def sync(
+        self,
+        *args: str,
+        worktree: str | None = None,
+        env: dict[str, str] | None = None,
+        cwd: Path | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         return subprocess.run(
-            [
-                self.bash,
-                posix(SCRIPT),
-                *args,
-                "--repo",
-                posix(self.fixture.source),
-                "--worktree",
-                worktree or posix(self.fixture.worktree),
-                "--log",
-                posix(self.fixture.voice_home / "sync" / "sync.log"),
-            ],
+            self.command(*args, worktree=worktree),
             capture_output=True,
             text=True,
             encoding="utf-8",
-            env=run_env,
+            env=self.run_env(env),
+            stdin=subprocess.DEVNULL,
+            cwd=cwd,
             timeout=300,
         )
+
+    def start_sync(
+        self, *args: str, env: dict[str, str] | None = None
+    ) -> subprocess.Popen[str]:
+        return subprocess.Popen(
+            self.command(*args),
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            stdin=subprocess.PIPE,
+            text=True,
+            encoding="utf-8",
+            env=self.run_env(env),
+        )
+
+    @staticmethod
+    def stop(process: subprocess.Popen[str]) -> None:
+        if process.poll() is None:
+            process.kill()
+        process.wait(timeout=120)
+
+    @staticmethod
+    def wait_for(path: Path, timeout: float = 120.0) -> bool:
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if path.exists():
+                return True
+            time.sleep(0.05)
+        return False
 
     def lock(self, pid: int | None, started_seconds_ago: float | None) -> Path:
         lock = self.fixture.voice_home / "sync" / "run.lock"
@@ -202,6 +251,11 @@ class UpstreamSyncTest(unittest.TestCase):
         self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "main"), origin_before)
         self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "voice/main"), voice_before)
         head = git("-C", str(self.fixture.worktree), "rev-parse", "HEAD")
+        upstream_short = git("-C", str(self.fixture.worktree), "rev-parse", "--short=10", upstream_sha)
+        self.assertIn(
+            f"would push {upstream_short} to origin/main and {head[:10]} to origin/voice/main",
+            completed.stdout,
+        )
         git("-C", str(self.fixture.worktree), "merge-base", "--is-ancestor", upstream_sha, head)
         self.assertIn("dry_run=1", self.log_lines()[-1])
         self.assertIn("code=0", self.log_lines()[-1])
@@ -340,9 +394,36 @@ class UpstreamSyncTest(unittest.TestCase):
         completed = self.sync("--dry-run", worktree=posix(docs))
 
         self.assertEqual(completed.returncode, 16, completed.stdout + completed.stderr)
-        self.assertIn("top level", completed.stdout)
+        self.assertIn("inside the source repo's work tree", completed.stdout)
         self.assertTrue(keep.is_file(), "the run deleted an untracked file under the source repo")
         self.assertEqual(git("-C", str(self.fixture.source), "rev-parse", "HEAD"), head_before)
+
+    def test_a_worktree_inside_the_source_repo_is_refused_before_anything_is_created(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        nested = self.fixture.source / "nested" / "sync-worktree"
+
+        completed = self.sync("--dry-run", worktree=posix(nested))
+
+        self.assertEqual(completed.returncode, 16, completed.stdout + completed.stderr)
+        self.assertIn("inside the source repo's work tree", completed.stdout)
+        self.assertFalse(nested.parent.exists(), "the run created a worktree inside the source repo")
+        worktrees = git("-C", str(self.fixture.source), "worktree", "list", "--porcelain")
+        self.assertNotIn(nested.as_posix(), worktrees)
+
+    def test_a_worktree_where_git_cannot_name_a_top_level_is_refused(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        bare = self.fixture.root / "bare.git"
+        git("init", "--bare", "-q", str(bare))
+
+        completed = self.sync("--dry-run", worktree=posix(bare), cwd=bare)
+
+        self.assertEqual(completed.returncode, 16, completed.stdout + completed.stderr)
+        self.assertIn("cannot name its top level", completed.stdout)
+        self.assertEqual(git("-C", str(bare), "rev-parse", "--is-bare-repository"), "true")
 
     def test_another_linked_worktree_is_refused(self) -> None:
         self.fixture.publish_base()
@@ -369,6 +450,36 @@ class UpstreamSyncTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 17, completed.stdout + completed.stderr)
         self.assertIn("already running", completed.stdout)
         self.assertRegex(completed.stderr, rf"pid {os.getpid()}, started \d+ s ago")
+
+    def test_a_second_live_run_refuses_while_the_first_is_in_its_test_step(self) -> None:
+        root = Path(self._temp.name) / "overlap-fixture"
+        self.fixture = Fixture(root, test_script=SLOW_TEST)
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        voice_before = self.fixture.remote_sha(self.fixture.origin, "voice/main")
+        started = root / "first-run-test-step"
+        env = {"VOICE_SYNC_TEST_STARTED": posix(started)}
+
+        first = self.start_sync("--dry-run", env=env)
+        self.addCleanup(self.stop, first)
+        self.assertTrue(self.wait_for(started), "the first run never reached its test step")
+        head_during_first = git("-C", str(self.fixture.worktree), "rev-parse", "HEAD")
+
+        second = self.sync("--dry-run", env=env)
+
+        self.assertEqual(second.returncode, 17, second.stdout + second.stderr)
+        self.assertIn("already running", second.stdout)
+        self.assertNotIn("taking over", second.stderr)
+        self.assertTrue(started.is_file(), "the second run reset the first run's worktree mid-test")
+        self.assertEqual(git("-C", str(self.fixture.worktree), "rev-parse", "HEAD"), head_during_first)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "voice/main"), voice_before)
+
+        first.stdin.write("\n")
+        first.stdin.flush()
+        stdout, stderr = first.communicate(timeout=300)
+        self.assertEqual(first.returncode, 0, stdout + stderr)
+        self.assertIn("dry run passed", stdout)
 
     def test_a_lock_whose_pid_is_gone_is_taken_over(self) -> None:
         self.fixture.publish_base()
