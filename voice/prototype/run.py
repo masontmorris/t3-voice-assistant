@@ -130,8 +130,8 @@ GATED_INSTRUCTIONS = (
     "the service has not read. Your calls are final. The user's explicit request authorizes carrying it out, "
     "including external actions. Low service confidence is not a request for user confirmation. "
     "Read the complete final_transcript for context before acting on its unreviewed tail. A fragment alone is not a "
-    "request. Greetings, reactions, questions about this conversation, and descriptions of a problem are not tasks; "
-    "the voice assistant answers them directly. "
+    "request. Greetings, reactions and insults, questions about you or this conversation or what you heard, and "
+    "descriptions of a problem are not tasks; the voice assistant answers them directly. "
     "For a task that has not run, call run_task if the user wants it "
     "as it is, amend_task with the change if the user changed it, or cancel_task if the user took it back. If "
     "unreviewed_speech asks for something new that no task covers, call delegate with just that request. If the "
@@ -139,7 +139,9 @@ GATED_INSTRUCTIONS = (
     "\n\nRespond with function calls, and interleaved text and audio.\n\nList of tools:"
 )
 HANDOFF_TOOLS = [
-    {"type": "function", "name": "delegate", "description": "Hand a new request from the user to the task service.",
+    {"type": "function", "name": "delegate", "description": "Start work the user asked for: an action, or a fact to "
+                                                             "find out. Never for conversation, an insult, a reaction, "
+                                                             "thanks, or a question about you or this conversation.",
      "parameters": {"type": "object", "properties": {
          "instruction": {"type": "string", "description": "The request, in the user's words."},
          "side_effect": {"type": "boolean",
