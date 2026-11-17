@@ -19,6 +19,7 @@ from enum import StrEnum
 
 from voice.live.facts import facts_in
 from voice.prototype.segmenter import Segmenter
+from voice.tools.registry import ToolChoice
 
 
 class Run(StrEnum):
@@ -84,6 +85,7 @@ class Execution:
     reported: bool = False
     tool: dict | None = None
     mode: str = "tool"
+    routing: dict | None = None
 
 
 def snapshot_status(record, execution):
@@ -163,18 +165,25 @@ class MockTaskService:
         self._calls = {}
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
 
-    def _start(self, task_id, instruction, side_effect, now):
-        call = self.tools.route(instruction, self.earlier, self.context) if self.tools and not side_effect else None
+    def _start(self, task_id, instruction, side_effect, now, choice=None):
+        routed = self.tools.dispatch(instruction, self.earlier, self.context, choice) if self.tools and not side_effect \
+            else None
+        call = routed.call if routed is not None else None
         if call is None:
             if not self.simulate:
                 return Execution(task_id, Run.FAILED, now, None,
                                  result_summary="I can't carry out that request with the tools available.",
-                                 finished_at=now, mode="unavailable")
-            return Execution(task_id, Run.RUNNING, now, now + self.delay_s, mode="simulated")
+                                 finished_at=now, mode="unavailable",
+                                 routing=routed.record() if routed is not None else None)
+            execution = Execution(task_id, Run.RUNNING, now, now + self.delay_s, mode="simulated")
+            execution.routing = routed.record() if routed is not None else None
+            return execution
         self.earlier = call
         self._calls[task_id] = self._pool.submit(self.tools.run, call)
-        return Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_for(call) + HUNG_LOOKUP_GRACE_S,
-                         tool={"tool": call.tool, "arguments": call.arguments})
+        execution = Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_for(call) + HUNG_LOOKUP_GRACE_S,
+                              tool={"tool": call.tool, "arguments": call.arguments})
+        execution.routing = routed.record()
+        return execution
 
     def _records(self):
         """Every task by id: the segmenter's records, and the lookups `ask` started outside them."""
@@ -219,7 +228,8 @@ class MockTaskService:
             if self.holds_side_effects and needs_hold(record):
                 execution = Execution(task_id, Run.HELD, now, None)
             else:
-                execution = self._start(task_id, entry["instruction"], record["side_effect"], now)
+                choice = ToolChoice(**record["tool"]) if record.get("tool") else None
+                execution = self._start(task_id, entry["instruction"], record["side_effect"], now, choice)
             self.executions[task_id] = execution
             events.append({"task_id": task_id, "event": execution.state.value, "instruction": entry["instruction"]})
         self._seen = len(self.segmenter.dispatch_log)
