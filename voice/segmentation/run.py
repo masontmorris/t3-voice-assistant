@@ -10,9 +10,10 @@ scenarios in scenarios_heldout/. --extra adds variant E's optional implicit and 
 --mode final runs only the final transcript of each scenario (the span-option comparison). --separate asks one
 segment's questions per call instead of all in one call. --repeat N adds a `user` tag so the same request is sent again.
 
---decider picks the decider: cloud (pplx-decider-flash on OpenRouter, the default, or $VOICE_DECIDER) or d1 (d1-2B on a
-local llama-server it starts, see voice/local_decider/). --reuse asks only the questions whose answers it has not kept
-(voice/local_decider/reuse.py). A d1 or reuse run writes to its own results directory.
+--decider picks the decider: liquid (Liquid AI's hosted d1.2, the default, or $VOICE_DECIDER), cloud
+(pplx-decider-flash on OpenRouter, kept as the fallback) or d1 (d1-2B on a local llama-server it starts, see
+voice/local_decider/). --reuse asks only the questions whose answers it has not kept (voice/local_decider/reuse.py). A
+non-cloud run writes to its own results directory.
 """
 
 import argparse
@@ -166,7 +167,7 @@ def main():
     parser.add_argument("--only")
     parser.add_argument("--set", choices=sorted(SETS), default="original")
     parser.add_argument("--extra", action="store_true", help="variant E: add the implicit and preemptive questions")
-    parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
+    parser.add_argument("--decider", choices=["liquid", "cloud", "d1"], default=default_decider())
     parser.add_argument("--reuse", action="store_true", help="ask only questions with no kept answer")
     args = parser.parse_args()
     out = RESULTS / run_name(args.option, args.mode, args.separate, args.repeat, args.set, args.extra, args.decider,

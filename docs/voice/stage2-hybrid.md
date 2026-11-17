@@ -189,6 +189,14 @@ This round used 97 of its 250 attempts. 69 went to `voice/segmentation/calls.jso
 
 The pacer's backoff never ran live. The variants round drew 92 429s in 363 attempts, and this round drew none in 97. The pacer's tests cover its 2 s and 4 s backoff and its decay. Whether the free tier tolerates back-to-back calls over a longer session is untested (guess).
 
+## Scenario notes for the next set: a correction that names no value
+
+Added 2026-11-16 from the live "Sunday" failure (`docs/voice/live-fact-check.md`). It is a note for the next scenario set, not a fixture in the frozen 11 or the held-out 18; the replay test needs a recorded call for every file in `voice/segmentation/scenarios/`, so a new fixture is a new run, not a copy.
+
+The case is one utterance that takes back a value and gives none. "What's the weather in Denver Saturday? No, that's not what I meant." The segmentation side owns two things: the correction must not become a request of its own, and the standing task must not be amended with any value the person did not say. Whatever the segmentation does, only one task may be live, it must still match `weather` and `denver`, and it must not gain a day. Whether the right end state is `dispatched` with no day, or `needs_clarification`, is what the scenario would measure (guess: either is correct if a clarification is on the way).
+
+The voice side of the same case is measured and fixed in code: the live server now drops a reply that names a day no source states, and asks once.
+
 ## Limits of this evaluation
 
 - The held-out set ran once and is now spent. The probe result came after it, so no change based on the probe has run.

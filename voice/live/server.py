@@ -10,21 +10,71 @@ IPv4 address (`tailscale ip -4`) and refuses any address outside 100.64.0.0/10 o
 Wire format. Binary frames are PCM16 mono: 16 kHz up from the client, LFM3's output rate down, 40 ms per frame
 down. Text frames are JSON control messages:
   client -> server  hello {mode: vad|ptt}, ping {t}, ptt {down}
-  server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, barge_in, turn_done
+  server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, duck, unduck, barge_in,
+                    turn_done
 
 Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-of-utterance authority (injection (c),
 the hybrid segmenter, the `gated` default from `voice/main`): live ASR, the segmenter and decider, the task service
 with real weather and time lookups, the snapshot, and the reply. The endpointer in endpoint.py ends a turn after
---silence-ms of silence. Speech that starts while a reply plays cancels that turn (barge-in): the server stops sending
-its audio, tells the client to drop what it buffered, and closes the turn's sessions. Speech that starts after a turn
-ended but before any reply audio continues the turn: the new turn gets the old one's audio first.
+--silence-ms of silence, or, with `--eou audio`, as soon as the local d1-Omni-2B says the person has finished
+(voice/live/eou_audio.py), and never later than --silence-ms.
 
-The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read again at each turn start, so a new prompt
-takes effect on the next turn. When the file is missing the prototype's built-in persona is used.
+One client connection is one call, and one call is one LFM3 voice session. The first turn opens it and every later
+turn adds its audio and its reply to the same conversation. That session is the call's memory: the model hears what
+the person and the assistant said on earlier turns, and no text copy of the call is ever put in front of it. The ASR,
+segmenter, task service and tools session still start fresh per turn. A turn's audio goes to the ASR as it arrives
+and to the voice session once, when the turn ends, so a turn that is cancelled leaves nothing behind in the call.
 
-Needs the GPU (run it inside the lease) and VOICE_ENV_FILE or OPENROUTER_API_KEY for the cloud decider. Writes one
-JSON record and the turn's input and reply audio per turn under --out, all under $VOICE_HOME, never in the repo.
-Stops on Ctrl+C, when $VOICE_HOME/live/STOP appears, or after --max-minutes.
+Speech that starts while a reply is still playing on the client is an overlap (voice/live/overlap.py). The client
+ducks the reply, and the overlap keeps its audio until a verdict. Enough voiced speech makes it a barge-in: the
+server mutes the turn, tells the client to drop what it buffered, and lets the turn finish, so the call's one
+response is never cut off mid-stream and the history stays whole. The overlap's audio opens the next turn, which
+starts once the previous one finishes, on the same session. A shorter overlap is transcribed once: a backchannel,
+noise or the reply's own echo is dismissed and the reply plays on at full volume, and anything else barges in. Speech
+after the reply has played starts a turn at once and drops only a still-running turn's later audio. Speech that starts
+after a turn ended but before any reply audio continues that turn: the new turn gets the old one's audio first.
+
+--snapshot picks what machine text enters the voice session. "note", the default, sends one short private note
+after the turn's audio, and only on a turn that has a lookup to speak about: that it is running, its result, or
+that it could not be done (`voice/prototype/run.py`, `task_note`). A turn with no lookup sends nothing, so the model
+answers the audio it just heard. The measured reason is the call recorded in 20261116-152653: every reply was
+preceded by a JSON list of the person's earlier turns, and the model answered the last line of that list, which is
+the previous turn, in place of the audio. llama.cpp cannot delete an item from a session (measured:
+`conversation.item.delete` is an unknown event type), so what goes in stays for the call. The older modes remain
+for rerunning earlier experiments: "reply-no-utterance" and "reply" send the task snapshot as JSON before the reply,
+"before-audio" sends the call's task state before the turn's audio, and "off" sends nothing. They also take
+--recall, the numbered `call_turns` list and the recall sentence, which note mode never sends.
+
+The call's one voice session is never restarted and never rebuilt from text. The recorded call restarted it every
+eight turns and seeded the new session with the call's own text, and the first answered turn after each of its three
+restarts was wrong: turn 10 answered the first line of the seed, and turns 17 and 28 repeated the person's words
+(measured: 20261116-152653). A session's instructions are fixed once it holds a message, so the persona is read
+when the call's first turn starts and a changed prompt file applies from the next call. How many turns fit in the
+slot is in docs/voice/live-call3-fix.md.
+
+A reply is checked before it is heard, and heard while it is generated. `voice/live/facts.py` reads the days, dates,
+times, numbers and places in the reply and asks whether the person said them in this call or a lookup gave them; the
+assistant's own earlier replies do not count, except a place it chose when the person asked it to choose. The turn
+screens the reply's text as it arrives and sends each block of audio once the text up to the block after it has
+passed (`voice/prototype/release.py`), so the first audio goes out about 0.2 s after the model starts speaking instead
+of after the whole reply. A reply that fails, that talks about the note, that speaks of the person or of itself in the
+third person, or that repeats a line the assistant already said in this call, stops at the last block that passed;
+a reply that could still turn into a repeat releases nothing until it is clear. The turn says so in its record,
+sends one short note, and asks again once. A reply stopped part way is asked to go on from what the person heard,
+without saying it again. In note mode a turn that has still said nothing gets one last ask for a short reply with no
+facts in it, and only then is it silent, recorded as blocked. No fixed line is played, because a line rendered by the
+TTS endpoint is a different voice from the call's (measured: turns 22 and 26 of the recorded call, after which the
+person asked why it sounded different). When the registry has a general worker (`voice/tools/agent.py`,
+VOICE_AGENT=on), a reply that states a fact nothing gave it starts a lookup for the person's words in place of the
+retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
+
+The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
+the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
+
+Needs the GPU (run it inside the lease) and, for the decider, LIQUID_API_KEY (liquid, the default) or
+OPENROUTER_API_KEY (cloud) from VOICE_ENV_FILE. Writes one JSON record and the turn's input and reply audio per turn
+under --out, all under $VOICE_HOME, never in the repo. Stops on Ctrl+C, when $VOICE_HOME/live/STOP appears, or after
+--max-minutes.
 """
 
 import argparse
@@ -45,10 +95,14 @@ from pathlib import Path
 
 from websockets.asyncio.server import serve
 
-from voice.live.endpoint import RATE, Audio, End, Endpointer, Settings, Start
+from voice.live import fallback
+from voice.live import eou_audio
+from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start
+from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
-from voice.prototype.realtime import VOICE_HOME, Server, write_pcm16
-from voice.prototype.run import PERSONA, run_clip
+from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
+from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, run_clip
+from voice.live.ledger import ConversationLedger
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -61,6 +115,24 @@ HEADER = "X-Voice-Secret"
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
+# One slot is held for the whole call by the call's one voice session. A turn also needs a slot for its ASR and one
+# for the reply it generates, and the previous turn's reply can still be generating while the next turn's ASR runs.
+# With two slots all 39 llama-server tasks of the 2026-11-16 17:38 replay ran on the one free slot, one at a time, and
+# five turns' final transcripts arrived 27 to 30 s after their audio, against 0.03 to 0.28 s in the recorded call's
+# three-slot server (measured).
+SLOTS = 3
+
+
+def slots(asr_stagger=1):
+    """llama-server slots for one call: the voice session, one per ASR lane, and one for the reply being generated."""
+    return SLOTS + asr_stagger - 1
+CALL_RULES = (
+    "\n\nThis is one ongoing call, so what you and the person said earlier in it is still here. Only the newest "
+    "task snapshot is current: earlier snapshots belong to earlier turns and may be out of date, so never speak a "
+    "task or a result from one unless the newest snapshot has it. A question about what was said earlier is answered "
+    "from the snapshot's call_turns, which lists the person's own turns oldest first and numbered; the task list says "
+    "only where tasks stand, not what the person asked."
+)
 
 
 def shared_secret(path=SECRET_FILE):
@@ -96,13 +168,13 @@ def authorize(secret):
     return check
 
 
-def load_persona(path):
+def load_persona(path, default=PERSONA):
     """The persona text and a label for the record: the file's name and hash, or the built-in default."""
-    if path.is_file():
+    if path is not None and path.is_file():
         text = path.read_text(encoding="utf-8").strip()
         if text:
             return text, f"{path.name} sha256:{hashlib.sha256(text.encode()).hexdigest()[:12]}"
-    return PERSONA, "built-in default"
+    return default, "built-in default"
 
 
 class TurnCancelled(RuntimeError):
@@ -110,7 +182,8 @@ class TurnCancelled(RuntimeError):
 
 
 class TurnDecider:
-    """The shared decider, one call at a time across turns. A cancelled turn's segmenter thread stops at its next call."""
+    """The shared decider, one call at a time across turns. A cancelled turn's segmenter thread stops at its next
+    call."""
 
     def __init__(self, inner, lock):
         self.inner, self.lock, self.closed = inner, lock, False
@@ -129,6 +202,10 @@ class MicTurn:
     """One turn's microphone audio, the source `run_clip` streams from, plus the turn's live timings."""
 
     rate = RATE
+    # The voice session gets the turn's audio once, when the turn ends. Streamed as it arrived, a turn that was
+    # cancelled because the person kept talking left its audio in the session's buffer, and the turn that carried
+    # that audio forward sent it again (measured: 20261116-152653 turns 8 to 10, 12 s of speech heard twice).
+    voice_at_end = True
 
     def __init__(self, n, pcm):
         self.n, self.name = n, f"turn_{n:03d}"
@@ -136,9 +213,10 @@ class MicTurn:
         self.queue, self.pcm, self.audio_s = asyncio.Queue(), bytearray(), None
         self.started = time.perf_counter()
         self.speech_end = self.turn_end = self.first_audio = None
-        self.out_rate, self.in_reply, self.reply_started = None, False, False
+        self.out_rate, self.reply_started, self.speaking, self.spoken_text = None, False, False, ""
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
-        self.task = self.decider = None
+        self.task = self.decider = self.overlap = None
+        self.checks, self.check = [], None
         self.feed(pcm)
 
     def feed(self, pcm):
@@ -156,14 +234,24 @@ class MicTurn:
             self.decider.closed = True
         self.task.cancel()
 
+    def mute(self, reason):
+        """Speech arrived over this turn's reply. The call's voice session is shared, so the turn is not torn down:
+        its remaining audio is dropped and it runs to its end, which leaves its reply in the conversation."""
+        self.muted, self.cancelled = True, reason
+
     async def stream(self, voice, asr):
         while (chunk := await self.queue.get()) is not None:
             for offset in range(0, len(chunk), UP_CHUNK_BYTES):
                 audio = base64.b64encode(chunk[offset:offset + UP_CHUNK_BYTES]).decode()
-                await asyncio.gather(voice.send(type="input_audio_buffer.append", audio=audio),
-                                     asr.send(type="input_audio_buffer.append", audio=audio))
+                await asr.send(type="input_audio_buffer.append", audio=audio)
         self.audio_s = len(self.pcm) / 2 / self.rate
         return voice.clock()
+
+    async def send_voice(self, voice):
+        pcm, step = bytes(self.pcm), RATE * 2
+        for offset in range(0, len(pcm), step):
+            await voice.send(type="input_audio_buffer.append",
+                             audio=base64.b64encode(pcm[offset:offset + step]).decode())
 
     def metrics(self):
         def since(t, origin):
@@ -174,11 +262,17 @@ class MicTurn:
             "speech_end_to_first_audio_sent_s": since(self.first_audio, self.speech_end),
             "turn_end_to_first_audio_sent_s": since(self.first_audio, self.turn_end),
             "cancelled": self.cancelled,
+            "overlap": self.overlap,
+            "eou_checks": list(self.checks),
         }
 
 
 class Conversation:
-    """One connected client: its endpointer, its turns, and an outbox that keeps control and audio frames in order."""
+    """One connected client: its endpointer, its turns, and an outbox that keeps control and audio frames in order.
+
+    The client connection is the call, so the conversation owns the call's one voice session and its transcript.
+    `voice_turn` is the turn that currently has that session: the turn before it has finished, so its events and the
+    new turn's cannot interleave."""
 
     def __init__(self, live, ws):
         self.live, self.ws = live, ws
@@ -186,6 +280,17 @@ class Conversation:
         self.mode, self.ptt_down, self.turn = "vad", False, None
         self.outbox = asyncio.Queue()
         self.sender = asyncio.create_task(self._send_loop())
+        self.voice, self.voice_turn, self.session_turns, self.out_rate = None, None, 0, None
+        self.persona = self.prompt_source = None
+        self.ledger = ConversationLedger()
+        self.pending, self.started = set(), time.perf_counter()
+        self.playback, self.overlap = Playback(), None
+        self.checks = set()
+
+    def voice_clock(self):
+        """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
+        turn is running, and run_clip stamps its own events from the same start."""
+        return time.perf_counter() - self.started
 
     def post(self, message, turn=None):
         self.outbox.put_nowait((turn, json.dumps(message)))
@@ -216,11 +321,72 @@ class Conversation:
             return
         for event in self.endpointer.push(pcm):
             if isinstance(event, Start):
-                self.start_turn(event.pcm)
-            elif isinstance(event, Audio):
+                self.on_start(event.pcm)
+            elif isinstance(event, Check):
+                if self.overlap is None:
+                    self.check_end(event.silent_ms)
+            elif isinstance(event, Audio) and self.overlap is None:
                 self.turn.feed(event.pcm)
-            elif isinstance(event, End):
+            elif isinstance(event, Audio):
+                self.on_overlap_frame(event)
+            elif self.overlap is None:
                 self.end_turn(event.trailing_ms, event.forced)
+            else:
+                self.on_overlap_end(event.trailing_ms)
+
+    def reply_audible(self):
+        return self.playback.playing(time.perf_counter(), self.live.overlap_settings.grace_ms / 1000)
+
+    def on_start(self, pcm):
+        """Speech while a reply is audible waits for a verdict, holding its audio; other speech starts a turn now. An
+        overlap still being transcribed when speech resumes hands its audio to what comes next."""
+        held = b""
+        if self.overlap is not None:
+            held = bytes(self.overlap.pcm)
+            if self.overlap.task is not None:
+                self.overlap.task.cancel()
+            self.overlap = None
+        if self.turn is not None and self.reply_audible():
+            self.overlap = Overlap(self.live.overlap_settings, bytearray(held + pcm), self.playback.turn)
+            self.post({"type": "duck", "turn": self.playback.turn})
+        else:
+            self.start_turn(held + pcm)
+
+    def on_overlap_frame(self, event):
+        if self.overlap.feed(event.pcm, event.level_dbfs, self.endpointer.noise_dbfs):
+            self.settle(Verdict.BARGE_IN, "voiced")
+        elif not self.reply_audible():
+            self.settle(None, "reply ended")
+
+    def on_overlap_end(self, trailing_ms):
+        overlap = self.overlap
+        if overlap.voiced_ms < self.live.overlap_settings.min_voiced_ms:
+            self.settle(Verdict.NOISE, "too short")
+        else:
+            overlap.task = asyncio.create_task(self.classify_overlap(overlap, trailing_ms))
+
+    async def classify_overlap(self, overlap, trailing_ms):
+        try:
+            text = await self.live.transcribe(bytes(overlap.pcm))
+            verdict, how = classify(text, self.playback.text), "transcript"
+        except Exception as exc:
+            text, verdict, how = None, Verdict.BARGE_IN, f"transcript failed: {exc!r}"
+        if self.overlap is overlap:
+            self.settle(verdict, how, text, trailing_ms)
+
+    def settle(self, verdict, how, transcript=None, trailing_ms=None):
+        """The overlap's verdict. A barge-in, or speech the reply finished under, becomes a turn that opens with all
+        of the overlap's audio; a dismissed overlap is logged with its audio and the reply plays on."""
+        overlap, self.overlap = self.overlap, None
+        entry = overlap.record(verdict or "turn", how, time.perf_counter(), transcript)
+        self.live.log_overlap(entry, None if verdict in (None, Verdict.BARGE_IN) else overlap.pcm)
+        if verdict is not Verdict.BARGE_IN:
+            self.post({"type": "unduck", "turn": overlap.turn, "verdict": str(verdict or "turn")})
+        if verdict in (None, Verdict.BARGE_IN):
+            self.start_turn(bytes(overlap.pcm), barge_in=verdict is Verdict.BARGE_IN)
+            self.turn.overlap = entry
+            if trailing_ms is not None:
+                self.end_turn(trailing_ms, False)
 
     async def on_control(self, message):
         kind = message.get("type")
@@ -232,21 +398,23 @@ class Conversation:
         elif kind == "ptt" and self.mode == "ptt":
             down = bool(message.get("down"))
             if down and not self.ptt_down:
-                self.start_turn(b"")
+                self.start_turn(b"", barge_in=self.reply_audible())
             elif self.ptt_down and not down and self.turn is not None:
                 self.end_turn(0, False)
             self.ptt_down = down
 
-    def start_turn(self, pcm):
-        """A new turn starts. Speech after a turn has sent reply audio drops that audio, even once the turn's own
-        task has finished: the model streams a reply faster than the client plays it."""
+    def start_turn(self, pcm, barge_in=False):
+        """A new turn starts. A barge-in stops the reply the client is playing. A turn that has spoken and is still
+        running drops its later audio, such as a task update, rather than talk over the person; it keeps running,
+        because closing it mid-response would cut the call's one session off."""
         prior, carry = self.turn, b""
+        if barge_in:
+            self.post({"type": "barge_in", "turn": self.playback.turn})
+            self.playback.stop(time.perf_counter())
         if prior is not None:
             if prior.reply_started:
-                prior.muted = True
-                if not prior.task.done():
-                    prior.cancel("barge_in")
-                self.post({"type": "barge_in", "turn": prior.n})
+                if barge_in or not prior.task.done():
+                    prior.mute("barge_in" if barge_in else "superseded")
             elif not prior.task.done():
                 prior.cancel("continued")
                 carry = bytes(prior.pcm)
@@ -254,71 +422,187 @@ class Conversation:
         turn = MicTurn(self.live.turns, carry + pcm)
         turn.carried_s = len(carry) / 2 / RATE
         turn.task = asyncio.create_task(self.run_turn(turn, prior.task if prior is not None else None))
+        self.pending.add(turn)
+        turn.task.add_done_callback(lambda _: self.pending.discard(turn))
         self.turn = turn
         self.post({"type": "turn_start", "turn": turn.n, "carried_audio_s": round(turn.carried_s, 3)})
 
+    def check_end(self, silent_ms):
+        """One ask of the audio model at a check point, unless the turn already ended or an answer is still coming."""
+        turn = self.turn
+        if self.live.eou is None or turn is None or turn.turn_end is not None:
+            return
+        if turn.check is not None and not turn.check.done():
+            return
+        turn.check = asyncio.create_task(self.ask_end(turn, silent_ms))
+        self.checks.add(turn.check)
+        turn.check.add_done_callback(self.checks.discard)
+
+    async def ask_end(self, turn, silent_ms):
+        """Ends the turn here when the model says the person has finished, and otherwise leaves the silence rule alone.
+
+        The answer is bounded by `deadline_s`: past it the turn ends at `silence_ms` as it always did, so a slow or
+        broken model costs no turn. An answer that arrives after the turn ended, or after the person spoke again,
+        ends nothing: the answer is about the audio at the check point, and the point is stale by then.
+        """
+        policy = self.live.eou.policy
+        deadline = policy.deadline_s(silent_ms, self.live.settings.silence_ms)
+        tail = bytes(turn.pcm)[-int(policy.window_s * RATE) * 2:]
+        started = time.perf_counter()
+        try:
+            answer = await asyncio.wait_for(asyncio.to_thread(self.live.eou.p_done, tail, deadline), deadline + 0.05)
+        except Exception as exc:
+            turn.checks.append({"silent_ms": silent_ms, "p": None, "error": type(exc).__name__,
+                                "ms": round((time.perf_counter() - started) * 1000, 1), "ended": False})
+            return
+        ends = (answer.p_done >= policy.theta and turn is self.turn and turn.turn_end is None
+                and self.endpointer.silent_ms >= silent_ms)
+        turn.checks.append({"silent_ms": silent_ms, "p": round(answer.p_done, 4), "ms": answer.ms, "ended": ends})
+        if ends:
+            self.end_turn(silent_ms, False)
+
     def end_turn(self, trailing_ms, forced):
+        self.endpointer.finish(trailing_ms)
         self.turn.end(trailing_ms)
         self.post({"type": "turn_end", "turn": self.turn.n, "trailing_ms": trailing_ms, "forced": forced})
 
-    def on_voice_event(self, turn):
-        def handle(event):
-            kind = event.get("type")
-            if kind == "session.created":
-                turn.out_rate = event["session"]["audio"]["output"]["format"]["rate"]
-            if turn.muted:
-                return
-            if kind == "response.output_audio.delta":
-                if not turn.in_reply:
-                    turn.in_reply = turn.reply_started = True
-                    turn.first_audio = turn.first_audio or time.perf_counter()
-                    self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
-                self.post_audio(turn, base64.b64decode(event["delta"]))
-            elif kind == "response.done" and turn.in_reply:
-                turn.in_reply = False
-                self.post({"type": "reply_end", "turn": turn.n}, turn)
-        return handle
+    def on_voice_event(self, event):
+        """Every event on the call's voice session belongs to the turn that has the session right now.
+
+        Reply audio is not forwarded here. The turn screens the reply's text as it arrives and hands `speak` only the
+        audio whose text passed, so a reply that names a day, date, time, number or place the call never gave is never
+        heard."""
+        turn = self.voice_turn
+        if turn is None:
+            return
+        if event.get("type") == "session.created":
+            self.out_rate = turn.out_rate = event["session"]["audio"]["output"]["format"]["rate"]
+
+    def speak(self, turn, text, pcm, done):
+        """Send a reply to the client as its audio is released: `reply_start` before the first piece, each piece in
+        40 ms frames, and `reply_end` once the reply is `done`. A muted turn sends no more audio but still ends the
+        reply it started, so the client is not left waiting for the rest."""
+        now = time.perf_counter()
+        if pcm and not turn.muted:
+            if not turn.speaking:
+                turn.speaking, turn.spoken_text = True, ""
+                turn.reply_started = True
+                turn.first_audio = turn.first_audio or now
+                self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
+            new_text = text[len(turn.spoken_text):] if text.startswith(turn.spoken_text) else text
+            turn.spoken_text = text
+            self.playback.add(len(pcm) / 2 / turn.out_rate, new_text.strip(), now, turn.n)
+            self.post_audio(turn, pcm)
+        if done and turn.speaking:
+            turn.speaking = False
+            self.post({"type": "reply_end", "turn": turn.n}, turn)
+
+    async def open_voice(self):
+        """The call's one voice session, opened by its first turn. The persona is read here and kept for the call."""
+        live = self.live
+        noted = live.args.snapshot == "note"
+        self.persona, self.prompt_source = load_persona(live.prompt_file, NOTE_PERSONA if noted else PERSONA)
+        if not noted:
+            self.persona += CALL_RULES
+        self.voice = await Session.open(live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
+        created = await self.voice.wait_for("session.created")
+        self.out_rate = created["session"]["audio"]["output"]["format"]["rate"]
 
     async def run_turn(self, turn, prior):
         live = self.live
-        persona, prompt_source = load_persona(live.prompt_file)
         turn.decider = TurnDecider(live.decider, live.decider_lock)
         partial = {}
         try:
             if prior is not None:
                 await asyncio.gather(prior, return_exceptions=True)
+            if self.voice is None:
+                await self.open_voice()
+            self.voice_turn, self.session_turns = turn, self.session_turns + 1
+            turn.out_rate, self.started = self.out_rate, time.perf_counter()
             record = await run_clip(turn, "c", False, live.url, turn.decider, live.args.delay, live.out, partial,
-                                    live.args.segmenter, live.tools, "gated", persona=persona,
-                                    on_voice_event=self.on_voice_event(turn))
+                                    live.args.segmenter, live.tools, "gated", persona=self.persona,
+                                    voice=self.voice, snapshot_mode=live.args.snapshot,
+                                    prior_snapshot=self.ledger.snapshot,
+                                    speak=lambda text, pcm, done: self.speak(turn, text, pcm, done),
+                                    prior_utterances=tuple(turn_text["user"] for turn_text in self.ledger.conversation()
+                                                           if "user" in turn_text),
+                                    fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.ledger.tasks),
+                                    ask_pcm=live.ask.pcm(turn.out_rate), asr_stagger=getattr(live.args, "asr_stagger", 1),
+                                    simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True,
+                                    recall=live.args.recall, context=self.ledger.context(),
+                                    prior_results=tuple(self.ledger.results()),
+                                    prior_replies=tuple(self.ledger.replies()),
+                                    established=tuple(self.ledger.established()))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
             record = {"clip": turn.name, "error": repr(exc), **partial}
+        finally:
+            self.voice_turn = None
         turn.decider.closed = True
-        record["live"] = {**turn.metrics(), "prompt": prompt_source, "endpointer": vars(live.settings),
-                          "mode": self.mode}
+        self.ledger.record(record, muted=turn.muted)
+        record["ledger"] = self.ledger.record_dict()
+        record["live"] = {**turn.metrics(), "prompt": self.prompt_source, "endpointer": vars(live.settings),
+                          "mode": self.mode, "snapshot": live.args.snapshot, "recall": live.args.recall,
+                          "eou": getattr(live.args, "eou", "silence"),
+                          "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns}}
         write_pcm16(live.out / f"{turn.name}_input.wav", bytes(turn.pcm), RATE)
         (live.out / f"{turn.name}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
         done = {"type": "turn_done", "turn": turn.n, "transcript": record.get("final_transcript"),
                 "replies": [r.get("text") for r in record.get("replies", [])], "error": record.get("error"),
+                "cancelled": turn.cancelled,
                 "metrics": {**record.get("metrics", {}), **turn.metrics()}}
         self.post(done)
         print(f"{turn.name} {json.dumps(done['metrics'])}", flush=True)
 
     async def close(self):
-        if self.turn is not None and not self.turn.task.done():
-            self.turn.cancel("disconnected")
-            await asyncio.gather(self.turn.task, return_exceptions=True)
+        if self.overlap is not None and self.overlap.task is not None:
+            self.overlap.task.cancel()
+        for check in list(self.checks):
+            check.cancel()
+        turns = list(self.pending)
+        for turn in turns:
+            turn.cancel("disconnected")
+        await asyncio.gather(*(turn.task for turn in turns), return_exceptions=True)
+        self.voice_turn = None
+        if self.voice is not None:
+            await self.voice.close()
         self.sender.cancel()
 
 
 class Live:
-    def __init__(self, args, url, decider, tools, out):
+    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
+        self.eou = eou
+        # With an audio decider the endpointer also names the points of silence at which the turn may end.
+        check_ms = eou.policy.check_ms if eou is not None else ()
         self.settings = Settings(silence_ms=args.silence_ms, start_ms=args.start_ms, preroll_ms=args.preroll_ms,
-                                 floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s)
-        self.prompt_file, self.decider_lock = args.prompt, threading.Lock()
-        self.active, self.turns = None, 0
+                                 floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s,
+                                 check_ms=check_ms)
+        self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
+        self.active, self.turns, self.overlaps = None, 0, 0
+        self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
+        self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
+
+    async def transcribe(self, pcm):
+        return await transcribe(self.url, pcm, Session)
+
+    def log_overlap(self, entry, pcm):
+        """One line per overlap in overlaps.jsonl; a dismissed overlap's audio is kept beside it, since no turn holds
+        it."""
+        self.overlaps += 1
+        entry["n"] = self.overlaps
+        if pcm is not None:
+            entry["audio"] = f"overlap_{self.overlaps:03d}.wav"
+            write_pcm16(self.out / entry["audio"], bytes(pcm), RATE)
+        with open(self.out / "overlaps.jsonl", "a", encoding="utf-8") as log:
+            log.write(json.dumps(entry) + "\n")
+        print(f"overlap {json.dumps(entry)}", flush=True)
+
+    def render_lines(self):
+        """Render the fixed lines in the server's own TTS voice before any client connects, so no turn pays for it."""
+        for clip in (self.fallback, self.ask):
+            clip.render(f"http://127.0.0.1:{self.args.lfm_port}")
 
     async def handler(self, ws):
         if self.active is not None:
@@ -334,53 +618,110 @@ class Live:
             print("client disconnected", flush=True)
 
 
-async def wait_for_stop(max_minutes):
+async def wait_for_stop(max_minutes, stop_file=STOP_FILE):
     deadline = time.monotonic() + max_minutes * 60
     while time.monotonic() < deadline:
-        if STOP_FILE.exists():
+        if stop_file.exists():
             print("STOP file found", flush=True)
             return
         await asyncio.sleep(1)
     print(f"stopping after --max-minutes {max_minutes}", flush=True)
 
 
+async def watch_lag(limit_s=1.0):
+    """Prints each stall of the event loop.
+
+    The client's socket, the ASR's events and every reply share this loop, so a stall is the first thing to read for a
+    turn that arrived late, a final transcript that timed out, or a client whose keepalive expired. The 2026-11-16
+    17:38 replay's turn 38 held 11.9 s of the person's audio and never reached a transcript: the client closed the
+    call on a keepalive ping timeout, and its records cannot say whether this loop was stalled."""
+    woke = time.perf_counter()
+    while True:
+        await asyncio.sleep(0.2)
+        now = time.perf_counter()
+        if now - woke - 0.2 >= limit_s:
+            print(f"event loop stalled for {now - woke - 0.2:.2f} s", flush=True)
+        woke = now
+
+
 async def main_async(args):
     host = check_bind(args.host or tailscale_ipv4())
     secret = shared_secret()
-    STOP_FILE.unlink(missing_ok=True)
+    args.stop_file.unlink(missing_ok=True)
     use_decider_cache(args.decider_cache, args.decider_budget)
     out = args.out or EVIDENCE / datetime.now().strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
-    lfm_args = ("-c", str(args.lfm_ctx))
-    tools_context = nullcontext() if args.mock_tools else open_registry()
-    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, 3) as server, \
-            make_decider(args.decider, out) as decider:
-        live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out)
+    # One KV pool for both sessions. Split evenly, the voice session got a third of -c while the ASR session used a
+    # few hundred tokens of its share (measured: n_ctx_slot = 11008 in the recorded call's llama-server log).
+    lfm_args = ("-c", str(args.lfm_ctx), "-kvu")
+    cloud_lock = threading.Lock()
+    tools_context = nullcontext() if args.mock_tools else open_registry(lock=cloud_lock)
+    eou_mode, eou_port = getattr(args, "eou", "silence"), getattr(args, "eou_port", eou_audio.PORT)
+    eou_context = eou_audio.server(eou_port, out / "eou-server.log") if eou_mode == "audio" else nullcontext()
+    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, slots(getattr(args, "asr_stagger", 1))) as server, \
+            make_decider(args.decider, out) as decider, eou_context as eou_server:
+        eou = None
+        if eou_server is not None:
+            eou = eou_audio.Decider(f"http://127.0.0.1:{eou_port}",
+                                    eou_audio.Policy(theta=getattr(args, "eou_theta", eou_audio.Policy.theta)))
+            print(f"d1-Omni pid {eou_server.proc.pid} on port {eou_port} after {eou_server.startup_s:.1f} s: "
+                  f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
+        live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock, eou=eou)
+        watcher = asyncio.create_task(watch_lag())
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
             print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
+            if args.snapshot != "note":
+                live.render_lines()
             print(f"live server on ws://{host}:{args.port}, prompt: {prompt_source}, records: {out}", flush=True)
-            await wait_for_stop(args.max_minutes)
+            await wait_for_stop(args.max_minutes, args.stop_file)
             if live.active is not None:
                 await live.active.ws.close(1001, "server stopping")
+        watcher.cancel()
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", help="bind address; this machine's Tailscale IPv4 when left out")
     parser.add_argument("--port", type=int, default=8770)
-    parser.add_argument("--prompt", type=Path, default=PROMPT_FILE, help="persona file, read at each turn start")
+    parser.add_argument("--prompt", type=Path, default=PROMPT_FILE, help="persona file, read at each call start")
     parser.add_argument("--silence-ms", type=int, default=700, help="trailing silence that ends a turn")
+    parser.add_argument("--eou", choices=["silence", "audio"], default="silence",
+                        help="what ends a turn: the trailing silence alone (default), or the local d1-Omni-2B asked "
+                             "whether the person finished at 150, 300 and 500 ms of silence, falling back to "
+                             "--silence-ms")
+    parser.add_argument("--eou-theta", type=float, default=eou_audio.Policy.theta,
+                        help=f"the P(done) that ends a turn early with --eou audio (default {eou_audio.Policy.theta})")
+    parser.add_argument("--eou-port", type=int, default=eou_audio.PORT,
+                        help=f"the audio model's llama-server port (default {eou_audio.PORT})")
     parser.add_argument("--start-ms", type=int, default=100, help="voiced audio that starts a turn")
     parser.add_argument("--preroll-ms", type=int, default=300, help="audio kept from before the turn started")
     parser.add_argument("--floor-dbfs", type=float, default=-50.0, help="a frame below this level is never speech")
     parser.add_argument("--margin-db", type=float, default=10.0, help="how far above the noise floor speech must be")
     parser.add_argument("--max-turn-s", type=float, default=30.0, help="end a turn that runs this long")
+    parser.add_argument("--confirm-ms", type=int, default=OverlapSettings.confirm_ms,
+                        help="voiced speech over a playing reply that stops it (default 600); shorter speech is "
+                             "transcribed and a backchannel, noise or echo leaves the reply playing")
     parser.add_argument("--max-minutes", type=float, default=55.0, help="stop the server after this long")
+    parser.add_argument("--stop-file", type=Path, default=STOP_FILE,
+                        help="stop when this file appears (default $VOICE_HOME/live/STOP)")
     parser.add_argument("--segmenter", choices=sorted(SEGMENTERS), default="hybrid")
-    parser.add_argument("--decider", choices=["cloud", "d1"], default=default_decider())
+    parser.add_argument("--snapshot", choices=["note", "reply-no-utterance", "reply", "before-audio", "off"],
+                        default="note",
+                        help="what machine text enters the voice session: one short note after the audio on a turn "
+                             "with a lookup (default), the task snapshot before the reply with the person's own "
+                             "words dropped, the snapshot with everything, the snapshot before the turn's audio, or "
+                             "nothing")
+    parser.add_argument("--recall", choices=["off", "note"], default="note",
+                        help="how a question about the call reaches the model: the numbered turns inside the "
+                             "snapshot item (off), or those turns plus one plain sentence naming the turn the "
+                             "question asks about, as the newest item before the reply (note, default)")
+    parser.add_argument("--decider", choices=["liquid", "cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
+    parser.add_argument("--asr-stagger", type=int, default=1, choices=[1, 2, 3, 4, 6, 12],
+                        help="transcription sessions fed the same audio, shifted by 0.96 s / N so the live "
+                             "transcript updates N times per block (default 1: one update per 0.96 s)")
     parser.add_argument("--lfm-port", type=int, default=8095)
     parser.add_argument("--lfm-ctx", type=int, default=32768, help="LFM3's total context (default 32768)")
     parser.add_argument("--out", type=Path, help="records directory; a new one under $VOICE_HOME/evidence/live")

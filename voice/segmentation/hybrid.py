@@ -20,10 +20,11 @@ import re
 from dataclasses import asdict, dataclass, replace
 
 from voice.segmentation import client as api
-from voice.segmentation.contract import (Decisions, Readiness, Segment, TranscriptUpdate, decision_request,
-                                         parse_decisions)
+from voice.segmentation.contract import (Decisions, Intent, Kind, Readiness, Segment, TranscriptUpdate,
+                                         decision_request, parse_decisions)
 from voice.segmentation.cursor import (ONE_ACTION, SNIPPET, THRESHOLDS, Verdict, _noul, _pick, _span, commits,
                                        judge, marked_text, markers, words)
+from voice.segmentation.intent import utterance_intent
 from voice.segmentation.score import score
 from voice.segmentation.spans import _is_filler, clause_cuts
 from voice.segmentation.tasks import Orchestrator
@@ -176,6 +177,18 @@ def hold_near_tie(decision, is_final, margin):
     return replace(decision, readiness=Readiness.WAIT)
 
 
+def as_request(decision):
+    """A correction that names nothing to correct, in an utterance that asks for something, is that request.
+
+    Measured on the live gate eval: "That was wrong, now find the sales report for week 45." came back as one segment
+    of kind `correction` with no target on all three readings, and the orchestrator, holding a correction of nothing,
+    made no task. The utterance's own intent is a request, and live mode only asks the decider when it is one, so the
+    words are a request the complaint leads into. A correction that names a target is left alone."""
+    if decision.kind == Kind.CORRECTION and decision.corrects is None:
+        return replace(decision, kind=Kind.REQUEST)
+    return decision
+
+
 def _jsonable(value):
     if isinstance(value, dict):
         return {k: _jsonable(v) for k, v in value.items()}
@@ -185,10 +198,15 @@ def _jsonable(value):
 
 
 class HybridSegmenter:
-    """Plan A behind the prototype's Segmenter interface. Feed it transcript updates and voice delegate submissions."""
+    """Plan A behind the prototype's Segmenter interface. Feed it transcript updates and voice delegate submissions.
 
-    def __init__(self, client, label, thresholds=THRESHOLDS):
+    `tools` is the tool question's option set (`Registry.choices`), asked for every segment in the same request that
+    asks whether it may run, or None to ask nothing about tools. `arguments` adds the place and day extraction
+    questions, which the registry then reads instead of its word rules."""
+
+    def __init__(self, client, label, thresholds=THRESHOLDS, tools=None, arguments=False):
         self.client, self.label, self.t = client, label, thresholds
+        self.tool_choices, self.read_arguments = tools, arguments
         self.orch = Orchestrator()
         self.committed: list[Piece] = []
         self.soft: set[int] = set()
@@ -200,6 +218,8 @@ class HybridSegmenter:
         self.ws = []
         self.points: list[dict] = []
         self.reviewed: tuple = ()
+        self.prior_resolved_tasks = ()
+        self.conversation_mode = False
 
     @property
     def dispatch_log(self):
@@ -239,7 +259,8 @@ class HybridSegmenter:
         """The final transcript with no decider call. Returns the close as a point record.
 
         With `settle`, the handoff's close rule settles the tasks. Without it, as in the gated turn, the tasks stay as
-        the last decision point left them, and the close only reports what no decision point read."""
+        the last decision point left them, and the close only reports what no decision point read. Either way the
+        close says what the whole utterance is, as an UtteranceIntent."""
         self.last, self.ws = update, words(update.text)
         current = tuple(w.text for w in self.ws)
         self.soft = {g for g in self.soft if current[:g] == self.soft_words[:g]}
@@ -256,6 +277,7 @@ class HybridSegmenter:
                        min(len(current), len(self.reviewed)))
         tail = update.text[self.ws[covered].start:].strip() if covered < len(self.ws) else None
         point = {"revision": update.revision, "is_final": True, "label": f"{self.label}:r{update.revision}:close",
+                 "intent": utterance_intent(update.text),
                  "kind": "close", "cursor": proposal.cursor, "pause": False,
                  "pieces": [[p.w0, p.w1] for p in proposal.pieces], "hard": sorted(proposal.hard),
                  "soft": sorted(self.soft), "segments": [asdict(s) for s in segments], "calls": [],
@@ -290,7 +312,38 @@ class HybridSegmenter:
         asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
         tasks = [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
                   "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
-        body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates))
+        body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates), tools=self.tool_choices,
+                                arguments=self.read_arguments)
+        if self.conversation_mode:
+            for name, question in body["questions"].items():
+                if name.endswith("_side_effect"):
+                    question["criteria"] = dict(question["criteria"])
+                    question["criteria"]["true"] += " Sending or writing anything is a side effect."
+                    question["criteria"]["false"] += (" Reading or searching stored data, such as email, files or "
+                                                       "a calendar, without changing it is a lookup.")
+                if name.endswith("_kind"):
+                    question["criteria"]["request"] = ("The speaker asks for work requiring an external lookup, tool, "
+                                                        "agent, or action. Questions answerable from this conversation "
+                                                        "are not external work.")
+                    question["criteria"]["chitchat"] = ("Conversation, greetings, reactions, or questions the voice "
+                                                         "assistant can answer from this conversation or its own "
+                                                         "knowledge without an external tool.")
+                    if self.prior_resolved_tasks:
+                        question["criteria"]["request"] += (" A short follow-up that continues an earlier request or "
+                                                             "lookup in prior_resolved_tasks is external work, even "
+                                                             "when it names only a new time or place.")
+        if self.prior_resolved_tasks:
+            body["state"]["prior_resolved_tasks"] = list(self.prior_resolved_tasks)
+            for name, question in body["questions"].items():
+                if name.endswith("_ready"):
+                    question["instructions"] += (" Use prior_resolved_tasks for a follow-up; a completed lookup's "
+                                                 "subject and arguments are available to continue. A follow-up that "
+                                                 "changes one part of that task is complete.")
+                    question["criteria"]["dispatch_now"] += (" If this segment continues an earlier resolved task "
+                                                             "and leaves out words that task supplied, it is "
+                                                             "complete; otherwise judge it on its own words. A search "
+                                                             "or lookup can start from the words given, even when "
+                                                             "they are broad: the worker reports what it finds.")
         asked, gaps, marked, questions = break_questions(proposal, sids, final)
         body["state"]["new_speech"] = marked
         body["questions"].update(questions)
@@ -338,6 +391,8 @@ class HybridSegmenter:
                                   for i, p in enumerate(tail) if not revised.filler(p)]
         raw = {sid: d for sid, d in decisions.segments.items() if sid in valid}
         kept = {sid: hold_near_tie(d, final, self.t.margin) for sid, d in raw.items()}
+        if final and utterance_intent(update.text).intent == Intent.REQUEST:
+            kept = {sid: as_request(d) for sid, d in kept.items()}
         delegates = {did: sid for did, sid in decisions.delegates.items() if sid is None or sid in valid}
         if applied:
             self.orch.apply(update, apply_segs, Decisions(kept, delegates, decisions.problems), raw)

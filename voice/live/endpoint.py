@@ -5,6 +5,10 @@ itself. A frame is voiced when its level clears both an absolute floor and the t
 noise floor starts at the first frame's level, follows quiet frames down at once and rises slowly, so it settles on
 the room's level for any microphone. The stream must start before the speaker does.
 A turn starts after `start_ms` of voiced frames and ends after `silence_ms` without one.
+
+`check_ms` names points before that end, such as 150, 300 and 500 ms, at which the endpointer emits a `Check`: a
+listener that may end the turn earlier, on evidence other than the clock, calls `finish` when it does. The fallback
+stays `silence_ms`, so a listener that is slow, wrong or absent changes nothing.
 """
 
 import math
@@ -33,7 +37,9 @@ class Start:
 
 @dataclass(frozen=True)
 class Audio:
+    """One frame of a turn, with its level so a listener can apply its own voicing rule."""
     pcm: bytes
+    level_dbfs: float = SILENT_DBFS
 
 
 @dataclass(frozen=True)
@@ -41,6 +47,16 @@ class End:
     """The turn ended. `trailing_ms` of silence or `max_turn_s` came after the last voiced frame."""
     trailing_ms: int
     forced: bool = False
+
+
+@dataclass(frozen=True)
+class Check:
+    """The turn has been silent for `silent_ms`, one of `Settings.check_ms`: a listener may end it now.
+
+    Check points fall on frame boundaries, so `silent_ms` is the setting reached, not the raw count: a 150 ms point is
+    emitted on the 160 ms frame.
+    """
+    silent_ms: int
 
 
 def frame_dbfs(frame):
@@ -58,6 +74,7 @@ class Settings:
     margin_db: float = 10.0
     noise_rise_db_per_s: float = 1.0
     max_turn_s: float = 30.0
+    check_ms: tuple[int, ...] = ()
 
 
 @dataclass
@@ -70,6 +87,7 @@ class Endpointer:
     _voiced_run: int = 0
     _silent_run: int = 0
     _turn_frames: int = 0
+    _check_index: int = 0
 
     def threshold(self):
         return max(self.settings.floor_dbfs, self.noise_dbfs + self.settings.margin_db)
@@ -85,7 +103,30 @@ class Endpointer:
 
     def _reset(self):
         self.state, self._voiced_run, self._silent_run, self._turn_frames = State.IDLE, 0, 0, 0
+        self._check_index = 0
         self._preroll.clear()
+
+    @property
+    def silent_ms(self):
+        """How long the current silence has run, in ms, or 0 when no turn is being tracked."""
+        return self._silent_run * FRAME_MS if self.state is State.SPEECH else 0
+
+    def finish(self, trailing_ms):
+        """Ends the turn here instead of at `silence_ms`, for a listener that ended it early on a `Check`.
+
+        The turn's audio stays as fed: silence after this point becomes the next turn's pre-roll, and no `End` follows
+        for the silence that was still counting.
+        """
+        self._reset()
+
+    def _due_checks(self):
+        """The check points this silent frame reaches, at most one each per silence."""
+        silent = self._silent_run * FRAME_MS
+        due = []
+        while self._check_index < len(self.settings.check_ms) and self.settings.check_ms[self._check_index] <= silent:
+            due.append(self.settings.check_ms[self._check_index])
+            self._check_index += 1
+        return due
 
     def _frame(self, frame):
         level = frame_dbfs(frame)
@@ -110,7 +151,11 @@ class Endpointer:
             return [Start(pcm)]
         self._turn_frames += 1
         self._silent_run = 0 if voiced else self._silent_run + 1
-        events = [Audio(frame)]
+        if voiced:
+            self._check_index = 0
+        events = [Audio(frame, level)]
+        if not voiced:
+            events.extend(Check(at) for at in self._due_checks())
         if self._silent_run * FRAME_MS >= self.settings.silence_ms:
             events.append(End(self._silent_run * FRAME_MS))
             self._reset()

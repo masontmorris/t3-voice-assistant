@@ -1,0 +1,134 @@
+{
+ "schema": "voice.loop.archive/1",
+ "created_at": "2026-11-16T12:00:00-05:00",
+ "run": "server",
+ "duration_s": 25.733,
+ "clock": "seconds from the client recording's first frame",
+ "sources": {
+  "server": "server",
+  "client": "client",
+  "client_schema": "voice.live.recording/1",
+  "input_source": "synthetic"
+ },
+ "stems": [
+  {
+   "role": "microphone",
+   "file": "stems/microphone.wav",
+   "rate": 8000,
+   "offset_s": 0.0,
+   "duration_s": 25.733
+  },
+  {
+   "role": "assistant_playback",
+   "file": "stems/assistant-playback-001.wav",
+   "rate": 8000,
+   "offset_s": 0.0,
+   "duration_s": 25.733
+  },
+  {
+   "role": "conversation",
+   "file": "stems/conversation.wav",
+   "rate": 8000,
+   "offset_s": 0.0,
+   "duration_s": 25.733
+  }
+ ],
+ "turns": [
+  {
+   "turn": 1,
+   "cancelled": null,
+   "offset_s": 0.4,
+   "input_end_s": 6.2462,
+   "score": 1.0,
+   "turn_end_log_ms": 4.0
+  },
+  {
+   "turn": 2,
+   "cancelled": null,
+   "offset_s": 17.5912,
+   "input_end_s": 20.6651,
+   "score": 1.0,
+   "turn_end_log_ms": 4.0
+  },
+  {
+   "turn": 3,
+   "cancelled": null,
+   "offset_s": 22.0851,
+   "input_end_s": 24.074,
+   "score": 1.0,
+   "turn_end_log_ms": 4.0
+  }
+ ],
+ "replies": [
+  {
+   "reply_id": "1.1",
+   "kind": "snapshot",
+   "at_s": 6.7663,
+   "score": 1.0,
+   "log_vs_audio_ms": -0.0,
+   "played_s": 4.217,
+   "interrupted": false
+  },
+  {
+   "reply_id": "1.2",
+   "kind": "update",
+   "at_s": 13.383,
+   "score": 1.0,
+   "log_vs_audio_ms": -0.0,
+   "played_s": 3.508,
+   "interrupted": false
+  },
+  {
+   "reply_id": "2.1",
+   "kind": "snapshot",
+   "at_s": 21.0851,
+   "score": 1.0,
+   "log_vs_audio_ms": -0.0,
+   "played_s": 1.6,
+   "interrupted": true
+  },
+  {
+   "reply_id": "3.1",
+   "kind": "snapshot",
+   "at_s": 24.444,
+   "score": 1.0,
+   "log_vs_audio_ms": 0.0,
+   "played_s": 0.488,
+   "interrupted": false
+  }
+ ],
+ "warnings": [],
+ "counts": {
+  "speech_start": 3,
+  "transcript_partial": 9,
+  "decision_point": 4,
+  "task_created": 3,
+  "gate_verdict": 3,
+  "task_status": 7,
+  "task_split": 1,
+  "speech_end": 3,
+  "turn_end": 3,
+  "transcript_final": 3,
+  "handoff": 3,
+  "lfm_action": 3,
+  "reply_start": 4,
+  "tool_call": 2,
+  "reply_end": 4,
+  "task_merged": 1,
+  "barge_in": 1
+ },
+ "files": {
+  "clips/turn_001_input.wav": "d6a43e6be70acd7894786d1838e0152056debb9ca00680dfb9703a7cd0c30a52",
+  "clips/turn_001_reply.wav": "0edf7e562c79fdb19c6b6867db002de4a3022280c0e88132b57166e2bb51d266",
+  "clips/turn_001_update.wav": "0b91e1576697e7ac0dad0e0238f55ce6951c5eb7295a441b6249b3f3ee22acc7",
+  "clips/turn_002_input.wav": "ff363aebcaee2eee046c0152dc1dafc6ad4ab132c4793c5f7a5f0dc4ddccf6df",
+  "clips/turn_002_reply.wav": "ec703f1b9f70cacc26cc59324eb49935abb82c1cdf2232a9cd548c8494dd4fb3",
+  "clips/turn_003_input.wav": "44f001faededdf39ea00dcdc53f49af7911f7fb96642056b1c3d9882d2fd076a",
+  "clips/turn_003_reply.wav": "62ca1595d7d98d2ebfb958a03756bbd9f656a71b54163a9d3a273e75deef7298",
+  "stems/assistant-playback-001.wav": "be99c8ec2fcda54fcf64bb013dd97a59a805fb02b21530c604f5e5d21ac87e98",
+  "stems/conversation.wav": "84c97fb9ba4733326cd29662150c14455cb51fdc1c4969047de8317083b93cfb",
+  "stems/microphone.wav": "c7d18dd4f38c87d017bfb9b55677eef5ee870d742cdb80c17efe4702b18a2c12",
+  "timeline.jsonl": "006a3d20f35ff0725b1b98724dfc4005a29e5ac6275bc8fe4b0123040bfb4527",
+  "waveform.json": "b175887bc4f14d3b09d5b9b322e54edf024486ee56ce216f8b727d0d9fe30891"
+ }
+}

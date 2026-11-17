@@ -137,6 +137,144 @@ def agreement_section(tag="ubsweep"):
                     for t, c in sorted(by.items())} for scope, by in tallies.items()}
 
 
+Q_BUCKETS = [(0, 3), (3, 6), (6, 10), (10, 20), (20, 40)]
+
+
+def q_latency(data):
+    """Latency by the number of questions in the request, which is the size packing acts on."""
+    out = {}
+    for lo, hi in Q_BUCKETS:
+        sel = [r["ms"] for r in data if lo <= r["questions"] < hi]
+        if sel:
+            out[f"{lo}-{hi}"] = dist(sel)
+    return out
+
+
+def llama_reference():
+    """llama.cpp's throughput on its own replay, at the flags client.py ships (batch 2048)."""
+    path = OUT / "replay-ubsweep-servers.json"
+    if not path.exists():
+        return None
+    server = next((s for s in load(path) if s["config"] == "ub2048" and s["round"] == 0), None)
+    if server is None:
+        return None
+    questions = sum(r["questions"] for r in rows(OUT / "replay-ubsweep.jsonl")
+                    if r["config"] == "ub2048" and r["round"] == 0)
+    return {"startup_s": server["startup_s"], "peak_mib": server["peak_mib"], "wall_s": server["wall_s"],
+            "calls_per_s": round(server["calls"] / server["wall_s"], 2),
+            "questions_per_s": round(questions / server["wall_s"], 2)}
+
+
+def without_buckets(section):
+    """A latency block without its token buckets, which for a packed server count its own tokens, not request size."""
+    return {k: v for k, v in section.items() if k != "buckets"}
+
+
+def packing_section():
+    """The largest requests at several set sizes: the state is read once per group, so the reported input tokens fit
+    `groups * state + question tokens` exactly."""
+    path = OUT / "packing.json"
+    if not path.exists():
+        return None
+    data = load(path)
+    calls = [r for r in data if "file" in r]
+    by_file = defaultdict(list)
+    for r in calls:
+        by_file[r["file"]].append(r)
+    out = {"requests": len(by_file), "concurrent": next((r for r in data if "concurrent_s" in r), None),
+           "per_request": []}
+    for f, rs in by_file.items():
+        rs.sort(key=lambda r: -r["groups"])
+        big, small = rs[0], rs[-1]
+        state = (big["input_tokens"] - small["input_tokens"]) / (big["groups"] - small["groups"])
+        out["per_request"].append({
+            "file": f, "questions": big["questions"], "state_tokens": round(state),
+            "question_tokens": round(small["input_tokens"] - small["groups"] * state),
+            "rows": [{"groups": r["groups"], "set_size": r["set_size"], "ms": r["ms"],
+                      "input_tokens": r["input_tokens"]} for r in rs]})
+    return out
+
+
+def mistralrs_section(tag="mistralrs"):
+    """mistral.rs rows: latency, throughput, VRAM, agreement with pplx, and flips against llama.cpp's answers.
+
+    The 94 hybrid requests are the segmenter's own calls; the rest of the corpus is the replay set llama.cpp ran.
+    Answer diffs use the batch-8192 round-0 llama.cpp answers as the reference, which are byte-identical to batch
+    2048's, and only over files both runs hold.
+    """
+    path = OUT / f"replay-{tag}.jsonl"
+    if not path.exists():
+        return None
+    data = [r for r in rows(path) if r["status"] == 200]
+    servers_path = OUT / f"replay-{tag}-servers.json"
+    servers = json.loads(servers_path.read_text(encoding="utf-8")) if servers_path.exists() else []
+    hybrid_files = {f for seqs in sequences().values() for files in seqs.values() for f in files}
+    llama = {r["file"]: r for r in rows(OUT / "replay-ubsweep.jsonl")
+             if r["config"] == "ub8192" and r["round"] == 0 and r["status"] == 200}
+    packed = {r["file"]: r for g in load(OUT / "transformers.json")["groups"].values() for r in g} \
+        if (OUT / "transformers.json").exists() else {}
+    out = {}
+    for cfg in sorted({r["config"] for r in data}):
+        first = {r["file"]: r for r in data if r["config"] == cfg and r["round"] == 0}
+        shared = [r for f, r in first.items() if f in llama]
+        hybrid = [r for f, r in first.items() if f in hybrid_files]
+        srv = [s for s in servers if s["config"] == cfg]
+        tallies = {scope: defaultdict(Counter) for scope in ("all", "hybrid")}
+        flips_llama, questions, moved = 0, 0, 0.0
+        for name, r in first.items():
+            pplx = compact(load(CACHES[r["source"]] / name)["response"]["answers"])
+            mine = compact(r["answers"])
+            for q, value in pplx.items():
+                if q in mine:
+                    for scope in ("all", "hybrid") if name in hybrid_files else ("all",):
+                        tallies[scope][qtype(q)]["n"] += 1
+                        tallies[scope][qtype(q)]["agree"] += same(value, mine[q])
+            if name in llama:
+                fl, mv = diff_answers(llama[name]["answers"], r["answers"])
+                flips_llama, moved = flips_llama + fl, max(moved, mv)
+                questions += len(r["answers"])
+        tf = [{"file": f, "questions": packed[f]["questions"],
+               "set16_flips_vs_llama": packed[f]["set16"]["flips_vs_llama"],
+               "set16_flips_vs_pplx": packed[f]["set16"]["flips_vs_pplx"],
+               "llama_flips_vs_pplx": packed[f]["llama_vs_pplx_flips"],
+               "set16_input_tokens": packed[f]["set16"]["input_tokens"], "llama_tokens": packed[f]["llama_tokens"],
+               "mine_flips_vs_llama": diff_answers(llama[f]["answers"], first[f]["answers"])[0]
+               if f in first and f in llama else None,
+               "mine_flips_vs_pplx": diff_answers(load(CACHES[first[f]["source"]] / f)["response"]["answers"],
+                                                 first[f]["answers"])[0] if f in first else None,
+               "mine_input_tokens": first[f]["input_tokens"] if f in first else None}
+              for f in packed]
+        out[cfg] = {
+            "calls": len(data) // max(1, len({r["round"] for r in data})), "errors": sum(s["errors"] for s in srv),
+            "latency": without_buckets(latency(list(first.values()))),
+            "hybrid_latency": without_buckets(latency(hybrid)),
+            "shared_latency": without_buckets(latency(shared)), "shared_calls": len(shared),
+            "llama_shared_latency": without_buckets(latency([llama[f] for f in first if f in llama])),
+            "llama_hybrid_latency": without_buckets(latency([llama[f] for f in first if f in llama and f in hybrid_files])),
+            "by_questions": {"mine": q_latency(shared),
+                             "llama": q_latency([llama[f] for f in first if f in llama])},
+            "hybrid_calls": len(hybrid), "hybrid_questions": sum(len(r["answers"]) for r in hybrid),
+            "servers": [{k: s[k] for k in ("round", "startup_s", "idle_mib", "loaded_mib", "peak_mib", "wall_s",
+                                           "calls_per_s", "questions_per_s", "paged_attn")} for s in srv],
+            "agreement": {scope: {"answers": sum(c["n"] for c in by.values()),
+                                  "rate": round(sum(c["agree"] for c in by.values())
+                                                / max(1, sum(c["n"] for c in by.values())), 3),
+                                  "by_type": {t: {"n": c["n"], "agree": c["agree"], "rate": round(c["agree"] / c["n"], 3)}
+                                              for t, c in sorted(by.items())}}
+                          for scope, by in tallies.items()},
+            "vs_llama": {"questions": questions, "decision_flips": flips_llama,
+                         "max_probability_move": round(moved, 4)},
+            "vs_transformers_totals": {k: sum(r[k] for r in tf if r.get(k) is not None)
+                                       for k in ("questions", "set16_flips_vs_llama", "set16_flips_vs_pplx",
+                                                 "llama_flips_vs_pplx", "mine_flips_vs_llama", "mine_flips_vs_pplx")},
+            "vs_transformers_tokens": [sum(r["set16_input_tokens"] for r in tf),
+                                       sum(r["llama_tokens"] for r in tf),
+                                       sum(r["mine_input_tokens"] or 0 for r in tf)],
+            "llama_reference": llama_reference(),
+        }
+    return out
+
+
 def reuse_section():
     path = OUT / "reuse.jsonl"
     if not path.exists():
@@ -320,6 +458,8 @@ def main():
         "transformers": transformers_section(),
         "reuse": reuse_section(),
         "agreement": agreement_section(),
+        "mistralrs": mistralrs_section(),
+        "packing": packing_section(),
         "scenario_runs": scenario_runs(),
         "clips": clips_section(),
         "bargein": bargein_section(),

@@ -23,6 +23,7 @@ MAX_429_SHARE = 0.2
 
 class Segmenter(Protocol):
     dispatch_log: list[dict]
+    orch: Orchestrator
 
     def update(self, update: TranscriptUpdate) -> dict | None: ...
 

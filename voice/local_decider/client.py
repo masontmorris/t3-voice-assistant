@@ -1,4 +1,5 @@
-"""d1-2B on llama.cpp's `/v1/systemone`, behind the same `call(route, body, label)` interface as the cloud client.
+"""d1-2B on llama.cpp's or mistral.rs's `/v1/systemone`, behind the same `call(route, body, label)` interface as the
+cloud client.
 
 The segmenter builds OpenRouter Decisions bodies. `to_systemone` and `from_systemone` are the one adapter between the
 two. The request drops the OpenRouter `model` field and keeps `state` and `questions`, which `/v1/systemone` takes as
@@ -21,6 +22,20 @@ VOICE_HOME = Path(os.environ.get("VOICE_HOME", Path.home() / "voice"))
 SERVER = VOICE_HOME / "llamacpp" / "bin" / "llama-server.exe"
 MODEL = VOICE_HOME / "gguf" / "d1-2B-Q4_K_M.gguf"
 DEFAULT_PORT = 8096
+# The Linux CUDA build of mistral.rs lives in WSL, since only its Linux release ships CUDA. serve-d1.sh reads PORT and
+# PAGED_ATTN (docs/voice/local-decider.md).
+MISTRALRS_DISTRO = os.environ.get("VOICE_MISTRALRS_DISTRO", "Ubuntu-24.04")
+MISTRALRS_BIN = os.environ.get("VOICE_MISTRALRS_BIN", "/root/mistralrs-linux/mistralrs")
+MISTRALRS_PORT = int(os.environ.get("VOICE_MISTRALRS_PORT", 8097))
+
+
+def wsl_path(path):
+    """The WSL path for a Windows path: `C:\\x\\y` is `/mnt/c/x/y`."""
+    text = str(path).replace("\\", "/")
+    return f"/mnt/{text[0].lower()}{text[2:]}"
+
+
+MISTRALRS_SCRIPT = wsl_path(VOICE_HOME / "mistralrs-linux" / "serve-d1.sh")
 # The card uses -ub 8192. Each question is read in one physical batch, and every recorded question prompt fits in
 # 2048 tokens, which gave byte-identical answers at the same latency with about 970 MiB less VRAM
 # (docs/voice/local-decider.md). 512 is too small: one question needs 521 tokens.
@@ -59,11 +74,16 @@ def _now():
 
 
 class D1Client:
-    """One persistent HTTP connection to a local llama-server, one request in flight."""
+    """One persistent HTTP connection to a local llama-server or mistral.rs, one request in flight.
 
-    def __init__(self, url=None):
+    `set_size` is mistral.rs's questions-per-state group and is omitted for llama.cpp, which has no such field. Packing
+    happens inside one request, so a packed request is still one request in flight.
+    """
+
+    def __init__(self, url=None, set_size=None):
         parts = urlsplit(url or os.environ.get("VOICE_D1_URL", f"http://127.0.0.1:{DEFAULT_PORT}"))
         self.host, self.port = parts.hostname, parts.port
+        self.set_size = set_size
         self._conn = None
 
     def _post(self, payload):
@@ -88,7 +108,10 @@ class D1Client:
     def call(self, route, body, label=""):
         """Ask every question in `body` and return a record shaped like the cloud client's cache record."""
         assert route == "decisions", route
-        payload = json.dumps(to_systemone(body)).encode()
+        request = to_systemone(body)
+        if self.set_size is not None:
+            request["set_size"] = self.set_size
+        payload = json.dumps(request).encode()
         started_at = _now()
         started = time.perf_counter()
         status, raw = self._post(payload)
@@ -153,12 +176,88 @@ def d1_server(port=DEFAULT_PORT, log_path=None, flags=FLAGS):
     return LlamaServer(["-m", str(MODEL), "-ngl", "99", "-np", "1", *flags], port, log_path)
 
 
+def _pgrep():
+    """The PIDs of a running mistral.rs inside WSL, empty when none is left."""
+    out = subprocess.run(["wsl", "-d", MISTRALRS_DISTRO, "--", "pgrep", "-f", MISTRALRS_BIN],
+                         capture_output=True, text=True).stdout
+    return out.split()
+
+
+def stop_mistralrs(timeout=30):
+    """Stop every mistral.rs in WSL and wait until pgrep sees none, since killing wsl.exe does not kill it."""
+    subprocess.run(["wsl", "-d", MISTRALRS_DISTRO, "--", "pkill", "-f", MISTRALRS_BIN], capture_output=True)
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if not _pgrep():
+            return True
+        time.sleep(0.5)
+    return False
+
+
+class MistralRsServer:
+    """Starts mistral.rs on the WSL GPU through serve-d1.sh and stops that server on exit.
+
+    `startup_s` is launch to first healthy reply. Paged attention is a server flag, so it belongs to the server and not
+    to a request; `set_size` is per request and lives on D1Client.
+    """
+
+    def __init__(self, port=MISTRALRS_PORT, log_path=None, paged_attn="off"):
+        self.port, self.paged_attn, self.log_path, self.proc = port, paged_attn, Path(log_path), None
+
+    def __enter__(self):
+        if _pgrep():
+            raise RuntimeError(f"a mistral.rs server is already running, PIDs {_pgrep()}")
+        command = ["wsl", "-d", MISTRALRS_DISTRO, "--", "env", f"PORT={self.port}",
+                   f"PAGED_ATTN={self.paged_attn}", "bash", MISTRALRS_SCRIPT]
+        self.log_path.parent.mkdir(parents=True, exist_ok=True)
+        self.log = open(self.log_path, "w")
+        started = time.perf_counter()
+        self.proc = subprocess.Popen(command, stdout=self.log, stderr=subprocess.STDOUT)
+        try:
+            self._wait_healthy()
+        except BaseException:
+            self.__exit__()
+            raise
+        self.startup_s = time.perf_counter() - started
+        return self
+
+    def _wait_healthy(self, timeout=300):
+        deadline = time.time() + timeout
+        while time.time() < deadline:
+            if self.proc.poll() is not None:
+                raise RuntimeError(f"mistral.rs exited with {self.proc.returncode}, see {self.log_path}")
+            try:
+                with urllib.request.urlopen(f"http://127.0.0.1:{self.port}/health", timeout=2) as response:
+                    if response.status == 200:
+                        return
+            except OSError:
+                pass
+            time.sleep(0.5)
+        raise RuntimeError(f"mistral.rs did not become healthy, see {self.log_path}")
+
+    def __exit__(self, *exc):
+        if not stop_mistralrs():
+            print(f"WARNING mistral.rs left running, PIDs {_pgrep()}", flush=True)
+        try:
+            self.proc.wait(timeout=30)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
+            self.proc.wait(timeout=30)
+        self.log.close()
+
+
 @contextmanager
 def decider(name, log_dir=None):
-    """The decider a run asked for: `cloud` (the default, OpenRouter) or `d1` (a local llama-server it starts)."""
+    """The decider a run asked for: `liquid` (Liquid AI's hosted d1.2, the default), `cloud` (OpenRouter's
+    pplx-decider-flash, kept as the fallback), or `d1` (a local llama-server it starts, or whatever server
+    `$VOICE_D1_URL` names, which is how mistral.rs gets measured)."""
     if name == "cloud":
         from voice.segmentation import client as api
         yield api.Client()
+        return
+    if name == "liquid":
+        from voice.liquid_decider.client import LiquidClient
+        yield LiquidClient()
         return
     if name != "d1":
         raise ValueError(f"unknown decider {name!r}")
@@ -172,4 +271,4 @@ def decider(name, log_dir=None):
 
 
 def default_decider():
-    return os.environ.get("VOICE_DECIDER", "cloud")
+    return os.environ.get("VOICE_DECIDER", "liquid")

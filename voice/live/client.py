@@ -3,12 +3,18 @@
     python client.py [--server ws://HOST:8770] [--input DEVICE] [--output DEVICE] [--ptt] [--wav CLIP.wav ...]
     python client.py --list-devices
 
-Use headphones. There is no echo cancellation, so reply audio from speakers reaches the microphone and the server
-hears it as speech, which interrupts the reply.
+Use speakers or headphones. The client cancels speaker echo from the microphone before it sends it, so the reply
+audio the speakers play is not heard as speech and does not interrupt the reply. A person talking over the reply
+still interrupts it. `--no-echo-cancel` sends the raw microphone, which works with headphones and was the earlier
+behavior. The echo canceller models a 256 ms echo path by default; `--echo-tail-ms` raises it for a long delay.
 
 The server decides when a turn ends (about 0.7 s of silence). With --ptt, press Enter to start talking and Enter
-again to stop. Talking while a reply plays interrupts it: the server cancels the reply and this client drops the audio
-it buffered. --wav feeds clips in place of the microphone, which is how the Desktop loopback test runs.
+again to stop. Talking while a reply plays turns it down at once; the server then either stops it, and this client
+drops the audio it buffered, or finds the speech was a backchannel such as "mm-hm" and turns it back up. --wav feeds
+clips in place of the microphone, which is how the Desktop loopback test runs, and echo cancellation is off for it
+unless `--echo-cancel` is given. Each clip after the first starts once the previous reply has finished playing, the
+way a person waits, unless --barge-in-ms sends it over the reply. A clip that begins with the clip before it is sent
+from where they differ, because a recorded turn can hold the audio the server carried into it from the turn before.
 
 The server address and the shared secret come from config.json and the `secret` file beside this script unless
 --server and --secret-file say otherwise. Each run records what this client sent and played, plus the metrics, the
@@ -31,8 +37,14 @@ import numpy as np
 import websockets
 
 if __package__:
+    from voice.live.aec import EchoCanceller
+    from voice.live.comms import CAPTURE, RENDER, default_name
+    from voice.live.rawmic import open_raw
     from voice.live.recording import SessionRecorder, unique_session_dir
 else:
+    from aec import EchoCanceller
+    from comms import CAPTURE, RENDER, default_name
+    from rawmic import open_raw
     from recording import SessionRecorder, unique_session_dir
 
 HERE = Path(__file__).resolve().parent
@@ -40,6 +52,7 @@ HEADER = "X-Voice-Secret"
 RATE = 16_000
 FRAME_MS = 20
 FRAME_SAMPLES = RATE * FRAME_MS // 1000
+DUCK_GAIN = 0.35
 LOG_DIR = Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "live-client"
 
 
@@ -57,12 +70,28 @@ def device(value):
     return int(value) if value is not None and value.isdigit() else value
 
 
+def mme_output(sd, name):
+    """The MME output device whose name begins Windows' `name` (MME cuts names at 31 characters), or None. MME
+    converts the reply's rate to the device's, which a WASAPI shared stream would not."""
+    apis = sd.query_hostapis()
+    mme = next((i for i, api in enumerate(apis) if api["name"] == "MME"), None)
+    matches = [i for i, d in enumerate(sd.query_devices())
+               if d["hostapi"] == mme and d["max_output_channels"] > 0 and name.startswith(d["name"])]
+    return max(matches, key=lambda i: len(sd.query_devices(i)["name"])) if matches else None
+
+
 def auto_output():
-    """Uses Windows' current default output, which is what Windows itself is playing through. Plugging in
-    headphones normally makes them the default, so the reply follows them, and any device the person has chosen
-    as default is respected (virtual mixer outputs included). Opening device None means that default. Returns
-    (None, description)."""
+    """Uses Windows' default communications output, the speakers or headset chosen for calls, and otherwise the
+    current default output. Plugging in headphones normally makes them the default, so the reply follows them.
+    Returns (device, description); device None means the default."""
     import sounddevice as sd
+    try:
+        name = default_name(RENDER)
+        index = mme_output(sd, name) if name else None
+        if index is not None:
+            return index, f"Windows communications output: {name}"
+    except Exception:
+        pass
     try:
         apis = sd.query_hostapis()
         wasapi = next((a for a in apis if "WASAPI" in a["name"]), None)
@@ -73,16 +102,29 @@ def auto_output():
     return None, f"Windows default output: {name}"
 
 
+def echo_canceller(args):
+    """This run's microphone echo canceller, or None when the run does not use one.
+
+    Off unless --echo-cancel is given: on real laptop echo it garbles the person's speech (issue #33), so use
+    headphones until that is fixed."""
+    if getattr(args, "echo_cancel", None) is None:
+        enabled = False
+    else:
+        enabled = args.echo_cancel
+    return EchoCanceller(tail_ms=getattr(args, "echo_tail_ms", 256)) if enabled else None
+
+
 class Player:
     """Plays reply PCM16 through one output stream, after `prebuffer_ms` is queued or the reply ends."""
 
-    def __init__(self, output, prebuffer_ms, recorder=None):
+    def __init__(self, output, prebuffer_ms, recorder=None, canceller=None):
         self.output, self.prebuffer_ms = output, prebuffer_ms
-        self.recorder = recorder
+        self.recorder, self.canceller = recorder, canceller
         self.stream, self.rate = None, None
         self.buffer, self.lock = bytearray(), threading.Lock()
         self.playing, self.reply_done = False, True
         self.first_play_t, self.underruns = None, 0
+        self.gain, self.on_drain = 1.0, None
 
     def open(self, rate):
         """Opening a stream takes a while on Windows, so open it before the first reply and again only if the rate
@@ -114,7 +156,21 @@ class Player:
     def flush(self):
         with self.lock:
             self.buffer.clear()
-            self.playing = False
+            self.playing, self.gain = False, 1.0
+        self._drained()
+
+    def duck(self, on):
+        """Turns the reply down while the server decides whether speech over it is a barge-in."""
+        with self.lock:
+            self.gain = DUCK_GAIN if on else 1.0
+
+    def idle(self):
+        with self.lock:
+            return self.reply_done and not self.buffer
+
+    def _drained(self):
+        if self.on_drain is not None:
+            self.on_drain()
 
     def _callback(self, outdata, frames, _time, _status):
         need = frames * 2
@@ -129,10 +185,20 @@ class Player:
             del self.buffer[:need]
             if len(chunk) < need and not self.reply_done:
                 self.underruns += 1
+            drained = bool(chunk) and not self.buffer
             if not self.buffer:
                 self.playing = False
-            rate = self.rate
+            rate, gain = self.rate, self.gain
+        if chunk and gain != 1.0:
+            chunk = (np.frombuffer(chunk, dtype="<i2") * gain).astype("<i2").tobytes()
         outdata[:] = chunk + b"\x00" * (need - len(chunk))
+        if drained:
+            self._drained()
+        if chunk and self.canceller is not None:
+            try:
+                self.canceller.playback(chunk, rate, now)
+            except Exception:
+                self.canceller = None
         if chunk and self.recorder is not None:
             self.recorder.playback(chunk, rate, now)
 
@@ -143,28 +209,51 @@ class Player:
             self.stream = None
 
 
-async def mic_frames(input_device, queue):
+async def mic_frames(input_device, queue, raw=True):
     import sounddevice as sd
     loop = asyncio.get_running_loop()
 
-    def callback(indata, _frames, _time, _status):
-        loop.call_soon_threadsafe(queue.put_nowait, (bytes(indata), time.perf_counter()))
+    def on_frame(pcm):
+        loop.call_soon_threadsafe(queue.put_nowait, (pcm, time.perf_counter()))
 
-    stream = sd.RawInputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=FRAME_SAMPLES,
-                               device=input_device, callback=callback)
+    communications = default_name(CAPTURE) if input_device is None else None
+    stream, how = (open_raw(sd, input_device, RATE, FRAME_SAMPLES, on_frame, communications) if raw
+                   else (None, "--no-raw-mic"))
+    if stream is None:
+        print(f"input: driver-processed capture ({how})", flush=True)
+        stream = sd.RawInputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=FRAME_SAMPLES,
+                                   device=input_device, callback=lambda data, *_: on_frame(bytes(data)))
+    else:
+        print(f"input: {how}", flush=True)
     with stream:
         await asyncio.Event().wait()
 
 
+def without_carry(clip, previous):
+    """`clip` without the audio it repeats from `previous`, the clip sent before it.
+
+    A live turn's recorded input can open with the turn before it: when a turn is cancelled because the person kept
+    talking, the server carries that turn's audio into the next one (`start_turn` in server.py), and the recording of
+    the next turn holds both. Replayed as sent, those clips say the carried words again, and the endpointer splits
+    them at the pause they carry, so one sentence becomes several turns. The carried part is sample-identical to the
+    previous clip; a person repeating a phrase or a clip identical to the one before it is not stripped."""
+    if previous and len(clip) > len(previous) and clip.startswith(previous):
+        return clip[len(previous):]
+    return clip
+
+
 async def wav_frames(paths, queue, next_clip, lead_s=0.5):
     """Clips in place of the microphone, at real-time pace with silence between. Each clip after the first waits for
-    `next_clip`."""
+    `next_clip`. A clip that begins with the previous one is sent from where they differ, see `without_carry`."""
     step, start, index = FRAME_SAMPLES * 2, time.perf_counter(), 0
-    pending, clips = bytearray(b"\x00" * int(lead_s * RATE) * 2 + read_wav_16k(paths[0])), list(paths[1:])
+    first, clips = read_wav_16k(paths[0]), list(paths[1:])
+    pending, previous = bytearray(b"\x00" * int(lead_s * RATE) * 2 + first), first
     while True:
         if not pending and clips and next_clip.is_set():
             next_clip.clear()
-            pending += read_wav_16k(clips.pop(0))
+            clip = read_wav_16k(clips.pop(0))
+            pending += without_carry(clip, previous)
+            previous = clip
         frame = bytes(pending[:step])
         del pending[:step]
         queue.put_nowait((frame + b"\x00" * (step - len(frame)), time.perf_counter()))
@@ -184,22 +273,38 @@ class Client:
         if output is None:
             output, chosen = auto_output()
             print(f"output: {chosen}", flush=True)
-        self.player = Player(output, args.prebuffer_ms, recorder=self.recorder)
-        self.rtts, self.done_turns, self.latest_turn = [], 0, None
+        self.echo = echo_canceller(args)
+        if self.echo is not None:
+            print(f"echo cancellation on: {self.echo.tail_ms} ms echo path", flush=True)
+        self.player = Player(output, args.prebuffer_ms, recorder=self.recorder, canceller=self.echo)
+        self.rtts, self.done_turns, self.latest_turn, self.barged_turn = [], 0, None, None
         self.clips_left = max(0, len(args.wav or []) - 1)
         self.next_clip = asyncio.Event()
         self.turn_end_rx, self.trailing_s, self.reply_first = None, 0.0, None
         self.reply_audio, self.reply_turn, self.reply_t0 = bytearray(), None, None
         self.log_file = open(self.log_dir / "client.jsonl", "a", encoding="utf-8")
-        self.finished = asyncio.Event()
+        self.finished, self.drained = asyncio.Event(), asyncio.Event()
 
     def log(self, kind, **detail):
         self.log_file.write(json.dumps({"t": round(time.time(), 3), "kind": kind, **detail}) + "\n")
         self.log_file.flush()
 
+    def echo_stats(self):
+        return None if self.echo is None else self.echo.stats()
+
     async def send_audio(self, ws, frames):
         while True:
             pcm, t = await frames.get()
+            echo = getattr(self, "echo", None)
+            if echo is not None:
+                try:
+                    pcm = echo.process(pcm, t)
+                except Exception as exc:
+                    print(f"echo cancellation failed, sending the raw microphone: {exc}", file=sys.stderr,
+                          flush=True)
+                    self.echo = None
+                    if hasattr(self, "log"):
+                        self.log("echo_failed", error=repr(exc))
             await ws.send(pcm)
             if self.recorder is not None:
                 self.recorder.mic(pcm, t)
@@ -216,6 +321,20 @@ class Client:
             down = not down
             print("talking..." if down else "sent.", flush=True)
             asyncio.run_coroutine_threadsafe(ws.send(json.dumps({"type": "ptt", "down": down})), loop)
+
+    async def after_playback(self, then):
+        """Runs `then` once every reply the server sent has played."""
+        while True:
+            self.drained.clear()
+            if self.player.idle():
+                break
+            await self.drained.wait()
+        then()
+
+    def advance(self):
+        """The previous clip is settled: the next clip, or the end of the run, once the reply has played."""
+        then = self.send_next_clip if self.clips_left else self.finished.set
+        asyncio.get_running_loop().create_task(self.after_playback(then))
 
     def save_reply(self):
         if self.reply_turn is None or not self.reply_audio:
@@ -252,16 +371,29 @@ class Client:
             self.turn_end_rx = None
             self.log("reply_start", turn=message["turn"], rate=message["rate"], speech_end_to_first_audio_rx_s=e2e,
                      output_latency_s=round(self.player.stream.latency, 4))
-            if self.args.barge_in_ms is not None and self.clips_left:
+            if self.args.barge_in_ms is not None and self.clips_left and message["turn"] != self.barged_turn:
+                self.barged_turn = message["turn"]
                 asyncio.get_running_loop().call_later(self.args.barge_in_ms / 1000, self.send_next_clip)
         elif kind == "reply_end":
             self.player.end_reply()
+            if self.player.idle():
+                self.drained.set()
             self.save_reply()
             play_delay = None
             if self.player.first_play_t is not None:
                 play_delay = round(self.player.first_play_t - self.reply_first, 4)
             self.log("reply_end", turn=message["turn"], first_audio_to_playback_s=play_delay,
-                     underruns=self.player.underruns)
+                     underruns=self.player.underruns, echo=self.echo_stats())
+        elif kind == "duck":
+            self.player.duck(True)
+            self.log("duck", **message)
+        elif kind == "unduck":
+            self.player.duck(False)
+            if message.get("verdict") != "turn":
+                print(f"[turn {message['turn']}] kept talking over a {message.get('verdict')}", flush=True)
+            self.log("unduck", **message)
+            if self.args.wav and message.get("verdict") != "turn":
+                self.advance()
         elif kind == "barge_in":
             self.player.flush()
             self.reply_audio.clear()
@@ -269,16 +401,16 @@ class Client:
             self.log("barge_in", **message)
         elif kind == "turn_done":
             self.done_turns += 1
-            print(f"[turn {message['turn']}] heard: {message.get('transcript')!r}", flush=True)
+            if (message.get("cancelled") or message["metrics"].get("cancelled")) == "continued":
+                print(f"[turn {message['turn']}] you kept talking: it continues in the next turn", flush=True)
+            else:
+                print(f"[turn {message['turn']}] heard: {message.get('transcript')!r}", flush=True)
             for text in message.get("replies") or []:
                 print(f"[turn {message['turn']}] said: {text!r}", flush=True)
             self.log("turn_done", **message, rtt_median_s=self.rtt_median())
             settled = message["turn"] == self.latest_turn and not message["metrics"].get("cancelled")
-            if self.args.wav and settled:
-                if self.clips_left:
-                    self.send_next_clip()
-                else:
-                    self.finished.set()
+            if self.args.wav and settled and (self.args.barge_in_ms is None or not self.clips_left):
+                self.advance()
 
     def send_next_clip(self):
         if self.clips_left:
@@ -320,12 +452,14 @@ class Client:
                 print(f"recording this session to {self.log_dir}", flush=True)
             secret = self.args.secret_file.read_text(encoding="utf-8").strip()
             frames = asyncio.Queue()
+            loop = asyncio.get_running_loop()
+            self.player.on_drain = lambda: loop.call_soon_threadsafe(self.drained.set)
             self.player.open(self.args.output_rate)
             ws = await self.connect(secret)
             if self.args.wav:
                 source = wav_frames(self.args.wav, frames, self.next_clip)
             else:
-                source = mic_frames(device(self.args.input), frames)
+                source = mic_frames(device(self.args.input), frames, raw=getattr(self.args, "raw_mic", True))
             async with ws:
                 await ws.send(json.dumps({"type": "hello", "mode": "ptt" if self.args.ptt else "vad"}))
                 tasks = [asyncio.create_task(c) for c in (source, self.send_audio(ws, frames), self.ping(ws),
@@ -342,7 +476,8 @@ class Client:
                                                                        websockets.ConnectionClosed):
                         raise task.exception()
             self.log("summary", rtt_median_s=self.rtt_median(), rtt_samples=len(self.rtts),
-                     rtt_max_s=round(max(self.rtts), 4) if self.rtts else None, turns=self.done_turns)
+                     rtt_max_s=round(max(self.rtts), 4) if self.rtts else None, turns=self.done_turns,
+                     echo=self.echo_stats())
             print(f"round trip over the socket: median {self.rtt_median()} s over {len(self.rtts)} pings",
                   flush=True)
         finally:
@@ -373,6 +508,16 @@ def main():
     parser.add_argument("--barge-in-ms", type=int,
                         help="with --wav, send the next clip this long after a reply starts, to test barge-in")
     parser.add_argument("--prebuffer-ms", type=int, default=80, help="reply audio to queue before playback starts")
+    parser.add_argument("--echo-cancel", dest="echo_cancel", action="store_true", default=None,
+                        help="cancel speaker echo from the microphone (default: off; it garbles speech on real echo, issue #33)")
+    parser.add_argument("--no-echo-cancel", dest="echo_cancel", action="store_false",
+                        help="send the raw microphone, as with headphones")
+    parser.add_argument("--no-raw-mic", dest="raw_mic", action="store_false",
+                        help="take the microphone after the driver's own effects (its echo cancellation and noise "
+                             "suppression) instead of the raw WASAPI stream")
+    parser.add_argument("--echo-tail-ms", type=int, default=256,
+                        help="echo path the canceller models, from output callback to microphone (default 256); "
+                             "raise it for a Bluetooth speaker")
     parser.add_argument("--output-rate", type=int, default=24_000, help="rate to open the output at before a reply")
     parser.add_argument("--wait-for-server", type=float, default=0, help="keep retrying the connection this many s")
     parser.add_argument("--log-dir", type=Path, default=LOG_DIR)
@@ -385,6 +530,8 @@ def main():
         return
     if not args.server:
         parser.error("no server: put config.json beside client.py or pass --server ws://HOST:8770")
+    if args.echo_tail_ms <= 0:
+        parser.error("--echo-tail-ms must be positive")
     try:
         asyncio.run(Client(args).run())
     except KeyboardInterrupt:

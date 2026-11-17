@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from voice.segmentation.contract import CorrectionMode, Kind, Readiness
+from voice.tools.registry import ToolChoice
 
 
 class Status(StrEnum):
@@ -63,12 +64,20 @@ class Task:
     depends_on: list[str] = field(default_factory=list)
     revises: str | None = None
     side_effect: bool = False
+    tool: ToolChoice | None = None
+    waiting: dict | None = None
     history: list[dict] = field(default_factory=list)
 
     def record(self):
-        return {"task_id": self.task_id, "status": self.status.value, "segment_text": self.segment_text,
-                "instruction": self.instruction, "sources": sorted(self.sources), "depends_on": self.depends_on,
-                "revises": self.revises, "side_effect": self.side_effect, "history": self.history}
+        record = {"task_id": self.task_id, "status": self.status.value, "segment_text": self.segment_text,
+                  "instruction": self.instruction, "sources": sorted(self.sources), "depends_on": self.depends_on,
+                  "revises": self.revises, "side_effect": self.side_effect, "history": self.history}
+        if self.tool is not None:
+            record["tool"] = {"tool": self.tool.tool, "confidence": self.tool.confidence,
+                              "arguments": self.tool.arguments}
+        if self.waiting:
+            record["waiting"] = self.waiting
+        return record
 
 
 def _words(text):
@@ -100,6 +109,7 @@ class Orchestrator:
         self._delegate_count = 0
         self.decided: dict[str, tuple] = {}
         self.gate = None
+        self.waits = None
         self.side_effects_wait_for_final = True
 
     def _new_task(self, text, start, sources, **extra):
@@ -278,6 +288,28 @@ class Orchestrator:
         self._move(new, Status.READY if new.depends_on else Status.DISPATCHED, "voice model amended its task")
         return {"ok": True, "task_id": new.task_id, "replaces": task_id}
 
+    def take_back_utterance(self, reason):
+        """Stop every live task this utterance made, because the whole utterance corrects an earlier turn: a task
+        that has not run is withdrawn, and a running one is cancelled."""
+        for task in self.tasks.values():
+            if task.status in UNDISPATCHED:
+                self._move(task, Status.WITHDRAWN, reason)
+            elif task.status == Status.DISPATCHED:
+                self._move(task, Status.CANCEL_REQUESTED, reason)
+
+    def amend_earlier(self, ref, instruction, side_effect):
+        """A task that replaces one an earlier turn ran. `ref` names that task, which this turn does not hold."""
+        task = self._new_task(instruction, None, {"orchestrator"}, revises=ref, side_effect=side_effect)
+        self._move(task, Status.DISPATCHED, "amends an earlier turn's task")
+        return task
+
+    def answer_earlier(self, ref, instruction, side_effect):
+        """A task the person has now answered: the request that could not start runs with the value they gave. It
+        replaces the waiting task, so a later turn carries one task and the snapshot reports one."""
+        task = self._new_task(instruction, None, {"orchestrator"}, revises=ref, side_effect=side_effect)
+        self._move(task, Status.DISPATCHED, "the person answered what it lacked")
+        return task
+
     def submit_delegate(self, instruction):
         """The voice model's delegate tool. Reconciled against the transcript at the next decision point."""
         self._delegate_count += 1
@@ -324,6 +356,7 @@ class Orchestrator:
                 self._move(task, Status.PROPOSED, "reclassified as request")
             task.side_effect = decision.side_effect or (task.revises is not None
                                                         and self.tasks[task.revises].side_effect)
+            task.tool = decision.tool
             task.depends_on = self._dependencies(decision, bound, task)
         elif task is not None and task.status in UNDISPATCHED:
             self._move(task, Status.WITHDRAWN, f"reclassified as {kind.value}")
@@ -350,11 +383,19 @@ class Orchestrator:
                               depends_on=list(target.depends_on))
         task.instruction = self._instruction_for(task, seg.text)
         task.side_effect = decision.side_effect or target.side_effect
+        task.tool = decision.tool
         bound[seg.sid] = task
 
     def _settle(self, task, seg, decision):
-        """Pick the status of an undispatched task from the decision and the dispatch policy."""
-        if decision.readiness == Readiness.CLARIFY or (decision.readiness == Readiness.WAIT and self.is_final):
+        """Pick the status of an undispatched task from the decision and the dispatch policy.
+
+        `waits` is the caller's check for a call that has nothing to look up, such as a forecast with no place. It
+        returns what the task would have to ask the person (tool, arguments, missing fields) or None, and a task it
+        answers for waits for that answer (`NEEDS_CLARIFICATION`) however ready it reads."""
+        task.waiting = self.waits(task) if self.waits is not None else None
+        if task.waiting:
+            status, reason = Status.NEEDS_CLARIFICATION, f"needs {', '.join(task.waiting['missing'])}"
+        elif decision.readiness == Readiness.CLARIFY or (decision.readiness == Readiness.WAIT and self.is_final):
             status, reason = Status.NEEDS_CLARIFICATION, f"readiness {decision.readiness.value}"
         elif decision.readiness == Readiness.WAIT:
             status, reason = Status.PROPOSED, "readiness wait"
@@ -365,7 +406,7 @@ class Orchestrator:
         elif task.side_effect and not self.is_final and self.side_effects_wait_for_final:
             status, reason = Status.READY, "side effect held for the final transcript"
         elif self.gate is not None:
-            verdict = self.gate(decision)
+            verdict = self.gate(decision, self.is_final)
             self._log(task, "gate", passed=verdict.passed, score=round(verdict.score, 4), weakest=verdict.weakest,
                       threshold=verdict.threshold)
             status, reason = (Status.DISPATCHED if verdict.passed else Status.HELD), verdict.reason()
@@ -380,6 +421,8 @@ class Orchestrator:
                 entry = {"task_id": t.task_id, "description": t.instruction, "status": SNAPSHOT_STATUS[t.status]}
                 if t.depends_on:
                     entry["depends_on"] = t.depends_on
+                if t.waiting:
+                    entry["needs"] = list(t.waiting["missing"])
                 tasks.append(entry)
         unclear = [t.instruction for t in self.tasks.values() if t.status == Status.NEEDS_CLARIFICATION]
         return {"type": "utterance_snapshot", "conversation_id": conversation_id, "utterance_id": utterance_id,
