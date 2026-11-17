@@ -74,6 +74,9 @@ class GateTest(unittest.TestCase):
         completed = run_gate(self.repo)
         self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
         self.assertIn("node", completed.stdout)
+        write(self.repo, "voice/ci/known_skips.txt", "node: skip 1 # expected\n")
+        accepted = run_gate(self.repo)
+        self.assertEqual(accepted.returncode, 0, accepted.stdout + accepted.stderr)
 
     def test_a_skip_not_in_the_skip_baseline_fails_the_gate(self) -> None:
         self.skipping_module()
