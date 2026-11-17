@@ -1,24 +1,44 @@
 """Build frozen picker snapshots from a read-only copy of a T3 statev2.sqlite.
 
-The window and project choices come from a spec file, so no project name is baked into this code. Never
-point this at a live database.
+The listing rule is the seam's: a thread is listed only when its lineage is listed (never a
+subagent, never a side chat) and it was not delegated. Older settled threads stay in, because
+the seam reads every active shell rather than the client's trimmed 25-settled view. Windows and
+project subsets come from a spec file, so no project name is baked into this code. Never point
+this at a live database.
 """
 
 import json
 import sqlite3
 from datetime import datetime, timedelta
 
-TERMINAL = {"completed": "finished", "failed": "failed", "interrupted": "interrupted",
-            "cancelled": "cancelled", "rolled_back": "failed"}
+TERMINAL = {
+	"completed": "finished",
+	"failed": "failed",
+	"interrupted": "interrupted",
+	"cancelled": "cancelled",
+	"rolled_back": "rolled_back",
+}
 LIVE = {"preparing", "queued", "starting", "running"}
+SEAM_LIMIT = 200
 
 
 def _rows(con, sql, args=()):
 	return con.execute(sql, args).fetchall()
 
 
+def is_listed(payload):
+	"""`isListedThreadLineage(row.lineage) && !isDelegatedAppThread(row)` from the T3 contracts."""
+	meta = payload or {}
+	lineage = meta.get("lineage") or {}
+	if lineage.get("relationshipToParent") == "subagent":
+		return False
+	if lineage.get("sideChat") is True:
+		return False
+	return not meta.get("delegatedFrom")
+
+
 def _thread_rows(con):
-	"""Active threads with their project, pin flag, and their newest run, newest activity first."""
+	"""Listed active threads with project, activity and settle time, newest activity first."""
 	newest_run = {}
 	for thread_id, status in _rows(
 			con, "select thread_id, status from orchestration_v2_projection_runs order by requested_at"):
@@ -34,8 +54,11 @@ def _thread_rows(con):
 			   where t.archived_at is null and t.deleted_at is null
 			   order by t.updated_at desc""",
 	):
-		meta = json.loads(payload) if payload else {}
-		if meta.get("snoozedUntil") or meta.get("snoozedAt"):
+		try:
+			meta = json.loads(payload) if payload else {}
+		except json.JSONDecodeError:
+			continue
+		if not is_listed(meta):
 			continue
 		status = newest_run.get(thread_id)
 		if thread_id in pending or status == "waiting":
@@ -53,6 +76,7 @@ def _thread_rows(con):
 			"activity": activity,
 			"lastActivityAt": updated_at,
 			"pinned": bool(meta.get("pinnedAt")),
+			"settledAt": meta.get("settledAt") if meta.get("settledOverride") == "settled" else None,
 		})
 	return rows
 
@@ -66,27 +90,30 @@ def _since(now, days):
 	return start.isoformat().replace("+00:00", "Z")
 
 
+def _in_window(row, since):
+	return since is None or row["lastActivityAt"] >= since
+
+
 def _visible(rows, names, spec, now):
 	by_name = {name: pid for pid, name in names.items()}
+	since = _since(now, spec["sinceDays"]) if spec.get("sinceDays") else None
+	skip = {by_name.get(n) for n in spec.get("excludeProjects", [])}
 	if "projects" in spec:
-		per = spec.get("perProject")
 		out = []
 		for name in spec["projects"]:
-			block = [r for r in rows if r["projectId"] == by_name.get(name)]
-			out += block[:per] if per else block
+			block = [r for r in rows if r["projectId"] == by_name.get(name) and _in_window(r, since)]
+			out += block[: spec.get("perProject") or None]
 	else:
-		since = _since(now, spec["sinceDays"]) if spec.get("sinceDays") else None
-		skip = {by_name.get(n) for n in spec.get("excludeProjects", [])}
-		out = [r for r in rows if (since is None or r["lastActivityAt"] >= since) and r["projectId"] not in skip]
+		out = [r for r in rows if _in_window(r, since) and r["projectId"] not in skip]
 	return out[: spec["limit"]] if spec.get("limit") else out
 
 
-def _outside(rows, names, spec):
+def _outside(rows, names, spec, now):
 	if not spec:
 		return []
 	by_name = {name: pid for pid, name in names.items()}
-	since = _since(spec["_now"], spec["sinceDays"]) if spec.get("sinceDays") else None
-	block = [r for r in rows if r["projectId"] == by_name.get(spec["project"]) and (since is None or r["lastActivityAt"] >= since)]
+	since = _since(now, spec["sinceDays"]) if spec.get("sinceDays") else None
+	block = [r for r in rows if r["projectId"] == by_name.get(spec["project"]) and _in_window(r, since)]
 	return block[: spec.get("limit", 6)]
 
 
@@ -97,29 +124,28 @@ def build(db_path, spec, now=None):
 		names = _names(con)
 	finally:
 		con.close()
+	if not rows:
+		raise ValueError(f"no listed threads in {db_path}")
 	now = now or max(r["lastActivityAt"] for r in rows)
 	out = []
 	for sid in sorted(spec):
 		snap_spec = dict(spec[sid])
 		visible = _visible(rows, names, snap_spec["visible"], now)
-		outside_spec = dict(snap_spec.get("outside") or {})
-		outside = []
-		if outside_spec:
-			outside_spec["_now"] = now
-			outside = _outside(rows, names, outside_spec)
+		outside = _outside(rows, names, snap_spec.get("outside"), now)
 		allowed = sorted({t["projectId"] for t in visible})
-		if snap_spec.get("allowed") == "all_except_outside":
-			by_name = {name: pid for pid, name in names.items()}
-			allowed = sorted(set(names) - {by_name.get((snap_spec.get("outside") or {}).get("project"))})
 		projects = {pid: names.get(pid, pid) for pid in sorted({t["projectId"] for t in visible + outside})}
+		# `total` is every listed thread the ceiling allows, at any age; the ceiling the seam
+		# reports is what makes "no such thread" untrue.
+		kept = [r for r in rows if r["projectId"] in set(allowed)]
+		threads = visible + outside
 		out.append({
 			"id": sid,
 			"label": snap_spec.get("label", sid),
 			"takenAt": now,
 			"allowedProjects": allowed,
 			"projects": projects,
-			"threads": visible + outside,
-			"visibleCount": len(visible),
-			"outsideCount": len(outside),
+			"threads": threads,
+			"total": len(kept),
+			"truncated": len(kept) > len(threads),
 		})
 	return out

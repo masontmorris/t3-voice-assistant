@@ -1,31 +1,56 @@
 """The deployed pick, in the order the seam will call it.
 
-A back-reference resolves from the task record before anything else, then the deterministic prefilter
-runs, and only a prefilter miss or tie reaches the model. The model never sees a thread the ceiling
-hides, because it is handed the same listing the prefilter saw.
+The deterministic prefilter runs first. A hit is the pick and no model is called. A tie asks
+by default. Only a miss, or a tie under the arm that lets a model break one, reaches the model,
+which sees the same listing the ceiling allows. A model that fails or cannot be reached becomes
+a question, never a guess.
 """
 
-from .model import pick_thread
+from urllib.error import URLError
+
+from .model import ModelFailed, pick_thread
 from .pick import Pick, question_for
 from .prefilter import prefilter
 
+FAILURES = (ModelFailed, URLError, OSError, TimeoutError)
+
+
+def _titles(threads):
+	return {t["threadId"]: t.get("title", "") for t in threads}
+
 
 def prefilter_pick(utterance, threads):
-	hits, words = prefilter(utterance, threads)
-	titles = {t["threadId"]: t.get("title", "") for t in threads}
+	listed = [t["threadId"] for t in threads]
+	match = prefilter(utterance, threads)
+	titles = _titles(threads)
+	hits = match.candidates
 	if len(hits) == 1:
-		return Pick.one(hits[0], "prefilter")
+		return Pick.one(hits[0], listed, "prefilter")
 	if hits:
 		return Pick.ask(hits, question_for([titles[i] for i in hits]), "prefilter tie")
-	return Pick.none("no listed title contains " + " ".join(words))
+	if match.state_only:
+		return Pick.ask([], question_for([]), "state word with no matching activity")
+	return Pick.none("no listed title contains " + " ".join(match.words))
 
 
-def pick(utterance, threads, projects, now, client=None):
-	if client is None:
-		return prefilter_pick(utterance, threads), {"ms": 0, "model": False}
+def pick(utterance, threads, projects, now, client=None, break_tie=False):
+	"""Return (Pick, meta). Meta carries `model`, `parse`, `shortlist`, latency and tokens."""
 	first = prefilter_pick(utterance, threads)
-	if first.kind == "one":
-		return first, {"ms": 0, "model": False}
-	shortlist = threads if first.kind == "none" else [t for t in threads if t["threadId"] in first.candidates]
-	picked, meta = pick_thread(utterance, shortlist, projects, now, client)
+	if first.kind == "one" or client is None:
+		return first, {"ms": 0, "model": False, "parse": "ok"}
+	if first.kind == "ask":
+		if not break_tie or len(first.candidates) < 2:
+			return first, {"ms": 0, "model": False, "parse": "ok"}
+		shortlist = [t for t in threads if t["threadId"] in first.candidates]
+	else:
+		shortlist = threads
+	titles = _titles(shortlist)
+	try:
+		picked, meta = pick_thread(utterance, shortlist, projects, now, client)
+	except FAILURES as e:
+		candidates = [t["threadId"] for t in shortlist[:3]]
+		return (Pick.ask(candidates, question_for([titles[i] for i in candidates]),
+		                 f"picker failed: {type(e).__name__}"),
+		        {"ms": 0, "model": True, "parse": "failed", "error": str(e)[:200],
+		         "shortlist": len(shortlist)})
 	return picked, {**meta, "model": True, "shortlist": len(shortlist)}

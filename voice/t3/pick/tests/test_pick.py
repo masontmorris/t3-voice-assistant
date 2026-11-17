@@ -1,7 +1,8 @@
 import unittest
+from urllib.error import URLError
 
 from voice.t3.pick.decide import pick, prefilter_pick
-from voice.t3.pick.model import pick_thread
+from voice.t3.pick.model import ModelFailed, error_is_billing, pick_thread, tokens
 from voice.t3.pick.pick import Pick
 from voice.t3.pick.prefilter import content_words, prefilter
 
@@ -10,9 +11,56 @@ THREADS = [
 	{"threadId": "t-pr-a", "projectId": "p1", "title": "Verify PR 12 at aaa", "activity": "finished", "lastActivityAt": "2026-11-16T09:00:00Z"},
 	{"threadId": "t-pr-b", "projectId": "p1", "title": "Verify PR 12 at bbb", "activity": "finished", "lastActivityAt": "2026-11-16T08:00:00Z"},
 	{"threadId": "t-merge", "projectId": "p2", "title": "Merge upstream main", "activity": "finished", "lastActivityAt": "2026-11-16T07:00:00Z"},
+	{"threadId": "t-upload", "projectId": "p2", "title": "Failed upload handling", "activity": "finished", "lastActivityAt": "2026-11-16T06:00:00Z"},
+	{"threadId": "t-broke", "projectId": "p2", "title": "Caching layer rewrite", "activity": "failed", "lastActivityAt": "2026-11-16T05:00:00Z"},
 ]
 PROJECTS = {"p1": "alpha", "p2": "beta"}
 NOW = "2026-11-16T12:00:00.000Z"
+
+
+class StateWordTest(unittest.TestCase):
+	def test_a_state_word_does_not_name_the_title_that_contains_it(self):
+		# The old rule matched "failed" inside a title and spoke it for a question about state.
+		picked = prefilter_pick("how's the one that failed", THREADS)
+		self.assertNotEqual(picked.thread_id, "t-upload")
+		self.assertEqual(picked.thread_id, "t-broke")
+	def test_a_state_word_matches_activity(self):
+		picked = prefilter_pick("how's the one that failed", [t for t in THREADS if t["threadId"] != "t-broke"])
+		self.assertNotEqual(picked.kind, "one", "nothing failed, so it asks instead of naming the title")
+
+	def test_a_state_word_with_one_matching_activity_is_the_pick(self):
+		picked = prefilter_pick("what failed", THREADS)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.thread_id, "t-broke")
+
+	def test_state_words_alone_ask_when_several_activities_match(self):
+		picked = prefilter_pick("what's finished", THREADS)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"t-pr-a", "t-pr-b", "t-merge", "t-upload"})
+
+	def test_a_state_word_narrows_matching_titles(self):
+		twin = {"threadId": "t-flaky-old", "projectId": "p1", "title": "Fix the flaky ASR test",
+		        "activity": "finished", "lastActivityAt": "2026-11-15T10:00:00Z"}
+		picked = prefilter_pick("the flaky asr test that is working", THREADS + [twin])
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.thread_id, "t-flaky")
+
+
+class RecallTest(unittest.TestCase):
+	def test_contractions_do_not_add_content_words(self):
+		self.assertEqual(content_words("let's check the flaky asr test"), ["flaky", "asr", "test"])
+		self.assertEqual(content_words("i'm wondering about the flaky asr test"), ["flaky", "asr", "test"])
+
+	def test_filler_does_not_break_a_match(self):
+		picked = prefilter_pick("hey, i'm just wondering how the flaky asr test is going", THREADS)
+		self.assertEqual(picked.thread_id, "t-flaky")
+
+	def test_a_possessive_matches_its_title(self):
+		threads = [{"threadId": "t-mason", "projectId": "p1", "title": "Mason audio bridge",
+		            "activity": "working", "lastActivityAt": "2026-11-16T10:00:00Z"}]
+		picked = prefilter_pick("how's mason's audio bridge going", threads)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.thread_id, "t-mason")
 
 
 class PrefilterTest(unittest.TestCase):
@@ -39,22 +87,34 @@ class PrefilterTest(unittest.TestCase):
 		self.assertEqual(picked.kind, "one")
 		self.assertEqual(picked.thread_id, "t-flaky")
 
+	def test_a_single_content_word_that_one_title_carries_is_the_pick(self):
+		match = prefilter("the upstream one", THREADS)
+		self.assertEqual(match.candidates, ["t-merge"])
+		self.assertEqual(match.words, ["upstream"])
+
 	def test_a_single_content_word_shared_by_two_titles_ties(self):
-		hits, words = prefilter("the upstream one", THREADS)
-		self.assertEqual(hits, ["t-merge"])
-		self.assertEqual(words, ["upstream"])
+		threads = [
+			{"threadId": "a", "projectId": "p1", "title": "Upstream sync", "activity": "finished", "lastActivityAt": "2026-11-16T10:00:00Z"},
+			{"threadId": "b", "projectId": "p1", "title": "Upstream notes", "activity": "finished", "lastActivityAt": "2026-11-16T09:00:00Z"},
+		]
+		picked = prefilter_pick("the upstream one", threads)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"a", "b"})
 
 
-class PickCoercionTest(unittest.TestCase):
+class PickMembershipTest(unittest.TestCase):
 	def test_an_unlisted_id_becomes_a_question_with_the_listing(self):
 		picked = Pick.coerce("t-made-up", [t["threadId"] for t in THREADS], "Which thread?")
 		self.assertEqual(picked.kind, "ask")
-		self.assertEqual(set(picked.candidates), {"t-flaky", "t-pr-a", "t-pr-b", "t-merge"})
+		self.assertEqual(set(picked.candidates), {t["threadId"] for t in THREADS})
 		self.assertIn("unlisted id", picked.reason)
 
-	def test_a_listed_id_stays_a_pick(self):
-		picked = Pick.coerce("t-merge", ["t-merge"], "Which thread?")
-		self.assertEqual(picked.kind, "one")
+	def test_an_unlisted_one_pick_is_rejected(self):
+		with self.assertRaises(ValueError):
+			Pick.one("t-made-up", ["t-merge"])
+
+	def test_a_listed_one_pick_stays_a_pick(self):
+		self.assertEqual(Pick.one("t-merge", ["t-merge"]).kind, "one")
 
 	def test_illegal_states_are_rejected(self):
 		with self.assertRaises(ValueError):
@@ -66,15 +126,19 @@ class PickCoercionTest(unittest.TestCase):
 
 
 class FakeClient:
-	def __init__(self, reply):
+	def __init__(self, reply=None, error=None):
 		self.reply = reply
+		self.error = error
 		self.calls = 0
 		self.paused = None
 		self.model = "fake:free"
 
 	def complete(self, messages):
 		self.calls += 1
-		return {"text": self.reply, "ms": 12, "model": "fake:free", "usage": {}}
+		if self.error:
+			raise self.error
+		return {"text": self.reply, "ms": 12, "model": "fake:free", "usage": {},
+		        "tokens": {"reasoning_tokens": 0, "content_tokens": 7}}
 
 
 class ModelPickTest(unittest.TestCase):
@@ -88,6 +152,7 @@ class ModelPickTest(unittest.TestCase):
 		self.assertEqual(picked.kind, "one")
 		self.assertEqual(picked.thread_id, "t-flaky")
 		self.assertEqual(meta["ms"], 12)
+		self.assertEqual(meta["parse"], "ok")
 
 	def test_an_unlisted_choice_becomes_a_question(self):
 		picked, _, _ = self.run_model('```json\n{"choice": "t-imaginary", "candidates": []}\n```')
@@ -103,9 +168,10 @@ class ModelPickTest(unittest.TestCase):
 		picked, _, _ = self.run_model('{"choice": null, "candidates": []}')
 		self.assertEqual(picked.kind, "none")
 
-	def test_an_unparseable_reply_asks_instead_of_guessing(self):
-		picked, _, _ = self.run_model("I think it is the flaky one")
+	def test_an_unparseable_reply_is_reported_as_unparseable(self):
+		picked, meta, _ = self.run_model("I think it is the flaky one")
 		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(meta["parse"], "unparseable")
 
 
 class ChainTest(unittest.TestCase):
@@ -116,7 +182,14 @@ class ChainTest(unittest.TestCase):
 		self.assertEqual(client.calls, 0)
 		self.assertFalse(meta["model"])
 
-	def test_a_tie_hands_the_model_only_the_tied_threads(self):
+	def test_a_tie_asks_without_the_model_by_default(self):
+		client = FakeClient('{"choice": "t-pr-b"}')
+		picked, meta = pick("how's the verify pr 12 thread?", THREADS, PROJECTS, NOW, client)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(client.calls, 0)
+		self.assertFalse(meta["model"])
+
+	def test_the_tie_arm_hands_the_model_only_the_tied_threads(self):
 		seen = {}
 
 		class Recorder(FakeClient):
@@ -125,18 +198,45 @@ class ChainTest(unittest.TestCase):
 				return super().complete(messages)
 
 		client = Recorder('{"choice": "t-pr-b", "candidates": ["t-pr-a", "t-pr-b"]}')
-		picked, meta = pick("how's the verify pr 12 thread?", THREADS, PROJECTS, NOW, client)
+		picked, meta = pick("how's the verify pr 12 thread?", THREADS, PROJECTS, NOW, client, break_tie=True)
 		self.assertEqual(picked.thread_id, "t-pr-b")
 		self.assertTrue(meta["model"])
 		self.assertIn("t-pr-a", seen["prompt"])
 		self.assertIn("t-pr-b", seen["prompt"])
 		self.assertNotIn("t-merge", seen["prompt"])
 
-	def test_no_prefilter_hit_lets_the_model_see_the_whole_listing(self):
+	def test_a_miss_lets_the_model_see_the_whole_listing(self):
 		client = FakeClient('{"choice": "t-merge", "candidates": []}')
 		picked, meta = pick("how's the deploy thread going", THREADS, PROJECTS, NOW, client)
 		self.assertEqual(picked.kind, "one")
 		self.assertEqual(meta["shortlist"], len(THREADS))
+
+	def test_a_model_failure_becomes_a_question(self):
+		for error in (ModelFailed("gave up"), URLError("offline")):
+			client = FakeClient(error=error)
+			picked, meta = pick("how's the deploy thread going", THREADS, PROJECTS, NOW, client)
+			self.assertEqual(picked.kind, "ask")
+			self.assertEqual(meta["parse"], "failed")
+
+
+class RefusalTest(unittest.TestCase):
+	def test_billing_words_in_a_model_reply_are_not_a_billing_stop(self):
+		self.assertFalse(error_is_billing(200, '{"choice": "t-flaky", "candidates": []}'))
+		self.assertFalse(error_is_billing(200, "your credit balance and billing page"))
+
+	def test_a_402_or_a_billing_error_payload_is_a_stop(self):
+		self.assertTrue(error_is_billing(402, "{}"))
+		self.assertTrue(error_is_billing(429, '{"error": {"message": "Insufficient credits", "code": 402}}'))
+
+	def test_an_unrelated_error_payload_is_not_a_stop(self):
+		self.assertFalse(error_is_billing(500, '{"error": {"message": "upstream timeout"}}'))
+		self.assertFalse(error_is_billing(500, "not json"))
+
+	def test_reasoning_and_content_tokens_are_split(self):
+		got = tokens({"prompt_tokens": 90, "completion_tokens": 30,
+		              "completion_tokens_details": {"reasoning_tokens": 22}})
+		self.assertEqual(got, {"reasoning_tokens": 22, "content_tokens": 8,
+		                       "prompt_tokens": 90, "completion_tokens": 30})
 
 
 if __name__ == "__main__":

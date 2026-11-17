@@ -1,7 +1,10 @@
 """One free OpenRouter text model picks a thread, behind one function.
 
-Every request asserts a `:free` model id, runs one at a time, backs off exponentially on 429, and is
-cached on disk by request hash. A 402 or any billing language stops every later call in the process.
+Every request asserts a `:free` model id, runs one at a time, retries 429 and 5xx with
+exponential backoff, and is cached on disk by request hash. Only an HTTP 402 or an error
+payload that says billing stops every later call; a model's own reply is never scanned for
+those words. Reasoning is off, because round 1's truncations came from reasoning tokens
+eating the output budget, and every call records its reasoning and content tokens.
 """
 
 import hashlib
@@ -20,6 +23,8 @@ MODEL = "particle-ai/particle-1:free"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ATTEMPTS = 5
 TIMEOUT_S = 30
+MAX_TOKENS = 200
+REASONING = {"enabled": False}
 
 SYSTEM = (
 	"You match one spoken request to one thread in a list. "
@@ -30,6 +35,15 @@ SYSTEM = (
 	"Use only ids that appear in the list. Never explain."
 )
 
+ANSWER_SCHEMA = {
+	"type": "object",
+	"properties": {
+		"choice": {"type": ["string", "null"]},
+		"candidates": {"type": "array", "items": {"type": "string"}},
+	},
+	"required": ["choice", "candidates"],
+}
+
 
 class BillingStop(RuntimeError):
 	pass
@@ -37,6 +51,21 @@ class BillingStop(RuntimeError):
 
 class ModelFailed(RuntimeError):
 	pass
+
+
+def error_is_billing(status, text):
+	"""True only for an HTTP 402 or an OpenRouter error payload that names billing."""
+	if status == 402:
+		return True
+	try:
+		data = json.loads(text or "")
+	except (ValueError, TypeError):
+		return False
+	error = data.get("error") if isinstance(data, dict) else None
+	if not isinstance(error, dict):
+		return False
+	message = f"{error.get('message', '')} {error.get('code', '')}".lower()
+	return any(word in message for word in ("credit", "billing", "insufficient_quota", "payment required"))
 
 
 def _env_key():
@@ -63,12 +92,6 @@ def _post(body, key):
 		return json.load(r)
 
 
-def _check_refusal(text):
-	lower = (text or "").lower()
-	if "credits" in lower or "billing" in lower or "insufficient" in lower:
-		raise BillingStop(text[:200])
-
-
 def render(utterance, threads, projects, now):
 	lines = [f"Today is {now[:10]}. Threads, newest activity first, one per line as id | title | project | activity | last activity:"]
 	for t in threads:
@@ -88,6 +111,16 @@ def parse_json(text):
 	return json.loads(match.group(0))
 
 
+def tokens(usage):
+	"""Content and reasoning tokens from one usage block."""
+	usage = usage or {}
+	reasoning = (usage.get("completion_tokens_details") or {}).get("reasoning_tokens")
+	completion = usage.get("completion_tokens")
+	content = None if completion is None else completion - (reasoning or 0)
+	return {"reasoning_tokens": reasoning or 0, "content_tokens": content,
+	        "prompt_tokens": usage.get("prompt_tokens"), "completion_tokens": completion}
+
+
 @dataclass
 class ModelClient:
 	model: str = MODEL
@@ -103,18 +136,24 @@ class ModelClient:
 		self.cache_dir = self.cache_dir or Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "evals" / "twinb-pick" / "cache"
 		self.cache_dir.mkdir(parents=True, exist_ok=True)
 
-	def _path(self, messages):
-		blob = json.dumps({"model": self.model, "attempt": self.attempt, "messages": messages}, sort_keys=True)
+	def _body(self, messages):
+		return {
+			"model": self.model, "temperature": 0, "max_tokens": MAX_TOKENS,
+			"reasoning": dict(REASONING), "provider": {"sort": "latency"}, "messages": messages,
+		}
+
+	def _path(self, body):
+		blob = json.dumps({"attempt": self.attempt, **body}, sort_keys=True)
 		return self.cache_dir / f"{hashlib.sha256(blob.encode()).hexdigest()[:32]}.json"
 
 	def complete(self, messages):
 		assert self.model.endswith(":free"), self.model
 		if self.paused:
 			raise ModelFailed(self.paused)
-		path = self._path(messages)
+		body = self._body(messages)
+		path = self._path(body)
 		if path.exists():
 			return json.loads(path.read_text(encoding="utf-8"))
-		body = {"model": self.model, "temperature": 0, "max_tokens": 300, "provider": {"sort": "latency"}, "messages": messages}
 		key = _env_key()
 		gap = 2.0
 		last = None
@@ -125,25 +164,30 @@ class ModelClient:
 				payload = _post(body, key)
 			except urllib.error.HTTPError as e:
 				text = e.read().decode(errors="replace")
-				if e.code == 402:
-					self.paused = "402 from OpenRouter; every later call stops"
+				if error_is_billing(e.code, text):
+					self.paused = f"{e.code} billing refusal from OpenRouter; every later call stops"
 					raise BillingStop(self.paused)
-				_check_refusal(text)
-				last = f"http {e.code}: {text[:160]}"
-				if e.code == 429:
+				if e.code == 429 or e.code >= 500:
+					last = f"http {e.code}: {text[:160]}"
 					time.sleep(gap)
 					gap = min(30.0, gap * 2)
 					continue
-				raise ModelFailed(last)
+				raise ModelFailed(f"http {e.code}: {text[:160]}")
+			except (urllib.error.URLError, TimeoutError) as e:
+				last = f"{type(e).__name__}: {e}"
+				time.sleep(gap)
+				gap = min(30.0, gap * 2)
+				continue
 			elapsed = time.perf_counter() - start
-			text = payload["choices"][0]["message"].get("content") or ""
-			_check_refusal(text)
+			choice = (payload.get("choices") or [{}])[0]
+			text = (choice.get("message") or {}).get("content") or ""
 			record = {
 				"text": text, "ms": round(elapsed * 1000), "model": payload.get("model", self.model),
-				"usage": payload.get("usage", {}),
+				"usage": payload.get("usage", {}), "tokens": tokens(payload.get("usage")),
+				"finish_reason": choice.get("finish_reason"),
 			}
 			path.write_text(json.dumps(record, indent=1), encoding="utf-8")
-			self.ledger.append({"attempt": self.attempt, "ms": record["ms"], "usage": record["usage"]})
+			self.ledger.append({"attempt": self.attempt, "ms": record["ms"], **record["tokens"]})
 			return record
 		self.paused = f"gave up after {MAX_ATTEMPTS} attempts: {last}"
 		raise ModelFailed(self.paused)
@@ -151,37 +195,51 @@ class ModelClient:
 
 @dataclass
 class LocalClient:
-	"""A local llama-server on the GPU, same interface as `ModelClient`, JSON mode on."""
+	"""A local llama-server on the GPU, same interface as `ModelClient`, schema-constrained JSON."""
 
-	model: str = "d1-2B-Q4_K_M"
+	model: str = "local-instruct"
 	url: str = ""
 	attempt: int = 1
 	calls: int = 0
 	paused: str | None = None
+	ledger: list = field(default_factory=list)
 
 	def __post_init__(self):
-		self.url = self.url or os.environ.get("VOICE_D1_URL", "http://127.0.0.1:8096")
+		self.url = self.url or os.environ.get("VOICE_LOCAL_URL", "http://127.0.0.1:8097")
 
 	def complete(self, messages):
-		body = {
-			"model": self.model, "temperature": 0, "max_tokens": 300,
-			"response_format": {"type": "json_object"}, "messages": messages,
-		}
-		req = urllib.request.Request(
-			f"{self.url}/v1/chat/completions",
-			data=json.dumps(body).encode(),
-			headers={"Content-Type": "application/json"},
-		)
-		start = time.perf_counter()
-		self.calls += 1
-		try:
-			with urllib.request.urlopen(req, timeout=TIMEOUT_S * 2) as r:
-				payload = json.load(r)
-		except urllib.error.HTTPError as e:
-			raise ModelFailed(f"local {e.code}: {e.read().decode(errors='replace')[:160]}")
-		elapsed = time.perf_counter() - start
-		text = payload["choices"][0]["message"].get("content") or ""
-		return {"text": text, "ms": round(elapsed * 1000), "model": self.model, "usage": payload.get("usage", {})}
+		base = {"model": self.model, "temperature": 0, "max_tokens": MAX_TOKENS, "messages": messages}
+		shapes = [
+			{"type": "json_object", "schema": ANSWER_SCHEMA},
+			{"type": "json_object"},
+		]
+		last = None
+		for shape in shapes:
+			start = time.perf_counter()
+			self.calls += 1
+			req = urllib.request.Request(
+				f"{self.url}/v1/chat/completions",
+				data=json.dumps({**base, "response_format": shape}).encode(),
+				headers={"Content-Type": "application/json"},
+			)
+			try:
+				with urllib.request.urlopen(req, timeout=TIMEOUT_S * 2) as r:
+					payload = json.load(r)
+			except urllib.error.HTTPError as e:
+				last = f"local {e.code}: {e.read().decode(errors='replace')[:160]}"
+				continue
+			except (urllib.error.URLError, TimeoutError) as e:
+				raise ModelFailed(f"local unreachable: {e}")
+			elapsed = time.perf_counter() - start
+			choice = (payload.get("choices") or [{}])[0]
+			usage = payload.get("usage", {})
+			return {
+				"text": (choice.get("message") or {}).get("content") or "",
+				"ms": round(elapsed * 1000), "model": self.model, "usage": usage,
+				"tokens": tokens(usage), "finish_reason": choice.get("finish_reason"),
+				"schema": shape.get("schema") is not None,
+			}
+		raise ModelFailed(last or "local server refused every response shape")
 
 
 def pick_thread(utterance, threads, projects, now, client):
@@ -189,20 +247,23 @@ def pick_thread(utterance, threads, projects, now, client):
 	listed = [t["threadId"] for t in threads]
 	titles = {t["threadId"]: t.get("title", "") for t in threads}
 	if not threads:
-		return Pick.ask([], "There are no threads to check."), {"ms": 0}
+		return Pick.ask([], "There are no threads to check."), {"ms": 0, "parse": "ok"}
 	record = client.complete(render(utterance, threads, projects, now))
+	meta = {"ms": record["ms"], "parse": "ok", "raw": record["text"],
+	        "tokens": record.get("tokens", {}), "schema": record.get("schema")}
 	try:
 		answer = parse_json(record["text"])
 	except (ValueError, json.JSONDecodeError) as e:
+		meta["parse"] = "unparseable"
+		meta["parse_error"] = str(e)
 		return Pick.ask(listed[:3], question_for([titles[i] for i in listed[:3]]),
-		                f"unparseable reply: {e}"), {"ms": record["ms"], "raw": record["text"]}
+		                f"unparseable reply: {e}"), meta
 	choice = answer.get("choice")
 	candidates = [c for c in (answer.get("candidates") or []) if c in listed]
 	if choice in listed:
-		return Pick.one(choice, "model"), {"ms": record["ms"], "raw": record["text"]}
+		return Pick.one(choice, listed, "model"), meta
 	if choice:
-		return Pick.coerce(choice, listed, question_for([titles[i] for i in listed[:3]])), {"ms": record["ms"], "raw": record["text"]}
+		return Pick.coerce(choice, listed, question_for([titles[i] for i in listed[:3]])), meta
 	if candidates:
-		return Pick.ask(candidates, question_for([titles[i] for i in candidates]),
-		                "model"), {"ms": record["ms"], "raw": record["text"]}
-	return Pick.none("model"), {"ms": record["ms"], "raw": record["text"]}
+		return Pick.ask(candidates, question_for([titles[i] for i in candidates]), "model"), meta
+	return Pick.none("model"), meta
