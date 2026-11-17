@@ -86,3 +86,14 @@ These rows cover `voice/live/client.py` and [live-demo.md](live-demo.md). Versio
 | cffi, pycparser, typing_extensions | 2.1.1, 3.12, 4.16.0 | MIT-0, BSD-3-Clause, PSF | PyPI | Pulled in by sounddevice and soundfile. |
 | `LiquidAI/d1-Omni-2B-GGUF`, files `d1-Omni-2B-Q8_0.gguf` and `mmproj-d1-Omni-2B-Q8_0.gguf` | `36707287af55fc9ab03e34bda6a6cc82075499b1` | LFM Open License v1.0 (`license_name: lfm1.0`) | https://huggingface.co/LiquidAI/d1-Omni-2B-GGUF | Same terms as LFM3-Audio above. Both files matched the Hub's SHA-256 (measured). They live in `$VOICE_HOME/gguf/d1-omni/` and are not committed. |
 | `LiquidAI/d1-Omni-600M-GGUF`, files `d1-omni-600M-Q8_0.gguf` and `mmproj-d1-omni-600M-Q8_0.gguf` | `8eb2d2a1c5404bba8a34a88bd8e159c242197d51` | LFM Open License v1.0 (`license_name: lfm1.0`) | https://huggingface.co/LiquidAI/d1-Omni-600M-GGUF | Same terms as LFM3-Audio above. Not used beyond the audio probe (it fails on audio). Files live in `$VOICE_HOME/gguf/d1-omni/` and are not committed. |
+
+## Loop visualization
+
+These rows cover `voice/viz/` and [loop-viz.md](loop-viz.md). Versions come from each package's installed `package.json`, read on 2026-11-16.
+
+| Name | Version or revision | License | Source | Notable terms |
+| --- | --- | --- | --- | --- |
+| Remotion (`remotion`, `@remotion/cli`, `@remotion/media`, `@remotion/google-fonts`) | 4.0.544 | Remotion License, free tier | https://www.remotion.dev/docs/license | Free for an individual, a for-profit company with up to 3 employees, or a non-profit. A larger for-profit company needs a company license. This project is Mason's own, so the free tier applies (inferred). The license text is `node_modules/remotion/LICENSE.md`. |
+| React and React DOM | 19.3.1 | MIT | https://github.com/facebook/react | Keep the copyright notice. |
+| Space Grotesk | Google Fonts, loaded at render time by `@remotion/google-fonts` | SIL Open Font License 1.1 | https://fonts.google.com/specimen/Space+Grotesk | The font may be used and embedded freely. It cannot be sold on its own. |
+| IBM Plex Mono | Google Fonts, loaded at render time by `@remotion/google-fonts` | SIL Open Font License 1.1 | https://fonts.google.com/specimen/IBM+Plex+Mono | Same terms as Space Grotesk. |
