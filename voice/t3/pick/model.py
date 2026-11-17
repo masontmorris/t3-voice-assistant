@@ -21,10 +21,13 @@ from .pick import Pick, question_for
 
 MODEL = "particle-ai/particle-1:free"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
-MAX_ATTEMPTS = 5
+MAX_ATTEMPTS = 8
 TIMEOUT_S = 30
 MAX_TOKENS = 200
 REASONING = {"enabled": False}
+# The free tier allows 20 requests a minute, so one request in flight is not enough on its own.
+MIN_GAP_S = float(os.environ.get("VOICE_MODEL_MIN_GAP_S", "3.2"))
+RATE_LIMIT_WAIT_S = 60.0
 
 SYSTEM = (
 	"You match one spoken request to one thread in a list. "
@@ -39,10 +42,12 @@ ANSWER_SCHEMA = {
 	"type": "object",
 	"properties": {
 		"choice": {"type": ["string", "null"]},
-		"candidates": {"type": "array", "items": {"type": "string"}},
+		"candidates": {"type": "array", "items": {"type": "string"}, "maxItems": 4},
 	},
 	"required": ["choice", "candidates"],
 }
+
+NO_CHOICE = {None, "", "null", "none", "nil"}
 
 
 class BillingStop(RuntimeError):
@@ -135,6 +140,7 @@ class ModelClient:
 			raise ValueError(f"refusing a non-free model id: {self.model}")
 		self.cache_dir = self.cache_dir or Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "evals" / "twinb-pick" / "cache"
 		self.cache_dir.mkdir(parents=True, exist_ok=True)
+		self._last = 0.0
 
 	def _body(self, messages):
 		return {
@@ -145,6 +151,12 @@ class ModelClient:
 	def _path(self, body):
 		blob = json.dumps({"attempt": self.attempt, **body}, sort_keys=True)
 		return self.cache_dir / f"{hashlib.sha256(blob.encode()).hexdigest()[:32]}.json"
+
+	def _pace(self):
+		wait = MIN_GAP_S - (time.monotonic() - self._last)
+		if wait > 0:
+			time.sleep(wait)
+		self._last = time.monotonic()
 
 	def complete(self, messages):
 		assert self.model.endswith(":free"), self.model
@@ -158,6 +170,7 @@ class ModelClient:
 		gap = 2.0
 		last = None
 		for _ in range(MAX_ATTEMPTS):
+			self._pace()
 			self.calls += 1
 			start = time.perf_counter()
 			try:
@@ -167,7 +180,11 @@ class ModelClient:
 				if error_is_billing(e.code, text):
 					self.paused = f"{e.code} billing refusal from OpenRouter; every later call stops"
 					raise BillingStop(self.paused)
-				if e.code == 429 or e.code >= 500:
+				if e.code == 429:
+					last = f"http 429: {text[:160]}"
+					time.sleep(RATE_LIMIT_WAIT_S)
+					continue
+				if e.code >= 500:
 					last = f"http {e.code}: {text[:160]}"
 					time.sleep(gap)
 					gap = min(30.0, gap * 2)
@@ -259,6 +276,8 @@ def pick_thread(utterance, threads, projects, now, client):
 		return Pick.ask(listed[:3], question_for([titles[i] for i in listed[:3]]),
 		                f"unparseable reply: {e}"), meta
 	choice = answer.get("choice")
+	if isinstance(choice, str) and choice.strip().lower() in NO_CHOICE:
+		choice = None
 	candidates = [c for c in (answer.get("candidates") or []) if c in listed]
 	if choice in listed:
 		return Pick.one(choice, listed, "model"), meta

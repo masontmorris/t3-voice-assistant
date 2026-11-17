@@ -2,7 +2,7 @@ import unittest
 from urllib.error import URLError
 
 from voice.t3.pick.decide import pick, prefilter_pick
-from voice.t3.pick.model import ModelFailed, error_is_billing, pick_thread, tokens
+from voice.t3.pick.model import ModelClient, ModelFailed, error_is_billing, pick_thread, tokens
 from voice.t3.pick.pick import Pick
 from voice.t3.pick.prefilter import content_words, prefilter
 
@@ -168,6 +168,11 @@ class ModelPickTest(unittest.TestCase):
 		picked, _, _ = self.run_model('{"choice": null, "candidates": []}')
 		self.assertEqual(picked.kind, "none")
 
+	def test_a_quoted_null_choice_is_read_as_no_choice(self):
+		picked, _, _ = self.run_model('{"choice": "null", "candidates": ["t-flaky"]}')
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"t-flaky"})
+
 	def test_an_unparseable_reply_is_reported_as_unparseable(self):
 		picked, meta, _ = self.run_model("I think it is the flaky one")
 		self.assertEqual(picked.kind, "ask")
@@ -220,6 +225,10 @@ class ChainTest(unittest.TestCase):
 
 
 class RefusalTest(unittest.TestCase):
+	def test_a_non_free_model_id_is_refused_before_any_call(self):
+		with self.assertRaises(ValueError):
+			ModelClient(model="some-vendor/some-model")
+
 	def test_billing_words_in_a_model_reply_are_not_a_billing_stop(self):
 		self.assertFalse(error_is_billing(200, '{"choice": "t-flaky", "candidates": []}'))
 		self.assertFalse(error_is_billing(200, "your credit balance and billing page"))
