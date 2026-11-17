@@ -15,7 +15,7 @@ inferred or a guess. The summarizer model for the text level was Liquid's hosted
 | Gate eval, held-out 24 items | 62% | 88% and 92%, one per sample |
 | Mason's 37 real turns, the named failure | San Diego re-run | the general worker, no re-run (the worker timed out) |
 
-The fourth row is the only real-audio claim in that table and it is one turn. The sections below are the evidence.
+The last row is the only real-audio claim in that table and it is one turn. The sections below are the evidence.
 
 ## What a tool now declares
 
@@ -48,9 +48,9 @@ ran against an unsure answer that named a different tool.
 
 The bar is 0.30. Two independent samples of the 70 items, three readings each, put train accuracy at 91% at every bar
 from 0.00 to 0.45, and held-out at 88% and 92% across the same range (measured). Above 0.50 both samples lose accuracy,
-because a 0.5 answer is one the decider is nearly tied on and the fallback is the weaker rule. 0.30 sits inside the
-flat region of both with room either side. The bar is weakly identified by these items; the robust result is the gap to
-the word rules, not the exact value.
+because every item whose answer sits between 0.30 and the bar falls back to the weaker rule. 0.30 sits inside the flat
+region of both samples with room either side. The bar is weakly identified by these items; the robust result is the gap
+to the word rules, not the exact value.
 
 Held-out is a fixed split of the same 70 items; no held-out item was used to choose the bar (measured: the tuning code
 scores train first and prints held-out beside it).
@@ -156,25 +156,30 @@ longer catch a confident wrong answer.
 All values are measured. Each change, in order:
 
 - **025, the failure this work exists for, is fixed in both arms.** The decider picked the general worker at a margin of
-  0.41 in the first arm, so no San Diego forecast ran. The worker then timed out after 12 s, because every OpenRouter
-  call it made came back 429 (measured, four 429s in `$VOICE_HOME/evidence/agent/calls.jsonl` in each arm's minute).
-  The turn reported a failed lookup instead of a wrong forecast.
+  0.41 in the first arm and 0.58 in the second, so no San Diego forecast ran. The worker then timed out after 12 s,
+  because every OpenRouter call it made came back 429 (measured, four 429s in
+  `$VOICE_HOME/evidence/agent/calls.jsonl` in each arm's minute). The turn reported a failed lookup instead of a wrong
+  forecast.
 - **022 is the argument questions' turn.** The word rules cannot read a place there, because "about San Diego?" has no
-  preposition, so their fill reuses Portland. With the place question on, the decider read San Diego and the forecast
-  ran for San Diego. This is the real-audio reason the questions ship on.
-- **023 needs no lookup once 022 works.** The person asks why San Diego could not be checked; in the second arm it had
-  just been checked. The recording ran a lookup there only because its 022 had failed (inferred from the turn order).
+  preposition, so their fill reuses Portland. The decider named weather in both arms, 0.90 without the arguments (place
+  filled from Portland) and 0.67 with them, reading San Diego and today. This is the real-audio reason the questions
+  ship on.
+- **023 needs no lookup once 022 works.** The decider called it conversation there, with a tool answer of `none` at
+  0.50, where the first arm ran a San Diego forecast as the recovery from 022's failure. The recording ran a lookup
+  there only because its 022 had failed (inferred from the turn order).
 - **003 is d1.2's own behaviour, not the tool question.** The earlier d1.2 replay on this recording reported the same
   turn as its one changed task decision, and the 70-item eval's `about_assistant` items expect no dispatch. The tool
   answer here was `none` (measured in the text probe below).
-- **016 repeats the last forecast** at both arms, 0.86 and 0.90, where the word rules would route nothing. "Do it
-  again" does ask for a repeat, so this reads as a plausible dispatch rather than a misroute (judgment).
+- **016 repeats the last forecast** in both arms, at 0.59 and 0.53, where the word rules would route nothing. "Do it
+  again" does ask for a repeat, so this reads as a plausible dispatch rather than a misroute (judgment). The place is
+  the earlier task's in both arms, because nothing reads one from those words.
 - **002 gained a second lookup in the first arm only**, because the worker is on and the second clause of the utterance
   reached it. The second arm ran the weather lookup alone. This is the worker, not the tool question (inferred).
 
 Turn 028, "Do I need to wear a jacket?", is the one expected to change and did not. The decider named `weather` at a
-margin of 0.60, which is the right tool, but the task never reached a dispatch: the gate held it (measured, no
-execution and no dispatch log entry for that turn). The tool pick is not what blocks that turn.
+margin of 0.60 in the first arm and 0.19 in the second, which is the right tool either way, but the task never reached a
+dispatch: the gate held it (measured, no execution and no dispatch log entry for that turn). The tool pick is not what
+blocks that turn.
 
 A text probe over the replays' 37 transcripts asked the tool, place and day questions with the recording's lookups
 carried in (`args_probe.py`, 8 calls, $0.0002). It read Raleigh and today for turn 002, Portland for 021, San Diego for
