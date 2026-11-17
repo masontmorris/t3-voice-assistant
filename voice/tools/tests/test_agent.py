@@ -203,11 +203,27 @@ class OpenRouterChatTest(unittest.TestCase):
         chat._send = mock.Mock(side_effect=lambda payload, timeout_s: replies.pop(0))
         return chat
 
-    def test_a_model_that_is_not_free_is_refused_before_any_request(self):
-        chat = self.chat(model="fake/paid-model")
-        with self.assertRaises(AssertionError):
+    def test_the_day_stops_at_the_spend_cap_before_any_request(self):
+        entry = {"at": client._now(), "route": "agent", "status": 200, "usage": {"cost": agent.DAILY_CAP_USD}}
+        self.ledger.parent.mkdir(parents=True, exist_ok=True)
+        self.ledger.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+        chat = self.chat()
+        with self.assertRaises(agent.SpendStop):
             chat([{"role": "user", "content": "hi"}], 5.0)
         chat._send.assert_not_called()
+
+    def test_yesterdays_spend_does_not_count_toward_today(self):
+        entry = {"at": "2000-01-01T00:00:00.000+00:00", "status": 200, "usage": {"cost": 99.0}}
+        self.ledger.parent.mkdir(parents=True, exist_ok=True)
+        self.ledger.write_text(json.dumps(entry) + "\n", encoding="utf-8")
+        self.assertEqual(agent.spent_today(self.ledger), 0.0)
+
+    def test_a_paid_answer_with_a_cost_is_returned_not_stopped(self):
+        ok = {"status": 200, "ms": 5.0, "body": {"choices": [{"message": {"content": "hello"}}],
+                                                  "usage": {"cost": 0.0001}}}
+        chat = self.chat(ok, model="deepseek/deepseek-v4.1-flash-1017")
+        self.assertEqual(chat([{"role": "user", "content": "hi"}], 5.0), "hello")
+        self.assertFalse(self.stop.exists())
 
     def test_a_429_backs_off_and_retries(self):
         ok = {"status": 200, "ms": 5.0, "body": {"choices": [{"message": {"content": "hello"}}]}}

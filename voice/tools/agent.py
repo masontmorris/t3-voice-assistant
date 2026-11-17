@@ -1,6 +1,6 @@
 """The general lookup worker: one instruction and the call's recent turns in, one or two spoken sentences out.
 
-The worker asks one free OpenRouter chat model for one JSON object: a weather or time lookup, a direct answer, or a
+The worker asks one cheap OpenRouter chat model for one JSON object: a weather or time lookup, a direct answer, or a
 refusal. A lookup runs through the registry, and a second model call words the tool's result. That makes at most two
 model calls and one tool call per instruction. A worded answer that states a number found in neither the tool result
 nor the conversation is dropped for the tool's own summary, so the voice never speaks a number the tool did not give.
@@ -26,7 +26,8 @@ from pathlib import Path
 from voice.segmentation import client
 from voice.tools.lookups import WEEKDAYS, remaining
 
-MODEL = "google/gemma-4-26b-a4b-it:free"
+MODEL = "deepseek/deepseek-v4.1-flash-1017"
+DAILY_CAP_USD = 0.50
 HOST = "openrouter.ai"
 PATH = "/api/v1/chat/completions"
 TIMEOUT_S = 12.0
@@ -176,8 +177,27 @@ def read_key():
         return None
 
 
+class SpendStop(RuntimeError):
+    pass
+
+
+def spent_today(ledger):
+    """US dollars this UTC day, from the ledger's recorded usage costs."""
+    if not ledger.is_file():
+        return 0.0
+    day, total = client._now()[:10], 0.0
+    for line in ledger.read_text(encoding="utf-8").splitlines():
+        try:
+            entry = json.loads(line)
+        except ValueError:
+            continue
+        if str(entry.get("at", "")).startswith(day):
+            total += float((entry.get("usage") or {}).get("cost") or 0)
+    return total
+
+
 class OpenRouterChat:
-    """One free chat model on OpenRouter. One request in flight under `lock`, which a caller may share with the
+    """One cheap paid chat model on OpenRouter, capped at DAILY_CAP_USD a day by the ledger's own cost records. One request in flight under `lock`, which a caller may share with the
     decider. Each attempt is appended to `ledger` without the request headers. Nothing is cached: an answer about
     the weather must be fresh."""
 
@@ -219,10 +239,11 @@ class OpenRouterChat:
     def __call__(self, messages, timeout_s):
         deadline = time.monotonic() + timeout_s
         body = {"model": self.model, "messages": messages, "max_tokens": self.max_tokens, "temperature": 0.2,
-                "reasoning": {"enabled": False}}
+                "reasoning": {"enabled": False}, "usage": {"include": True}}
         payload = json.dumps(body).encode()
         for attempt in range(8):
-            assert self.model.endswith(":free"), self.model
+            if spent_today(self.ledger) >= DAILY_CAP_USD:
+                raise SpendStop(f"agent spend reached ${DAILY_CAP_USD:.2f} today")
             if client.STOP.exists():
                 raise client.BillingStop(client.STOP.read_text(encoding="utf-8"))
             if self.pacer.gap_s:
@@ -236,8 +257,7 @@ class OpenRouterChat:
                 error = json.dumps(response.get("error") or response)[:500]
             self._log({"at": client._now(), "route": "agent", "model": self.model, "attempt": attempt,
                        "status": status, "ms": round(result["ms"], 1), "error": error, "usage": usage})
-            if status == 402 or (status and status >= 400 and client._mentions_billing(response)) \
-                    or (status == 200 and client._nonzero_cost(response)):
+            if status == 402 or (status and status >= 400 and client._mentions_billing(response)):
                 client.STOP.write_text(json.dumps({"at": client._now(), "status": status, "label": "agent"}),
                                        encoding="utf-8")
                 print(f"agent: billing stop on status {status}", file=sys.stderr)

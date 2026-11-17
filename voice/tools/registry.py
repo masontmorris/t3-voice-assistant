@@ -233,11 +233,10 @@ def open_registry(timeout_s=5.0, lock=None):
     """The live registry, with the MCP time server running for as long as the block runs.
 
     The default place is VOICE_DEFAULT_PLACE, used when a request names none. The general worker is on when
-    VOICE_AGENT is "on" and an OpenRouter key is configured; its model is VOICE_AGENT_MODEL or `agent.MODEL`. It is
-    off by default because no model has been measured for it yet: its one live call drew a 429 that tripped the
-    billing stop. `lock` keeps its requests from overlapping the decider's.
+    an OpenRouter key is configured, unless VOICE_AGENT is "off". Its model is VOICE_AGENT_MODEL or `agent.MODEL`, a
+    cheap paid model capped at `agent.DAILY_CAP_USD` a day. `lock` keeps its requests from overlapping the decider's.
     """
-    key = agent.read_key() if os.environ.get("VOICE_AGENT", "").lower() == "on" else None
+    key = agent.read_key() if os.environ.get("VOICE_AGENT", "on").lower() != "off" else None
     chat = agent.OpenRouterChat(key, lock=lock) if key else None
     with StdioClient(mcp_command()) as mcp:
         yield build(open_meteo.fetch_json, mcp, os.environ.get("VOICE_DEFAULT_PLACE"), timeout_s, chat)
