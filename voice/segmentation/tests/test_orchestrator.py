@@ -80,6 +80,41 @@ class DispatchPolicy(unittest.TestCase):
         self.assertEqual(len(orch.dispatch_log), 2)
 
 
+class Lacks(unittest.TestCase):
+    """A task whose call would have nothing to look up waits for the person's answer, however ready it reads."""
+
+    PLACE = {"tool": "weather", "arguments": {"place": None, "when": "today"}, "missing": ("place",)}
+
+    def test_a_task_that_lacks_an_argument_asks_for_it(self):
+        orch = Orchestrator()
+        orch.waits = lambda task: dict(self.PLACE)
+        step(orch, 1, "What's the weather like?", final=True, s1={})
+        self.assertEqual(statuses(orch), [("What's the weather like?", Status.NEEDS_CLARIFICATION)])
+        self.assertEqual(orch.dispatch_log, [])
+        task, = orch.snapshot("c", "u")["tasks"]
+        self.assertEqual((task["status"], task["needs"]), ("needs_clarification", ["place"]))
+        self.assertEqual(orch.snapshot("c", "u")["clarification_needed"], ["What's the weather like?"])
+
+    def test_a_place_in_the_words_lets_the_same_task_run(self):
+        from voice.tools import lookups
+        orch = Orchestrator()
+        orch.waits = lambda task: None if lookups.find_place(task.instruction) else dict(self.PLACE)
+        step(orch, 1, "What's the weather like", s1={})
+        self.assertEqual(statuses(orch), [("What's the weather like", Status.NEEDS_CLARIFICATION)])
+        step(orch, 2, "What's the weather like in Denver?", final=True, s1={})
+        self.assertEqual([d["instruction"] for d in orch.dispatch_log], ["What's the weather like in Denver?"])
+
+    def test_the_answered_task_runs_and_replaces_the_waiting_one(self):
+        orch = Orchestrator()
+        orch.waits = lambda task: dict(self.PLACE)
+        step(orch, 1, "What's the weather like?", final=True, s1={})
+        waiting = orch.tasks["task_1"]
+        answered = orch.answer_earlier("turn_001:task_1", waiting.instruction, False)
+        self.assertEqual((answered.status, answered.revises), (Status.DISPATCHED, "turn_001:task_1"))
+        self.assertEqual([d["instruction"] for d in orch.dispatch_log], ["What's the weather like?"])
+        self.assertIsNone(answered.waiting, "the answered task has nothing left to ask")
+
+
 class Corrections(unittest.TestCase):
     def test_correction_before_dispatch_supersedes_and_never_sends_the_old_version(self):
         orch = Orchestrator()

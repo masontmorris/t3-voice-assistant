@@ -71,6 +71,52 @@ class FollowUpRouteTest(unittest.TestCase):
         self.assertIsNone(self.route("And set a timer for ten minutes."), "states no day and no place")
         self.assertIsNone(self.route("And what about Saturday?", earlier=None), "no earlier lookup, no place")
 
+    def test_a_relative_day_is_the_day_after_the_earlier_lookups(self):
+        self.assertEqual(self.route("And what about the day after?"),
+                         ToolCall("weather", {"place": "Denver", "when": "day after tomorrow"}),
+                         "the day is relative to the earlier lookup's tomorrow")
+        self.assertEqual(self.route("And the next day?", ToolCall("weather", {"place": "Denver", "when": "saturday"})),
+                         ToolCall("weather", {"place": "Denver", "when": "sunday"}))
+
+    def test_a_day_the_asr_split_in_two_still_states_the_day(self):
+        self.assertEqual(self.route("And s aturday?"),
+                         ToolCall("weather", {"place": "Denver", "when": "saturday"}),
+                         "the split day carries the earlier place, which no parser could read before")
+
+    def test_a_follow_up_that_names_nothing_continues_nothing(self):
+        self.assertIsNone(self.route("Wait, do it again."))
+
+
+class DayTableTest(unittest.TestCase):
+    """The day table reads a weekday, today, tomorrow, a day named relative to an earlier lookup's, and one word the
+    ASR split in two."""
+
+    def test_the_table_reads_a_relative_day_and_a_split_one(self):
+        from voice.tools.lookups import DAY_AFTER, resolved, stated_when
+        cases = {"the day after tomorrow": "day after tomorrow", "And s aturday?": "saturday",
+                 "the next day": DAY_AFTER, "what about sat urday": "saturday", "tomorrow morning": "tomorrow",
+                 "and to morrow?": "tomorrow", "nothing here names a day": None}
+        for words, when in cases.items():
+            with self.subTest(words):
+                self.assertEqual(stated_when(words), when)
+        self.assertEqual(resolved(DAY_AFTER, "tomorrow"), "day after tomorrow")
+        self.assertEqual(resolved(DAY_AFTER, "saturday"), "sunday")
+        self.assertEqual(resolved(DAY_AFTER), "tomorrow", "with no earlier lookup it counts from today")
+        self.assertEqual(resolved("saturday", "monday"), "saturday", "a day of its own stands as it is")
+
+    def test_the_day_after_tomorrow_is_the_places_third_day(self):
+        from voice.tools.lookups import pick_days
+        days = [open_meteo.Day(date(2026, 11, 16 + i), 50.0, 0) for i in range(4)]
+        self.assertEqual([d.date.day for d in pick_days("day after tomorrow", days)], [18])
+
+    def test_the_follow_up_runs_the_forecast_for_that_day(self):
+        tools, _, _ = replay_registry(None)
+        earlier = ToolCall("weather", {"place": "Denver", "when": "tomorrow"})
+        result = tools.run(tools.route("And what about the day after?", earlier))
+        third = recorded_days("Denver")[2]
+        self.assertEqual(result.outcome, Outcome.OK)
+        self.assertIn(spoken(third), result.summary)
+
 
 class RunTest(unittest.TestCase):
     def run_one(self, instruction, **kw):
@@ -211,22 +257,112 @@ class DispatchTest(unittest.TestCase):
         self.assertEqual(routed.call, ToolCall("time", {"place": "Denver"}),
                          "the worker's default place is Boston, so Denver is read from the instruction")
 
-    def test_a_read_place_and_day_replace_the_parsers_reading(self):
-        routed = self.rules.dispatch("And Saturday?", self.SAN_DIEGO,
+    def test_a_read_place_and_day_the_words_say_replace_the_parsers_reading(self):
+        routed = self.rules.dispatch("And what about Boston on Saturday?", self.SAN_DIEGO,
                                      choice=registry.ToolChoice("weather", 0.5,
                                                                 {"place": "Boston", "when": "saturday"}))
-        self.assertEqual(routed.call, ToolCall("weather", {"place": "Boston", "when": "saturday"}))
+        self.assertEqual(routed.call, ToolCall("weather", {"place": "Boston", "when": "saturday"}),
+                         "'what about Boston?' has no preposition, so only the reading finds the place")
 
     def test_a_reading_that_names_no_place_keeps_the_earlier_one(self):
         routed = self.rules.dispatch("And Sunday?", self.SAN_DIEGO,
                                      choice=registry.ToolChoice("weather", 0.5, {"place": None, "when": "sunday"}))
         self.assertEqual(routed.call, ToolCall("weather", {"place": "San Diego", "when": "sunday"}))
 
+    def test_a_place_the_words_do_not_say_is_not_taken_from_the_reading(self):
+        routed = self.rules.dispatch("And Saturday?", self.SAN_DIEGO,
+                                     choice=registry.ToolChoice("weather", 0.5,
+                                                                {"place": "Boston", "when": "saturday"}))
+        self.assertEqual(routed.call, ToolCall("weather", {"place": "San Diego", "when": "saturday"}),
+                         "the words name no place, so the follow-up keeps the earlier lookup's")
+
     def test_a_choice_does_not_carry_the_place_into_a_request_that_names_nothing(self):
         routed = self.worker.dispatch("Wait, do it again.", self.SAN_DIEGO,
                                       choice=registry.ToolChoice("weather", 0.59, {"place": None, "when": None}))
         self.assertEqual(routed.call, ToolCall("weather", {"place": "Boston", "when": "today"}),
                          "nothing there continues the earlier forecast, so the worker's default place stands")
+
+
+class RecordedReadingTest(unittest.TestCase):
+    """The decider's own answers for the two follow-ups the polish round lost and for turn 016's repeat.
+
+    The readings are measured: t52's `weather` 0.87 with no place and `tomorrow` for the day, and t67's 0.86 with no
+    place and `saturday` for the split day, are the live gate eval's polish sample (`calls-polish`, three readings
+    each). Turn 016's 0.53 with no place and `today` is the toolpick-polish2 replay's."""
+
+    DENVER = ToolCall("weather", {"place": "Denver", "when": "tomorrow"})
+
+    def setUp(self):
+        self.tools, _, _ = replay_registry(None)
+
+    def test_t52_the_day_after_keeps_the_place_and_moves_the_day(self):
+        routed = self.tools.dispatch("And what about the day after?", self.DENVER,
+                                     choice=registry.ToolChoice("weather", 0.87, {"place": None, "when": "tomorrow"}))
+        self.assertEqual(routed.call, ToolCall("weather", {"place": "Denver", "when": "day after tomorrow"}),
+                         "the reading said tomorrow, which the words do not say; the words say the day after")
+
+    def test_t67_the_split_day_keeps_the_place(self):
+        routed = self.tools.dispatch("And s aturday?", self.DENVER,
+                                     choice=registry.ToolChoice("weather", 0.86, {"place": None, "when": "saturday"}))
+        self.assertEqual(routed.call, ToolCall("weather", {"place": "Denver", "when": "saturday"}))
+
+    def test_turn_016_does_not_repeat_the_earlier_forecast(self):
+        durham = ToolCall("weather", {"place": "Durham", "when": "today"})
+        for reading in ({"place": None, "when": "today"}, {"place": "Durham", "when": "today"}):
+            with self.subTest(reading):
+                routed = self.tools.dispatch("Wait, do it again.", durham,
+                                             choice=registry.ToolChoice("weather", 0.53, reading))
+                self.assertEqual(routed.call, ToolCall("weather", {"place": None, "when": "today"}),
+                                 "the words name no place: no earlier forecast is repeated and no place the model "
+                                 "invented is taken")
+                waiting = self.tools.waiting("weather", "Wait, do it again.", durham, reading)
+                self.assertEqual(waiting["missing"], ("place",), "so the turn asks which city instead of failing")
+
+
+class WaitingTest(unittest.TestCase):
+    """A call that cannot answer asks the person for what it lacks, and their answer completes it."""
+
+    DENVER = ToolCall("weather", {"place": "Denver", "when": "tomorrow"})
+
+    def setUp(self):
+        self.tools, self.fetch, _ = replay_registry(None)
+
+    def test_a_forecast_with_no_place_waits_for_a_city(self):
+        waiting = self.tools.waiting("weather", "What's the weather like?", None, {"place": None, "when": None})
+        self.assertEqual((waiting["tool"], waiting["missing"]), ("weather", ("place",)))
+        self.assertEqual(waiting["arguments"], {"place": None, "when": "today"},
+                         "the call it would run, so the answer completes it rather than starting over")
+        self.assertIsNone(self.tools.waiting("weather", "What's the weather in Denver?", None,
+                                             {"place": None, "when": None}), "a place the words state is enough")
+
+    def test_the_earlier_lookups_place_or_the_default_one_is_enough(self):
+        self.assertIsNone(self.tools.waiting("weather", "And Saturday?", self.DENVER))
+        with_default, _, _ = replay_registry("Portland")
+        self.assertIsNone(with_default.waiting("weather", "What's the weather like?"))
+
+    def test_an_answer_that_names_a_city_completes_the_call(self):
+        waiting = self.tools.waiting("weather", "What's the weather like?", None, {"place": None, "when": None})
+        for answer, place in (("Seattle.", "Seattle"), ("In Boston", "Boston"), ("the city is Boston", "Boston")):
+            with self.subTest(answer):
+                self.assertEqual(self.tools.answered(waiting, answer),
+                                 ToolCall("weather", {"place": place, "when": "today"}))
+
+    def test_the_completed_call_is_the_lookup_that_was_asked_for(self):
+        waiting = self.tools.waiting("weather", "What's the weather like?", None, {"place": None, "when": None})
+        result = self.tools.run(self.tools.answered(waiting, "In Denver"))
+        self.assertEqual(result.outcome, Outcome.OK)
+        self.assertTrue(result.summary.startswith("Forecast for Denver, Colorado."))
+
+    def test_another_tools_subject_is_not_the_answer(self):
+        waiting = self.tools.waiting("weather", "What's the weather like?", None, {"place": None, "when": None})
+        self.assertIsNone(self.tools.answered(waiting, "What's the time in Tokyo?"),
+                          "a time lookup is a new request, not an answer to the question about a forecast")
+
+    def test_words_that_name_no_place_answer_nothing(self):
+        waiting = self.tools.waiting("weather", "What's the weather like?", None, {"place": None, "when": None})
+        for answer in ("Never mind.", "Saturday", "what did you say?"):
+            with self.subTest(answer):
+                self.assertIsNone(self.tools.answered(waiting, answer))
 
 
 class CorrectedTest(unittest.TestCase):
