@@ -97,8 +97,12 @@ lock_stale_seconds=10800
 
 release_lock() {
   [ -n "$lock_dir" ] || return 0
-  rm -f "$lock_pid_file" "$lock_started_file" 2>/dev/null
-  rmdir "$lock_path" 2>/dev/null
+  if [ "$(cat "$lock_pid_file" 2>/dev/null)" = "$$" ] &&
+    [ "$(cat "$lock_started_file" 2>/dev/null)" = "$own_started" ]; then
+    rm -f "$lock_pid_file" "$lock_started_file" 2>/dev/null
+    rmdir "$lock_path" 2>/dev/null
+  fi
+  lock_dir=""
 }
 
 lock_age_seconds() {
@@ -129,10 +133,11 @@ pid_alive() {
 }
 
 take_lock() {
+  own_started=$(date +%s)
   mkdir "$lock_path" 2>/dev/null || return 1
   lock_dir=$lock_path
   printf '%s\n' "$$" >"$lock_pid_file"
-  printf '%s\n' "$(date +%s)" >"$lock_started_file"
+  printf '%s\n' "$own_started" >"$lock_started_file"
   return 0
 }
 
@@ -151,18 +156,15 @@ take_over_stale_lock() {
   take_lock
 }
 
+find "$log_dir" -maxdepth 1 -type d -name "run.lock.stale.*" -mmin "+$((lock_stale_seconds / 60))" -exec rm -rf -- {} +
+
 trap release_lock EXIT
 if ! take_lock; then
   lock_pid=$(cat "$lock_pid_file" 2>/dev/null)
   lock_started=$(cat "$lock_started_file" 2>/dev/null)
   lock_age=$(lock_age_seconds)
-  if [ "$lock_age" != "-" ] && [ "$lock_age" -ge "$lock_stale_seconds" ]; then
-    printf 'upstream_sync.sh: taking over a stale lock: pid %s, started %s s ago\n' \
-      "${lock_pid:-unknown}" "$lock_age" >&2
-    take_over_stale_lock "$lock_pid" "$lock_started" || true
-  elif [ -n "$lock_pid" ] && ! pid_alive "$lock_pid"; then
-    printf 'upstream_sync.sh: taking over a lock whose pid %s is gone, started %s s ago\n' \
-      "$lock_pid" "$lock_age" >&2
+  if [ -n "$lock_pid" ] && ! pid_alive "$lock_pid"; then
+    printf 'upstream_sync.sh: taking over a lock whose pid %s is gone, started %s s ago\n' "$lock_pid" "$lock_age" >&2
     take_over_stale_lock "$lock_pid" "$lock_started" || true
   fi
   if [ -z "$lock_dir" ]; then
@@ -233,6 +235,19 @@ case "$worktree_key/" in
     finish "refusing $worktree: it is inside the source repo's work tree at $source_root_real, give the sync its own worktree" $exit_setup
     ;;
 esac
+
+while IFS= read -r -d '' entry; do
+  case "$entry" in
+    'worktree '*)
+      registered=$(real_path "${entry#worktree }")
+      registered_key=$(path_key "$registered")
+      [ "$worktree_key" = "$registered_key" ] && continue
+      case "$worktree_key/" in
+        "$registered_key"/*) finish "refusing $worktree: it is inside a registered worktree at $registered" $exit_setup ;;
+      esac
+      ;;
+  esac
+done < <(git -C "$source_repo" worktree list --porcelain -z)
 
 if ! git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
   mkdir -p "$(dirname "$worktree")" &&
@@ -366,6 +381,11 @@ if ! seam_output=$("$python_cmd" "$worktree/voice/ci/check_seam.py" --repo "$wor
   finish "the merge changes upstream files that the seam allowlist does not cover" $exit_seam
 fi
 seam_state=$(printf '%s' "$seam_output" | head -n 1)
+
+if [ "$(cat "$lock_pid_file" 2>/dev/null)" != "$$" ] ||
+  [ "$(cat "$lock_started_file" 2>/dev/null)" != "$own_started" ]; then
+  finish "sync lock ownership lost" $exit_locked
+fi
 
 if [ "$dry_run" = 1 ]; then
   push_state="skipped, dry run: would push $upstream_short to origin/main and $after_short to origin/$voice_branch atomically"

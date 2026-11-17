@@ -131,9 +131,10 @@ def run_node_suite(repo: Path) -> tuple[str, str] | None:
     )
     passed = re.search(r"^# pass (\d+)$", completed.stdout, re.M)
     failed = re.search(r"^# fail (\d+)$", completed.stdout, re.M)
+    node_skipped = re.search(r"^# skipped (\d+)$", completed.stdout, re.M)
     cancelled = re.search(r"^# cancelled (\d+)$", completed.stdout, re.M)
-    if not passed or not failed:
-        return "0 passed, 1 failed", f"node --test printed no summary, exit {completed.returncode}"
+    if not passed or not failed or not node_skipped:
+        return "0 passed, 1 failed, 0 skipped", f"node --test printed no summary, exit {completed.returncode}"
     cancelled_count = int(cancelled.group(1)) if cancelled else 0
     problems = re.findall(r"^\s*not ok \d+ - (.+)$", completed.stdout, re.M)
     if cancelled_count:
@@ -144,8 +145,8 @@ def run_node_suite(repo: Path) -> tuple[str, str] | None:
         failed_count = int(failed.group(1)) + cancelled_count
         if failed_count == 0:
             failed_count = 1
-        return f"{passed.group(1)} passed, {failed_count} failed", "\n".join(problems)
-    return f"{passed.group(1)} passed, 0 failed", ""
+        return f"{passed.group(1)} passed, {failed_count} failed, {node_skipped.group(1)} skipped", "\n".join(problems)
+    return f"{passed.group(1)} passed, 0 failed, {node_skipped.group(1)} skipped", ""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -231,7 +232,9 @@ def main(argv: list[str] | None = None) -> int:
             skipped.append(("voice/bot (node)", note))
         else:
             counters = group("voice/bot (node)")
-            passed, failed = (int(count) for count in re.findall(r"\d+", summary))
+            passed, failed, node_skip_count = (int(count) for count in re.findall(r"\d+", summary))
+            counters["skipped"] = node_skip_count
+            skipped.extend((f"node: skip {i}", "Node test skipped") for i in range(1, node_skip_count + 1))
             counters["passed"], counters["failed"] = passed, failed
             if failed:
                 names = [name for name in note.splitlines() if name] or ["voice/bot (node)"]

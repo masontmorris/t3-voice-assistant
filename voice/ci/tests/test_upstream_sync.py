@@ -522,7 +522,7 @@ class UpstreamSyncTest(unittest.TestCase):
         self.assertEqual(list(lock.parent.glob("run.lock.stale.*")), [])
         self.assertFalse(self.fixture.worktree.exists(), "the run went on without the lock")
 
-    def test_a_lock_older_than_three_hours_is_taken_over(self) -> None:
+    def test_a_lock_older_than_three_hours_with_live_holder_is_refused(self) -> None:
         self.fixture.publish_base()
         self.fixture.publish_voice_branch()
         self.fixture.advance_upstream()
@@ -530,9 +530,49 @@ class UpstreamSyncTest(unittest.TestCase):
 
         completed = self.sync("--dry-run")
 
+        self.assertEqual(completed.returncode, 17, completed.stdout + completed.stderr)
+        self.assertTrue(lock.exists())
+
+    def test_release_does_not_remove_a_rival_lock(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        hook = self.fixture.root / "hook.sh"
+        hook.write_text('rmdir() { command rmdir "$@"; case "$1" in */run.lock) if [ ! -e "$1.once" ]; then touch "$1.once"; command mkdir "$1"; echo rival >"$1/pid"; echo 1 >"$1/started"; fi;; esac; }\n', encoding="utf-8")
+        completed = self.sync("--dry-run", env={"BASH_ENV": posix(hook)})
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
-        self.assertIn("taking over a stale lock", completed.stderr)
-        self.assertFalse(lock.exists())
+        self.assertEqual((self.fixture.voice_home / "sync/run.lock/pid").read_text().strip(), "rival")
+
+    def test_lost_lock_stops_before_push(self) -> None:
+        self.fixture = Fixture(Path(self._temp.name) / "lost", test_script=PASSING_TEST + '')
+        self.fixture.test_script = '#!/usr/bin/env bash\nprintf "rival\\n" >"$(dirname "$VOICE_SYNC_LOG")/run.lock/pid"\necho "voice tests OK"\n'
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        before = self.fixture.remote_sha(self.fixture.origin, "main")
+        completed = self.sync(env={"VOICE_SYNC_LOG": posix(self.fixture.voice_home / "sync/sync.log")})
+        self.assertEqual(completed.returncode, 17, completed.stdout + completed.stderr)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "main"), before)
+
+    def test_old_takeover_leftovers_are_removed(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        stale = self.fixture.voice_home / "sync/run.lock.stale.1.1"
+        stale.mkdir(parents=True)
+        (stale / "pid").write_text("1")
+        os.utime(stale, (time.time() - 14400, time.time() - 14400))
+        completed = self.sync("--dry-run")
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertFalse(stale.exists())
+
+    def test_path_inside_another_linked_worktree_is_refused(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        other = self.fixture.root / "other"
+        git("-C", str(self.fixture.source), "worktree", "add", "--detach", str(other), "main")
+        nested = other / "nested" / "sync"
+        completed = self.sync("--dry-run", worktree=posix(nested))
+        self.assertEqual(completed.returncode, 16, completed.stdout + completed.stderr)
+        self.assertFalse(nested.parent.exists())
 
     def test_a_merge_that_fails_without_a_conflict_prints_the_git_output(self) -> None:
         self.fixture.publish_base()
