@@ -52,6 +52,7 @@ decider LIQUID_API_KEY in it, for calls that miss the cache. Writes CLIP.json, C
 import argparse
 import asyncio
 import json
+import os
 import re
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -525,6 +526,22 @@ class WavInput:
         return max(voice_end, asr_end)
 
 
+def decider_arguments():
+    """Whether the decider reads the tool's place and day in the same request. On by default; VOICE_DECIDER_ARGS=off
+    turns it off. Measured at least as accurate as the word rules on both surfaces: 9 of 10 labeled eval items against
+    their 8, and on the real turns it read the place the word rules cannot ("what about San Diego?" has no preposition
+    for them), which turned that turn's Portland forecast into a San Diego one."""
+    return os.environ.get("VOICE_DECIDER_ARGS", "on").lower() != "off"
+
+
+def segmenter_for(name, decider, label, tools):
+    """The segmenter a turn runs. The hybrid is told the tool question's options, so a dispatch in this turn can use
+    the decider's own tool answer; a run with no registry asks nothing about tools."""
+    if name != "hybrid" or tools is None:
+        return SEGMENTERS[name](decider, label)
+    return SEGMENTERS[name](decider, label, tools=tools.choices(), arguments=decider_arguments())
+
+
 def close_with_decider(segmenter, update):
     decision, error = None, None
     if utterance_intent(update.text).intent == Intent.REQUEST:
@@ -599,7 +616,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     def log(kind, **detail):
         timeline.append({"t": round(clock(), 4), "kind": kind, **detail})
 
-    segmenter = SEGMENTERS[segmenter_name](decider, stem)
+    segmenter = segmenter_for(segmenter_name, decider, stem, tools)
     if segmenter_name == "hybrid":
         segmenter.prior_resolved_tasks = tuple(t for t in prior_tasks if t.get("call"))[-3:]
         segmenter.conversation_mode = final_decider

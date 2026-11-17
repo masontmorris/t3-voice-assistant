@@ -3,6 +3,10 @@ import unittest
 from voice.segmentation.contract import Kind, Readiness, TranscriptUpdate, decision_request, parse_decisions
 from voice.segmentation.client import MODEL
 from voice.segmentation.spans import clause_segments, extracted_segments, fine_pieces, merge_pieces
+from voice.tools import registry
+from voice.tools.registry import GENERAL, NONE, Tool, ToolChoice
+
+TOOLS = registry.build(None, None, None).choices()
 
 
 def body_for(text, final=True, delegates=None):
@@ -14,6 +18,8 @@ def good_answers(body, **overrides):
     for name, q in body["questions"].items():
         if q["type"] == "noul":
             answers[name] = {"type": "noul", "noul": 0.1}
+        elif q["type"] == "text":
+            answers[name] = {"type": "text", "text": "Denver", "found": 0.9}
         else:
             first = next(iter(q["criteria"]))
             answers[name] = {"type": "choice", "choice": first, "probabilities": {first: 1.0}, "confidence": 1.0}
@@ -102,6 +108,48 @@ class Parsing(unittest.TestCase):
         self.assertEqual(parsed.delegates, {"d1": "s1"})
         parsed = parse_decisions(good_answers(body, d1_same_as={"type": "choice", "choice": "new"}), body)
         self.assertEqual(parsed.delegates, {"d1": None})
+
+
+class ToolQuestion(unittest.TestCase):
+    """The tool question is the registry's own table: every registered tool, the general worker, and none."""
+
+    def body(self, text="What's the weather in Denver tomorrow?", **kw):
+        return decision_request(TranscriptUpdate(1, text, True), clause_segments(text, True), [], {}, **kw)
+
+    def test_every_registered_tool_appears_in_the_question_and_nothing_else(self):
+        body = self.body(tools=TOOLS)
+        criteria = set(body["questions"]["s1_tool"]["criteria"])
+        tools = set(registry.build(None, None, None).tools)
+        self.assertEqual(criteria, tools | {NONE, GENERAL})
+        self.assertEqual(criteria - tools - {NONE, GENERAL}, set(), "nothing but the table is offered")
+
+    def test_a_tool_added_to_the_registry_appears_with_no_other_edit(self):
+        extra = Tool("calendar", "calendar lookup", "Reads the speaker's own calendar for a day.",
+                     lambda instruction, earlier=None: {}, lambda arguments, deadline: ("", {}))
+        runner = registry.Registry([*registry.build(None, None, None).tools.values(), extra])
+        criteria = self.body(tools=runner.choices())["questions"]["s1_tool"]["criteria"]
+        self.assertEqual(criteria["calendar"], "Reads the speaker's own calendar for a day.")
+
+    def test_a_request_with_no_registry_asks_nothing_about_tools(self):
+        self.assertNotIn("s1_tool", self.body()["questions"])
+
+    def test_the_tool_answer_carries_its_margin_and_a_bad_one_leaves_the_segment_whole(self):
+        body = self.body(tools=TOOLS)
+        parsed = parse_decisions(good_answers(body, s1_tool={"type": "choice", "choice": "weather",
+                                                            "confidence": 0.62}), body)
+        self.assertEqual(parsed.segments["s1"].tool, ToolChoice("weather", 0.62))
+        broken = parse_decisions(good_answers(body, s1_tool={"type": "choice", "choice": "dance"}), body)
+        self.assertIsNone(broken.segments["s1"].tool, "the word rules take a task with no readable tool answer")
+        self.assertEqual(set(broken.segments), {"s1"})
+        self.assertEqual(broken.problems, ["s1_tool: type='choice' choice='dance'"])
+
+    def test_the_read_place_and_day_ride_along_with_the_tool_answer(self):
+        body = self.body(tools=TOOLS, arguments=True)
+        response = good_answers(body, s1_place={"type": "text", "text": "Denver", "found": 0.99},
+                                s1_when={"type": "choice", "choice": "tomorrow", "confidence": 0.9})
+        parsed = parse_decisions(response, body)
+        self.assertEqual(parsed.segments["s1"].tool.arguments, {"place": "Denver", "when": "tomorrow"})
+        self.assertEqual(parsed.problems, [])
 
 
 if __name__ == "__main__":

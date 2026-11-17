@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from voice.segmentation.client import MODEL
+from voice.tools.registry import ToolChoice
 
 
 class Kind(StrEnum):
@@ -75,6 +76,7 @@ class SegmentDecision:
     corrects: Correction | None
     side_effect: bool
     confidence: dict = field(default_factory=dict, compare=False)
+    tool: ToolChoice | None = None
 
 
 @dataclass(frozen=True)
@@ -106,14 +108,30 @@ SIDE_EFFECT_CRITERIA = {
             "posts, or changes or deletes someone's data.",
     "false": "It only looks up, computes, or reports information back to the speaker.",
 }
+TOOL_INSTRUCTIONS = ("Which tool carries out segment {quote}? Pick the tool whose line matches what it asks for. Pick "
+                     "none when it asks for nothing looked up and the assistant answers it from this call. Pick agent "
+                     "when it needs information from outside this call that no other tool covers, or asks for one of "
+                     "them while leaving the assistant to choose a detail first, such as the city.")
+WHEN_CRITERIA = {
+    "none": "It names no day and asks about no particular day.",
+    "today": "It asks about today, or about the day in progress.",
+    "tomorrow": "It asks about tomorrow.",
+    "weekend": "It asks about the weekend.",
+    **{day: f"It asks about {day.capitalize()}." for day in
+       ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")},
+}
 
 
 def _quote(segment):
     return f"{segment.sid} (\"{segment.text}\")"
 
 
-def segment_questions(segment, earlier):
-    """The choice questions for one segment. `earlier` is the list of segments before it."""
+def segment_questions(segment, earlier, tools=None, arguments=False):
+    """The choice questions for one segment. `earlier` is the list of segments before it.
+
+    `tools` is the tool question's option set, as `Registry.choices` gives it, and `arguments` adds the two
+    extraction questions a weather lookup needs when the decider reads them instead of the word rules.
+    """
     q = {
         f"{segment.sid}_kind": {"type": "choice", "instructions": f"Classify segment {_quote(segment)}.",
                                 "criteria": {k.value: v for k, v in KIND_CRITERIA.items()}},
@@ -126,6 +144,19 @@ def segment_questions(segment, earlier):
                                                        "the assistant?",
                                        "criteria": SIDE_EFFECT_CRITERIA},
     }
+    if tools:
+        q[f"{segment.sid}_tool"] = {"type": "choice",
+                                    "instructions": TOOL_INSTRUCTIONS.format(quote=_quote(segment)),
+                                    "criteria": dict(tools)}
+    if arguments:
+        q[f"{segment.sid}_place"] = {
+            "type": "text",
+            "instructions": f"In segment {_quote(segment)}, which city, town or place is named, exactly as it is "
+                            "written? Read only a place the speaker says there, not one from an earlier segment."}
+        q[f"{segment.sid}_when"] = {
+            "type": "choice",
+            "instructions": f"In segment {_quote(segment)}, which day does the request ask about?",
+            "criteria": WHEN_CRITERIA}
     if earlier:
         q[f"{segment.sid}_depends"] = {
             "type": "choice",
@@ -166,12 +197,15 @@ def decision_state(update, segments, tasks, delegates):
     }
 
 
-def decision_request(update, segments, tasks, delegates, only=None):
-    """Build one decisions body. `only` limits the questions to one segment id, for the bundling comparison."""
+def decision_request(update, segments, tasks, delegates, only=None, tools=None, arguments=False):
+    """Build one decisions body. `only` limits the questions to one segment id, for the bundling comparison.
+
+    `tools` adds the tool question to every segment, and `arguments` the place and day extraction questions, so every
+    answer a dispatch reads arrives in this one request and the state is billed once."""
     questions = {}
     for i, segment in enumerate(segments):
         if only is None or only == segment.sid:
-            questions.update(segment_questions(segment, segments[:i]))
+            questions.update(segment_questions(segment, segments[:i], tools, arguments))
     if only is None:
         for did, instruction in delegates.items():
             questions.update(delegate_question(did, instruction, segments))
@@ -203,9 +237,31 @@ def _describe(answer):
     return f"unexpected {type(answer).__name__}"
 
 
+def _text(answers, name):
+    """A `text` answer's value, or None when none was found and when the answer is unusable."""
+    answer = answers.get(name)
+    value = answer.get("text") if isinstance(answer, dict) and answer.get("type") == "text" else None
+    return value.strip() if isinstance(value, str) and value.strip() else None
+
+
+def _reading(answers, sid, questions):
+    """The place and day the decider read for one segment, or None when the request did not ask for them. An
+    unreadable answer leaves the argument to the tool's parser rather than failing the segment."""
+    if f"{sid}_place" not in questions:
+        return None
+    answer = answers.get(f"{sid}_when")
+    when = answer.get("choice") if isinstance(answer, dict) and answer.get("type") == "choice" else None
+    if when not in WHEN_CRITERIA:
+        return None
+    return {"place": _text(answers, f"{sid}_place"), "when": None if when == "none" else when}
+
+
 def parse_decisions(response, body):
-    """Parse a decisions response against the request that produced it. Never raises on bad model output."""
-    problems = []
+    """Parse a decisions response against the request that produced it. Never raises on bad model output.
+
+    A malformed answer to a question that says whether the task may run drops its segment, as before. A malformed
+    tool or argument answer only sends that task back to the word rules, and is logged as a problem."""
+    problems, tool_problems = [], []
     answers = response.get("answers") if isinstance(response, dict) else None
     if not isinstance(answers, dict):
         return Decisions({}, {}, ["no answers object"])
@@ -222,6 +278,12 @@ def parse_decisions(response, body):
         if f"{sid}_depends" in questions:
             depends = _choice(answers, f"{sid}_depends", set(questions[f"{sid}_depends"]["criteria"]), problems)
             corrects = _choice(answers, f"{sid}_corrects", set(questions[f"{sid}_corrects"]["criteria"]), problems)
+        tool = None
+        if f"{sid}_tool" in questions:
+            picked = _choice(answers, f"{sid}_tool", set(questions[f"{sid}_tool"]["criteria"]), tool_problems)
+            margin = answers.get(f"{sid}_tool", {}).get("confidence")
+            tool = None if picked is None else ToolChoice(picked, margin if isinstance(margin, (int, float)) else 0.0,
+                                                          _reading(answers, sid, questions))
         if len(problems) > before:
             continue
         correction = None
@@ -231,6 +293,7 @@ def parse_decisions(response, body):
         segments[sid] = SegmentDecision(
             sid=sid, kind=Kind(kind), readiness=Readiness(ready),
             depends_on=None if depends == "none" else depends, corrects=correction, side_effect=side >= 0.5,
+            tool=tool,
             confidence={name.removeprefix(f"{sid}_"): a.get("confidence", a.get("noul"))
                         for name, a in answers.items() if name.startswith(f"{sid}_") and isinstance(a, dict)})
     delegates = {}
@@ -240,4 +303,4 @@ def parse_decisions(response, body):
             pick = _choice(answers, name, set(question["criteria"]), problems)
             if pick is not None:
                 delegates[did] = None if pick == "new" else pick
-    return Decisions(segments, delegates, problems)
+    return Decisions(segments, delegates, problems + tool_problems)

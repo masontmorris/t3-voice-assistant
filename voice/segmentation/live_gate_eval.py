@@ -25,10 +25,13 @@ from pathlib import Path
 
 from voice.local_decider.client import decider as make_decider
 from voice.prototype.segmenter import use_decider_cache
+from voice.prototype.tasks import amended
 from voice.segmentation.contract import Intent, TranscriptUpdate
 from voice.segmentation.gate import PLAN_A, SCORED, scores
 from voice.segmentation.hybrid import HybridSegmenter
 from voice.segmentation.intent import utterance_intent
+from voice.tools import registry
+from voice.tools.registry import NONE, TOOL_THRESHOLD, ToolCall
 
 ROOT = Path(__file__).resolve().parent
 EVAL = ROOT / "eval" / "live_gate.jsonl"
@@ -39,6 +42,10 @@ CALL_BUDGET = 400
 ASKS_FOR_WORK = {"dispatch", "follow_up"}
 CALLS = {"cloud": EVIDENCE / "calls", "liquid": EVIDENCE / "calls-liquid"}
 TRACES = {"cloud": EVIDENCE / "traces_after.jsonl", "liquid": EVIDENCE / "traces_after-liquid.jsonl"}
+# The tool question's options, from the registry's own table: the eval asks what live mode asks.
+TOOLS = registry.build(None, None, None).choices()
+# The word rules alone, built with no worker: none of these parsers call out, so this is what today's routing does.
+RULES = registry.build(None, None, None)
 
 
 class Recording:
@@ -74,17 +81,20 @@ class Recording:
 
 
 def trace_of(item, repeat, segmenter, intent):
-    """What one repeat did, in the terms a rule can replay: per task, the answers the gate scored.
+    """What one repeat did, in the terms a rule can replay: per task, the answers the gate scored, and the tool the
+    decider picked for each segment it read.
 
     `last_reason` is the orchestrator's own record of the branch that settled the task, so a replayed rule can prove
-    it is looking at the same tasks the shipped gate looked at.
+    it is looking at the same tasks the shipped gate looked at. `segments` is what the tool question answered for each
+    segment the decider read, whether or not a task came of it, so the tool comparison does not depend on the gate.
     """
-    decided = {}
+    decided, segments = {}, []
     for point in segmenter.points:
         for segment in point["segments"]:
             decision = (point.get("decisions") or {}).get(segment["sid"])
             if decision is not None:
                 decided[segment["text"]] = decision
+                segments.append({"text": segment["text"], "tool": decision.get("tool")})
     tasks = []
     for record in segmenter.records():
         decision = decided.get(record["segment_text"]) or {}
@@ -94,16 +104,18 @@ def trace_of(item, repeat, segmenter, intent):
                       "gate_reached": bool(reasons) and reasons[-1].startswith("gate:"),
                       "last_reason": reasons[-1] if reasons else "",
                       "confidence": decision.get("confidence") or {},
+                      "tool": record.get("tool"),
                       "dispatched": any(d["task_id"] == record["task_id"] for d in segmenter.dispatch_log)})
     return {"id": item["id"], "split": item["split"], "category": item["category"], "expect": item["expect"],
-            "repeat": repeat, "intent": intent.intent.value, "asked_decider": intent.intent == Intent.REQUEST,
+            "expect_tool": item.get("tool"), "repeat": repeat, "intent": intent.intent.value,
+            "asked_decider": intent.intent == Intent.REQUEST, "segments": segments,
             "tasks": tasks, "dispatched": bool(segmenter.dispatch_log)}
 
 
-def run_item(client, item, repeat, fresh, paid=False, calls=None):
+def run_item(client, item, repeat, fresh, paid=False, calls=None, tools=None, arguments=False):
     """One live end of turn. Returns its trace and what its calls cost."""
     recording = Recording(client, f"{item['id']}.r{repeat}", fresh, paid, calls)
-    segmenter = HybridSegmenter(recording, f"{item['id']}.r{repeat}")
+    segmenter = HybridSegmenter(recording, f"{item['id']}.r{repeat}", tools=tools, arguments=arguments)
     segmenter.conversation_mode = True
     segmenter.prior_resolved_tasks = tuple(item["context"].get("resolved") or ())
     segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, True
@@ -276,6 +288,127 @@ def print_table(rows, label):
               f"{total['false_hold']:>12}{total['tasked_anyway']:>7}")
 
 
+def earlier_of(item):
+    """The newest lookup the call resolved before this item, as the task service would carry it."""
+    resolved = item["context"].get("resolved") or []
+    return next((ToolCall(**t["call"]) for t in reversed(resolved) if t.get("call")), None)
+
+
+def rules_tool(item):
+    """The tool today's word rules pick for this item, on the instruction live mode would route: the item's own words,
+    or for a correction the amended earlier request, which live mode routes with no tool answer."""
+    return RULES.dispatch(instruction_of(item), earlier_of(item)).record()["tool"] or NONE
+
+
+def decided_tool(trace, item, bar):
+    """The tool a dispatch would run: the decider's answer for this utterance's last segment when it clears `bar`,
+    else the word rules."""
+    answered = next((s["tool"] for s in reversed(trace.get("segments") or []) if s.get("tool")), None)
+    if answered is not None and answered["confidence"] >= bar and answered["tool"] in TOOLS:
+        return answered["tool"], answered
+    return rules_tool(item), answered
+
+
+def tool_rows(traces, items, bar):
+    """Per split and category: the tool a dispatch would run against the item's own label."""
+    rows = {}
+    for trace in traces:
+        item = items[trace["id"]]
+        got, answered = decided_tool(trace, item, bar)
+        want = item["tool"]
+        row = rows.setdefault((trace["split"], trace["category"]), {"n": 0, "ok": 0, "wrong": []})
+        row["n"] += 1
+        row["ok"] += got == want
+        if got != want:
+            confidence = (answered or {}).get("confidence")
+            row["wrong"].append((trace["id"], want, got, None if confidence is None
+                                 else round(confidence, 2), "decider" if answered else "rules"))
+    return rows
+
+
+def tool_accuracy(traces, items, bar):
+    rows = tool_rows(traces, items, bar)
+    out = {}
+    for split in ("train", "heldout"):
+        picked = [row for (name, _), row in rows.items() if name == split]
+        n = sum(row["n"] for row in picked)
+        out[split] = (sum(row["ok"] for row in picked) / n if n else 0.0, n,
+                      [wrong for row in picked for wrong in row["wrong"]])
+    return out
+
+
+def print_tools(traces, items, label_bar):
+    print(f"\nTOOL CHOICE, one reading per item, decider at {label_bar:.2f} or above else the word rules")
+    print(f"{'split':8}{'category':22}{'n':>3}{'ok':>4}  wrong (item, want, got)")
+    rows = tool_rows(traces, items, label_bar)
+    for (split, category), row in sorted(rows.items()):
+        print(f"{split:8}{category:22}{row['n']:>3}{row['ok']:>4}  {row['wrong']}")
+
+
+def tool_sweep(traces, items):
+    """Tool accuracy at each bar, train then held-out. Train chooses the bar; held-out only reports."""
+    print(f"\ntool threshold sweep, one reading per item")
+    print(f"{'bar':>5}{'train':>8}{'held':>8}   train wrong / held wrong")
+    best = None
+    for step in range(0, 96, 5):
+        bar = step / 100
+        acc = tool_accuracy(traces, items, bar)
+        print(f"{bar:>5.2f}{acc['train'][0]:>8.0%}{acc['heldout'][0]:>8.0%}   "
+              f"{[w[0] for w in acc['train'][2]]} / {[w[0] for w in acc['heldout'][2]]}")
+        if best is None or acc["train"][0] > best[1]:
+            best = (bar, acc["train"][0])
+    print(f"train picks {best[0]:.2f} at {best[1]:.0%}")
+
+
+def reading_accuracy(traces, items):
+    """The arguments a dispatch would run, from the decider's reading filled the way `Registry.filled` fills it, against
+    the word rules and against the item's label. A label with no `when` is compared on the place alone."""
+    agree, ruled_agree, total, rows = 0, 0, 0, []
+    for trace in traces:
+        item = items[trace["id"]]
+        want = item.get("arguments")
+        if not want:
+            continue
+        answered = next((s["tool"] for s in reversed(trace.get("segments") or []) if s.get("tool")), None)
+        if answered is None:
+            continue
+        name = item["tool"]
+        instruction = instruction_of(item)
+        earlier = earlier_of(item)
+        read = RULES.filled(name, answered.get("arguments"), instruction, earlier)
+        ruled = RULES.named(name, instruction, earlier).arguments
+
+        def same(got):
+            fields = [field for field in ("place", "when") if field in want]
+            return bool(got) and all(str(got.get(field) or "").strip().lower() == str(want[field]).strip().lower()
+                                     for field in fields)
+
+        total += 1
+        agree += same(read)
+        ruled_agree += same(ruled)
+        rows.append({"id": trace["id"], "split": trace["split"], "want": want, "read": read, "rules": ruled,
+                     "raw": (answered or {}).get("arguments")})
+    return {"n": total, "decider": agree, "rules": ruled_agree, "rows": rows}
+
+
+def instruction_of(item):
+    """The words live mode would route for this item: its own, or for a correction the amended earlier request."""
+    intent = utterance_intent(item["utterance"])
+    resolved = item["context"].get("resolved") or []
+    if intent.intent == Intent.CORRECTION and resolved and intent.replacement:
+        return (amended(resolved[-1]["instruction"], intent.replacement) or (item["utterance"],))[0]
+    return item["utterance"]
+
+
+def print_readings(traces, items):
+    readings = reading_accuracy(traces, items)
+    print(f"\nARGUMENTS, {readings['n']} labeled items: the decider's reading filled for dispatch "
+          f"{readings['decider']} exact, the word rules {readings['rules']} exact")
+    for row in readings["rows"]:
+        print(f"{row['id']:5}{row['split']:8}{'ok ' if row['read'] == row['rules'] else 'DIFF'} want {row['want']} "
+              f"decider {row['read']} (read {row['raw']}) rules {row['rules']}")
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--fresh", action="store_true", help="send every body again, for a spread run")
@@ -292,6 +425,11 @@ def main():
                         help="who answers: pplx on OpenRouter (cloud) or Liquid's hosted d1.2 (liquid)")
     parser.add_argument("--decider-dir", type=Path,
                         help="where a fresh run keeps its call records; default: EVIDENCE/calls-<decider>")
+    parser.add_argument("--tools", action="store_true",
+                        help="ask the tool question for every segment, as live mode does")
+    parser.add_argument("--arguments", action="store_true",
+                        help="also ask the decider to read the place and day, for the argument comparison")
+    parser.add_argument("--tool-sweep", action="store_true", help="print the tool threshold sweep over the traces")
     args = parser.parse_args()
     calls = args.decider_dir or CALLS[args.decider]
     if args.traces is None:
@@ -307,7 +445,8 @@ def main():
         with make_decider(args.decider) as client:
             for item in items:
                 for repeat in range(1, args.repeats + 1):
-                    trace, cost = run_item(client, item, repeat, args.fresh, paid, calls)
+                    trace, cost = run_item(client, item, repeat, args.fresh, paid, calls,
+                                           TOOLS if args.tools else None, args.arguments)
                     spent += cost
                     traces.append(trace)
                     print(f"{item['id']} r{repeat} intent={trace['intent']:9} "
@@ -332,6 +471,20 @@ def main():
                     f"TWO READINGS, COMBINED BY {how.upper()}, one decision per item")
     if args.sweep:
         sweep(traces, firsts)
+    if any(t["expect_tool"] for t in traces):
+        by_id = {item["id"]: item for item in items}
+        print_tools(firsts, by_id, TOOL_THRESHOLD)
+        rules_only = {"train": [0, 0], "heldout": [0, 0]}
+        for trace in firsts:
+            item = by_id[trace["id"]]
+            rules_only[trace["split"]][0] += rules_tool(item) == item["tool"]
+            rules_only[trace["split"]][1] += 1
+        print("word rules alone, one reading per item: " + ", ".join(
+            f"{split} {ok}/{n} ({ok / n:.0%})" for split, (ok, n) in rules_only.items() if n))
+        if args.arguments:
+            print_readings(firsts, by_id)
+        if args.tool_sweep:
+            tool_sweep(firsts, by_id)
 
 
 if __name__ == "__main__":

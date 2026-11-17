@@ -198,10 +198,15 @@ def _jsonable(value):
 
 
 class HybridSegmenter:
-    """Plan A behind the prototype's Segmenter interface. Feed it transcript updates and voice delegate submissions."""
+    """Plan A behind the prototype's Segmenter interface. Feed it transcript updates and voice delegate submissions.
 
-    def __init__(self, client, label, thresholds=THRESHOLDS):
+    `tools` is the tool question's option set (`Registry.choices`), asked for every segment in the same request that
+    asks whether it may run, or None to ask nothing about tools. `arguments` adds the place and day extraction
+    questions, which the registry then reads instead of its word rules."""
+
+    def __init__(self, client, label, thresholds=THRESHOLDS, tools=None, arguments=False):
         self.client, self.label, self.t = client, label, thresholds
+        self.tool_choices, self.read_arguments = tools, arguments
         self.orch = Orchestrator()
         self.committed: list[Piece] = []
         self.soft: set[int] = set()
@@ -307,7 +312,8 @@ class HybridSegmenter:
         asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
         tasks = [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
                   "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
-        body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates))
+        body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates), tools=self.tool_choices,
+                                arguments=self.read_arguments)
         if self.conversation_mode:
             for name, question in body["questions"].items():
                 if name.endswith("_side_effect"):

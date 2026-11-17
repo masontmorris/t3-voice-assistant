@@ -10,6 +10,7 @@ from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from voice.segmentation.contract import CorrectionMode, Kind, Readiness
+from voice.tools.registry import ToolChoice
 
 
 class Status(StrEnum):
@@ -63,12 +64,17 @@ class Task:
     depends_on: list[str] = field(default_factory=list)
     revises: str | None = None
     side_effect: bool = False
+    tool: ToolChoice | None = None
     history: list[dict] = field(default_factory=list)
 
     def record(self):
-        return {"task_id": self.task_id, "status": self.status.value, "segment_text": self.segment_text,
-                "instruction": self.instruction, "sources": sorted(self.sources), "depends_on": self.depends_on,
-                "revises": self.revises, "side_effect": self.side_effect, "history": self.history}
+        record = {"task_id": self.task_id, "status": self.status.value, "segment_text": self.segment_text,
+                  "instruction": self.instruction, "sources": sorted(self.sources), "depends_on": self.depends_on,
+                  "revises": self.revises, "side_effect": self.side_effect, "history": self.history}
+        if self.tool is not None:
+            record["tool"] = {"tool": self.tool.tool, "confidence": self.tool.confidence,
+                              "arguments": self.tool.arguments}
+        return record
 
 
 def _words(text):
@@ -339,6 +345,7 @@ class Orchestrator:
                 self._move(task, Status.PROPOSED, "reclassified as request")
             task.side_effect = decision.side_effect or (task.revises is not None
                                                         and self.tasks[task.revises].side_effect)
+            task.tool = decision.tool
             task.depends_on = self._dependencies(decision, bound, task)
         elif task is not None and task.status in UNDISPATCHED:
             self._move(task, Status.WITHDRAWN, f"reclassified as {kind.value}")
@@ -365,6 +372,7 @@ class Orchestrator:
                               depends_on=list(target.depends_on))
         task.instruction = self._instruction_for(task, seg.text)
         task.side_effect = decision.side_effect or target.side_effect
+        task.tool = decision.tool
         bound[seg.sid] = task
 
     def _settle(self, task, seg, decision):

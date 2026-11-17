@@ -6,15 +6,16 @@ from voice.segmentation.contract import (Correction, CorrectionMode, Decisions, 
                                          TranscriptUpdate)
 from voice.segmentation.spans import clause_segments
 from voice.segmentation.tasks import Orchestrator, Status
+from voice.tools.registry import ToolChoice
 from voice.tools.tests.replay import replay_registry
 
 
-def decide(sid, kind="request", ready="dispatch_now", depends=None, corrects=None, side_effect=False):
+def decide(sid, kind="request", ready="dispatch_now", depends=None, corrects=None, side_effect=False, tool=None):
     correction = None
     if corrects:
         mode, _, target = corrects.partition("_")
         correction = Correction(target, CorrectionMode(mode))
-    return SegmentDecision(sid, Kind(kind), Readiness(ready), depends, correction, side_effect)
+    return SegmentDecision(sid, Kind(kind), Readiness(ready), depends, correction, side_effect, {}, tool)
 
 
 class ScriptedSegmenter:
@@ -288,6 +289,46 @@ class RealLookupTest(unittest.TestCase):
         execution = service.executions["task_1"]
         self.assertEqual((execution.state, execution.tool["outcome"]), ("failed", "timeout"))
         self.assertEqual(execution.result_summary, "The weather lookup did not answer in time.")
+
+
+class ToolChoiceDispatchTest(unittest.TestCase):
+    """A dispatched task runs the tool the decider chose, in the same step that decides it may run. The measured case:
+    after the San Diego forecast, "Pick a city on the east coast to check the weather for." runs a San Diego forecast
+    under the word rules."""
+
+    EAST_COAST = "Pick a city on the east coast to check the weather for."
+
+    def service(self, **kw):
+        self.tools, self.fetch, _ = replay_registry("Denver", chat=lambda messages, timeout_s: "{}")
+        segmenter = ScriptedSegmenter()
+        service = MockTaskService(segmenter, "conv_test", tools=self.tools, **kw)
+        self.addCleanup(service.close)
+        return segmenter, service
+
+    def test_the_deciders_tool_runs_and_the_record_says_so(self):
+        segmenter, service = self.service(simulate=False)
+        segmenter.step(1, self.EAST_COAST, final=True,
+                       s1={"tool": ToolChoice("agent", 0.62)})
+        service.sync(now=0.0)
+        routed = service.executions["task_1"].routing
+        self.assertEqual((routed["via"], routed["tool"], routed["disagreement"]), ("decider", "agent", False))
+        self.assertEqual(service.executions["task_1"].tool["tool"], "agent")
+
+    def test_a_task_with_no_tool_answer_runs_on_the_word_rules_and_logs_nothing(self):
+        segmenter, service = self.service(simulate=False)
+        segmenter.step(1, "What time is it in Tokyo?", final=True, s1={})
+        service.sync(now=0.0)
+        self.assertEqual(service.executions["task_1"].routing,
+                         {"tool": "time", "via": "rules", "disagreement": False, "choice": None})
+
+    def test_a_confident_none_leaves_the_task_unavailable_and_the_record_says_which_answer(self):
+        segmenter, service = self.service(simulate=False)
+        segmenter.step(1, "Nice weather today, huh?", final=True, s1={"tool": ToolChoice("none", 0.9)})
+        service.sync(now=0.0)
+        execution = service.executions["task_1"]
+        self.assertEqual(execution.state, Run.FAILED)
+        self.assertEqual(execution.routing["via"], "decider")
+        self.assertEqual(execution.routing["choice"], {"tool": "none", "confidence": 0.9, "arguments": None})
 
 
 class GatedServiceTest(unittest.TestCase):
