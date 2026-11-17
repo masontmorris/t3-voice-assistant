@@ -119,7 +119,7 @@ def run_node_suite(repo: Path) -> tuple[str, str] | None:
     passed = re.search(r"^# pass (\d+)$", completed.stdout, re.M)
     failed = re.search(r"^# fail (\d+)$", completed.stdout, re.M)
     if not passed or not failed:
-        return None, f"node --test printed no summary, exit {completed.returncode}"
+        return "0 passed, 1 failed", f"node --test printed no summary, exit {completed.returncode}"
     names = re.findall(r"^\s*not ok \d+ - (.+)$", completed.stdout, re.M)
     return f"{passed.group(1)} passed, {failed.group(1)} failed", "\n".join(names)
 

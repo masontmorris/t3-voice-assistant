@@ -117,7 +117,7 @@ if [ "$(cd "$worktree" && pwd)" = "$(cd "$source_repo" && pwd)" ]; then
   finish "refusing to run in the source repo itself, give the sync its own worktree" $exit_setup
 fi
 if [ -n "$(git -C "$worktree" status --porcelain --untracked-files=no)" ]; then
-  finish "refusing to reset $worktree, it has changes to tracked files" $exit_setup
+  finish "refusing to reset $worktree, it has changes to tracked files; reset it by hand first" $exit_setup
 fi
 
 if ! git -C "$worktree" fetch --no-tags upstream main >/dev/null 2>&1; then
@@ -136,6 +136,9 @@ voice_sha=$(git -C "$worktree" rev-parse "origin/$voice_branch")
 upstream_short=$(git -C "$worktree" rev-parse --short=10 upstream/main)
 origin_main_short=$(git -C "$worktree" rev-parse --short=10 origin/main)
 voice_short=$(git -C "$worktree" rev-parse --short=10 "origin/$voice_branch")
+if [ -z "$upstream_sha" ] || [ -z "$origin_main_sha" ] || [ -z "$voice_sha" ]; then
+  finish "cannot resolve upstream/main, origin/main, or origin/$voice_branch" $exit_setup
+fi
 
 if [ "$upstream_sha" = "$origin_main_sha" ] && git -C "$worktree" merge-base --is-ancestor "$upstream_sha" "$voice_sha"; then
   main_state="already a mirror of upstream ($origin_main_short)"
