@@ -16,7 +16,8 @@ down. Text frames are JSON control messages:
 Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-of-utterance authority (injection (c),
 the hybrid segmenter, the `gated` default from `voice/main`): live ASR, the segmenter and decider, the task service
 with real weather and time lookups, the snapshot, and the reply. The endpointer in endpoint.py ends a turn after
---silence-ms of silence.
+--silence-ms of silence, or, with `--eou audio`, as soon as the local d1-Omni-2B says the person has finished
+(voice/live/eou_audio.py), and never later than --silence-ms.
 
 One client connection is one call, and one call is one LFM3 voice session. The first turn opens it and every later
 turn adds its audio and its reply to the same conversation. That session is the call's memory: the model hears what
@@ -89,7 +90,8 @@ from pathlib import Path
 from websockets.asyncio.server import serve
 
 from voice.live import fallback
-from voice.live.endpoint import RATE, Audio, End, Endpointer, Settings, Start
+from voice.live import eou_audio
+from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start
 from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
@@ -208,6 +210,7 @@ class MicTurn:
         self.out_rate, self.reply_started = None, False
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
         self.task = self.decider = self.overlap = None
+        self.checks, self.check = [], None
         self.feed(pcm)
 
     def feed(self, pcm):
@@ -254,6 +257,7 @@ class MicTurn:
             "turn_end_to_first_audio_sent_s": since(self.first_audio, self.turn_end),
             "cancelled": self.cancelled,
             "overlap": self.overlap,
+            "eou_checks": list(self.checks),
         }
 
 
@@ -275,6 +279,7 @@ class Conversation:
         self.ledger = ConversationLedger()
         self.pending, self.started = set(), time.perf_counter()
         self.playback, self.overlap = Playback(), None
+        self.checks = set()
 
     def voice_clock(self):
         """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
@@ -311,6 +316,9 @@ class Conversation:
         for event in self.endpointer.push(pcm):
             if isinstance(event, Start):
                 self.on_start(event.pcm)
+            elif isinstance(event, Check):
+                if self.overlap is None:
+                    self.check_end(event.silent_ms)
             elif isinstance(event, Audio) and self.overlap is None:
                 self.turn.feed(event.pcm)
             elif isinstance(event, Audio):
@@ -413,7 +421,42 @@ class Conversation:
         self.turn = turn
         self.post({"type": "turn_start", "turn": turn.n, "carried_audio_s": round(turn.carried_s, 3)})
 
+    def check_end(self, silent_ms):
+        """One ask of the audio model at a check point, unless the turn already ended or an answer is still coming."""
+        turn = self.turn
+        if self.live.eou is None or turn is None or turn.turn_end is not None:
+            return
+        if turn.check is not None and not turn.check.done():
+            return
+        turn.check = asyncio.create_task(self.ask_end(turn, silent_ms))
+        self.checks.add(turn.check)
+        turn.check.add_done_callback(self.checks.discard)
+
+    async def ask_end(self, turn, silent_ms):
+        """Ends the turn here when the model says the person has finished, and otherwise leaves the silence rule alone.
+
+        The answer is bounded by `deadline_s`: past it the turn ends at `silence_ms` as it always did, so a slow or
+        broken model costs no turn. An answer that arrives after the turn ended, or after the person spoke again,
+        ends nothing: the answer is about the audio at the check point, and the point is stale by then.
+        """
+        policy = self.live.eou.policy
+        deadline = policy.deadline_s(silent_ms, self.live.settings.silence_ms)
+        tail = bytes(turn.pcm)[-int(policy.window_s * RATE) * 2:]
+        started = time.perf_counter()
+        try:
+            answer = await asyncio.wait_for(asyncio.to_thread(self.live.eou.p_done, tail, deadline), deadline + 0.05)
+        except Exception as exc:
+            turn.checks.append({"silent_ms": silent_ms, "p": None, "error": type(exc).__name__,
+                                "ms": round((time.perf_counter() - started) * 1000, 1), "ended": False})
+            return
+        ends = (answer.p_done >= policy.theta and turn is self.turn and turn.turn_end is None
+                and self.endpointer.silent_ms >= silent_ms)
+        turn.checks.append({"silent_ms": silent_ms, "p": round(answer.p_done, 4), "ms": answer.ms, "ended": ends})
+        if ends:
+            self.end_turn(silent_ms, False)
+
     def end_turn(self, trailing_ms, forced):
+        self.endpointer.finish(trailing_ms)
         self.turn.end(trailing_ms)
         self.post({"type": "turn_end", "turn": self.turn.n, "trailing_ms": trailing_ms, "forced": forced})
 
@@ -484,6 +527,7 @@ class Conversation:
         record["ledger"] = self.ledger.record_dict()
         record["live"] = {**turn.metrics(), "prompt": self.prompt_source, "endpointer": vars(live.settings),
                           "mode": self.mode, "snapshot": live.args.snapshot, "recall": live.args.recall,
+                          "eou": getattr(live.args, "eou", "silence"),
                           "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns}}
         write_pcm16(live.out / f"{turn.name}_input.wav", bytes(turn.pcm), RATE)
         (live.out / f"{turn.name}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
@@ -497,6 +541,8 @@ class Conversation:
     async def close(self):
         if self.overlap is not None and self.overlap.task is not None:
             self.overlap.task.cancel()
+        for check in list(self.checks):
+            check.cancel()
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")
@@ -508,10 +554,14 @@ class Conversation:
 
 
 class Live:
-    def __init__(self, args, url, decider, tools, out, decider_lock=None):
+    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
+        self.eou = eou
+        # With an audio decider the endpointer also names the points of silence at which the turn may end.
+        check_ms = eou.policy.check_ms if eou is not None else ()
         self.settings = Settings(silence_ms=args.silence_ms, start_ms=args.start_ms, preroll_ms=args.preroll_ms,
-                                 floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s)
+                                 floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s,
+                                 check_ms=check_ms)
         self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
         self.active, self.turns, self.overlaps = None, 0, 0
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
@@ -589,9 +639,17 @@ async def main_async(args):
     lfm_args = ("-c", str(args.lfm_ctx), "-kvu")
     cloud_lock = threading.Lock()
     tools_context = nullcontext() if args.mock_tools else open_registry(lock=cloud_lock)
+    eou_mode, eou_port = getattr(args, "eou", "silence"), getattr(args, "eou_port", eou_audio.PORT)
+    eou_context = eou_audio.server(eou_port, out / "eou-server.log") if eou_mode == "audio" else nullcontext()
     with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, slots(getattr(args, "asr_stagger", 1))) as server, \
-            make_decider(args.decider, out) as decider:
-        live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock)
+            make_decider(args.decider, out) as decider, eou_context as eou_server:
+        eou = None
+        if eou_server is not None:
+            eou = eou_audio.Decider(f"http://127.0.0.1:{eou_port}",
+                                    eou_audio.Policy(theta=getattr(args, "eou_theta", eou_audio.Policy.theta)))
+            print(f"d1-Omni pid {eou_server.proc.pid} on port {eou_port} after {eou_server.startup_s:.1f} s: "
+                  f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
+        live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock, eou=eou)
         watcher = asyncio.create_task(watch_lag())
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
@@ -611,6 +669,14 @@ def main():
     parser.add_argument("--port", type=int, default=8770)
     parser.add_argument("--prompt", type=Path, default=PROMPT_FILE, help="persona file, read at each call start")
     parser.add_argument("--silence-ms", type=int, default=700, help="trailing silence that ends a turn")
+    parser.add_argument("--eou", choices=["silence", "audio"], default="silence",
+                        help="what ends a turn: the trailing silence alone (default), or the local d1-Omni-2B asked "
+                             "whether the person finished at 150, 300 and 500 ms of silence, falling back to "
+                             "--silence-ms")
+    parser.add_argument("--eou-theta", type=float, default=eou_audio.Policy.theta,
+                        help=f"the P(done) that ends a turn early with --eou audio (default {eou_audio.Policy.theta})")
+    parser.add_argument("--eou-port", type=int, default=eou_audio.PORT,
+                        help=f"the audio model's llama-server port (default {eou_audio.PORT})")
     parser.add_argument("--start-ms", type=int, default=100, help="voiced audio that starts a turn")
     parser.add_argument("--preroll-ms", type=int, default=300, help="audio kept from before the turn started")
     parser.add_argument("--floor-dbfs", type=float, default=-50.0, help="a frame below this level is never speech")
