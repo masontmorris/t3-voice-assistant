@@ -1,4 +1,4 @@
-import type { OrchestrationV2DomainEvent } from "@t3tools/contracts";
+import { type OrchestrationV2DomainEvent, ThreadId } from "@t3tools/contracts";
 import { delegatedTaskProgress } from "@t3tools/provider-core/server/subagentProjection";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -36,6 +36,8 @@ const storeOrchestrator = Layer.unwrap(
     const projectionError =
       (threadId: Parameters<typeof projections.getThreadShell>[0]) => (cause: unknown) =>
         new Orchestrator.OrchestratorProjectionError({ threadId, cause });
+    // OrchestratorV2 names no thread for a shell read across threads.
+    const SHELL = ThreadId.make("thread:shell");
     return Layer.mock(Orchestrator.OrchestratorV2)({
       getThreadEventSequence: (threadId) =>
         sink.latestSequence({ threadId }).pipe(Effect.mapError(projectionError(threadId))),
@@ -45,6 +47,15 @@ const storeOrchestrator = Layer.unwrap(
           .pipe(Effect.mapError(projectionError(threadId))),
       getThreadShell: (threadId) =>
         projections.getThreadShell(threadId).pipe(Effect.mapError(projectionError(threadId))),
+      listActiveShellIndex: () =>
+        projections.listActiveShellIndex().pipe(Effect.mapError(projectionError(SHELL))),
+      readShellSnapshot: (options) =>
+        projections
+          .readShellSnapshot(options)
+          .pipe(
+            Effect.mapError(projectionError(SHELL)),
+            Effect.map(Effect.mapError(projectionError(SHELL))),
+          ),
       streamStoredEventsFrom: (input) =>
         sink
           .stream({ ...input, bounded: true })
