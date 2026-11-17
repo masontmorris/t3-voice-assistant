@@ -36,7 +36,7 @@ The script is `$VOICE_HOME/evidence/latency-research/budget.py` and `whatif.py` 
 - Mock tools. The replays run `--mock-tools`, so only 3 of 37 turns carry a task note.
 - Reply length. Replies are sampled at audio temperature 1.0. The same configuration (A and B) produced median replies of 8.3 and 7.0 s and median first audio of 2.34 and 2.04 s. That 0.30 s spread is the noise floor for any claim made from one replay run. The 0.4 s gain from `--eou audio` is explained by its mechanism, because the detector row falls by 0.55 s, so the claim does not rest on the replay gap alone.
 - Reply length differs between the live call and the replays. The live call's replies had a median of 3.3 s of speech against 7.0 to 8.3 s now (measured). The persona and the snapshot mode changed in between. The held-reply wait scales with this, so it is the number most likely to differ in a new call.
-- Network and playback. The replays ran on loopback, so the delivery rows are floors. The live call's laptop client log is not on this machine, so the 1.62 s is a server-side number that leaves out the tailnet and the speaker.
+- Network and playback. The replays ran on loopback, so the delivery rows are floors. The laptop client logs from the 15:39 and 15:44 calls (`evidence/latency-research/client-logs/`, 17 turns matched to server records) were measured afterwards: send to receive over the LAN tailnet is 0.013 s median (0.015 p90, clock offset included), and receive to playback callback is 0.024 s median (0.041 p90). Delivery adds about 0.04 s plus the 0.1 s device buffer, so the latency is server-side.
 
 ## 1. Measured latency budget
 
@@ -56,8 +56,8 @@ Median and p90 in seconds. Stage times in the middle rows run from the end of th
 | 9. Turn end to first audio sent | 0.92 / 1.71 | 1.64 / 2.32 | 1.34 / 1.70 | 1.38 / 1.75 | measured |
 | 10. **Speech end to first audio sent** | **1.62 / 2.41** | **2.34 / 3.02** | **2.04 / 2.40** | **1.58 / 2.17** | measured |
 | Reply length, seconds of speech | 3.3 / 8.6 | 8.3 / 12.9 | 7.0 / 9.4 | 7.6 / 9.8 | measured |
-| 11. Server to client receive | not logged here | 0.005 (max 0.010) | 0.006 (max 0.008) | 0.006 (max 0.008) | measured on loopback. Tailnet RTT was 5 ms on the LAN (`live-demo.md`), a WAN or relay path is unmeasured |
-| 12. Client receive to playback callback | not logged here | 0.014 | 0.012 | 0.012 | measured |
+| 11. Server to client receive | 0.013 (p90 0.015), laptop log | 0.005 (max 0.010) | 0.006 (max 0.008) | 0.006 (max 0.008) | measured on loopback. Tailnet RTT was 5 ms on the LAN (`live-demo.md`), a WAN or relay path is unmeasured |
+| 12. Client receive to playback callback | 0.024 (p90 0.041), laptop log | 0.014 | 0.012 | 0.012 | measured |
 | 12b. Output device latency | 0.100 | 0.100 | 0.100 | 0.100 | inferred, the client's own `stream.latency` report |
 
 Row 10 is the number the brief asks about. It matches the brief's 1.62 s for the live call. It does not match "1.7 to 2.0 s" for the replays, which measured 1.58 to 2.34 s here depending on the run and the mode.
