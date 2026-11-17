@@ -1,6 +1,6 @@
 import unittest
 
-from voice.live.facts import names_machinery, speaks_of_person, ungrounded
+from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
 
 # The three turns of the demo call in $VOICE_HOME/evidence/live/memory-20261116/ablation/demo-runC, text side only:
 # what the person said, the machine note the voice session received, and what the assistant said. Turn 3 is the
@@ -114,6 +114,23 @@ class ThirdPersonTest(unittest.TestCase):
     def test_a_reply_to_the_person(self):
         self.assertEqual(speaks_of_person("Sorry about that. What did you want instead?"), [])
         self.assertEqual(speaks_of_person("Saturday looks sunny, with a high of 54."), [])
+
+
+class ChoiceRequestTest(unittest.TestCase):
+    """The person's turn 25 of 20261116-152653 asked the assistant to choose a city. Without this rule no place the
+    assistant then named could ever be grounded, which is how turns 25, 27 and 28 lost their replies."""
+
+    def test_a_request_to_choose(self):
+        for said in ("Pick a city on the east coast to check the weather for.", "Pick for me, please.",
+                     "You pick the city.", "Choose a place for the forecast.", "Surprise me.", "Pick one."):
+            with self.subTest(said=said):
+                self.assertTrue(asks_to_choose(said))
+
+    def test_an_ordinary_request_is_not_one(self):
+        for said in ("I'll pick up the dry cleaning later.", "What's the weather in Denver tomorrow?",
+                     "Choose the meeting slot.", "And what about San Diego?"):
+            with self.subTest(said=said):
+                self.assertFalse(asks_to_choose(said))
 
 
 if __name__ == "__main__":

@@ -54,12 +54,15 @@ class TaskNoteTest(unittest.TestCase):
             self.assertTrue(note.endswith("]"))
 
 
-class NoteTurnTest(unittest.IsolatedAsyncioTestCase):
+class NoteTurn(unittest.IsolatedAsyncioTestCase):
+    """The harness for one note-mode turn, and the voice session the turns share."""
+
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
         self.original_open = prototype.Session.open
+        self.addCleanup(setattr, FakeSession, "transcript", FakeSession.transcript)
 
         async def open_session(url, name, clock, on_event=None):
             return await (Scripted if name == "voice" else FakeSession).open(url, name, clock, on_event)
@@ -76,6 +79,8 @@ class NoteTurnTest(unittest.IsolatedAsyncioTestCase):
             voice=self.voice, snapshot_mode="note", prior_utterances=EARLIER, final_decider=True, recall="note",
             fallback_pcm=b"\x01\x00" * 480, speak=lambda text, pcm: self.spoken.append(text), **more)
 
+
+class NoteTurnTest(NoteTurn):
     async def test_a_turn_with_no_lookup_gives_the_model_no_text(self):
         record = await self.turn(["Glad to hear it."])
         self.assertEqual(texts(self.voice), [], "the reply follows the turn's audio and nothing else")
@@ -110,6 +115,62 @@ class NoteTurnTest(unittest.IsolatedAsyncioTestCase):
         result = "Forecast for Raleigh. Monday, November 16: a high of 56 degrees Fahrenheit."
         await self.turn(["It was a high of 56 degrees in Raleigh."], prior_results=(result,))
         self.assertEqual(self.spoken, ["It was a high of 56 degrees in Raleigh."])
+
+
+class PickedPlaceTest(NoteTurn):
+    """A turn where the person asked the assistant to choose. The measured call is 20261116-152653 turn 25:
+    "Pick a city on the east coast to check the weather for." The model chose Boston, nothing in the call states
+    Boston, so both replies were refused and turns 27 and 28 then said nothing at all."""
+
+    PICK = "Pick a city on the east coast to check the weather for."
+
+    async def test_the_place_the_person_asked_the_assistant_to_choose_is_spoken(self):
+        FakeSession.transcript = self.PICK
+        record = await self.turn(["Let's check the weather in Boston."])
+        self.assertEqual(self.spoken, ["Let's check the weather in Boston."])
+        self.assertEqual(record["established"], ["Boston"], "the chosen place is the call's from now on")
+
+    async def test_a_chosen_place_still_grounds_the_next_turns(self):
+        FakeSession.transcript = "Do I need to wear a jacket?"
+        await self.turn(["I couldn't check the weather in Boston, so I can't say if you need a jacket."],
+                        established=("Boston",))
+        self.assertEqual(self.spoken, ["I couldn't check the weather in Boston, so I can't say if you need a jacket."])
+
+    async def test_a_place_with_no_pick_request_is_still_refused(self):
+        record = await self.turn(["Let's check the weather in Boston.", "I can't look that up."])
+        note, = texts(self.voice)
+        self.assertIn("nothing gave you Boston", note)
+        self.assertEqual(record["established"], [])
+        self.assertEqual(self.spoken, ["I can't look that up."])
+
+
+class StaleReplyTest(NoteTurn):
+    """The measured failure is tool-pick arm 1 (`$VOICE_HOME/evidence/toolpick/toolpick-real`): turns 25 and 26 said
+    "Hello! I'm checking the weather in a city on the East Coast. Which one?" and turns 28 to 37 said it again."""
+
+    STALE = "Hello! I'm checking the weather in a city on the East Coast. Which one?"
+
+    async def test_a_line_the_assistant_already_said_is_asked_again(self):
+        await self.turn([self.STALE])
+        self.assertEqual(self.spoken, [self.STALE])
+        record = await self.turn([self.STALE, "I can hear you fine."], prior_replies=(self.STALE,))
+        note = [text for text in texts(self.voice) if text == prototype.REPEAT_NOTE]
+        self.assertEqual(note, [prototype.REPEAT_NOTE], "the retry is told it repeated itself")
+        self.assertEqual(self.spoken[-1], "I can hear you fine.")
+        self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
+
+    async def test_a_stale_line_that_survives_the_retry_is_spoken_not_dropped(self):
+        record = await self.turn([self.STALE, self.STALE], prior_replies=(self.STALE,))
+        self.assertEqual(self.spoken, [self.STALE], "silence after the person speaks is worse than a stale line")
+        self.assertEqual(record["replies"][0]["text"], self.STALE)
+        self.assertIn("repeat", [event["kind"] for event in record["timeline"]])
+
+    async def test_a_reply_that_carries_a_fact_may_repeat_a_result(self):
+        forecast = "The weather in Durham today is a high of 57 degrees Fahrenheit with a 0% chance."
+        given = "Forecast for Durham: a high of 57 degrees Fahrenheit with a 0 percent chance."
+        await self.turn([forecast], prior_replies=(forecast,), prior_results=(given,))
+        self.assertEqual(self.spoken, [forecast], "asking for the same forecast twice is not a stale reply")
+        self.assertEqual([text for text in texts(self.voice) if text == prototype.REPEAT_NOTE], [])
 
 
 def tone(seconds, rate=24_000, level=8000):
