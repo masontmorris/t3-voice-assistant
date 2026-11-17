@@ -132,7 +132,7 @@ def score(out, write=True):
             "case": path.stem,
             "interrupted_turn": overlap.get("turn"),
             "answer_call_turn": (record.get("live") or {}).get("call", {}).get("turn"),
-            "heard_note": (record.get("live") or {}).get("barge_in_note"),
+            "heard_note": ((record.get("live") or {}).get("barge_in") or {}).get("note"),
             "interrupted_reply": interrupted, "answer_reply": answer,
             "shared_run": shared, "lighthouse": lighthouse,
             "reused_old_answer": shared >= SHARED_WORDS or lighthouse,
