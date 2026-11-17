@@ -1,8 +1,9 @@
 """The end-of-utterance decider call, made after the reply has played: logged, compared, and never acted on.
 
-A `gated` turn hands the end of the utterance to LFM3, so a live call has no per-turn record of where the decider
-would have disagreed. This module sends the question the `decider` mode sends on the final transcript, once the reply
-audio has played, and writes one line per utterance to `shadow.jsonl` beside the turn records.
+A `gated` turn hands the end of the utterance to one side: LFM3's tool turn in the prototype, and the decider's own
+final call in live mode, which passes `final_decider`. Either way a live call has no per-turn record of where the
+decider would have disagreed, so this module sends the question the `decider` mode sends on the final transcript,
+once the reply audio has played, and writes one line per utterance to `shadow.jsonl` beside the turn records.
 
 It cannot change the call. It is handed a request built from a copy of the turn's state, sends that one request, and
 parses the answers into a record. It holds no orchestrator and no task service, so it has nothing to dispatch with,
@@ -60,8 +61,8 @@ def request(utterance, turn_record, authority, body, lfm=(), outcomes=(), intent
 def lfm_calls(tool_turn):
     """LFM3's task calls from the turn's tool session, with the action each one asks for.
 
-    The live server opens no tool session on its decider path, so this is empty there and names the turn's rule,
-    which `authority` records."""
+    The live server opens no tool session on its decider path, so this is empty there, and `authority` records which
+    rule decided the end of the utterance instead."""
     calls = []
     for call in (tool_turn or {}).get("function_calls") or ():
         action = TASK_CALLS.get(call.get("name"))
