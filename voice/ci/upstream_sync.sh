@@ -8,7 +8,8 @@
 # Environment: VOICE_SYNC_SOURCE_REPO (default ~/source/repos/t3-voice), VOICE_SYNC_WORKTREE (default
 # ~/source/repos/t3-voice-sync, created if missing), VOICE_SYNC_VOICE_BRANCH (default voice/main),
 # VOICE_HOME (default ~/voice), VOICE_SYNC_LOG, VOICE_PYTHON. It runs only in the linked worktree it
-# created itself; any other path is refused before a single file changes.
+# created itself; any other path is refused before a single file changes. The voice-sync-worktree file it
+# writes into that worktree's git dir is the proof of ownership: a checkout without it is refused too.
 set -uo pipefail
 
 # A scheduled run has no terminal to answer a credential prompt, so git must fail instead of waiting.
@@ -47,7 +48,7 @@ merged_count="-"
 lock_dir=""
 
 usage() {
-  sed -n '2,11p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
 }
 
 while [ $# -gt 0 ]; do
@@ -115,11 +116,16 @@ pid_alive() {
   case "$1" in
     ''|*[!0-9]*) return 1 ;;
   esac
+  # The lock holds the pid of a bash process, not a Windows process: on Git Bash that pid is an MSYS pid,
+  # which tasklist cannot see, so kill -0 answers first and answers for the ids this script writes.
+  if kill -0 "$1" 2>/dev/null; then
+    return 0
+  fi
   if command -v tasklist >/dev/null 2>&1; then
     MSYS_NO_PATHCONV=1 tasklist /FI "PID eq $1" /NH 2>/dev/null | grep -q '[0-9]'
     return
   fi
-  kill -0 "$1" 2>/dev/null || ps -p "$1" >/dev/null 2>&1
+  ps -p "$1" >/dev/null 2>&1
 }
 
 take_lock() {
@@ -130,6 +136,15 @@ take_lock() {
   return 0
 }
 
+# Only the run whose rename succeeds holds the stale lock, so a takeover cannot delete a lock another run just took.
+take_over_stale_lock() {
+  local moved
+  moved=$lock_path.stale.$$.$(date +%s%N)
+  mv "$lock_path" "$moved" 2>/dev/null || return 1
+  rm -rf "$moved"
+  take_lock
+}
+
 trap release_lock EXIT
 if ! take_lock; then
   lock_pid=$(cat "$lock_pid_file" 2>/dev/null)
@@ -137,13 +152,11 @@ if ! take_lock; then
   if [ "$lock_age" != "-" ] && [ "$lock_age" -ge "$lock_stale_seconds" ]; then
     printf 'upstream_sync.sh: taking over a stale lock: pid %s, started %s s ago\n' \
       "${lock_pid:-unknown}" "$lock_age" >&2
-    rm -rf "$lock_path"
-    take_lock || true
+    take_over_stale_lock || true
   elif [ -n "$lock_pid" ] && ! pid_alive "$lock_pid"; then
     printf 'upstream_sync.sh: taking over a lock whose pid %s is gone, started %s s ago\n' \
       "$lock_pid" "$lock_age" >&2
-    rm -rf "$lock_path"
-    take_lock || true
+    take_over_stale_lock || true
   fi
   if [ -z "$lock_dir" ]; then
     lock_pid=$(cat "$lock_pid_file" 2>/dev/null)
@@ -168,6 +181,52 @@ if [ -z "$python_cmd" ]; then
   finish "no python on PATH, set VOICE_PYTHON" $exit_setup
 fi
 
+real_path() {
+  "$python_cmd" -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null
+}
+
+# Windows names compare case-insensitively and accept either separator, so two spellings can name one checkout.
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) fold_case=1 ;;
+  *) fold_case=0 ;;
+esac
+
+path_key() {
+  if [ "$fold_case" = 1 ]; then
+    printf '%s' "${1//\\//}" | tr 'A-Z' 'a-z'
+  else
+    printf '%s' "${1//\\//}"
+  fi
+}
+
+# The checkouts here are reset and cleaned, so refuse a target that is or sits inside the source repo's work
+# tree before creating anything on disk.
+source_real=$(real_path "$source_repo")
+if [ -z "$source_real" ]; then
+  finish "cannot resolve the real path of $source_repo" $exit_setup
+fi
+source_root=$(git -C "$source_repo" rev-parse --show-toplevel 2>/dev/null)
+source_root_real=$(real_path "${source_root:-$source_repo}")
+if [ -z "$source_root_real" ]; then
+  finish "cannot resolve the work tree of $source_repo" $exit_setup
+fi
+source_key=$(path_key "$source_real")
+source_root_key=$(path_key "$source_root_real")
+
+worktree_real=$(real_path "$worktree")
+if [ -z "$worktree_real" ]; then
+  finish "cannot resolve the real path of $worktree" $exit_setup
+fi
+worktree_key=$(path_key "$worktree_real")
+if [ "$worktree_key" = "$source_key" ] || [ "$worktree_key" = "$source_root_key" ]; then
+  finish "refusing to run in the source repo itself, give the sync its own worktree" $exit_setup
+fi
+case "$worktree_key/" in
+  "$source_root_key"/*)
+    finish "refusing $worktree: it is inside the source repo's work tree at $source_root_real, give the sync its own worktree" $exit_setup
+    ;;
+esac
+
 if ! git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
   mkdir -p "$(dirname "$worktree")" &&
     git -C "$source_repo" worktree prune &&
@@ -176,26 +235,20 @@ if ! git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
   created_git_dir=$(git -C "$worktree" rev-parse --path-format=absolute --git-dir 2>/dev/null)
   printf 'created by voice/ci/upstream_sync.sh\n' >"$created_git_dir/voice-sync-worktree" ||
     finish "cannot mark the new worktree at $worktree" $exit_setup
+  worktree_real=$(real_path "$worktree")
+  worktree_key=$(path_key "$worktree_real")
 fi
-
-real_path() {
-  "$python_cmd" -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null
-}
 
 # The checkouts here are reset and cleaned, so prove the target is the worktree this job made: same real path as
-# the argument, a linked worktree rather than the main checkout, and carrying the marker written above.
-worktree_real=$(real_path "$worktree")
-source_real=$(real_path "$source_repo")
-if [ -z "$worktree_real" ] || [ -z "$source_real" ]; then
-  finish "cannot resolve the real path of $worktree or $source_repo" $exit_setup
-fi
-if [ "$worktree_real" = "$source_real" ]; then
-  finish "refusing to run in the source repo itself, give the sync its own worktree" $exit_setup
-fi
+# the argument, a linked worktree rather than the main checkout, and carrying the voice-sync-worktree marker
+# written above, which is the ownership proof for a checkout this job did not create in this run.
 toplevel=$(git -C "$worktree" rev-parse --show-toplevel 2>/dev/null)
+if [ -z "$toplevel" ]; then
+  finish "refusing $worktree: git cannot name its top level, so it is not a checkout this job may reset" $exit_setup
+fi
 toplevel_real=$(real_path "$toplevel")
-if [ "$toplevel_real" != "$worktree_real" ]; then
-  finish "refusing $worktree: git reports its top level as $toplevel_real, so it is a subfolder or another checkout" $exit_setup
+if [ -z "$toplevel_real" ] || [ "$(path_key "$toplevel_real")" != "$worktree_key" ]; then
+  finish "refusing $worktree: git reports its top level as ${toplevel_real:-nothing}, so it is a subfolder or another checkout" $exit_setup
 fi
 git_dir=$(git -C "$worktree" rev-parse --path-format=absolute --git-dir 2>/dev/null)
 common_dir=$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
@@ -281,12 +334,13 @@ if ! merge_output=$(git -C "$worktree" merge --no-ff --no-edit \
   finish "merge failed between upstream and $voice_branch" $exit_conflict
 fi
 after=$(git -C "$worktree" rev-parse HEAD)
+after_short=$(git -C "$worktree" rev-parse --short=10 "$after")
 if [ "$before" = "$after" ]; then
   merged_count=0
   merge_state="nothing to merge, $voice_branch already contains $upstream_short"
 else
   merged_count=$ahead
-  merge_state="merged $ahead upstream commit(s) into $voice_branch, HEAD $(git -C "$worktree" rev-parse --short=10 HEAD)"
+  merge_state="merged $ahead upstream commit(s) into $voice_branch, HEAD $after_short"
 fi
 
 test_log=$log_dir/last-test-output.txt
@@ -307,16 +361,16 @@ fi
 seam_state=$(printf '%s' "$seam_output" | head -n 1)
 
 if [ "$dry_run" = 1 ]; then
-  push_state="skipped, dry run: would push $upstream_short to origin/main and HEAD to origin/$voice_branch atomically"
+  push_state="skipped, dry run: would push $upstream_short to origin/main and $after_short to origin/$voice_branch atomically"
   finish "dry run passed, nothing pushed" $exit_ok
 fi
 
-# Push the tested commit, not the moving ref, and update both branches in one atomic push so a rejected
-# voice branch never leaves origin/main ahead of it.
+# Push the commits that were tested, not the refs they were found at, and update both branches in one atomic push
+# so a rejected voice branch never leaves origin/main ahead of it.
 if ! push_output=$(git -C "$worktree" push --atomic origin \
-  "$upstream_sha:refs/heads/main" "HEAD:refs/heads/$voice_branch" 2>&1); then
+  "$upstream_sha:refs/heads/main" "$after:refs/heads/$voice_branch" 2>&1); then
   push_state="FAILED: nothing pushed; $(printf '%s' "$push_output" | tr '\n' ' ')"
   finish "push failed" $exit_push
 fi
-push_state="pushed main at $upstream_short and $voice_branch at $(git -C "$worktree" rev-parse --short=10 HEAD)"
+push_state="pushed main at $upstream_short and $voice_branch at $after_short"
 finish "upstream merged and pushed" $exit_ok
