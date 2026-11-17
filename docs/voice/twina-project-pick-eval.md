@@ -1,12 +1,15 @@
 # Twin A: does the deterministic match plus a fast model pick the right project?
 
-**Bottom line.** Neither arm passes the Twin B bar, measured on 30 labeled requests over one
-frozen 11-project snapshot. The model arm fails the zero-wrong gates in every view and the
-700 ms latency bar by more than three times. The deterministic arm fails zero-wrong and the
-unambiguous gate by one case. The worst outcome never fired: no arm named a wrong project in
-any of 120 runs. Every failure is cheap, a direct pick or a none answer where the gold wants
-a question. Ship the deterministic match as the floor, send only its misses to the free model,
-and deliver every single-project result as a confirming question. Do not ship direct picks.
+**Bottom line.** Neither arm passes the Twin B bar under the frozen golds, measured on 30
+labeled requests over one frozen 11-project snapshot. Re-scored with the stated target as
+gold on the four nontarget cases, a sensitivity run on the frozen rows that leaves the
+manifest untouched, the model-confirm view names no wrong project and fails only the p95
+latency bar at 2.3 s against 700 ms, while the deterministic arm fails only the unambiguous
+gate, on A-015 out of 9 cases. The worst outcome never fired on these 30 cases: no arm named
+a wrong project in any of the 120 frozen runs (measured, 0 `wrong_thread`). Every frozen
+failure is cheap, a direct pick or a none answer where the gold wants a question. Ship the
+deterministic match as the floor, send only its misses to the free model, and deliver every
+single-project result as a confirming question. Do not ship direct picks.
 
 Every number below carries its label in its own sentence. The tables are run output.
 
@@ -66,10 +69,10 @@ runs with 60 model calls, since 10 deterministic ones per repeat never reach the
 | --- | --- | --- | --- |
 | match strict | 27 | 2, both a pick where the gold asks | 1 unnecessary question |
 | model strict | 53 | 25, all a direct pick where the gold asks | 12 none answers where the gold asks |
-| model confirm | 69 plus 3 confirmed | 6, all a pick where the gold asks | 12 none answers where the gold asks |
+| model confirm | 66 correct + 3 confirmed + 3 `question_missing_gold` (lenient only) | 6, all a pick where the gold asks | 12 none answers where the gold asks |
 
-Wrong means `wrong_project` or `picked_when_should_ask`. No run in either arm produced
-`wrong_project` (measured, 0 of 120 runs). As a confirming question the model was never
+Wrong means `wrong_thread` or `picked_when_should_ask`. No run in either arm produced
+`wrong_thread` (measured, 0 of 120 runs on these 30 cases). As a confirming question the model was never
 wrong about the project (measured, 0 `confirm_wrong` in 3 confirmations).
 
 The pass bar, strict and confirm views (measured). The gates mirror Twin B's: zero wrong in
@@ -77,11 +80,30 @@ the shared, nontarget, absent and missing slices, at most two wrong overall, at 
 90 percent correct on the unambiguous exact and variant slices, at most 10 percent
 unnecessary questions, and single-request p95 at most 700 ms.
 
-| arm | view | zero-wrong slices | overall wrong | unambiguous | unnecessary | p95 | passes |
+| arm | view | zero wrong in shared, nontarget, absent, missing | overall wrong | unambiguous | unnecessary | p95 | passes |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | match | strict | 2, fail | 2, pass | 88.9 percent, fail | 3.3 percent, pass | no request, pass | no |
 | model | strict | 9, fail | 25, fail | 100 percent, pass | 0.0 percent, pass | 2341 ms, fail | no |
 | model | confirm | 6, fail | 6, fail | 100 percent, pass | 0.0 percent, pass | 2341 ms, fail | no |
+
+## Sensitivity: the stated target as gold
+
+A sensitivity run on the frozen rows, not a new run: cases A-005 to A-008 re-scored with
+the project named after "in" as a `one` gold, through the same outcome functions, with the
+manifest and labels untouched and no picker re-run. Measured on the 30 match rows and 90
+model rows already on disk.
+
+| arm | view | zero wrong in shared, nontarget, absent, missing | overall wrong | unambiguous | unnecessary | p95 aside, what still fails |
+| --- | --- | --- | --- | --- | --- | --- |
+| match | strict | 0, pass | 0, pass | 8 of 9, fail, on A-015 | 3 of 30, pass | unambiguous only |
+| model | strict | 0, pass | 16, fail, all partial-slice fragment picks | 27 of 27, pass | 3 of 90, pass | wrong and p95 |
+| model | confirm | 0, pass | 0, pass | 27 of 27, pass | 3 of 90, pass | p95 only, 2341 ms |
+
+The PM's ruling: a target stated with "in X" is X, so those four golds were too strict and
+the frozen manifest stands as recorded. Under that reading the model-confirm view has 0
+wrong and fails only on p95 latency at 2.3 s, and the match arm fails only the unambiguous
+gate, on A-015 out of 9 cases. The frozen tables above stay as measured; this table is the
+lens the recommendation rests on.
 
 **Latency, tokens, transport (measured).** The model arm's pooled p50 sits near 600 ms per
 slice and its pooled p95 at 2341 ms, with the worst slice at 2636 ms, against the 700 ms bar.
@@ -96,7 +118,7 @@ retries. The match arm answers in under half a millisecond.
   correctly in all 4 cases on both arms (measured).
 - A lone exact hit with a fragment of another project in the task text picks where the gold
   asks. This is the only deterministic wrong class, 2 cases, and it never reaches the model
-  (measured).
+  (measured, frozen scoring; the sensitivity re-score above reads both as correct).
 - A spelled-out digit misses the deterministic match and the model resolves it (measured).
 - With no project wording the model says none where the gold asks, in all 4 cases and all
   3 repeats (measured). The design treats both as a question, so this is cheap but undecided.
@@ -117,6 +139,14 @@ retries. The match arm answers in under half a millisecond.
 - None and ask both surface as a question in Twin A, so that confusion is cheap here in a
   way the bar does not show.
 - Three confirmations is thin evidence for the confirming-question delivery.
+- It never tried the B2 shapes from review: an explicit unlisted project beside a listed name
+  in the task, a common-word name inside the task, a strict prefix of a longer listed name, a
+  task-side exact match beside a fragmentary target, or singular/plural drift. Those are unit
+  tests now, not eval cases.
+- Confirming every single pick, deterministic hits included, is a policy choice that turns
+  B2-class misses into spoken questions. It is not a measured result: no scored view treats
+  a deterministic one as a confirming question, and the recommended configuration as a whole,
+  match floor plus model misses plus confirming delivery, was never scored end to end.
 
 ## Privacy: what was sent where
 
@@ -133,8 +163,9 @@ and the ten scored outputs stay under `$VOICE_HOME/evals/twina-pick`.
 2. Send only its misses to `particle-ai/particle-1:free` with reasoning off. The model
    itself never named a wrong project in 60 calls (measured).
 3. Deliver every single-project result as a confirming question, deterministic hits
-   included. Direct picks fail the bar in 25 runs; the confirming view fails it in 6, all
-   carried deterministic ones (measured).
+   included. Direct picks fail the bar in 25 runs under the frozen scoring; the confirming
+   view fails it in 6, all carried deterministic ones (measured). This delivery itself is a
+   policy choice, not a measured result; see the blind spots above.
 4. Do not tune the two carried cases on this data and call it a pass. The foreign-fragment
    rule (a lone exact hit plus any fragment of another project asks) clears them in-sample
    by inspection, and it needs its own labeled round before it ships.
