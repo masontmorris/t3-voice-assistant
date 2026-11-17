@@ -13,6 +13,7 @@ What it cannot see: a place named without a preposition ("Boulder looks clear"),
 relative day ("tomorrow") with no anchor, and a value the person said in a way the patterns below do not read.
 """
 
+import math
 import re
 from typing import NamedTuple
 
@@ -28,7 +29,11 @@ ORDINALS = r"(?:st|nd|rd|th)?"
 NUMBER_WORDS = {"zero": 0, "one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8,
                 "nine": 9, "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15,
                 "sixteen": 16, "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30,
-                "forty": 40, "fifty": 50, "sixty": 60, "hundred": 100}
+                "forty": 40, "fifty": 50, "sixty": 60, "seventy": 70, "eighty": 80,
+                "ninety": 90, "hundred": 100}
+TENS = ("twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
+UNITS = ("one", "two", "three", "four", "five", "six", "seven", "eight", "nine")
+COMPOUND_RE = re.compile(r"\b(" + "|".join(TENS) + r")[\s-]+(" + "|".join(UNITS) + r")\b", re.IGNORECASE)
 LOCATIVES = r"(?:in|at|near|from|to|around|toward|towards|outside|across)"
 NOT_A_PLACE = {"i", "you", "we", "he", "she", "they", "it", "me", "us", "them", "the", "a", "an", "my", "your",
                "his", "her", "their", "our", "this", "that", "these", "those", "sure", "okay", "ok", "yes", "no",
@@ -36,12 +41,14 @@ NOT_A_PLACE = {"i", "you", "we", "he", "she", "they", "it", "me", "us", "them", 
                "thanks", "please", "alright", "right", "got", "once", "both", "each", "least", "last", "first",
                "next", "moment", "minute", "second", "degree", "degrees", "percent", "chance", "rain", "snow",
                "work", "all", "every", "more", "less", "today", "tonight", "tomorrow", "yesterday", "morning",
-               "afternoon", "evening", "night"} | set(NUMBER_WORDS)
+               "afternoon", "evening", "night",
+               # Units and languages follow "in" without being places: "57 degrees in Fahrenheit".
+               "fahrenheit", "celsius", "centigrade", "kelvin", "english", "spanish", "french"} | set(NUMBER_WORDS)
 WEEKDAY_RE = re.compile(r"\b(" + "|".join(sorted(WEEKDAYS, key=len, reverse=True)) + r")s?\b", re.IGNORECASE)
 MONTH_RE = re.compile(r"\b(" + "|".join(sorted(MONTHS, key=len, reverse=True)) + r")\.?(?=\s|\d|$)", re.IGNORECASE)
 DATE_AFTER = re.compile(r"\s+(\d{1,2})" + ORDINALS + r"\b")
 DATE_BEFORE = re.compile(r"(\d{1,2})" + ORDINALS + r"\s+$")
-NUMBER_RE = re.compile(r"\b\d+(?:\.\d+)?\b")
+NUMBER_RE = re.compile(r"\b\d{1,3}(?:,\d{3})+(?:\.\d+)?\b|\b\d+(?:\.\d+)?\b")
 TIME_RE = re.compile(r"\b(\d{1,2})(?::(\d{2}))?(?: ?(a\.?m\.?|p\.?m\.?|o'?clock))\b", re.IGNORECASE)
 CLOCK_RE = re.compile(r"\b(\d{1,2}):(\d{2})\b")
 HOUR_WORD_RE = re.compile(r"\b(?:at|around|by)\s+(\w+)", re.IGNORECASE)
@@ -52,10 +59,13 @@ WORD_RE = re.compile(r"[A-Za-z][a-z]*")
 # Words that belong to the machinery, not to the assistant's voice. A reply that says one of them is telling the
 # person about the note, the check or the task list instead of answering them. Measured cost of the bare "note" in
 # this list: 1 of 157 spoken replies on disk ("Got it, I've noted that ...") would be refused and asked again.
-# "lookup" and "no answer yet" are a lookup note's own words. Measured on the callfix3 replay fix2, turns 21 and 23: "It
-# looks like the lookup is still running and has no answer yet."
+# "lookup is" and "no answer yet" are a running lookup note's own words. Measured on the callfix3 replay fix2, turns 21
+# and 23: "It looks like the lookup is still running and has no answer yet." The bare word "lookup" is not listed: a
+# failed task's note says it too, and "the lookup failed" is then the truthful reply (toolpick-polish2 turn 016).
+# Each word matches whole, plural included, so "noted" and "keynote" are not "note".
 MACHINERY = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update", "note",
-             "lookup", "no answer yet")
+             "lookup is", "no answer yet")
+MACHINERY_RE = {word: re.compile(r"\b" + re.escape(word) + r"s?\b") for word in MACHINERY}
 
 
 class Fact(NamedTuple):
@@ -76,7 +86,7 @@ THIRD_PERSON = re.compile(
 def names_machinery(text):
     """The machinery words `text` says, in the order they appear. Empty when it names none."""
     low = (text or "").lower()
-    return [word for word in MACHINERY if word in low]
+    return [word for word in MACHINERY if MACHINERY_RE[word].search(low)]
 
 
 def speaks_of_person(text):
@@ -104,7 +114,7 @@ def _clock(hour, minute):
 def facts_in(text, worded_numbers=False, any_case_places=False):
     """The facts a piece of text states, with the words as written. Sources also read spelled-out numbers and
     lower-case place names."""
-    hits = []
+    hits, dates = [], []
     for match in WEEKDAY_RE.finditer(text):
         hits.append((match.start(), match.end(), Fact("weekday", match.group(0),
                                                      ("weekday", WEEKDAYS[match.group(1).lower()]))))
@@ -115,6 +125,7 @@ def facts_in(text, worded_numbers=False, any_case_places=False):
         day = int(after.group(1)) if after else (int(before.group(1)) if before else None)
         if day is not None:
             end = after.end() if after else match.end()
+            dates.append((match.start() if after else before.start(), end))
             hits.append((match.start(), end, Fact("date", text[match.start():end].strip(),
                                                   ("date", f"{month}/{day}"))))
     times = []
@@ -135,9 +146,10 @@ def facts_in(text, worded_numbers=False, any_case_places=False):
                 hits.append((match.start(), match.end(), Fact(
                     "time", match.group(0), ("time", f"{NUMBER_WORDS[word] % 12 or 12}:00"))))
     for match in NUMBER_RE.finditer(text):
-        if any(start <= match.start() and match.end() <= end for start, end in times):
+        # A date's day belongs to the date: "February 22" is one fact, not a date and the number 22.
+        if any(start <= match.start() and match.end() <= end for start, end in times + dates):
             continue
-        number = match.group(0)
+        number = match.group(0).replace(",", "")
         if re.fullmatch(r"\d+\.0+", number):
             number = str(int(float(number)))
         hits.append((match.start(), match.end(), Fact("number", match.group(0), ("number", number))))
@@ -145,6 +157,9 @@ def facts_in(text, worded_numbers=False, any_case_places=False):
         for match in re.finditer(r"\b(" + "|".join(NUMBER_WORDS) + r")\b", text, re.IGNORECASE):
             hits.append((match.start(), match.end(), Fact(
                 "number", match.group(0), ("number", str(NUMBER_WORDS[match.group(1).lower()])))))
+        for match in COMPOUND_RE.finditer(text):
+            value = NUMBER_WORDS[match.group(1).lower()] + NUMBER_WORDS[match.group(2).lower()]
+            hits.append((match.start(), match.end(), Fact("number", match.group(0), ("number", str(value)))))
     for match in PLACE_RUN.finditer(text):
         for word in WORD_RE.finditer(match.group(1)):
             if not any_case_places and not word.group(0)[0].isupper():
@@ -163,7 +178,11 @@ def ungrounded(text, sources):
     allowed, said = set(), set()
     for source in sources:
         for piece in _strings(source):
-            allowed.update(fact.key for fact in facts_in(piece, worded_numbers=True, any_case_places=True))
+            for fact in facts_in(piece, worded_numbers=True, any_case_places=True):
+                allowed.add(fact.key)
+                # A source's 57.2 may be said as 57: the voice rounds, and the rounded value is not a new fact.
+                if fact.kind == "number" and "." in fact.key[1]:
+                    allowed.add(("number", str(math.floor(float(fact.key[1]) + 0.5))))
             said.update(word.lower() for word in WORD_RE.findall(piece))
     seen, missing = set(), []
     for fact in facts_in(text or ""):

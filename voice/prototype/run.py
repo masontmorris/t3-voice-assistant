@@ -279,6 +279,17 @@ def task_notes(entries):
     return "\n".join(lines) or None
 
 
+def given_results(prior_results, noted, tasks):
+    """The earlier lookup results the fact check counts as given on a turn.
+
+    Beside a running or completed lookup they are dropped, or the model could say an old result for the new one
+    (measured: callfix3 replay fix1, turn 25). Beside a failed task, or none, they stay: "What did you tell me about
+    Lisbon?" beside a failed task was refused for repeating the call's own result (recall-memory note, turn 035)."""
+    if not noted or any(task.get("status") in ("running", "completed") for task in tasks or ()):
+        return ()
+    return tuple(prior_results)
+
+
 def is_running(snapshot):
     """Screen refusals only when no failed task could make them truthful."""
     statuses = {task.get("status") for task in (snapshot or {}).get("tasks", ())}
@@ -802,10 +813,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     injection.append(await create_item(voice, plain_text(item)))
                     log("task_note", note=item)
             log("injection", items=injection)
-            # An earlier lookup's values count as given only on a turn with no note of its own. Beside a note they
-            # would let the model say an old result for the new lookup (measured: callfix3 replay fix1, turn 25).
-            earlier_results = prior_results if noted and item is None else ()
-            sources = [adapter.text(), *prior_utterances, *earlier_results, read_before, item]
+            sources = [adapter.text(), *prior_utterances, *given_results(prior_results, noted, (answered or {}).get("tasks")),
+                       read_before, item]
 
             def look_up(_facts):
                 """Start a lookup for the person's words when the reply stated a fact nothing gave it."""

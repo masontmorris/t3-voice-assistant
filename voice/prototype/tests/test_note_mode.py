@@ -103,7 +103,7 @@ class NoteTurnTest(unittest.IsolatedAsyncioTestCase):
     async def test_a_refused_value_is_named_in_the_retry(self):
         await self.turn(["George Washington was born on February 22, 1732.", "I can't look that up."])
         note, = texts(self.voice)
-        self.assertIn("nothing gave you February 22, 22, 1732", note)
+        self.assertIn("nothing gave you February 22, 1732", note)
         self.assertEqual(self.spoken, ["I can't look that up."])
 
     async def test_an_earlier_lookup_result_may_be_said_again(self):
@@ -214,3 +214,22 @@ class PlaceTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class EarlierResultsTest(unittest.TestCase):
+    """Which earlier lookup results the fact check counts as given on a turn."""
+
+    RESULT = "Forecast for Lisbon. Tuesday, November 17: a high of 70 degrees, 78 percent chance of precipitation."
+
+    def test_a_failed_task_keeps_the_earlier_results(self):
+        """recall-memory note turn 035: "What did you tell me about Lisbon?" beside a failed task was refused."""
+        self.assertEqual(prototype.given_results((self.RESULT,), True, [{"status": "failed"}]), (self.RESULT,))
+
+    def test_a_running_or_completed_task_drops_them(self):
+        """Beside a new lookup an old result would pass for the new one (callfix3 replay fix1, turn 25)."""
+        for status in ("running", "completed"):
+            with self.subTest(status=status):
+                self.assertEqual(prototype.given_results((self.RESULT,), True, [{"status": status}]), ())
+
+    def test_no_task_keeps_them(self):
+        self.assertEqual(prototype.given_results((self.RESULT,), True, []), (self.RESULT,))

@@ -118,3 +118,38 @@ class ThirdPersonTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class FalsePositiveTest(unittest.TestCase):
+    """Correct replies the screens refused, found by the false-positive review of the records on disk."""
+
+    def test_a_truthful_failed_lookup_is_not_machinery(self):
+        """toolpick-polish2 turn 016 and toolpick-args turn 025: the task failed, and the reply said so."""
+        self.assertEqual(names_machinery("I couldn't check the weather in Raleigh because the lookup failed."), [])
+
+    def test_reading_the_running_note_aloud_is_still_machinery(self):
+        self.assertTrue(names_machinery("It looks like the lookup is still running and has no answer yet."))
+
+    def test_note_is_matched_as_a_word(self):
+        self.assertEqual(names_machinery("Got it, I've noted that. The keynote starts soon."), [])
+        self.assertEqual(names_machinery("The notes say it is running."), ["note"])
+
+    def test_a_date_is_not_also_a_bare_number(self):
+        self.assertEqual([fact.surface for fact in ungrounded("He was born on February 22, 1732.", [])],
+                         ["February 22", "1732"])
+
+    def test_thousands_commas_match_either_way(self):
+        self.assertEqual(ungrounded("About 1200 people live there.", ["Population: 1,200."]), [])
+        self.assertEqual(ungrounded("About 1,200 people live there.", ["Population: 1200."]), [])
+
+    def test_a_rounded_source_value_may_be_said(self):
+        self.assertEqual(ungrounded("A high of 57 degrees.", ["High 57.2 F."]), [])
+        self.assertTrue(ungrounded("A high of 58 degrees.", ["High 57.2 F."]))
+
+    def test_a_spoken_compound_number_is_one_value(self):
+        for said in ("I need twenty five of them.", "I need twenty-five of them."):
+            with self.subTest(said=said):
+                self.assertEqual(ungrounded("You need 25.", [said]), [])
+
+    def test_a_unit_is_not_a_place(self):
+        self.assertEqual(ungrounded("It is 57 degrees in Fahrenheit.", ["a high of 57 degrees"]), [])
