@@ -1,0 +1,13 @@
+node_modules
+dist
+.DS_Store
+.env
+
+# Ignore the output video from Git but not videos you import into src/.
+out
+
+# Staged archives hold real voices. Stage them with scripts/stage.mjs; never commit them.
+public/archives/
+# Edits of real runs quote real speech. Keep them under $VOICE_HOME and copy them in to render.
+public/edits/*
+!public/edits/example.json

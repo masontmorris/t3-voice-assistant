@@ -1,0 +1,57 @@
+{"t": 0.9, "type": "speech_start", "turn": 1, "src": "derived", "audio": {"clip": "clips/turn_001_input.wav", "clip_offset_s": 0.0, "stem": "stems/microphone.wav", "at": 0.6}, "seq": 0}
+{"t": 2.0616, "type": "transcript_partial", "turn": 1, "src": "server", "revision": 1, "text": "What's the", "seq": 1}
+{"t": 2.3616, "type": "decision_point", "turn": 1, "src": "server", "revision": 1, "is_final": false, "source": "update", "segments": ["What's the weather in Boston,"], "decisions": [{"sid": "s1", "kind": "request", "readiness": "ready", "side_effect": false, "confidence": {"kind": 0.82, "ready": 0.8999999999999999}}], "latency_ms": 240.0, "seq": 2}
+{"t": 2.3616, "type": "task_created", "turn": 1, "src": "server", "task_id": "1/task_1", "text": "What's the weather in Boston", "sources": ["orchestrator"], "seq": 3}
+{"t": 2.3616, "type": "gate_verdict", "turn": 1, "src": "server", "task_id": "1/task_1", "score": 0.82, "threshold": 0.4, "passed": true, "weakest": "kind", "seq": 4}
+{"t": 2.3616, "type": "task_status", "turn": 1, "src": "server", "task_id": "1/task_1", "status": "dispatched", "reason": "gate: kind confidence 0.82 reached 0.40", "seq": 5}
+{"t": 3.2231, "type": "transcript_partial", "turn": 1, "src": "server", "revision": 2, "text": "What's the weather in Boston,", "seq": 6}
+{"t": 3.5231, "type": "decision_point", "turn": 1, "src": "server", "revision": 2, "is_final": false, "source": "update", "segments": ["What's the weather in Boston,", "and set a timer"], "decisions": [{"sid": "s1", "kind": "request", "readiness": "ready", "side_effect": false, "confidence": {"kind": 0.86, "ready": 0.94}}, {"sid": "s2", "kind": "request", "readiness": "wait", "side_effect": true, "confidence": {"kind": 0.48, "ready": 0.5599999999999999}}], "latency_ms": 240.0, "seq": 7}
+{"t": 3.5231, "type": "task_split", "turn": 1, "src": "derived", "before": ["What's the weather in Boston,"], "after": ["What's the weather in Boston,", "and set a timer"], "seq": 8}
+{"t": 4.3847, "type": "transcript_partial", "turn": 1, "src": "server", "revision": 3, "text": "What's the weather in Boston, and set a timer", "seq": 9}
+{"t": 4.3847, "type": "task_created", "turn": 1, "src": "server", "task_id": "1/task_2", "text": "set a timer for ten minutes", "sources": ["orchestrator"], "seq": 10}
+{"t": 4.3847, "type": "gate_verdict", "turn": 1, "src": "server", "task_id": "1/task_2", "score": 0.61, "threshold": 0.8, "passed": false, "weakest": "kind", "seq": 11}
+{"t": 4.3847, "type": "task_status", "turn": 1, "src": "server", "task_id": "1/task_2", "status": "held", "reason": "gate: kind confidence 0.61 fell short of 0.80", "seq": 12}
+{"t": 5.5462, "type": "transcript_partial", "turn": 1, "src": "server", "revision": 4, "text": "What's the weather in Boston, and set a timer for ten minutes.", "seq": 13}
+{"t": 5.5462, "type": "speech_end", "turn": 1, "src": "derived", "seq": 14}
+{"t": 6.2462, "type": "turn_end", "turn": 1, "src": "client", "trailing_ms": 700, "forced": false, "seq": 15}
+{"t": 6.2962, "type": "transcript_final", "turn": 1, "src": "server", "revision": 5, "text": "What's the weather in Boston, and set a timer for ten minutes.", "seq": 16}
+{"t": 6.3162, "type": "handoff", "turn": 1, "src": "server", "final_transcript": "What's the weather in Boston, and set a timer for ten minutes.", "unreviewed_speech": "", "segments": ["What's the weather in Boston,", "and set a timer"], "snapshot": {"type": "utterance_snapshot", "final_transcript": "What's the weather in Boston, and set a timer for ten minutes.", "tasks": [{"task_id": "task_1", "description": "What's the weather in Boston", "status": "running"}, {"task_id": "task_2", "description": "set a timer for ten minutes", "status": "waiting"}], "unreviewed_speech": ""}, "seq": 17}
+{"t": 6.6162, "type": "lfm_action", "turn": 1, "src": "server", "calls": [{"name": "weather", "arguments": {"place": "Boston"}}], "text": "", "snapshot_after": null, "seq": 18}
+{"t": 6.6262, "type": "task_status", "turn": 1, "src": "server", "task_id": "1/task_1", "status": "running", "seq": 19}
+{"t": 6.7663, "type": "reply_start", "turn": 1, "src": "client", "reply": "snapshot", "reply_id": "1.1", "text": "Checking Boston now. Want me to start that ten-minute timer?", "audio": {"clip": "clips/turn_001_reply.wav", "clip_offset_s": 0.0, "stem": "stems/conversation.wav", "at": 6.7663, "probe_s": 1.0}, "seq": 20}
+{"t": 8.5162, "type": "tool_call", "turn": 1, "src": "server", "name": "weather", "arguments": {"place": "Boston"}, "result": {"ok": true, "summary": "Boston: 41°F, light rain until 6 pm"}, "seq": 21}
+{"t": 8.5162, "type": "task_status", "turn": 1, "src": "server", "task_id": "1/task_1", "status": "completed", "result_summary": "Boston: 41°F, light rain until 6 pm", "seq": 22}
+{"t": 10.983, "type": "reply_end", "turn": 1, "src": "derived", "reply": "snapshot", "reply_id": "1.1", "played_s": 4.217, "interrupted": false, "cut": null, "seq": 23}
+{"t": 13.383, "type": "reply_start", "turn": 1, "src": "client", "reply": "update", "reply_id": "1.2", "text": "Boston is 41 degrees with light rain until six.", "audio": {"clip": "clips/turn_001_update.wav", "clip_offset_s": 0.0, "stem": "stems/conversation.wav", "at": 13.383, "probe_s": 1.0}, "seq": 24}
+{"t": 16.8912, "type": "reply_end", "turn": 1, "src": "derived", "reply": "update", "reply_id": "1.2", "played_s": 3.508, "interrupted": false, "cut": null, "seq": 25}
+{"t": 18.0912, "type": "speech_start", "turn": 2, "src": "derived", "audio": {"clip": "clips/turn_002_input.wav", "clip_offset_s": 0.0, "stem": "stems/microphone.wav", "at": 17.7912}, "seq": 26}
+{"t": 18.7159, "type": "transcript_partial", "turn": 2, "src": "server", "revision": 1, "text": "Yes,", "seq": 27}
+{"t": 19.0159, "type": "decision_point", "turn": 2, "src": "server", "revision": 1, "is_final": false, "source": "update", "segments": ["Yes,", "but make it"], "decisions": [{"sid": "s1", "kind": "confirm", "readiness": "ready", "side_effect": false, "confidence": {"kind": 0.71, "ready": 0.7899999999999999}}, {"sid": "s2", "kind": "correction", "readiness": "wait", "side_effect": true, "confidence": {"kind": 0.55, "ready": 0.63}}], "latency_ms": 240.0, "seq": 28}
+{"t": 19.3405, "type": "transcript_partial", "turn": 2, "src": "server", "revision": 2, "text": "Yes, but make it", "seq": 29}
+{"t": 19.6405, "type": "decision_point", "turn": 2, "src": "server", "revision": 2, "is_final": false, "source": "update", "segments": ["Yes, but make it fifteen."], "decisions": [{"sid": "s1", "kind": "correction", "readiness": "ready", "side_effect": true, "confidence": {"kind": 0.88, "ready": 0.96}}], "latency_ms": 240.0, "seq": 30}
+{"t": 19.6405, "type": "task_merged", "turn": 2, "src": "derived", "before": ["Yes,", "but make it"], "after": ["Yes, but make it fifteen."], "seq": 31}
+{"t": 19.6405, "type": "task_created", "turn": 2, "src": "server", "task_id": "2/task_1", "text": "set a timer for fifteen minutes", "sources": ["orchestrator"], "seq": 32}
+{"t": 19.6405, "type": "gate_verdict", "turn": 2, "src": "server", "task_id": "2/task_1", "score": 0.88, "threshold": 0.8, "passed": true, "weakest": "kind", "seq": 33}
+{"t": 19.6405, "type": "task_status", "turn": 2, "src": "server", "task_id": "2/task_1", "status": "dispatched", "reason": "gate: kind confidence 0.88 reached 0.80", "seq": 34}
+{"t": 19.9651, "type": "transcript_partial", "turn": 2, "src": "server", "revision": 3, "text": "Yes, but make it fifteen.", "seq": 35}
+{"t": 19.9651, "type": "speech_end", "turn": 2, "src": "derived", "seq": 36}
+{"t": 20.6651, "type": "turn_end", "turn": 2, "src": "client", "trailing_ms": 700, "forced": false, "seq": 37}
+{"t": 20.7151, "type": "transcript_final", "turn": 2, "src": "server", "revision": 4, "text": "Yes, but make it fifteen.", "seq": 38}
+{"t": 20.7351, "type": "handoff", "turn": 2, "src": "server", "final_transcript": "Yes, but make it fifteen.", "unreviewed_speech": "", "segments": ["Yes, but make it fifteen."], "snapshot": {"type": "utterance_snapshot", "final_transcript": "Yes, but make it fifteen.", "tasks": [{"task_id": "task_1", "description": "set a timer for fifteen minutes", "status": "running"}], "unreviewed_speech": ""}, "seq": 39}
+{"t": 21.0351, "type": "lfm_action", "turn": 2, "src": "server", "calls": [{"name": "set_timer", "arguments": {"minutes": 15}}], "text": "", "snapshot_after": null, "seq": 40}
+{"t": 21.0451, "type": "task_status", "turn": 2, "src": "server", "task_id": "2/task_1", "status": "running", "seq": 41}
+{"t": 21.0851, "type": "reply_start", "turn": 2, "src": "client", "reply": "snapshot", "reply_id": "2.1", "text": "Done. Fifteen minutes, starting now. Anything else while it runs?", "audio": {"clip": "clips/turn_002_reply.wav", "clip_offset_s": 0.0, "stem": "stems/conversation.wav", "at": 21.0851, "probe_s": 1.0}, "seq": 42}
+{"t": 21.6351, "type": "tool_call", "turn": 2, "src": "server", "name": "set_timer", "arguments": {"minutes": 15}, "result": {"ok": true, "summary": "Timer set for 15 minutes"}, "seq": 43}
+{"t": 21.6351, "type": "task_status", "turn": 2, "src": "server", "task_id": "2/task_1", "status": "completed", "result_summary": "Timer set for 15 minutes", "seq": 44}
+{"t": 22.5851, "type": "speech_start", "turn": 3, "src": "derived", "audio": {"clip": "clips/turn_003_input.wav", "clip_offset_s": 0.0, "stem": "stems/microphone.wav", "at": 22.2851}, "seq": 45}
+{"t": 22.6851, "type": "reply_end", "turn": 2, "src": "derived", "reply": "snapshot", "reply_id": "2.1", "played_s": 1.6, "interrupted": true, "cut": "barge_in", "seq": 46}
+{"t": 22.6851, "type": "barge_in", "turn": 2, "src": "client", "seq": 47}
+{"t": 22.9796, "type": "transcript_partial", "turn": 3, "src": "server", "revision": 1, "text": "No,", "seq": 48}
+{"t": 23.374, "type": "transcript_partial", "turn": 3, "src": "server", "revision": 2, "text": "No, thanks!", "seq": 49}
+{"t": 23.374, "type": "speech_end", "turn": 3, "src": "derived", "seq": 50}
+{"t": 24.074, "type": "turn_end", "turn": 3, "src": "client", "trailing_ms": 700, "forced": false, "seq": 51}
+{"t": 24.124, "type": "transcript_final", "turn": 3, "src": "server", "revision": 3, "text": "No, thanks!", "seq": 52}
+{"t": 24.144, "type": "handoff", "turn": 3, "src": "server", "final_transcript": "No, thanks!", "unreviewed_speech": "", "segments": ["No, thanks!"], "snapshot": {"type": "utterance_snapshot", "final_transcript": "No, thanks!", "tasks": [], "unreviewed_speech": ""}, "seq": 53}
+{"t": 24.444, "type": "lfm_action", "turn": 3, "src": "server", "calls": [], "text": "", "snapshot_after": null, "seq": 54}
+{"t": 24.444, "type": "reply_start", "turn": 3, "src": "client", "reply": "snapshot", "reply_id": "3.1", "text": "Anytime.", "audio": {"clip": "clips/turn_003_reply.wav", "clip_offset_s": 0.0, "stem": "stems/conversation.wav", "at": 24.444, "probe_s": 0.488}, "seq": 55}
+{"t": 24.9324, "type": "reply_end", "turn": 3, "src": "derived", "reply": "snapshot", "reply_id": "3.1", "played_s": 0.488, "interrupted": false, "cut": null, "seq": 56}
