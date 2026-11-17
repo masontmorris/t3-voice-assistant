@@ -5,6 +5,7 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2StoredEvent,
   type ProjectId,
+  type ThreadId,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
@@ -24,7 +25,7 @@ import {
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
-import { distill, type VoiceSignal } from "./events.ts";
+import { distill } from "./events.ts";
 import { FIXTURES } from "./testFixtures.ts";
 import * as Watch from "./watch.ts";
 
@@ -64,8 +65,12 @@ const lastRunUpdate = PLAIN.flatMap((stored) =>
   stored.event.type === "run.updated" ? [stored.event] : [],
 ).at(-1)!;
 
-const signalsOf = (stored: ReadonlyArray<OrchestrationV2StoredEvent>): Array<VoiceSignal> =>
-  stored.flatMap((event) => distill(event)?.signal ?? []);
+/** What the watch sends for these stored events: every signal but a secret card's. */
+const signalsOf = (stored: ReadonlyArray<OrchestrationV2StoredEvent>): Array<Watch.WatchItem> =>
+  stored.flatMap((event) => {
+    const signal = distill(event)?.signal;
+    return signal === undefined || signal === null || signal.type === "secret_card" ? [] : [signal];
+  });
 
 const pruneThrough = Effect.fn("test.pruneThrough")(function* (sequence: number) {
   const sql = yield* SqlClient.SqlClient;
@@ -113,9 +118,10 @@ const sources = Effect.fn("test.sources")(function* (overrides?: {
 const follow = Effect.fn("test.follow")(function* (
   watchSources: Watch.WatchSources,
   afterSequence: number,
+  watched: ThreadId = threadId,
 ) {
   const received = yield* Queue.unbounded<Watch.WatchItem>();
-  yield* Watch.make(watchSources)({ threadId, afterSequence }).pipe(
+  yield* Watch.make(watchSources)({ threadId: watched, afterSequence }).pipe(
     Stream.runForEach((item) => Queue.offer(received, item)),
     Effect.forkScoped,
   );
@@ -372,35 +378,37 @@ const doneFor = (trigger: Watch.SettleTrigger, asOfSequence: number): Watch.Watc
 
 const nothing: Watch.SettleAnswer = { kind: "nothing" };
 
-it.effect("runs one settle check per batch, for its last trigger, with the shell's project", () =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const replayed = yield* writeFixture(0, 20);
-      const live = yield* scriptedLive();
-      const checks = yield* scriptedChecks(() => Effect.succeed(nothing));
-      yield* follow(yield* sources({ threads: live.threads, settle: checks.settle }), 0);
-      const afterReplay = yield* checks.next;
+it.effect(
+  "runs one settle check per batch, the replay's at its high-water, with the shell's project",
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const replayed = yield* writeFixture(0, 20);
+        const live = yield* scriptedLive();
+        const checks = yield* scriptedChecks(() => Effect.succeed(nothing));
+        yield* follow(yield* sources({ threads: live.threads, settle: checks.settle }), 0);
+        const afterReplay = yield* checks.next;
 
-      const batch = yield* writeFixture(20, 30);
-      yield* live.push(batch);
-      const afterBatch = yield* checks.next;
+        const batch = yield* writeFixture(20, 30);
+        yield* live.push(batch);
+        const afterBatch = yield* checks.next;
 
-      // A batch with no trigger runs no check, so the next check is the following batch's.
-      yield* live.push(yield* write([sentinelReply("no-trigger")]));
-      const last = yield* writeFixture(30);
-      yield* live.push(last);
-      const afterLast = yield* checks.next;
+        // A batch with no trigger runs no check, so the next check is the following batch's.
+        yield* live.push(yield* write([sentinelReply("no-trigger")]));
+        const last = yield* writeFixture(30);
+        yield* live.push(last);
+        const afterLast = yield* checks.next;
 
-      const shell = yield* (yield* ProjectionStore.ProjectionStoreV2).getThreadShell(threadId);
-      assert.deepStrictEqual(
-        [afterReplay, afterBatch, afterLast].map((trigger) => trigger.sequence),
-        [lastTrigger(replayed), lastTrigger(batch), lastTrigger(last)],
-      );
-      for (const trigger of [afterReplay, afterBatch, afterLast]) {
-        assert.strictEqual(trigger.projectId, shell?.projectId);
-      }
-    }),
-  ).pipe(Effect.provide(layer)),
+        const shell = yield* (yield* ProjectionStore.ProjectionStoreV2).getThreadShell(threadId);
+        assert.deepStrictEqual(
+          [afterReplay, afterBatch, afterLast].map((trigger) => trigger.sequence),
+          [replayed.at(-1)!.sequence, lastTrigger(batch), lastTrigger(last)],
+        );
+        for (const trigger of [afterReplay, afterBatch, afterLast]) {
+          assert.strictEqual(trigger.projectId, shell?.projectId);
+        }
+      }),
+    ).pipe(Effect.provide(layer)),
 );
 
 it.effect(
@@ -533,4 +541,133 @@ it.effect("ends with gone when a settle check finds the thread gone", () =>
       { type: "watch_ended", threadId, reason: "gone" },
     ]);
   }).pipe(Effect.provide(layer)),
+);
+
+it.effect(
+  "checks once when a watch starts at the high-water of a thread that already settled",
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const stored = yield* writeFixture(0);
+        const live = yield* scriptedLive();
+        const checks = yield* scriptedChecks(() => Effect.succeed(nothing));
+        yield* follow(
+          yield* sources({ threads: live.threads, settle: checks.settle }),
+          stored.at(-1)!.sequence,
+        );
+        const atStart = yield* checks.next;
+
+        // A quiet batch runs no check, so the next check is the trigger's.
+        yield* live.push(yield* write([sentinelReply("quiet")]));
+        const later = yield* write([{ ...lastRunUpdate, id: EventId.make("run-update-later") }]);
+        yield* live.push(later);
+        const next = yield* checks.next;
+
+        assert.deepStrictEqual(
+          [atStart.sequence, next.sequence],
+          [stored.at(-1)!.sequence, later[0]!.sequence],
+        );
+      }),
+    ).pipe(Effect.provide(layer)),
+);
+
+it.effect("checks once after the replay of a resubscribe that follows a buffer error", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const replayed = yield* writeFixture(0, 20);
+      const overflow = yield* Deferred.make<void>();
+      const live = yield* scriptedLive();
+      let subscriptions = 0;
+      const checks = yield* scriptedChecks(() => Effect.succeed(nothing));
+      const watchSources = yield* sources({
+        settle: checks.settle,
+        threads: (real) => {
+          const scripted = live.threads(real);
+          return {
+            ...scripted,
+            streamStoredEventsFrom: (input) => {
+              subscriptions += 1;
+              return subscriptions > 1
+                ? scripted.streamStoredEventsFrom(input)
+                : Stream.fromEffect(Deferred.await(overflow)).pipe(
+                    Stream.flatMap(() =>
+                      Stream.fail(
+                        new OrchestratorDomainEventStreamError({
+                          cause: new LiveStreamBufferError({ message: "full" }),
+                        }),
+                      ),
+                    ),
+                  );
+            },
+          };
+        },
+      });
+      yield* follow(watchSources, 0);
+      const first = yield* checks.next;
+
+      const missed = yield* writeFixture(20, 30);
+      yield* Deferred.succeed(overflow, undefined);
+      const afterResubscribe = yield* checks.next;
+      const last = yield* writeFixture(30);
+      yield* live.push(last);
+      const next = yield* checks.next;
+
+      assert.deepStrictEqual(
+        [first.sequence, afterResubscribe.sequence, next.sequence],
+        [replayed.at(-1)!.sequence, missed.at(-1)!.sequence, lastTrigger(last)],
+      );
+      assert.strictEqual(subscriptions, 2);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("does not send a secret card that was recorded after its run ended", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const late = FIXTURES.lateSecretCard;
+      const stored = yield* write(late.map((event) => event.event));
+      const card = distill(stored.at(-1)!)?.signal;
+      assert.strictEqual(card?.type, "secret_card");
+      const watch = yield* follow(yield* sources(), 0, late[0]!.event.threadId);
+      const replayed = yield* watch.take(signalsOf(stored).length);
+      const runUpdate = late
+        .flatMap((event) => (event.event.type === "run.updated" ? [event.event] : []))
+        .at(-1)!;
+      const after = yield* write([{ ...runUpdate, id: EventId.make("run-update-after-card") }]);
+      const [next] = yield* watch.take(1);
+
+      const cardId = card?.type === "secret_card" ? card.requestId : null;
+      assert.isFalse(replayed.some((item) => item.type === "pending" && item.requestId === cardId));
+      assert.deepStrictEqual(next, signalsOf(after)[0]);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("checks once after a replay that holds no trigger", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const stored = yield* writeFixture(0);
+      const quiet = yield* write([sentinelReply("quiet-replay")]);
+      assert.isFalse(distill(quiet[0]!)?.settleCheck ?? false);
+      const live = yield* scriptedLive();
+      const checks = yield* scriptedChecks(() => Effect.succeed(nothing));
+      const watch = yield* follow(
+        yield* sources({ threads: live.threads, settle: checks.settle }),
+        stored.at(-1)!.sequence,
+      );
+      const [replayed] = yield* watch.take(1);
+      const afterReplay = yield* checks.next;
+      const later = yield* write([
+        { ...lastRunUpdate, id: EventId.make("run-update-after-quiet") },
+      ]);
+      yield* live.push(later);
+      const next = yield* checks.next;
+
+      assert.deepStrictEqual(replayed, signalsOf(quiet)[0]);
+      assert.deepStrictEqual(
+        [afterReplay.sequence, next.sequence],
+        [quiet[0]!.sequence, later[0]!.sequence],
+      );
+    }),
+  ).pipe(Effect.provide(layer)),
 );

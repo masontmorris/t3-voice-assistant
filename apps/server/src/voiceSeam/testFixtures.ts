@@ -11,6 +11,7 @@ import { distill } from "./events.ts";
 
 import approval from "./fixtures/approval.json" with { type: "json" };
 import interrupted from "./fixtures/interrupted.json" with { type: "json" };
+import lateSecretCard from "./fixtures/late-secret-card.json" with { type: "json" };
 import linkCard from "./fixtures/link-card.json" with { type: "json" };
 import messageQuestion from "./fixtures/message-question.json" with { type: "json" };
 import plainReply from "./fixtures/plain-reply.json" with { type: "json" };
@@ -33,7 +34,7 @@ const load = (raw: unknown): ReadonlyArray<OrchestrationV2StoredEvent> => decode
 
 /**
  * Stored events, one thread each, in stored order. The first four come from Replay (dev) turns;
- * `linkCard` and `messageQuestion` from needs.integration.test.ts, which drives the orchestrator.
+ * `linkCard`, `lateSecretCard` and `messageQuestion` from needs.integration.test.ts, which drives the orchestrator.
  */
 export const FIXTURES = {
   plainReply: load(plainReply),
@@ -41,6 +42,7 @@ export const FIXTURES = {
   question: load(question),
   interrupted: load(interrupted),
   linkCard: load(linkCard),
+  lateSecretCard: load(lateSecretCard),
   messageQuestion: load(messageQuestion),
 } as const;
 
@@ -61,6 +63,8 @@ export const describeEvent = (stored: OrchestrationV2StoredEvent): string | null
       return `${stored.event.type} => pending ${signal.kind} ${signal.source}${settle}`;
     case "resolved":
       return `${stored.event.type} => resolved ${signal.status}${settle}`;
+    case "secret_card":
+      return `${stored.event.type} => secret card of run ${signal.runId === null ? "none" : "known"}${settle}`;
     case "gone":
       return `${stored.event.type} => gone${settle}`;
   }

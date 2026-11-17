@@ -88,102 +88,125 @@ const recordMessageQuestion = Effect.gen(function* () {
 });
 
 /**
- * A link card asked while an approval holds the run, then answered after the run completes.
- * The card is the `link_request.record` command that PeerLinkRequests sends.
+ * An ACP approval run with an in-app card. `link` asks a link card while the approval holds the
+ * run and answers it after the run completes, as PeerLinkRequests does. `late_secret` records a
+ * secret card after the run completed, which `secret_request.record` allows.
  */
-const recordLinkCard = Effect.gen(function* () {
-  const fixture = findReplayFixture("tool_call_read_only_on_request")!;
-  const variant = fixture.providers.find((provider) => provider.driver === "acpRegistry")!;
-  const transcript = yield* AcpRegistryOrchestratorReplayHarness.decodeTranscript(
-    materializeReplayTranscriptRuntimeInstructions(
-      yield* readReplayFixtureTranscript(variant.transcriptFile),
-      { driver: variant.driver, model: variant.modelSelection.model },
-    ),
-  );
-  const materialized = yield* materializeFixtureInput({
-    scenario: "voice_link_card",
-    fixtureInput: { steps: [{ type: "message", text: TOOL_CALL_WRITE_PROMPT }] },
-    driver: variant.driver,
-    modelSelection: variant.modelSelection,
-  }).pipe(Effect.provide(IdAllocator.layer));
-  const threadId = materialized.projectionThreadIds[0]!;
-  const scenario = {
-    ...materialized,
-    name: "voice_link_card",
-    transcript,
-    runtimePolicyOverride: {
-      ...variant.runtimePolicyOverride,
-      cwd: yield* checkpointWorkspace("voice_link_card", fixture.buildInput().workspaceFiles),
-    },
-  };
-  return yield* Effect.gen(function* () {
-    const orchestrator = yield* Orchestrator.OrchestratorV2;
-    const first = (matches: (stored: OrchestrationV2StoredEvent) => boolean) =>
-      orchestrator.streamStoredEventsFrom({ threadId }).pipe(
-        Stream.filter(matches),
-        Stream.take(1),
-        Stream.runCollect,
-        Effect.map((found) => Array.from(found)[0]!),
-      );
-
-    for (const command of materialized.commands) yield* orchestrator.dispatch(command);
-    const approval = yield* first(
-      ({ event }) => event.type === "runtime-request.updated" && event.payload.status === "pending",
-    );
-    if (approval.event.type !== "runtime-request.updated") return yield* Effect.die("no approval");
-    const run = (yield* orchestrator.getThreadProjection(threadId)).runs.at(-1)!;
-    const card = {
-      type: "link_request.record",
-      threadId,
-      runId: run.id,
-      nodeId: run.rootNodeId!,
-      turnItemId: TurnItemId.make("voice-link-card"),
-      reason: "Link the build machine so the agent can run the tests there.",
-    } as const;
-    yield* orchestrator.dispatch({
-      ...card,
-      commandId: CommandId.make("voice-link-card-ask"),
-      linkStatus: "pending",
-    });
-    yield* orchestrator.dispatch({
-      type: "runtime-request.respond",
-      commandId: CommandId.make("voice-link-card-approve"),
-      threadId,
-      requestId: approval.event.payload.id,
-      decision: "accept",
-    });
-    yield* first(
-      ({ event }) =>
-        event.type === "run.updated" &&
-        event.payload.id === run.id &&
-        event.payload.status === "completed",
-    );
-    yield* orchestrator.dispatch({
-      ...card,
-      commandId: CommandId.make("voice-link-card-answer"),
-      linkStatus: "linked",
-      linkedEnvironmentId: EnvironmentId.make("environment-build-machine"),
-    });
-    const answered = yield* first(
-      ({ event }) =>
-        event.type === "turn-item.updated" &&
-        event.payload.type === "link_request" &&
-        event.payload.linkStatus === "linked",
-    );
-    return Array.from(
-      yield* orchestrator.streamStoredEventsFrom({ threadId }).pipe(
-        Stream.takeUntil((stored) => stored.sequence >= answered.sequence),
-        Stream.runCollect,
+const recordApprovalWithCard = (card: "link" | "late_secret") =>
+  Effect.gen(function* () {
+    const name = `voice_${card}_card`;
+    const fixture = findReplayFixture("tool_call_read_only_on_request")!;
+    const variant = fixture.providers.find((provider) => provider.driver === "acpRegistry")!;
+    const transcript = yield* AcpRegistryOrchestratorReplayHarness.decodeTranscript(
+      materializeReplayTranscriptRuntimeInstructions(
+        yield* readReplayFixtureTranscript(variant.transcriptFile),
+        { driver: variant.driver, model: variant.modelSelection.model },
       ),
     );
-  }).pipe(
-    Effect.provide(layerProviderReplay(scenario, AcpRegistryOrchestratorReplayHarness)),
-    Effect.scoped,
-  );
-}).pipe(provideDeterministicTestRuntime);
+    const materialized = yield* materializeFixtureInput({
+      scenario: name,
+      fixtureInput: { steps: [{ type: "message", text: TOOL_CALL_WRITE_PROMPT }] },
+      driver: variant.driver,
+      modelSelection: variant.modelSelection,
+    }).pipe(Effect.provide(IdAllocator.layer));
+    const threadId = materialized.projectionThreadIds[0]!;
+    const scenario = {
+      ...materialized,
+      name,
+      transcript,
+      runtimePolicyOverride: {
+        ...variant.runtimePolicyOverride,
+        cwd: yield* checkpointWorkspace(name, fixture.buildInput().workspaceFiles),
+      },
+    };
+    return yield* Effect.gen(function* () {
+      const orchestrator = yield* Orchestrator.OrchestratorV2;
+      const first = (matches: (stored: OrchestrationV2StoredEvent) => boolean) =>
+        orchestrator.streamStoredEventsFrom({ threadId }).pipe(
+          Stream.filter(matches),
+          Stream.take(1),
+          Stream.runCollect,
+          Effect.map((found) => Array.from(found)[0]!),
+        );
+
+      for (const command of materialized.commands) yield* orchestrator.dispatch(command);
+      const approval = yield* first(
+        ({ event }) =>
+          event.type === "runtime-request.updated" && event.payload.status === "pending",
+      );
+      if (approval.event.type !== "runtime-request.updated")
+        return yield* Effect.die("no approval");
+      const run = (yield* orchestrator.getThreadProjection(threadId)).runs.at(-1)!;
+      const asked = {
+        threadId,
+        runId: run.id,
+        nodeId: run.rootNodeId!,
+        turnItemId: TurnItemId.make(name),
+      };
+      const link = {
+        ...asked,
+        type: "link_request.record",
+        reason: "Link the build machine so the agent can run the tests there.",
+      } as const;
+      if (card === "link") {
+        yield* orchestrator.dispatch({
+          ...link,
+          commandId: CommandId.make(`${name}-ask`),
+          linkStatus: "pending",
+        });
+      }
+      yield* orchestrator.dispatch({
+        type: "runtime-request.respond",
+        commandId: CommandId.make(`${name}-approve`),
+        threadId,
+        requestId: approval.event.payload.id,
+        decision: "accept",
+      });
+      yield* first(
+        ({ event }) =>
+          event.type === "run.updated" &&
+          event.payload.id === run.id &&
+          event.payload.status === "completed",
+      );
+      yield* orchestrator.dispatch(
+        card === "link"
+          ? {
+              ...link,
+              commandId: CommandId.make(`${name}-answer`),
+              linkStatus: "linked",
+              linkedEnvironmentId: EnvironmentId.make("environment-build-machine"),
+            }
+          : {
+              ...asked,
+              type: "secret_request.record",
+              commandId: CommandId.make(`${name}-ask`),
+              label: "Deploy token",
+              reason: "The agent needs it to publish the build.",
+              secretStatus: "pending",
+            },
+      );
+      const last = yield* first(
+        ({ event }) =>
+          event.type === "turn-item.updated" &&
+          (card === "link"
+            ? event.payload.type === "link_request" && event.payload.linkStatus === "linked"
+            : event.payload.type === "secret_request"),
+      );
+      return Array.from(
+        yield* orchestrator.streamStoredEventsFrom({ threadId }).pipe(
+          Stream.takeUntil((stored) => stored.sequence >= last.sequence),
+          Stream.runCollect,
+        ),
+      );
+    }).pipe(
+      Effect.provide(layerProviderReplay(scenario, AcpRegistryOrchestratorReplayHarness)),
+      Effect.scoped,
+    );
+  }).pipe(provideDeterministicTestRuntime);
 
 it.effect.each([
-  { name: "linkCard", record: recordLinkCard },
+  { name: "linkCard", record: recordApprovalWithCard("link") },
+  { name: "lateSecretCard", record: recordApprovalWithCard("late_secret") },
   { name: "messageQuestion", record: recordMessageQuestion },
 ] as const)("a fresh $name recording still matches its committed fixture", ({ name, record }) =>
   Effect.gen(function* () {

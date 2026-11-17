@@ -913,9 +913,9 @@
     },
     {
       "sequence": 23,
-      "commandId": "voice-link-card-ask",
+      "commandId": "voice_link_card-ask",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice-link-card-ask:45aabfbe-9d28-4faa-9cb6-f838414eda38",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-ask:45aabfbe-9d28-4faa-9cb6-f838414eda38",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
@@ -923,7 +923,7 @@
         "occurredAt": "1970-01-01T00:00:00.000Z",
         "type": "turn-item.updated",
         "payload": {
-          "id": "voice-link-card",
+          "id": "voice_link_card",
           "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
           "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
           "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
@@ -945,9 +945,9 @@
     },
     {
       "sequence": 24,
-      "commandId": "voice-link-card-approve",
+      "commandId": "voice_link_card-approve",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice-link-card-approve:987ce235-3bb2-4e54-ac94-197e4a733889",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-approve:987ce235-3bb2-4e54-ac94-197e4a733889",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
@@ -978,9 +978,9 @@
     },
     {
       "sequence": 25,
-      "commandId": "voice-link-card-approve",
+      "commandId": "voice_link_card-approve",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice-link-card-approve:21d01f76-b180-40f9-a076-6a385d05b519",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-approve:21d01f76-b180-40f9-a076-6a385d05b519",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
@@ -1013,9 +1013,9 @@
     },
     {
       "sequence": 26,
-      "commandId": "voice-link-card-approve",
+      "commandId": "voice_link_card-approve",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice-link-card-approve:5c0d54f6-b546-4f37-8dc7-d8295fa2d999",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-approve:5c0d54f6-b546-4f37-8dc7-d8295fa2d999",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
@@ -1581,9 +1581,9 @@
     },
     {
       "sequence": 43,
-      "commandId": "voice-link-card-answer",
+      "commandId": "voice_link_card-answer",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice-link-card-answer:9201226e-f279-4fa0-8a89-bbede182dec4",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-answer:9201226e-f279-4fa0-8a89-bbede182dec4",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
@@ -1591,7 +1591,7 @@
         "occurredAt": "1970-01-01T00:00:00.000Z",
         "type": "turn-item.updated",
         "payload": {
-          "id": "voice-link-card",
+          "id": "voice_link_card",
           "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
           "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
           "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",

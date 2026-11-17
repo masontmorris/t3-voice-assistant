@@ -15,6 +15,7 @@ it.each<[FixtureName, string]>([
   ["question", "request first"],
   ["interrupted", "request first"],
   ["linkCard", "request first"],
+  ["lateSecretCard", "request first"],
   ["messageQuestion", "turn item first"],
 ])("records where the %s prompt's turn item lands against its request: %s", (name, expected) => {
   assert.strictEqual(promptOrder(FIXTURES[name]), expected);
@@ -35,6 +36,13 @@ it.each<[FixtureName, ReadonlyArray<string>]>([
   [
     "messageQuestion",
     ["user_input (message) asked before the run ends, resolved after the run ends"],
+  ],
+  [
+    "lateSecretCard",
+    [
+      "command (live) asked before the run ends, resolved before the run ends",
+      "secret_request asked after the run ends, open never",
+    ],
   ],
 ])("records where each %s need lands against its run's terminal run.updated", (name, expected) => {
   assert.deepStrictEqual(needLandings(FIXTURES[name]), expected);
@@ -147,6 +155,23 @@ it.each<[FixtureName, ReadonlyArray<string>]>([
       "run.updated => run completed +settle",
     ],
   ],
+  [
+    "lateSecretCard",
+    [
+      SETTLE,
+      SETTLE,
+      "run.updated => run running +settle",
+      SETTLE,
+      "runtime-request.updated => pending approval command",
+      "runtime-request.updated => resolved resolved +settle",
+      'message.updated => reply "Created the requested probe file."',
+      SETTLE,
+      "run.updated => run waiting +settle",
+      SETTLE,
+      "run.updated => run completed +settle",
+      "turn-item.updated => secret card of run known",
+    ],
+  ],
 ])("distills the recorded %s turn", (name, expected) => {
   assert.deepStrictEqual(distillAll(FIXTURES[name]), expected);
 });
@@ -183,6 +208,7 @@ const secretCard = (secretStatus: "pending" | "saved" | "declined" | "cancelled"
       type: "secret_request" as const,
       label: "API key",
       reason: "The agent needs it",
+      status: secretStatus === "pending" ? ("waiting" as const) : ("completed" as const),
       secretStatus,
     },
   },
@@ -251,9 +277,9 @@ it.each<[string, OrchestrationV2StoredEvent, string | null]>([
     "runtime-request.updated => resolved expired +settle",
   ],
   [
-    "a pending secret card",
+    "a waiting secret card, which only the pending read may relay",
     secretCard("pending"),
-    "turn-item.updated => pending in_app secret_request",
+    "turn-item.updated => secret card of run known",
   ],
   ["a saved secret card", secretCard("saved"), "turn-item.updated => settle"],
   [

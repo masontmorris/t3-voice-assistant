@@ -57,7 +57,11 @@ export interface WatchDone {
   readonly asOfSequence: number;
 }
 
-export type WatchItem = VoiceSignal | WatchDone | WatchEnded;
+/** What the watch sends. A secret card's signal waits for unit 2's pending read, so it never goes out raw. */
+export type WatchItem =
+  | Exclude<VoiceSignal, { readonly type: "secret_card" }>
+  | WatchDone
+  | WatchEnded;
 
 export interface SettleTrigger {
   readonly threadId: ThreadId;
@@ -192,9 +196,10 @@ export const make =
             lastSeen = stored.sequence;
             const distilled = distill(stored);
             if (distilled === null) continue;
-            if (distilled.signal !== null) {
-              yield* emit(distilled.signal);
-              if (distilled.signal.type === "gone") return true;
+            const signal = distilled.signal;
+            if (signal !== null && signal.type !== "secret_card") {
+              yield* emit(signal);
+              if (signal.type === "gone") return true;
             }
             if (distilled.settleCheck)
               pending = { threadId, projectId, sequence: distilled.sequence };
@@ -239,10 +244,12 @@ export const make =
           const replayed = yield* replay(cursor).pipe(Effect.result);
           if (Result.isFailure(replayed)) return yield* unavailable(replayed.failure);
           if (replayed.success === null) return { kind: "ended", reason: "resync" } as const;
-          // The replay is one batch, so it runs at most one check, after all of it is emitted.
           const { events, highWater } = replayed.success;
           if (yield* scan(events, projectId)) return { kind: "ended", reason: "gone" } as const;
           lastSeen = Math.max(lastSeen, highWater);
+          // One check after every replay, even an empty one: a catch-up armed by an earlier watch
+          // died with it, and a thread that settled while no one watched stores nothing more.
+          pending = { threadId, projectId, sequence: highWater };
           if (yield* settleDue()) return { kind: "ended", reason: "gone" } as const;
 
           let gone = false;

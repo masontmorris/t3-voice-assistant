@@ -9,11 +9,8 @@ import type {
 
 export type VoicePendingKind = "approval" | "question" | "in_app";
 
-/** What raised a pending signal: a runtime request kind, or an in-app card. */
-export type VoicePendingSource =
-  | OrchestrationV2RuntimeRequest["kind"]
-  | "secret_request"
-  | "link_request";
+/** What raised a pending signal: a runtime request kind, or a link card. */
+export type VoicePendingSource = OrchestrationV2RuntimeRequest["kind"] | "link_request";
 
 export type VoiceResolvedStatus = "resolved" | "expired" | "cancelled";
 
@@ -47,6 +44,14 @@ export type VoiceSignal =
       readonly threadId: ThreadId;
       readonly requestId: string;
       readonly status: VoiceResolvedStatus;
+      readonly sequence: number;
+    }
+  | {
+      /** A waiting secret card. Only the pending read may turn it into needs_you, once it finds the run live. */
+      readonly type: "secret_card";
+      readonly threadId: ThreadId;
+      readonly requestId: string;
+      readonly runId: RunId | null;
       readonly sequence: number;
     }
   | { readonly type: "gone"; readonly threadId: ThreadId; readonly sequence: number };
@@ -145,12 +150,17 @@ export function distill(stored: OrchestrationV2StoredEvent): Distilled | null {
     case "turn-item.updated": {
       const item = event.payload;
       if (item.type !== "secret_request" && item.type !== "link_request") return null;
-      // A link card's agent does not wait on it, so the card asks while its item waits, as the shell reads it.
-      const asks =
-        item.type === "secret_request"
-          ? item.secretStatus === "pending"
-          : item.status === "waiting";
-      if (!asks) return { sequence, signal: null, settleCheck: true };
+      if (item.status !== "waiting") return { sequence, signal: null, settleCheck: true };
+      // A secret card asks only while its run is live, which one event cannot show.
+      if (item.type === "secret_request") {
+        return signalOnly({
+          type: "secret_card",
+          threadId,
+          requestId: item.id,
+          runId: item.runId,
+          sequence,
+        });
+      }
       return signalOnly({
         type: "pending",
         threadId,
