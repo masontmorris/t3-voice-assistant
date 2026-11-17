@@ -1,0 +1,31 @@
+--- a/tools/mtmd/mtmd.cpp
++++ b/tools/mtmd/mtmd.cpp
+@@ -4224,7 +4224,7 @@
+     mtmd_subctx_enc_state * enc_state = nullptr;
+ 
+     // live ASR
+-    static constexpr int64_t chunk_rows       = 12;
++    int64_t chunk_rows = 12; // audio rows per text block; the model was trained on 12 (0.96 s). LLAMA_ASR_CHUNK_ROWS overrides it
+     static constexpr int32_t max_chunk_tokens = 48; // text tokens per chunk, then the chunk is closed
+     static constexpr int32_t max_final_tokens = 96;
+ 
+@@ -4671,7 +4671,19 @@
+ 
+     if (params.n_prompt > 0) {
+         // live ASR, a chunk per encoder call
++        if (const char * env = std::getenv("LLAMA_ASR_CHUNK_ROWS")) {
++            const long v = std::strtol(env, nullptr, 10);
++            if (v >= 1 && v <= 48) {
++                chunk_rows = v;
++            }
++        }
+         n_step_mel = (int) chunk_rows * frames_per_tok;
++        if (const char * env = std::getenv("LLAMA_ASR_ENC_ROWS")) { // experiment: encoder step independent of the text block
++            const long v = std::strtol(env, nullptr, 10);
++            if (v >= 1 && v <= 48) {
++                n_step_mel = (int) v * frames_per_tok;
++            }
++        }
+         prompt.assign(params.prompt, params.prompt + params.n_prompt);
+ 
+         const llama_vocab * vocab = llama_model_get_vocab(ctx->text_model);
