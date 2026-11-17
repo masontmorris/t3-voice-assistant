@@ -1,0 +1,1029 @@
+{
+  "scenario": "Orchestrator with the Claude result_is_error replay, cut after its first turn fails with an error turn item (outcome.integration.test.ts)",
+  "events": [
+    {
+      "sequence": 1,
+      "commandId": "command:fixture:claude_result_is_error:thread-create:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Athread-create%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:f2604e9d-55b7-45de-a716-838867faae7e",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "thread.created",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "projectId": "project:fixture:claude_result_is_error:f2604e9d-55b7-45de-a716-838867faae7e",
+          "title": "Replay fixture: claude_result_is_error",
+          "providerInstanceId": "claudeAgent",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-sonnet-4-6"
+          },
+          "runtimeMode": "full-access",
+          "interactionMode": "default",
+          "branch": null,
+          "worktreePath": null,
+          "pullRequests": [],
+          "activeProviderThreadId": null,
+          "lineage": {
+            "parentThreadId": null,
+            "relationshipToParent": null,
+            "rootThreadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7"
+          },
+          "forkedFrom": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "archivedAt": null,
+          "settledOverride": null,
+          "settledAt": null,
+          "snoozedUntil": null,
+          "snoozedAt": null,
+          "lastVisitedAt": null,
+          "deletedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "thread.metadata-updated",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "projectId": "project:fixture:claude_result_is_error:f2604e9d-55b7-45de-a716-838867faae7e",
+          "title": "Replay fixture: claude_result_is_error",
+          "providerInstanceId": "claudeAgent",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-sonnet-4-6"
+          },
+          "runtimeMode": "full-access",
+          "interactionMode": "default",
+          "branch": null,
+          "worktreePath": null,
+          "pullRequests": [],
+          "activeProviderThreadId": null,
+          "lineage": {
+            "parentThreadId": null,
+            "relationshipToParent": null,
+            "rootThreadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7"
+          },
+          "forkedFrom": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "archivedAt": null,
+          "settledOverride": null,
+          "settledAt": null,
+          "snoozedUntil": null,
+          "snoozedAt": null,
+          "lastVisitedAt": "1970-01-01T00:00:00.000Z",
+          "deletedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "claudeAgent",
+          "providerInstanceId": "claudeAgent",
+          "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+          "appThreadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": null,
+          "nativeConversationHeadRef": null,
+          "status": "not_loaded",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": null,
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.001Z",
+          "updatedAt": "1970-01-01T00:00:00.001Z"
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "run.created",
+        "payload": {
+          "id": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ordinal": 1,
+          "providerInstanceId": "claudeAgent",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-sonnet-4-6"
+          },
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "userMessageId": "message:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "status": "starting",
+          "queuePosition": null,
+          "requestedAt": "1970-01-01T00:00:00.001Z",
+          "startedAt": null,
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "run-attempt.created",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerInstanceId": "claudeAgent",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "pending",
+          "startedAt": null,
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:63eeefed-6d16-4148-87c0-1fc053d7697f",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "pending",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "startedAt": null,
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 7,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:b840ed8c-dc22-461b-9638-4a7526021f79",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "checkpoint-scope.created",
+        "payload": {
+          "id": "checkpoint-scope:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "parentScopeId": null,
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "kind": "root_run",
+          "ordinalWithinParent": 0,
+          "advancesAppRunCount": true,
+          "cwd": "/workspace/voice-fixtures",
+          "createdAt": "1970-01-01T00:00:00.001Z"
+        }
+      }
+    },
+    {
+      "sequence": 8,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:4f546d75-4aea-4531-b605-37a50b11eff2",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "message.updated",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "message:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "role": "user",
+          "text": "Say hello before the credentials expire.",
+          "attachments": [],
+          "streaming": false,
+          "createdAt": "1970-01-01T00:00:00.001Z",
+          "updatedAt": "1970-01-01T00:00:00.001Z"
+        }
+      }
+    },
+    {
+      "sequence": 9,
+      "commandId": "command:fixture:claude_result_is_error:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Aclaude_result_is_error%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:dce9078c-dbe7-4a4c-aabe-c14cc39b54cd",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.001Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:message:message%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1%3Aa209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000001,
+          "status": "completed",
+          "title": null,
+          "startedAt": "1970-01-01T00:00:00.001Z",
+          "completedAt": "1970-01-01T00:00:00.001Z",
+          "updatedAt": "1970-01-01T00:00:00.001Z",
+          "createdBy": "user",
+          "creationSource": "web",
+          "type": "user_message",
+          "messageId": "message:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "inputIntent": "turn_start",
+          "text": "Say hello before the credentials expire.",
+          "attachments": []
+        }
+      }
+    },
+    {
+      "sequence": 10,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:bcfc7880-7220-452f-8fe4-4e2871e0d922",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "provider-session.attached",
+        "payload": {
+          "id": "provider-session:provider-instance:claudeAgent:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+          "driver": "claudeAgent",
+          "providerInstanceId": "claudeAgent",
+          "status": "ready",
+          "cwd": "/workspace/voice-fixtures",
+          "model": "claude-sonnet-4-6",
+          "capabilities": {
+            "sessions": {
+              "supportsMultipleProviderThreadsPerSession": false,
+              "supportsModelSwitchInSession": true,
+              "supportsProviderSwitchingViaHandoff": true,
+              "supportsRuntimeModeSwitchInSession": false,
+              "pendingRequestsSurviveRestart": false
+            },
+            "threads": {
+              "canCreateEmptyThread": true,
+              "canReadThreadSnapshot": false,
+              "canRollbackThread": true,
+              "canForkThread": true,
+              "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
+              "canForkFromSubagentThread": false,
+              "exposesNativeThreadId": true
+            },
+            "turns": {
+              "exposesNativeTurnId": false,
+              "emitsTurnStarted": true,
+              "emitsTurnCompleted": true,
+              "supportsInterrupt": true,
+              "supportsActiveSteering": true,
+              "activeSteeringInterruptsTools": true,
+              "supportsSteeringByInterruptRestart": false,
+              "supportsQueuedMessages": true,
+              "terminalStatusQuality": "strong"
+            },
+            "streaming": {
+              "streamsAssistantText": true,
+              "streamsReasoning": true,
+              "streamsToolOutput": false,
+              "streamsPlanText": false,
+              "emitsMessageCompleted": true
+            },
+            "tools": {
+              "exposesToolItemIds": true,
+              "emitsToolStarted": true,
+              "emitsToolCompleted": true,
+              "emitsToolOutput": true,
+              "supportsMcpTools": true,
+              "supportsDynamicToolCallbacks": true
+            },
+            "approvals": {
+              "supportsCommandApproval": true,
+              "supportsFileReadApproval": true,
+              "supportsFileChangeApproval": true,
+              "supportsApplyPatchApproval": false,
+              "approvalsHaveNativeRequestIds": true,
+              "approvalCallbacksAreLiveOnly": true,
+              "approvalsCanOriginateFromSubagents": false
+            },
+            "planning": {
+              "emitsPlanUpdated": true,
+              "emitsTodoList": true,
+              "emitsProposedPlan": true,
+              "supportsStructuredQuestions": true,
+              "planDeltasHaveItemIds": false
+            },
+            "subagents": {
+              "supportsSubagents": true,
+              "exposesSubagentThreadIds": false,
+              "emitsSubagentLifecycle": true,
+              "canWaitForSubagents": false,
+              "canCloseSubagents": false,
+              "canForkSubagentThread": false
+            },
+            "context": {
+              "acceptsSystemContext": true,
+              "acceptsDeveloperContext": true,
+              "acceptsSyntheticUserContext": true,
+              "canGenerateSummaries": true,
+              "canConsumeHandoffSummaries": true,
+              "supportsDeltaHandoff": true,
+              "supportsFullThreadHandoff": true,
+              "maxRecommendedHandoffChars": null
+            },
+            "checkpointing": {
+              "appCanCheckpointFilesystem": true,
+              "supportsNestedCheckpointScopes": true,
+              "providerCanRollbackConversation": true,
+              "providerRollbackReturnsSnapshot": true,
+              "providerCanReadConversationSnapshot": false
+            },
+            "identity": {
+              "nativeThreadIds": "strong",
+              "nativeTurnIds": "weak",
+              "nativeItemIds": "strong",
+              "nativeRequestIds": "strong"
+            },
+            "runtimePolicy": {
+              "enforcement": "native"
+            }
+          },
+          "extensionStatuses": [],
+          "createdAt": "1970-01-01T00:00:00.002Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z",
+          "lastError": null
+        }
+      }
+    },
+    {
+      "sequence": 11,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:7a16900a-16fb-4595-acb7-aadbd72e38a3",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "provider-session.updated",
+        "payload": {
+          "id": "provider-session:provider-instance:claudeAgent:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+          "driver": "claudeAgent",
+          "providerInstanceId": "claudeAgent",
+          "status": "ready",
+          "cwd": "/workspace/voice-fixtures",
+          "model": "claude-sonnet-4-6",
+          "capabilities": {
+            "sessions": {
+              "supportsMultipleProviderThreadsPerSession": false,
+              "supportsModelSwitchInSession": true,
+              "supportsProviderSwitchingViaHandoff": true,
+              "supportsRuntimeModeSwitchInSession": false,
+              "pendingRequestsSurviveRestart": false
+            },
+            "threads": {
+              "canCreateEmptyThread": true,
+              "canReadThreadSnapshot": false,
+              "canRollbackThread": true,
+              "canForkThread": true,
+              "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
+              "canForkFromSubagentThread": false,
+              "exposesNativeThreadId": true
+            },
+            "turns": {
+              "exposesNativeTurnId": false,
+              "emitsTurnStarted": true,
+              "emitsTurnCompleted": true,
+              "supportsInterrupt": true,
+              "supportsActiveSteering": true,
+              "activeSteeringInterruptsTools": true,
+              "supportsSteeringByInterruptRestart": false,
+              "supportsQueuedMessages": true,
+              "terminalStatusQuality": "strong"
+            },
+            "streaming": {
+              "streamsAssistantText": true,
+              "streamsReasoning": true,
+              "streamsToolOutput": false,
+              "streamsPlanText": false,
+              "emitsMessageCompleted": true
+            },
+            "tools": {
+              "exposesToolItemIds": true,
+              "emitsToolStarted": true,
+              "emitsToolCompleted": true,
+              "emitsToolOutput": true,
+              "supportsMcpTools": true,
+              "supportsDynamicToolCallbacks": true
+            },
+            "approvals": {
+              "supportsCommandApproval": true,
+              "supportsFileReadApproval": true,
+              "supportsFileChangeApproval": true,
+              "supportsApplyPatchApproval": false,
+              "approvalsHaveNativeRequestIds": true,
+              "approvalCallbacksAreLiveOnly": true,
+              "approvalsCanOriginateFromSubagents": false
+            },
+            "planning": {
+              "emitsPlanUpdated": true,
+              "emitsTodoList": true,
+              "emitsProposedPlan": true,
+              "supportsStructuredQuestions": true,
+              "planDeltasHaveItemIds": false
+            },
+            "subagents": {
+              "supportsSubagents": true,
+              "exposesSubagentThreadIds": false,
+              "emitsSubagentLifecycle": true,
+              "canWaitForSubagents": false,
+              "canCloseSubagents": false,
+              "canForkSubagentThread": false
+            },
+            "context": {
+              "acceptsSystemContext": true,
+              "acceptsDeveloperContext": true,
+              "acceptsSyntheticUserContext": true,
+              "canGenerateSummaries": true,
+              "canConsumeHandoffSummaries": true,
+              "supportsDeltaHandoff": true,
+              "supportsFullThreadHandoff": true,
+              "maxRecommendedHandoffChars": null
+            },
+            "checkpointing": {
+              "appCanCheckpointFilesystem": true,
+              "supportsNestedCheckpointScopes": true,
+              "providerCanRollbackConversation": true,
+              "providerRollbackReturnsSnapshot": true,
+              "providerCanReadConversationSnapshot": false
+            },
+            "identity": {
+              "nativeThreadIds": "strong",
+              "nativeTurnIds": "weak",
+              "nativeItemIds": "strong",
+              "nativeRequestIds": "strong"
+            },
+            "runtimePolicy": {
+              "enforcement": "native"
+            }
+          },
+          "extensionStatuses": [],
+          "createdAt": "1970-01-01T00:00:00.002Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z",
+          "lastError": null
+        }
+      }
+    },
+    {
+      "sequence": 12,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:6737dc57-1fcc-475e-b9c0-09c826c08619",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "claudeAgent",
+          "providerInstanceId": "claudeAgent",
+          "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+          "appThreadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "claudeAgent",
+            "nativeId": "aa401aa4-e597-4e40-8e40-1e401e401e40",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "title": "Replay fixture: claude_result_is_error"
+          },
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.001Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z"
+        }
+      }
+    },
+    {
+      "sequence": 13,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:36247615-9857-4272-a312-be63cf804442",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "run.updated",
+        "payload": {
+          "id": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ordinal": 1,
+          "providerInstanceId": "claudeAgent",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-sonnet-4-6"
+          },
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "userMessageId": "message:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "status": "running",
+          "queuePosition": null,
+          "requestedAt": "1970-01-01T00:00:00.001Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null
+        }
+      }
+    },
+    {
+      "sequence": 14,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:f7722a9a-786c-435e-9717-e5c31f12a418",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "run-attempt.updated",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeThreadId": "aa401aa4-e597-4e40-8e40-1e401e401e40",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerInstanceId": "claudeAgent",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "running",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 15,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:60ae850c-0af3-4468-9967-365ecc316207",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "running",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 16,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:4d5d9862-e86b-4ae5-89bd-fef707188ea9",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253Athread%25253Afixture%25253Aclaude_result_is_error%25253Aproject%25253Aproject%2525253Afixture%2525253Aclaude_result_is_error%2525253Af2604e9d-55b7-45de-a716-838867faae7e%25253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%253Aordinal%253A1%3Aattempt%3A1",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeTurnRef": {
+            "driver": "claudeAgent",
+            "nativeId": "turn:run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+            "strength": "weak"
+          },
+          "ordinal": 1,
+          "status": "running",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 17,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:82db2fd3-8161-4e09-90a5-257cd19ecdc7",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "claudeAgent",
+          "providerInstanceId": "claudeAgent",
+          "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+          "appThreadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "claudeAgent",
+            "nativeId": "aa401aa4-e597-4e40-8e40-1e401e401e40",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "title": "Replay fixture: claude_result_is_error",
+            "claudeAttachmentBudget": {
+              "bytesUsed": 42,
+              "pagesUsed": 0
+            }
+          },
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.001Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z"
+        }
+      }
+    },
+    {
+      "sequence": 18,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:93cc7724-4120-478e-ac3c-e12809d7e033",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "assistant_message",
+          "status": "completed",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253Athread%25253Afixture%25253Aclaude_result_is_error%25253Aproject%25253Aproject%2525253Afixture%2525253Aclaude_result_is_error%2525253Af2604e9d-55b7-45de-a716-838867faae7e%25253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%253Aordinal%253A1%3Aattempt%3A1",
+          "nativeItemRef": {
+            "driver": "claudeAgent",
+            "nativeId": "aa401aa4-0000-4000-8000-000000000002",
+            "strength": "strong"
+          },
+          "runtimeRequestId": null,
+          "checkpointScopeId": null,
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.002Z"
+        }
+      }
+    },
+    {
+      "sequence": 19,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:5dbefaa2-c267-4efd-b8cd-6c26bbe184e5",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "message.updated",
+        "payload": {
+          "createdBy": "agent",
+          "creationSource": "provider",
+          "id": "message:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+          "role": "assistant",
+          "text": "Failed to authenticate. API Error: 401 Invalid authentication credentials",
+          "attachments": [],
+          "streaming": false,
+          "createdAt": "1970-01-01T00:00:00.002Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z"
+        }
+      }
+    },
+    {
+      "sequence": 20,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:3bb0ca6c-65c5-4af2-b541-2f2ffb33e2c0",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253Athread%25253Afixture%25253Aclaude_result_is_error%25253Aproject%25253Aproject%2525253Afixture%2525253Aclaude_result_is_error%2525253Af2604e9d-55b7-45de-a716-838867faae7e%25253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%253Aordinal%253A1%3Aattempt%3A1",
+          "nativeItemRef": {
+            "driver": "claudeAgent",
+            "nativeId": "aa401aa4-0000-4000-8000-000000000002",
+            "strength": "strong"
+          },
+          "parentItemId": null,
+          "ordinal": 1000002,
+          "status": "completed",
+          "title": null,
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.002Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z",
+          "type": "assistant_message",
+          "messageId": "message:provider:claudeAgent:native-item:aa401aa4-0000-4000-8000-000000000002",
+          "text": "Failed to authenticate. API Error: 401 Invalid authentication credentials",
+          "streaming": false
+        }
+      }
+    },
+    {
+      "sequence": 21,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:6ba8464e-b9d7-4907-96af-00316e4a3c76",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253Athread%25253Afixture%25253Aclaude_result_is_error%25253Aproject%25253Aproject%2525253Afixture%2525253Aclaude_result_is_error%2525253Af2604e9d-55b7-45de-a716-838867faae7e%25253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%253Aordinal%253A1%3Aattempt%3A1",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeTurnRef": {
+            "driver": "claudeAgent",
+            "nativeId": "aa401aa4-0000-4000-8000-000000000002",
+            "strength": "weak"
+          },
+          "ordinal": 1,
+          "status": "failed",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.002Z",
+          "turnTokenUsage": {
+            "usageScope": "main_agent",
+            "cachedInputTokens": 0,
+            "cacheCreationTokens": 0,
+            "hasSubagents": false,
+            "usageStatus": "partial",
+            "inputTokens": 0,
+            "outputTokens": 0
+          }
+        }
+      }
+    },
+    {
+      "sequence": 22,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:994cc9c2-ee4d-47ee-adf5-be8a0f3f9e6b",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "claudeAgent",
+          "providerInstanceId": "claudeAgent",
+          "providerSessionId": "provider-session:provider-instance:claudeAgent:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+          "appThreadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "claudeAgent",
+            "nativeId": "aa401aa4-e597-4e40-8e40-1e401e401e40",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "idle",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "title": "Replay fixture: claude_result_is_error",
+            "claudeAttachmentBudget": {
+              "bytesUsed": 42,
+              "pagesUsed": 0
+            }
+          },
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.001Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z"
+        }
+      }
+    },
+    {
+      "sequence": 23,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "claudeAgent",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:provider:claudeAgent:native-item:terminal-failure%3Aprovider-turn%3Aprovider%3AclaudeAgent%3Anative-turn%3Aturn%253Arun-attempt%253Arun%253Arun%25253Athread%25253Athread%2525253Afixture%2525253Aclaude_result_is_error%2525253Aproject%2525253Aproject%252525253Afixture%252525253Aclaude_result_is_error%252525253Af2604e9d-55b7-45de-a716-838867faae7e%2525253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%25253Aordinal%25253A1%253Aattempt%253A1",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:claudeAgent:native-turn:turn%3Arun-attempt%3Arun%3Arun%253Athread%253Athread%25253Afixture%25253Aclaude_result_is_error%25253Aproject%25253Aproject%2525253Afixture%2525253Aclaude_result_is_error%2525253Af2604e9d-55b7-45de-a716-838867faae7e%25253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%253Aordinal%253A1%3Aattempt%3A1",
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000003,
+          "status": "failed",
+          "title": "Provider error",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.002Z",
+          "updatedAt": "1970-01-01T00:00:00.002Z",
+          "type": "error",
+          "failure": {
+            "class": "provider_error",
+            "message": "Claude could not authenticate. For subscription login, run `claude auth login` on this environment's machine, then start a new thread. For API-key authentication, check this instance's configured credentials.",
+            "code": "api_error_401",
+            "retryable": null
+          }
+        }
+      }
+    },
+    {
+      "sequence": 24,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:bfe022cb-a480-4387-a40c-911017e18388",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "run-attempt.updated",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeThreadId": "aa401aa4-e597-4e40-8e40-1e401e401e40",
+          "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerInstanceId": "claudeAgent",
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "failed",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.002Z"
+        }
+      }
+    },
+    {
+      "sequence": 25,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:c706cd23-e77a-4599-8583-393d3f7490c2",
+        "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "claudeAgent",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
+        "type": "run.updated",
+        "payload": {
+          "id": "run:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "threadId": "thread:fixture:claude_result_is_error:project:project%3Afixture%3Aclaude_result_is_error%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ordinal": 1,
+          "providerInstanceId": "claudeAgent",
+          "modelSelection": {
+            "instanceId": "claudeAgent",
+            "model": "claude-sonnet-4-6"
+          },
+          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "userMessageId": "message:thread:thread%3Afixture%3Aclaude_result_is_error%3Aproject%3Aproject%253Afixture%253Aclaude_result_is_error%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_result_is_error%253Aproject%253Aproject%25253Afixture%25253Aclaude_result_is_error%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "status": "failed",
+          "queuePosition": null,
+          "requestedAt": "1970-01-01T00:00:00.001Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.002Z",
+          "checkpointId": null,
+          "contextHandoffId": null
+        }
+      }
+    }
+  ]
+}

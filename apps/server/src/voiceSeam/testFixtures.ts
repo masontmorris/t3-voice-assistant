@@ -10,12 +10,16 @@ import * as Schema from "effect/Schema";
 import { distill } from "./events.ts";
 
 import approval from "./fixtures/approval.json" with { type: "json" };
+import failedRun from "./fixtures/failed-run.json" with { type: "json" };
 import interrupted from "./fixtures/interrupted.json" with { type: "json" };
 import lateSecretCard from "./fixtures/late-secret-card.json" with { type: "json" };
 import linkCard from "./fixtures/link-card.json" with { type: "json" };
 import messageQuestion from "./fixtures/message-question.json" with { type: "json" };
 import plainReply from "./fixtures/plain-reply.json" with { type: "json" };
+import queuedCancelled from "./fixtures/queued-cancelled.json" with { type: "json" };
 import question from "./fixtures/question.json" with { type: "json" };
+import rolledBack from "./fixtures/rolled-back.json" with { type: "json" };
+import subagentAfterRoot from "./fixtures/subagent-after-root.json" with { type: "json" };
 
 const decodeFixture = Schema.decodeUnknownSync(
   Schema.Struct({
@@ -44,6 +48,10 @@ export const FIXTURES = {
   linkCard: load(linkCard),
   lateSecretCard: load(lateSecretCard),
   messageQuestion: load(messageQuestion),
+  failedRun: load(failedRun),
+  rolledBack: load(rolledBack),
+  subagentAfterRoot: load(subagentAfterRoot),
+  queuedCancelled: load(queuedCancelled),
 } as const;
 
 export type FixtureName = keyof typeof FIXTURES;
@@ -69,6 +77,14 @@ export const describeEvent = (stored: OrchestrationV2StoredEvent): string | null
       return `${stored.event.type} => gone${settle}`;
   }
 };
+
+/** Each run's statuses in stored order, by ordinal. */
+export const runStatuses = (events: ReadonlyArray<OrchestrationV2StoredEvent>) =>
+  events.flatMap((stored) =>
+    stored.event.type === "run.updated"
+      ? [`${stored.event.payload.ordinal} ${stored.event.payload.status}`]
+      : [],
+  );
 
 export const distillAll = (events: ReadonlyArray<OrchestrationV2StoredEvent>) =>
   events.flatMap((stored) => describeEvent(stored) ?? []);
