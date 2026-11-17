@@ -51,7 +51,7 @@ The command prints the server PID and one metrics line per clip. It writes `two_
 
 Weather and time tasks now make real lookups instead of mock ones. [real-tools.md](real-tools.md) covers the tools, the `--mock-tools` flag, and the results.
 
-The decider cache and call ledger for these runs live in `$VOICE_HOME/evidence/prototype/decider-cache/`, not in `voice/segmentation/cache/`, because their keys hold the transcripts of Mason's recordings. The runner caps live decider calls at 150. Cached requests make no calls.
+The decider cache and call ledger for these runs live in `$VOICE_HOME/evidence/prototype/decider-cache/`, not in `voice/research/segmentation/cache/`, because their keys hold the transcripts of Mason's recordings. The runner caps live decider calls at 150. Cached requests make no calls.
 
 ## Injection methods
 
@@ -170,7 +170,7 @@ The three passes ran inside the GPU lease and `quiet_run.py`, with the 10 clips 
 python -m voice.prototype.run CLIPS... --inject c --out "$VOICE_HOME/evidence/prototype/run1-c"
 python -m voice.prototype.run CLIPS... --inject b --out "$VOICE_HOME/evidence/prototype/run2-b"
 python -m voice.prototype.run CLIPS... --inject c --out "$VOICE_HOME/evidence/prototype/run3-c"
-python -m voice.prototype.report "$VOICE_HOME/evidence/prototype/run1-c" "$VOICE_HOME/evidence/prototype/run2-b" "$VOICE_HOME/evidence/prototype/run3-c"
+python -m voice.research.prototype.report "$VOICE_HOME/evidence/prototype/run1-c" "$VOICE_HOME/evidence/prototype/run2-b" "$VOICE_HOME/evidence/prototype/run3-c"
 ```
 
 The decider made 52 live calls for this work, all HTTP 200, with no 429s and no billing signals (measured, the ledger in `$VOICE_HOME/evidence/prototype/decider-cache/calls.jsonl`). That count includes the smoke and tuning runs. With that cache in place, a rerun of the same clips makes no new calls, as long as the transcription deltas come out the same.

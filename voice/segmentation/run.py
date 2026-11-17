@@ -34,9 +34,10 @@ from voice.segmentation.spans import (boundary_request, clause_segments, extract
 from voice.segmentation.tasks import Orchestrator
 
 ROOT = Path(__file__).resolve().parent
-SCENARIOS = ROOT / "scenarios"
-SETS = {"original": SCENARIOS, "heldout": ROOT / "scenarios_heldout"}
-RESULTS = ROOT / "results"
+DATA = ROOT.parent / "research" / "segmentation"
+SCENARIOS = DATA / "scenarios"
+SETS = {"original": SCENARIOS, "heldout": DATA / "scenarios_heldout"}
+RESULTS = DATA / "results"
 
 
 class OfflineClient:

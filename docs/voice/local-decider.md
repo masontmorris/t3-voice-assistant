@@ -1,6 +1,6 @@
 # Local decider: d1-2B on llama.cpp and mistral.rs beside LFM3
 
-Measured on the Desktop's RTX 3060 (12 GB) on 2026-11-16, with `LiquidAI/d1-2B-GGUF` file `d1-2B-Q4_K_M.gguf` served by llama.cpp b12428 or by mistral.rs 0.10.0 on `/v1/systemone`. No run made an OpenRouter call. Every number below comes from `python -m voice.local_decider.report`, which writes `voice/local_decider/results/report.json` from the bench output under `$VOICE_HOME/evidence/local-decider/` and the committed scenario results. Run the report from the LFM3 venv so the clip section can import the prototype. Each claim says whether it is measured, inferred, or a guess.
+Measured on the Desktop's RTX 3060 (12 GB) on 2026-11-16, with `LiquidAI/d1-2B-GGUF` file `d1-2B-Q4_K_M.gguf` served by llama.cpp b12428 or by mistral.rs 0.10.0 on `/v1/systemone`. No run made an OpenRouter call. Every number below comes from `python -m voice.research.local_decider.report`, which writes `voice/research/local_decider/results/report.json` from the bench output under `$VOICE_HOME/evidence/local-decider/` and the committed scenario results. Run the report from the LFM3 venv so the clip section can import the prototype. Each claim says whether it is measured, inferred, or a guess.
 
 d1 fits beside LFM3 and keeps up with speech, but it loses too many scenarios to replace pplx-decider-flash as served today. The hybrid with d1 passed 8 of the original 11 scenarios and 7 of the held-out 18, against pplx's 11 and 14, and 6 of Mason's 10 clips against pplx's 7 (measured). Most of the new failures are corrections that d1 points at the wrong target or mode. Per call, d1 took a median of 395 ms while LFM3 listened, against the cloud's 101 ms (measured). The largest cost is that llama.cpp reads the whole state once per question, and d1's attention design rules out any cache that could share it. mistral.rs packs 16 questions behind one state read and cuts that token count by 4 on the largest requests, but its own kernels are slow enough that the gain does not reach the hybrid's small calls (measured, [below](#mistralrs-with-packing)).
 
@@ -14,7 +14,7 @@ d1 fits beside LFM3 and keeps up with speech, but it loses too many scenarios to
 
 ## d1 alone
 
-`python -m voice.local_decider.bench replay` sends all 565 recorded decisions requests once per server setting per round. They come from the prototype's decider cache (80) and the fork's `voice/segmentation/cache/` (485). Settings alternate within each round, over 3 rounds.
+`python -m voice.local_decider.bench replay` sends all 565 recorded decisions requests once per server setting per round. They come from the prototype's decider cache (80) and the fork's `voice/research/segmentation/cache/` (485). Settings alternate within each round, over 3 rounds.
 
 | Setting | Median | p95 | Max | Calls per second | GPU memory over idle | Errors |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -125,7 +125,7 @@ Of the 93 answers it reused, 16 differed from a fresh answer to the full request
 
 ## The packed Transformers path
 
-`voice/local_decider/transformers_bench.py` ran d1-2B's own `system_one` in bf16 from the Hugging Face cache, revision `652f920e544ea37f81e4b0ce89b81d4ed0da90b1`, read-only, in decision-lab's venv (torch 2.11.0+cu128, transformers 5.19.0). This torch build has no flash attention, so the run routed the model's `_fused` check to false and used its portable masked-attention path, as decision-lab does. Each request ran 5 times at the default group size of 16 questions per state and at 1, alternating.
+`voice/research/local_decider/transformers_bench.py` ran d1-2B's own `system_one` in bf16 from the Hugging Face cache, revision `652f920e544ea37f81e4b0ce89b81d4ed0da90b1`, read-only, in decision-lab's venv (torch 2.11.0+cu128, transformers 5.19.0). This torch build has no flash attention, so the run routed the model's `_fused` check to false and used its portable masked-attention path, as decision-lab does. Each request ran 5 times at the default group size of 16 questions per state and at 1, alternating.
 
 | Requests | llama.cpp | Transformers, packed 16 | Transformers, one question at a time |
 | --- | --- | --- | --- |
@@ -249,7 +249,7 @@ The build itself is already in place: a CUDA sm_86 build from source on a machin
 - `voice/local_decider/client.py` holds `D1Client`, the same `call(route, body, label)` interface as the cloud client, and the one adapter between the two APIs. The request drops the OpenRouter `model` and `user` fields. `set_size` is sent only when a run sets it, so llama.cpp never sees the field. Each choice answer's `confidence` is rescaled from d1's top probability to pplx's scale, (p_max - 1/n) / (1 - 1/n). That matters because the hybrid holds a `dispatch_now` whose confidence is under 0.2, and a top probability over 3 options is never under 0.33 (measured on cached pplx answers).
 - `client.py` also holds `MistralRsServer`, which starts mistral.rs in WSL through `serve-d1.sh` and stops it by its binary path, since killing `wsl.exe` leaves the Linux process running. It refuses to start over a server that is already up.
 - `voice/local_decider/reuse.py` is the answer-reuse layer, as `ReusingClient`.
-- `voice/local_decider/bench.py` and `voice/local_decider/transformers_bench.py` produce every bench in this doc. `replay --configs mr16,mr1` selects the mistral.rs configs and `--paged-attn` its KV mode; the `packing` subcommand is the set-size proof above.
+- `voice/local_decider/bench.py` and `voice/research/local_decider/transformers_bench.py` produce every bench in this doc. `replay --configs mr16,mr1` selects the mistral.rs configs and `--paged-attn` its KV mode; the `packing` subcommand is the set-size proof above.
 - `voice/prototype/realtime.py` takes extra LFM3 server arguments, for `--lfm-ctx`.
 - Offline tests: `python -m unittest discover -s voice/local_decider/tests -t .`.
 

@@ -104,8 +104,8 @@ python -m voice.prototype.run "$VOICE_HOME/audio/real/11_tools.wav" ... --out "$
 `--mock-tools` turns the lookups off. Then summarize the lookups and time the tools on their own:
 
 ```
-python -m voice.tools.report "$VOICE_HOME/evidence/real-tools/run1" "$VOICE_HOME/evidence/real-tools/run2" "$VOICE_HOME/evidence/real-tools/run3"
-python -m voice.tools.bench -n 10
+python -m voice.research.tools.report "$VOICE_HOME/evidence/real-tools/run1" "$VOICE_HOME/evidence/real-tools/run2" "$VOICE_HOME/evidence/real-tools/run3"
+python -m voice.research.tools.bench -n 10
 ```
 
 To record the fixture again, run `python -m voice.tools.record`. It sends only the place names in its `PLACES` list.

@@ -8,7 +8,7 @@ key stay identical whichever decider answered it.
 The hosted answers carry the same shape as pplx's, and a choice's `confidence` is already the margin pplx reports.
 Measured on one probe: a three-way answer with probabilities 0.349/0.333/0.318 came back as confidence 0.0229, which is
 (p_max - 1/3) / (1 - 1/3) to seven places. The gate's thresholds therefore read the same scale here and no rescaling
-is applied. The replay in `voice.liquid_decider.replay` re-checks that identity on every answer it sees.
+is applied. The replay in `voice.research.liquid_decider.replay` re-checks that identity on every answer it sees.
 
 Spend. Every attempt appends the `usage.cost` the API reports to a ledger, and the day's total is the guard. A call
 that starts after the UTC day passes $1.00 is refused and the run stops; at $0.02 per million input tokens that is
