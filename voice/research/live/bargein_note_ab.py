@@ -118,7 +118,8 @@ def score(out, write=True):
     by_name = {path.stem: record for path, record in records}
     cases = []
     for path, record in records:
-        overlap = (record.get("live") or {}).get("overlap") or {}
+        live = record.get("live") or {}
+        overlap = live.get("overlap") or {}
         if overlap.get("verdict") != "barge_in":
             continue
         over = by_name.get(f"turn_{overlap.get('turn'):03d}")
@@ -131,8 +132,9 @@ def score(out, write=True):
         cases.append({
             "case": path.stem,
             "interrupted_turn": overlap.get("turn"),
-            "answer_call_turn": (record.get("live") or {}).get("call", {}).get("turn"),
-            "heard_note": ((record.get("live") or {}).get("barge_in") or {}).get("note"),
+            "answer_call_turn": live.get("call", {}).get("turn"),
+            # The saved A/B ran an older build that kept the note under `live.barge_in_note`.
+            "heard_note": (live.get("barge_in") or {}).get("note") or live.get("barge_in_note"),
             "interrupted_reply": interrupted, "answer_reply": answer,
             "shared_run": shared, "lighthouse": lighthouse,
             "reused_old_answer": shared >= SHARED_WORDS or lighthouse,

@@ -25,10 +25,11 @@ Goal (Mason's): talk to the assistant the way people talk to each other. Talking
 5. **Record.** Every overlap is a line in `overlaps.jsonl`, and the barge-in turn's record names its overlap under `live.overlap`.
 6. **What the person heard.** A muted reply still finishes inside the call's one voice session, so the session holds a reply the person did not hear in full. Every barge-in, by voice or push-to-talk, records what they heard under `live.barge_in` in the new turn's record.
    - The server keeps each reply a turn speaks as its own text and audio, because a turn can speak an answer and then a task update. It reads back the audio the playback clock says had played (`played_part`) and keeps the replies' text, joined in the order they were spoken, up to the last word the read-back matched (`heard_prefix`).
-   - A barge-in inside the 250 ms grace window, or one settled after the reply ended, heard the whole reply. The record says `whole: true` and no read-back runs.
-   - `played_s` is the server's estimate from the audio it sent and its own clock, not the client's report, so `heard` can run a word or two past what was heard. A failed read-back records `heard: null` and the error.
+   - A barge-in inside the 250 ms grace window, or one settled after the reply ended, heard the whole reply. The record says `whole: true` and no read-back runs. A reply still being released is never whole, even when its audio ran out, because its text runs ahead of its audio.
+   - The read-back runs beside the turns and never holds one: the next turn's reply and `turn_done` do not wait for it. A turn that ends first writes `heard: null, pending: true` and rewrites its record when the read-back lands. A read-back that fails, or takes over 5 s (`READBACK_TIMEOUT_S`, a guess, not a measured read-back time), records `heard: null` and the reason.
+   - `played_s` is the server's estimate from the audio it sent and its own clock, not the client's report. How far it can run past what the client played is not measured.
    - A turn that continues a barge-in turn, because the person kept talking before it answered, takes over its record along with its audio.
-   - `--barge-in-note on` also puts one short note in front of the new turn's audio saying the person interrupted and heard only the reply's start. The record keeps the note and the session's answer to it (`note_item`). Nothing matched, or the whole reply heard, sends no note. The note ships off, because the measurement below found no gain.
+   - `--barge-in-note on` also puts one short note in front of the new turn's audio saying the person interrupted and heard only the reply's start. The record keeps the note and the session's answer to it (`note_item`). Nothing matched, or the whole reply heard, sends no note. With the note on, the turn waits for its read-back, up to the 5 s bound, before its audio goes in. The note ships off, because the measurement below found no gain.
 
 The voiced count uses a -60 dBFS floor. Call 2's quiet short turns peak near -40 dBFS, and the endpointer's -50 dBFS floor counts only 260 to 300 ms of "Answer the question." and "Okay, thanks." as voiced (measured).
 
@@ -72,8 +73,11 @@ says the person interrupted and heard only the reply's start.
 service (`voice/research/live/bargein_note_session.py`, records under `$VOICE_HOME/evidence/live/bargein-note-session/`).
 The nine cases are the interruption clips of the gate-1 run: five of Mason's turns from the 2026-11-16 call and four
 synthetic commands. Each session runs the synthetic lighthouse request, its reply, then (with the note) the note, then
-the interruption. Each run generated its own interrupted reply, so no two arms answered the same reply (measured: the
-saved interrupted replies differ between runs in all nine cases).
+the interruption. Each run generated its own interrupted reply, so the arms were not paired by design. In 8 of the 9
+cases the saved interrupted replies differ between all four runs (measured). In the ninth, "No, no."
+(`synth/turn_012.wav`), `control` and `note-noquote` saved the identical interrupted reply (measured). That one paired
+case reads against the note: the control stopped and the unquoted note continued the old reply, under both the hand
+labels and the harness score.
 
 Hand labels, read from the saved replies of the `control`, `note-noquote` and `note` runs:
 

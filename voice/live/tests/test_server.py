@@ -115,6 +115,22 @@ async def held_run_clip(source, *args, persona, voice=None, speak=None, **kwargs
     return {"clip": source.name, "final_transcript": f"words in {source.name}", "replies": [], "metrics": {}}
 
 
+LONG_REPLY = "The forecast for Durham today shows a high of 57 degrees and a 0 percent chance of rain at all."
+RELEASE_REST = []
+
+
+async def unfinished_run_clip(source, *args, persona, voice=None, speak=None, **kwargs):
+    """Turn 1 releases 1 s of audio on a 19-word text and is still speaking until the test releases the rest."""
+    VOICES.append(voice)
+    voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+    await source.stream(FakeSession(), FakeSession())
+    if source.n == 1:
+        speak(LONG_REPLY, b"\x01\x00" * OUT_RATE, False)
+        await RELEASE_REST[0].wait()
+        speak(LONG_REPLY, b"", True)
+    return {"clip": source.name, "final_transcript": f"words in {source.name}", "replies": [], "metrics": {}}
+
+
 class LiveServerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.frames = []
@@ -406,6 +422,89 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         notes = [event for event in VOICES[0].sent if event["type"] == "conversation.item.create"]
         self.assertEqual(len(notes), 1, "the note went in once, before the audio the continued turn carries")
 
+    def held_read_back(self, text):
+        release = asyncio.Event()
+
+        async def hear(pcm, rate):
+            await release.wait()
+            return text
+
+        self.live.hear_reply = hear
+        return release
+
+    async def test_a_slow_read_back_delays_neither_turn_done_nor_the_next_reply(self):
+        release = self.held_read_back("Reply to turn")
+        with mock.patch.object(server, "READBACK_TIMEOUT_S", 60, create=True):
+            ws = await self.connect()
+            log = await self.reply_playing(ws)
+            await self.send(ws, tone(800) + noise(900, seed=2))
+            while (await self.until(ws, "turn_done", log))["turn"] != 2:
+                pass
+            path = Path(self.tmp.name) / "turn_002.json"
+            pending = json.loads(path.read_text())["live"]["barge_in"]
+            self.assertEqual((pending["heard"], pending["pending"]), (None, True), "written before the read-back lands")
+            await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+            while (await self.until(ws, "reply_start", log))["turn"] != 3:
+                pass
+            read_backs = list(self.live.active.read_backs)
+            release.set()
+            await asyncio.gather(*read_backs)
+        landed = json.loads(path.read_text())["live"]["barge_in"]
+        self.assertEqual(landed["heard"], "reply to turn", "the record is updated when the read-back lands")
+        self.assertNotIn("pending", landed)
+        await ws.close()
+
+    async def test_a_turn_continued_while_the_read_back_is_pending_keeps_its_record_and_audio(self):
+        release = self.held_read_back("Reply to turn")
+        returned = asyncio.Event()
+
+        async def quiet_second_turn(source, *args, **kwargs):
+            record = await talking_run_clip(source, *args, **kwargs)
+            if source.n == 2:
+                returned.set()
+            return record
+
+        with mock.patch.object(server, "run_clip", quiet_second_turn), \
+                mock.patch.object(server, "READBACK_TIMEOUT_S", 60, create=True):
+            ws = await self.connect()
+            log = await self.reply_playing(ws)
+            await self.send(ws, tone(800) + noise(900, seed=2))
+            await asyncio.wait_for(returned.wait(), 10)
+            await self.send(ws, tone(600) + noise(900, seed=3))
+            while (started := await self.until(ws, "turn_start", log))["turn"] != 3:
+                pass
+            self.assertEqual(started["carried_audio_s"], 0.0, "turn 2 already sent its audio to the session")
+            release.set()
+            while (await self.until(ws, "turn_done", log))["turn"] != 3:
+                pass
+        answered = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
+        self.assertIsNone(answered["live"]["cancelled"], "turn 2 ended on its own and was not continued")
+        self.assertIsNotNone(answered["live"]["barge_in"])
+        await ws.close()
+
+    async def test_a_reply_still_being_released_was_not_heard_whole(self):
+        RELEASE_REST[:] = [asyncio.Event()]
+        self.heard_reply("The forecast for")
+
+        async def stop_after_the_audio_ran_out(pcm):
+            await asyncio.sleep(max(0.0, self.live.active.playback.until - server.time.perf_counter()) + 0.05)
+            return "Stop."
+
+        self.live.transcribe = stop_after_the_audio_ran_out
+        with mock.patch.object(server, "run_clip", unfinished_run_clip):
+            ws = await self.connect()
+            log = await self.reply_playing(ws)
+            await self.send(ws, tone(300) + noise(900, seed=2))
+            await self.until(ws, "barge_in", log)
+            RELEASE_REST[0].set()
+            while (await self.until(ws, "turn_done", log))["turn"] != 2:
+                pass
+        barge = json.loads((Path(self.tmp.name) / "turn_002.json").read_text())["live"]["barge_in"]
+        self.assertEqual((barge["whole"], barge["heard"]), (False, "The forecast for"),
+                         "all the audio sent had played, but the text it was released on runs past it")
+        self.assertEqual(self.heard_audio, [(OUT_RATE * 2, OUT_RATE)], "the read-back covers all the audio sent")
+        await ws.close()
+
     async def test_a_push_to_talk_barge_in_gets_the_same_record(self):
         self.heard_reply("Reply to turn")
         ws = await websockets.connect(self.url, additional_headers={server.HEADER: SECRET})
@@ -632,17 +731,17 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
     async def test_the_read_back_is_matched_against_the_replies_that_played_in_order(self):
         said = ["The forecast", "The forecast is sunny. The task found"]
         conversation, turn, read_back = await self.two_replies(said)
-        first = await conversation.heard_before(turn, 1.5)
+        first = await conversation.heard_before(turn, 1.5, False)
         self.assertEqual(first["heard"], "The forecast", "the answer's audio is matched against the answer, not the "
                                                          "task update that followed it")
-        second = await conversation.heard_before(turn, 0.5)
+        second = await conversation.heard_before(turn, 0.5, False)
         self.assertEqual(second["heard"], "The forecast is sunny. The task found", "both replies, in order")
         self.assertEqual(read_back, [0.5, 1.5], "only the audio the client had played")
         self.assertEqual((first["whole"], first["played_s"]), (False, 0.5))
 
     async def test_a_reply_that_had_finished_playing_was_heard_whole(self):
         conversation, turn, read_back = await self.two_replies()
-        heard = await conversation.heard_before(turn, 0.0)
+        heard = await conversation.heard_before(turn, 0.0, False)
         self.assertEqual((heard["heard"], heard["whole"], heard["played_s"]),
                          ("The forecast is sunny. The task found three results.", True, 2.0))
         self.assertEqual(read_back, [], "nothing to read back")
@@ -650,13 +749,14 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_nothing_played_or_nothing_matched_is_no_note(self):
         conversation, turn, read_back = await self.two_replies(["Something else entirely"])
-        silent = await conversation.heard_before(turn, 2.0)
+        silent = await conversation.heard_before(turn, 2.0, False)
         self.assertEqual((silent["heard"], silent["played_s"], read_back), ("", 0.0, []))
-        unmatched = await conversation.heard_before(turn, 1.0)
+        unmatched = await conversation.heard_before(turn, 1.0, False)
         self.assertEqual(unmatched["heard"], "")
         self.assertIsNone(server.note_for(silent))
         self.assertIsNone(server.note_for(unmatched))
-        self.assertIsNone(await conversation.heard_before(server.MicTurn(2, b""), 0.0), "a turn that never spoke")
+        never_spoke = server.MicTurn(2, b"")
+        self.assertIsNone(await conversation.heard_before(never_spoke, 0.0, False), "a turn that never spoke")
 
     async def test_a_failed_read_back_is_recorded_as_unknown(self):
         conversation, turn, _ = await self.two_replies()
@@ -665,9 +765,22 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
             raise ConnectionError("asr down")
 
         conversation.live.hear_reply = hear
-        heard = await conversation.heard_before(turn, 1.0)
+        heard = await conversation.heard_before(turn, 1.0, False)
         self.assertIsNone(heard["heard"])
         self.assertIn("asr down", heard["error"])
+        self.assertIsNone(server.note_for(heard))
+
+    async def test_a_read_back_that_takes_too_long_is_recorded_as_unknown(self):
+        conversation, turn, _ = await self.two_replies()
+
+        async def hear(pcm, rate):
+            await asyncio.Event().wait()
+
+        conversation.live.hear_reply = hear
+        with mock.patch.object(server, "READBACK_TIMEOUT_S", 0.05, create=True):
+            heard = await asyncio.wait_for(conversation.heard_before(turn, 1.0, False), 2)
+        self.assertIsNone(heard["heard"])
+        self.assertIn("timed out", heard["error"])
         self.assertIsNone(server.note_for(heard))
 
 

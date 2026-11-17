@@ -130,8 +130,11 @@ DOWN_CHUNK_MS = 40
 # five turns' final transcripts arrived 27 to 30 s after their audio, against 0.03 to 0.28 s in the recorded call's
 # three-slot server (measured).
 SLOTS = 3
-PLAYED_ESTIMATE = ("the server's estimate from the audio it sent and its playback clock, not the client's report; it "
-                   "can run a word or two past what was heard")
+PLAYED_ESTIMATE = ("the server's estimate from the audio it sent and its playback clock, not the client's report; how "
+                   "far it can run past what the client played is not measured")
+# The barge-in read-back runs beside the turns, never in front of them; past this bound the record says `heard: null`.
+# A guess sized for a few seconds of reply audio through the ASR session, not a measured read-back time.
+READBACK_TIMEOUT_S = 5.0
 
 
 def slots(asr_stagger=1):
@@ -231,7 +234,13 @@ class BargeIn:
         return self.heard.result() if self.heard.done() and not self.heard.cancelled() else None
 
     def record(self):
-        return {**(self.result() or {"heard": None}), "note": self.note, "note_item": self.note_item}
+        if not self.heard.done():
+            heard = {"heard": None, "pending": True}
+        elif self.heard.cancelled():
+            heard = {"heard": None, "error": "read-back cancelled: the call ended"}
+        else:
+            heard = self.heard.result()
+        return {**heard, "note": self.note, "note_item": self.note_item}
 
 
 def note_for(heard):
@@ -326,7 +335,7 @@ class Conversation:
         self.ledger = ConversationLedger()
         self.pending, self.started = set(), time.perf_counter()
         self.playback, self.overlap = Playback(), None
-        self.checks = set()
+        self.checks, self.read_backs = set(), set()
 
     def voice_clock(self):
         """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
@@ -429,18 +438,19 @@ class Conversation:
             if trailing_ms is not None:
                 self.end_turn(trailing_ms, False)
 
-    async def heard_before(self, turn, remaining_s):
+    async def heard_before(self, turn, remaining_s, speaking):
         """What the person heard of `turn`'s replies before talking over them, or None if it never spoke.
 
         `heard` is the replies' text up to the last word a read-back of the played audio matched, the replies joined
-        in the order they were spoken; all of it when nothing was left to play (`whole`), as when the barge-in came in
-        the grace window after the reply or was settled after it ended; "" when nothing matched; None when the
-        read-back failed."""
+        in the order they were spoken; all of it when nothing was left to play and the reply had ended (`whole`), as
+        when the barge-in came in the grace window after the reply or was settled after it ended; "" when nothing
+        matched; None when the read-back failed or took longer than READBACK_TIMEOUT_S. A reply still `speaking` was
+        not heard whole even when its audio ran out: its text runs ahead of the audio released on it."""
         if turn is None or not turn.replies:
             return None
         sent = b"".join(reply.pcm for reply in turn.replies)
         sent_s = len(sent) / 2 / turn.out_rate
-        whole = remaining_s <= 0
+        whole = remaining_s <= 0 and not speaking
         heard = {"whole": whole, "played_s": round(max(0.0, sent_s - max(0.0, remaining_s)), 3),
                  "played_s_is": PLAYED_ESTIMATE}
         if whole:
@@ -455,7 +465,9 @@ class Conversation:
             texts.append(reply.text)
             start += len(reply.pcm)
         try:
-            transcript = await self.live.hear_reply(pcm, turn.out_rate)
+            transcript = await asyncio.wait_for(self.live.hear_reply(pcm, turn.out_rate), READBACK_TIMEOUT_S)
+        except TimeoutError:
+            return {"heard": None, "error": f"read-back timed out after {READBACK_TIMEOUT_S} s", **heard}
         except Exception as exc:
             return {"heard": None, "error": repr(exc), **heard}
         return {"heard": heard_prefix(" ".join(texts), transcript), **heard}
@@ -486,7 +498,10 @@ class Conversation:
         if barge_in:
             now = time.perf_counter()
             if prior is not None and prior.replies:
-                barge = BargeIn(asyncio.create_task(self.heard_before(prior, self.playback.until - now)))
+                barge = BargeIn(asyncio.create_task(self.heard_before(prior, self.playback.until - now,
+                                                                      prior.speaking)))
+                self.read_backs.add(barge.heard)
+                barge.heard.add_done_callback(self.read_backs.discard)
             self.post({"type": "barge_in", "turn": self.playback.turn})
             self.playback.stop(now)
         if prior is not None:
@@ -602,8 +617,8 @@ class Conversation:
             turn.out_rate, self.started = self.out_rate, time.perf_counter()
             barge = turn.barge_in
             if barge is not None and live.barge_in_note and barge.note is None:
-                # asyncio.wait, not await: cancelling a turn that is continued must not cancel the read-back it
-                # hands on.
+                # Only with the note on does a turn wait for its read-back, at most READBACK_TIMEOUT_S. asyncio.wait,
+                # not await: cancelling a turn that is continued must not cancel the read-back it hands on.
                 await asyncio.wait({barge.heard})
                 barge.note = note_for(barge.result())
                 if barge.note is not None:
@@ -628,18 +643,18 @@ class Conversation:
             record = {"clip": turn.name, "error": repr(exc), **partial}
         finally:
             self.voice_turn = None
-        if turn.barge_in is not None:
-            await asyncio.wait({turn.barge_in.heard})
         turn.decider.closed = True
         self.ledger.record(record, muted=turn.muted)
         record["ledger"] = self.ledger.record_dict()
         record["live"] = {**turn.metrics(), "prompt": self.prompt_source, "endpointer": vars(live.settings),
                           "mode": self.mode, "snapshot": live.args.snapshot, "recall": live.args.recall,
                           "eou": getattr(live.args, "eou", "silence"),
-                          "barge_in": turn.barge_in.record() if turn.barge_in is not None else None,
+                          "barge_in": None,
                           "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns}}
         write_pcm16(live.out / f"{turn.name}_input.wav", bytes(turn.pcm), RATE)
-        (live.out / f"{turn.name}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
+        self.write_record(turn, record)
+        if turn.barge_in is not None and not turn.barge_in.heard.done():
+            turn.barge_in.heard.add_done_callback(lambda _: self.write_record(turn, record))
         done = {"type": "turn_done", "turn": turn.n, "transcript": record.get("final_transcript"),
                 "replies": [r.get("text") for r in record.get("replies", [])], "error": record.get("error"),
                 "cancelled": turn.cancelled,
@@ -647,16 +662,20 @@ class Conversation:
         self.post(done)
         print(f"{turn.name} {json.dumps(done['metrics'])}", flush=True)
 
+    def write_record(self, turn, record):
+        """The turn's record, written when the turn ends and again when a read-back still pending then lands."""
+        if turn.barge_in is not None:
+            record["live"]["barge_in"] = turn.barge_in.record()
+        (self.live.out / f"{turn.name}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
+
     async def close(self):
         if self.overlap is not None and self.overlap.task is not None:
             self.overlap.task.cancel()
-        for check in list(self.checks):
-            check.cancel()
+        for task in (*self.checks, *self.read_backs):
+            task.cancel()
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")
-            if turn.barge_in is not None:
-                turn.barge_in.heard.cancel()
         await asyncio.gather(*(turn.task for turn in turns), return_exceptions=True)
         self.voice_turn = None
         if self.voice is not None:
