@@ -1,0 +1,4 @@
+# Skips that are expected on every run of voice/ci/test.sh with the audio venv. A skip whose id is not listed here
+# fails the run, so a missing dependency or a moved test cannot quietly stop covering a module. Delete a line when
+# its test runs again; add one only with the reason written beside it.
+voice.bot.test_root_tasks  # needs VOICE_PROTOTYPE_CHECKOUT, a separate prototype checkout

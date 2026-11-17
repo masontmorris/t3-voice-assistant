@@ -13,7 +13,7 @@ from pathlib import Path
 from unittest import mock
 
 from voice.prototype import run as prototype
-from voice.prototype.segmenter import use_decider_cache
+from voice.prototype.tests import isolate_decider_cache
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession
 from voice.tools.tests.replay import replay_registry
 
@@ -70,7 +70,7 @@ class Call(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 200)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 200))
         original = prototype.Session.open
 
         async def open_session(url, name, clock, on_event=None):

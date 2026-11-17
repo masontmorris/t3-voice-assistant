@@ -62,6 +62,15 @@ These rows cover `voice/local_decider/` and [local-decider.md](local-decider.md)
 
 The local decider client, the reuse layer, and the bench scripts use only the Python standard library, plus numpy, soundfile and websockets from the LFM3 venv for the barge-in bench.
 
+## Twin B thread pick
+
+These rows cover `voice/t3/pick/` and [twinb-pick-eval.md](twinb-pick-eval.md), read on 2026-11-17.
+
+| Name | Version or revision | License | Source | Notable terms |
+| --- | --- | --- | --- | --- |
+| `Qwen/Qwen2.5-1.5B-Instruct-GGUF`, file `qwen2.5-1.5b-instruct-q4_k_m.gguf` | `91cad51170dc346986eccefdc2dd33a9da36ead9`, 1,117,320,736 bytes | Apache-2.0 | https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF | Apache-2.0 permits commercial use and redistribution; keep the license text and the NOTICE with copies. The file lives in `$VOICE_HOME/gguf/` and is not committed. |
+| `particle-ai/particle-1:free` | Endpoint `particle-ai/particle-1-20261027:free`, called on 2026-11-17 | Not stated. The model page and the endpoints API name no license and no data policy. | [OpenRouter endpoints API](https://openrouter.ai/api/v1/models/particle-ai/particle-1:free/endpoints) | A hosted model with no weights to download. Use is governed by the OpenRouter terms of service. Prompt and completion price 0, and the free tier allows 20 requests a minute. Thread titles go to it as plain text in the eval, which is the eval's only outbound path. |
+
 ## Real read-only tools
 
 These rows cover `voice/tools/` and [real-tools.md](real-tools.md). Package versions and license strings come from each package's installed metadata (`importlib.metadata`) in `$VOICE_HOME/venv-mcp-time`, measured on 2026-11-16. The Open-Meteo terms come from its [terms page](https://open-meteo.com/en/terms) and [licence page](https://open-meteo.com/en/licence), read on 2026-11-16.
