@@ -44,7 +44,7 @@ NONE_LINE = "No tool: conversation, a reaction, or a question the assistant answ
 GENERAL_LINE = ("General lookup: information from outside this call that no tool above covers, including a request "
                 "that asks the assistant to choose a detail first, such as a city.")
 # The decider's tool answer decides the dispatch only at or above this margin. Frozen on the live gate eval's
-# training items (`python -m voice.segmentation.live_gate_eval --tools --tool-sweep`), on two independent samples:
+# training items (`python -m voice.research.segmentation.live_gate_eval --tools --tool-sweep`), on two independent samples:
 # each is flat from 0.00 to 0.45, so 0.30 sits inside both with room either side, and above 0.50 the fall back to the
 # word rules costs accuracy in both. Train 91% at 0.30 in both samples, held-out 88% and 92%; the word rules alone are
 # 70% train and 62% held-out.

@@ -1,6 +1,6 @@
 """llama.cpp's `/v1/realtime` server and sessions, for the prototype.
 
-The server flags and the protocol steps are the ones `voice/speech/llamacpp_rt.py` measured in Stage 1. That script
+The server flags and the protocol steps are the ones `voice/research/speech/llamacpp_rt.py` measured in Stage 1. That script
 parses its arguments and imports torch on import, and it reads events only while it waits, so this module keeps a
 background reader per session instead. Each session hands every event to a callback as it arrives.
 """

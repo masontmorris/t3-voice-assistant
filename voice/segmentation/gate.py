@@ -68,7 +68,7 @@ class Gate:
 
 
 # Frozen on the tuning data (the original 11 scenarios and the 4 synthetic clips) before any run on Mason's clips.
-# python -m voice.segmentation.gate_tune: of 10 tasks dispatched during speech, the one wrong one scored 0.35 and the
+# python -m voice.research.segmentation.gate_tune: of 10 tasks dispatched during speech, the one wrong one scored 0.35 and the
 # lowest right one 0.41. No side effect dispatched during speech there, so the side-effect bar is a judgment.
 # The named-tool bar: on the live gate eval's 210 recorded traces (traces-followups.jsonl), 0.60 and 0.70 both turn two
 # held-out false holds into dispatches (t64, "What's the whether in DEN ver?") and dispatch nothing that should not

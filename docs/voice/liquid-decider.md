@@ -44,7 +44,7 @@ input tokens, plus one probe outside the ledger at $0.0000039. The $1.00 guard d
 
 ## Latency and agreement with pplx
 
-`python -m voice.liquid_decider.replay --tag hybrid` sent the hybrid's 94 recorded decision requests to `d1.2` once
+`python -m voice.research.liquid_decider.replay --tag hybrid` sent the hybrid's 94 recorded decision requests to `d1.2` once
 each, in call order, with no cache. Those are the 11 original scenarios, the 18 held-out scenarios and the 10 clips.
 All 94 returned 200 (measured).
 
@@ -79,7 +79,7 @@ Answers to the same questions (measured; a noul answer agrees when both sit on t
 
 ## The gate eval before and after
 
-`python -m voice.segmentation.live_gate_eval --decider liquid --fresh` ran the 70 items three times each, 210 traces,
+`python -m voice.research.segmentation.live_gate_eval --decider liquid --fresh` ran the 70 items three times each, 210 traces,
 $0.00185 (measured). The pplx column is the committed trace set scored by the shipped rule, with no new calls.
 
 | Split | pplx accuracy | d1.2 accuracy | pplx false dispatch | d1.2 false dispatch | pplx false hold | d1.2 false hold |

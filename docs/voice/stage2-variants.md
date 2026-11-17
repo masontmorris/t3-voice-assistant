@@ -1,6 +1,6 @@
 # Stage 2 boundary variants: variant E against the baseline
 
-Measured on 2026-11-16 (UTC) against `perplexity/pplx-decider-flash-v1.3:free`. Every number below comes from committed files through `python -m voice.segmentation.variants_report`, which writes `voice/segmentation/results/variants-report.json`.
+Measured on 2026-11-16 (UTC) against `perplexity/pplx-decider-flash-v1.3:free`. Every number below comes from committed files through `python -m voice.research.segmentation.variants_report`, which writes `voice/research/segmentation/results/variants-report.json`.
 
 Variant E lost to the round 2 baseline on both scenario sets. On the original 11 streams E passed 7 and the baseline passed 9. On the 18 held-out streams E passed 6 and the baseline passed 8 (measured). E placed more of the hand-labeled breaks exactly, 16 of 18 held-out breaks against the baseline's 12 (measured). Its losses came after the break, from false corrections and from dispatching a request before the speaker corrected it.
 
@@ -123,7 +123,7 @@ Each system ran once on the held-out set, after the freeze.
 | run_on | unpunctuated run-on | FAIL | pass | 2 / 6 | 0 / 0 | miss, miss / 0, 0 |
 | true_repeat | true repeat | FAIL | FAIL | 2 / 4 | 0 / 0 | none labeled |
 
-Totals, baseline then E: 8 and 6 pass, 4 and 8 premature dispatches, 1 and 1 duplicates, 1 and 2 missed corrections, 46 and 72 calls (measured). Per-scenario records are in `voice/segmentation/results/stream-a-heldout/` and `voice/segmentation/results/stream-e-heldout/`.
+Totals, baseline then E: 8 and 6 pass, 4 and 8 premature dispatches, 1 and 1 duplicates, 1 and 2 missed corrections, 46 and 72 calls (measured). Per-scenario records are in `voice/research/segmentation/results/stream-a-heldout/` and `voice/research/segmentation/results/stream-e-heldout/`.
 
 E failed for these reasons, read from its decision points.
 
@@ -152,7 +152,7 @@ E's markers held a labeled break in 10 of 10 original breaks and 18 of 18 held-o
 
 A `finished` answer of 0.5 or more was followed by one below 0.5 at the same cursor on the next revision in 1 of 34 pairs on the original set and 1 of 31 on the held-out set (measured). Most instability sat in `at`. 8 of 68 original answers and 5 of 71 held-out answers had a margin under 0.2 (measured).
 
-Adding the `implicit` and `preemptive` questions changed no other answer (measured). `voice.segmentation.extra` resent 15 of E's recorded requests with the two questions added. None of the 51 shared answers changed its choice or crossed 0.5, and noul values moved by a median of 0.0 and at most 0.2. The paired latency difference had a median of -1.9 ms, with single pairs from -92.6 to +232.7 ms (measured, n = 15). Two more questions add no cost large enough to show over that spread, and an effect of a few milliseconds would not show in 15 pairs (inferred).
+Adding the `implicit` and `preemptive` questions changed no other answer (measured). `voice.research.segmentation.extra` resent 15 of E's recorded requests with the two questions added. None of the 51 shared answers changed its choice or crossed 0.5, and noul values moved by a median of 0.0 and at most 0.2. The paired latency difference had a median of -1.9 ms, with single pairs from -92.6 to +232.7 ms (measured, n = 15). Two more questions add no cost large enough to show over that spread, and an effect of a few milliseconds would not show in 15 pairs (inferred).
 
 ## Latency and failures
 
@@ -173,7 +173,7 @@ All live calls ran inside `quiet_run.py --holder voice-stage2`, one request in f
 
 ## Call budget
 
-This round used 363 of its 400 attempts, counted from `voice/segmentation/calls.jsonl` after round 2's 157. The client's cap is now `157 + 400`.
+This round used 363 of its 400 attempts, counted from `voice/research/segmentation/calls.jsonl` after round 2's 157. The client's cap is now `157 + 400`.
 
 | Purpose | Attempts | Of which 429 |
 | --- | --- | --- |
@@ -203,7 +203,7 @@ Run from the repository root. The offline tests need no key and no network, and 
 
 ```
 python -m unittest discover -s voice/segmentation/tests -t .
-python -m voice.segmentation.variants_report
+python -m voice.research.segmentation.variants_report
 ```
 
 `tests/test_cursor.py` covers the markers, the condition table, the stability rule, the near-tie hold, the dependency hold, delegate links, and the final-transcript drain.
@@ -214,7 +214,7 @@ To repeat a live run, set `VOICE_ENV_FILE` to the env file that holds `OPENROUTE
 python quiet_run.py --holder voice-stage2 -- python -m voice.segmentation.run --option e --mode stream
 python quiet_run.py --holder voice-stage2 -- python -m voice.segmentation.run --option e --mode stream --set heldout
 python quiet_run.py --holder voice-stage2 -- python -m voice.segmentation.run --option a --mode stream --set heldout
-python quiet_run.py --holder voice-stage2 -- python -m voice.segmentation.extra
+python quiet_run.py --holder voice-stage2 -- python -m voice.research.segmentation.extra
 ```
 
 `results/stream-e-v1/` came from the code at commit `af980a971`. The current code does not replay it.

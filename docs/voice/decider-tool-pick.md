@@ -64,7 +64,7 @@ scores train first and prints held-out beside it).
 
 ## Text level
 
-`python -m voice.segmentation.live_gate_eval --decider liquid --tools --arguments --fresh` ran the 70 items three times
+`python -m voice.research.segmentation.live_gate_eval --decider liquid --tools --arguments --fresh` ran the 70 items three times
 each, 210 traces, and cost $0.00323 (measured). Every item carries the tool a dispatch should run, or `none`, written by
 hand before any run, and the fourteen items that name a place and a day carry those too.
 
@@ -427,7 +427,7 @@ reading per body and the third row is lower than the first, which is the model's
 ## Reproduce
 
 ```
-python -m voice.segmentation.live_gate_eval --decider liquid --tools --arguments --fresh \
+python -m voice.research.segmentation.live_gate_eval --decider liquid --tools --arguments --fresh \
     --decider-dir $VOICE_HOME/evidence/live-gate-eval/calls-polish \
     --traces $VOICE_HOME/evidence/live-gate-eval/traces-polish.jsonl --tool-sweep
 python $VOICE_HOME/evidence/toolpick-polish/report_numbers.py $VOICE_HOME/evidence/live-gate-eval/traces-polish.jsonl
@@ -442,10 +442,10 @@ python $VOICE_HOME/evidence/toolpick/cost_probe.py
 The follow-ups round's own numbers, from branch `voice/followups`:
 
 ```
-python -m voice.segmentation.live_gate_eval --decider liquid --tools --arguments --fresh \
+python -m voice.research.segmentation.live_gate_eval --decider liquid --tools --arguments --fresh \
     --decider-dir $VOICE_HOME/evidence/live-gate-eval/calls-followups \
     --traces $VOICE_HOME/evidence/live-gate-eval/traces-followups.jsonl --tool-sweep
-python -m voice.segmentation.live_gate_eval --decider liquid --tools --arguments --score-only \
+python -m voice.research.segmentation.live_gate_eval --decider liquid --tools --arguments --score-only \
     --traces $VOICE_HOME/evidence/live-gate-eval/traces-polish.jsonl
 python $VOICE_HOME/evidence/toolpick-followups/run_replay.py toolpick-followups     # inside the GPU lease
 python $VOICE_HOME/evidence/toolpick-followups/score_tools.py toolpick-followups

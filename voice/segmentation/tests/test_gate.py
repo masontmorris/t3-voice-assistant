@@ -1,6 +1,6 @@
 """The gate's score: which answers it reads, and where its two bars sit.
 
-The measured case behind both rules is the live gate eval (`voice/segmentation/live_gate_eval.py`): a task's `kind`
+The measured case behind both rules is the live gate eval (`voice/research/segmentation/live_gate_eval.py`): a task's `kind`
 answer is a five-way choice, so a request/description tie reads 0.375 and was held at the 0.40 bar while the same
 task's readiness answer read 0.89.
 """

@@ -1,7 +1,7 @@
 """Replay every committed run from recorded decider responses, with no network, and compare its task records.
 
 The committed summaries hold scores from the scorer of their round. The scorer now matches on the instruction, so
-scores are compared in voice.segmentation.hybrid_report, not here.
+scores are compared in voice.research.segmentation.hybrid_report, not here.
 """
 
 import json
