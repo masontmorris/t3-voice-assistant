@@ -203,10 +203,12 @@ code, its tests on synthetic fixtures, and a license row.
    in this eval to reach 98.6 percent on the unambiguous slices with 3.2 percent unnecessary questions,
    and it made one wrong pick in 288 calls (measured). The chain as it stands still fails the
    zero-wrong-thread bar because three wrong picks come from prefilter hits.
-3. Fix the three prefilter hits before adding a confidence gate. Each is a project name that appears in
-   one title, so the prefilter names that thread for a request that names a project with dozens of
-   threads. A pre-check that asks when a spoken word is a project name with more than one listed thread
-   covers two; an ask when a named word is shared by two titles covers the third.
+3. Fix the three prefilter hits before adding a confidence gate. Two are a project name that appears
+   in one title, so the prefilter names that thread for a request that names a project with dozens of
+   threads; a pre-check that asks when a spoken word is a project name with more than one listed thread
+   covers both. The third names four words that all sit in one title, while three of them also sit in a
+   second title; a leave-one-word-out match, which asks when the shortened request still names a thread,
+   is the next thing to try.
 4. Do not let the model break ties. It cost 3 wrong picks and 2 correct ones, and the extra wrong picks
    were state-word questions where a "tie" of dozens of finished threads should stay a question
    (measured).
