@@ -222,6 +222,40 @@ class DispatchTest(unittest.TestCase):
                                      choice=registry.ToolChoice("weather", 0.5, {"place": None, "when": "sunday"}))
         self.assertEqual(routed.call, ToolCall("weather", {"place": "San Diego", "when": "sunday"}))
 
+    def test_a_choice_does_not_carry_the_place_into_a_request_that_names_nothing(self):
+        routed = self.worker.dispatch("Wait, do it again.", self.SAN_DIEGO,
+                                      choice=registry.ToolChoice("weather", 0.59, {"place": None, "when": None}))
+        self.assertEqual(routed.call, ToolCall("weather", {"place": "Boston", "when": "today"}),
+                         "nothing there continues the earlier forecast, so the worker's default place stands")
+
+
+class CorrectedTest(unittest.TestCase):
+    """A correction of an earlier lookup runs that lookup's own tool on the corrected words. The tool is the one the
+    corrected task ran, not the one the amended words happen to route to, and the argument the correction changes
+    comes from the amended words while the rest stays."""
+
+    WEATHER = ToolCall("weather", {"place": "Boulder", "when": "tomorrow"})
+    CALENDAR = ToolCall("calendar", {"when": "Thursday"})
+
+    def setUp(self):
+        self.rules, _, _ = replay_registry()
+
+    def test_the_corrected_place_replaces_the_rejected_one(self):
+        self.assertEqual(self.rules.corrected(self.WEATHER, "What's the weather in Portland tomorrow?"),
+                         ToolCall("weather", {"place": "Portland", "when": "tomorrow"}))
+
+    def test_the_arguments_the_correction_leaves_alone_are_the_earlier_calls(self):
+        self.assertEqual(self.rules.corrected(self.WEATHER, "And what about Sunday?"),
+                         ToolCall("weather", {"place": "Boulder", "when": "sunday"}))
+
+    def test_a_tool_the_registry_does_not_hold_goes_to_the_general_worker(self):
+        self.assertEqual(self.rules.corrected(self.CALENDAR, "Look up my calendar for Friday afternoon."),
+                         ToolCall("agent", {"instruction": "Look up my calendar for Friday afternoon.", "context": []}))
+
+    def test_a_general_worker_that_is_not_configured_fails_rather_than_raises(self):
+        call = self.rules.corrected(self.CALENDAR, "Look up my calendar for Friday afternoon.")
+        self.assertEqual(self.rules.run(call).outcome, Outcome.FAILED)
+
 
 class ChoicesTest(unittest.TestCase):
     def test_the_options_are_every_registered_tool_the_worker_and_none(self):
