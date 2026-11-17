@@ -120,11 +120,51 @@ So the close rule cost 2 tasks, LFM3's decisions 2, the snapshot 2, and the tail
 
 This round made 113 decider attempts against its cap of 150: 33 for `gated`, 47 for `decider`, and 33 for `handoff` (measured, ledger under `$VOICE_HOME`). The tuning and the smoke run came from the cache. Every attempt returned HTTP 200, with no 429 and no billing stop (measured).
 
+## The shadow decider on live calls
+
+Added 2026-11-17. Live mode now makes the end-of-utterance decider call that `decider` mode makes, after each `gated` turn's reply has played, and logs its task decisions beside LFM3's. It acts on nothing: no dispatch, no snapshot change, no item in the voice session (`voice/live/shadow.py`). `--shadow off` leaves it out, and it is on by default.
+
+One line per utterance goes to `shadow.jsonl` in the call's record directory, beside `turn_003.json`:
+
+| Field | What it holds |
+| --- | --- |
+| `utterance`, `turn_record` | the turn's name, and the record holding its transcript, LFM3's calls and its timings. No call content is copied into the line. |
+| `authority` | `lfm` or `decider`: which rule decided the end of this utterance. |
+| `transcript` | the final transcript's word count and the first 12 hex digits of its SHA-256. |
+| `lfm` | LFM3's `run_task`, `delegate`, `cancel_task` and `amend_task` calls, with the action each asks for. |
+| `decider` | the shadow's decisions, each with the task it matches or `new:<sid>`, its action (`run`, `hold`, `drop`, `cancel`, `amend`), its side effect, the answers' confidences, and the task gate's verdict. |
+| `agreement` | `agree`, `disagree`, `decider_only`, `lfm_only`, and one row per task naming both sides. |
+| `outcomes` | every task the turn ended with and its status. |
+| `call` | route, decider, model, status, questions, milliseconds, and whether it timed out. |
+
+An agreement row asks one thing of each side: does this task run. Both run it or both leave it is `agree`. One side runs it alone is `decider_only` or `lfm_only`. One runs it while the other cancels or amends it is `disagree`. A piece is tied to a task by its words, because the shadow applies nothing and so holds no task ids of its own (inferred from the code; the task's own segment text is what the decision point used, so the words match).
+
+`python -m voice.live.shadow_report DIR` prints the per-turn table. `--rows` adds one line per task, and `--json` prints the records. A failed or timed-out call is one line with `error` set and reaches no turn. The call waits on the decider's one-call-at-a-time lock, so it never puts a second request in flight, and gives up after 20 s rather than queue behind a turn.
+
+**What the live path can and cannot show.** Live mode opens no LFM3 tool session: it passes `final_decider=True` to `run_clip`, so the decider's own call on the final transcript decides the end of the utterance (`voice/live/server.py`, `voice/prototype/run.py`). On a live call the `lfm` side of every row is therefore empty by construction: the verdict is `decider_only` when the decider would run the task and `agree` when neither side does (measured: `tool_turn` is `null` in every live turn record). The comparison the shadow exists for needs LFM3's tool turn, which the prototype's `gated` run still has; `python -m voice.prototype.run CLIP --shadow on` writes the same `shadow.jsonl` from it, and that is where a real LFM3-versus-decider row comes from today.
+
+Measured 2026-11-17 between 06:19 and 06:26 ET, in three runs of the same four Stage 1 synthetic clips (`single`, `two_request`, `correction`, `long`), each inside the GPU lease and `quiet_run.py`, with the local d1 decider and the mock worker so nothing left the machine. Evidence is under `$VOICE_HOME/evidence/live/shadow-decider/`.
+
+| Run | Command | Utterances logged | Shadow call, ms |
+| --- | --- | --- | --- |
+| live, shadow on | `voice.live.server --shadow on` | 4 of 7 turns | 322, 531, 742, 2448 |
+| live, shadow off | the same with `--shadow off` | 0 | none |
+| prototype, gated | `voice.prototype.run --eou gated --shadow on` | 4 of 4 clips | 105, 398, 541, 2880 |
+
+All numbers in the table are measured. The `long` clip arrived as four live turns, three of them continued into the next with no reply of their own, so only completed utterances get a line.
+
+- **On live calls every row is the decider alone.** The live run logged 12 decider decisions, 9 rows where neither side ran the task, and 3 rows where the decider would have run a task nothing named (measured, `on/server/shadow.jsonl`). The `lfm` column is empty, as the live path requires. The `turn` column shows what the turn did with the same words, so the decider's shadow and the turn's own final call are both visible on one row.
+- **The prototype's gated turn gives real agreement rows.** 12 decider decisions against 7 LFM3 actions: 10 `agree`, 3 `decider_only`, 5 `lfm_only`, 0 `disagree` (measured, `proto/shadow.jsonl`). The 5 LFM3-only rows are whole-utterance delegates LFM3 made in place of running the listed tasks, the same failure [What `gated` lost, and why](#what-gated-lost-and-why) records. The 3 decider-only rows are tasks the decider would have run and LFM3 did not, on the `long` clip.
+- **First-reply latency did not move with the shadow.** Live-on minus live-off, per turn: +5.38, -0.71, -0.47, +1.19 s (measured, `first_reply_audio_after_audio_end_s`). The same-turn final-transcript difference is +3.00, -0.71, -0.60, +1.11 s, and the two follow each other across the four turns (Pearson r 0.98, measured), so those differences come from the turn's pipeline before the reply rather than from the reply step. The shadow is not on that path at all: it starts only after `playback_until`, and in `on/server.out` every `turn_XXX shadow` line follows that turn's `turn_done`. The first-turn outlier is startup, not the shadow: LFM3 loaded in 18.7 s in the on run against 2.6 s in the off run, right after another lane's GPU job ended (measured, `server.out` of each run).
+
+A shadow call is one decider request per completed utterance, so a live call now costs a few hundred milliseconds of local compute per utterance, off the reply's path (measured above). On the default hosted decider it would also cost one request per utterance; these runs used the local one.
+
 ## Open decisions for Mason
 
 - Whether a side effect that LFM3 or the gate starts should run without confirmation. The brief says LFM3's calls are final and take no confirmation step. That supersedes the uniform side-effect hold of 2026-11-15 in `gated`. In the mock, nothing real happens either way.
 - Which of the fixes under [What I would change](#what-i-would-change) to try first. The first two address 7 of the 8 lost tasks.
 - Whether to tune the side-effect bar on a set where side effects reach the gate during speech, which needs the pause rule relaxed.
+- Whether live mode should go back to LFM3's tool turn at the end of the utterance. It passes `final_decider=True`, so the decider decides and the shadow has no LFM3 calls to compare with. `final_decider=False` is what restores Mason's stated design there and gives the shadow its per-turn agreement data on live calls (measured: `tool_turn` is `null` in every live turn record).
 
 The rest of this doc is the first round, which measured `handoff` against `decider`. Its numbers are unchanged. Its recommendation is superseded by Mason's choice of the gated design.
 
