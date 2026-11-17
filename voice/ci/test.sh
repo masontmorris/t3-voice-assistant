@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs every voice test suite: the Python tests under voice/ and the bot's Node tests.
-# Missing optional audio dependencies are reported as skips with their reason. Fails only on a failure that
-# voice/ci/known_failures.txt does not list.
+# Prefers an existing venv under $VOICE_HOME that has soundfile and sounddevice, so the live-audio tests run
+# instead of skipping; falls back to python on PATH. Skips must match voice/ci/known_skips.txt and failures
+# must match voice/ci/known_failures.txt.
 set -uo pipefail
 
 here=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
@@ -10,7 +11,20 @@ if ! repo=$(git -C "$here" rev-parse --show-toplevel 2>/dev/null); then
   exit 2
 fi
 
-python=${VOICE_PYTHON:-$(command -v python || command -v python3 || true)}
+voice_home=${VOICE_HOME:-$HOME/voice}
+
+audio_python() {
+  for candidate in "$voice_home"/venv-*/Scripts/python.exe "$voice_home"/venv-*/bin/python; do
+    [ -f "$candidate" ] || continue
+    if "$candidate" -c 'import soundfile, sounddevice' >/dev/null 2>&1; then
+      printf '%s\n' "$candidate"
+      return 0
+    fi
+  done
+  return 1
+}
+
+python=${VOICE_PYTHON:-$(audio_python || command -v python || command -v python3 || true)}
 if [ -z "$python" ]; then
   echo "test.sh: no python on PATH, set VOICE_PYTHON to an interpreter" >&2
   exit 2

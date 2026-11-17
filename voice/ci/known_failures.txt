@@ -1,3 +1,2 @@
 # Tests that already fail on voice/main with no voice change behind them. The run fails only on failures that are
 # not listed here. Delete a line when its test passes; add one only with the PM's approval, and say what it is.
-voice.live.tests.test_client_wav.WavFramesTest.test_the_carried_part_of_a_clip_never_reaches_the_server  # measured 2026-11-17 at 3beea49b43

@@ -1,8 +1,9 @@
-"""Run every voice test suite and fail only on failures the recorded baseline does not cover.
+"""Run every voice test suite and fail on failures or skips the recorded baselines do not cover.
 
 Discovery is by file: every test_*.py under voice/ (so a moved package under voice/research/ still runs), plus the
-bot's Node tests in voice/bot/test. A missing optional audio dependency is reported as a skip with its reason, not
-counted as a failure.
+bot's Node tests in voice/bot/test. A module that cannot import an optional audio dependency is reported as a skip
+with its reason. Failures are checked against voice/ci/known_failures.txt and skips against voice/ci/known_skips.txt,
+so a new skip fails the gate instead of hiding a regression.
 """
 
 from __future__ import annotations
@@ -33,7 +34,10 @@ ENV_SKIPS = {
     ),
 }
 
+IGNORED_DIRECTORIES = {"node_modules", ".venv", "__pycache__"}
+
 BASELINE = "voice/ci/known_failures.txt"
+SKIP_BASELINE = "voice/ci/known_skips.txt"
 EXIT_OK = 0
 EXIT_REGRESSION = 1
 EXIT_SETUP = 2
@@ -62,12 +66,21 @@ def head_summary(repo: Path) -> str:
     return result.stdout.strip() or "unknown"
 
 
+def discovered(repo: Path, pattern: str) -> list[Path]:
+    paths = []
+    for path in sorted((repo / "voice").rglob(pattern)):
+        if IGNORED_DIRECTORIES.intersection(path.relative_to(repo).parts):
+            continue
+        paths.append(path)
+    return paths
+
+
 def test_modules(repo: Path) -> list[str]:
-    modules = []
-    for path in sorted((repo / "voice").rglob("test_*.py")):
-        relative = path.relative_to(repo).with_suffix("")
-        modules.append(".".join(relative.parts))
-    return modules
+    return [".".join(path.relative_to(repo).with_suffix("").parts) for path in discovered(repo, "test_*.py")]
+
+
+def node_test_files(repo: Path) -> list[Path]:
+    return discovered(repo, "*.test.mjs")
 
 
 def missing_optional_module(error: BaseException) -> str | None:
@@ -102,7 +115,7 @@ def load_baseline(path: Path) -> set[str]:
 
 
 def run_node_suite(repo: Path) -> tuple[str, str] | None:
-    files = sorted((repo / "voice").rglob("*.test.mjs"))
+    files = node_test_files(repo)
     if not files:
         return None
     node = shutil.which("node")
@@ -118,10 +131,21 @@ def run_node_suite(repo: Path) -> tuple[str, str] | None:
     )
     passed = re.search(r"^# pass (\d+)$", completed.stdout, re.M)
     failed = re.search(r"^# fail (\d+)$", completed.stdout, re.M)
+    cancelled = re.search(r"^# cancelled (\d+)$", completed.stdout, re.M)
     if not passed or not failed:
         return "0 passed, 1 failed", f"node --test printed no summary, exit {completed.returncode}"
-    names = re.findall(r"^\s*not ok \d+ - (.+)$", completed.stdout, re.M)
-    return f"{passed.group(1)} passed, {failed.group(1)} failed", "\n".join(names)
+    cancelled_count = int(cancelled.group(1)) if cancelled else 0
+    problems = re.findall(r"^\s*not ok \d+ - (.+)$", completed.stdout, re.M)
+    if cancelled_count:
+        problems.append(f"{cancelled_count} test(s) cancelled, a hook threw before they ran")
+    if completed.returncode != 0 and not problems:
+        problems.append(f"node --test exited {completed.returncode}")
+    if problems:
+        failed_count = int(failed.group(1)) + cancelled_count
+        if failed_count == 0:
+            failed_count = 1
+        return f"{passed.group(1)} passed, {failed_count} failed", "\n".join(problems)
+    return f"{passed.group(1)} passed, 0 failed", ""
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -129,11 +153,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--repo", default=None, help="repo root (default: the repo that contains this file)")
     parser.add_argument("--baseline", default=None, help=f"known-failure list, relative to the repo (default {BASELINE})")
     parser.add_argument("--no-baseline", action="store_true", help="treat every failure as a regression")
+    parser.add_argument("--skip-baseline", default=None, help=f"expected skips, relative to the repo (default {SKIP_BASELINE})")
+    parser.add_argument("--no-skip-baseline", action="store_true", help="treat every skip as a regression")
     args = parser.parse_args(argv)
 
     repo = Path(args.repo).resolve() if args.repo else repo_root()
     baseline_path = repo / (args.baseline or BASELINE)
     baseline = set() if args.no_baseline else load_baseline(baseline_path)
+    skip_baseline_path = repo / (args.skip_baseline or SKIP_BASELINE)
+    skip_baseline = set() if args.no_skip_baseline else load_baseline(skip_baseline_path)
 
     print(f"voice tests: {sys.executable} (Python {platform.python_version()}) on {platform.platform()}")
     print(f"repo: {repo}")
@@ -162,6 +190,7 @@ def main(argv: list[str] | None = None) -> int:
             optional = missing_optional_module(error)
             if optional:
                 skipped.append((module_name, OPTIONAL_MODULES[optional]))
+                group(group_name)["skipped"] += 1
             else:
                 failures.append((module_name, "import", f"{type(error).__name__}: {error}"))
                 group(group_name)["failed"] += 1
@@ -192,7 +221,8 @@ def main(argv: list[str] | None = None) -> int:
         for test, reason in result.skipped:
             skipped.append((test.id(), reason))
             counters["skipped"] += 1
-        counters["passed"] += result.testsRun - len(result.errors) - len(result.failures) - len(result.skipped)
+        failed_ids = {test.id() for test, _ in result.errors} | {test.id() for test, _ in result.failures}
+        counters["passed"] += max(0, result.testsRun - len(failed_ids) - len(result.skipped))
 
     node_result = run_node_suite(repo)
     if node_result is not None:
@@ -239,11 +269,31 @@ def main(argv: list[str] | None = None) -> int:
             print(f"  {name}")
         print()
 
+    current_skips = {name for name, _ in skipped}
+    new_skips = sorted(current_skips - skip_baseline)
+    stale_skips = sorted(skip_baseline - current_skips)
+    if new_skips:
+        print(f"skips not in {skip_baseline_path.relative_to(repo).as_posix()} ({len(new_skips)}):")
+        for name in new_skips:
+            print(f"  {name}")
+        print("Fix the cause, or add the id with its reason to that file if the skip is expected.")
+        print()
+    if stale_skips:
+        print("skip baseline entries that no longer skip, delete them:")
+        for name in stale_skips:
+            print(f"  {name}")
+        print()
+
     elapsed = time.monotonic() - started
-    if regressions:
-        print(f"voice tests FAILED: {len(regressions)} failure(s) not in the baseline.")
+    if regressions or new_skips:
+        print(
+            f"voice tests FAILED: {len(regressions)} failure(s) not in the baseline, "
+            f"{len(new_skips)} skip(s) not in the skip baseline."
+        )
         for name, kind, detail in regressions:
             print(f"  {name} ({kind}) {detail}")
+        for name in new_skips:
+            print(f"  skipped: {name}")
         print(f"{total_run} python tests ran in {elapsed:.1f}s.")
         return EXIT_REGRESSION
 
