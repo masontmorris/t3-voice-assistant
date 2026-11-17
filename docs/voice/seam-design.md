@@ -112,7 +112,7 @@ apps/server/src/voiceSeam/
 	VoiceSeam.ts        the service: hello, listThreads, readThread, launch, send, interrupt, watch
 	watch.ts            the prune checks, the replay, the live follow, and the resubscribe loop
 	events.ts           pure distiller from a stored event to a signal
-	outcome.ts          the settle read and the run result, shared by watch and readThread
+	outcome.ts          the settle read, the pending join, and the run result, shared by watch and readThread
 	ceiling.ts          VoiceSeamConfig schema, read from <T3 home>/voice-seam.json, and pure clamp helpers
 	protocol.ts         Effect Schemas for the JSON frames. This is the only wire definition.
 	fixtures/           stored events recorded from Replay (dev) turns
@@ -140,7 +140,7 @@ export type VoiceRequestId = string & { readonly VoiceRequestId: unique symbol }
 /** How a thread reads to someone asking about it. Derived from the shell row alone. */
 export type ThreadActivity =
 	| "working" // activityRunStatus is preparing, starting, or running
-	| "waiting_on_you" // a pending runtime request, or a secret or link card
+	| "waiting_on_you" // the shell's pendingRuntimeRequest: any pending request, or a secret or link card (ProjectionStore.ts:1726-1811)
 	| "waiting_on_background" // the turn ended, and awaited background work holds completion
 	| "queued"
 	| "idle" // no run yet
@@ -244,7 +244,7 @@ export type VoiceTerminalStatus = "completed" | "failed" | "interrupted" | "canc
 /**
  * Cursor events: each comes from exactly one stored event, and `sequence` is that event's global sequence.
  * `done` comes from a settle read. Its `sequence` is the stored event that triggered the read, and
- * `asOfSequence` is the thread's sequence at the read. Neither moves Python's cursor.
+ * `asOfSequence` is the thread's sequence, read in the same transaction as the result. Neither moves Python's cursor.
  */
 export type VoiceEvent =
 	| { readonly type: "run"; readonly threadId: ThreadId; readonly runId: RunId; readonly status: VoiceRunStatus; readonly sequence: number }
@@ -261,7 +261,7 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
 	]),
 	/** Short text the voice may speak. Never built from a cause. */
 	message: Schema.String,
-	/** For "refused" only: T3's recorded rejection, the receipt's `error`, cut to 200 characters. */
+	/** For "refused" only: T3's recorded rejection, the receipt's `error`, cut to 200 characters. Absent when `error` is null (CommandReceiptStore.ts:50). */
 	reason: Schema.optional(Schema.String),
 	/** For "refused" only: the command whose receipt was read, so the claim traces to it. */
 	commandId: Schema.optional(CommandId),
@@ -295,6 +295,7 @@ const make = Effect.gen(function* () {
 	const threads = yield* ThreadManagementService.ThreadManagementService;
 	const launches = yield* ThreadLaunch.ThreadLaunchService;
 	const eventStore = yield* OrchestrationEventStore.OrchestrationEventStore;
+	const projects = yield* ProjectStore.ProjectStoreV2;   // in the route context, as ws.ts:1451 yields it
 	const config = yield* Ceiling.VoiceSeamConfigFile;
 
 	const listThreads = Effect.fn("VoiceSeam.listThreads")(function* (caller, input) {
@@ -302,11 +303,13 @@ const make = Effect.gen(function* () {
 		// require "list"
 		// loadSubscriberShellSnapshot({ sql, listShellIndex: threads.listActiveShellIndex(),
 		//   readThreads: ids => threads.readShellSnapshot({ location: "active", threadIds: ids }),
-		//   listProjects, latestSequence: eventStore.latestApplicationSequence,
+		//   listProjects: projects.listShells(),   // ProjectStore.ts:300, as ws.ts:1183 passes it
+		//   latestSequence: eventStore.latestApplicationSequence,
 		//   options: { omitIdleSubagents: true, omitOlderSettled: false } })   // one read-only transaction, as http.ts:88-98
 		//   // omitOlderSettled: false. The opt-in keeps only the 25 newest settled top-level threads and
 		//   // reports the rest as a per-project count (ShellStream.ts:199, :330-345). The seam would drop
-		//   // that count, so it reads every active shell, as a client that does not opt in does (ws.ts:1145-1146).
+		//   // that count, so it reads every active shell, as a client that does not opt in does. Both opt-ins
+		//   // default to false (ws.ts:1186-1187, flags declared at :1145-1146).
 		// keep rows where isListedThreadLineage(row.lineage) && !isDelegatedAppThread(row), the rule of
 		//   listProjectThreads (ThreadManagementService.ts:844-866), and row.projectId is allowed
 		// map with deriveActivity; sort by lastActivityAt descending
@@ -325,7 +328,7 @@ const make = Effect.gen(function* () {
 		//     { runIds: [shell.latestRunId], messageRoles: ["assistant"], messageRunIds: [shell.latestRunId],
 		//       turnItemRunIds: [shell.latestRunId], turnItemTypes: RESULT_AND_REQUEST_ITEM_TYPES,
 		//       runtimeRequestStatuses: ["pending"] })
-		// pending = Pending.fromRecords(records)                      // the join described under "Events back to the voice"
+		// pending = Outcome.pendingJoin(shell, records)               // the join described under "Events back to the voice"
 		// lastReply = activity is terminal ? Outcome.runResult(records, run) : shell.latestVisibleMessage (assistant only)
 		return yield* Effect.die("not implemented");
 	});
@@ -333,7 +336,10 @@ const make = Effect.gen(function* () {
 	const launch = Effect.fn("VoiceSeam.launch")(function* (caller, input) {
 		// TODO
 		// require "launch" and an allowed project; requestId must decode as a ULID
-		// commandId = sha256(["voice", "launch", requestId]); threadId = messageId = commandId
+		// commandId = voiceCommandId("launch", requestId); threadId = ThreadId.make(commandId); messageId = MessageId.make(commandId)
+		//   // voiceCommandId(op, id) = `voice:${op}:` + Hex.encode(sha256(UTF-8 of JSON.stringify(["voice", op, id])))
+		//   // e.g. "voice:launch:" + 64 lowercase hex characters, 77 in all. This is the MCP shape
+		//   // `mcp:launch:<hex>` (mcp/toolkits/project/handlers.ts:97-105, :127-128) with a voice prefix.
 		// launchReceipt = receipts.getByCommandId(commandId)          // never call launch on a receipt
 		// messageReceipt = receipts.getByCommandId(`${commandId}:initial-message`)   // ThreadLaunchService.ts:1373
 		// match:
@@ -353,7 +359,7 @@ const make = Effect.gen(function* () {
 	const send = Effect.fn("VoiceSeam.send")(function* (caller, input) {
 		// TODO
 		// require "send" and an allowed project
-		// commandId = sha256(["voice", "send", requestId]); messageId = commandId
+		// commandId = voiceCommandId("send", requestId); messageId = MessageId.make(commandId)
 		//   // both from the request id alone, so a crash retry dispatches the same command and the
 		//   // service finds the same message by messageId (ThreadManagementService.ts:942-945)
 		// receipt = receipts.getByCommandId(commandId); rejected -> refusal "refused", reason = receipt.error, commandId
@@ -367,7 +373,7 @@ const make = Effect.gen(function* () {
 	const interrupt = Effect.fn("VoiceSeam.interrupt")(function* (caller, input) {
 		// TODO
 		// require "interrupt" and an allowed project; no DispatchModeLimit, so the voice can stop any thread it can see
-		// threads.interruptThread with commandId = sha256(["voice", "interrupt", requestId])
+		// threads.interruptThread with commandId = voiceCommandId("interrupt", requestId)
 		// interrupt_requested -> requested; no_active_run or already_terminal -> nothing_running
 		return yield* Effect.die("not implemented");
 	});
@@ -388,7 +394,7 @@ The gate reads the whole receipt, not `hasReceipt`. `hasReceipt` (`ThreadManagem
 | Launch receipt | Initial-message receipt | Answer |
 | --- | --- | --- |
 | none | (not read) | call `launch`. A mode or ceiling refusal arrives live, and the seam maps it to `above_ceiling` (inferred). A retry runs the same check again. |
-| rejected | (not read) | `refused`, with the recorded `error` as `reason`. No thread exists. |
+| rejected | (not read) | `refused`, with the recorded `error` as `reason`, or no `reason` when `error` is null. No thread exists. |
 | accepted | rejected | `refused`, with `reason` and `threadId`. The thread exists, and its first message was refused. |
 | accepted | accepted or none | read the shell. A missing or deleted shell is `gone`. Otherwise the replayed result from current state. |
 
@@ -417,22 +423,24 @@ The watch has three parts: the event path, a pure distiller, and two reads. The 
 | `subagent.updated` or `provider-thread.updated` | a settle check | `done` only if the settle read says so |
 | `message.updated` with role `assistant` and `streaming: false` | the message | `reply`, unless this watch already emitted that `messageId` |
 | `runtime-request.updated` with status `pending` | the request id and kind | `needs_you`, after the pending read |
-| `runtime-request.updated` with status `resolved`, `expired`, or `cancelled` | the request id and status | `resolved` |
-| `turn-item.updated` with a pending `secret_request` or `link_request` | the item id | `needs_you` with kind `in_app` |
+| `runtime-request.updated` with status `resolved`, `expired`, or `cancelled` | the request id and status, plus a settle check | `resolved`, then `done` only if the settle read says so |
+| `turn-item.updated` with a pending `secret_request` or a waiting `link_request` | the item id | `needs_you` with kind `in_app` |
+| `turn-item.updated` with any other `secret_request` or `link_request` | a settle check | `done` only if the settle read says so |
 | `thread.deleted` | gone | `gone`, and the watch ends with no settle check |
 | everything else | nothing | nothing |
 
-The settle triggers are the event types `waitForThread` subscribes to itself with `untilDelegatedWorkSettled` (`ThreadManagementService.ts:1077-1095`, measured): every `run.updated`, `subagent.updated`, and `provider-thread.updated`, plus `thread.deleted`, which the watch turns into `gone` instead. Any `run.updated` can settle the thread, not only a terminal one. A new run that replaces a cut run, and a run update that releases a parent's wait, are both non-terminal events that change the answer (inferred from `outcome` and `delegatedWorkResult` in `ThreadManagementService.ts:1022-1053`).
+The settle triggers start with the event types `waitForThread` subscribes to itself with `untilDelegatedWorkSettled` (`ThreadManagementService.ts:1077-1095`, measured): every `run.updated`, `subagent.updated`, and `provider-thread.updated`, plus `thread.deleted`, which the watch turns into `gone` instead. The seam adds the two events that end a need that the settle read holds `done` for (step 4 below): a request that leaves `pending`, and a card that stops waiting. A link card also stops asking when Mason writes in the thread again (`ProjectionStore.ts:1739-1744`, measured). That message starts or queues a run, so a `run.updated` follows (inferred). Any `run.updated` can settle the thread, not only a terminal one. A new run that replaces a cut run, and a run update that releases a parent's wait, are both non-terminal events that change the answer (inferred from `outcome` and `delegatedWorkResult` in `ThreadManagementService.ts:1022-1053`).
 
 The interrogate pass counted 1,078 streaming message frames among 158,596 stored events in a read-only copy of real data (measured there, not re-run here). The distiller drops them. The same count found 3,096 messages with one final frame and 9 with two, so duplicate finals are real. The seam and Python both dedupe `reply` on `messageId`.
 
 **The settle read decides "done".** A terminal `run.updated` from a replay can belong to a run that a later run has replaced. A replayed event cannot tell that, so the distiller never decides "done". On each settle check, `outcome.ts` reads fresh state:
 
-1. It reads the thread's event sequence, then calls `threads.waitForThread({ projectId, threadId, timeoutMs: 1, untilDelegatedWorkSettled: true })`. With no `runId`, `waitForThread` selects the thread's latest run, follows restart continuations, and waits for children, background tasks, and completion deliveries through `delegatedTaskResultPending` (`ThreadManagementService.ts:991-1125`, measured). A 1 ms timeout makes it a check, not a wait (inferred).
-2. The result has two runs (`ThreadManagementWaitResult`, `ThreadManagementService.ts:191-197`, measured). `run` is the selected run after restart continuations. `resultRun`, present only once settled, is the run that holds the thread's final answer, and it can differ from `run` when delegated work finished in a later run. The check counts as settled only when `timedOut` is false and `resultRun` is present.
-3. If it is not settled, nothing is spoken. If `run` is terminal and the check still timed out, a restart continuation or delegated work is pending. A declined continuation stores no event (`ThreadManagementService.ts:1075-1076`, `:1107-1109`), so no trigger would arrive. The watch then forks one follow-up `waitForThread` with a 60 s timeout, which also wakes on `awaitRestartContinuation`. Its result counts as a settle read, and it repeats while the answer stays terminal and unsettled. A watch has at most one follow-up in flight, and `unwatch` interrupts it.
-4. If it settled, the seam reads `resultRun`'s records, narrowed by its run id, and computes the result with `subagentResultForRun`. That function orders by turn item, because providers can finalize two messages with the same timestamp. It also returns an error turn item for a failed run and honors stop notices (`subagentProjection.ts:254-330`, measured). The seam passes no `runs`, so the function never falls back to an earlier run's reply (inferred from `delegatedTaskReportRuns`, `subagentProjection.ts:224-249`).
-5. The `done` event has `runId = resultRun.id`, `status = resultRun.status`, which is one of the five `VoiceTerminalStatus` values, and that run's result. Its `asOfSequence` is the sequence from step 1, and its `sequence` is the trigger's.
+1. It calls `threads.waitForThread({ projectId, threadId, timeoutMs: 1, untilDelegatedWorkSettled: true })`. With no `runId`, `waitForThread` selects the thread's latest run, follows restart continuations, and waits for children, background tasks, and completion deliveries through `delegatedTaskResultPending` (`ThreadManagementService.ts:991-1125`, measured). A 1 ms timeout makes it a check, not a wait (inferred). If it fails with `ThreadManagementThreadNotFoundError` (`ThreadManagementService.ts:835-841`, measured), the thread was deleted or left its project. The watch then ends with `watch_ended` reason `gone`, not `unavailable`, and emits no `done`.
+2. The result has two runs (`ThreadManagementWaitResult`, `ThreadManagementService.ts:191-197`, measured). `run` is the selected run after restart continuations. `resultRun`, present only once settled, is the run that holds the thread's final answer, and it can differ from `run` when delegated work finished in a later run. The check passes this step only when `timedOut` is false and `resultRun` is present.
+3. If it did not pass, nothing is spoken. If `run` is terminal and the check still timed out, a restart continuation or delegated work is pending. A declined continuation stores no event (`ThreadManagementService.ts:1075-1076`, `:1107-1109`), so no trigger would arrive. The watch then forks one follow-up `waitForThread` with a 60 s timeout, which also wakes on `awaitRestartContinuation`. Its result counts as a settle read, and it repeats while the answer stays terminal and unsettled. A watch has at most one follow-up in flight, and `unwatch` interrupts it.
+4. If it passed, the seam reads four things in one read-only transaction: the thread's event sequence, the shell, `resultRun`'s records narrowed by its run id, and the pending runtime requests. It runs `pendingJoin` over them, the same join that `readThread` runs. `waitForThread` never looks at requests or cards (`ThreadManagementService.ts:1031-1033`, `:1064`, `Orchestrator.ts:16203-16206`, measured), so it can settle while T3 shows the thread as waiting on Mason. Two cases do that. A link card waits on the user after its run ends (`ProjectionStore.ts:1726-1737`), and the shell still reports it as `pendingRuntimeRequest` (`:1791-1811`). A pending `user_input` whose `responseCapability` is `message` does not hold its run, because T3 leaves it out of waiting (`RestartContinuation.ts:68-78`), but the shell reports it too (`ProjectionStore.ts:1773-1782`, with `blocking: false` at `:1708`). All four citations are measured. If the join finds a need, the check is not settled. Nothing is spoken, the watch stays open, and no follow-up wait is forked, because the need ends with a stored event that triggers the next check. The need's `needs_you` comes from its own stored event, which the watch emits when the stream reaches it. The read never emits a `needs_you` itself, because a read has no stored sequence to give it.
+5. If no need is pending, the seam computes the result with `subagentResultForRun` over the records from step 4. That function orders by turn item, because providers can finalize two messages with the same timestamp. It also returns an error turn item for a failed run and honors stop notices (`subagentProjection.ts:254-330`, measured). The seam passes no `runs`, so the function never falls back to an earlier run's reply (inferred from `delegatedTaskReportRuns`, `subagentProjection.ts:224-249`).
+6. The `done` event has `runId = resultRun.id`, `status = resultRun.status`, which is one of the five `VoiceTerminalStatus` values, and that run's result. Its `asOfSequence` is the sequence from step 4, so it is exact for the result and the pending join. Its `sequence` is the trigger's.
 
 Settle checks run one at a time per watch, and triggers that arrive while one runs collapse into a single next check. A replay batch runs at most one check, after the whole batch is emitted, with the last trigger in the batch as its `sequence`. A live trigger's check runs after that event's own voice event is emitted. So `done` never precedes an event at or below its own `sequence`.
 
@@ -440,24 +448,28 @@ Settle checks run one at a time per watch, and triggers that arrive while one ru
 
 | Event | Compared with the cursor | Moves the cursor | Dedupe beyond the cursor |
 | --- | --- | --- | --- |
-| `run`, `reply`, `needs_you`, `resolved`, `gone` | applied only when `sequence > cursor` | to `sequence`, saved before the next event | `run` on its pair of run id and status, `reply` on `messageId` |
-| `done` | never | never | applied once per task. A second `done` for a completed task is dropped. |
+| `run`, `reply`, `needs_you`, `resolved`, `gone` | applied only when `sequence > cursor` | to `sequence`, saved before the next event | `run` on its pair of run id and status, `reply` on `messageId`, `needs_you` and `resolved` on `requestId` |
+| `done` | never | never | applied once per task. A second `done` for a completed task is dropped. When `result.messageId` is already in `T3Link.replies`, `done` speaks only its status line. |
 | `watch_ended` | never | never | none |
 
 `done` is exempt because its `sequence` names the trigger, not the state it reports. The settle read can see state past events the watch has not yet emitted: a reconnect replay emits through the high-water while the read sees the store now, and a live trigger's read sees events committed after it. A cursor moved to the read's sequence would skip those events, and a re-watch would never replay them. A pending `needs_you` could vanish that way. With the exemption, the cursor only ever reaches a sequence whose stored event Python has applied, so a re-watch from it misses nothing (inferred).
 
-A separate applied watermark would also work. It would need a checkpoint frame after each stored event and an idempotent apply for every event type, because events would replay up to the last checkpoint. The exemption costs one rule for the one event that comes from a read, so the design takes it. After `done`, Python unwatches. Events past the trigger that the watch had not yet emitted are then dropped. They are safe to drop, because the settle read already includes them. A request still pending holds its run in `waiting`, which is not terminal, so the read would not have settled (inferred).
+A separate applied watermark would also work. It would need a checkpoint frame after each stored event and an idempotent apply for every event type, because events would replay up to the last checkpoint. The exemption costs one rule for the one event that comes from a read, so the design takes it. After `done`, Python unwatches. Events past the trigger that the watch had not yet emitted are then dropped. They are safe to drop, because the settle read already includes them, and the read emits `done` only when the pending join finds no need at its `asOfSequence` (step 4). Any `needs_you` dropped this way was resolved by the time of the read. A blocking request holds its run in `waiting`, which `waitForThread` already reads as unsettled. A link card and a message-capability question do not hold the run, so only the pending join catches them.
+
+A crash after Python applies a `needs_you` or `resolved` and before it saves the cursor replays that event on the next watch. The `requestId` dedupe drops the repeat, so the voice does not ask twice. A `reply` at sequence N and a `done` at N+1 for the same message would speak the same result twice, so `done` speaks its text only when the task has not already spoken that message as a reply.
 
 **The pending read builds `needs_you`.** A `runtime-request.updated` payload has an id, a kind, and a status, and no text (`packages/contracts/src/orchestrationV2.ts:1283-1307`, measured). The text lives on the turn item with the same request id: `approval_request` has `prompt` and `reason` (`:1811-1821`), and `user_input_request` has `questions[].question` (`:1766-1773`, `:1437-1440`). On a pending request, the seam reads that turn item with `getThreadRecords(threadId, ["turnItems"], { turnItemRequestIds: [id] })`. `readThread` uses the same join. The kinds map like this (the 5 provider kinds are at `packages/contracts/src/providerPolicy.ts:49-55`):
 
 | Runtime request kind | `needs_you` kind | Prompt |
 | --- | --- | --- |
 | `command`, `file-read`, `file-change`, `permission`, `mcp-elicitation` | `approval` | the turn item's `prompt`, else its `reason`, else a fixed line per kind |
-| `user_input` | `question` | the first question, plus "and N more" |
+| `user_input`, with any `responseCapability`, `message` included | `question` | the first question, plus "and N more" |
 | `dynamic_tool_call`, `auth_refresh` | none | T3 does not count these as waiting on the user (`RestartContinuation.ts:68-72`, measured) |
 | a secret or link card, which the shell reports as `user_input` with `userOnly` (`ProjectionStore.ts:1712-1723`) | `in_app` | a fixed line: "It needs something from you in the app." |
 
 A pending request whose turn item is not yet stored gets the fixed line for its kind. The recorded fixture shows which arrives first.
+
+`pendingJoin(shell, records)` in `outcome.ts` is the one rule for "a need is pending", used by `readThread` and by step 4 of the settle read. A card counts when the shell's `pendingRuntimeRequest` has `userOnly`, so T3's own rule decides whether a link card still asks. Otherwise the need is the newest pending runtime request in `records` whose kind maps to `approval` or `question` above. Its prompt comes from the turn item with the same request id.
 
 **The event path.** `watch.ts` follows the order that `/ws` uses for `subscribeThread` (`ws.ts:1033-1123`, measured), on every subscribe and every resubscribe:
 
@@ -593,11 +605,15 @@ class T3TaskService(MockTaskService):
 		#   interrupted -> CANCELLED, "It was stopped."
 		#   cancelled   -> CANCELLED, "It was cancelled."
 		#   rolled_back -> CANCELLED, "Its work was rolled back."
+		#   If done.result.messageId is in link.replies, speak only the status line, not the text again.
 		#   Then unwatch.
 		# run: progress only. A terminal run event never completes a task.
 		# watch_ended resync: read_thread, speak only from it, re-watch from its as_of_sequence.
+		# watch_ended gone (a settle check found no thread): FAILED, "I can't see that thread any more."
+		# needs_you and resolved: skip a requestId already applied with that event type.
 		# gone (event): FAILED, "That thread was deleted." Only a stored thread.deleted produces it.
-		# A launch refusal "refused" is FAILED, "T3 refused to start it: <reason>". Never spoken as deleted.
+		# A launch refusal "refused" is FAILED, "T3 refused to start it: <reason>", or "T3 refused to start it."
+		#   when reason is absent. Never spoken as deleted.
 ```
 
 A T3 task record links to its thread through `Execution.t3`, a `T3Link`, which `T3Journal` saves so a restarted voice server re-watches each thread from its cursor. `take_updates` and `build_snapshot` gain one field per entry, `evidence: {thread_id, sequences}`. Snapshot status still comes from the `Execution` alone, so T3 adds no state that the voice model can read around the task record.
@@ -695,7 +711,7 @@ Verification after revision: I re-read every load-bearing citation in this doc a
 - We accept `creationSource: "server"` and `createdBy: "user"` on voice launches in exchange for no contracts edit. The voice's task records, not a T3 field, record which threads the voice started.
 - We accept a voice-owned JSON protocol beside T3's Effect RPC, in exchange for Python never parsing T3 wire shapes. Python has exactly one way in.
 - We accept an extractive result summary, the first two sentences of T3's own result for the settled run, over a model-written one. It is less fluent, and it cannot invent.
-- We accept a settle read after every `run.updated`, `subagent.updated`, and `provider-thread.updated`, coalesced to one in flight per watch, plus a 60 s follow-up wait while a terminal run is unsettled. That costs a few reads per run, in exchange for never saying "done" from a stale event and never missing a settle that stores no event (inferred cost).
+- We accept a settle read after every `run.updated`, `subagent.updated`, and `provider-thread.updated`, and after each request or card that stops waiting, coalesced to one in flight per watch, plus a 60 s follow-up wait while a terminal run is unsettled. That costs a few reads per run, in exchange for never saying "done" from a stale event and never missing a settle that stores no event (inferred cost).
 - We accept reading every active shell for each Twin B listing, more than the trimmed snapshot that T3's own clients read, in exchange for a list from which "no such thread" is true. Unit 3 measures the read on a copy of real data.
 - We accept that a request with no confident project asks Mason instead of handing it to a frontier agent to work out. That costs a turn.
 
@@ -734,7 +750,7 @@ Each question carries a recommendation. The design proceeds on the recommendatio
 
 ## Risks
 
-- **Event order within a turn is inferred.** Whether an approval's turn item is stored before its runtime request decides whether `needs_you` gets the real prompt or the fixed line. The first unit records it.
+- **Event order within a turn is inferred.** Whether an approval's turn item is stored before its runtime request decides whether `needs_you` gets the real prompt or the fixed line. Where a link card's `turn-item.updated` and a message-capability question's `runtime-request.updated` fall against the run's terminal `run.updated` decides whether a settle read can see the need before the watch emits it. The first unit records both.
 - **The launch-policy copy can drift.** The parity test catches the drift, and the fallback is in-process MCP for launch.
 - **Reads can write.** `getThreadRecords` first runs `ensureLegacyTranscript`, which can import a v1 transcript (`ThreadManagementService.ts:655-677`, `:1742-1746`, measured). `readThread` calls it once before its read-only transaction. If the second call inside `getThreadRecords` tries to write within that transaction, the unit test fails and `readThread` moves the records read out of the transaction, reading the sequence first.
 - **The settle read uses `waitForThread` with a 1 ms timeout.** That still opens and closes event subscriptions on each check (inferred from `ThreadManagementService.ts:1077-1116`). Unit 2 counts the reads per run, and if they cost too much it calls the same evaluation without the wait.
@@ -745,9 +761,9 @@ Each question carries a recommendation. The design proceeds on the recommendatio
 
 Each unit is one small PR into `voice/main` that ends in a check. A unit starts only after the units it depends on have merged. Units 1 to 6 live in `apps/server/src/voiceSeam/` and do not mount the route until unit 4, so `server.ts` stays untouched until then.
 
-1. **The distiller and the event path.** Write `events.ts`, the pure map from a stored event to a signal, with a settle-check flag on every `run.updated`, `subagent.updated`, and `provider-thread.updated`. Write `watch.ts`, with the two prune checks, the replay measured against both the count and the payload-byte budgets before it is read, the live follow from the high-water, the resubscribe loop that unwraps `LiveStreamBufferError`, the per-watch `reply` dedupe on `messageId`, and a settle hook that runs one check at a time, coalesces triggers, and runs once after a replay batch. Until unit 2, the hook emits nothing. Record stored events from Replay (dev) turns into `fixtures/`: a plain reply, an approval, a user-input question, an interrupted run, a failed run, and a run that starts a subagent. Proof: `events.test.ts` is a table over those fixtures, and its first rows record the event order the risks name. `watch.test.ts` covers a cursor below the floor that resyncs before the replay, a prune that lands during the replay read and resyncs after it, a wrapped buffer error that resubscribes from `lastSeen` with no duplicate and no gap, a replay over 1 MiB of payload that resyncs, and a cursor at the high-water that replays nothing. Depends on nothing.
-2. **The settle read and the run result.** Write `outcome.ts`: the `waitForThread` check, the 60 s follow-up wait, and `subagentResultForRun` over `resultRun`'s records. Wire it into the settle hook as the only source of `done`. Proof: `outcome.test.ts` over fixtures shows an old run's terminal event replayed while a newer run is active emits no `done`, a parent emits `done` only after its subagent settles and with `runId` equal to `resultRun.id`, a failed run's result is its error text, a rolled-back run emits `done` with status `rolled_back`, and a message with two finals yields one `reply`. `watch.test.ts` gains the cursor case: a reconnect replay whose settle read sees a later `needs_you` emits `done` with the trigger's `sequence`, and a re-watch from the last cursor event still delivers that `needs_you`. Depends on 1.
-3. **List and read.** Write `listThreads` and `readThread`, with the one read-only transaction, the lineage and project filter, `deriveActivity` from the shell row, and the pending join. Proof: `VoiceSeam.test.ts` on a seeded projection shows a subagent child and a delegated thread are absent from the list and read as `not_found`, a 26th-newest settled thread is listed, a cut list sets `total` and `truncated`, every runtime request kind maps as the table says, and a watch from a read's `asOfSequence` misses no event committed after the read. Depends on 1 and 2.
+1. **The distiller and the event path.** Write `events.ts`, the pure map from a stored event to a signal, with a settle-check flag on every `run.updated`, `subagent.updated`, and `provider-thread.updated`. Write `watch.ts`, with the two prune checks, the replay measured against both the count and the payload-byte budgets before it is read, the live follow from the high-water, the resubscribe loop that unwraps `LiveStreamBufferError`, the per-watch `reply` dedupe on `messageId`, and a settle hook that runs one check at a time, coalesces triggers, and runs once after a replay batch. Until unit 2, the hook emits nothing. The distiller also flags a settle check on a `runtime-request.updated` that leaves `pending`, and on a `secret_request` or `link_request` `turn-item.updated` that is no longer waiting. Record stored events from Replay (dev) turns into `fixtures/`: a plain reply, an approval, a user-input question, an interrupted run, a failed run, and a run that starts a subagent. Add two fixtures that Replay (dev) may not produce. If it cannot, record them from the orchestrator in a test. The first is a link card, the `link_request.record` command that `PeerLinkRequests.ts:124` sends, asked during a run that then completes, and then answered. The second is a `user_input` with `responseCapability` `message`, asked and then answered. Codex sends one for `responseMode: "message"` (`Adapters/CodexAdapterV2.ts:4801-4806`), and recovery writes one for a question that outlived its session (`ProviderRuntimeRecoveryService.ts:666-673`). Proof: `events.test.ts` is a table over those fixtures. Its first rows record the event order the risks name, including where each need's event falls against its run's terminal `run.updated`. `watch.test.ts` covers a cursor below the floor that resyncs before the replay, a prune that lands during the replay read and resyncs after it, a wrapped buffer error that resubscribes from `lastSeen` with no duplicate and no gap, a replay over 1 MiB of payload that resyncs, and a cursor at the high-water that replays nothing. Depends on nothing.
+2. **The settle read and the run result.** Write `outcome.ts`: the `waitForThread` check, `pendingJoin`, the 60 s follow-up wait, and `subagentResultForRun` over `resultRun`'s records. Wire it into the settle hook as the only source of `done`. Proof: `outcome.test.ts` over fixtures shows an old run's terminal event replayed while a newer run is active emits no `done`, a parent emits `done` only after its subagent settles and with `runId` equal to `resultRun.id`, a failed run's result is its error text, a rolled-back run emits `done` with status `rolled_back`, and a message with two finals yields one `reply`. A settle check that fails with `ThreadManagementThreadNotFoundError` ends the watch with `gone`, not `unavailable`. `watch.test.ts` gains two pending cases, one for the link card and one for the message-capability question. In each, the run settles with the need still pending, and the need's stored event lands after the last emitted event and at or below the read's sequence. The watch emits no `done` and stays open, then emits that `needs_you` from its stored event. It emits `done` only after the settle check that the need's end triggers, with the trigger's `sequence` and an `asOfSequence` read with the result. The test asserts that `done` never precedes that `needs_you`. Depends on 1.
+3. **List and read.** Write `listThreads` and `readThread`, with the one read-only transaction, the lineage and project filter, `deriveActivity` from the shell row, and `pendingJoin` from unit 2. Proof: `VoiceSeam.test.ts` on a seeded projection shows a subagent child and a delegated thread are absent from the list and read as `not_found`, a 26th-newest settled thread is listed, a cut list sets `total` and `truncated`, every runtime request kind maps as the table says, a link card after its completed run and a pending message-capability question both read as `waiting_on_you` with a `pending`, and a watch from a read's `asOfSequence` misses no event committed after the read. Depends on 1 and 2.
 4. **The route, the protocol, and the mount.** Write `route.ts`, `protocol.ts`, `ceiling.ts`, and the two `server.ts` lines, and add the `server.ts` entry to `docs/voice/seam.md`. The handler table has all seven entries, with `launch`, `send`, and `interrupt` answering `unavailable`. Proof: `route.test.ts` shows the seam answers 404 with no `voice-seam.json`, refuses a session without subject `voice`, and closes the socket when the session is revoked. `protocol.test.ts` fails when `voice/t3/seam.schema.json` is stale. `voice/ci/check_seam.py` passes. Depends on 3.
 5. **Launch.** Write `resolveLaunchPolicy`, the clamp, the seam's own `CommandReceiptStoreV2` layer, and the receipt gate, and replace the `launch` stub. Proof: the parity test against `t3_thread_launch` compares model, runtime mode, interaction mode, and workspace. A launch whose receipt exists never calls `ThreadLaunchService.launch`, even with its events pruned. Each row of the receipt table answers as it says: a rejected launch receipt answers `refused` with the recorded error, a rejected initial message answers `refused` with the thread id, and only an accepted launch whose thread was deleted answers `gone`. Depends on 4.
 6. **Send and interrupt.** Write the send receipt gate, the preflight, and `DispatchModeLimit`, and interrupt without it, replacing the last two stubs. Proof: on a thread raised above the ceiling, send refuses with `above_ceiling` and no worktree restore runs, while interrupt succeeds. A send retried with the same request id returns the same `messageId` and run, a rejected send receipt answers `refused`, and an accepted send replayed with its events pruned still answers. A second interrupt with the same request id answers `nothing_running`. Depends on 5.
