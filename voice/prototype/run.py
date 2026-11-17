@@ -416,6 +416,13 @@ def continue_note(heard, found, running):
             "from there in one short sentence, as \"I\", talking to them, without saying again what they heard.]")
 
 
+def interrupted_note():
+    """The note after the person talked over a reply. It does not quote the words they heard: quoting them primed
+    the model to go on with the old reply, and one reply read the note back (measured, docs/voice/barge-in.md)."""
+    return (NOTE_OPEN + "they interrupted your last reply and heard only its start. Answer what they said in this "
+            "turn in one short sentence, and do not repeat or continue that reply.]")
+
+
 class Spoken:
     """What one reply sends to the speaker across its answer and its re-asks: audio as each response's gate releases
     it, under the text heard so far, then one end."""

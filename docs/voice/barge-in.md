@@ -23,6 +23,13 @@ Goal (Mason's): talk to the assistant the way people talk to each other. Talking
    - The reply finishes first: a plain turn.
 4. **No lost words.** The barge-in turn opens with the overlap's audio, pre-roll included.
 5. **Record.** Every overlap is a line in `overlaps.jsonl`, and the barge-in turn's record names its overlap under `live.overlap`.
+6. **What the person heard.** A muted reply still finishes inside the call's one voice session, so the session holds a reply the person did not hear in full. Every barge-in, by voice or push-to-talk, records what they heard under `live.barge_in` in the new turn's record.
+   - The server keeps each reply a turn speaks as its own text and audio, because a turn can speak an answer and then a task update. It reads back the audio the playback clock says had played (`played_part`) and keeps the replies' text, joined in the order they were spoken, up to the last word the read-back matched (`heard_prefix`).
+   - A barge-in inside the 250 ms grace window, or one settled after the reply ended, heard the whole reply. The record says `whole: true` and no read-back runs. A reply still being released is never whole, even when its audio ran out, because its text runs ahead of its audio.
+   - The read-back runs beside the turns and never holds one: the next turn's reply and `turn_done` do not wait for it. A turn that ends first writes `heard: null, pending: true` and rewrites its record when the read-back lands. A read-back that fails, or takes over 5 s (`READBACK_TIMEOUT_S`, a guess, not a measured read-back time), records `heard: null` and the reason.
+   - `played_s` is the server's estimate from the audio it sent and its own clock, not the client's report. How far it can run past what the client played is not measured.
+   - A turn that continues a barge-in turn, because the person kept talking before it answered, takes over its record along with its audio.
+   - `--barge-in-note on` also puts one short note in front of the new turn's audio saying the person interrupted and heard only the reply's start. The record keeps the note and the session's answer to it (`note_item`). Nothing matched, or the whole reply heard, sends no note. With the note on, the turn waits for its read-back, up to the 5 s bound, before its audio goes in. The note ships off, because the measurement below found no gain.
 
 The voiced count uses a -60 dBFS floor. Call 2's quiet short turns peak near -40 dBFS, and the endpointer's -50 dBFS floor counts only 260 to 300 ms of "Answer the question." and "Okay, thanks." as voiced (measured).
 
@@ -53,9 +60,88 @@ End to end, on 2026-11-16 17:05 ET. One live server from this branch with `--moc
 
 **Offline bench.** `python -m voice.research.live.overlap_bench` on Mason's three live records gives 40 of 40 turns as barge-ins and 4 of 5 cut backchannels dismissed. The miss is the "Oh" cut above. The old rule dismissed 0 of 5.
 
+## The note after a barge-in
+
+The note ships off (`--barge-in-note off`). The record of what was heard stays on. The measurements below show no gain
+from the note, and one fair reading of them shows harm.
+
+**Quoting the heard words is worse (measured, 2026-11-17).** With a note that quoted the words heard, three answers
+continued the interrupted reply and two more talked about the note itself. So the note, when on, names no words. It
+says the person interrupted and heard only the reply's start.
+
+**The session comparison.** It runs the voice session alone, one LFM3 session per case, with no decider and no task
+service (`voice/research/live/bargein_note_session.py`, records under `$VOICE_HOME/evidence/live/bargein-note-session/`).
+The nine cases are the interruption clips of the gate-1 run: five of Mason's turns from the 2026-11-16 call and four
+synthetic commands. Each session runs the synthetic lighthouse request, its reply, then (with the note) the note, then
+the interruption. Each run generated its own interrupted reply, so the arms were not paired by design. In 8 of the 9
+cases the saved interrupted replies differ between all four runs (measured). In the ninth, "No, no."
+(`synth/turn_012.wav`), `control` and `note-noquote` saved the identical interrupted reply (measured). That one paired
+case reads against the note: the control stopped and the unquoted note continued the old reply, under both the hand
+labels and the harness score.
+
+Hand labels, read from the saved replies of the `control`, `note-noquote` and `note` runs:
+
+| Case | No note | Note, no quote | Note, quoted |
+| --- | --- | --- | --- |
+| Call-1 turn 4 | answered | answered | answered |
+| Call-1 turn 11 | answered | answered | answered |
+| Call-1 turn 16 | restarted | restarted | restarted |
+| Call-1 turn 21 | answered | answered | answered |
+| Call-1 turn 29 | continued | continued | continued |
+| "Stop." | stopped | continued | continued |
+| "Wait." | continued | continued | read the note aloud |
+| "No, no." | stopped | continued | repeated the old reply |
+| "Hold on." | continued | answered | continued |
+
+**The control ran twice.** `control-badjoin` started at 06:12 and `control` at 06:15, with the same configuration. The
+first run joined the reply's text pieces with spaces inside words (measured in its saved texts), which breaks the
+harness's word-based score but not the replies. Treat it as a second control sample.
+
+Three readings of the same runs, each a count of nine, not a rate:
+
+| Reading | No note, 06:12 | No note, 06:15 | Note, no quote | Note, quoted |
+| --- | --- | --- | --- | --- |
+| Harness score `reused_old_answer`, named before the runs | 4 (invalid: split words) | 7 | 7 | 8 |
+| Hand labels above: continued or ignored the interruption | not labelled | 3 | 4 | 5 |
+| Independent review's content rule | 1 | 1 | 3 | not read |
+
+The harness's own score puts no note and the unquoted note level at 7 of 9. The hand labels put the unquoted note one
+case worse. The review's content rule puts it two cases worse. The independent review reports that the same
+configuration moved by one case from run to run, which is as large as the one-case gap in the hand labels (reported by
+the review, not re-derived here). So there is no measured gain from the note, and the content rule reads it as harm.
+
+**The live-server A/B could not answer the question.** `$VOICE_HOME/evidence/live/bargein-note/`
+(`voice/research/live/bargein_note_ab.py`) runs the whole pipeline. The decider and the mock task service put their own
+text in front of the model, so both arms' replies were mostly the same failed-lookup line. The arms did not produce the
+same barge-in set either: 16 cases without the note, 10 with it. Its harness score is 11 of 16 without the note and 9 of
+10 with it. These runs used an older build that quoted the heard words. Their records hold that note under
+`live.barge_in_note` but carry no read-back field, and nothing in them shows where the note sat against the turn's
+audio (measured: no record has the read-back field). That order is shown by the unit test, not by these records.
+
+**Cutting the unheard part out instead.** Removing the unheard tail from the session would make a note unnecessary. The
+installed llama.cpp build (b12428) cannot do it. Its `llama-server-impl.dll` names none of `conversation.item.truncate`,
+`conversation.item.delete`, `conversation.item.retrieve` or `response.cancel` (measured, string search). The realtime
+dispatch in the llama.cpp source under `$VOICE_HOME/research/llamacpp-src` (`server-realtime.cpp`, `handle`) adds only
+`response.cancel`, which stops generation and removes nothing the session already holds. Truncation needs a patch that
+rewinds the session's KV cache to the heard point.
+
+**Before turning the note on.** A test that could show a gain needs:
+
+- Pairing. Both arms answer the same interrupted reply per case, injected as fixed text and audio, not regenerated per
+  run.
+- Seeds. A fixed sampling seed per sample, shared by both arms.
+- More than one sample per case. At least three seeds per case per arm, so the control-to-control spread is measured
+  before any effect is claimed.
+- A scoring rule named before the run and shown to catch the known failures on record: carrying on the old reply,
+  reading the note aloud, and repeating the old reply.
+- Cases where the interrupted answer is long and no task text follows it, so the decider and task service do not swamp
+  the note.
+- A gain larger than the measured control-to-control spread, reported per case as paired differences.
+
 ## What it does not do yet
 
 - **Speakers.** Echo is held to the voiced length like speech, so with speakers and the echo canceller off the reply would still stop itself after 600 ms. The transcript-stage echo check only catches short echoes. Speakers need issue #33's canceller.
 - **Another person or a TV.** Sustained speech from someone else is a barge-in, and with no reply playing it starts a turn. Telling it apart needs a level or speaker cue, calibrated on a recording that has those sounds. No such recording exists yet.
 - **Latency.** Stopping takes about 0.7 s from onset (measured, median), against 0.08 s before. The duck at about 0.1 s is the immediate cue. Lowering `--confirm-ms` trades that latency against stopping for "okay".
 - **Long backchannels.** A backchannel over 600 ms voiced ("yeah, yeah, totally") stops the reply.
+- **The note has no measured effect.** It ships off. The record of what was heard is kept on every barge-in. Turning the note on waits on the paired, seeded test described above.
