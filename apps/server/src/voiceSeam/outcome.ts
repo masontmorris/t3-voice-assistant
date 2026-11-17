@@ -88,6 +88,23 @@ const RESULT_ITEM_TYPES = [
   "system_notice",
 ] as const satisfies ReadonlyArray<OrchestrationV2TurnItem["type"]>;
 
+/** The join for a shell that shows a pending request or card, from the thread's pending records. */
+export const readPendingJoin = Effect.fn("VoiceSeam.outcome.readPendingJoin")(function* (
+  threads: Pick<Threads, "getThreadRecords">,
+  shell: Pick<OrchestrationV2ThreadShell, "id" | "pendingRuntimeRequest">,
+) {
+  const { runtimeRequests } = yield* threads.getThreadRecords(shell.id, ["runtimeRequests"], {
+    runtimeRequestStatuses: ["pending"],
+  });
+  const prompts =
+    runtimeRequests.length === 0
+      ? []
+      : (yield* threads.getThreadRecords(shell.id, ["turnItems"], {
+          turnItemRequestIds: runtimeRequests.map((request) => RuntimeRequestId.make(request.id)),
+        })).turnItems;
+  return pendingJoin(shell, { runtimeRequests, turnItems: prompts });
+});
+
 /**
  * The thread now, in one read-only transaction: its sequence first, so a need committed after it
  * shows in the records or in a later re-read, then the shell, its pending needs, and the result
@@ -105,17 +122,7 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
         const asOfSequence = yield* threads.getThreadEventSequence(threadId);
         const shell = yield* threads.getThreadShell(threadId);
         if (shell === null) return null;
-        const { runtimeRequests } = yield* threads.getThreadRecords(threadId, ["runtimeRequests"], {
-          runtimeRequestStatuses: ["pending"],
-        });
-        const prompts =
-          runtimeRequests.length === 0
-            ? []
-            : (yield* threads.getThreadRecords(threadId, ["turnItems"], {
-                turnItemRequestIds: runtimeRequests.map((request) =>
-                  RuntimeRequestId.make(request.id),
-                ),
-              })).turnItems;
+        const join = yield* readPendingJoin(threads, shell);
         const runIds = runIdsOf(shell);
         const records = yield* threads.getThreadRecords(
           threadId,
@@ -131,7 +138,7 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
         return {
           asOfSequence,
           shell,
-          join: pendingJoin(shell, { runtimeRequests, turnItems: prompts }),
+          join,
           records,
         };
       }),

@@ -199,6 +199,23 @@ it.effect("cuts the newest-first list at its limit and at 200, and counts what i
   }).pipe(provideSeam),
 );
 
+it.effect.each(Object.entries(FIXTURES).map(([name, events]) => ({ name, events })))(
+  "lists the same activity as it reads for the $name fixture",
+  ({ events }) =>
+    Effect.gen(function* () {
+      yield* write(events.map((stored) => stored.event));
+
+      const list = yield* listThreads();
+      const read = yield* Effect.forEach(list.threads, (summary) => readThread(summary.threadId));
+
+      assert.isAbove(list.threads.length, 0);
+      assert.deepStrictEqual(
+        list.threads.map((summary) => summary.activity),
+        read.map((state) => state.activity),
+      );
+    }).pipe(provideSeam),
+);
+
 const APPROVAL = FIXTURES.approval;
 const QUESTION = FIXTURES.question;
 
@@ -340,7 +357,7 @@ it.effect.each(REQUEST_KINDS)(
     }).pipe(provideSeam),
 );
 
-it.effect("reads an approval hidden behind a newer request that asks no one", () =>
+it.effect("lists and reads an approval hidden behind a newer request that asks no one alike", () =>
   Effect.gen(function* () {
     const approval = askAs(APPROVAL, { kind: "command", responseCapability: live });
     const later = DateTime.add(requestOf(APPROVAL).payload.createdAt, { seconds: 1 });
@@ -360,9 +377,9 @@ it.effect("reads an approval hidden behind a newer request that asks no one", ()
     const state = yield* readThread(threadId);
     const listed = (yield* listThreads()).threads.find((t) => t.threadId === threadId);
 
-    // The shell picks the newer request, so only the read's join sees the approval.
-    assert.strictEqual(listed?.activity, "working");
-    assert.strictEqual(state.activity, "waiting_on_you");
+    // The shell picks the newer request, so only the join sees the approval, and the list runs it.
+    assert.strictEqual(listed?.activity, "waiting_on_you");
+    assert.strictEqual(state.activity, listed?.activity);
     assert.deepStrictEqual(state.pending, {
       requestId: APPROVAL_ID,
       kind: "approval",

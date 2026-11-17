@@ -8,6 +8,7 @@ import {
   type RunId,
   type ThreadId,
 } from "@t3tools/contracts";
+import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -19,7 +20,13 @@ import * as SqlClient from "effect/sql/SqlClient";
 import { loadSubscriberShellSnapshot } from "../orchestration-v2/ShellStream.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
-import { cutAtSentence, readThreadNow, runResult } from "./outcome.ts";
+import {
+  cutAtSentence,
+  readPendingJoin,
+  readThreadNow,
+  runResult,
+  type PendingJoin,
+} from "./outcome.ts";
 import type { VoicePending } from "./pending.ts";
 import type { VoiceRunResult } from "./watch.ts";
 
@@ -154,6 +161,11 @@ const deriveActivity = (shell: OrchestrationV2ThreadShell): ThreadActivity => {
   }
 };
 
+/** The one rule for a thread's activity: a list and a read both apply it, so they cannot disagree. */
+const activityOf = (shell: OrchestrationV2ThreadShell, join: PendingJoin): ThreadActivity =>
+  // The join can find a need the shell's pick hides behind a request that asks no one.
+  join.kind === "need" ? "waiting_on_you" : deriveActivity(shell);
+
 const iso = (time: DateTime.Utc) => DateTime.formatIso(time);
 
 /** The latest run's newest final assistant message, for a thread that has not settled. */
@@ -212,12 +224,26 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
           right.id.localeCompare(left.id),
       );
     const listed = kept.slice(0, Math.min(input.limit ?? LIST_LIMIT, LIST_LIMIT));
+    // A shell with no pending pick has no pending request or waiting card, so only the others
+    // can differ from `deriveActivity`. These reads run at or after the snapshot's sequence, so
+    // a difference is an event a watch from `asOfSequence` replays.
+    const joins = new Map(
+      yield* sql
+        .withTransaction(
+          Effect.forEach(
+            listed.filter((shell) => shell.pendingRuntimeRequest !== null),
+            (shell) =>
+              readPendingJoin(threads, shell).pipe(Effect.map((join) => [shell.id, join] as const)),
+          ),
+        )
+        .pipe(NodeSqliteClient.readOnly, Effect.mapError(VoiceSeamRefusal.unavailable)),
+    );
     return {
       threads: listed.map((shell): VoiceThreadSummary => ({
         threadId: shell.id,
         projectId: shell.projectId,
         title: shell.title,
-        activity: deriveActivity(shell),
+        activity: activityOf(shell, joins.get(shell.id) ?? { kind: "none" }),
         lastActivityAt: iso(shell.updatedAt),
         pinned: shell.pinnedAt != null,
       })),
@@ -241,8 +267,7 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
     if (read === null || !isVisible(read.shell)) return yield* VoiceSeamRefusal.notFound();
     const { shell, records } = read;
     const pending = read.join.kind === "need" ? read.join.pending : null;
-    // The join can find a need the shell's pick hides behind a request that asks no one.
-    const activity = pending === null ? deriveActivity(shell) : "waiting_on_you";
+    const activity = activityOf(shell, read.join);
     const run = records.runs.find((candidate) => candidate.id === shell.latestRunId) ?? null;
     const lastReply =
       run === null
