@@ -9,10 +9,12 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
+import * as Ref from "effect/Ref";
 import { HttpRouter, HttpServer } from "effect/http";
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
 import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
+import * as SessionStore from "../auth/SessionStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
@@ -81,6 +83,8 @@ const connect = (url: string, token: string) => {
       socket.send(JSON.stringify({ id, op, input }));
       return id;
     },
+    /** Frames received and not yet taken by `next`. */
+    unread: frames as ReadonlyArray<Frame>,
     closed: closed.promise,
     close: () => socket.close(),
   };
@@ -118,10 +122,10 @@ const upgradeStatus = (url: string, token: string | null) =>
     socket.on("error", reject);
   });
 
-const serveSeam = Effect.gen(function* () {
-  yield* Layer.build(
-    HttpRouter.serve(VoiceSeamRoute.layer, { disableLogger: true, disableListenLog: true }),
-  );
+const serveSeam = Effect.fn("test.serveSeam")(function* (
+  route: typeof VoiceSeamRoute.layer = VoiceSeamRoute.layer,
+) {
+  yield* Layer.build(HttpRouter.serve(route, { disableLogger: true, disableListenLog: true }));
   const server = yield* HttpServer.HttpServer;
   const address = server.address;
   assert(address._tag !== "UnixPathAddress");
@@ -138,6 +142,36 @@ const serveSeam = Effect.gen(function* () {
     voiceSession: auth.issueSession({ subject: "voice", scopes: ["orchestration:read"] }),
   };
 });
+
+/** Revokes each session as the route marks it connected: after the upgrade's check, before hello. */
+const revokeOnConnect = Layer.effect(
+  SessionStore.SessionStore,
+  Effect.gen(function* () {
+    const real = yield* SessionStore.SessionStore;
+    const auth = yield* EnvironmentAuth.EnvironmentAuth;
+    return {
+      ...real,
+      markConnected: (sessionId) =>
+        auth
+          .revokeSession(sessionId)
+          .pipe(Effect.orDie, Effect.andThen(real.markConnected(sessionId))),
+    };
+  }),
+);
+
+/** Counts project reads, the first service call `hello` makes. */
+const countProjectReads = (reads: Ref.Ref<number>) =>
+  Layer.effect(
+    ProjectStore.ProjectStoreV2,
+    Effect.gen(function* () {
+      const real = yield* ProjectStore.ProjectStoreV2;
+      return {
+        ...real,
+        list: (input) =>
+          Ref.update(reads, (count) => count + 1).pipe(Effect.andThen(real.list(input))),
+      };
+    }),
+  );
 
 const seedProject = Effect.gen(function* () {
   const projects = yield* ProjectStore.ProjectStoreV2;
@@ -170,7 +204,7 @@ const live = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
 it.live("answers 404 while voice-seam.json is absent or does not decode", () =>
   live(
     Effect.gen(function* () {
-      const seam = yield* serveSeam;
+      const seam = yield* serveSeam();
       const { token } = yield* seam.voiceSession;
 
       assert.strictEqual(yield* Effect.promise(() => upgradeStatus(seam.http, token)), 404);
@@ -187,7 +221,7 @@ it.live("answers 404 while voice-seam.json is absent or does not decode", () =>
 it.live("refuses a session whose subject is not voice, and a request with no session", () =>
   live(
     Effect.gen(function* () {
-      const seam = yield* serveSeam;
+      const seam = yield* serveSeam();
       yield* seam.configure(CONFIG_TEXT);
       const other = yield* seam.auth.issueSession({
         subject: "voice-adjacent",
@@ -207,7 +241,7 @@ it.live("refuses a session whose subject is not voice, and a request with no ses
 it.live("closes the socket when the voice session is revoked", () =>
   live(
     Effect.gen(function* () {
-      const seam = yield* serveSeam;
+      const seam = yield* serveSeam();
       yield* seam.configure(CONFIG_TEXT);
       const session = yield* seam.voiceSession;
       const client = connect(seam.ws, session.token);
@@ -222,10 +256,31 @@ it.live("closes the socket when the voice session is revoked", () =>
   ),
 );
 
+it.live("closes a session revoked between the upgrade and hello before any service call", () =>
+  live(
+    Effect.gen(function* () {
+      const projectReads = yield* Ref.make(0);
+      const seam = yield* serveSeam(
+        VoiceSeamRoute.layer.pipe(
+          Layer.provide(Layer.mergeAll(revokeOnConnect, countProjectReads(projectReads))),
+        ),
+      );
+      yield* seam.configure(CONFIG_TEXT);
+      const client = connect(seam.ws, (yield* seam.voiceSession).token);
+
+      const closed = yield* Effect.promise(() => client.closed);
+
+      assert.strictEqual(closed.code, 1008);
+      assert.deepStrictEqual(client.unread, []);
+      assert.strictEqual(yield* Ref.get(projectReads), 0);
+    }),
+  ),
+);
+
 it.live("refuses a watch on a subagent or delegated thread with not_found", () =>
   live(
     Effect.gen(function* () {
-      const seam = yield* serveSeam;
+      const seam = yield* serveSeam();
       yield* seam.configure(CONFIG_TEXT);
       const parent = ThreadId.make("parent");
       yield* write([
@@ -265,7 +320,7 @@ it.live("refuses a watch on a subagent or delegated thread with not_found", () =
 it.live("sends hello first, answers each op, and starts a watch's events after its result", () =>
   live(
     Effect.gen(function* () {
-      const seam = yield* serveSeam;
+      const seam = yield* serveSeam();
       yield* seam.configure(CONFIG_TEXT);
       yield* seedProject;
       yield* write(PLAIN.map((stored) => stored.event));
