@@ -71,6 +71,7 @@ const CODECS: { readonly [Op in WireOp]: ReturnType<typeof codec<Op>> } = {
 };
 
 const close = (code: number, reason: string) => new Socket.CloseEvent(code, reason);
+const revoked = close(1008, "The voice session was revoked.");
 
 /**
  * One socket serves one authenticated voice caller under the ceiling read when it opened.
@@ -82,12 +83,15 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
   readonly caller: VoiceSeam.VoiceCaller;
   /** Completes when the caller's session is revoked or expires. */
   readonly invalidated: Effect.Effect<void, SessionStore.SessionCredentialVerificationError>;
+  /** Whether the session is still unrevoked and unexpired, read once the watcher is up. */
+  readonly stillActive: Effect.Effect<boolean, SessionStore.SessionCredentialInternalError>;
 }) {
   const { seam, caller } = input;
   const scope = yield* Scope.Scope;
   const writer = yield* input.socket.writer;
   const outbound = yield* Queue.bounded<string>(OUTBOUND_CAPACITY);
-  const ending = yield* Deferred.make<Socket.CloseEvent>();
+  /** The close frame to send, or null once the client has closed. */
+  const ending = yield* Deferred.make<Socket.CloseEvent | null>();
   const endWith = (event: Socket.CloseEvent) => Deferred.succeed(ending, event).pipe(Effect.asVoid);
   // Frames waiting for the writer. A full queue closes with 1013, and the client re-watches from
   // its cursors. The writer hands frames to `ws` without waiting, so `ws` buffers a slow reader.
@@ -197,13 +201,8 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     return yield* dispatch(op, id, raw);
   });
 
-  const hello = yield* seam.hello(caller).pipe(Effect.result);
-  if (hello._tag === "Failure") {
-    yield* Effect.logWarning("voice seam hello failed", { cause: hello.failure.cause });
-    return yield* writer.write(close(1011, "The voice seam could not start.")).pipe(Effect.ignore);
-  }
-  yield* send(encodeHello(hello.success));
-
+  const permits = yield* Semaphore.make(MAX_IN_FLIGHT);
+  const reader = yield* input.socket.reader;
   yield* Effect.forever(Queue.take(outbound).pipe(Effect.flatMap(writer.write))).pipe(
     Effect.ignore,
     Effect.forkIn(scope),
@@ -214,13 +213,11 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
         Effect.logWarning("voice seam could not watch its session", { cause }).pipe(
           Effect.andThen(endWith(close(1011, "The voice seam lost its session check."))),
         ),
-      onSuccess: () => endWith(close(1008, "The voice session was revoked.")),
+      onSuccess: () => endWith(revoked),
     }),
     Effect.forkIn(scope),
   );
 
-  const permits = yield* Semaphore.make(MAX_IN_FLIGHT);
-  const reader = yield* input.socket.reader;
   const readLoop = Effect.forever(
     reader.pull.pipe(
       Effect.flatMap((frames) =>
@@ -239,11 +236,29 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
       ),
     ),
   );
-  // A pull fails once the client closes the socket, which ends this socket's watches with it.
-  const ended = yield* Effect.raceFirst(
-    readLoop.pipe(Effect.ignore, Effect.as(null)),
-    Deferred.await(ending),
+  const serve = Effect.gen(function* () {
+    // A revocation before the watcher subscribed is caught here, before any service call.
+    const active = yield* input.stillActive.pipe(Effect.result);
+    if (active._tag === "Failure") {
+      yield* Effect.logWarning("voice seam could not check its session", { cause: active.failure });
+      return yield* endWith(close(1011, "The voice seam lost its session check."));
+    }
+    if (!active.success) return yield* endWith(revoked);
+    const hello = yield* seam.hello(caller).pipe(Effect.result);
+    if (hello._tag === "Failure") {
+      yield* Effect.logWarning("voice seam hello failed", { cause: hello.failure.cause });
+      return yield* endWith(close(1011, "The voice seam could not start."));
+    }
+    yield* send(encodeHello(hello.success));
+    // A pull fails once the client closes the socket, which ends this socket's watches with it.
+    return yield* readLoop;
+  });
+  yield* serve.pipe(
+    Effect.ignore,
+    Effect.andThen(Deferred.succeed(ending, null)),
+    Effect.forkIn(scope),
   );
+  const ended = yield* Deferred.await(ending);
   if (ended !== null) yield* writer.write(ended).pipe(Effect.ignore);
 });
 
@@ -294,6 +309,9 @@ export const layer = Layer.unwrap(
               seam,
               caller,
               invalidated: sessions.awaitInvalidation(sessionId, proofKeyThumbprint),
+              stillActive: sessions
+                .listActive()
+                .pipe(Effect.map((active) => active.some((row) => row.sessionId === sessionId))),
             }).pipe(Effect.scoped),
           () => sessions.markDisconnected(sessionId),
         );
