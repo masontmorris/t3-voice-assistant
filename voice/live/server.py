@@ -458,7 +458,7 @@ class Conversation:
                                     prior_utterances=tuple(turn_text["user"] for turn_text in self.ledger.conversation()
                                                            if "user" in turn_text),
                                     fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.ledger.tasks),
-                                    ask_pcm=live.ask.pcm(turn.out_rate),
+                                    ask_pcm=live.ask.pcm(turn.out_rate), asr_stagger=getattr(live.args, "asr_stagger", 1),
                                     simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True,
                                     recall=live.args.recall, context=self.ledger.context(),
                                     prior_results=tuple(self.ledger.results()))
@@ -562,7 +562,7 @@ async def main_async(args):
     lfm_args = ("-c", str(args.lfm_ctx), "-kvu")
     cloud_lock = threading.Lock()
     tools_context = nullcontext() if args.mock_tools else open_registry(lock=cloud_lock)
-    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, 2) as server, \
+    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, 1 + args.asr_stagger) as server, \
             make_decider(args.decider, out) as decider:
         live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock)
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
@@ -607,6 +607,9 @@ def main():
     parser.add_argument("--decider", choices=["liquid", "cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
+    parser.add_argument("--asr-stagger", type=int, default=1, choices=[1, 2, 3, 4, 6, 12],
+                        help="transcription sessions fed the same audio, shifted by 0.96 s / N so the live "
+                             "transcript updates N times per block (default 1: one update per 0.96 s)")
     parser.add_argument("--lfm-port", type=int, default=8095)
     parser.add_argument("--lfm-ctx", type=int, default=32768, help="LFM3's total context (default 32768)")
     parser.add_argument("--out", type=Path, help="records directory; a new one under $VOICE_HOME/evidence/live")

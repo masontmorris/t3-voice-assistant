@@ -73,6 +73,7 @@ from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskSe
 from voice.segmentation.contract import Intent
 from voice.segmentation.gate import PLAN_A
 from voice.segmentation.intent import utterance_intent
+from voice.prototype.stagger import StaggeredAsr, StaggeredTranscript
 from voice.prototype.transcript import TranscriptAdapter
 from voice.tools.registry import ToolCall, open_registry
 
@@ -546,7 +547,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
-                   recall="off", context=(), prior_results=()):
+                   recall="off", context=(), prior_results=(), asr_stagger=1):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -607,7 +608,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
                               earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")),
                                            None), simulate=simulate_tasks, context=list(context))
-    adapter = TranscriptAdapter()
+    adapter = StaggeredTranscript(asr_stagger) if asr_stagger > 1 else TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
     loop = asyncio.get_running_loop()
@@ -668,7 +669,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     if own_voice:
         voice = await Session.open(url, "voice", clock, on_event=on_voice_event)
     voice_mark, voice_sent_mark = len(voice.events), len(voice.sent)
-    asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
+    if asr_stagger > 1:
+        asr = await StaggeredAsr.open(url + "?intent=transcription", "asr", clock, on_asr, asr_stagger, session_cls=Session)
+    else:
+        asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
     def partial_close(update):
         return close_with_decider(segmenter, update) if final_decider else segmenter.close(update, settle=False)
 
@@ -909,6 +913,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         "timeline": timeline,
         "events": {"voice": voice.events[voice_mark:], "voice_sent": voice.sent[voice_sent_mark:],
                    "asr": asr.events, "asr_sent": asr.sent,
+                   **({"asr_lanes": asr.extra_events} if asr_stagger > 1 else {}),
                    **({"tools": tool_session.events, "tools_sent": tool_session.sent}
                       if tool_session is not None else {})},
     }
