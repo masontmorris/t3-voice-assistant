@@ -251,26 +251,103 @@ code, its tests on synthetic fixtures, and a license row.
    prompt size (inferred from a 506 ms p50 next to a 1610 ms p95). Either the pick runs ahead of the
    utterance, or the bar needs the PM's revision.
 
-## Next round: an in-sample prefilter rule change
+## Round 3: the fixed prefilter on a fresh held-out set
 
-The independent re-review proposed the smallest prefilter change that clears the four wrong cases
-above. It is not in this PR. The rules were written after reading these failures and scored on the
-same 190 labels, so every number in this section is in-sample.
+The three rule changes from the round 2 review are in this round (`voice/t3/pick/prefilter.py`,
+each with a synthetic failing test first): `happening`, `happened` and `news` join `STOPWORDS`;
+with no state word, when every topic word is a token of a listed project's name and that project
+has two or more listed threads, ask instead of picking; and each adjacent pair of title words counts
+in its joined form as a title token. The rules were written after reading round 2's failures, so the
+recompute on round 2's own 190 cases is in-sample and the fresh 80 cases below are the test that
+counts. Every number in this section carries its label in its own sentence.
 
-1. Add `happening`, `happened` and `news` to `STOPWORDS`. "happening" appears in 24 of the 190
-   requests (measured). In L2-045 it was a content word that no title carries, so the prefilter
-   missed and sent the request to the model, which made its only wrong pick there. Without it, the
-   two matching titles tie and the prefilter asks.
-2. When the request has no state word, every topic word is a token of a listed project's name, and
-   that project has two or more listed threads, ask instead of picking. This covers the two
-   project-name hits.
-3. Count the joined form of each adjacent pair of title words as a title token, so a title that
-   spells a compound word as two words also matches the one-word spelling. This covers L2-037.
+**Step 1 recompute, deterministic, no model call.** Re-running the fixed prefilter over round 2's
+saved 190 cases reproduces the committed `recompute-r2/summary.json` byte for byte (measured by
+rerun). The prefilter goes from 112 to 142 correct cases, not the predicted 135, and from 9 wrong
+runs to 0 (measured). The chain goes from 169 to 176, not 174, with 0 wrong runs (measured). The
+extra 7 gains over the prediction are a finding: the re-review's hand recompute undercounted the
+same rules, and the committed recompute is the number to trust because it runs the shipped code.
+One changed case is neutral (a miss stays a miss in a different way); nothing that was correct
+regressed (measured from the changed-case list).
 
-The re-review recomputed both picks on the saved data with no model call (measured by the re-review,
-not rerun here). The prefilter alone goes from 112 to 135 correct cases and from 9 wrong runs to 0,
-and loses 0 correct answers. The chain goes from 169 to 174 correct cases and from 4 wrong cases to 0.
-Confirm that on a fresh labeled set, about 80 new requests on new snapshots, before trusting "0 wrong".
+**Fresh set.** Two new snapshots, E and F, built from a fresh read-only copy of the same database
+with time windows and project subsets that do not overlap round 2's four (measured in the builder).
+E lists 20 to 60 threads older than three weeks across every project; F lists three projects at every
+age. Each holds settled threads beyond the 25 newest, so the older slice still asks about them
+(measured). 80 new utterances: 13 hand-written known-failure cases first, then 67 from one labeler
+that saw only the new snapshots and the slice table, never round 2's labels or any picker output
+(measured). The manifest froze the snapshots, labels and spec at the builder commit before any picker
+ran and every run verifies it, and the database copy was deleted after freezing (measured).
+
+**Arms.** (1) fixed prefilter alone; (2) fixed prefilter plus `particle-ai/particle-1:free` with
+reasoning off on misses only, ties ask, 3 repeats per case. The model's single pick is scored twice:
+as a direct pick and as a confirming question, which is the design's default delivery (measured in
+`harness.py:confirm_outcome`; a prefilter hit is still spoken directly). A case passes only when all
+three runs pass (measured).
+
+Cases that pass, over three repeats. Strict first, then lenient, then the confirming-question view,
+then confirm-lenient.
+
+| slice | cases | prefilter strict / lenient / confirm / confirm-lenient | model strict / lenient / confirm / confirm-lenient |
+| --- | --- | --- | --- |
+| exact | 13 | 9 / 9 / 9 / 9 | 12 / 12 / 12 / 12 |
+| paraphrase | 17 | 3 / 3 / 3 / 3 | 17 / 17 / 17 / 17 |
+| project | 6 | 1 / 2 / 1 / 2 | 4 / 5 / 4 / 6 |
+| state | 8 | 3 / 3 / 3 / 3 | 7 / 8 / 7 / 8 |
+| back reference | 6 | 6 / 6 / 6 / 6 | 6 / 6 / 6 / 6 |
+| ambiguous | 10 | 6 / 6 / 6 / 6 | 8 / 9 / 8 / 9 |
+| nonexistent | 6 | 6 / 6 / 6 / 6 | 6 / 6 / 6 / 6 |
+| older | 5 | 0 / 0 / 0 / 0 | 5 / 5 / 5 / 5 |
+| no subject | 4 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| outside | 5 | 5 / 5 / 5 / 5 | 5 / 5 / 5 / 5 |
+| total | 80 | 39 / 40 / 39 / 40 | 70 / 73 / 70 / 74 |
+
+Cases and runs separately (measured). Prefilter strict: 39 of 80 cases pass, wrong in 1 case over
+3 runs, all three the same ambiguous request where one title matched and the gold was a question.
+Model as a direct pick: 70 of 80 cases pass, wrong in 2 cases over 6 runs. One is the prefilter hit
+carried through. The other is the model's own miss in all 3 runs on a project request where two
+threads share a name and the gold asks. Model as a confirming question: 70 of 80 cases pass, wrong
+in 1 case over 3 runs, only the carried prefilter hit. Across 79 confirmation runs the model
+confirmed a wrong thread zero times (measured). The lenient views add only question-quality cases,
+never a wrong thread (measured).
+
+The pass bar (measured). The prefilter fails wrong-overall at 3 runs and unambiguous-correct at
+40.0 percent. The model chain passes unambiguous-correct at 97.8 percent and unnecessary-questions
+at 0.8 percent in every view, and fails wrong-overall with 6 runs as a direct pick and 3 as a
+confirming question, against a bar of at most 2. Nothing here holds a zero-wrong bar while a
+single-match prefilter hit is spoken directly.
+
+Latency, tokens, transport (measured). The model arm made 150 model calls over 240 runs plus 1
+configuration probe, 151 API calls, every id ending in `:free` asserted in code, no 402 or billing
+language in either log. Reasoning held at 0 tokens; content averaged 43 tokens a call. Single
+request p50 570 ms, p95 1620 ms, worst-slice p95 2790 ms, wall p95 3901 ms against the 700 ms bar,
+so the bar is still unmet at the free tier. 6 replies were unparseable, 2 cases in all 3 attempts
+each, both listing ids past the parser. Nothing failed to parse on the prefilter arm, which makes
+no calls.
+
+The known failures on the fresh set, behavior only (measured). Ten of the 13 pass the prefilter
+with no wrong answer; the model resolves one more, the older one, by direct pick. Two miss
+everywhere by saying none where a thread exists. One asks but names a set that misses a gold
+thread, in both arms, by the project-name rule. The shared-prefix, project-only, no-PR-in-list,
+recency, deleted, back-reference, failed-word and compound-joined cases all behave as designed.
+
+What this round cannot see. The 67 labeler cases come from one labeler and one reading of each
+snapshot. Temperature-0 repeats measure transport variance, not sampling variance. The free tier
+was paced to one request in flight, so a deployed pick would meet rate limits this run never
+priced. The no-subject slice has no designed behavior yet: any question passes, and both arms say
+none on all 4. A correct pick can still be spoken as a false sentence, which this eval does not
+score.
+
+**Recommendation: what Twin B ships.** Ship the prefilter as the floor with misses sent to the free
+model, and deliver every single-thread result as a confirming question, prefilter hits included.
+That delivery was wrong zero times in 79 model confirmations on data nobody tuned on, and the only
+wrong runs left are the one direct prefilter hit it would have softened into a question (measured).
+Do not ship direct picks: the model named a wrong thread outright once in 80 cases. Next, in order:
+decide the no-subject behavior (always ask is the cheap answer, currently 0 of 4), retest the one
+ambiguous single-hit class that the project-name rule does not cover, and either run the pick ahead
+of the utterance or revise the 700 ms bar, which no $0 arm meets. The ten scored real outputs for
+this round stay local at `$VOICE_HOME/evals/twinb-pick/round3/sample-10-scored.md`, alongside every
+run file.
 
 ## Reproduce
 
@@ -288,4 +365,8 @@ verifies the frozen manifest first, so a changed label fails the run instead of 
 snapshots come from `voice/t3/pick/snapshot.py` run against a copy of a `statev2.sqlite`.
 
 Ten scored real outputs, with titles and reasons, are at `$VOICE_HOME/evals/twinb-pick/sample-10-scored.md`
-for the morning read. Every run file is beside them under `runs/`.
+for the morning read. Every run file is beside them under `runs/`. Round 3 reruns against
+`$VOICE_HOME/evals/twinb-pick/round3` the same way, with `--root` pointing at that directory and no
+`model_tie` or `local` arm; its ten are at `$VOICE_HOME/evals/twinb-pick/round3/sample-10-scored.md`.
+The round 2 recompute reruns with no model call as `python round3/tools/recompute_r2.py`, and must
+reproduce `round3/recompute-r2/summary.json` exactly.
