@@ -12,8 +12,10 @@ request with no subject word that states a value of its own, and fills what the 
 call. With the general lookup worker configured (`voice/tools/agent.py`), a request no parser claims goes to it, and
 so does a request that names a subject but states no place and no day of its own while an earlier lookup exists, since
 the parsers would only guess the place. Without the worker such a request keeps the parsers' answer, or None.
-`Registry.run` never raises. It returns a `ToolResult` whose outcome is ok, failed or timeout, and whose summary is the
-sentence the voice may speak, a failure included.
+`Registry.waiting` says what a call would have to ask the person first, because a task whose lookup cannot answer
+waits on that question instead of running and failing, and `Registry.answered` is the call that person's answer
+completes. `Registry.run` never raises. It returns a `ToolResult` whose outcome is ok, failed or timeout, and whose
+summary is the sentence the voice may speak, a failure included.
 
     python -m voice.tools.registry "What time is it in Tokyo right now?"
 
@@ -106,12 +108,14 @@ class ToolResult:
 
 @dataclass(frozen=True)
 class Tool:
-    """`label` is the short name a failure sentence speaks; `line` is what the decider's tool question offers."""
+    """`label` is the short name a failure sentence speaks; `line` is what the decider's tool question offers;
+    `needs` are the arguments a call cannot answer without (`Registry.waiting`)."""
     name: str
     label: str
     line: str
     parse: Callable[[str, dict | None], dict | None]
     call: Callable[[dict, float], tuple[str, dict]]
+    needs: tuple[str, ...] = ()
 
 
 def timed_out(exc):
@@ -174,15 +178,54 @@ class Registry:
                 and self.tools[name].parse(instruction, earlier.arguments) is not None)
 
     def filled(self, name, reading, instruction, earlier):
-        """The arguments one tool takes, in this order: what the decider read, what the instruction states, the earlier
-        lookup's own when this is a follow-up of it, and the default place."""
-        reading = reading or {}
+        """The arguments one tool takes, in this order: what the decider read of this segment's own words, what the
+        instruction states, the earlier lookup's own when this is a follow-up of it, and the default place.
+
+        The reading is kept only where the words say it (`lookups.supported`), so a place or day the model inferred
+        from the call cannot overrule an elliptical follow-up's own day or repeat an earlier forecast nobody asked
+        for."""
+        reading = lookups.supported(reading, instruction)
         prior = earlier.arguments if self.continues(name, instruction, earlier) else {}
         place = reading.get("place") or lookups.find_place(instruction) or prior.get("place") or self.default_place
         if name != "weather":
             return {"place": place}
-        when = reading.get("when") or lookups.stated_when(instruction) or prior.get("when") or "today"
+        when = (reading.get("when") or lookups.resolved(lookups.stated_when(instruction), prior.get("when"))
+                or prior.get("when") or "today")
         return {"place": place, "when": when}
+
+    def waiting(self, name, instruction, earlier=None, reading=None):
+        """What a call to `name` would have to ask the person first: its tool, the arguments it would run with, and the
+        ones it lacks. None when it lacks nothing.
+
+        A task whose call lacks an argument does not run: it waits for the person's answer
+        (`voice/segmentation/tasks.py`, `NEEDS_CLARIFICATION`), and `answered` is the call that answer completes.
+        Measured: turn 016's "Wait, do it again." picked the weather tool with nothing to look up and spoke a failure,
+        "needs a place"."""
+        if name not in self.tools:
+            return None
+        arguments = self.filled(name, reading, instruction, earlier)
+        missing = tuple(field for field in self.tools[name].needs if not arguments.get(field))
+        return {"tool": name, "arguments": arguments, "missing": missing} if missing else None
+
+    def answered(self, waiting, instruction):
+        """The call a person's answer completes: the waiting tool with the arguments the answer states, or None when
+        these words are not that answer.
+
+        `waiting` is what this registry's `waiting` gave for the task. The words must not name another tool's subject
+        ("What's the time in Tokyo?" answers nothing a forecast asked) and must state a value for every kind the task
+        lacked."""
+        name = waiting.get("tool")
+        if name not in self.tools:
+            return None
+        if any(other.name != name and other.parse(instruction) is not None for other in self.tools.values()):
+            return None
+        arguments = dict(waiting.get("arguments") or {})
+        for field in waiting.get("missing") or ():
+            value = lookups.answer(field, instruction)
+            if value is None:
+                return None
+            arguments[field] = value
+        return ToolCall(name, arguments)
 
     def route(self, instruction, earlier=None, context=None):
         """A tool whose subject the instruction names wins, so "what time is it in Tokyo" after a forecast is a time
@@ -241,10 +284,10 @@ def build(fetch, mcp, default_place, timeout_s=5.0, chat=None, agent_timeout_s=a
     weather = Tool("weather", "weather lookup",
                    "Weather forecast for a named city on a named day: the high temperature and the chance of "
                    "precipitation. Use it for a forecast, or for anything that depends on one.",
-                   *lookups.weather_tool(fetch, default_place))
+                   *lookups.weather_tool(fetch, default_place), needs=("place",))
     clock = Tool("time", "time lookup",
                  "The current local time in a named city. Use it when the speaker asks what time it is.",
-                 *lookups.time_tool(fetch, mcp, default_place))
+                 *lookups.time_tool(fetch, mcp, default_place), needs=("place",))
     registry = Registry([weather, clock], timeout_s, mcp, tool_threshold=tool_threshold, default_place=default_place)
     if chat is not None:
         registry.agent = agent.Agent(chat, lambda tool, arguments: registry.run(ToolCall(tool, arguments)),

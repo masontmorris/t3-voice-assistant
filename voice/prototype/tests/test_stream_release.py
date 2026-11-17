@@ -214,6 +214,22 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(reply["text"], prototype.FALLBACK_LINE)
         self.assertEqual(self.speaker.blocks(), [7])
 
+    async def test_the_question_for_a_missing_place_streams_and_a_guessed_city_stops_it(self):
+        """The follow-ups' clarification reply is an ordinary reply: asked block by block, and a city the model
+        guesses instead of asking is never heard."""
+        note = prototype.task_note({"status": "needs_clarification", "capability": "weather", "arguments": {},
+                                    "needs": ["place"]})
+        self.voice.script = [[["Which", " city"], [" do", " you"], [" mean", "?"]]]
+        reply, _ = await prototype.answer(self.voice, 24_000, CLOCK, ["What's the weather tomorrow?", note],
+                                          lambda kind, **d: None, speak=self.speaker)
+        self.assertEqual(reply["text"], "Which city do you mean?")
+        self.assertEqual(self.speaker.calls[0]["responses_done"], 0, "the question went out while generating")
+        self.speaker.calls.clear()
+        self.voice.script = [[["Do", " you"], [" mean", " in"], [" Boston", "?"]], [["Which", " city"], ["?"]]]
+        reply, _ = await prototype.answer(self.voice, 24_000, CLOCK, ["What's the weather tomorrow?", note],
+                                          lambda kind, **d: None, speak=self.speaker)
+        self.assertNotIn("Boston", " ".join(call["text"] for call in self.speaker.calls))
+
     STALE = "Hello! I'm checking the weather in a city on the East Coast. Which one?"
 
     async def test_a_stale_repeat_releases_nothing_before_it_is_asked_again(self):

@@ -14,6 +14,7 @@ from voice.prototype import run as prototype
 from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
+from voice.segmentation.tasks import Orchestrator
 from voice.tools.registry import ToolCall
 
 EARLIER = ("Could you check the weather in Raleigh today?", "Okay, and these are decent results.")
@@ -45,6 +46,14 @@ class TaskNoteTest(unittest.TestCase):
         for status in ("pending", "needs_clarification", "held_for_confirmation"):
             self.assertIsNone(prototype.task_note({"status": status}))
         self.assertIsNone(prototype.task_notes([{"status": "needs_clarification"}]))
+
+    def test_a_task_waiting_for_a_place_asks_which_city(self):
+        note = prototype.task_note({"status": "needs_clarification", "capability": "weather",
+                                    "arguments": {"place": None, "when": "today"}, "needs": ["place"]})
+        self.assertIn("the weather lookup has not started because they have not said which city or place they mean",
+                      note)
+        self.assertIn("Ask them in one short sentence, and don't guess one.", note)
+        self.assertNotIn("today", note, "an argument the words did not say is not handed to the model")
 
     def test_every_note_says_who_it_is_for(self):
         for note in (prototype.RETRY_NOTE, prototype.STILL_RUNNING_NOTE, prototype.ASK_NOTE):
@@ -217,7 +226,12 @@ class AskRegistry:
 
 
 class Segmenter:
+    """The service's record source for a lookup it starts itself: `orch` holds the tasks, and this one holds none."""
+
     dispatch_log = []
+
+    def __init__(self):
+        self.orch = Orchestrator()
 
     def records(self):
         return []

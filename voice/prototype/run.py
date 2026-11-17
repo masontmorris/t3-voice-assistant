@@ -210,6 +210,8 @@ FINAL_NOTE = (NOTE_OPEN + "your last reply still cannot be said. Answer what the
               "sentence, as yourself and to them, and name no weather, forecast, city, day, time or number.]")
 # A line this short is not screened for repeating: "I understand." twice is conversation, not a stale reply.
 REPEAT_WORDS = 8
+# What a task that could not start is missing, in the words a note asks for it with.
+NEEDS_ASK = {"place": "which city or place they mean"}
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -275,7 +277,9 @@ def task_note(entry):
 
     A note tells the model what to do with the state, because the model treats the newest text it reads as the
     thing to answer. Measured on Mason's recorded turns: a bare status line was read aloud, and this wording was
-    not. A task that is pending or needs clarification gets no note, so the model answers the person's own words."""
+    not. A task that is pending or needs clarification gets no note, so the model answers the person's own words,
+    unless the task names what it is waiting for: then the note asks them for it, and the next turn's answer
+    completes the task (`MockTaskService.answer`)."""
     status, name = entry["status"], lookup_name(entry)
     if status == "running":
         return f"{NOTE_OPEN}{name} is running and has no answer yet. Tell them you're checking, in a few words.]"
@@ -286,6 +290,10 @@ def task_note(entry):
         return f"{NOTE_OPEN}{name} could not be done. Tell them briefly that you couldn't check that.]"
     if status == "cancelled":
         return f"{NOTE_OPEN}{name} was dropped, as they asked. Tell them so in a few words.]"
+    if status == "needs_clarification" and entry.get("needs"):
+        asked = " and ".join(NEEDS_ASK.get(field, f"the {field}") for field in entry["needs"])
+        return (f"{NOTE_OPEN}{name} has not started because they have not said {asked}. Ask them in one short "
+                "sentence, and don't guess one.]")
     return None
 
 
@@ -817,7 +825,12 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
-    audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply."""
+    audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply.
+
+    A `prior_tasks` entry with `waiting` is a task an earlier turn could not start for a missing argument, which it
+    asked the person for. When this turn's words fill it and name no other tool's subject, that task runs with what
+    they said (`MockTaskService.answer`), and the decider is asked nothing: the turn answers the assistant's own
+    question, so it is not a new decision."""
     t0 = time.perf_counter()
 
     def clock():
@@ -839,6 +852,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
                               earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")),
                                            None), simulate=simulate_tasks, context=list(context))
+    # The newest task an earlier turn left waiting on a question about its own arguments, as `carried_tasks` gives it.
+    waiting = next((t for t in reversed(prior_tasks) if t.get("waiting")), None)
     adapter = StaggeredTranscript(asr_stagger) if asr_stagger > 1 else TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -879,6 +894,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     point = None
                 if point is not None and point["kind"] == "close":
                     closed.update(point)
+                    for event in point.get("answered") or ():
+                        log("service", **event)
                     if point.get("final_decision") is not None:
                         log("final_decision", decision=point["final_decision"])
                     if point.get("final_decision_error") is not None:
@@ -905,6 +922,11 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     else:
         asr = await Session.open(url + "?intent=transcription", "asr", clock, on_event=on_asr)
     def partial_close(update):
+        answered = service.answer(waiting, update.text, clock()) if waiting is not None else []
+        if answered:
+            point = segmenter.close(update, settle=False)
+            point["answered"] = answered
+            return point
         return close_with_decider(segmenter, update) if final_decider else segmenter.close(update, settle=False)
 
     tool_session = (await Session.open(url, "tools", clock) if eou in TOOL_SESSIONS and not final_decider
@@ -978,7 +1000,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 for event in service.correct(intent.replacement, prior_tasks, clock()):
                     log("service", **event)
                 log("correction", replacement=intent.replacement, outcome=service.correction)
-            elif not final_decider and (intent is None or intent.intent != Intent.CHITCHAT):
+            elif (not final_decider and not closed.get("answered")
+                  and (intent is None or intent.intent != Intent.CHITCHAT)):
                 for_tools = (service.snapshot("utt_1", adapter.text(), unreviewed, notes=True) if eou == "gated"
                              else snapshot)
                 injection.append(await create_item(tool_session, user_text(SNAPSHOT_PREFIX, for_tools)))
@@ -1168,11 +1191,18 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 def carried_tasks(record):
     """The tasks one turn ran, as later turns of the call see them. `ref` names the turn and the task, because every
     turn numbers its tasks from task_1. `call` is the lookup a task resolved, when it answered, so a later follow-up
-    can continue its place; a failed lookup carries nothing."""
+    can continue its place; a failed lookup carries nothing.
+
+    A task that could not start for a missing argument carries `waiting` instead: the tool it would run, the
+    arguments it has, and what it lacks. The next turn's words answer that question and run it."""
     turn = Path(record.get("clip") or "turn").stem
     executions = record.get("executions", {})
     carried = []
     for t in record.get("tasks", []):
+        if t["status"] == "needs_clarification" and t.get("waiting"):
+            carried.append({"ref": f"{turn}:{t['task_id']}", "instruction": t["instruction"],
+                            "side_effect": t["side_effect"], "call": None, "waiting": t["waiting"]})
+            continue
         if t["status"] != "dispatched":
             continue
         tool = (executions.get(t["task_id"]) or {}).get("tool") or {}

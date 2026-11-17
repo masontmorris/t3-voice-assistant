@@ -65,6 +65,7 @@ class Task:
     revises: str | None = None
     side_effect: bool = False
     tool: ToolChoice | None = None
+    waiting: dict | None = None
     history: list[dict] = field(default_factory=list)
 
     def record(self):
@@ -74,6 +75,8 @@ class Task:
         if self.tool is not None:
             record["tool"] = {"tool": self.tool.tool, "confidence": self.tool.confidence,
                               "arguments": self.tool.arguments}
+        if self.waiting:
+            record["waiting"] = self.waiting
         return record
 
 
@@ -106,6 +109,7 @@ class Orchestrator:
         self._delegate_count = 0
         self.decided: dict[str, tuple] = {}
         self.gate = None
+        self.waits = None
         self.side_effects_wait_for_final = True
 
     def _new_task(self, text, start, sources, **extra):
@@ -299,6 +303,13 @@ class Orchestrator:
         self._move(task, Status.DISPATCHED, "amends an earlier turn's task")
         return task
 
+    def answer_earlier(self, ref, instruction, side_effect):
+        """A task the person has now answered: the request that could not start runs with the value they gave. It
+        replaces the waiting task, so a later turn carries one task and the snapshot reports one."""
+        task = self._new_task(instruction, None, {"orchestrator"}, revises=ref, side_effect=side_effect)
+        self._move(task, Status.DISPATCHED, "the person answered what it lacked")
+        return task
+
     def submit_delegate(self, instruction):
         """The voice model's delegate tool. Reconciled against the transcript at the next decision point."""
         self._delegate_count += 1
@@ -376,8 +387,15 @@ class Orchestrator:
         bound[seg.sid] = task
 
     def _settle(self, task, seg, decision):
-        """Pick the status of an undispatched task from the decision and the dispatch policy."""
-        if decision.readiness == Readiness.CLARIFY or (decision.readiness == Readiness.WAIT and self.is_final):
+        """Pick the status of an undispatched task from the decision and the dispatch policy.
+
+        `waits` is the caller's check for a call that has nothing to look up, such as a forecast with no place. It
+        returns what the task would have to ask the person (tool, arguments, missing fields) or None, and a task it
+        answers for waits for that answer (`NEEDS_CLARIFICATION`) however ready it reads."""
+        task.waiting = self.waits(task) if self.waits is not None else None
+        if task.waiting:
+            status, reason = Status.NEEDS_CLARIFICATION, f"needs {', '.join(task.waiting['missing'])}"
+        elif decision.readiness == Readiness.CLARIFY or (decision.readiness == Readiness.WAIT and self.is_final):
             status, reason = Status.NEEDS_CLARIFICATION, f"readiness {decision.readiness.value}"
         elif decision.readiness == Readiness.WAIT:
             status, reason = Status.PROPOSED, "readiness wait"
@@ -403,6 +421,8 @@ class Orchestrator:
                 entry = {"task_id": t.task_id, "description": t.instruction, "status": SNAPSHOT_STATUS[t.status]}
                 if t.depends_on:
                     entry["depends_on"] = t.depends_on
+                if t.waiting:
+                    entry["needs"] = list(t.waiting["missing"])
                 tasks.append(entry)
         unclear = [t.instruction for t in self.tasks.values() if t.status == Status.NEEDS_CLARIFICATION]
         return {"type": "utterance_snapshot", "conversation_id": conversation_id, "utterance_id": utterance_id,

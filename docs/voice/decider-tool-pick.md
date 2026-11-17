@@ -136,7 +136,8 @@ fresh sample. The two items the guard costs are `t52`, "And what about the day a
 Both are follow-ups whose words do not say so to a parser: "the day after" is not a day name, and the ASR split
 Saturday. The carry used to fill their place from the earlier call, and the decider's own reading does not supply one.
 `t52`'s carried day was wrong anyway, "tomorrow" for the day after tomorrow (measured). `t64` is wrong in both columns:
-"DEN ver" and "DEN" are neither of them the city.
+"DEN ver" and "DEN" are neither of them the city. The round after this one takes both columns to 9 of 10 without
+giving either item back ([Follow-ups](#follow-ups)).
 
 The decider's raw reading is deliberately incomplete: it leaves out a place that only an earlier segment named, and
 `s1_place` says so in the question. Dispatch fills what it leaves out from the word rules' own reading, the earlier
@@ -152,6 +153,142 @@ A place answer that is not a name is dropped and logged, and the word rules' rea
 
 Asking the day as a `date` answer was not tried, because the docs say the model reads a written value rather than
 converting it, and "Saturday" would need today's date to become an ISO date (inferred).
+
+## Follow-ups
+
+A follow-up runs in both directions in a call. The person's follow-up that leans on the previous lookup continues it,
+and the assistant's own question, asked because a confident tool choice had nothing to look up, is answered and
+completed. Measured on 2026-11-16, branch `voice/followups` from `0f28b27bec`. The summarizer is Liquid's hosted `d1.2`
+for the decisions and LFM3 for the words, as before.
+
+### The person's follow-up
+
+The polish round's guard asked the tool's own parser whether the words continue the earlier call, so a follow-up that
+states a day or a place of its own keeps the earlier place. The parser could not read two of Mason's follow-ups. "And
+what about the day after?" names a day the day table did not hold, and "And s aturday?" is one word the ASR split in
+two, so both stated nothing and the guard dropped the earlier place. The decider's reading supplied no place for either
+(measured, three readings each, `weather` at 0.83 to 0.87). Its day for `t52` was `tomorrow` where the words mean the
+day after tomorrow (measured, 0.07 to 0.12 on a `choice` answer, and it agrees with itself across the three readings).
+
+The root cause was the day table, not the guard. A parser that cannot read a day cannot tell a day-only follow-up from
+"Wait, do it again.", so two real follow-ups were lost for want of one word each. `voice/tools/lookups.py` now reads
+four things more:
+
+- `day after tomorrow`, with `pick_days` taking the place's third day;
+- `the day after` and `the next day`, which `resolved` counts from the earlier lookup's own day: after a Saturday it is
+  Sunday, and after a tomorrow it is the day after tomorrow;
+- a day the ASR split in two, rejoined when the join is a day the table knows, so "s aturday" and "to morrow" read as
+  the days they are;
+- `answer_place`, the place a person gives when asked for one, which the next subsection uses.
+
+The second half of the fix is what a reading may supply. The decider's place and day are now kept only where the
+segment's own words say them (`lookups.supported`), and dropped otherwise. That is one rule with three measured
+cases. `t52` keeps the words' day over the model's `tomorrow`. Turn 016's "Wait, do it again." cannot take a place
+from the earlier Durham forecast even when the model reads one, because the words name no place. And turn 022's
+"Okay, and what about San Diego?" keeps its place, because those words do say it, which the preposition rule alone
+cannot read (measured, turn 022 of the replay).
+
+| Split | n | Arguments exact, polish round | Arguments exact, now |
+| --- | --- | --- | --- |
+| The polish round's recorded answers, scored again | 10 | 7 | 9 |
+| A fresh sample, three readings per item | 10 | not run | 9 |
+
+Both columns are measured. The first row scores the same 210 traces the polish round recorded, so the change is the
+code and not the model's spread. The second is a fresh 210-call sample at $0.00323. `t64` is the one item wrong in both
+rows: "DEN" and "DEN ver" are neither of them the city (measured). `t52`'s day is now `day after tomorrow`, and the
+eval's label for that item compares the place alone (measured from the label file).
+
+The word rules alone rose with the same answers, from 34 of 46 to 36 of 46 on train, and stayed at 15 of 24 held out
+(measured). That is `t52` and `t67`, whose place the rules now carry with no decider answer at all.
+
+Tool choice did not move, as nothing in this round forms a tool answer. The polish round's recorded answers score 45 of
+46 on train and 22 of 24 held out when scored again with this branch's code; the fresh sample scores 44 of 46 and 22 of
+24 (measured). The one item that moved is `t43`, "Send that to Sam.", which the fresh sample called `none` at 0.48 where
+the polish sample called it `agent` at 0.43 (measured); the task is held for a clarifying question in both samples, so
+neither answer runs anything. `t32`, `t33` and `t51` are wrong in both samples (measured). `t51`'s `none` at 0.54 clears
+the bar and its task dispatches with nothing to run, exactly as the polish sample's `none` at 0.46 did (measured from the
+two traces).
+
+### The assistant's own question
+
+A confident tool choice can have nothing to look up. Turn 016's weather call at 0.53 had no place, ran, and reported a
+spoken failure, "needs a place" (measured, the polish round's replay). The task machinery already has the state for
+this: `needs_clarification`, which `Readiness.CLARIFY` sets and which the snapshot reports. What it lacked was the
+argument, so `Registry.waiting` now derives it from the tool's own `needs` field rather than from a list of tools:
+a call that leaves a required argument unset returns the tool, the arguments it would run with, and the fields it
+lacks. The value comes from the same `filled` the dispatch would use, so an earlier lookup's place or a
+`VOICE_DEFAULT_PLACE` counts as a value and no question is asked.
+
+The orchestrator's `_settle` consults that check before the gate and before readiness, so a task with nothing to look up
+waits instead of running, whatever the model said about readiness. The task keeps the call it would make, and the
+snapshot names what it lacks. `task_note` then asks for it in the voice model's own words, the way the other notes
+work, with no fixed line anywhere:
+
+> [Note for you, not said by the person: the weather lookup has not started because they have not said which city or
+> place they mean. Ask them in one short sentence, and don't guess one.]
+
+On the replay's turn 016 the model wrote "Sure! Which city or place would you like the weather for?" and nothing ran
+(measured, that turn's record).
+
+The answer turn completes that task rather than starting a new one. `carried_tasks` carries a waiting task across the
+turn, `MockTaskService.answer` asks the registry whether these words are the answer, and the answered task runs the
+call with the value they gave. The decider is asked nothing on that turn, because the turn answers the assistant's own
+question and is not a new decision. Two conditions keep a request from being swallowed: the words must name no other
+tool's subject, so "What's the time in Tokyo?" runs a time lookup, and they must state a value for every field the task
+lacked, so "Never mind." answers nothing and leaves the question open.
+
+### Should "Wait, do it again." be a question back?
+
+Yes. That is a judgment, and this round's mechanism makes it the behaviour with no special case. The measured case for
+the alternative is the polish round's own: with the place carried the turn re-ran the Durham forecast two turns after
+the hello the person meant, and with the guard it ran a lookup that could only fail. A guess at the referent is
+therefore wrong more often than not, and a failure sentence is not an answer to the person. Asking costs one turn and
+cannot be wrong: the tool answer stands (weather at 0.53), the words supply no place, and the person either names the
+city for the forecast they want or moves on, in which case the question is dropped with the task. Both outcomes are
+better than a forecast nobody asked for and than a spoken failure (judgment on the two measured alternatives).
+
+What this round does not do: turn 016 still picks the weather tool, so the question it asks is about a city. Reading
+"do it again" as a repeat of the previous task would need the referent, which is exactly what is missing. The
+clarification is the honest answer to a request the words do not fill in.
+
+### What the replay changed
+
+One 37-clip replay of Mason's recording on this branch, `--decider liquid`, real tools, `VOICE_AGENT=on`, in a
+`voice-followups` GPU lease, 7 minutes 35 seconds of wall clock including server startup (measured, under the build
+lock). The driver, the scorer, the reply differ and the records are in `$VOICE_HOME/evidence/toolpick-followups/`.
+Against the previous worker's `toolpick-polish2`:
+
+| Measurement | `toolpick-polish2` | This branch |
+| --- | --- | --- |
+| Clips sent | 37 | 37 |
+| Server turns | 37 | 37 |
+| Turns with a transcript | 37 | 37 |
+| Recording turns matched | 35 of 37 | 35 of 37 |
+| Lookups in the recording | 7 | 7 |
+| Lookups in the replay | 7 | 6 |
+| Replay lookups decided by the decider | 7 | 6 |
+| Turns whose tool or lookup arguments differ from the recording | 5 | 4 |
+
+Every value is measured. The replay's lookups fall by one because turn 016 no longer runs one, and that turn now matches
+the recording, which ran nothing there either.
+
+Turn 016 is the only turn whose tool or lookup arguments differ between the two replays. Its arguments in the tool
+answer are unchanged; what changed is that nothing runs and the task waits for a city. Turn 025's agent call differs
+only in the conversation text it carries, as in the previous round, because the call's earlier replies differ (measured
+with `diff_replays.py`). Spoken replies differ in wording on 33 of 37 turns, which is the voice model's own variation
+between two runs of the same code as much as anything else, so only two turns' replies changed in kind (measured, text
+compared turn by turn):
+
+| Turn | Words | `toolpick-polish2` | This branch |
+| --- | --- | --- | --- |
+| 016 | "Wait, do it again." | failing weather lookup, empty reply | nothing runs, "Sure! Which city or place would you like the weather for?" |
+| 025 | "Pick a city on the east coast to check the weather for." | "I'm checking the weather in a city on the East Coast." then New York | "Sure! Which city on the East Coast would you like the weather for?" then New York |
+
+Turn 025 is a cost of the change (inferred): its task and instruction are the same, so the first line is the voice
+model's own wording, and the earlier turn's question is now in the call's history. Asking a city there and then
+answering it is harmless but not useful, and one run cannot say whether the history or the model's spread caused it.
+Turns 023 and 026 also read differently and neither is this round's (inferred: 023 runs nothing in both replays, and
+026's city came from the general worker's own choice, New York before and Boston now).
 
 ## Real audio
 
@@ -218,10 +355,11 @@ Every value is measured. Each change:
   because its 022 had failed (inferred from the turn order).
 - **003 is d1.2's own behaviour, not the tool question.** The earlier d1.2 replay on this recording reported the same
   turn as its one changed task decision, and the 70-item eval's `about_assistant` items expect no dispatch.
-- **016 is this round's change.** "Do it again" came two turns after the hello it meant, and the confident path filled
-  the place from the last forecast, so a Durham forecast ran a second time over. With the guard the tool answer stands
-  (weather at 0.53) and no place is carried, so the lookup runs and fails with "needs a place" (measured). The word rules
-  would not route that turn at all, so a wrong forecast became a spoken failure.
+- **016 is the polish round's change.** "Do it again" came two turns after the hello it meant, and the confident path
+  filled the place from the last forecast, so a Durham forecast ran a second time over. With the guard the tool answer
+  stands (weather at 0.53) and no place is carried, so the lookup runs and fails with "needs a place" (measured). The
+  word rules would not route that turn at all, so a wrong forecast became a spoken failure. The follow-ups round turns
+  that failure into a question about the city and runs nothing there ([Follow-ups](#follow-ups)).
 
 The first polish run changed one turn more, 020, where the place answer was a copy of the request's own state and the
 forecast failed on it; the head's answer for that turn named no place and the words filled Seattle, `ok` (measured). The
@@ -256,19 +394,28 @@ reading per body and the third row is lower than the first, which is the model's
 
 ## What still fails
 
-- Two eval items still lose a place they should carry (measured). "And what about the day after?" and "And s aturday?"
-  are follow-ups by ear, and no parser sees it: the first names no day the day table knows, the second is split by the
-  ASR. The guard asks the tool's parser, so both lose the earlier place and the decider's reading supplies none. A
-  reading-based test would rescue them and re-open turn 016, because the model answers "today" for words that name no
-  day (measured on turns 004 and 022).
-- Turn 016 runs a weather lookup with no place and reports its failure. The tool answer is confident (0.53) and a
-  confident answer is not overruled, so the dispatch stands even though the words give it nothing to look up. Whether
-  such a turn should reach the general worker instead is a tool-choice question, not a fill one (judgment).
-- t33 is a description the decider sends to the general worker at 0.87, the one confident wrong tool answer left in the
-  sample (measured). t32 is the same shape at a low margin, now `agent` where the earlier sample said `weather`.
+- The two follow-ups the polish round lost are fixed on the recorded answers and on a fresh sample, so the argument
+  table stands at 9 of 10. The item left is `t64`, "What's the whether in DEN ver?", where the words split the city and
+  neither the rules nor the model joins it back (measured). A place-joining rule like the day table's would need a
+  gazetteer or a second lookup to know that "DEN ver" is Denver (guess).
+- The assistant asks for a city whenever a confident tool answer has no place, and turn 016 is the case where its tool
+  answer is itself the guess. It now asks rather than failing, and the question it asks is about a city for a request
+  that may not be a forecast at all (judgment, see [Should "Wait, do it again." be a question
+  back](#should-wait-do-it-again-be-a-question-back)).
+- Turn 025's first line became a question after the earlier turn's question entered the call's history (measured turn,
+  inferred cause, see [What the replay changed](#what-the-replay-changed)). One run cannot separate the history's pull
+  from the voice model's own spread.
+- A waiting question is asked once. If the person's next turn asks something else, that task is dropped with the turn,
+  so the city is never asked for again. Carrying it forward until it is answered would need the waiting entry to be
+  re-carried on a turn that did not answer it (inferred from the code path).
+- The clarification is the decider path only. A task that reaches the tools session through a voice delegate has no
+  confident tool choice to read `needs` from, so it still runs and fails as before (inferred; measured on the
+  `test_with_no_earlier_place_a_follow_up_stays_empty` case of the prototype suite).
+- t33 is a description the decider sends to the general worker at 0.87 in both samples, the one confident wrong tool
+  answer left (measured). t32 is the same shape at a low margin, `agent` at 0.39 in both samples.
 - The 70-item eval is small, and held-out is 24 items, so one item moves 4 points. The argument table is 10 items. The
   bar's value is the weakest number in this page, and the decider's own spread between samples is larger than the
-  corrections the polish round fixed.
+  corrections the polish round fixed. This round left the bar alone.
 - The replies were not checked for whether they stated the right forecast. The earlier d1.2 replay found one turn
   repeating the previous turn's line, and one earlier arm repeated "I'm checking the weather in a city on the East Coast.
   Which one?" on its last three turns (measured, client transcripts; cause not traced, guess: the failed worker task's
@@ -290,6 +437,24 @@ python $VOICE_HOME/evidence/toolpick-polish/diff_replays.py \
     $VOICE_HOME/evidence/toolpick/toolpick-args/server $VOICE_HOME/evidence/toolpick-polish/toolpick-polish2/server
 python $VOICE_HOME/evidence/toolpick/args_probe.py
 python $VOICE_HOME/evidence/toolpick/cost_probe.py
+```
+
+The follow-ups round's own numbers, from branch `voice/followups`:
+
+```
+python -m voice.segmentation.live_gate_eval --decider liquid --tools --arguments --fresh \
+    --decider-dir $VOICE_HOME/evidence/live-gate-eval/calls-followups \
+    --traces $VOICE_HOME/evidence/live-gate-eval/traces-followups.jsonl --tool-sweep
+python -m voice.segmentation.live_gate_eval --decider liquid --tools --arguments --score-only \
+    --traces $VOICE_HOME/evidence/live-gate-eval/traces-polish.jsonl
+python $VOICE_HOME/evidence/toolpick-followups/run_replay.py toolpick-followups     # inside the GPU lease
+python $VOICE_HOME/evidence/toolpick-followups/score_tools.py toolpick-followups
+python $VOICE_HOME/evidence/toolpick-followups/diff_replays.py \
+    $VOICE_HOME/evidence/toolpick-polish/toolpick-polish2/server $VOICE_HOME/evidence/toolpick-followups/toolpick-followups/server
+python $VOICE_HOME/evidence/toolpick-followups/diff_run.py \
+    $VOICE_HOME/evidence/toolpick-polish/toolpick-polish2/server $VOICE_HOME/evidence/toolpick-followups/toolpick-followups/server
+python $VOICE_HOME/evidence/toolpick-followups/count_changes.py \
+    $VOICE_HOME/evidence/toolpick-polish/toolpick-polish2/server $VOICE_HOME/evidence/toolpick-followups/toolpick-followups/server
 ```
 
 `--arguments` adds the place and day questions to the eval, for the argument comparison; the polish round's run used it,
