@@ -132,6 +132,18 @@ class Lane(unittest.TestCase):
             lane.call("decisions", self.BODY)
         self.assertEqual(Handler.seen, [])
 
+    def test_a_lane_asks_in_pieces_and_merges_the_answers(self):
+        Held.release.set()
+        body = {"state": {"segments": {}},
+                "questions": {f"s{i}_ready": {"type": "choice", "instructions": "x", "criteria": {"wait": "W", "go": "G"}}
+                              for i in range(1, 7)}}
+        whole = self.turns.call("decisions", body)
+        lane = self.turns.lane(5.0)
+        self.addCleanup(lane.close)
+        pieces = lane.call("decisions", body)
+        self.assertEqual([len(sent["questions"]) for _, sent in Handler.seen], [6, 4, 2])
+        self.assertEqual(pieces["response"]["answers"], whole["response"]["answers"])
+
     @staticmethod
     def _call(lane, failed):
         try:

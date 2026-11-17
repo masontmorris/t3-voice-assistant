@@ -43,6 +43,10 @@ MISTRALRS_SCRIPT = wsl_path(VOICE_HOME / "mistralrs-linux" / "serve-d1.sh")
 # (docs/voice/local-decider.md). 512 is too small: one question needs 521 tokens.
 FLAGS = ("-b", "8192", "-ub", "2048", "-fa", "on")
 TIMEOUT_S = 60
+# The server runs one request at a time and finishes a request whose client has gone (measured: a turn's 3-question
+# request took 2.4 s, not 87 ms, behind an aborted 32-question one). A lane sends this many questions per request and
+# stops between requests when aborted, so the turns' next request waits behind at most one such piece.
+LANE_QUESTIONS = 4
 
 
 def to_systemone(body):
@@ -87,13 +91,13 @@ class D1Client:
         self.host, self.port = parts.hostname, parts.port
         self.set_size = set_size
         self._conn = None
-        self.timeout_s, self.attempts, self.aborted = TIMEOUT_S, 2, False
+        self.timeout_s, self.attempts, self.aborted, self.questions_per_request = TIMEOUT_S, 2, False, None
 
     def lane(self, timeout_s):
         """A second client on the same server for a caller that must never hold up this one's requests: its own
-        connection, one attempt, and `timeout_s` on each socket operation."""
+        connection, one attempt, `timeout_s` on each socket operation, and `LANE_QUESTIONS` questions per request."""
         lane = D1Client(f"http://{self.host}:{self.port}", self.set_size)
-        lane.timeout_s, lane.attempts = timeout_s, 1
+        lane.timeout_s, lane.attempts, lane.questions_per_request = timeout_s, 1, LANE_QUESTIONS
         return lane
 
     def _post(self, payload):
@@ -135,20 +139,33 @@ class D1Client:
         """Ask every question in `body` and return a record shaped like the cloud client's cache record. `fresh` is
         the cloud clients' cache bypass; this client keeps no cache, so every call is fresh."""
         assert route == "decisions", route
+        started_at = _now()
+        started = time.perf_counter()
+        items = list(body["questions"].items())
+        size = self.questions_per_request or max(len(items), 1)
+        status, response = 200, None
+        for first in range(0, max(len(items), 1), size):
+            if self.aborted:
+                raise ConnectionAbortedError("the client was aborted")
+            status, part = self._ask({**body, "questions": dict(items[first:first + size])})
+            if response is not None and status == 200 and isinstance(part.get("answers"), dict):
+                part = {**part, "answers": {**response["answers"], **part["answers"]}}
+            response = part
+            if status != 200 or not isinstance(part.get("answers"), dict):
+                break
+        ms = (time.perf_counter() - started) * 1000
+        return {"route": route, "label": label, "request": body, "status": status, "response": response,
+                "timing": {"started_at": started_at, "ms": ms, "connect_ms": None}, "attempts": []}
+
+    def _ask(self, body):
         request = to_systemone(body)
         if self.set_size is not None:
             request["set_size"] = self.set_size
-        payload = json.dumps(request).encode()
-        started_at = _now()
-        started = time.perf_counter()
-        status, raw = self._post(payload)
-        ms = (time.perf_counter() - started) * 1000
+        status, raw = self._post(json.dumps(request).encode())
         try:
-            response = from_systemone(json.loads(raw))
+            return status, from_systemone(json.loads(raw))
         except ValueError:
-            response = {"unparsed": raw[:2000].decode("utf-8", "replace")}
-        return {"route": route, "label": label, "request": body, "status": status, "response": response,
-                "timing": {"started_at": started_at, "ms": ms, "connect_ms": None}, "attempts": []}
+            return status, {"unparsed": raw[:2000].decode("utf-8", "replace")}
 
 
 class LlamaServer:
