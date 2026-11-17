@@ -21,6 +21,7 @@ import {
 import type * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import type * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import { distill, type VoiceSignal } from "./events.ts";
+import { readNeed, type VoicePending } from "./pending.ts";
 
 export type WatchEndReason = "gone" | "resync" | "not_found" | "unavailable";
 
@@ -57,9 +58,17 @@ export interface WatchDone {
   readonly asOfSequence: number;
 }
 
-/** What the watch sends. A secret card's signal waits for unit 2's pending read, so it never goes out raw. */
+/** A need from one stored event that the pending read found still waiting. */
+export interface WatchNeedsYou extends VoicePending {
+  readonly type: "needs_you";
+  readonly threadId: ThreadId;
+  readonly sequence: number;
+}
+
+/** What the watch sends. A need goes out only as `needs_you`, after the pending read. */
 export type WatchItem =
-  | Exclude<VoiceSignal, { readonly type: "secret_card" }>
+  | Exclude<VoiceSignal, { readonly type: "pending" | "secret_card" }>
+  | WatchNeedsYou
   | WatchDone
   | WatchEnded;
 
@@ -84,7 +93,7 @@ export type SettleCheck = (trigger: SettleTrigger) => Effect.Effect<SettleAnswer
 export interface WatchSources {
   readonly threads: Pick<
     ThreadManagementService.ThreadManagementService["Service"],
-    "streamStoredEventsFrom" | "getThreadShell"
+    "streamStoredEventsFrom" | "getThreadShell" | "getThreadRecords"
   >;
   readonly eventStore: Pick<
     OrchestrationEventStore.OrchestrationEventStore["Service"],
@@ -197,7 +206,12 @@ export const make =
             const distilled = distill(stored);
             if (distilled === null) continue;
             const signal = distilled.signal;
-            if (signal !== null && signal.type !== "secret_card") {
+            if (signal?.type === "pending" || signal?.type === "secret_card") {
+              const need = yield* readNeed(sources.threads, signal);
+              if (need !== null) {
+                yield* emit({ ...need, type: "needs_you", threadId, sequence: signal.sequence });
+              }
+            } else if (signal !== null) {
               yield* emit(signal);
               if (signal.type === "gone") return true;
             }
@@ -245,7 +259,9 @@ export const make =
           if (Result.isFailure(replayed)) return yield* unavailable(replayed.failure);
           if (replayed.success === null) return { kind: "ended", reason: "resync" } as const;
           const { events, highWater } = replayed.success;
-          if (yield* scan(events, projectId)) return { kind: "ended", reason: "gone" } as const;
+          const scanned = yield* scan(events, projectId).pipe(Effect.result);
+          if (Result.isFailure(scanned)) return yield* unavailable(scanned.failure);
+          if (scanned.success) return { kind: "ended", reason: "gone" } as const;
           lastSeen = Math.max(lastSeen, highWater);
           // One check after every replay, even an empty one: a catch-up armed by an earlier watch
           // died with it, and a thread that settled while no one watched stores nothing more.

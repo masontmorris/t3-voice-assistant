@@ -65,11 +65,16 @@ const lastRunUpdate = PLAIN.flatMap((stored) =>
   stored.event.type === "run.updated" ? [stored.event] : [],
 ).at(-1)!;
 
-/** What the watch sends for these stored events: every signal but a secret card's. */
+/** What the watch sends for these stored events once none of their needs waits any more. */
 const signalsOf = (stored: ReadonlyArray<OrchestrationV2StoredEvent>): Array<Watch.WatchItem> =>
   stored.flatMap((event) => {
     const signal = distill(event)?.signal;
-    return signal === undefined || signal === null || signal.type === "secret_card" ? [] : [signal];
+    return signal === undefined ||
+      signal === null ||
+      signal.type === "pending" ||
+      signal.type === "secret_card"
+      ? []
+      : [signal];
   });
 
 const pruneThrough = Effect.fn("test.pruneThrough")(function* (sequence: number) {
@@ -104,6 +109,10 @@ const sources = Effect.fn("test.sources")(function* (overrides?: {
     getThreadShell: (id) =>
       projections
         .getThreadShell(id)
+        .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId: id, cause }))),
+    getThreadRecords: (id, fields, filter) =>
+      projections
+        .getThreadRecords(id, fields, filter)
         .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId: id, cause }))),
   };
   return {
@@ -637,7 +646,9 @@ it.effect("does not send a secret card that was recorded after its run ended", (
       const [next] = yield* watch.take(1);
 
       const cardId = card?.type === "secret_card" ? card.requestId : null;
-      assert.isFalse(replayed.some((item) => item.type === "pending" && item.requestId === cardId));
+      assert.isFalse(
+        replayed.some((item) => item.type === "needs_you" && item.requestId === cardId),
+      );
       assert.deepStrictEqual(next, signalsOf(after)[0]);
     }),
   ).pipe(Effect.provide(layer)),
@@ -667,6 +678,171 @@ it.effect("checks once after a replay that holds no trigger", () =>
       assert.deepStrictEqual(
         [afterReplay.sequence, next.sequence],
         [quiet[0]!.sequence, later[0]!.sequence],
+      );
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+/** A reply nothing in `fixture` yields, in `fixture`'s thread, and its message id. */
+const fixtureSentinel = (fixture: ReadonlyArray<OrchestrationV2StoredEvent>, name: string) => {
+  const message = fixture.flatMap((stored) =>
+    stored.event.type === "message.updated" && stored.event.payload.role === "assistant"
+      ? [stored.event]
+      : [],
+  )[0]!;
+  const messageId = MessageId.make(`sentinel:${name}`);
+  const event: OrchestrationV2DomainEvent = {
+    ...message,
+    id: EventId.make(`sentinel-event:${name}`),
+    payload: { ...message.payload, id: messageId, text: name },
+  };
+  return { event, messageId };
+};
+
+/** Everything a watch from the cursor sends for what is stored now, up to a reply written after it. */
+const sentThrough = Effect.fn("test.sentThrough")(function* (
+  fixture: ReadonlyArray<OrchestrationV2StoredEvent>,
+  afterSequence = 0,
+) {
+  const sentinel = fixtureSentinel(fixture, "end-of-replay");
+  yield* write([sentinel.event]);
+  const items = yield* Watch.make(yield* sources())({
+    threadId: fixture[0]!.event.threadId,
+    afterSequence,
+  }).pipe(
+    Stream.takeUntil((item) => item.type === "reply" && item.messageId === sentinel.messageId),
+    Stream.runCollect,
+  );
+  return Array.from(items).slice(0, -1);
+});
+
+const indexOf = (
+  fixture: ReadonlyArray<OrchestrationV2StoredEvent>,
+  matches: (event: OrchestrationV2DomainEvent) => boolean,
+) => fixture.findIndex((stored) => matches(stored.event));
+
+const needsOf = (items: ReadonlyArray<Watch.WatchItem>) =>
+  items.filter((item) => item.type === "needs_you");
+
+it.effect(
+  "sends needs_you with the turn item's prompt for a replayed request that still waits",
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const approval = FIXTURES.approval;
+        const promptAt = indexOf(
+          approval,
+          (event) =>
+            event.type === "turn-item.updated" && event.payload.type === "approval_request",
+        );
+        const stored = yield* write(approval.slice(0, promptAt + 1).map((event) => event.event));
+        const asked = stored.find(
+          (event) =>
+            event.event.type === "runtime-request.updated" &&
+            event.event.payload.status === "pending",
+        )!;
+        const prompt = stored[promptAt]!.event;
+
+        const needs = needsOf(yield* sentThrough(approval));
+        assert.deepStrictEqual(needs, [
+          {
+            type: "needs_you",
+            threadId: asked.event.threadId,
+            sequence: asked.sequence,
+            requestId: asked.event.type === "runtime-request.updated" ? asked.event.payload.id : "",
+            kind: "approval",
+            prompt:
+              prompt.type === "turn-item.updated" && prompt.payload.type === "approval_request"
+                ? prompt.payload.prompt!
+                : "",
+          },
+        ]);
+      }),
+    ).pipe(Effect.provide(layer)),
+);
+
+it.effect("sends no needs_you for a replay that holds a request's pending event and its end", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      yield* write(FIXTURES.approval.map((event) => event.event));
+      const items = yield* sentThrough(FIXTURES.approval);
+      assert.deepStrictEqual(needsOf(items), []);
+      assert.isTrue(items.some((item) => item.type === "resolved"));
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("sends no needs_you for a replay that holds a card's waiting event and its answer", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      yield* write(FIXTURES.linkCard.map((event) => event.event));
+      assert.deepStrictEqual(needsOf(yield* sentThrough(FIXTURES.linkCard)), []);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+/** The link-card fixture until just before Mason answers the card, with its run complete. */
+const LINK_UNANSWERED = FIXTURES.linkCard.slice(
+  0,
+  indexOf(
+    FIXTURES.linkCard,
+    (event) =>
+      event.type === "turn-item.updated" &&
+      event.payload.type === "link_request" &&
+      event.payload.status !== "waiting",
+  ),
+);
+
+/** A message Mason writes in the link-card thread one second after the card asked. */
+const userWritesAfterCard = (): OrchestrationV2DomainEvent => {
+  const message = FIXTURES.linkCard.flatMap((stored) =>
+    stored.event.type === "message.updated" && stored.event.payload.role === "user"
+      ? [stored.event]
+      : [],
+  )[0]!;
+  const later = DateTime.add(message.payload.updatedAt, { seconds: 1 });
+  return {
+    ...message,
+    id: EventId.make("user-writes-after-card"),
+    payload: {
+      ...message.payload,
+      id: MessageId.make("user-writes-after-card"),
+      text: "Never mind the link, run them here.",
+      createdBy: "user",
+      createdAt: later,
+      updatedAt: later,
+    },
+  };
+};
+
+it.effect.each([
+  { case: "only the card", userWrites: false },
+  { case: "a user-authored message after the card", userWrites: true },
+])("replays the unanswered link card after $case", ({ userWrites }) =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const stored = yield* write(LINK_UNANSWERED.map((event) => event.event));
+      if (userWrites) yield* write([userWritesAfterCard()]);
+      const card = stored.find(
+        (event) =>
+          event.event.type === "turn-item.updated" && event.event.payload.type === "link_request",
+      )!;
+
+      const needs = needsOf(yield* sentThrough(FIXTURES.linkCard));
+      assert.deepStrictEqual(
+        needs,
+        userWrites
+          ? []
+          : [
+              {
+                type: "needs_you",
+                threadId: card.event.threadId,
+                sequence: card.sequence,
+                requestId: card.event.type === "turn-item.updated" ? card.event.payload.id : "",
+                kind: "in_app",
+                prompt: "It needs something from you in the app.",
+              },
+            ],
       );
     }),
   ).pipe(Effect.provide(layer)),

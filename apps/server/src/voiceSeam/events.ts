@@ -78,6 +78,13 @@ const PENDING_KIND: Record<
   auth_refresh: null,
 };
 
+/** How a pending request reads to the voice, or null when it does not wait on the user. */
+export const pendingKindOf = (
+  request: Pick<OrchestrationV2RuntimeRequest, "kind" | "responseCapability">,
+): VoicePendingKind | null =>
+  // T3 refuses both an answer and a dismissal for a request that cannot be resumed.
+  request.responseCapability.type === "not_resumable" ? "in_app" : PENDING_KIND[request.kind];
+
 const signalOnly = (signal: VoiceSignal): Distilled => ({
   sequence: signal.sequence,
   signal,
@@ -119,11 +126,7 @@ export function distill(stored: OrchestrationV2StoredEvent): Distilled | null {
     case "runtime-request.updated": {
       const request = event.payload;
       if (request.status === "pending") {
-        // T3 refuses both an answer and a dismissal for a request that cannot be resumed.
-        const kind =
-          request.responseCapability.type === "not_resumable"
-            ? "in_app"
-            : PENDING_KIND[request.kind];
+        const kind = pendingKindOf(request);
         if (kind === null) return null;
         return signalOnly({
           type: "pending",
