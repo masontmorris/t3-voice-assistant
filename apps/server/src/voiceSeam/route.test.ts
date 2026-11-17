@@ -5,11 +5,13 @@ import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import { EventId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
 import * as Ref from "effect/Ref";
+import * as Stream from "effect/Stream";
 import { HttpRouter, HttpServer } from "effect/http";
 
 import * as EnvironmentAuth from "../auth/EnvironmentAuth.ts";
@@ -18,6 +20,7 @@ import * as SessionStore from "../auth/SessionStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
+import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import { VOICE_OPERATIONS, VOICE_SEAM_CONFIG_FILE } from "./ceiling.ts";
@@ -313,6 +316,150 @@ it.live("refuses a watch on a subagent or delegated thread with not_found", () =
         { type: "result", id: 2, ok: false, error: notFound },
         { type: "result", id: 3, ok: true, value: { threadId: parent } },
       ]);
+    }),
+  ),
+);
+
+/** Takes frames onto `taken` until `stop` holds for it, and returns it. */
+const takeUntil = (
+  client: ReturnType<typeof connect>,
+  stop: (taken: ReadonlyArray<Frame>) => boolean,
+  taken: Array<Frame> = [],
+) =>
+  Effect.promise(async () => {
+    while (!stop(taken)) taken.push(await client.next());
+    return taken;
+  });
+
+const bothAnswered = (taken: ReadonlyArray<Frame>) =>
+  taken.some(isResult(2)) && taken.some(isResult(3));
+
+const isResult = (id: number) => (frame: Frame) => frame.type === "result" && frame.id === id;
+const through =
+  (match: (frame: Frame) => boolean) =>
+  (taken: ReadonlyArray<Frame>): boolean =>
+    taken.length > 0 && match(taken.at(-1)!);
+
+/**
+ * Holds each live watch stream's end until `release`, so replacing a live watch stays suspended
+ * while it stops. `live` completes once a watch has reached its live stream.
+ */
+const holdLiveStreams = (gate: {
+  readonly live: Deferred.Deferred<void>;
+  readonly release: Deferred.Deferred<void>;
+}) =>
+  Layer.effect(
+    ThreadManagementService.ThreadManagementService,
+    Effect.gen(function* () {
+      const real = yield* ThreadManagementService.ThreadManagementService;
+      return {
+        ...real,
+        streamStoredEventsFrom: (input) =>
+          real
+            .streamStoredEventsFrom(input)
+            .pipe(
+              Stream.ensuring(Deferred.await(gate.release)),
+              Stream.onStart(Deferred.succeed(gate.live, undefined)),
+            ),
+      };
+    }),
+  );
+
+const serveHeldSeam = Effect.gen(function* () {
+  const gate = { live: yield* Deferred.make<void>(), release: yield* Deferred.make<void>() };
+  const seam = yield* serveSeam(VoiceSeamRoute.layer.pipe(Layer.provide(holdLiveStreams(gate))));
+  return { ...seam, gate };
+});
+
+it.live("admits no more than maxWatches when two watches race", () =>
+  live(
+    Effect.gen(function* () {
+      const seam = yield* serveHeldSeam;
+      yield* seam.configure(JSON.stringify({ ...CONFIG, maxWatches: 1 }));
+      yield* write([
+        thread({ id: "first", minutes: 1, projectId: PROJECT }),
+        thread({ id: "second", minutes: 2, projectId: PROJECT }),
+      ]);
+      const client = connect(seam.ws, (yield* seam.voiceSession).token);
+      yield* Effect.promise(client.next);
+      client.request("watch", { threadId: "first", afterSequence: 0 });
+      yield* takeUntil(client, through(isResult(1)));
+      yield* Deferred.await(seam.gate.live);
+
+      // The first replaces the live watch and waits while it stops; the second asks for a slot.
+      client.request("watch", { threadId: "first", afterSequence: 0 });
+      client.request("watch", { threadId: "second", afterSequence: 0 });
+      // Its answer shows the server has read both watches.
+      client.request("list_threads", {});
+      const frames = yield* takeUntil(client, through(isResult(4)));
+      yield* Deferred.succeed(seam.gate.release, undefined);
+      yield* takeUntil(client, bothAnswered, frames);
+      client.close();
+
+      assert.deepStrictEqual(frames.filter(isResult(2)), [
+        { type: "result", id: 2, ok: true, value: { threadId: "first" } },
+      ]);
+      assert.deepStrictEqual(frames.filter(isResult(3)), [
+        {
+          type: "result",
+          id: 3,
+          ok: false,
+          error: { code: "too_many_watches", message: "I'm following too many threads already." },
+        },
+      ]);
+    }),
+  ),
+);
+
+it.live("keeps one watch when two race on a thread, and unwatch stops it", () =>
+  live(
+    Effect.gen(function* () {
+      const seam = yield* serveHeldSeam;
+      yield* seam.configure(CONFIG_TEXT);
+      yield* write(PLAIN.map((stored) => stored.event));
+      const client = connect(seam.ws, (yield* seam.voiceSession).token);
+      yield* Effect.promise(client.next);
+      client.request("watch", { threadId: PLAIN_THREAD, afterSequence: 0 });
+      const once = (yield* takeUntil(client, through(isDone))).filter(
+        (frame) => frame.type === "event",
+      );
+      yield* Deferred.await(seam.gate.live);
+
+      client.request("watch", { threadId: PLAIN_THREAD, afterSequence: 0 });
+      client.request("watch", { threadId: PLAIN_THREAD, afterSequence: 0 });
+      client.request("list_threads", {});
+      const answered = yield* takeUntil(client, through(isResult(4)));
+      yield* Deferred.succeed(seam.gate.release, undefined);
+      yield* takeUntil(client, bothAnswered, answered);
+      const later = answered.findLastIndex((frame) => isResult(2)(frame) || isResult(3)(frame));
+      const tail = yield* takeUntil(
+        client,
+        (taken) => taken.some(isDone),
+        answered.slice(later + 1).filter((frame) => frame.type !== "result"),
+      );
+      client.request("unwatch", { threadId: PLAIN_THREAD });
+      const unwatched = yield* takeUntil(client, through(isResult(5)));
+      // A watch still running sends `gone` for this before the read's answer.
+      yield* write([
+        {
+          ...createdOf(PLAIN),
+          id: EventId.make("thread-deleted"),
+          type: "thread.deleted",
+          payload: { ...createdOf(PLAIN).payload, deletedAt: createdOf(PLAIN).occurredAt },
+        },
+      ]);
+      client.request("read_thread", { threadId: PLAIN_THREAD });
+      const afterUnwatch = yield* Effect.promise(client.next);
+      client.close();
+
+      assert.deepStrictEqual(tail, once);
+      assert.deepStrictEqual(unwatched.at(-1), {
+        type: "result",
+        id: 5,
+        ok: true,
+        value: { threadId: PLAIN_THREAD },
+      });
+      assert.deepInclude(afterUnwatch, { type: "result", id: 6 });
     }),
   ),
 );
