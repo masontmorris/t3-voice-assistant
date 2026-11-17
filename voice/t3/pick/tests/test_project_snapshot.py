@@ -32,7 +32,7 @@ class FolderTest(unittest.TestCase):
 		self.assertEqual(folder_of("C:\\Users\\someone\\Documents\\harbor-light"), "harbor-light")
 
 	def test_posix_roots_give_the_last_segment(self):
-		self.assertEqual(folder_of("/home/mason/voice"), "voice")
+		self.assertEqual(folder_of("/home/someone/harbor-light"), "harbor-light")
 
 	def test_empty_roots_give_empty_folders(self):
 		self.assertEqual(folder_of(""), "")

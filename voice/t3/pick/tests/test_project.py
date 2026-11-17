@@ -84,6 +84,100 @@ class NoneTest(unittest.TestCase):
 		self.assertEqual(picked.kind, "ask")
 
 
+COMMON_PROJECTS = PROJECTS + [
+	{"projectId": "p-no-project", "name": "No project", "spokenNames": ["No project", "scratch"]},
+]
+
+LAB_PROJECTS = [
+	{"projectId": "p-decision-lab", "name": "Decision Lab", "spokenNames": ["Decision Lab", "decision-lab"]},
+	{"projectId": "p-s1-loop", "name": "S1 Loop", "spokenNames": ["S1 Loop", "s1-loop"]},
+	{"projectId": "p-web-audio", "name": "Web Audio API", "spokenNames": ["Web Audio API", "web-audio-api"]},
+]
+
+PREFIX_PROJECTS = [
+	{"projectId": "p-harbor-voice", "name": "Harbor Voice", "spokenNames": ["Harbor Voice", "harbor-voice"]},
+	{"projectId": "p-harbor-voice-assistant", "name": "Harbor Voice Assistant",
+	 "spokenNames": ["Harbor Voice Assistant"]},
+]
+
+AGENT_PROJECTS = [
+	{"projectId": "p-agent", "name": "Agent Runner", "spokenNames": ["Agent Runner"]},
+]
+
+
+class ExplicitUnlistedTest(unittest.TestCase):
+	def test_an_unlisted_project_with_a_listed_name_in_the_task_is_none(self):
+		picked = pick_project("start a thread in project zephyria that ports the harbor light importer",
+		                      PROJECTS)
+		self.assertEqual(picked.kind, "none")
+
+	def test_a_listed_target_still_picks_despite_an_unlisted_project_word(self):
+		picked = pick_project("start a thread in the scratch project that cleans up exports",
+		                      COMMON_PROJECTS)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.project_id, "p-no-project")
+
+
+class CommonWordTest(unittest.TestCase):
+	def test_a_common_word_inside_the_task_does_not_count(self):
+		picked = pick_project("rebuilds the parser from scratch", COMMON_PROJECTS)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(list(picked.candidates), [])
+
+	def test_a_common_phrase_inside_the_task_does_not_count(self):
+		picked = pick_project("there is no project for it yet", COMMON_PROJECTS)
+		self.assertEqual(picked.kind, "ask")
+
+	def test_a_common_word_as_the_target_picks(self):
+		picked = pick_project("open a thread in scratch to investigate the log", COMMON_PROJECTS)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.project_id, "p-no-project")
+
+	def test_a_common_word_before_project_picks(self):
+		picked = pick_project("start a thread in the scratch project that cleans up exports",
+		                      COMMON_PROJECTS)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.project_id, "p-no-project")
+
+
+class StrictPrefixTest(unittest.TestCase):
+	def test_a_strict_prefix_of_a_longer_listed_name_asks(self):
+		picked = pick_project("start a thread in harbor voice that fixes the crash", PREFIX_PROJECTS)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"p-harbor-voice", "p-harbor-voice-assistant"})
+
+	def test_the_short_form_alone_still_picks(self):
+		picked = pick_project("start a thread in harbor voice that fixes the crash",
+		                      PREFIX_PROJECTS[:1])
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.project_id, "p-harbor-voice")
+
+
+class TaskSideExactTest(unittest.TestCase):
+	def test_a_task_side_exact_match_does_not_pick(self):
+		picked = pick_project("start a thread in the lab that ports the s1 loop importer", LAB_PROJECTS)
+		self.assertEqual(picked.kind, "ask")
+		self.assertIn("p-decision-lab", picked.candidates)
+
+	def test_a_stated_target_beside_a_task_side_exact_still_asks(self):
+		picked = pick_project("start a thread in decision lab that ports the s1 loop importer",
+		                      LAB_PROJECTS)
+		self.assertEqual(picked.kind, "ask")
+
+	def test_an_exact_target_with_only_a_task_fragment_picks_the_target(self):
+		picked = pick_project("start a thread in decision lab that cleans up the web audio exports",
+		                      LAB_PROJECTS)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.project_id, "p-decision-lab")
+
+
+class SingularPartialTest(unittest.TestCase):
+	def test_a_plural_task_word_matches_the_singular_project(self):
+		picked = pick_project("start a thread in the agents project to check the queue", AGENT_PROJECTS)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(list(picked.candidates), ["p-agent"])
+
+
 class MembershipTest(unittest.TestCase):
 	def test_an_unlisted_id_is_rejected(self):
 		with self.assertRaises(ValueError):
@@ -163,6 +257,27 @@ class ModelProjectTest(unittest.TestCase):
 		self.assertEqual(picked.kind, "ask")
 		self.assertEqual(meta["parse"], "unparseable")
 
+	def test_a_choice_with_two_candidates_becomes_a_question(self):
+		client = FakeProjectClient('{"choice": "p-quartz", "candidates": ["p-harbor-light", "p-harbor-engine"]}')
+		picked, _ = pick_project_via_model("start a thread in harbor", PROJECTS, client)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"p-harbor-light", "p-harbor-engine"})
+
+	def test_an_unparseable_reply_falls_back_to_the_deterministic_candidates(self):
+		client = FakeProjectClient("I think it is quartz")
+		picked, meta = pick_project_via_model("start a thread in harbor", PROJECTS, client,
+		                                      ["p-harbor-light"])
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(meta["parse"], "unparseable")
+		self.assertEqual(list(picked.candidates), ["p-harbor-light"])
+
+	def test_an_unlisted_choice_falls_back_to_the_deterministic_candidates(self):
+		client = FakeProjectClient('{"choice": "p-imaginary", "candidates": []}')
+		picked, _ = pick_project_via_model("start a thread", PROJECTS, client, ["p-quartz"])
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(list(picked.candidates), ["p-quartz"])
+		self.assertIn("Quartz", picked.question)
+
 	def test_the_prompt_lists_every_project_once(self):
 		seen = {}
 
@@ -201,6 +316,12 @@ class DecideProjectTest(unittest.TestCase):
 			picked, meta = decide_project("start a thread in harbor to fix x", PROJECTS, client)
 			self.assertEqual(picked.kind, "ask")
 			self.assertEqual(meta["parse"], "failed")
+
+	def test_a_model_failure_uses_the_deterministic_candidates(self):
+		client = FakeProjectClient(error=ModelFailed("gave up"))
+		picked, _ = decide_project("start a thread in harbor to fix x", PROJECTS, client)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"p-harbor-light", "p-harbor-engine"})
 
 
 class ProjectHarnessTest(unittest.TestCase):
