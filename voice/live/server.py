@@ -34,6 +34,12 @@ noise or the reply's own echo is dismissed and the reply plays on at full volume
 after the reply has played starts a turn at once and drops only a still-running turn's later audio. Speech that starts
 after a turn ended but before any reply audio continues that turn: the new turn gets the old one's audio first.
 
+A barge-in also tells the session what the person heard before it, since the muted reply still finishes inside the
+session. The server reads back the part of the reply's audio the client had played (`played_part`, `heard_prefix`),
+and puts one short note before the new turn's audio saying the person interrupted and heard only the reply's start;
+`--barge-in-note off` leaves it out for an A/B. The note does not quote the words, because quoting them made the model
+go on with the old reply (measured, docs/voice/barge-in.md); what the read-back matched goes in the turn's record.
+
 --snapshot picks what machine text enters the voice session. "note", the default, sends one short private note
 after the turn's audio, and only on a turn that has a lookup to speak about: that it is running, its result, or
 that it could not be done (`voice/prototype/run.py`, `task_note`). A turn with no lookup sends nothing, so the model
@@ -98,10 +104,11 @@ from websockets.asyncio.server import serve
 from voice.live import fallback
 from voice.live import eou_audio
 from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start
-from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, transcribe
+from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, run_clip
+from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
+                                 heard_prefix, interrupted_note, plain_text, run_clip)
 from voice.live.ledger import ConversationLedger
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
@@ -216,6 +223,7 @@ class MicTurn:
         self.out_rate, self.reply_started, self.speaking, self.spoken_text = None, False, False, ""
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
         self.task = self.decider = self.overlap = None
+        self.sent_pcm, self.note_task, self.note, self.note_heard = bytearray(), None, None, None
         self.checks, self.check = [], None
         self.feed(pcm)
 
@@ -376,17 +384,39 @@ class Conversation:
 
     def settle(self, verdict, how, transcript=None, trailing_ms=None):
         """The overlap's verdict. A barge-in, or speech the reply finished under, becomes a turn that opens with all
-        of the overlap's audio; a dismissed overlap is logged with its audio and the reply plays on."""
+        of the overlap's audio; a dismissed overlap is logged with its audio and the reply plays on.
+
+        A barge-in also tells the voice session what the person heard of the reply it stops, since the reply still
+        finishes inside the session: the note goes in before the new turn's audio."""
         overlap, self.overlap = self.overlap, None
         entry = overlap.record(verdict or "turn", how, time.perf_counter(), transcript)
         self.live.log_overlap(entry, None if verdict in (None, Verdict.BARGE_IN) else overlap.pcm)
         if verdict is not Verdict.BARGE_IN:
             self.post({"type": "unduck", "turn": overlap.turn, "verdict": str(verdict or "turn")})
         if verdict in (None, Verdict.BARGE_IN):
+            prior, remaining = self.turn, max(0.0, self.playback.until - time.perf_counter())
             self.start_turn(bytes(overlap.pcm), barge_in=verdict is Verdict.BARGE_IN)
             self.turn.overlap = entry
+            if verdict is Verdict.BARGE_IN and self.live.barge_in_note:
+                self.turn.note_task = asyncio.create_task(self.heard_before(prior, remaining, self.turn))
             if trailing_ms is not None:
                 self.end_turn(trailing_ms, False)
+
+    async def heard_before(self, turn, remaining_s, noted):
+        """The note naming what the person heard of `turn`'s reply before talking over it, read back from the audio
+        it released, or None when nothing of it was audible. What it read goes on the barge-in turn's record."""
+        if turn is None or turn.first_audio is None or turn.out_rate is None:
+            return None
+        pcm = played_part(turn.sent_pcm, turn.out_rate, remaining_s)
+        if not pcm:
+            return None
+        try:
+            transcript = await self.live.hear_reply(pcm, turn.out_rate)
+        except Exception as exc:
+            print(f"heard-before transcript failed: {exc!r}", flush=True)
+            return None
+        noted.note_heard = heard_prefix(turn.spoken_text, transcript)
+        return interrupted_note() if noted.note_heard else None
 
     async def on_control(self, message):
         kind = message.get("type")
@@ -491,6 +521,7 @@ class Conversation:
                 self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
             new_text = text[len(turn.spoken_text):] if text.startswith(turn.spoken_text) else text
             turn.spoken_text = text
+            turn.sent_pcm += pcm
             self.playback.add(len(pcm) / 2 / turn.out_rate, new_text.strip(), now, turn.n)
             self.post_audio(turn, pcm)
         if done and turn.speaking:
@@ -519,6 +550,10 @@ class Conversation:
                 await self.open_voice()
             self.voice_turn, self.session_turns = turn, self.session_turns + 1
             turn.out_rate, self.started = self.out_rate, time.perf_counter()
+            if turn.note_task is not None:
+                turn.note = await turn.note_task
+                if turn.note is not None:
+                    await create_item(self.voice, plain_text(turn.note))
             record = await run_clip(turn, "c", False, live.url, turn.decider, live.args.delay, live.out, partial,
                                     live.args.segmenter, live.tools, "gated", persona=self.persona,
                                     voice=self.voice, snapshot_mode=live.args.snapshot,
@@ -544,7 +579,8 @@ class Conversation:
         record["ledger"] = self.ledger.record_dict()
         record["live"] = {**turn.metrics(), "prompt": self.prompt_source, "endpointer": vars(live.settings),
                           "mode": self.mode, "snapshot": live.args.snapshot, "recall": live.args.recall,
-                          "eou": getattr(live.args, "eou", "silence"),
+                          "eou": getattr(live.args, "eou", "silence"), "barge_in_note": turn.note,
+                          "barge_in_heard": turn.note_heard,
                           "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns}}
         write_pcm16(live.out / f"{turn.name}_input.wav", bytes(turn.pcm), RATE)
         (live.out / f"{turn.name}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
@@ -563,6 +599,8 @@ class Conversation:
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")
+            if turn.note_task is not None:
+                turn.note_task.cancel()
         await asyncio.gather(*(turn.task for turn in turns), return_exceptions=True)
         self.voice_turn = None
         if self.voice is not None:
@@ -582,10 +620,15 @@ class Live:
         self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
         self.active, self.turns, self.overlaps = None, 0, 0
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
+        self.barge_in_note = getattr(args, "barge_in_note", "on") == "on"
         self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
 
     async def transcribe(self, pcm):
         return await transcribe(self.url, pcm, Session)
+
+    async def hear_reply(self, pcm, rate):
+        """What a reply's released audio says, at the session's own rate. The note after a barge-in quotes it."""
+        return await by_ear(self.url, rate)(pcm)
 
     def log_overlap(self, entry, pcm):
         """One line per overlap in overlaps.jsonl; a dismissed overlap's audio is kept beside it, since no turn holds
@@ -702,6 +745,9 @@ def main():
     parser.add_argument("--confirm-ms", type=int, default=OverlapSettings.confirm_ms,
                         help="voiced speech over a playing reply that stops it (default 600); shorter speech is "
                              "transcribed and a backchannel, noise or echo leaves the reply playing")
+    parser.add_argument("--barge-in-note", choices=["on", "off"], default="on",
+                        help="tell the voice session what the person heard of the reply a barge-in stops, before the "
+                             "new turn's audio (default on; off for an A/B)")
     parser.add_argument("--max-minutes", type=float, default=55.0, help="stop the server after this long")
     parser.add_argument("--stop-file", type=Path, default=STOP_FILE,
                         help="stop when this file appears (default $VOICE_HOME/live/STOP)")

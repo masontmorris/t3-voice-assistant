@@ -1,7 +1,7 @@
 import unittest
 
 from voice.live.endpoint import FRAME_BYTES
-from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify
+from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, played_part
 
 REPLY = "The forecast for Durham today shows a high of 57 degrees Fahrenheit and a 0 percent chance of precipitation."
 
@@ -55,6 +55,14 @@ class PlaybackTest(unittest.TestCase):
         playback.add(5.0, "long", now=10.0, turn=1)
         playback.stop(11.0)
         self.assertFalse(playback.playing(11.5, grace_s=0.25))
+
+
+class PlayedPartTest(unittest.TestCase):
+    def test_a_reply_that_is_still_playing_keeps_only_what_played(self):
+        pcm = b"\x01\x00" * 16_000
+        self.assertEqual(len(played_part(pcm, 16_000, 0.4)), 9_600 * 2, "0.6 of 1 s was played")
+        self.assertEqual(played_part(pcm, 16_000, 0.0), pcm)
+        self.assertEqual(played_part(pcm, 16_000, 3.0), b"", "nothing had played yet")
 
 
 class OverlapTest(unittest.TestCase):

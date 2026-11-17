@@ -89,6 +89,19 @@ async def streaming_run_clip(source, *args, persona, voice=None, speak=None, **k
             "replies": [{"text": f"reply to {source.name}"}], "metrics": {}}
 
 
+async def talking_run_clip(source, *args, persona, voice=None, speak=None, **kwargs):
+    """Turn 1 speaks a 2 s reply and turn 2 hands its audio to the voice session, as run_clip does at turn end."""
+    VOICES.append(voice)
+    SENT_BEFORE.append(list(voice.sent))
+    voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+    await source.stream(FakeSession(), FakeSession())
+    if source.n == 1:
+        speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE * 2), True)
+    else:
+        await source.send_voice(voice)
+    return {"clip": source.name, "final_transcript": f"words in {source.name}", "replies": [], "metrics": {}}
+
+
 class LiveServerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.frames = []
@@ -296,6 +309,66 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(size, (800 + 700) * 32, "all 800 ms of speech and the trailing silence")
         await ws.close()
 
+    def heard_reply(self, text):
+        async def hear(pcm, rate):
+            self.heard_audio.append((len(pcm), rate))
+            return text
+        self.heard_audio = []
+        self.live.hear_reply = hear
+
+    def created(self, turn):
+        """The session items added between the previous turn's start and this turn's."""
+        return [event["item"] for event in SENT_BEFORE[turn][len(SENT_BEFORE[turn - 1]):]
+                if event["type"] == "conversation.item.create"]
+
+    async def barge_in(self, ws, log):
+        await self.send(ws, tone(800) + noise(900, seed=2))
+        while (await self.until(ws, "turn_done", log))["turn"] != 2:
+            pass
+        return json.loads((Path(self.tmp.name) / "turn_002.json").read_text())
+
+    async def test_a_barge_in_tells_the_session_what_was_heard(self):
+        self.heard_reply("Reply to turn")
+        ws = await self.connect()
+        record = await self.barge_in(ws, await self.reply_playing(ws))
+        self.assertEqual(len(self.heard_audio), 1, "the interrupted reply is read back once")
+        played, rate = self.heard_audio[0]
+        self.assertEqual(rate, OUT_RATE)
+        self.assertGreater(played, 0)
+        self.assertLess(played, OUT_RATE * 2 * 2, "only the part of the reply the client had played")
+        note = self.created(1)[0]["content"][0]["text"]
+        self.assertIn("interrupted your last reply", note)
+        self.assertNotIn('"reply to turn"', note, "quoting the heard words primed the model to go on with them")
+        self.assertEqual(record["live"]["barge_in_heard"], "reply to turn",
+                         "the record keeps what the read-back matched, up to its last matched word")
+        self.assertEqual(record["live"]["barge_in_note"], note, "the turn's record carries the note it sent")
+
+    async def test_a_barge_in_note_comes_before_the_turns_audio(self):
+        self.heard_reply("Reply to turn")
+        with mock.patch.object(server, "run_clip", talking_run_clip):
+            ws = await self.connect()
+            await self.barge_in(ws, await self.reply_playing(ws))
+        sent = VOICES[1].sent
+        note_at = next(i for i, event in enumerate(sent) if event["type"] == "conversation.item.create")
+        audio_at = next(i for i, event in enumerate(sent) if event["type"] == "input_audio_buffer.append")
+        self.assertLess(note_at, audio_at, "the note is in the session before the barge-in turn's audio")
+
+    async def test_no_note_when_nothing_of_the_reply_was_heard(self):
+        self.heard_reply("")
+        ws = await self.connect()
+        record = await self.barge_in(ws, await self.reply_playing(ws))
+        self.assertEqual(self.created(1), [])
+        self.assertIsNone(record["live"]["barge_in_note"])
+
+    async def test_the_note_can_be_turned_off(self):
+        self.live.barge_in_note = False
+        self.heard_reply("Reply to turn")
+        ws = await self.connect()
+        record = await self.barge_in(ws, await self.reply_playing(ws))
+        self.assertEqual(self.heard_audio, [], "no read-back without the note")
+        self.assertEqual(self.created(1), [])
+        self.assertIsNone(record["live"]["barge_in_note"])
+
     async def test_a_backchannel_over_the_reply_leaves_it_playing(self):
         self.heard("Mm-hm.")
         ws = await self.connect()
@@ -485,6 +558,30 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         conversation.on_voice_event({"type": "response.done"})
         self.assertTrue(conversation.outbox.empty())
         self.assertFalse(conversation.voice_turn.reply_started, "nothing was spoken")
+
+    async def test_a_note_goes_in_for_the_part_of_the_reply_that_had_played(self):
+        conversation = await self.conversation()
+        turn = server.MicTurn(1, b"")
+        turn.out_rate = OUT_RATE
+        turn.first_audio = 1.0
+        turn.sent_pcm = bytearray(b"\x01\x00" * OUT_RATE)
+        turn.spoken_text = "It is sunny and warm today."
+        heard = []
+
+        async def hear(pcm, rate):
+            heard.append((len(pcm), rate))
+            return "It is sunny"
+
+        conversation.live.hear_reply = hear
+        noted = server.MicTurn(2, b"")
+        note = await conversation.heard_before(turn, 0.75, noted)
+        self.assertEqual(heard, [(OUT_RATE // 4 * 2, OUT_RATE)], "only the quarter second that had played")
+        self.assertNotIn("sunny", note, "the note does not quote the words, which primed going on with them")
+        self.assertEqual(noted.note_heard, "It is sunny", "the record keeps the words the read-back matched")
+        self.assertIsNone(await conversation.heard_before(turn, 1.0, noted), "nothing played, so nothing to note")
+        turn.spoken_text = ""
+        self.assertIsNone(await conversation.heard_before(turn, 0.75, noted), "a read-back that matches no word is "
+                                                                             "no note")
 
 
 class ChunkTest(unittest.IsolatedAsyncioTestCase):

@@ -23,6 +23,7 @@ Goal (Mason's): talk to the assistant the way people talk to each other. Talking
    - The reply finishes first: a plain turn.
 4. **No lost words.** The barge-in turn opens with the overlap's audio, pre-roll included.
 5. **Record.** Every overlap is a line in `overlaps.jsonl`, and the barge-in turn's record names its overlap under `live.overlap`.
+6. **What the session hears.** A muted reply still finishes inside the call's one voice session, so the session would otherwise hold a reply the person never heard. After a barge-in the server reads back the part of the reply's audio the client had played (`played_part`, then `heard_prefix`) and puts one short note in front of the new turn's audio saying the person interrupted and heard only the reply's start. Nothing audible, or a read-back that matches none of the reply's words, sends no note. `--barge-in-note off` leaves it out for an A/B. The turn record keeps the note and the words the read-back matched, under `live.barge_in_note` and `live.barge_in_heard`.
 
 The voiced count uses a -60 dBFS floor. Call 2's quiet short turns peak near -40 dBFS, and the endpointer's -50 dBFS floor counts only 260 to 300 ms of "Answer the question." and "Okay, thanks." as voiced (measured).
 
@@ -53,9 +54,52 @@ End to end, on 2026-11-16 17:05 ET. One live server from this branch with `--moc
 
 **Offline bench.** `python -m voice.research.live.overlap_bench` on Mason's three live records gives 40 of 40 turns as barge-ins and 4 of 5 cut backchannels dismissed. The miss is the "Oh" cut above. The old rule dismissed 0 of 5.
 
+## The note after a barge-in
+
+Two things are true of the first attempt and decide what shipped (measured, 2026-11-17). Quoting the words the person
+heard made the model go on with the old reply, or read the quote back: with the quoted note, three answers continued
+the interrupted reply and two more talked about the note itself. So the shipped note names no words. It says they
+interrupted and heard only the reply's start; the words the read-back matched stay in the record for a person.
+
+The measurement is the voice session alone, one LFM3 session per case, no decider and no task service
+(`voice/research/live/bargein_note_session.py`, records under `$VOICE_HOME/evidence/live/bargein-note-session/`). The
+nine cases are the interruption clips of the gate-1 run: five of Mason's turns from the 2026-11-16 call and four
+synthetic commands. Each session runs the synthetic lighthouse request, its reply, then (with the note) the note, then
+the interruption. The outcome per case comes from reading the saved reply text.
+
+| Case | No note | Note, no quote | Note, quoted |
+| --- | --- | --- | --- |
+| Call-1 turn 4 | answered | answered | answered |
+| Call-1 turn 11 | answered | answered | answered |
+| Call-1 turn 16 | restarted | restarted | restarted |
+| Call-1 turn 21 | answered | answered | answered |
+| Call-1 turn 29 | continued | continued | continued |
+| "Stop." | stopped | continued | continued |
+| "Wait." | continued | continued | read the note aloud |
+| "No, no." | stopped | continued | repeated the old reply |
+| "Hold on." | continued | answered | continued |
+
+Measured: 3 of 9 answers continued or ignored the interruption with no note, 4 of 9 with the unquoted note, and 5 of 9
+with the quoted note. The unquoted note is within noise of no note at n = 9, and it changed single cases in both
+directions: "Hold on." was handled and "Stop." and "No, no." were not. So this sample does not show the note stopping
+an answer that carries on the old one, and it does show that quoting the heard words is worse. Do not read the 3, 4
+and 5 as rates. The quoted note ran the same session harness before the note text changed (`note/` in the records
+directory).
+
+The full live-server A/B on the same recordings is
+`$VOICE_HOME/evidence/live/bargein-note/` (`voice/research/live/bargein_note_ab.py`). It could not answer the question:
+the decider and the mock task service put their own text in front of the model, so both arms' replies were mostly the
+same failed-lookup line and the arms did not even produce the same barge-in set (16 cases without the note, 10 with
+it). Its records do show the shipped path end to end: the note is a text item in the call's session before the new
+turn's audio, and each record carries the note and the read-back under `live.barge_in_note` and `live.barge_in_heard`.
+
 ## What it does not do yet
 
 - **Speakers.** Echo is held to the voiced length like speech, so with speakers and the echo canceller off the reply would still stop itself after 600 ms. The transcript-stage echo check only catches short echoes. Speakers need issue #33's canceller.
 - **Another person or a TV.** Sustained speech from someone else is a barge-in, and with no reply playing it starts a turn. Telling it apart needs a level or speaker cue, calibrated on a recording that has those sounds. No such recording exists yet.
 - **Latency.** Stopping takes about 0.7 s from onset (measured, median), against 0.08 s before. The duck at about 0.1 s is the immediate cue. Lowering `--confirm-ms` trades that latency against stopping for "okay".
 - **Long backchannels.** A backchannel over 600 ms voiced ("yeah, yeah, totally") stops the reply.
+- **The note has no measured effect.** In the 9-case session comparison above, the shipped note did not stop answers
+  that carry on the interrupted one, and no note at all scored within a case or two of it. The live-server A/B could
+  not settle it. Retesting needs a configuration where the interrupted answer is a long answer with no task text after
+  it, and more than one sample per case.

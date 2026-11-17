@@ -71,6 +71,14 @@ def classify(text, playing):
     return Verdict.BARGE_IN
 
 
+def played_part(pcm, rate, remaining_s):
+    """The part of a reply's released audio the client has played: all of it but its last `remaining_s` seconds.
+
+    The server sends a reply before it plays, so the time left in `Playback` maps to the tail of what was sent."""
+    played_s = len(pcm) / 2 / rate - max(0.0, remaining_s)
+    return bytes(pcm[:max(0, int(played_s * rate)) * 2])
+
+
 @dataclass
 class Playback:
     """When the reply audio already sent will have finished playing on the client, and what it says."""
