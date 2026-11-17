@@ -1,15 +1,19 @@
 #!/usr/bin/env bash
 # Pulls upstream T3 into the fork: fast-forwards the mirror, merges it into voice/main, runs our checks, then pushes.
-# Stops at the first problem and never force-pushes anything.
+# Stops at the first problem and never force-pushes anything. Runs non-interactively, so a credential prompt is an error.
 #
-#   bash voice/ci/upstream_sync.sh --dry-run     do everything except the two pushes
+#   bash voice/ci/upstream_sync.sh --dry-run     do everything except the push
 #   bash voice/ci/upstream_sync.sh              the real run
 #
 # Environment: VOICE_SYNC_SOURCE_REPO (default ~/source/repos/t3-voice), VOICE_SYNC_WORKTREE (default
 # ~/source/repos/t3-voice-sync, created if missing), VOICE_SYNC_VOICE_BRANCH (default voice/main),
-# VOICE_HOME (default ~/voice), VOICE_SYNC_LOG, VOICE_PYTHON. The job runs only in its own worktree,
-# never in the source repo or an integration worktree.
+# VOICE_HOME (default ~/voice), VOICE_SYNC_LOG, VOICE_PYTHON. It runs only in the linked worktree it
+# created itself; any other path is refused before a single file changes.
 set -uo pipefail
+
+# A scheduled run has no terminal to answer a credential prompt, so git must fail instead of waiting.
+export GIT_TERMINAL_PROMPT=0
+export GCM_INTERACTIVE=never
 
 source_repo=${VOICE_SYNC_SOURCE_REPO:-$HOME/source/repos/t3-voice}
 worktree=${VOICE_SYNC_WORKTREE:-$HOME/source/repos/t3-voice-sync}
@@ -77,7 +81,7 @@ finish() {
   printf 'seam check:  %s\n' "$seam_state"
   printf 'push:        %s\n' "$push_state"
   printf 'log:         %s\n' "$log_file"
-  [ -n "$lock_dir" ] && rmdir "$lock_dir" 2>/dev/null
+  release_lock
   exit "$code"
 }
 
@@ -86,11 +90,68 @@ mkdir -p "$log_dir" 2>/dev/null || {
   exit $exit_setup
 }
 lock_path=$log_dir/run.lock
-if mkdir "$lock_path" 2>/dev/null; then
+lock_pid_file=$lock_path/pid
+lock_started_file=$lock_path/started
+lock_stale_seconds=10800
+
+release_lock() {
+  [ -n "$lock_dir" ] || return 0
+  rm -f "$lock_pid_file" "$lock_started_file" 2>/dev/null
+  rmdir "$lock_path" 2>/dev/null
+}
+
+lock_age_seconds() {
+  started=$(cat "$lock_started_file" 2>/dev/null)
+  case "$started" in
+    ''|*[!0-9]*) started=$(stat -c %Y "$lock_path" 2>/dev/null) ;;
+  esac
+  case "$started" in
+    ''|*[!0-9]*) printf '%s\n' "-"; return ;;
+  esac
+  printf '%s\n' $(( $(date +%s) - started ))
+}
+
+pid_alive() {
+  case "$1" in
+    ''|*[!0-9]*) return 1 ;;
+  esac
+  if command -v tasklist >/dev/null 2>&1; then
+    MSYS_NO_PATHCONV=1 tasklist /FI "PID eq $1" /NH 2>/dev/null | grep -q '[0-9]'
+    return
+  fi
+  kill -0 "$1" 2>/dev/null || ps -p "$1" >/dev/null 2>&1
+}
+
+take_lock() {
+  mkdir "$lock_path" 2>/dev/null || return 1
   lock_dir=$lock_path
-  trap 'rmdir "$lock_dir" 2>/dev/null' EXIT
-else
-  finish "another sync is already running" $exit_locked
+  printf '%s\n' "$$" >"$lock_pid_file"
+  printf '%s\n' "$(date +%s)" >"$lock_started_file"
+  return 0
+}
+
+trap release_lock EXIT
+if ! take_lock; then
+  lock_pid=$(cat "$lock_pid_file" 2>/dev/null)
+  lock_age=$(lock_age_seconds)
+  if [ "$lock_age" != "-" ] && [ "$lock_age" -ge "$lock_stale_seconds" ]; then
+    printf 'upstream_sync.sh: taking over a stale lock: pid %s, started %s s ago\n' \
+      "${lock_pid:-unknown}" "$lock_age" >&2
+    rm -rf "$lock_path"
+    take_lock || true
+  elif [ -n "$lock_pid" ] && ! pid_alive "$lock_pid"; then
+    printf 'upstream_sync.sh: taking over a lock whose pid %s is gone, started %s s ago\n' \
+      "$lock_pid" "$lock_age" >&2
+    rm -rf "$lock_path"
+    take_lock || true
+  fi
+  if [ -z "$lock_dir" ]; then
+    lock_pid=$(cat "$lock_pid_file" 2>/dev/null)
+    lock_age=$(lock_age_seconds)
+    printf 'upstream_sync.sh: another sync holds the lock: pid %s, started %s s ago\n' \
+      "${lock_pid:-unknown}" "$lock_age" >&2
+    finish "another sync is already running" $exit_locked
+  fi
 fi
 
 python_cmd=${VOICE_PYTHON:-$(command -v python || command -v python3 || true)}
@@ -112,9 +173,42 @@ if ! git -C "$worktree" rev-parse --git-dir >/dev/null 2>&1; then
     git -C "$source_repo" worktree prune &&
     git -C "$source_repo" worktree add --detach "$worktree" HEAD >/dev/null 2>&1 ||
     finish "cannot create the sync worktree at $worktree" $exit_setup
+  created_git_dir=$(git -C "$worktree" rev-parse --path-format=absolute --git-dir 2>/dev/null)
+  printf 'created by voice/ci/upstream_sync.sh\n' >"$created_git_dir/voice-sync-worktree" ||
+    finish "cannot mark the new worktree at $worktree" $exit_setup
 fi
-if [ "$(cd "$worktree" && pwd)" = "$(cd "$source_repo" && pwd)" ]; then
+
+real_path() {
+  "$python_cmd" -c 'import os, sys; print(os.path.realpath(sys.argv[1]))' "$1" 2>/dev/null
+}
+
+# The checkouts here are reset and cleaned, so prove the target is the worktree this job made: same real path as
+# the argument, a linked worktree rather than the main checkout, and carrying the marker written above.
+worktree_real=$(real_path "$worktree")
+source_real=$(real_path "$source_repo")
+if [ -z "$worktree_real" ] || [ -z "$source_real" ]; then
+  finish "cannot resolve the real path of $worktree or $source_repo" $exit_setup
+fi
+if [ "$worktree_real" = "$source_real" ]; then
   finish "refusing to run in the source repo itself, give the sync its own worktree" $exit_setup
+fi
+toplevel=$(git -C "$worktree" rev-parse --show-toplevel 2>/dev/null)
+toplevel_real=$(real_path "$toplevel")
+if [ "$toplevel_real" != "$worktree_real" ]; then
+  finish "refusing $worktree: git reports its top level as $toplevel_real, so it is a subfolder or another checkout" $exit_setup
+fi
+git_dir=$(git -C "$worktree" rev-parse --path-format=absolute --git-dir 2>/dev/null)
+common_dir=$(git -C "$worktree" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)
+git_dir_real=$(real_path "$git_dir")
+common_dir_real=$(real_path "$common_dir")
+if [ -z "$git_dir_real" ] || [ -z "$common_dir_real" ]; then
+  finish "cannot read the git dir of $worktree" $exit_setup
+fi
+if [ "$git_dir_real" = "$common_dir_real" ]; then
+  finish "refusing $worktree: it is the primary checkout, not a linked worktree" $exit_setup
+fi
+if [ ! -f "$git_dir_real/voice-sync-worktree" ]; then
+  finish "refusing $worktree: it has no $git_dir_real/voice-sync-worktree marker, so this job did not create it" $exit_setup
 fi
 if [ -n "$(git -C "$worktree" status --porcelain --untracked-files=no)" ]; then
   finish "refusing to reset $worktree, it has changes to tracked files; reset it by hand first" $exit_setup
@@ -130,15 +224,19 @@ if ! git -C "$worktree" fetch --no-tags origin main "$voice_branch" >/dev/null 2
 fi
 fetch_state="fetched upstream/main, origin/main, origin/$voice_branch"
 
-upstream_sha=$(git -C "$worktree" rev-parse upstream/main)
-origin_main_sha=$(git -C "$worktree" rev-parse origin/main)
-voice_sha=$(git -C "$worktree" rev-parse "origin/$voice_branch")
-upstream_short=$(git -C "$worktree" rev-parse --short=10 upstream/main)
-origin_main_short=$(git -C "$worktree" rev-parse --short=10 origin/main)
-voice_short=$(git -C "$worktree" rev-parse --short=10 "origin/$voice_branch")
+resolve_sha() {
+  git -C "$worktree" rev-parse --verify --quiet "$1" 2>/dev/null
+}
+
+upstream_sha=$(resolve_sha upstream/main)
+origin_main_sha=$(resolve_sha origin/main)
+voice_sha=$(resolve_sha "origin/$voice_branch")
 if [ -z "$upstream_sha" ] || [ -z "$origin_main_sha" ] || [ -z "$voice_sha" ]; then
   finish "cannot resolve upstream/main, origin/main, or origin/$voice_branch" $exit_setup
 fi
+upstream_short=$(git -C "$worktree" rev-parse --short=10 "$upstream_sha")
+origin_main_short=$(git -C "$worktree" rev-parse --short=10 "$origin_main_sha")
+voice_short=$(git -C "$worktree" rev-parse --short=10 "$voice_sha")
 
 if [ "$upstream_sha" = "$origin_main_sha" ] && git -C "$worktree" merge-base --is-ancestor "$upstream_sha" "$voice_sha"; then
   main_state="already a mirror of upstream ($origin_main_short)"
@@ -174,8 +272,13 @@ if ! merge_output=$(git -C "$worktree" merge --no-ff --no-edit \
   -m "Merge upstream T3 main ($upstream_short) into $voice_branch" "$upstream_sha" 2>&1); then
   conflicts=$(git -C "$worktree" diff --name-only --diff-filter=U | tr '\n' ' ')
   git -C "$worktree" merge --abort >/dev/null 2>&1
-  merge_state="CONFLICT, aborted: ${conflicts:-unknown paths}"
-  finish "merge conflict between upstream and $voice_branch" $exit_conflict
+  printf '%s\n' "$merge_output"
+  if [ -n "$conflicts" ]; then
+    merge_state="CONFLICT, aborted: $conflicts"
+    finish "merge conflict between upstream and $voice_branch" $exit_conflict
+  fi
+  merge_state="MERGE FAILED, aborted; the git output is above"
+  finish "merge failed between upstream and $voice_branch" $exit_conflict
 fi
 after=$(git -C "$worktree" rev-parse HEAD)
 if [ "$before" = "$after" ]; then
@@ -204,17 +307,16 @@ fi
 seam_state=$(printf '%s' "$seam_output" | head -n 1)
 
 if [ "$dry_run" = 1 ]; then
-  push_state="skipped, dry run: would push upstream/main to origin/main and HEAD to origin/$voice_branch"
+  push_state="skipped, dry run: would push $upstream_short to origin/main and HEAD to origin/$voice_branch atomically"
   finish "dry run passed, nothing pushed" $exit_ok
 fi
 
-if ! git -C "$worktree" push --quiet origin "refs/remotes/upstream/main:refs/heads/main" 2>&1; then
-  push_state="FAILED: main not pushed; $voice_branch not touched"
-  finish "push of main failed" $exit_push
-fi
-if ! git -C "$worktree" push --quiet origin "HEAD:refs/heads/$voice_branch" 2>&1; then
-  push_state="FAILED: main pushed, $voice_branch push failed"
-  finish "push of $voice_branch failed" $exit_push
+# Push the tested commit, not the moving ref, and update both branches in one atomic push so a rejected
+# voice branch never leaves origin/main ahead of it.
+if ! push_output=$(git -C "$worktree" push --atomic origin \
+  "$upstream_sha:refs/heads/main" "HEAD:refs/heads/$voice_branch" 2>&1); then
+  push_state="FAILED: nothing pushed; $(printf '%s' "$push_output" | tr '\n' ' ')"
+  finish "push failed" $exit_push
 fi
 push_state="pushed main at $upstream_short and $voice_branch at $(git -C "$worktree" rev-parse --short=10 HEAD)"
 finish "upstream merged and pushed" $exit_ok

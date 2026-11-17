@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -150,8 +151,9 @@ class UpstreamSyncTest(unittest.TestCase):
         self.addCleanup(self._temp.cleanup)
         self.fixture = Fixture(Path(self._temp.name) / "fixture")
 
-    def sync(self, *args: str) -> subprocess.CompletedProcess[str]:
-        env = dict(os.environ, VOICE_PYTHON=sys.executable, VOICE_SYNC_VOICE_BRANCH="voice/main")
+    def sync(self, *args: str, worktree: str | None = None, env: dict[str, str] | None = None) -> subprocess.CompletedProcess[str]:
+        run_env = dict(os.environ, VOICE_PYTHON=sys.executable, VOICE_SYNC_VOICE_BRANCH="voice/main")
+        run_env.update(env or {})
         return subprocess.run(
             [
                 self.bash,
@@ -160,16 +162,25 @@ class UpstreamSyncTest(unittest.TestCase):
                 "--repo",
                 posix(self.fixture.source),
                 "--worktree",
-                posix(self.fixture.worktree),
+                worktree or posix(self.fixture.worktree),
                 "--log",
                 posix(self.fixture.voice_home / "sync" / "sync.log"),
             ],
             capture_output=True,
             text=True,
             encoding="utf-8",
-            env=env,
+            env=run_env,
             timeout=300,
         )
+
+    def lock(self, pid: int | None, started_seconds_ago: float | None) -> Path:
+        lock = self.fixture.voice_home / "sync" / "run.lock"
+        lock.mkdir(parents=True)
+        if pid is not None:
+            (lock / "pid").write_text(f"{pid}\n", encoding="utf-8")
+        if started_seconds_ago is not None:
+            (lock / "started").write_text(f"{int(time.time() - started_seconds_ago)}\n", encoding="utf-8")
+        return lock
 
     def log_lines(self) -> list[str]:
         log = self.fixture.voice_home / "sync" / "sync.log"
@@ -298,6 +309,151 @@ class UpstreamSyncTest(unittest.TestCase):
 
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertFalse((self.fixture.voice_home / "sync" / "run.lock").exists())
+
+    def test_a_case_differing_path_to_the_source_repo_is_refused(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        keep = self.fixture.source / "keep-me.txt"
+        keep.write_text("untracked\n", encoding="utf-8")
+        head_before = git("-C", str(self.fixture.source), "rev-parse", "HEAD")
+        upper = Path(str(self.fixture.source).upper())
+        alias = str(upper if upper.exists() and upper.resolve() == self.fixture.source.resolve()
+                    else self.fixture.source / ".." / self.fixture.source.name)
+
+        completed = self.sync("--dry-run", worktree=alias)
+
+        self.assertEqual(completed.returncode, 16, completed.stdout + completed.stderr)
+        self.assertIn("refusing", completed.stdout)
+        self.assertTrue(keep.is_file(), "the run deleted an untracked file in the source repo")
+        self.assertEqual(git("-C", str(self.fixture.source), "rev-parse", "HEAD"), head_before)
+
+    def test_a_subfolder_of_the_source_repo_is_refused(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        docs = self.fixture.source / "docs"
+        keep = docs / "keep-me.txt"
+        keep.write_text("untracked\n", encoding="utf-8")
+        head_before = git("-C", str(self.fixture.source), "rev-parse", "HEAD")
+
+        completed = self.sync("--dry-run", worktree=posix(docs))
+
+        self.assertEqual(completed.returncode, 16, completed.stdout + completed.stderr)
+        self.assertIn("top level", completed.stdout)
+        self.assertTrue(keep.is_file(), "the run deleted an untracked file under the source repo")
+        self.assertEqual(git("-C", str(self.fixture.source), "rev-parse", "HEAD"), head_before)
+
+    def test_another_linked_worktree_is_refused(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        other = self.fixture.root / "other-worktree"
+        git("-C", str(self.fixture.source), "worktree", "add", "--detach", str(other), "main")
+        keep = other / "keep-me.txt"
+        keep.write_text("untracked\n", encoding="utf-8")
+
+        completed = self.sync("--dry-run", worktree=posix(other))
+
+        self.assertEqual(completed.returncode, 16, completed.stdout + completed.stderr)
+        self.assertIn("voice-sync-worktree", completed.stdout)
+        self.assertTrue(keep.is_file(), "the run deleted an untracked file in another worktree")
+
+    def test_a_live_lock_refuses_and_prints_its_pid_and_age(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.lock(os.getpid(), 0)
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 17, completed.stdout + completed.stderr)
+        self.assertIn("already running", completed.stdout)
+        self.assertRegex(completed.stderr, rf"pid {os.getpid()}, started \d+ s ago")
+
+    def test_a_lock_whose_pid_is_gone_is_taken_over(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        lock = self.lock(99999999, 0)
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("taking over a lock whose pid 99999999 is gone", completed.stderr)
+        self.assertFalse(lock.exists())
+
+    def test_a_lock_older_than_three_hours_is_taken_over(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        lock = self.lock(os.getpid(), 4 * 60 * 60)
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("taking over a stale lock", completed.stderr)
+        self.assertFalse(lock.exists())
+
+    def test_a_merge_that_fails_without_a_conflict_prints_the_git_output(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+
+        completed = self.sync("--dry-run", env={"GIT_COMMITTER_NAME": "", "GIT_COMMITTER_EMAIL": ""})
+
+        self.assertEqual(completed.returncode, 12, completed.stdout + completed.stderr)
+        self.assertIn("MERGE FAILED", completed.stdout)
+        self.assertIn("empty ident name", completed.stdout, "the git output was swallowed")
+
+    def test_a_rejected_voice_branch_push_moves_neither_branch(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        hook = self.fixture.origin / "hooks" / "pre-receive"
+        hook.write_text(
+            "#!/bin/sh\n"
+            "while read old new ref; do\n"
+            "  if [ \"$ref\" = refs/heads/voice/main ]; then\n"
+            "    echo 'voice/main is locked in this test' >&2\n"
+            "    exit 1\n"
+            "  fi\n"
+            "done\n"
+            "exit 0\n",
+            encoding="utf-8",
+            newline="\n",
+        )
+        subprocess.run([self.bash, "-c", 'chmod +x "$1"', "-", posix(hook)], check=True)
+        main_before = self.fixture.remote_sha(self.fixture.origin, "main")
+        voice_before = self.fixture.remote_sha(self.fixture.origin, "voice/main")
+
+        completed = self.sync()
+
+        self.assertEqual(completed.returncode, 15, completed.stdout + completed.stderr)
+        self.assertIn("push failed", completed.stdout)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "main"), main_before)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "voice/main"), voice_before)
+
+    def test_git_children_cannot_wait_on_a_credential_prompt(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        log = self.fixture.root / "git-env.log"
+        hook = self.fixture.root / "bash-env.sh"
+        hook.write_text(
+            'git() {\n'
+            '  printf "%s %s\\n" "${GIT_TERMINAL_PROMPT-unset}" "${GCM_INTERACTIVE-unset}" >>"$VOICE_SYNC_GIT_LOG"\n'
+            '  command git "$@"\n'
+            '}\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+
+        completed = self.sync("--dry-run", env={"BASH_ENV": posix(hook), "VOICE_SYNC_GIT_LOG": posix(log)})
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        seen = log.read_text(encoding="utf-8").splitlines()
+        self.assertTrue(seen, "no git child ran")
+        self.assertEqual(set(seen), {"0 never"})
 
 
 if __name__ == "__main__":
