@@ -110,6 +110,16 @@ class AgreementTest(unittest.TestCase):
         self.assertEqual(result["rows"][0]["task"], "new:s1", "the shadow saw no task before the turn's own call")
         self.assertEqual(result["rows"][0]["turn"], "dispatched", "the same words tie it to what the turn did")
 
+    def test_a_delegate_is_tied_to_the_piece_it_repeats(self):
+        answers = Decisions({"s1": decided("s1")}, {}, [])
+        asked = {"body": body(["the weather"])}
+        lfm = shadow.lfm_calls({"function_calls": [
+            {"name": "delegate", "arguments": json.dumps({"instruction": "the weather", "side_effect": False})}]})
+        result = shadow.agreement(lfm, shadow.task_decisions(answers, asked["body"]))
+        self.assertEqual(result["agree"], 1, "the same words are one task run by both sides, not two rows")
+        self.assertEqual([(row["task"], row["decider"], row["lfm"]) for row in result["rows"]],
+                         [("new:s1", "run", "run")])
+
     def test_a_decider_piece_that_makes_no_task_is_not_a_row(self):
         answers = Decisions({"s1": decided("s1", kind=Kind.CHITCHAT)}, {}, [])
         result = shadow.agreement([], shadow.task_decisions(answers, body(["mm-hm"])))
@@ -219,3 +229,21 @@ class LogTest(unittest.TestCase):
                 shadow_report.main([directory])
             self.assertIn("1 of 1 shadow calls failed", out.getvalue())
             self.assertIn("error", out.getvalue())
+
+    def test_the_table_derives_the_verdicts_from_the_stored_sides(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log = shadow.Log(directory)
+            entry = shadow.run(Answer({"answers": {
+                "s1_kind": {"type": "choice", "choice": "request", "confidence": 0.8},
+                "s1_ready": {"type": "choice", "choice": "dispatch_now", "confidence": 0.9},
+                "s1_side_effect": {"type": "noul", "noul": 0.0, "confidence": 0.0}}}),
+                shadow.request("turn_001", "turn_001.json", "lfm", body(["the weather"]),
+                               lfm=shadow.lfm_calls({"function_calls": [
+                                   {"name": "delegate", "arguments": '{"instruction": "the weather"}'}]})))
+            entry["agreement"] = {"agree": 0, "disagree": 0, "decider_only": 0, "lfm_only": 0, "rows": []}
+            log.write(entry)
+            out = io.StringIO()
+            with contextlib.redirect_stdout(out):
+                shadow_report.main([directory, "--rows"])
+            self.assertIn("agree        new:s1", out.getvalue(),
+                          "the stored verdicts are the call's reading; the table reads the stored sides")

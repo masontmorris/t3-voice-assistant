@@ -4,12 +4,15 @@
 
 Reads `shadow.jsonl`, which live mode writes beside its turn records with --shadow on (voice/live/shadow.py), and
 prints one row per utterance: how many tasks LFM3 acted on, how many the decider would have, how the two agreed, and
-the shadow call's own latency. A line whose call failed or timed out counts under `errors` and its decisions are
+the shadow call's own latency. A line whose call failed or timed out counts under `state` and its decisions are
 missing, not empty.
 
 `lfm` and `dec` count the actions each side took, `agree`/`dis`/`dec-only`/`lfm-only` are the per-task verdicts, and
-`ms` is the shadow call only, so no turn's first-reply latency is in it. The last line says which end-of-utterance
-rule the run used: with `decider` authority LFM3's column is empty by design, because live mode opens no tool session.
+`ms` is the shadow call only, so no turn's first-reply latency is in it. The table's verdicts are derived from each
+line's stored sides (`lfm.calls`, `decider.tasks`, `outcomes`), so a correction to the comparison applies to records
+already written; the line also keeps the verdicts the call itself computed. The last line says which
+end-of-utterance rule the run used: with `decider` authority LFM3's column is empty by design, because live mode
+opens no tool session.
 """
 
 import argparse
@@ -17,56 +20,54 @@ import json
 import sys
 from pathlib import Path
 
-from voice.live.shadow import FILE
+from voice.live import shadow
+from voice.live.shadow import FILE, agreement
 
 COLUMNS = ("turn", "auth", "lfm", "dec", "agree", "dis", "dec-only", "lfm-only", "ms", "state")
 
 
-def rows(entries):
+def readings(entries):
+    """Each line's per-task comparison, from the sides it stored."""
+    return [agreement((entry.get("lfm") or {}).get("calls") or [],
+                      (entry.get("decider") or {}).get("tasks") or [],
+                      outcomes=entry.get("outcomes")) for entry in entries]
+
+
+def rows(entries, found):
     """One row per utterance, in the order the calls returned."""
-    for entry in entries:
-        agreement = entry.get("agreement") or {}
+    for entry, reading in zip(entries, found):
         calls = (entry.get("lfm") or {}).get("calls") or []
-        tasks = (entry.get("decider") or {}).get("tasks") or []
         call = entry.get("call") or {}
         yield {"turn": entry.get("utterance"), "auth": entry.get("authority"),
-               "lfm": len(calls), "dec": len(tasks),
-               "agree": agreement.get("agree", 0), "dis": agreement.get("disagree", 0),
-               "dec-only": agreement.get("decider_only", 0), "lfm-only": agreement.get("lfm_only", 0),
+               "lfm": len(calls), "dec": len((entry.get("decider") or {}).get("tasks") or []),
+               "agree": reading["agree"], "dis": reading["disagree"],
+               "dec-only": reading["decider_only"], "lfm-only": reading["lfm_only"],
                "ms": call.get("ms"), "state": "error" if entry.get("error") else
                ("timeout" if call.get("timed_out") else "ok")}
 
 
-def summary(entries):
-    totals = {name: 0 for name in COLUMNS[2:-2]}
-    mistakes = 0
-    for row in rows(entries):
-        for name in totals:
-            if isinstance(row[name], (int, float)):
-                totals[name] += row[name]
-        mistakes += row["state"] != "ok"
-    authorities = [entry.get("authority") for entry in entries]
-    return totals, mistakes, authorities
-
-
 def print_table(entries, detail=False):
-    table = list(rows(entries))
+    found = readings(entries)
+    table = list(rows(entries, found))
     if not table:
         print(f"no {FILE} lines in this directory")
         return
     widths = {name: max(len(name), *(len(str(row[name])) for row in table)) for name in COLUMNS}
     print("  ".join(name.ljust(widths[name]) for name in COLUMNS))
-    for index, row in enumerate(table):
+    for entry, row, reading in zip(entries, table, found):
         print("  ".join(str(row[name]).ljust(widths[name]) for name in COLUMNS))
         if detail:
-            for line in (entries[index].get("agreement") or {}).get("rows") or ():
+            for line in reading["rows"]:
                 print(f"    {line['verdict']:<12} {line['task']:<9} decider {str(line['decider']):<7} "
                       f"lfm {str(line['lfm']):<7} turn {str(line.get('turn')):<10} {line['text']}")
-    totals, mistakes, authorities = summary(entries)
+    totals = {name: sum(row[name] for row in table) for name in COLUMNS[2:-2]}
     first = "  ".join("".ljust(widths[name]) for name in COLUMNS[:2])
     print(first + "  " + "  ".join(str(totals[name]).ljust(widths[name]) for name in COLUMNS[2:-2]) + "  totals")
-    if mistakes:
-        print(f"{mistakes} of {len(table)} shadow calls failed or timed out; see `error` on those lines")
+    missed = [row["turn"] for row in table if row["state"] != "ok"]
+    if missed:
+        print(f"{len(missed)} of {len(table)} shadow calls failed or timed out ({', '.join(missed)}); "
+              f"see `error` on those lines")
+    authorities = [entry.get("authority") for entry in entries]
     if authorities and all(authority == "decider" for authority in authorities):
         print("authority: decider in every turn, so LFM3 made no task call to compare against")
     elif authorities:

@@ -147,6 +147,16 @@ def agreement(lfm, decided, texts=None, outcomes=None):
     by_key = outcomes_by_key(outcomes)
     by_text = {text_key(item.get("instruction")): item.get("status") for item in outcomes or ()
                if item.get("instruction")}
+    # A delegate names no task, so its words are what tie it to the piece the decider answered with.
+    pieces = {text_key(item.get("text")): item["key"] for item in decided if item.get("text")}
+
+    def canonical(call):
+        key = call.get("key")
+        if key and key.startswith("new:") and call.get("instruction"):
+            return pieces.get(text_key(call["instruction"]), key)
+        return key
+
+    lfm = [{**call, "key": canonical(call)} for call in lfm]
     rows, counts = [], {"agree": 0, "disagree": 0, "decider_only": 0, "lfm_only": 0}
     keys = list(dict.fromkeys([d["key"] for d in decided] + [call["key"] for call in lfm]))
     for key in keys:
