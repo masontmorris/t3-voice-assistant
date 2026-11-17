@@ -6,6 +6,7 @@ import {
   type OrchestrationV2Run,
   type OrchestrationV2ThreadShell,
   type RunId,
+  type ThreadId,
 } from "@t3tools/contracts";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
@@ -283,12 +284,26 @@ const make = Effect.gen(function* () {
     } satisfies VoiceThreadList;
   });
 
+  /** Refuses a thread the caller cannot see before any read or write touches it. */
+  const requireVisible = Effect.fn("VoiceSeam.requireVisible")(function* (
+    caller: VoiceCaller,
+    threadId: ThreadId,
+  ) {
+    const shell = yield* threads
+      .getThreadShell(threadId)
+      .pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
+    if (shell === null || !isVisible(caller.config)(shell)) {
+      return yield* VoiceSeamRefusal.notFound();
+    }
+  });
+
   const readThread = Effect.fn("VoiceSeam.readThread")(function* (
     caller: VoiceCaller,
     input: RequestInput<"read_thread">,
   ) {
     yield* requireOperation(caller, "read");
     const { threadId } = input;
+    yield* requireVisible(caller, threadId);
     // The only write: a migrated v1 thread imports its transcript before any records read.
     yield* threads
       .ensureLegacyTranscript(threadId)
@@ -344,13 +359,11 @@ const make = Effect.gen(function* () {
     input: Watch.WatchInput,
   ) {
     yield* requireOperation(caller, "watch");
-    const visible = isVisible(caller.config);
     // The watch checks again as it starts, and ends with not_found if the thread went in between.
-    const shell = yield* threads
-      .getThreadShell(input.threadId)
-      .pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
-    if (shell === null || !visible(shell)) return yield* VoiceSeamRefusal.notFound();
-    return Watch.fromServices({ sql, threads, eventStore, isVisible: visible })(input);
+    yield* requireVisible(caller, input.threadId);
+    return Watch.fromServices({ sql, threads, eventStore, isVisible: isVisible(caller.config) })(
+      input,
+    );
   });
 
   return VoiceSeam.of({ hello, listThreads, readThread, watch });
