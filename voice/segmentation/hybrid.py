@@ -308,27 +308,26 @@ class HybridSegmenter:
         return Segment(sid, *span_text(self.last.text, self.ws, piece), open=open_)
 
     def shadow_state(self):
-        """The task list and pending delegations to copy before the turn's last decision point, so the shadow sees
-        what `decider` mode's final call would have seen (voice/live/shadow.py)."""
-        return {"tasks": self._tasks(), "delegates": dict(self.orch.pending_delegates)}
+        """What the turn's last decision point reads, copied before it runs, so the shadow can ask the question
+        `decider` mode's final call asks (voice/live/shadow.py). Live mode's own final call commits every piece, so the
+        piece state is copied with the task list, or the shadow would ask no break question about the new speech."""
+        return {"tasks": self._tasks(), "delegates": dict(self.orch.pending_delegates),
+                "committed": list(self.committed), "soft": set(self.soft), "soft_words": self.soft_words}
 
-    def final_request(self, tasks=None, delegates=None):
-        """The decisions body `decider` mode sends on the final transcript, built and not sent.
-
-        Read after `close`, so the pieces and the committed segments are the final ones. `tasks` and `delegates` come
-        from `shadow_state` taken before the turn's own final call, since that call is what a shadow compares."""
+    def final_request(self, state):
+        """The decisions body `decider` mode sends on the final transcript, built from a `shadow_state` copy and not
+        sent. Read after the turn's close, so `last` is the final transcript."""
         if self.last is None:
             return None
-        proposal = self._proposal()
-        k = len(self.committed)
-        live = {f"s{k + i + 1}": p for i, p in enumerate(proposal.pieces) if not proposal.filler(p)}
-        segments = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(self.committed)
-                    if c.w0 < len(self.ws)]
-        segments += [self._segment(sid, p, False) for sid, p in live.items()]
-        body = self._assemble(self.last, segments, tasks, delegates)
-        asked, gaps, marked, questions = break_questions(proposal, list(live), True)
-        body["state"]["new_speech"] = marked
-        body["questions"].update(questions)
+        current = tuple(w.text for w in self.ws)
+        soft = {g for g in state["soft"] if current[:g] == state["soft_words"][:g]}
+        committed = state["committed"]
+        proposal = Proposal(self.last.text, self.ws, committed[-1].w1 if committed else 0, soft)
+        k = len(committed)
+        segments = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(committed) if c.w0 < len(self.ws)]
+        sids = [f"s{k + i + 1}" for i in range(len(proposal.pieces))]
+        segments += [self._segment(sid, p, False) for sid, p in zip(sids, proposal.pieces) if not proposal.filler(p)]
+        body, _, _ = self._body(self.last, segments, proposal, sids, state["tasks"], state["delegates"])
         return body
 
     def _tasks(self):
@@ -371,13 +370,18 @@ class HybridSegmenter:
                                                              "they are broad: the worker reports what it finds.")
         return body
 
+    def _body(self, update, segments, proposal, sids, tasks=None, delegates=None):
+        """One decision point's body, with the break questions it asks about the pieces in doubt."""
+        body = self._assemble(update, segments, tasks, delegates)
+        asked, gaps, marked, questions = break_questions(proposal, sids, update.is_final)
+        body["state"]["new_speech"] = marked
+        body["questions"].update(questions)
+        return body, asked, gaps
+
     def _ask(self, update, committed, proposal, sids, live, kind):
         final = update.is_final
         asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
-        body = self._assemble(update, asked_segs)
-        asked, gaps, marked, questions = break_questions(proposal, sids, final)
-        body["state"]["new_speech"] = marked
-        body["questions"].update(questions)
+        body, asked, gaps = self._body(update, asked_segs, proposal, sids)
         label = f"{self.label}:r{update.revision}" + ("" if kind == "revision" else f":{kind}{len(self.points)}")
         record = self.client.call("decisions", body, label=label)
         call = {"label": label, "route": "decisions", "file": api.cache_path("decisions", body).name,

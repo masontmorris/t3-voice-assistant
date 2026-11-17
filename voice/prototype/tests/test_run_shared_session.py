@@ -646,10 +646,10 @@ class ShadowTurnTest(unittest.IsolatedAsyncioTestCase):
         prototype.Session.open = open_session
         self.addCleanup(setattr, prototype.Session, "open", self.original_open)
 
-    async def turn(self, decider, **kwargs):
+    async def turn(self, decider, eou="gated", **kwargs):
         voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
         return await prototype.run_clip(Streams(), "c", False, "ws://unused", decider, 0.0, Path(self.tmp.name),
-                                        {}, "hybrid", None, "gated", voice=voice, **kwargs)
+                                        {}, "hybrid", None, eou, voice=voice, **kwargs)
 
     async def test_the_shadow_hands_over_the_final_question_and_makes_no_call(self):
         decider = CountingDecider()
@@ -667,6 +667,18 @@ class ShadowTurnTest(unittest.IsolatedAsyncioTestCase):
         self.assertIn("s1_kind", request["body"]["questions"], "the same per-segment questions the final call asks")
         self.assertEqual(request["outcomes"], [{"task": t["task_id"], "status": t["status"],
                                                 "instruction": t["instruction"]} for t in asked["tasks"]])
+
+    async def test_the_shadow_asks_what_decider_mode_asks_on_the_final_transcript(self):
+        with mock.patch.object(FakeSession, "transcript", "Find the weather in Denver and then set a timer."):
+            for final_decider in (True, False):
+                with self.subTest(path="live" if final_decider else "prototype"):
+                    reference = CountingDecider()
+                    await self.turn(reference, eou="decider", final_decider=final_decider)
+                    sent = next(call["body"] for call in reference.calls
+                                if call["body"]["state"]["transcript_is_final"])
+                    record = await self.turn(CountingDecider(), final_decider=final_decider, shadow=True)
+                    self.assertEqual(record["shadow_request"]["body"], sent)
+                    self.assertTrue(sent["state"]["new_speech"], "the final call asks about the new speech")
 
     async def test_the_shadow_carries_the_tasks_the_final_call_saw(self):
         decider = CountingDecider({"s1_kind": {"type": "choice", "choice": "request", "confidence": 0.8},

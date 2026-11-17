@@ -1162,7 +1162,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 write_pcm16(out / f"{stem}_update.wav", update_pcm, out_rate)
 
         if shadow and "tasks" in captured and closed.get("kind") == "close":
-            body = segmenter.final_request(**captured)
+            body = segmenter.final_request(captured)
             if body is not None:
                 shadow_request = shadow_log.request(
                     utterance=stem, turn_record=f"{stem}.json",
