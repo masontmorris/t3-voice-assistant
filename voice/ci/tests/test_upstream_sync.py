@@ -151,7 +151,7 @@ class UpstreamSyncTest(unittest.TestCase):
         self.fixture = Fixture(Path(self._temp.name) / "fixture")
 
     def sync(self, *args: str) -> subprocess.CompletedProcess[str]:
-        env = dict(os.environ, VOICE_PYTHON=sys.executable)
+        env = dict(os.environ, VOICE_PYTHON=sys.executable, VOICE_SYNC_VOICE_BRANCH="voice/main")
         return subprocess.run(
             [
                 self.bash,
