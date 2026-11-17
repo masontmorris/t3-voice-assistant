@@ -12,9 +12,9 @@ import unittest
 from pathlib import Path
 
 from voice.prototype import run as prototype
-from voice.prototype.tests import isolate_decider_cache
 from voice.prototype.run import normalised
 from voice.prototype.tasks import MockTaskService, Run, amended
+from voice.prototype.tests import isolate_decider_cache
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
 from voice.segmentation.hybrid import HybridSegmenter
 from voice.tools.tests.replay import replay_registry
