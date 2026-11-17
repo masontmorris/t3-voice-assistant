@@ -89,9 +89,9 @@ COMMON_PROJECTS = PROJECTS + [
 ]
 
 LAB_PROJECTS = [
-	{"projectId": "p-decision-lab", "name": "Decision Lab", "spokenNames": ["Decision Lab", "decision-lab"]},
-	{"projectId": "p-s1-loop", "name": "S1 Loop", "spokenNames": ["S1 Loop", "s1-loop"]},
-	{"projectId": "p-web-audio", "name": "Web Audio API", "spokenNames": ["Web Audio API", "web-audio-api"]},
+	{"projectId": "p-cobalt-lab", "name": "Cobalt Lab", "spokenNames": ["Cobalt Lab", "cobalt-lab"]},
+	{"projectId": "p-k7-loop", "name": "K7 Loop", "spokenNames": ["K7 Loop", "k7-loop"]},
+	{"projectId": "p-tide-sound", "name": "Tide Sound API", "spokenNames": ["Tide Sound API", "tide-sound-api"]},
 ]
 
 PREFIX_PROJECTS = [
@@ -155,20 +155,20 @@ class StrictPrefixTest(unittest.TestCase):
 
 class TaskSideExactTest(unittest.TestCase):
 	def test_a_task_side_exact_match_does_not_pick(self):
-		picked = pick_project("start a thread in the lab that ports the s1 loop importer", LAB_PROJECTS)
+		picked = pick_project("start a thread in the lab that ports the k7 loop importer", LAB_PROJECTS)
 		self.assertEqual(picked.kind, "ask")
-		self.assertIn("p-decision-lab", picked.candidates)
+		self.assertIn("p-cobalt-lab", picked.candidates)
 
 	def test_a_stated_target_beside_a_task_side_exact_still_asks(self):
-		picked = pick_project("start a thread in decision lab that ports the s1 loop importer",
+		picked = pick_project("start a thread in cobalt lab that ports the k7 loop importer",
 		                      LAB_PROJECTS)
 		self.assertEqual(picked.kind, "ask")
 
 	def test_an_exact_target_with_only_a_task_fragment_picks_the_target(self):
-		picked = pick_project("start a thread in decision lab that cleans up the web audio exports",
+		picked = pick_project("start a thread in cobalt lab that cleans up the tide sound exports",
 		                      LAB_PROJECTS)
 		self.assertEqual(picked.kind, "one")
-		self.assertEqual(picked.project_id, "p-decision-lab")
+		self.assertEqual(picked.project_id, "p-cobalt-lab")
 
 
 class SingularPartialTest(unittest.TestCase):
