@@ -13,8 +13,8 @@ from pathlib import Path
 
 from voice.prototype import run as prototype
 from voice.prototype.run import normalised
-from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.tasks import MockTaskService, Run, amended
+from voice.prototype.tests import isolate_decider_cache
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
 from voice.segmentation.hybrid import HybridSegmenter
 from voice.tools.tests.replay import replay_registry
@@ -61,7 +61,7 @@ class Call(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         original = prototype.Session.open
 
         async def open_session(url, name, clock, on_event=None):
@@ -186,7 +186,7 @@ class ThirdPersonTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         original = prototype.Session.open
 
         async def open_session(url, name, clock, on_event=None):

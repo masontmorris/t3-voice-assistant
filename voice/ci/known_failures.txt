@@ -1,0 +1,2 @@
+# Tests that already fail on voice/main with no voice change behind them. The run fails only on failures that are
+# not listed here. Delete a line when its test passes; add one only with the PM's approval, and say what it is.
