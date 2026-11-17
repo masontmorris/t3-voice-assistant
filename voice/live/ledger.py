@@ -19,6 +19,7 @@ class Turn:
     proposals: list[dict]
     executions: dict
     error: str | None = None
+    established: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -37,7 +38,8 @@ class ConversationLedger:
         generated = [r["text"] for r in record.get("replies", []) if r.get("text")]
         turn = Turn(turn_id, record.get("final_transcript"), revisions, generated,
                     "interrupted" if muted else "queued" if generated else "none",
-                    proposals, executions, record.get("error") or record.get("cancelled"))
+                    proposals, executions, record.get("error") or record.get("cancelled"),
+                    list(record.get("established") or ()))
         self.turns.append(turn)
         self.snapshot = record.get("snapshot_after_tools") or record.get("snapshot") or self.snapshot
         self.tasks.extend(carried_tasks(record))
@@ -57,6 +59,14 @@ class ConversationLedger:
         """Every lookup result the call has had, oldest first: what the assistant was given and may say again."""
         return [execution["result_summary"] for turn in self.turns for execution in turn.executions.values()
                 if execution.get("state") == "completed" and execution.get("result_summary")]
+
+    def replies(self):
+        """Every reply the call spoke, oldest first, which the next turn must not repeat word for word."""
+        return [text for turn in self.turns for text in turn.generated]
+
+    def established(self):
+        """Every place the assistant chose at the person's request, which the call's later turns may name."""
+        return [value for turn in self.turns for value in turn.established]
 
     def context(self):
         """The call so far for a worker that needs it to resolve a request: each turn's words, the replies that
