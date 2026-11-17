@@ -9,9 +9,11 @@ It cannot change the call. It is handed a request built from a copy of the turn'
 parses the answers into a record. It holds no orchestrator and no task service, so it has nothing to dispatch with,
 and it writes nothing to the voice session. A failure, a timeout or a skip is one line with `error` set.
 
-It cannot delay a turn either. It asks on its own client (`Lane`): its own connection and pacer, one attempt, and a
-short ceiling, and it takes no lock a turn takes. The caller starts it only when no turn is running, and a turn that
-starts ends the shadow's request instead of waiting for it.
+A turn never waits on it. It asks on its own client (`Lane`): its own connection and pacer, one attempt, and a short
+ceiling, and it takes no lock a turn takes. The caller starts it only when no turn is running, and a turn that starts
+ends the shadow's request instead of waiting for it. Only the backend is shared: the local d1 server runs one request
+at a time, so a turn's request can still wait for the one piece of the shadow's already on it (`LANE_QUESTIONS` in
+voice/local_decider/client.py, about 0.3 s measured).
 
 One line per utterance:
   utterance      the turn's name (`turn_003` in live mode, the clip's stem in a prototype run)

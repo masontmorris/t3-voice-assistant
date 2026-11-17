@@ -78,8 +78,8 @@ under --out, all under $VOICE_HOME, never in the repo. With --shadow on, the def
 end-of-utterance decider call the `decider` mode makes, once the reply has played, and writes its task decisions
 beside LFM3's tool calls to shadow.jsonl in the same directory: one line per utterance, acting on nothing
 (voice/live/shadow.py, report with `python -m voice.live.shadow_report DIR`). A failure or timeout of that call is
-one line with `error` set. The call never delays a turn: it asks on its own decider connection, takes no lock a turn
-takes, starts only when no turn is running, and a new utterance ends it. --shadow off leaves the call out. Stops on
+one line with `error` set. A turn never waits on the call: it asks on its own decider connection, takes no lock a
+turn takes, starts only when no turn is running, and a new utterance ends it. --shadow off leaves the call out. Stops on
 Ctrl+C, when $VOICE_HOME/live/STOP appears, or after --max-minutes.
 """
 

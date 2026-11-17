@@ -131,33 +131,49 @@ One line per utterance goes to `shadow.jsonl` in the call's record directory, be
 | `utterance`, `turn_record` | the turn's name, and the record holding its transcript, LFM3's calls and its timings. No call content is copied into the line. |
 | `authority` | `lfm` or `decider`: which rule decided the end of this utterance. |
 | `transcript` | the final transcript's word count and the first 12 hex digits of its SHA-256. |
-| `lfm` | LFM3's `run_task`, `delegate`, `cancel_task` and `amend_task` calls, with the action each asks for. |
+| `lfm` | LFM3's `run_task`, `delegate`, `cancel_task` and `amend_task` calls, with the action each asks for and the task it reached. |
 | `decider` | the shadow's decisions, each with the task it matches or `new:<sid>`, its action (`run`, `hold`, `drop`, `cancel`, `amend`), its side effect, the answers' confidences, and the task gate's verdict. |
-| `agreement` | `agree`, `disagree`, `decider_only`, `lfm_only`, and one row per task naming both sides. |
+| `agreement` | `agree`, `disagree`, `decider_only`, `lfm_only`, `decider_correction`, `lfm_correction`, and one row per task naming both sides. |
 | `outcomes` | every task the turn ended with and its status. |
 | `call` | route, decider, model, status, questions, milliseconds, and whether it timed out. |
+| `skipped`, `abandoned` | why no call was made, or what ended the call in flight. |
 
-An agreement row asks one thing of each side: does this task run. Both run it or both leave it is `agree`. One side runs it alone is `decider_only` or `lfm_only`. One runs it while the other cancels or amends it is `disagree`. A piece is tied to a task by its words, because the shadow applies nothing and so holds no task ids of its own (inferred from the code; the task's own segment text is what the decision point used, so the words match).
+An agreement row asks one thing of each side: does this task run. Both run it or both leave it is `agree`. One side runs it alone is `decider_only` or `lfm_only`. One runs it while the other cancels or amends it is `disagree`. One cancels or amends it while the other does nothing is `decider_correction` or `lfm_correction`, so a correction is never counted as agreement.
 
-`python -m voice.live.shadow_report DIR` prints the per-turn table. `--rows` adds one line per task, and `--json` prints the records. A failed or timed-out call is one line with `error` set and reaches no turn. The call waits on the decider's one-call-at-a-time lock, so it never puts a second request in flight, and gives up after 20 s rather than queue behind a turn.
+A row is keyed by a task id. LFM3's `run_task`, `cancel_task` and `amend_task` name theirs, and a `delegate` takes the id its call returned: the task it made, or the one the orchestrator linked it to. A decider piece takes the id of the task the request listed with the same words. A request piece with no task yet joins a task LFM3's calls reached, or else one the turn ended with, when the two pass the orchestrator's own duplicate rule (content-word overlap of at least 60%), so one request reworded by LFM3 is one row (`voice/live/shadow.py`).
+
+`python -m voice.live.shadow_report DIR` prints the per-turn table. `--rows` adds one line per task, and `--json` prints the records. The table recomputes every verdict from each line's stored sides (`lfm.calls`, `decider.tasks`, `outcomes`), so a change to the comparison reads records already written the new way. A line written before LFM3's calls carried task ids cannot be joined by id, so its delegates stay separate rows.
+
+**A turn waits on no lock and no thread of the shadow's.** A failed, timed-out or skipped call is one line with `error` set and reaches no turn. The shadow takes no lock a turn takes. It asks on a lane: a second client on the same decider backend, with its own connection and pacer, one attempt, no retry sleep and an 8 s ceiling on each socket operation (`lane` in each decider client). It starts only when no turn is pending, no other shadow is in flight and the turns' lock is free, and it writes a `skipped` line otherwise. A new utterance or a hang-up ends a call in flight (`abandoned` on its line), and the disconnect waits on no shadow. A request that got no answer is not cached, so an ended shadow call is never replayed to a later request.
+
+What is left is the backend. The local d1 server runs one request at a time (`n_slots = 1` in its log) and finishes a request whose client has gone, so the d1 lane asks 4 questions per request and stops between requests when ended. Measured with Stage 1's synthetic bodies, 3 tries each, inside the GPU lease and `quiet_run.py` (`$VOICE_HOME/evidence/live/shadow-decider/abort-probe/`):
+
+| A turn's 3-question request | ms |
+| --- | --- |
+| alone | 87 to 92 |
+| behind a 32-question shadow request sent whole, ended after 100 ms | 2404 to 2429 |
+| behind the same shadow in 4-question pieces, ended after 100 ms | 292 to 313 |
+
+So on d1 a turn's decider call can still wait for the one piece already on the server: about 0.3 s at most (inferred: the 32-question call took 2437 to 2463 ms in 8 pieces, measured, about 0.3 s each). It happens only when the person starts speaking while a shadow call runs, within about 2.5 s of the reply ending. Asking in pieces cost the shadow nothing measurable (2437 to 2463 ms against 2424 to 2482 ms whole). On the hosted deciders the lane's request is a second request in flight on its own connection, and the turn's own client paces itself (inferred from the code; not measured, since those calls cost money or free-tier quota).
 
 **What the live path can and cannot show.** Live mode opens no LFM3 tool session: it passes `final_decider=True` to `run_clip`, so the decider's own call on the final transcript decides the end of the utterance (`voice/live/server.py`, `voice/prototype/run.py`). On a live call the `lfm` side of every row is therefore empty by construction: the verdict is `decider_only` when the decider would run the task and `agree` when neither side does (measured: `tool_turn` is `null` in every live turn record). The comparison the shadow exists for needs LFM3's tool turn, which the prototype's `gated` run still has; `python -m voice.prototype.run CLIP --shadow on` writes the same `shadow.jsonl` from it, and that is where a real LFM3-versus-decider row comes from today.
 
-Measured 2026-11-17 between 06:19 and 06:26 ET, in three runs of the same four Stage 1 synthetic clips (`single`, `two_request`, `correction`, `long`), each inside the GPU lease and `quiet_run.py`, with the local d1 decider and the mock worker so nothing left the machine. Evidence is under `$VOICE_HOME/evidence/live/shadow-decider/`.
+Measured 2026-11-17 in four runs of the same four Stage 1 synthetic clips (`single`, `two_request`, `correction`, `long`), each inside the GPU lease and `quiet_run.py`, with the local d1 decider and the mock worker so nothing left the machine. Evidence is under `$VOICE_HOME/evidence/live/shadow-decider/`.
 
-| Run | Command | Utterances logged | Shadow call, ms |
-| --- | --- | --- | --- |
-| live, shadow on | `voice.live.server --shadow on` | 4 of 7 turns | 322, 531, 742, 2448 |
-| live, shadow off | the same with `--shadow off` | 0 | none |
-| prototype, gated | `voice.prototype.run --eou gated --shadow on` | 4 of 4 clips | 105, 398, 541, 2880 |
+| Run | Command | Code | Utterances logged | Shadow call, ms |
+| --- | --- | --- | --- | --- |
+| `on` | `voice.live.server --shadow on` | first version | 4 of 7 turns | 322, 531, 742, 2448 |
+| `off` | the same with `--shadow off` | first version | 0 | none |
+| `proto` | `voice.prototype.run --eou gated --shadow on` | first version | 4 of 4 clips | 105, 398, 541, 2880 |
+| `proto-r3` | the same as `proto` | the lane, task ids and correction verdicts | 4 of 4 clips | 144, 307, 766, 2760 |
 
-All numbers in the table are measured. The `long` clip arrived as four live turns, three of them continued into the next with no reply of their own, so only completed utterances get a line.
+All numbers in the table are measured. The `long` clip arrived as four live turns, three of them continued into the next with no reply of their own, so only completed utterances get a line. The first version asked live turns a body built after the turn's own final call had committed every piece, so the `on` lines carry no break questions and are not the question `decider` mode asks; the prototype path's body was already right (inferred from the code and the tests that now pin both).
 
-- **On live calls every row is the decider alone.** The live run logged 12 decider decisions, 9 rows where neither side ran the task, and 3 rows where the decider would have run a task nothing named (measured, `on/server/shadow.jsonl`). The `lfm` column is empty, as the live path requires. The `turn` column shows what the turn did with the same words, so the decider's shadow and the turn's own final call are both visible on one row.
-- **The prototype's gated turn gives real agreement rows.** 12 decider decisions against 7 LFM3 actions: 10 `agree`, 3 `decider_only`, 5 `lfm_only`, 0 `disagree` (measured, `proto/shadow.jsonl`). The 5 LFM3-only rows are whole-utterance delegates LFM3 made in place of running the listed tasks, the same failure [What `gated` lost, and why](#what-gated-lost-and-why) records. The 3 decider-only rows are tasks the decider would have run and LFM3 did not, on the `long` clip.
-- **First-reply latency did not move with the shadow.** Live-on minus live-off, per turn: +5.38, -0.71, -0.47, +1.19 s (measured, `first_reply_audio_after_audio_end_s`). The same-turn final-transcript difference is +3.00, -0.71, -0.60, +1.11 s, and the two follow each other across the four turns (Pearson r 0.98, measured), so those differences come from the turn's pipeline before the reply rather than from the reply step. The shadow is not on that path at all: it starts only after `playback_until`, and in `on/server.out` every `turn_XXX shadow` line follows that turn's `turn_done`. The first-turn outlier is startup, not the shadow: LFM3 loaded in 18.7 s in the on run against 2.6 s in the off run, right after another lane's GPU job ended (measured, `server.out` of each run).
+- **On live calls every row is the decider alone.** The `on` run logged 12 decider decisions. Recomputed by the current report: 6 rows where neither side ran the task, 3 where the decider would have run a task, and 3 corrections only the decider would make, which the first version counted as agreement (measured, `on/server/shadow.jsonl`). The `lfm` column is empty, as the live path requires.
+- **The prototype's gated turn gives real agreement rows.** In `proto-r3`, 12 decider decisions against 7 LFM3 actions: 4 `agree`, 0 `disagree`, 2 `decider_only`, 4 `lfm_only`, 2 `decider_correction`, 1 `lfm_correction` (measured, `proto-r3/shadow.jsonl`). One LFM3-only row is a whole-utterance delegate (`two_request`), the failure [What `gated` lost, and why](#what-gated-lost-and-why) records. The other three are tasks on `long` that LFM3 ran and the decider would have held: two delegates the orchestrator linked to listed tasks, and one new task for the last request. The 2 decider-only rows are tasks the decider would have run and LFM3 did not. On `correction` the decider would cancel twice where LFM3 amended once, and the three show as corrections rather than agreement.
+- **First-reply latency did not move with the shadow** (first version, `on` against `off`). Live-on minus live-off, per turn: +5.38, -0.71, -0.47, +1.19 s (measured, `first_reply_audio_after_audio_end_s`). The same-turn final-transcript difference is +3.00, -0.71, -0.60, +1.11 s, and the two follow each other across the four turns (Pearson r 0.98, measured), so those differences come from the turn's pipeline before the reply rather than from the reply step. The shadow is not on that path at all: it starts only after `playback_until`, and in `on/server.out` every `turn_XXX shadow` line follows that turn's `turn_done`. The first-turn outlier is startup, not the shadow: LFM3 loaded in 18.7 s in the on run against 2.6 s in the off run, right after another lane's GPU job ended (measured, `server.out` of each run).
 
-A shadow call is one decider request per completed utterance, so a live call now costs a few hundred milliseconds of local compute per utterance, off the reply's path (measured above). On the default hosted decider it would also cost one request per utterance; these runs used the local one.
+A shadow call is one decider request per completed utterance, so a live call now costs a few hundred milliseconds of local compute per utterance, off the reply's path except for the one d1 piece described above (measured above). On the default hosted decider it would also cost one request per utterance; these runs used the local one.
 
 ## Open decisions for Mason
 
