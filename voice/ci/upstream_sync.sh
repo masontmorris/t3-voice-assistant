@@ -162,6 +162,7 @@ git -C "$worktree" checkout --detach --force "$voice_sha" >/dev/null 2>&1 &&
   git -C "$worktree" clean -fdq ||
   finish "cannot check out origin/$voice_branch in $worktree" $exit_setup
 
+ahead=$(git -C "$worktree" rev-list --count "$origin_main_sha..$upstream_sha")
 before=$(git -C "$worktree" rev-parse HEAD)
 if [ ! -f "$worktree/voice/ci/test.sh" ] || [ ! -f "$worktree/voice/ci/check_seam.py" ]; then
   finish "the branch has no voice/ci/test.sh or no voice/ci/check_seam.py" $exit_setup
@@ -178,8 +179,8 @@ if [ "$before" = "$after" ]; then
   merged_count=0
   merge_state="nothing to merge, $voice_branch already contains $upstream_short"
 else
-  merged_count=$(git -C "$worktree" rev-list --count "$before..$after")
-  merge_state="merged $merged_count commit(s) into $voice_branch, HEAD $(git -C "$worktree" rev-parse --short=10 HEAD)"
+  merged_count=$ahead
+  merge_state="merged $ahead upstream commit(s) into $voice_branch, HEAD $(git -C "$worktree" rev-parse --short=10 HEAD)"
 fi
 
 test_log=$log_dir/last-test-output.txt
