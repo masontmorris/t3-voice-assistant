@@ -52,17 +52,21 @@ restarts was wrong: turn 10 answered the first line of the seed, and turns 17 an
 when the call's first turn starts and a changed prompt file applies from the next call. How many turns fit in the
 slot is in docs/voice/live-call3-fix.md.
 
-A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
-reply and asks whether the person said them in this call or a lookup gave them; the assistant's own earlier replies
-do not count, except a place it chose when the person asked it to choose. A reply that fails, that talks about the
-note, that speaks of the person or of itself in the third person, or that repeats a line the assistant
-already said in this call, is not sent: the turn says so in its record, sends one short note naming what was wrong,
-and asks again once. In note mode a second failure is silence, recorded as blocked, unless the only thing wrong with
-it was the repetition. No fixed line is played, because a line rendered by the TTS endpoint is a different voice from
-the call's (measured: turns 22 and 26 of the recorded call, after which the person asked why it sounded different).
-When the registry has a general worker (`voice/tools/agent.py`, VOICE_AGENT=on), a reply that states a fact nothing
-gave it starts a lookup for the person's words in place of the retry. The older modes keep their fixed lines,
-`FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
+A reply is checked before it is heard, and heard while it is generated. `voice/live/facts.py` reads the days, dates,
+times, numbers and places in the reply and asks whether the person said them in this call or a lookup gave them; the
+assistant's own earlier replies do not count, except a place it chose when the person asked it to choose. The turn
+screens the reply's text as it arrives and sends each block of audio once the text up to the block after it has
+passed (`voice/prototype/release.py`), so the first audio goes out about 0.2 s after the model starts speaking instead
+of after the whole reply. A reply that fails, that talks about the note, that speaks of the person or of itself in the
+third person, or that repeats a line the assistant already said in this call, stops at the last block that passed;
+a reply that could still turn into a repeat releases nothing until it is clear. The turn says so in its record,
+sends one short note, and asks again once. A reply stopped part way is asked to go on from what the person heard,
+without saying it again. In note mode a turn that has still said nothing gets one last ask for a short reply with no
+facts in it, and only then is it silent, recorded as blocked. No fixed line is played, because a line rendered by the
+TTS endpoint is a different voice from the call's (measured: turns 22 and 26 of the recorded call, after which the
+person asked why it sounded different). When the registry has a general worker (`voice/tools/agent.py`,
+VOICE_AGENT=on), a reply that states a fact nothing gave it starts a lookup for the person's words in place of the
+retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
@@ -209,7 +213,7 @@ class MicTurn:
         self.queue, self.pcm, self.audio_s = asyncio.Queue(), bytearray(), None
         self.started = time.perf_counter()
         self.speech_end = self.turn_end = self.first_audio = None
-        self.out_rate, self.reply_started = None, False
+        self.out_rate, self.reply_started, self.speaking, self.spoken_text = None, False, False, ""
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
         self.task = self.decider = self.overlap = None
         self.checks, self.check = [], None
@@ -465,24 +469,33 @@ class Conversation:
     def on_voice_event(self, event):
         """Every event on the call's voice session belongs to the turn that has the session right now.
 
-        Reply audio is not forwarded here. The turn collects it, checks the reply's facts, and hands what passed to
-        `speak`, so a reply that names a day, date, time, number or place the call never gave is never heard."""
+        Reply audio is not forwarded here. The turn screens the reply's text as it arrives and hands `speak` only the
+        audio whose text passed, so a reply that names a day, date, time, number or place the call never gave is never
+        heard."""
         turn = self.voice_turn
         if turn is None:
             return
         if event.get("type") == "session.created":
             self.out_rate = turn.out_rate = event["session"]["audio"]["output"]["format"]["rate"]
 
-    def speak(self, turn, text, pcm):
-        """Send one checked reply to the client: its start, its audio in 40 ms frames, and its end."""
-        if turn.muted or not pcm:
-            return
-        turn.reply_started = True
-        turn.first_audio = turn.first_audio or time.perf_counter()
-        self.playback.add(len(pcm) / 2 / turn.out_rate, text, time.perf_counter(), turn.n)
-        self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
-        self.post_audio(turn, pcm)
-        self.post({"type": "reply_end", "turn": turn.n}, turn)
+    def speak(self, turn, text, pcm, done):
+        """Send a reply to the client as its audio is released: `reply_start` before the first piece, each piece in
+        40 ms frames, and `reply_end` once the reply is `done`. A muted turn sends no more audio but still ends the
+        reply it started, so the client is not left waiting for the rest."""
+        now = time.perf_counter()
+        if pcm and not turn.muted:
+            if not turn.speaking:
+                turn.speaking, turn.spoken_text = True, ""
+                turn.reply_started = True
+                turn.first_audio = turn.first_audio or now
+                self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
+            new_text = text[len(turn.spoken_text):] if text.startswith(turn.spoken_text) else text
+            turn.spoken_text = text
+            self.playback.add(len(pcm) / 2 / turn.out_rate, new_text.strip(), now, turn.n)
+            self.post_audio(turn, pcm)
+        if done and turn.speaking:
+            turn.speaking = False
+            self.post({"type": "reply_end", "turn": turn.n}, turn)
 
     async def open_voice(self):
         """The call's one voice session, opened by its first turn. The persona is read here and kept for the call."""
@@ -510,7 +523,7 @@ class Conversation:
                                     live.args.segmenter, live.tools, "gated", persona=self.persona,
                                     voice=self.voice, snapshot_mode=live.args.snapshot,
                                     prior_snapshot=self.ledger.snapshot,
-                                    speak=lambda text, pcm: self.speak(turn, text, pcm),
+                                    speak=lambda text, pcm, done: self.speak(turn, text, pcm, done),
                                     prior_utterances=tuple(turn_text["user"] for turn_text in self.ledger.conversation()
                                                            if "user" in turn_text),
                                     fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.ledger.tasks),

@@ -24,6 +24,18 @@ CLOCK = 0.0
 REFUSAL = "session.update: instructions cannot change after the first audio or message"
 
 
+def heard_by(into, with_bytes=False):
+    """A `speak` that records each reply once it ends: its text, and with `with_bytes` how many bytes it released."""
+    pending = bytearray()
+
+    def speak(text, pcm, done):
+        pending.extend(pcm)
+        if done:
+            into.append((text, len(pending)) if with_bytes else text)
+            pending.clear()
+    return speak
+
+
 class FakeSession:
     """A realtime session that answers the few requests run_clip makes, in memory. Like llama.cpp, it refuses new
     instructions once it holds audio or a message."""
@@ -412,7 +424,7 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode=snapshot_mode, fallback_pcm=fallback_pcm,
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
-            speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
+            speak=heard_by(self.spoken, with_bytes=True))
 
     async def test_weekday_invented_from_correction_is_asked_again(self):
         """Sunday is not in the call, so the model's first answer is dropped and the turn asks again."""
@@ -520,7 +532,7 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
             Source(), "c", False, "ws://unused", None, 0.05, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480,
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
-            speak=lambda text, pcm: self.spoken.append((text, len(pcm))))
+            speak=heard_by(self.spoken, with_bytes=True))
 
     async def test_a_reply_and_an_update_that_both_fail_say_one_line(self):
         record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",

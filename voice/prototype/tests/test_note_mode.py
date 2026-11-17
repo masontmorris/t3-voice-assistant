@@ -9,13 +9,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-import numpy as np
-
 from voice.live.facts import ungrounded
 from voice.prototype import run as prototype
 from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.tasks import MockTaskService
-from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source
+from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
 from voice.segmentation.tasks import Orchestrator
 from voice.tools.registry import ToolCall
 
@@ -86,7 +84,7 @@ class NoteTurn(unittest.IsolatedAsyncioTestCase):
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode="note", prior_utterances=EARLIER, final_decider=True, recall="note",
-            fallback_pcm=b"\x01\x00" * 480, speak=lambda text, pcm: self.spoken.append(text), **more)
+            fallback_pcm=b"\x01\x00" * 480, speak=heard_by(self.spoken), **more)
 
 
 class NoteTurnTest(NoteTurn):
@@ -201,41 +199,6 @@ class StaleReplyTest(NoteTurn):
         record = await self.turn([self.STALE + " You likely won't need a jacket.", "I can hear you fine."],
                                  prior_replies=(self.STALE,))
         self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
-
-
-def tone(seconds, rate=24_000, level=8000):
-    return (np.sin(np.arange(int(seconds * rate)) * 0.2) * level).astype("<i2").tobytes()
-
-
-class SpokenPartTest(unittest.TestCase):
-    """A reply of two sentences with a pause between them, 1 s and 2 s of sound around 0.3 s of silence."""
-
-    PCM = tone(1.0) + b"\x00\x00" * 7200 + tone(2.0)
-    HEARD = ["What about in Durham?"]
-
-    def part(self, text, pcm=None):
-        return prototype.spoken_part({"text": text}, self.PCM if pcm is None else pcm, 24_000, self.HEARD, True)
-
-    def test_the_opening_sentence_is_kept_and_cut_at_the_pause(self):
-        reply, pcm = self.part("I'm checking the weather in Durham. It's a high of 68 degrees with a 10% chance of rain.")
-        self.assertEqual(reply["text"], "I'm checking the weather in Durham.")
-        self.assertIn("68 degrees", reply["dropped"])
-        self.assertAlmostEqual(len(pcm) / 2 / 24_000, 1.15, delta=0.16)
-
-    def test_a_reply_with_no_pause_is_not_cut(self):
-        self.assertIsNone(self.part("I'm checking the weather in Durham. It's a high of 68 degrees.", tone(3.0)))
-
-    def test_a_reply_whose_opening_fails_has_no_part(self):
-        self.assertIsNone(self.part("It's a high of 68 degrees in Durham. I'm checking."))
-
-    def test_a_reply_of_one_sentence_has_no_part(self):
-        self.assertIsNone(self.part("It's a high of 68 degrees in Durham."))
-
-    def test_a_one_word_opening_is_not_a_reply(self):
-        """Measured on the baseline reply-path replay, turn 25: the refused pick was cut to "Hello!" and spoken."""
-        pcm = tone(0.3) + b"\x00\x00" * 7200 + tone(1.0)
-        self.assertIsNone(prototype.spoken_part({"text": "Hello! It's a high of 68 degrees in Boston."}, pcm,
-                                                24_000, self.HEARD, True))
 
 
 class AskRegistry:

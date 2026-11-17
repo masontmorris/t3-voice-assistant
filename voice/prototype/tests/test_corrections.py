@@ -15,7 +15,7 @@ from voice.prototype import run as prototype
 from voice.prototype.run import normalised
 from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.tasks import MockTaskService, Run, amended
-from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source
+from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
 from voice.segmentation.hybrid import HybridSegmenter
 from voice.tools.tests.replay import replay_registry
 
@@ -80,7 +80,7 @@ class Call(unittest.IsolatedAsyncioTestCase):
             record = await prototype.run_clip(
                 Turn(n), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", tools, "gated",
                 voice=self.voice, snapshot_mode="reply-no-utterance", ask_pcm=ask_pcm,
-                speak=lambda text, pcm: spoken.append((text, len(pcm))),
+                speak=heard_by(spoken, with_bytes=True),
                 prior_utterances=tuple(r["final_transcript"] for r in records), prior_tasks=tuple(carried))
             carried += prototype.carried_tasks(record)
             records.append(record)
@@ -204,7 +204,7 @@ class ThirdPersonTest(unittest.IsolatedAsyncioTestCase):
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480,
-            speak=lambda text, pcm: self.spoken.append(text))
+            speak=heard_by(self.spoken))
 
     async def test_the_user_is_refused_and_asked_again(self):
         record = await self.turn(["The user wants the weather in Denver.", "I'm checking the weather in Denver."])
