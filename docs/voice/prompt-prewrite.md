@@ -2,7 +2,7 @@
 
 Measured on 2026-11-16 from committed decider responses, from 123 live calls to DeepSeek V4.1 Flash through Command Code, and from the live timeline of the hybrid's prototype run on Mason's ten clips. Each claim says whether it is measured, inferred, or a guess.
 
-`voice/delegation/` drafts the prompt that each task's frontier agent will receive while the user is still speaking. The hybrid segmenter's per-segment completion answer starts the draft.
+`voice/research/delegation/` drafts the prompt that each task's frontier agent will receive while the user is still speaking. The hybrid segmenter's per-segment completion answer starts the draft.
 
 Only `deepseek/deepseek-v4.1-flash-ultrafast` is fast enough to get ahead of dispatch. Its median draft took 0.80 s and its p95 took 1.12 s. `-fast` took 4.09 s and 8.64 s, and default reasoning took 7.57 s and 11.99 s (measured, 22 matched drafts each). On Mason's clips, 5 of the 9 dispatched tasks complete 0.67 s to 2.49 s before dispatch (measured). With each draft landing after its own measured latency, ultrafast had all 5 drafts in hand at dispatch, and the other two settings had none (measured). Draft quality was about the same across the three. Default, `-fast`, and `-ultrafast` asked for exactly the span in 10, 11, and 11 of the 15 matched scenario drafts, and in all 7 clip drafts each (hand-checked). Each faster setting produced one draft that added an outside action, and `check` rejected both.
 
@@ -19,7 +19,7 @@ A second race turned reasoning off. Command Code rejects `reasoning_effort: "min
 
 ### The data shape
 
-`voice/delegation/draft.py` owns the shape.
+`voice/research/delegation/draft.py` owns the shape.
 
 - `DraftInput` is everything the author sees for one task: the task id, the instruction, the dependency ids, the side-effect flag, and the utterance so far as context. Two inputs are equal when the instruction's lowercased words, the dependencies, and the side-effect flag are equal. Casing and punctuation do not count, because the final transcript re-cases and re-punctuates the partials ("email dana that" becomes "Email Dana that"). An earlier version compared the raw text. It refused 11 of the 12 held-out drafts that were ready before dispatch, for that reason alone (measured).
 - `Draft` is the author's structured answer: `instruction`, `context`, `constraints`, `success_criteria`, and `open_questions`. `DRAFT_SCHEMA` goes in `response_format` under the name `prompt_draft`.
@@ -47,7 +47,7 @@ The draft is untrusted model output. Deterministic code reads it at two points.
 
 ### The author
 
-`voice/delegation/author.py` keeps the provider behind a `Transport`, which has a `model` and a `send` method that returns an `AuthorReply`. `author_request` builds a provider-neutral request from a `DraftInput`. `CachedAuthor` wraps any transport.
+`voice/research/delegation/author.py` keeps the provider behind a `Transport`, which has a `model` and a `send` method that returns an `AuthorReply`. `author_request` builds a provider-neutral request from a `DraftInput`. `CachedAuthor` wraps any transport.
 
 - A response cache that never re-requests. Failed replies are not cached.
 - An attempt budget of 150.
@@ -55,7 +55,7 @@ The draft is untrusted model output. Deterministic code reads it at two points.
 - A stop when more than 20% of attempts draw a 429, after at least 5 attempts.
 - A stop on HTTP 402, or on any error that mentions a usage limit, a quota, billing, credit, payment, or the subscription.
 
-`voice/delegation/commandcode.py` is the Command Code transport. It posts to `https://api.commandcode.ai/provider/v1/chat/completions` with the model `deepseek/deepseek-v4.1-flash`. It reads the key at each send from the file that `VOICE_AUTHOR_KEY_FILE` names, and puts it only in the Authorization header. By default the body it sends has exactly five keys: `model`, `max_tokens`, `temperature`, `messages`, and `response_format` (measured, from the `sent` field of every default-reasoning cache record). It carries no reasoning parameter, so the model runs on its default reasoning. `CommandCodeTransport(model, reasoning_effort="off")` adds `reasoning_effort` as a sixth key and nothing else. The cache keys on that setting, so an answer from one reasoning setting is never reused for another. Tests pin both key sets.
+`voice/research/delegation/commandcode.py` is the Command Code transport. It posts to `https://api.commandcode.ai/provider/v1/chat/completions` with the model `deepseek/deepseek-v4.1-flash`. It reads the key at each send from the file that `VOICE_AUTHOR_KEY_FILE` names, and puts it only in the Authorization header. By default the body it sends has exactly five keys: `model`, `max_tokens`, `temperature`, `messages`, and `response_format` (measured, from the `sent` field of every default-reasoning cache record). It carries no reasoning parameter, so the model runs on its default reasoning. `CommandCodeTransport(model, reasoning_effort="off")` adds `reasoning_effort` as a sixth key and nothing else. The cache keys on that setting, so an answer from one reasoning setting is never reused for another. Tests pin both key sets.
 
 `max_tokens` is 4096. The first call used 600, and default reasoning spent 539 of them before the answer, so the reply came back cut off with no draft (measured, one call).
 
@@ -69,7 +69,7 @@ Command Code also lists `deepseek/deepseek-v4.1-flash-fast`, named "DeepSeek V4.
 
 Mason asked for very small but representative tests of `deepseek/deepseek-v4.1-flash-fast` and `deepseek/deepseek-v4.1-flash-ultrafast`. Both ran on the same requests as default reasoning, with no reasoning parameter, through the same adapter and cache.
 
-- Scenarios: the 15 draft requests from `01_two_independent`, `05_correction_after_dispatch`, `08_delegate_after_dispatch`, `10_side_effect_email`, and `post_and_read`. They cover a plain lookup, a correction, a voice delegate, a dependency, two side-effect tasks, and 4 of the 5 requests where default reasoning folded in a neighbor's task. `voice/delegation/results/subset-<model>.json` holds each model's drafts.
+- Scenarios: the 15 draft requests from `01_two_independent`, `05_correction_after_dispatch`, `08_delegate_after_dispatch`, `10_side_effect_email`, and `post_and_read`. They cover a plain lookup, a correction, a voice delegate, a dependency, two side-effect tasks, and 4 of the 5 requests where default reasoning folded in a neighbor's task. `voice/research/delegation/results/subset-<model>.json` holds each model's drafts.
 - Clips: the 7 draft requests from Mason's clips. Each draft lands after its own measured latency, so the clip result is a direct readiness measurement, not a sweep. The clip drafts and their cache hold transcripts, so they stay under `$VOICE_HOME/evidence/prewrite/`.
 
 | Measurement | Default | `-fast` | `-ultrafast` |
@@ -110,7 +110,7 @@ The same request then went out with `"reasoning_effort": "off"`. The body was th
 
 ### The race
 
-The race used 12 draft requests per setting. 5 came from `10_side_effect_email` and `post_and_read`, the two scenarios where a faster setting had added an outside action. The other 7 came from Mason's clips, where each draft lands after its own measured latency. The baseline is ultrafast on its default reasoning, using the cached answers to the same 12 requests from the matched test above. `voice/delegation/results/race-off-<model>.json` holds the scenario drafts. The clip drafts stay under `$VOICE_HOME/evidence/prewrite/`.
+The race used 12 draft requests per setting. 5 came from `10_side_effect_email` and `post_and_read`, the two scenarios where a faster setting had added an outside action. The other 7 came from Mason's clips, where each draft lands after its own measured latency. The baseline is ultrafast on its default reasoning, using the cached answers to the same 12 requests from the matched test above. `voice/research/delegation/results/race-off-<model>.json` holds the scenario drafts. The clip drafts stay under `$VOICE_HOME/evidence/prewrite/`.
 
 | Measurement, 12 drafts each | Ultrafast, default | Default id, off | `-fast`, off | `-ultrafast`, off |
 | --- | --- | --- | --- | --- |
@@ -135,7 +135,7 @@ The extra clip dispatch for ultrafast with reasoning off came from `08_cancel`. 
 
 ## Live drafts on the scenarios
 
-`python -m voice.delegation.replay scenarios --author commandcode` drives the hybrid from the decider cache and sends each draft request to Command Code. Only synthetic scenario text went to Command Code. `voice/delegation/results/scenarios-commandcode.json` holds every landed draft with its request status, latency, token usage, and response metadata. `voice/delegation/cache/` holds the raw records.
+`python -m voice.research.delegation.replay scenarios --author commandcode` drives the hybrid from the decider cache and sends each draft request to Command Code. Only synthetic scenario text went to Command Code. `voice/research/delegation/results/scenarios-commandcode.json` holds every landed draft with its request status, latency, token usage, and response metadata. `voice/research/delegation/cache/` holds the raw records.
 
 ### Latency
 
@@ -212,7 +212,7 @@ This change does not touch `voice/prototype/`. Two hooks would connect it, both 
 
 ## Calls and cost
 
-This branch made 123 calls to Command Code, with no 429, no 402, and no limit message (measured). That is 123 of the 150-call cap. 120 returned HTTP 200, and 3 were the HTTP 400 answers to `minimal`. `voice/delegation/cache/calls.jsonl` holds the 81 scenario calls: the 600-token test call, 32 default drafts, 15 drafts each for `-fast` and `-ultrafast`, the 3 `minimal` probes, and 5 drafts per id with reasoning off. The ledger under `$VOICE_HOME/evidence/prewrite/author-cache/` holds the 42 clip calls: 7 per id on its default reasoning and 7 per id with reasoning off. No Flint call ran, through OpenRouter or any route. The replays made no decider call. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
+This branch made 123 calls to Command Code, with no 429, no 402, and no limit message (measured). That is 123 of the 150-call cap. 120 returned HTTP 200, and 3 were the HTTP 400 answers to `minimal`. `voice/research/delegation/cache/calls.jsonl` holds the 81 scenario calls: the 600-token test call, 32 default drafts, 15 drafts each for `-fast` and `-ultrafast`, the 3 `minimal` probes, and 5 drafts per id with reasoning off. The ledger under `$VOICE_HOME/evidence/prewrite/author-cache/` holds the 42 clip calls: 7 per id on its default reasoning and 7 per id with reasoning off. No Flint call ran, through OpenRouter or any route. The replays made no decider call. Every decider request hit the committed cache or the prototype cache under `$VOICE_HOME` (measured, the offline client raises on a miss).
 
 ## Limits
 

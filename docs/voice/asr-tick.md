@@ -60,11 +60,11 @@ The decider receives whole-utterance snapshots with a revision number (`Transcri
 `docs/voice/asr-tick-llamacpp.patch` makes the block size and the encoder step settable by environment variable. It is a research aid. Apply it to llama.cpp b12428 and build with CUDA. Do not replace the shared binary.
 
 ```
-python voice/speech/asr_tick_bench.py --out RUN.json --clips all                      # one session
-python voice/speech/asr_tick_bench.py --out RUN.json --clips all --stagger 4          # 4 shifted sessions
-python voice/speech/asr_tick_bench.py --out RUN.json --clips real --with-voice --stagger 2
-python voice/speech/asr_tick_bench.py --out RUN.json --clips all --prefix-step 0.24   # peek quality
-python voice/speech/asr_tick_report.py BASE.json RUN.json ...
+python voice/research/speech/asr_tick_bench.py --out RUN.json --clips all                      # one session
+python voice/research/speech/asr_tick_bench.py --out RUN.json --clips all --stagger 4          # 4 shifted sessions
+python voice/research/speech/asr_tick_bench.py --out RUN.json --clips real --with-voice --stagger 2
+python voice/research/speech/asr_tick_bench.py --out RUN.json --clips all --prefix-step 0.24   # peek quality
+python voice/research/speech/asr_tick_report.py BASE.json RUN.json ...
 ```
 
 `--bin` and `--chunk-rows` point the bench at a patched build. Timing runs went through the GPU lease and `quiet_run.py`, which are local wrappers outside the repo. Turn recordings stay under `$VOICE_HOME/evidence/live`, never in the repo.

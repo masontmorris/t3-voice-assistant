@@ -20,7 +20,7 @@ Mason set the design on 2026-11-16. While the person speaks, the decider segment
 | Tasks LFM3 decided at the end | 14 | none | 10 |
 | Decider calls per utterance, mean | 2.36 | 3.36 | 2.36 |
 
-All numbers are measured. `python -m voice.prototype.eou_report` prints this table and the per-clip table from the run records.
+All numbers are measured. `python -m voice.research.prototype.eou_report` prints this table and the per-clip table from the run records.
 
 - **The gate did its part.** It ran 5 tasks during speech, and all 5 were right (measured). It held none, because every task that reached it scored above 0.40.
 - **The losses all came from LFM3's turn at the end.** `gated` lost 8 expected tasks that `decider` got right, and gained 3 (measured, per clip below). Two of the gains are 07 and 10, where LFM3 delegated the implicit rain question that the decider never treated as a request.
@@ -56,7 +56,7 @@ A side effect never reaches a real lookup. In `gated`, it runs on the mock worke
 
 ## Picking the gate on the tuning data
 
-`python -m voice.segmentation.gate_tune` replays the hybrid's decision points on partials from cached answers. It uses the original 11 scenarios and the 4 synthetic clips, and it stops before the final transcript. Every task dispatched during speech is a candidate, labelled right or wrong from the scenario's expectations. A dispatch is wrong when it matches no expected task, the task ends corrected, it must never dispatch, it lacks a required word, or it repeats.
+`python -m voice.research.segmentation.gate_tune` replays the hybrid's decision points on partials from cached answers. It uses the original 11 scenarios and the 4 synthetic clips, and it stops before the final transcript. Every task dispatched during speech is a candidate, labelled right or wrong from the scenario's expectations. A dispatch is wrong when it matches no expected task, the task ends corrected, it must never dispatch, it lacks a required word, or it repeats.
 
 | Gate form | Candidates | Wrong ones | Score of the wrong one | Lowest right score | Right ones that run at 0.40 |
 | --- | --- | --- | --- | --- | --- |
@@ -292,7 +292,7 @@ All numbers are measured. Every clip lost exactly its final call. In the before 
 
 ### After the measured run
 
-Reading the failures above led to one code change on this branch. The rule now holds a task whose words changed after its last decision, whatever its kind. A request whose new words no decider read is unclassified, and the prototype already holds unclassified requests (`needs_hold` in PR #5). I made the change for safety, after reading the test-set results, so it has no clean measurement. `python -m voice.prototype.eou_report` replays the recorded handoff run under the new rule, in code only, with LFM3's calls unchanged.
+Reading the failures above led to one code change on this branch. The rule now holds a task whose words changed after its last decision, whatever its kind. A request whose new words no decider read is unclassified, and the prototype already holds unclassified requests (`needs_hold` in PR #5). I made the change for safety, after reading the test-set results, so it has no clean measurement. `python -m voice.research.prototype.eou_report` replays the recorded handoff run under the new rule, in code only, with LFM3's calls unchanged.
 
 | Close rule, on the recorded handoff run | Clips passed | Expected tasks correct | Expected side-effect requests that ran |
 | --- | --- | --- | --- |
@@ -334,7 +334,7 @@ Run from the repository root. The offline tests need no GPU, no key, and no netw
 ```
 python -m unittest discover -s voice/segmentation/tests -t .
 python -m unittest discover -s voice/prototype/tests -t .
-python -m voice.segmentation.gate_tune --clips "$VOICE_HOME/evidence/eou/before"
+python -m voice.research.segmentation.gate_tune --clips "$VOICE_HOME/evidence/eou/before"
 ```
 
 `voice/segmentation/tests/test_handoff.py` covers the handoff close, dedup, cancel and amend. It also covers the gate: a confident task runs, a task below the bar waits and is read again, a side effect needs the stricter bar, the gated close settles nothing, and `run_task` starts a waiting task. `voice/prototype/tests/test_tasks.py` covers `call_tool`, the notes for tasks that have not run, and a gated side effect that runs on the mock and never reaches a lookup.
@@ -345,7 +345,7 @@ The three arms of round 2 ran inside the GPU lease with `quiet_run.py --holder v
 python -m voice.prototype.run CLIPS... --eou gated --fresh --out "$VOICE_HOME/evidence/eou/r2-gated"
 python -m voice.prototype.run CLIPS... --eou decider --fresh --out "$VOICE_HOME/evidence/eou/r2-decider"
 python -m voice.prototype.run CLIPS... --eou handoff --fresh --out "$VOICE_HOME/evidence/eou/r2-handoff"
-python -m voice.prototype.eou_report gated="$VOICE_HOME/evidence/eou/r2-gated" decider="$VOICE_HOME/evidence/eou/r2-decider" handoff="$VOICE_HOME/evidence/eou/r2-handoff" --grades "$VOICE_HOME/evidence/eou/grades-r2.json"
+python -m voice.research.prototype.eou_report gated="$VOICE_HOME/evidence/eou/r2-gated" decider="$VOICE_HOME/evidence/eou/r2-decider" handoff="$VOICE_HOME/evidence/eou/r2-handoff" --grades "$VOICE_HOME/evidence/eou/grades-r2.json"
 ```
 
 CLIPS is `$VOICE_HOME/audio/real/01_single.wav` through `10_noisy.wav`, then `single`, `two_request`, `correction`, and `long` from `$VOICE_HOME/evidence/stage1/audio/`. Round 1's arms are `$VOICE_HOME/evidence/eou/before` (`--eou decider`) and `after` (`--eou handoff`). The gated arm ran before `Orchestrator.end` existed, so its records log LFM3's dispatches as partial ones. `eou_report` marks them as after the final transcript, which matches their place in the timeline.

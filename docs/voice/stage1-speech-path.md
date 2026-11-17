@@ -14,7 +14,7 @@ Full precision on this Desktop's CPU is not viable. Transformers fp32 generates 
 
 ## Capability table
 
-All checks ran in `voice/speech/probe.py` on the GPU (bf16), one run each, evidence in `$VOICE_HOME/evidence/stage1/probe_cuda.json` and `probe_cuda.log`. Text decoding is greedy and speech is sampled at the card's settings. Sampled speech frames feed back into the context, so the reply text varies run to run in the speech modes (measured, the benchmark replies differ). Each check below ran on Transformers. The llama.cpp column of "llama.cpp realtime results" repeats the checks that matter on that runtime.
+All checks ran in `voice/research/speech/probe.py` on the GPU (bf16), one run each, evidence in `$VOICE_HOME/evidence/stage1/probe_cuda.json` and `probe_cuda.log`. Text decoding is greedy and speech is sampled at the card's settings. Sampled speech frames feed back into the context, so the reply text varies run to run in the speech modes (measured, the benchmark replies differ). Each check below ran on Transformers. The llama.cpp column of "llama.cpp realtime results" repeats the checks that matter on that runtime.
 
 | Capability | Status | Label | Evidence |
 | --- | --- | --- | --- |
@@ -33,7 +33,7 @@ Two consequences for the design follow (inferred). First, the orchestrator gets 
 
 ## Latency table
 
-Every number comes from `voice/speech/bench.py`, wrapped in `quiet_run.py` (and in `gpu_lease.py` for the GPU). Each case ran once to warm up, then 5 timed rounds with the cases alternating inside each round. Cells show the median, the range, and the run count. The input clip streams in as 100 ms chunks paced at real time, and times run from the start of the input audio unless the row says otherwise. The live-ASR rows use `long.wav` (19.1 s). The voice-turn rows use `two_request.wav` (4.4 s) with replies capped at 300 generation slots. The TTS rows synthesize one fixed 20-word sentence.
+Every number comes from `voice/research/speech/bench.py`, wrapped in `quiet_run.py` (and in `gpu_lease.py` for the GPU). Each case ran once to warm up, then 5 timed rounds with the cases alternating inside each round. Cells show the median, the range, and the run count. The input clip streams in as 100 ms chunks paced at real time, and times run from the start of the input audio unless the row says otherwise. The live-ASR rows use `long.wav` (19.1 s). The voice-turn rows use `two_request.wav` (4.4 s) with replies capped at 300 generation slots. The TTS rows synthesize one fixed 20-word sentence.
 
 | Metric | GPU, RTX 3060, bf16 | CPU, Ryzen 5 5600X, fp32 |
 | --- | --- | --- |
@@ -56,7 +56,7 @@ Peak VRAM during the GPU benchmark was 3.89 GB allocated and 3.97 GB reserved (m
 
 ### Both contexts on one GPU in Transformers
 
-`voice/speech/bench_combined.py` feeds every 100 ms chunk to the live-ASR context and then to the voice-chat context, as `demo.py` does. It ran one warm-up turn and then 5 timed turns of `two_request.wav` on the GPU, inside `quiet_run.py` and the lease (measured).
+`voice/research/speech/bench_combined.py` feeds every 100 ms chunk to the live-ASR context and then to the voice-chat context, as `demo.py` does. It ran one warm-up turn and then 5 timed turns of `two_request.wav` on the GPU, inside `quiet_run.py` and the lease (measured).
 
 | Metric | GPU, RTX 3060, bf16 |
 | --- | --- |
@@ -72,7 +72,7 @@ Conditions (measured). The GPU is an RTX 3060 12 GB (driver 610.88), with torch 
 
 ### Why speech is slower than real time
 
-`voice/speech/profile_step.py` timed one TTS generation after a warm-up (measured, one run, for attribution only). It produced 86 frames (6.88 s of speech) in 7.45 s. The backbone decode step took 43.5 ms per call and the depth decoder 40.5 ms per frame, so one 80 ms frame costs about 84 ms. The PyTorch profiler counted 3,025 kernel launches per frame. CUDA kernel time was 2.97 s across a 14.26 s profiled run, and `cudaLaunchKernel` was the largest CPU cost (38.8% of self CPU time). The GPU sits idle most of the time while Python launches small kernels one by one.
+`voice/research/speech/profile_step.py` timed one TTS generation after a warm-up (measured, one run, for attribution only). It produced 86 frames (6.88 s of speech) in 7.45 s. The backbone decode step took 43.5 ms per call and the depth decoder 40.5 ms per frame, so one 80 ms frame costs about 84 ms. The PyTorch profiler counted 3,025 kernel launches per frame. CUDA kernel time was 2.97 s across a 14.26 s profiled run, and `cudaLaunchKernel` was the largest CPU cost (38.8% of self CPU time). The GPU sits idle most of the time while Python launches small kernels one by one.
 
 So the GPU number is untuned: it measures eager PyTorch, not the hardware. Three things would cut launch overhead.
 
@@ -86,7 +86,7 @@ On the CPU the same profile (measured, one run inside `quiet_run.py`) produced 8
 
 ## llama.cpp realtime results
 
-`voice/speech/llamacpp_rt.py` starts `llama-server.exe` from the b12428 Windows CUDA 12.4 build with `LFM3-Audio-2B-Q4_K_M.gguf` and `mmproj-LFM3-Audio-2B-Q8_0.gguf` from `LiquidAI/LFM3-Audio-2B-GGUF` at `39670cb5c42e9c4bfe046519ba7ffbe47f9552ad`. The server flags are `--temp 0 -np 2`, plus `-ngl 99` for the GPU or `-ngl 0` with `CUDA_VISIBLE_DEVICES=` for the CPU. The script talks to `/v1/realtime` over a WebSocket and streams PCM16 in 100 ms chunks paced at real time. I checked both release zips against the SHA-256 digests GitHub publishes for them.
+`voice/research/speech/llamacpp_rt.py` starts `llama-server.exe` from the b12428 Windows CUDA 12.4 build with `LFM3-Audio-2B-Q4_K_M.gguf` and `mmproj-LFM3-Audio-2B-Q8_0.gguf` from `LiquidAI/LFM3-Audio-2B-GGUF` at `39670cb5c42e9c4bfe046519ba7ffbe47f9552ad`. The server flags are `--temp 0 -np 2`, plus `-ngl 99` for the GPU or `-ngl 0` with `CUDA_VISIBLE_DEVICES=` for the CPU. The script talks to `/v1/realtime` over a WebSocket and streams PCM16 in 100 ms chunks paced at real time. I checked both release zips against the SHA-256 digests GitHub publishes for them.
 
 ### Capabilities on llama.cpp
 
@@ -132,7 +132,7 @@ The demo streams a WAV in at real-time pace. It prints timestamped partial trans
 Run it from the repo root:
 
 ```
-python voice/speech/demo.py "$VOICE_HOME/evidence/stage1/audio/two_request.wav" --out "$VOICE_HOME/evidence/stage1/demo_two_request_reply.wav"
+python voice/research/speech/demo.py "$VOICE_HOME/evidence/stage1/audio/two_request.wav" --out "$VOICE_HOME/evidence/stage1/demo_two_request_reply.wav"
 ```
 
 Add `--device cpu` for the CPU and `--fast` to feed the clip without real-time pacing. Below is the observed output of one cold run on the GPU, inside `quiet_run.py` and the lease (measured). The per-token reply lines are cut after the first six, and the saved path shows `$VOICE_HOME` in place of the local root.
@@ -159,14 +159,14 @@ The demo passes no tools, so the model says it cannot act. With the tools system
 
 ## Reproduce
 
-Set up `$VOICE_HOME` as the [speech README](../../voice/speech/README.md) describes. Every script sets `HF_HUB_OFFLINE=1` and loads revision `2d6c1f99c129b3ef07a8d168bc0ff08e2bdb93f1`. Run each step from the repo root with the venv's Python. On this Desktop, every timed run ran inside `quiet_run.py`, and every GPU run ran inside the GPU lease (`gpu_lease.py`). Those two local wrappers schedule timing runs and share the GPU between lanes. They are not in this repo.
+Set up `$VOICE_HOME` as the [speech README](../../voice/research/speech/README.md) describes. Every script sets `HF_HUB_OFFLINE=1` and loads revision `2d6c1f99c129b3ef07a8d168bc0ff08e2bdb93f1`. Run each step from the repo root with the venv's Python. On this Desktop, every timed run ran inside `quiet_run.py`, and every GPU run ran inside the GPU lease (`gpu_lease.py`). Those two local wrappers schedule timing runs and share the GPU between lanes. They are not in this repo.
 
-1. Synthesize the test clips: `powershell -ExecutionPolicy Bypass -File voice/speech/make_audio.ps1`.
-2. Run the CPU smoke test: `python voice/speech/smoke.py`.
-3. Run the capability probe on the GPU: `python voice/speech/probe.py cuda`.
-4. Run the benchmark: `python voice/speech/bench.py cuda load` five times, then `python voice/speech/bench.py cuda 5`. For the CPU, set `CUDA_VISIBLE_DEVICES=` and pass `cpu`.
-5. Run the llama.cpp checks: `python voice/speech/llamacpp_rt.py 5 gpu`, `python voice/speech/llamacpp_rt.py 5 gpu concurrent`, and, with `CUDA_VISIBLE_DEVICES=`, `python voice/speech/llamacpp_rt.py 5 cpu concurrent`.
-6. Print every latency table: `python voice/speech/report.py`.
+1. Synthesize the test clips: `powershell -ExecutionPolicy Bypass -File voice/research/speech/make_audio.ps1`.
+2. Run the CPU smoke test: `python voice/research/speech/smoke.py`.
+3. Run the capability probe on the GPU: `python voice/research/speech/probe.py cuda`.
+4. Run the benchmark: `python voice/research/speech/bench.py cuda load` five times, then `python voice/research/speech/bench.py cuda 5`. For the CPU, set `CUDA_VISIBLE_DEVICES=` and pass `cpu`.
+5. Run the llama.cpp checks: `python voice/research/speech/llamacpp_rt.py 5 gpu`, `python voice/research/speech/llamacpp_rt.py 5 gpu concurrent`, and, with `CUDA_VISIBLE_DEVICES=`, `python voice/research/speech/llamacpp_rt.py 5 cpu concurrent`.
+6. Print every latency table: `python voice/research/speech/report.py`.
 
 ## Licenses
 

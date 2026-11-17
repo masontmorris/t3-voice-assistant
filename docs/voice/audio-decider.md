@@ -2,7 +2,7 @@
 
 **Short answer.** Audio helps in one place, end-of-turn detection, and only because the live transcript lags the voice by about 0.7 s. It does not help classify requests, and it is a weak, unproven help for backchannels. The hosted d1.2 is too slow and too variable for the hot path. The local d1-Omni-2B is fast enough (40 ms median) at +2.7 GB of VRAM. The local 600M does not work on audio.
 
-Every number below is **measured** on this machine unless it is marked **inferred** or **guess**. The probe is throwaway code in `voice/audio_probe/`. Raw results, clips and ledgers are under `$VOICE_HOME/research/audio-decider/` and are not committed.
+Every number below is **measured** on this machine unless it is marked **inferred** or **guess**. The probe is throwaway code in `voice/research/audio_probe/`. Raw results, clips and ledgers are under `$VOICE_HOME/research/audio-decider/` and are not committed.
 
 ## Goal and smallest change
 
@@ -121,7 +121,7 @@ Hand labels for 35 real turns (the 3 ambiguous ones are dropped).
 3. **Barge-in: prototype it behind a flag, second stage only.** Stop on the voiced gate as now, then let audio veto the stop only at P(backchannel) of 0.7 or more. First record 10 to 20 real long "mm-hm"s over a reply. The current evidence for the main benefit is synthetic.
 4. **Do not put hosted d1.2 audio in the hot path.** Use it as an offline labeler for end-of-turn and barge-in sets.
 5. **Drop the 600M for audio.**
-6. **Re-run (a) when the ASR tick fix lands.** The audio advantage in (a) is the transcript lag. If the other worker's chunk change shrinks the 0.69 s tail, text recovers toward 0.966 and the case for audio shrinks. `python -m voice.audio_probe.asr_run`, then `liveview`, then the `run_api` runners redo it.
+6. **Re-run (a) when the ASR tick fix lands.** The audio advantage in (a) is the transcript lag. If the other worker's chunk change shrinks the 0.69 s tail, text recovers toward 0.966 and the case for audio shrinks. `python -m voice.research.audio_probe.asr_run`, then `liveview`, then the `run_api` runners redo it.
 7. **Tell the liquid-decider worker about the `media` trap** if their client ever sends audio.
 
 ## What these numbers cannot see
@@ -140,12 +140,12 @@ Hand labels for 35 real turns (the 3 ambiguous ones are dropped).
 All commands run from the repo root. The key is read in-process from the main checkout's `.env`.
 
 ```
-python -m voice.audio_probe.build_sets       # clips from the live calls
-python -m voice.audio_probe.make_tts         # 70 synthetic items, clean and noisy
-python -m voice.audio_probe.make_bc_tts      # long backchannels and interruptions
-python -m voice.audio_probe.asr_run          # GPU lease: LFM3 ASR, paced timing
-python -m voice.audio_probe.liveview         # what the transcript held at each cut
-python -m voice.audio_probe.run_api eot audio
-python -m voice.audio_probe.job2             # GPU lease: local 2B and 600M, VRAM
-python -m voice.audio_probe.summary
+python -m voice.research.audio_probe.build_sets       # clips from the live calls
+python -m voice.research.audio_probe.make_tts         # 70 synthetic items, clean and noisy
+python -m voice.research.audio_probe.make_bc_tts      # long backchannels and interruptions
+python -m voice.research.audio_probe.asr_run          # GPU lease: LFM3 ASR, paced timing
+python -m voice.research.audio_probe.liveview         # what the transcript held at each cut
+python -m voice.research.audio_probe.run_api eot audio
+python -m voice.research.audio_probe.job2             # GPU lease: local 2B and 600M, VRAM
+python -m voice.research.audio_probe.summary
 ```
