@@ -5,7 +5,9 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2RuntimeRequest,
   type OrchestrationV2StoredEvent,
+  MessageId,
   ProjectId,
+  RunId,
   RuntimeRequestId,
   ThreadId,
 } from "@t3tools/contracts";
@@ -28,9 +30,11 @@ import * as Watch from "./watch.ts";
 
 const PROJECT = SEED_PROJECT;
 const OUTSIDE = ProjectId.make("project:outside");
+const BUSY = ProjectId.make("project:busy");
 
 const ALLOWED = new Set([
   PROJECT,
+  BUSY,
   ...Object.values(FIXTURES).map((events) => createdOf(events).payload.projectId),
 ]);
 
@@ -48,7 +52,7 @@ const CALLER: VoiceSeam.VoiceCaller = {
 
 const provideSeam = Effect.provide(VoiceSeam.layer.pipe(Layer.provideMerge(seamLayer)));
 
-const listThreads = (input: { readonly limit?: number } = {}) =>
+const listThreads = (input: { readonly projectId?: ProjectId; readonly limit?: number } = {}) =>
   VoiceSeam.VoiceSeam.pipe(Effect.flatMap((seam) => seam.listThreads(CALLER, input)));
 
 const readThread = (threadId: ThreadId) =>
@@ -197,18 +201,78 @@ it.effect("cuts the newest-first list at its limit and at 200, and counts what i
 
     const unlimited = yield* listThreads();
     const three = yield* listThreads({ limit: 3 });
-    const above = yield* listThreads({ limit: 500 });
 
     assert.deepStrictEqual(ids(unlimited), newest(200));
     assert.deepInclude(unlimited, { total: 205, truncated: true });
     assert.deepStrictEqual(ids(three), newest(3));
     assert.deepInclude(three, { total: 205, truncated: true });
-    assert.deepStrictEqual(ids(above), newest(200));
-    assert.deepInclude(above, { total: 205, truncated: true });
     assert.strictEqual(
       unlimited.asOfSequence,
       yield* (yield* OrchestrationEventStore.OrchestrationEventStore).latestApplicationSequence,
     );
+  }).pipe(provideSeam),
+);
+
+it.effect.each(Object.entries(FIXTURES).map(([name, events]) => ({ name, events })))(
+  "lists the same activity as it reads for the $name fixture",
+  ({ events }) =>
+    Effect.gen(function* () {
+      yield* write(events.map((stored) => stored.event));
+
+      const list = yield* listThreads();
+      const read = yield* Effect.forEach(list.threads, (summary) => readThread(summary.threadId));
+
+      assert.isAbove(list.threads.length, 0);
+      assert.deepStrictEqual(
+        list.threads.map((summary) => summary.activity),
+        read.map((state) => state.activity),
+      );
+    }).pipe(provideSeam),
+);
+
+it.effect("filters by project before the cut, so total and truncated describe that project", () =>
+  Effect.gen(function* () {
+    yield* write([
+      ...Array.from({ length: 205 }, (_, index) =>
+        thread({ id: `busy-${index}`, minutes: 100 + index, projectId: BUSY }),
+      ),
+      ...Array.from({ length: 3 }, (_, index) => thread({ id: `quiet-${index}`, minutes: index })),
+    ]);
+
+    const everything = yield* listThreads();
+    const quiet = yield* listThreads({ projectId: PROJECT });
+    const cut = yield* listThreads({ projectId: PROJECT, limit: 2 });
+    const refusal = yield* listThreads({ projectId: OUTSIDE }).pipe(Effect.flip);
+
+    assert.isFalse(everything.threads.some((summary) => summary.projectId === PROJECT));
+    assert.deepStrictEqual(
+      quiet.threads.map((summary) => summary.threadId),
+      [2, 1, 0].map((index) => ThreadId.make(`quiet-${index}`)),
+    );
+    assert.deepInclude(quiet, { total: 3, truncated: false });
+    assert.deepInclude(cut, { total: 3, truncated: true });
+    assert.strictEqual(cut.threads.length, 2);
+    assert.strictEqual(refusal.code, "project_not_allowed");
+  }).pipe(provideSeam),
+);
+
+it.effect.each([0, -1, 201, 1.5, Number.NaN])("refuses a list limit of %s", (limit) =>
+  Effect.gen(function* () {
+    yield* write([thread({ id: "only", minutes: 1 })]);
+
+    const refusal = yield* listThreads({ limit }).pipe(Effect.flip);
+
+    assert.strictEqual(refusal.code, "invalid_request");
+  }).pipe(provideSeam),
+);
+
+it.effect.each([1, 200])("lists with a limit of %s", (limit) =>
+  Effect.gen(function* () {
+    yield* write([thread({ id: "only", minutes: 1 })]);
+
+    const list = yield* listThreads({ limit });
+
+    assert.deepInclude(list, { total: 1, truncated: false });
   }).pipe(provideSeam),
 );
 
@@ -353,7 +417,7 @@ it.effect.each(REQUEST_KINDS)(
     }).pipe(provideSeam),
 );
 
-it.effect("reads an approval hidden behind a newer request that asks no one", () =>
+it.effect("lists and reads an approval hidden behind a newer request that asks no one alike", () =>
   Effect.gen(function* () {
     const approval = askAs(APPROVAL, { kind: "command", responseCapability: live });
     const later = DateTime.add(requestOf(APPROVAL).payload.createdAt, { seconds: 1 });
@@ -373,9 +437,9 @@ it.effect("reads an approval hidden behind a newer request that asks no one", ()
     const state = yield* readThread(threadId);
     const listed = (yield* listThreads()).threads.find((t) => t.threadId === threadId);
 
-    // The shell picks the newer request, so only the read's join sees the approval.
-    assert.strictEqual(listed?.activity, "working");
-    assert.strictEqual(state.activity, "waiting_on_you");
+    // The shell picks the newer request, so only the join sees the approval, and the list runs it.
+    assert.strictEqual(listed?.activity, "waiting_on_you");
+    assert.strictEqual(state.activity, listed?.activity);
     assert.deepStrictEqual(state.pending, {
       requestId: APPROVAL_ID,
       kind: "approval",
@@ -517,6 +581,80 @@ const PLAIN_THREAD = PLAIN[0]!.event.threadId;
 const BEFORE_REPLY = indexOf(
   PLAIN,
   (event) => event.type === "message.updated" && event.payload.role === "assistant",
+);
+
+const FIRST_RUN_ID = PLAIN.flatMap((stored) =>
+  stored.event.type === "run.created" ? [stored.event.payload.id] : [],
+)[0]!;
+const FIRST_REPLY_EVENT = PLAIN.flatMap((stored) =>
+  stored.event.type === "message.updated" && stored.event.payload.role === "assistant"
+    ? [stored.event]
+    : [],
+)[0]!;
+const FIRST_REPLY = FIRST_REPLY_EVENT.payload;
+const SECOND_RUN_ID = RunId.make("run:second");
+
+/** The fixture's whole first run, then a second run that is still going, with `replies` it has said. */
+const secondRunAfterReply = (replies: ReadonlyArray<{ text: string; streaming: boolean }>) => {
+  const created = PLAIN.flatMap((stored) =>
+    stored.event.type === "run.created" ? [stored.event] : [],
+  )[0]!;
+  const later = DateTime.add(FIRST_REPLY.updatedAt, { minutes: 5 });
+  const run: OrchestrationV2DomainEvent = {
+    ...created,
+    id: EventId.make("second-run-created"),
+    runId: SECOND_RUN_ID,
+    payload: {
+      ...created.payload,
+      id: SECOND_RUN_ID,
+      ordinal: 2,
+      status: "running",
+      requestedAt: later,
+      startedAt: later,
+    },
+  };
+  const said = replies.map((reply, index): OrchestrationV2DomainEvent => ({
+    ...FIRST_REPLY_EVENT,
+    id: EventId.make(`second-reply-${index}`),
+    runId: SECOND_RUN_ID,
+    payload: {
+      ...FIRST_REPLY,
+      id: MessageId.make(`second-reply-${index}`),
+      runId: SECOND_RUN_ID,
+      text: reply.text,
+      streaming: reply.streaming,
+      createdAt: DateTime.add(later, { seconds: index + 1 }),
+      updatedAt: DateTime.add(later, { seconds: index + 1 }),
+    },
+  }));
+  return [...PLAIN.slice(0, -1).map((stored) => stored.event), run, ...said];
+};
+
+it.effect.each([
+  {
+    case: "has not replied",
+    replies: [],
+    reply: { text: "first fixture turn complete", runId: FIRST_RUN_ID },
+  },
+  {
+    case: "is still streaming its first reply",
+    replies: [{ text: "second so", streaming: true }],
+    reply: { text: "first fixture turn complete", runId: FIRST_RUN_ID },
+  },
+  {
+    case: "has finished a reply",
+    replies: [{ text: "second reply", streaming: false }],
+    reply: { text: "second reply", runId: SECOND_RUN_ID },
+  },
+] as const)("reads the last reply of a thread whose latest run $case", ({ replies, reply }) =>
+  Effect.gen(function* () {
+    yield* write(secondRunAfterReply(replies));
+
+    const state = yield* readThread(PLAIN_THREAD);
+
+    assert.strictEqual(state.activity, "working");
+    assert.deepInclude(state.lastReply, reply);
+  }).pipe(provideSeam),
 );
 
 /** The production watch from `afterSequence`, run to its first `done`. */

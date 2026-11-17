@@ -117,7 +117,10 @@ export const VoiceThreadState = Schema.Struct({
     }),
   ),
   pending: Schema.NullOr(VoicePending),
-  lastReply: Schema.NullOr(Schema.Struct({ ...VoiceRunResult.fields, at: Schema.String })),
+  /** `runId` is the run the reply came from, which is not `run` when the latest run has not replied yet. */
+  lastReply: Schema.NullOr(
+    Schema.Struct({ ...VoiceRunResult.fields, runId: RunId, at: Schema.String }),
+  ),
   asOfSequence: Sequence,
 }).annotate({ identifier: "VoiceThreadState" });
 export type VoiceThreadState = typeof VoiceThreadState.Type;

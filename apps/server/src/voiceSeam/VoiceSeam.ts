@@ -5,7 +5,9 @@ import {
   type OrchestrationV2ConversationMessage,
   type OrchestrationV2Run,
   type OrchestrationV2ThreadShell,
+  type RunId,
 } from "@t3tools/contracts";
+import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -25,7 +27,15 @@ import {
   type VoiceOperation,
   type VoiceSeamConfig,
 } from "./ceiling.ts";
-import { cutAtSentence, readThreadNow, runResult } from "./outcome.ts";
+import {
+  cutAtSentence,
+  isFinishedReply,
+  newestFirst,
+  readPendingJoin,
+  readThreadNow,
+  runResult,
+  type PendingJoin,
+} from "./outcome.ts";
 import {
   LIST_LIMIT,
   RefusalCode,
@@ -47,26 +57,26 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
   static readonly notFound = () =>
     new VoiceSeamRefusal({ code: "not_found", message: "I can't see that thread." });
 
+  static readonly projectNotAllowed = () =>
+    new VoiceSeamRefusal({
+      code: "project_not_allowed",
+      message: "I'm not allowed to look at that project.",
+    });
+
+  static readonly invalidRequest = (message = "T3 couldn't read that request.") =>
+    new VoiceSeamRefusal({ code: "invalid_request", message });
+
   static readonly unavailable = (cause: unknown) =>
     new VoiceSeamRefusal({ code: "unavailable", message: "I can't reach T3 right now.", cause });
 
   static readonly operationNotAllowed = () =>
     new VoiceSeamRefusal({ code: "operation_not_allowed", message: "I'm not allowed to do that." });
 
-  static readonly projectNotAllowed = () =>
-    new VoiceSeamRefusal({
-      code: "project_not_allowed",
-      message: "I'm not allowed to work in that project.",
-    });
-
   static readonly tooManyWatches = () =>
     new VoiceSeamRefusal({
       code: "too_many_watches",
       message: "I'm following too many threads already.",
     });
-
-  static readonly invalidRequest = () =>
-    new VoiceSeamRefusal({ code: "invalid_request", message: "T3 couldn't read that request." });
 
   /** An operation the seam lists but does not perform yet. */
   static readonly notBuilt = () =>
@@ -110,6 +120,9 @@ export const requireOperation = (caller: VoiceCaller, operation: VoiceOperation)
     ? Effect.void
     : Effect.fail(VoiceSeamRefusal.operationNotAllowed());
 
+/** How many runs before the latest one a read looks through for a reply the latest run lacks. */
+const EARLIER_REPLY_RUNS = 5;
+
 const TERMINAL_ACTIVITY = {
   completed: "finished",
   failed: "failed",
@@ -146,27 +159,22 @@ const deriveActivity = (shell: OrchestrationV2ThreadShell): ThreadActivity => {
   }
 };
 
+/** The one rule for a thread's activity: a list and a read both apply it, so they cannot disagree. */
+const activityOf = (shell: OrchestrationV2ThreadShell, join: PendingJoin): ThreadActivity =>
+  // The join can find a need the shell's pick hides behind a request that asks no one.
+  join.kind === "need" ? "waiting_on_you" : deriveActivity(shell);
+
 const iso = (time: DateTime.Utc) => DateTime.formatIso(time);
 
-/** The latest run's newest final assistant message, for a thread that has not settled. */
-const latestFinalReply = (
-  messages: ReadonlyArray<OrchestrationV2ConversationMessage>,
-): VoiceThreadState["lastReply"] => {
-  const message = messages
-    .filter((candidate) => !candidate.streaming && candidate.text.trim().length > 0)
-    .toSorted(
-      (left, right) =>
-        DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt),
-    )[0];
-  return message === undefined
-    ? null
-    : {
-        text: cutAtSentence(message.text),
-        messageId: message.id,
-        turnItemId: null,
-        at: iso(message.updatedAt),
-      };
-};
+const replyOf = (
+  message: OrchestrationV2ConversationMessage & { readonly runId: RunId },
+): NonNullable<VoiceThreadState["lastReply"]> => ({
+  text: cutAtSentence(message.text),
+  messageId: message.id,
+  turnItemId: null,
+  runId: message.runId,
+  at: iso(message.updatedAt),
+});
 
 /** The rule of listProjectThreads, narrowed to the allowed projects. List, read and watch share it. */
 const isVisible = (config: VoiceSeamConfig) => (shell: OrchestrationV2ThreadShell) =>
@@ -210,6 +218,12 @@ const make = Effect.gen(function* () {
     input: RequestInput<"list_threads">,
   ) {
     yield* requireOperation(caller, "list");
+    const limit = input.limit ?? LIST_LIMIT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > LIST_LIMIT) {
+      return yield* VoiceSeamRefusal.invalidRequest(
+        `limit must be a whole number from 1 to ${LIST_LIMIT}.`,
+      );
+    }
     const { projectId } = input;
     if (projectId !== undefined && !allowsProject(caller.config, projectId)) {
       return yield* VoiceSeamRefusal.projectNotAllowed();
@@ -229,6 +243,7 @@ const make = Effect.gen(function* () {
       // the rest, which would make "no such thread" untrue. Idle subagents are never listed.
       options: { omitIdleSubagents: true, omitOlderSettled: false },
     }).pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
+    // The project filter comes before the sort and the cut, so `total` and `truncated` describe it.
     const kept = snapshot.threads
       .filter(
         (shell) => visible(shell) && (projectId === undefined || shell.projectId === projectId),
@@ -238,13 +253,27 @@ const make = Effect.gen(function* () {
           DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt) ||
           right.id.localeCompare(left.id),
       );
-    const listed = kept.slice(0, Math.min(input.limit ?? LIST_LIMIT, LIST_LIMIT));
+    const listed = kept.slice(0, limit);
+    // A shell with no pending pick has no pending request or waiting card, so only the others
+    // can differ from `deriveActivity`. These reads run at or after the snapshot's sequence, so
+    // a difference is an event a watch from `asOfSequence` replays.
+    const joins = new Map(
+      yield* sql
+        .withTransaction(
+          Effect.forEach(
+            listed.filter((shell) => shell.pendingRuntimeRequest !== null),
+            (shell) =>
+              readPendingJoin(threads, shell).pipe(Effect.map((join) => [shell.id, join] as const)),
+          ),
+        )
+        .pipe(NodeSqliteClient.readOnly, Effect.mapError(VoiceSeamRefusal.unavailable)),
+    );
     return {
       threads: listed.map((shell): VoiceThreadList["threads"][number] => ({
         threadId: shell.id,
         projectId: shell.projectId,
         title: shell.title,
-        activity: deriveActivity(shell),
+        activity: activityOf(shell, joins.get(shell.id) ?? { kind: "none" }),
         lastActivityAt: iso(shell.updatedAt),
         pinned: shell.pinnedAt != null,
       })),
@@ -264,23 +293,33 @@ const make = Effect.gen(function* () {
     yield* threads
       .ensureLegacyTranscript(threadId)
       .pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
-    const read = yield* readThreadNow({ sql, threads }, threadId, (shell) =>
-      shell.latestRunId === null ? [] : [shell.latestRunId],
+    const read = yield* readThreadNow(
+      { sql, threads },
+      threadId,
+      (shell) => (shell.latestRunId === null ? [] : [shell.latestRunId]),
+      EARLIER_REPLY_RUNS,
     ).pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
     if (read === null || !isVisible(caller.config)(read.shell)) {
       return yield* VoiceSeamRefusal.notFound();
     }
     const { shell, records } = read;
     const pending = read.join.kind === "need" ? read.join.pending : null;
-    // The join can find a need the shell's pick hides behind a request that asks no one.
-    const activity = pending === null ? deriveActivity(shell) : "waiting_on_you";
+    const activity = activityOf(shell, read.join);
     const run = records.runs.find((candidate) => candidate.id === shell.latestRunId) ?? null;
+    const reply =
+      records.messages.filter(isFinishedReply).toSorted(newestFirst)[0] ?? read.earlierReply;
     const lastReply =
       run === null
         ? null
         : TERMINAL_ACTIVITIES.has(activity)
-          ? { ...runResult(records, run), at: iso(run.completedAt ?? run.requestedAt) }
-          : latestFinalReply(records.messages);
+          ? {
+              ...runResult(records, run),
+              runId: run.id,
+              at: iso(run.completedAt ?? run.requestedAt),
+            }
+          : reply === undefined
+            ? null
+            : replyOf(reply);
     return {
       threadId,
       projectId: shell.projectId,

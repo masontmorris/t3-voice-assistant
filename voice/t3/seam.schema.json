@@ -1055,11 +1055,14 @@
                     }
                   ]
                 },
+                "runId": {
+                  "type": "string"
+                },
                 "at": {
                   "type": "string"
                 }
               },
-              "required": ["text", "messageId", "turnItemId", "at"],
+              "required": ["text", "messageId", "turnItemId", "runId", "at"],
               "additionalProperties": true
             },
             {
