@@ -482,14 +482,19 @@ def heard_prefix(text, transcript):
     return text[:spans[max(ends) - 1][1]].strip() if ends else ""
 
 
+# Silence after a stopped reply's audio before it is transcribed. Without it the ASR read nothing from 16 of 24
+# one-block fragments (0.94 s); with 1 s of it, 4 of 24 (measured, docs/voice/stream-release.md).
+EAR_PAD_S = 1.0
+
+
 def by_ear(url, rate):
-    """A `transcribe` for `answer`: the released audio of a stopped reply, at 16 kHz, through llama-server's
-    transcription session."""
+    """A `transcribe` for `answer`: the released audio of a stopped reply, at 16 kHz and followed by EAR_PAD_S of
+    silence, through llama-server's transcription session."""
     async def transcribe(pcm):
         samples = np.frombuffer(pcm, dtype="<i2").astype(np.float64)
         positions = np.arange(0, len(samples), rate / MODEL_RATE)
         audio = np.interp(positions, np.arange(len(samples)), samples).astype("<i2").tobytes()
-        return await overlap_transcribe(url, audio, Session)
+        return await overlap_transcribe(url, audio + bytes(int(EAR_PAD_S * MODEL_RATE) * 2), Session)
     return transcribe
 
 
@@ -525,8 +530,9 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     `speak(text, pcm, done)` gets each released piece of audio with the text heard so far, then one call with `done`
     set once the reply is over. It is never called for a reply that released nothing. `transcribe(pcm)`, when given,
     reads back what a stopped reply's released audio said, so the continuation note quotes the words the person heard
-    rather than the text the audio was released on (`heard_prefix`); without it, or if it fails, the note quotes the
-    text of the released blocks.
+    rather than the text the audio was released on (`heard_prefix`). Without it, or when it fails or reads nothing,
+    the note quotes the text of the released blocks: a continuation that skips a few words is better than one asked
+    from the top, which says the heard opening again.
 
     `retry_item` replaces the machine note a refused reply that released nothing is answered with; given a function,
     it is called with what the screens found and whether the reply only repeated itself, and returns the item.
@@ -551,7 +557,7 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
             else:
                 by_ear_text = heard_prefix(result["text"], transcript)
                 log("heard_by_ear", transcript=transcript, heard=by_ear_text, released_on=result["heard"])
-                if len(by_ear_text) <= len(result["heard"]):
+                if by_ear_text and len(by_ear_text) <= len(result["heard"]):
                     result["heard"] = by_ear_text
         return result
 

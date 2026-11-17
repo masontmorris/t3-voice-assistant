@@ -180,6 +180,19 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
         note, = self.notes()
         self.assertIn('they heard only the start of your last reply, "It\'s sunny in"', note)
 
+    async def test_a_fragment_the_ear_cannot_read_is_still_continued_not_restarted(self):
+        """Measured on the after replay, turns 20 to 22: a one-block fragment transcribed empty, the retry went out
+        from the top, and the person heard a second opening."""
+        async def transcribe(pcm):
+            return ""
+
+        await self.answer(
+            [["It's", " sunny"], [" in", " Denver"], [" on", " Sunday"], [" too", "."]],
+            [[" and", " warm"], ["."]], transcribe=transcribe,
+            retry_item=lambda found, repeats=False: prototype.plain_text(prototype.RETRY_NOTE))
+        note, = self.notes()
+        self.assertIn('they heard only the start of your last reply, "It\'s sunny in Denver"', note)
+
     def test_heard_prefix_is_never_past_the_last_word_matched(self):
         self.assertEqual(prototype.heard_prefix("The weather in Raleigh today is a high of 57 degrees.",
                                                 "the weather in raleigh today"), "The weather in Raleigh today")
