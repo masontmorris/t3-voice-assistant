@@ -51,6 +51,15 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
   static readonly notFound = () =>
     new VoiceSeamRefusal({ code: "not_found", message: "I can't see that thread." });
 
+  static readonly projectNotAllowed = () =>
+    new VoiceSeamRefusal({
+      code: "project_not_allowed",
+      message: "I'm not allowed to look at that project.",
+    });
+
+  static readonly invalidRequest = (message: string) =>
+    new VoiceSeamRefusal({ code: "invalid_request", message });
+
   static readonly unavailable = (cause: unknown) =>
     new VoiceSeamRefusal({ code: "unavailable", message: "I can't reach T3 right now.", cause });
 }
@@ -114,6 +123,7 @@ export class VoiceSeam extends Context.Service<
   VoiceSeam,
   {
     readonly listThreads: (input: {
+      readonly projectId?: ProjectId;
       readonly limit?: number;
     }) => Effect.Effect<VoiceThreadList, VoiceSeamRefusal>;
     readonly readThread: (input: {
@@ -200,8 +210,19 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
     config.allowedProjects.has(shell.projectId);
 
   const listThreads = Effect.fn("VoiceSeam.listThreads")(function* (input: {
+    readonly projectId?: ProjectId;
     readonly limit?: number;
   }) {
+    const limit = input.limit ?? LIST_LIMIT;
+    if (!Number.isInteger(limit) || limit < 1 || limit > LIST_LIMIT) {
+      return yield* VoiceSeamRefusal.invalidRequest(
+        `limit must be a whole number from 1 to ${LIST_LIMIT}.`,
+      );
+    }
+    const { projectId } = input;
+    if (projectId !== undefined && !config.allowedProjects.has(projectId)) {
+      return yield* VoiceSeamRefusal.projectNotAllowed();
+    }
     const { snapshot } = yield* loadSubscriberShellSnapshot({
       sql,
       listShellIndex: threads.listActiveShellIndex(),
@@ -216,14 +237,17 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
       // the rest, which would make "no such thread" untrue. Idle subagents are never listed.
       options: { omitIdleSubagents: true, omitOlderSettled: false },
     }).pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
+    // The project filter comes before the sort and the cut, so `total` and `truncated` describe it.
     const kept = snapshot.threads
-      .filter(isVisible)
+      .filter(
+        (shell) => isVisible(shell) && (projectId === undefined || shell.projectId === projectId),
+      )
       .toSorted(
         (left, right) =>
           DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt) ||
           right.id.localeCompare(left.id),
       );
-    const listed = kept.slice(0, Math.min(input.limit ?? LIST_LIMIT, LIST_LIMIT));
+    const listed = kept.slice(0, limit);
     // A shell with no pending pick has no pending request or waiting card, so only the others
     // can differ from `deriveActivity`. These reads run at or after the snapshot's sequence, so
     // a difference is an event a watch from `asOfSequence` replays.

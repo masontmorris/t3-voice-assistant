@@ -27,12 +27,14 @@ import * as Watch from "./watch.ts";
 
 const PROJECT = ProjectId.make("project:voice");
 const OUTSIDE = ProjectId.make("project:outside");
+const BUSY = ProjectId.make("project:busy");
 
 const createdOf = (events: ReadonlyArray<OrchestrationV2StoredEvent>) =>
   events.flatMap((stored) => (stored.event.type === "thread.created" ? [stored.event] : []))[0]!;
 
 const ALLOWED = new Set([
   PROJECT,
+  BUSY,
   ...Object.values(FIXTURES).map((events) => createdOf(events).payload.projectId),
 ]);
 
@@ -87,7 +89,7 @@ const thread = (input: {
   };
 };
 
-const listThreads = (input: { readonly limit?: number } = {}) =>
+const listThreads = (input: { readonly projectId?: ProjectId; readonly limit?: number } = {}) =>
   VoiceSeam.VoiceSeam.pipe(Effect.flatMap((seam) => seam.listThreads(input)));
 
 const readThread = (threadId: ThreadId) =>
@@ -184,14 +186,11 @@ it.effect("cuts the newest-first list at its limit and at 200, and counts what i
 
     const unlimited = yield* listThreads();
     const three = yield* listThreads({ limit: 3 });
-    const above = yield* listThreads({ limit: 500 });
 
     assert.deepStrictEqual(ids(unlimited), newest(200));
     assert.deepInclude(unlimited, { total: 205, truncated: true });
     assert.deepStrictEqual(ids(three), newest(3));
     assert.deepInclude(three, { total: 205, truncated: true });
-    assert.deepStrictEqual(ids(above), newest(200));
-    assert.deepInclude(above, { total: 205, truncated: true });
     assert.strictEqual(
       unlimited.asOfSequence,
       yield* (yield* OrchestrationEventStore.OrchestrationEventStore).latestApplicationSequence,
@@ -214,6 +213,52 @@ it.effect.each(Object.entries(FIXTURES).map(([name, events]) => ({ name, events 
         read.map((state) => state.activity),
       );
     }).pipe(provideSeam),
+);
+
+it.effect("filters by project before the cut, so total and truncated describe that project", () =>
+  Effect.gen(function* () {
+    yield* write([
+      ...Array.from({ length: 205 }, (_, index) =>
+        thread({ id: `busy-${index}`, minutes: 100 + index, projectId: BUSY }),
+      ),
+      ...Array.from({ length: 3 }, (_, index) => thread({ id: `quiet-${index}`, minutes: index })),
+    ]);
+
+    const everything = yield* listThreads();
+    const quiet = yield* listThreads({ projectId: PROJECT });
+    const cut = yield* listThreads({ projectId: PROJECT, limit: 2 });
+    const refusal = yield* listThreads({ projectId: OUTSIDE }).pipe(Effect.flip);
+
+    assert.isFalse(everything.threads.some((summary) => summary.projectId === PROJECT));
+    assert.deepStrictEqual(
+      quiet.threads.map((summary) => summary.threadId),
+      [2, 1, 0].map((index) => ThreadId.make(`quiet-${index}`)),
+    );
+    assert.deepInclude(quiet, { total: 3, truncated: false });
+    assert.deepInclude(cut, { total: 3, truncated: true });
+    assert.strictEqual(cut.threads.length, 2);
+    assert.strictEqual(refusal.code, "project_not_allowed");
+  }).pipe(provideSeam),
+);
+
+it.effect.each([0, -1, 201, 1.5, Number.NaN])("refuses a list limit of %s", (limit) =>
+  Effect.gen(function* () {
+    yield* write([thread({ id: "only", minutes: 1 })]);
+
+    const refusal = yield* listThreads({ limit }).pipe(Effect.flip);
+
+    assert.strictEqual(refusal.code, "invalid_request");
+  }).pipe(provideSeam),
+);
+
+it.effect.each([1, 200])("lists with a limit of %s", (limit) =>
+  Effect.gen(function* () {
+    yield* write([thread({ id: "only", minutes: 1 })]);
+
+    const list = yield* listThreads({ limit });
+
+    assert.deepInclude(list, { total: 1, truncated: false });
+  }).pipe(provideSeam),
 );
 
 const APPROVAL = FIXTURES.approval;
