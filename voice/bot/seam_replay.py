@@ -28,8 +28,8 @@ def main():
     sys.path[:0] = [str(args.checkout.resolve()), str(Path(__file__).resolve().parent)]
 
     from root_tasks import RootTaskService
-    from voice.prototype.replay import updates
-    from voice.prototype.report import VOICE_HOME
+    from voice.research.prototype.replay import updates
+    from voice.research.prototype.report import VOICE_HOME
     from voice.prototype.segmenter import DECIDER_BUDGET, SEGMENTERS, use_decider_cache
     from voice.segmentation.run import OfflineClient
 

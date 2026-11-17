@@ -1,19 +1,19 @@
 # Loop archive
 
-A loop archive is one live run, packed so a template can replay the loop in time with the audio. `voice/archive/export.py` builds it from what a run already saves. `voice/archive/validate.py` checks it. The schema is `voice.loop.archive/1`, defined in `voice/archive/schema.py`.
+A loop archive is one live run, packed so a template can replay the loop in time with the audio. `voice/research/archive/export.py` builds it from what a run already saves. `voice/research/archive/validate.py` checks it. The schema is `voice.loop.archive/1`, defined in `voice/research/archive/schema.py`.
 
-Archives hold real voices, so they live under `$VOICE_HOME/archives/` and never in git. The repo has the code and one synthetic archive, `voice/archive/example/`.
+Archives hold real voices, so they live under `$VOICE_HOME/archives/` and never in git. The repo has the code and one synthetic archive, `voice/research/archive/example/`.
 
 ## Build and check one
 
 ```bash
-python -m voice.archive.export --server "$VOICE_HOME/evidence/live/<run>" --client <client session dir>
-python -m voice.archive.validate "$VOICE_HOME/archives/<run>"
+python -m voice.research.archive.export --server "$VOICE_HOME/evidence/live/<run>" --client <client session dir>
+python -m voice.research.archive.validate "$VOICE_HOME/archives/<run>"
 ```
 
 `--server` is the directory of `turn_NNN.json` records and turn WAVs that `voice.live.server` writes. `--client` is the session directory that `voice/live/client.py` records, with `manifest.json`, `client.jsonl` and the stems. The validator exits 1 on any error.
 
-To rebuild the synthetic example, run `python -m voice.archive.synthetic`. It writes the same files every time, and a test checks that.
+To rebuild the synthetic example, run `python -m voice.research.archive.synthetic`. It writes the same files every time, and a test checks that.
 
 ## Layout
 
@@ -68,7 +68,7 @@ An `audio` pointer is `{"clip", "clip_offset_s", "stem", "at", "probe_s"}`. It s
 
 | Archive | Events | Audio checks | Max lag | Errors |
 | --- | --- | --- | --- | --- |
-| `voice/archive/example` (synthetic) | 57 | 7 | 0.1 ms | 0 |
+| `voice/research/archive/example` (synthetic) | 57 | 7 | 0.1 ms | 0 |
 | Desktop loopback, three clips from `$VOICE_HOME/audio/real` through `client.py --wav` | 117 | 9 | 0.4 ms | 0 |
 | Mason's live demo, server run `20261116-080326` with the laptop's client recording, 6 turns, 91.7 s | 120 | 14 | 0.3 ms | 0 |
 

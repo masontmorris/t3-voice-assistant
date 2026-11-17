@@ -21,7 +21,7 @@ no new dependency. The server's turn, barge-in and transcript paths stay exactly
 | `voice/live/tests/synthetic.py` | New | Generated scenes. No recorded audio. |
 | `voice/live/tests/test_aec.py` | New | 18 tests: echo-only, interruptions, rate and frame handling. |
 | `voice/live/tests/test_client_echo.py` | New | 10 tests: flag selection, player feed, send path, failure guard. |
-| `voice/live/tests/echo_bench.py` | New | Rerunnable check that writes WAVs and a JSON summary. |
+| `voice/research/live/echo_bench.py` | New | Rerunnable check that writes WAVs and a JSON summary. |
 | `voice/live/recording.py`, `endpoint.py`, `requirements-client.txt`, `__init__.py` | Copied | Unmodified copies of reference head `1845b42978`, added so the tests can run in this checkout. See "Parent checkout" below. |
 
 ## How it works
@@ -100,7 +100,7 @@ move (measured).
 
 `python -m unittest discover -s voice/live/tests -t .` runs 28 tests and passes in 3.7 s on this machine (measured).
 The reference client's own 9 recording tests also pass unchanged against this client (measured; the two missing
-constructor arguments are read with `getattr`). `python -m voice.live.tests.echo_bench --out <dir>` writes the raw
+constructor arguments are read with `getattr`). `python -m voice.research.live.echo_bench --out <dir>` writes the raw
 and sent microphone and the played reply for five scenes, plus `summary.json`, and exits 1 if any expectation
 fails. Both run on the CPU, open no audio device, use no network, and read no recording.
 

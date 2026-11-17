@@ -19,8 +19,10 @@ MODEL = "perplexity/pplx-decider-flash-v1.3:free"
 HOST = "openrouter.ai"
 ROUTES = {"decisions": "/api/alpha/decisions", "extractions": "/api/alpha/extractions"}
 ROOT = Path(__file__).resolve().parent
-CACHE = ROOT / "cache"
-LEDGER = ROOT / "calls.jsonl"
+# Recorded answers and the call ledger are research data; the live path re-points both with use_decider_cache.
+DATA = ROOT.parent / "research" / "segmentation"
+CACHE = DATA / "cache"
+LEDGER = DATA / "calls.jsonl"
 STOP = ROOT / "BILLING_STOP"
 # Round 2 used 157 ledger attempts and the variants round 363. The hybrid round adds its own cap of 250, shared with
 # the prototype's ledger, so this ledger gets 170 of them.

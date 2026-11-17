@@ -1,6 +1,6 @@
 # Stage 2 hybrid: plan A against the baseline and variant E
 
-Measured on 2026-11-16 (UTC) against `perplexity/pplx-decider-flash-v1.3:free`. Every scenario number below comes from committed files through `python -m voice.segmentation.hybrid_report`, which writes `voice/segmentation/results/hybrid-report.json`. The clip numbers come from the same command run where `$VOICE_HOME` holds the prototype's run records. Each claim says whether it is measured, inferred, or a guess.
+Measured on 2026-11-16 (UTC) against `perplexity/pplx-decider-flash-v1.3:free`. Every scenario number below comes from committed files through `python -m voice.research.segmentation.hybrid_report`, which writes `voice/research/segmentation/results/hybrid-report.json`. The clip numbers come from the same command run where `$VOICE_HOME` holds the prototype's run records. Each claim says whether it is measured, inferred, or a guess.
 
 The hybrid beat the baseline on both scenario sets and tied it on Mason's ten clips. It passed 11 of 11 original scenarios against the baseline's 9, and 14 of 18 held-out scenarios against the baseline's 11 (measured, current scorer). It made fewer calls per utterance than either earlier system, 2.91 and 2.00 against the baseline's 3.18 and 2.56 (measured). It is now the prototype's default segmenter. With the client's fixed 3.1 s spacing gone, the snapshot was ready 0.27 s after the audio ended (median of 9 clips whose final decision made a live call). The baseline's prototype run took 2.25 s (median of 8, measured).
 
@@ -123,7 +123,7 @@ The hybrid failed four scenarios.
 
 On `market_three` and on clip 09, the break question had the right marker available. The decider chose the merged span anyway. In the batched call, the state lists the current pieces as segments, and the classification questions quote them. So when a piece still holds two requests, the decider sees that piece presented as one segment.
 
-`python -m voice.segmentation.probe_breaks` tests that premise. It resends a recorded hybrid request with only its `finished` and `at` questions, and with `new_speech` and `transcript_is_final` as the whole state.
+`python -m voice.research.segmentation.probe_breaks` tests that premise. It resends a recorded hybrid request with only its `finished` and `at` questions, and with `new_speech` and `transcript_is_final` as the whole state.
 
 | Request | Batched answer | Break questions alone |
 | --- | --- | --- |
@@ -166,7 +166,7 @@ The spacing was the limit, and it is gone. The wall time of the last decision po
 
 ### What coalescing did
 
-When newer transcript updates queue behind a decision, the prototype now processes only the newest. Coalescing dropped 19 revisions over 6 clips (measured). To see what it changed, `python -m voice.prototype.replay` fed the same updates to a fresh hybrid twice.
+When newer transcript updates queue behind a decision, the prototype now processes only the newest. Coalescing dropped 19 revisions over 6 clips (measured). To see what it changed, `python -m voice.research.prototype.replay` fed the same updates to a fresh hybrid twice.
 
 - Skipping the revisions the live run dropped reproduced the live task records and dispatch logs on all 10 clips, with no live call (measured). The replay is faithful.
 - Processing every revision gave identical records on 9 clips. On clip 05, one decision point fell on an earlier revision, and the dispatches, their revisions, and the score stayed the same (measured, 2 live calls). The score stayed 7 of 10.
@@ -185,13 +185,13 @@ All live calls ran inside `quiet_run.py --holder voice-hybrid`, one request in f
 | Replay of every revision, Mason's clips | 2 | not timed |
 | Probes, one per merge | 2 | not timed |
 
-This round used 97 of its 250 attempts. 69 went to `voice/segmentation/calls.jsonl` and 28 to the prototype's ledger under `$VOICE_HOME`, which holds Mason's transcripts and is not committed. Every attempt returned HTTP 200, and every response reported `usage.cost` 0 (measured). No answer in the scenario runs was malformed (measured, `malformed` 0 in the report). Only one held-out utterance needed a drain call, `run_on`, and no original one did (measured).
+This round used 97 of its 250 attempts. 69 went to `voice/research/segmentation/calls.jsonl` and 28 to the prototype's ledger under `$VOICE_HOME`, which holds Mason's transcripts and is not committed. Every attempt returned HTTP 200, and every response reported `usage.cost` 0 (measured). No answer in the scenario runs was malformed (measured, `malformed` 0 in the report). Only one held-out utterance needed a drain call, `run_on`, and no original one did (measured).
 
 The pacer's backoff never ran live. The variants round drew 92 429s in 363 attempts, and this round drew none in 97. The pacer's tests cover its 2 s and 4 s backoff and its decay. Whether the free tier tolerates back-to-back calls over a longer session is untested (guess).
 
 ## Scenario notes for the next set: a correction that names no value
 
-Added 2026-11-16 from the live "Sunday" failure (`docs/voice/live-fact-check.md`). It is a note for the next scenario set, not a fixture in the frozen 11 or the held-out 18; the replay test needs a recorded call for every file in `voice/segmentation/scenarios/`, so a new fixture is a new run, not a copy.
+Added 2026-11-16 from the live "Sunday" failure (`docs/voice/live-fact-check.md`). It is a note for the next scenario set, not a fixture in the frozen 11 or the held-out 18; the replay test needs a recorded call for every file in `voice/research/segmentation/scenarios/`, so a new fixture is a new run, not a copy.
 
 The case is one utterance that takes back a value and gives none. "What's the weather in Denver Saturday? No, that's not what I meant." The segmentation side owns two things: the correction must not become a request of its own, and the standing task must not be amended with any value the person did not say. Whatever the segmentation does, only one task may be live, it must still match `weather` and `denver`, and it must not gain a day. Whether the right end state is `dispatched` with no day, or `needs_clarification`, is what the scenario would measure (guess: either is correct if a clarification is on the way).
 
@@ -217,7 +217,7 @@ Run from the repository root. The offline tests need no key and no network:
 ```
 python -m unittest discover -s voice/segmentation/tests -t .
 python -m unittest discover -s voice/prototype/tests -t .
-python -m voice.segmentation.hybrid_report
+python -m voice.research.segmentation.hybrid_report
 ```
 
 `tests/test_hybrid.py` drives the hybrid through a scripted decider. It covers a bare "then" split, the two-point stability rule, a pause commit, a correction after a hard marker, the side-effect hold, a cancellation read before dispatch, the one-call path, the readiness near-tie hold, the final-transcript drain, a voice delegate, and malformed answers. `tests/test_client.py` covers the pacer, and `voice/prototype/tests/test_segmenter.py` covers coalescing. `test_replay.py` replays every committed run, including `stream-h` and `stream-h-heldout`, and compares task records, snapshots, and dispatch logs.
@@ -227,16 +227,16 @@ To repeat a live run, set `VOICE_ENV_FILE` to the env file that holds `OPENROUTE
 ```
 python quiet_run.py --holder voice-hybrid -- python -m voice.segmentation.run --option h --mode stream
 python quiet_run.py --holder voice-hybrid -- python -m voice.segmentation.run --option h --mode stream --set heldout
-python quiet_run.py --holder voice-hybrid -- python -m voice.segmentation.probe_breaks decisions-95075f6c2323fd2c0adf451f.json
+python quiet_run.py --holder voice-hybrid -- python -m voice.research.segmentation.probe_breaks decisions-95075f6c2323fd2c0adf451f.json
 ```
 
 The prototype run and the replays need `$VOICE_HOME` and Mason's clips in `$VOICE_HOME/audio/real/`. The prototype run also needs the GPU lease:
 
 ```
 python -m voice.prototype.run "$VOICE_HOME"/audio/real/0*.wav "$VOICE_HOME"/audio/real/10_noisy.wav --inject c --out "$VOICE_HOME/evidence/hybrid/run-h-c"
-python -m voice.prototype.report "$VOICE_HOME/evidence/hybrid/run-h-c"
-python -m voice.prototype.replay "$VOICE_HOME/evidence/hybrid/run-h-c" --segmenter hybrid --as-run --offline --out "$VOICE_HOME/evidence/hybrid/replay-h-asrun"
-python -m voice.prototype.replay "$VOICE_HOME/evidence/hybrid/run-h-c" --segmenter hybrid --out "$VOICE_HOME/evidence/hybrid/replay-h-every"
+python -m voice.research.prototype.report "$VOICE_HOME/evidence/hybrid/run-h-c"
+python -m voice.research.prototype.replay "$VOICE_HOME/evidence/hybrid/run-h-c" --segmenter hybrid --as-run --offline --out "$VOICE_HOME/evidence/hybrid/replay-h-asrun"
+python -m voice.research.prototype.replay "$VOICE_HOME/evidence/hybrid/run-h-c" --segmenter hybrid --out "$VOICE_HOME/evidence/hybrid/replay-h-every"
 ```
 
 `--segmenter baseline` runs the prototype with round 2's segmenter.

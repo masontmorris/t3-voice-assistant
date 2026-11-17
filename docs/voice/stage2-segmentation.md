@@ -1,6 +1,6 @@
 # Stage 2 segmentation findings
 
-Measured on 2026-11-15 (US Eastern) against `perplexity/pplx-decider-flash-v1.3:free`. Every number below is regenerated from committed files by `python -m voice.segmentation.report`, which writes `voice/segmentation/results/report.json`.
+Measured on 2026-11-15 (US Eastern) against `perplexity/pplx-decider-flash-v1.3:free`. Every number below is regenerated from committed files by `python -m voice.research.segmentation.report`, which writes `voice/research/segmentation/results/report.json`.
 
 The free decider can drive segmentation when a deterministic clause splitter proposes the segments and the decider classifies all of them in one call. On the streamed scenarios, that design passed 9 of 11 with 0 duplicate dispatches, 0 missed corrections, and 1 premature dispatch (measured). The median decision latency was 93 ms, and network time to OpenRouter was about 11 ms of that (measured). Both failures trace to answers whose top two options were within 0.2 of each other (measured).
 
@@ -13,12 +13,12 @@ The free decider can drive segmentation when a deterministic clause splitter pro
 
 ## The decider's API
 
-Round 1 found the endpoint. This round mapped the question types from the docs and confirmed the free id's behavior with probes. The probe responses are `voice/segmentation/cache/decisions-87a8e98a28a5090984c7eea7.json` and `voice/segmentation/cache/extractions-441877dd3ce17ccf21d59b39.json`.
+Round 1 found the endpoint. This round mapped the question types from the docs and confirmed the free id's behavior with probes. The probe responses are `voice/research/segmentation/cache/decisions-87a8e98a28a5090984c7eea7.json` and `voice/research/segmentation/cache/extractions-441877dd3ce17ccf21d59b39.json`.
 
 - Decisions is `POST https://openrouter.ai/api/alpha/decisions` with `{model, state, questions}`. `state` can be a string, an object, or an array. The probe sent an object (measured).
 - The [Decisions API reference](https://openrouter.ai/docs/api/api-reference/alphadecisions/submit-a-decisions-request) defines four question types. `noul` is a true or false proposition and returns a probability in `noul`. `choice` picks one key of `criteria` and returns `choice`, `probabilities`, and `confidence`. `score` picks a point on an ordered scale. `box` returns an image region. The [multimodal decisions guide](https://openrouter.ai/docs/guides/community/multimodal-decisions) lists `noul`, `choice`, and `score` for Perplexity endpoints and not `box`. An answer can also be `{"type": "refusal"}`.
 - The docs state no limit on questions per call or choices per question. Calls in this round carried 1 to 13 questions, and the largest choice set had 5 options (measured).
-- `confidence` is the top probability minus the second, not the top probability. In round 1's probe, recorded in `voice/segmentation/round1-probe.json`, 0.9528 - 0.0472 = 0.9056 (measured).
+- `confidence` is the top probability minus the second, not the top probability. In round 1's probe, recorded in `voice/research/segmentation/round1-probe.json`, 0.9528 - 0.0472 = 0.9056 (measured).
 - Extractions is a separate route, `POST https://openrouter.ai/api/alpha/extractions`, with `fields` in place of `questions`. The [extractions guide](https://openrouter.ai/docs/guides/community/extractions) lists the Perplexity deciders with `text` fields and `list` fields of `text`, up to 128 fields. A list answer carries `spans` as `[start, end)` code-point offsets into `state`. The free id serves it and returned spans (measured).
 - The same request with a different `user` tag returned identical answers on all 415 questions compared (measured). The free decider looks deterministic for identical input (inferred), so answers that flip between revisions come from the changed input, not from sampling.
 - Every response reported `usage.cost` 0, all 157 of them (measured). The key endpoint reported a free-model daily limit of 1,000 requests and `is_free_tier` false. It also reported a `limit` of 3 with `usage` 0 (measured). That `limit` is probably a $3 spending cap (guess). The client treats any nonzero cost as a billing event and stops.
@@ -52,7 +52,7 @@ Each option ran once on the final transcript of all 11 scenarios. Per scenario, 
 | (b) decider confirms boundaries | Cuts at (a)'s points plus every comma, then asks one `noul` per boundary and merges the pieces where the answer is false | 4 of 11 | 22 | 2 | Merged real boundaries ("and then summarize it", "now roll it again") and split "Actually" from its correction |
 | (c) decider extraction | One `list` field of `text`, using the returned `spans` | 5 of 11 | 19 | 2 | Returned no list on 3 transcripts, and dropped corrections and second requests |
 
-The results files are in `voice/segmentation/results/final-a/`, `voice/segmentation/results/final-b/`, and `voice/segmentation/results/final-c/`. Options (b) and (c) failed at segmentation itself, and each needs two sequential calls per decision point. Streaming them would have cost about 130 more calls to confirm the same loss, so only option (a) ran on the full streams.
+The results files are in `voice/research/segmentation/results/final-a/`, `voice/research/segmentation/results/final-b/`, and `voice/research/segmentation/results/final-c/`. Options (b) and (c) failed at segmentation itself, and each needs two sequential calls per decision point. Streaming them would have cost about 130 more calls to confirm the same loss, so only option (a) ran on the full streams.
 
 Bundling all segments into one call changed 1 of 115 answers compared with one segment per call (measured, `final-a` against `final-a-separate`). The changed answer was 09's readiness, which had a margin of 0.32 or 0.33 in the two runs. One segment per call passed 11 of 11 but needed 25 requests instead of 11. Bundling keeps one round trip per decision point, and the one difference is a near tie, so the recommendation is to bundle.
 
@@ -75,7 +75,7 @@ At each decision point, the orchestrator applies these rules. The decider never 
 - Corrections. `replace_<sid>` supersedes the target if it has not dispatched, or requests its cancellation if it has. It then creates a task with `revises` set to the target and the instruction "<old instruction> (corrected: <new text>)". `cancel_<sid>` withdraws the target or requests its cancellation, and creates no task.
 - Delegates. A delegate submission that matches a segment links to that segment's task and adds the `voice_delegate` source. It dispatches the task only if the task has not already dispatched. An unmatched submission becomes its own dispatched task.
 
-The end-of-utterance snapshot follows the plan's section 5 shape. It maps `dispatched` to `running`, `proposed` and `ready` to `pending`, and keeps `needs_clarification` and `cancel_requested`. It leaves out `superseded` and `withdrawn` tasks, because they never ran. Here is the snapshot from `voice/segmentation/results/stream-a/05_correction_after_dispatch.json`:
+The end-of-utterance snapshot follows the plan's section 5 shape. It maps `dispatched` to `running`, `proposed` and `ready` to `pending`, and keeps `needs_clarification` and `cancel_requested`. It leaves out `superseded` and `withdrawn` tasks, because they never ran. Here is the snapshot from `voice/research/segmentation/results/stream-a/05_correction_after_dispatch.json`:
 
 ```json
 {
@@ -97,7 +97,7 @@ The runner calls the decider when the segment count changes, when a closed segme
 
 ## Scenario results
 
-The streamed run is `stream-a`, option (a) over every revision. Its repeat, `stream-a-repeat1`, gave the same answers and the same scores. "Early" counts dispatches on partial revisions. The last column gives premature, duplicate, and missed corrections. Each row's task records, event history, decisions, and snapshot are in `voice/segmentation/results/stream-a/<scenario>.json`.
+The streamed run is `stream-a`, option (a) over every revision. Its repeat, `stream-a-repeat1`, gave the same answers and the same scores. "Early" counts dispatches on partial revisions. The last column gives premature, duplicate, and missed corrections. Each row's task records, event history, decisions, and snapshot are in `voice/research/segmentation/results/stream-a/<scenario>.json`.
 
 | Scenario | Expected (hand-written) | Actual | Result | Revisions / points / calls | Early | Prem / dup / missed |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -136,11 +136,11 @@ Every model call ran inside `quiet_run.py --holder voice-stage2`, one request at
 - Doubling the input from about 700 to about 1,500 tokens moved the median by about 21 ms, on only 8 large calls (measured). The 305 ms and 900 ms outliers have no link to tokens or question count. They look like upstream jitter (inferred).
 - Medians were stable from run to run, between 90.8 and 98.8 ms per run. Single calls were not stable. Between `stream-a` and its repeat, the median paired difference was -1.5 ms over 35 matched requests, but single pairs differed by -121 to +218 ms (measured). The per-run figures include the 3 cache hits, which reuse the original call's timing.
 - Under option (a), the dispatch decision lands about 93 ms after a boundary appears in the transcript (median, measured). Options (b) and (c) need two sequential calls, about 190 ms (inferred from the medians).
-- Failures. The ledger, `voice/segmentation/calls.jsonl`, logged 157 attempts, all HTTP 200, with no 429s, timeouts, retries, or billing signals (measured). For option (a), no answer was malformed or refused (measured).
+- Failures. The ledger, `voice/research/segmentation/calls.jsonl`, logged 157 attempts, all HTTP 200, with no 429s, timeouts, retries, or billing signals (measured). For option (a), no answer was malformed or refused (measured).
 
 ## Call budget
 
-This round used 157 of its 400-call budget, counted from `voice/segmentation/calls.jsonl`. Each attempt was a distinct request, and each has one cache file in `voice/segmentation/cache/`.
+This round used 157 of its 400-call budget, counted from `voice/research/segmentation/calls.jsonl`. Each attempt was a distinct request, and each has one cache file in `voice/research/segmentation/cache/`.
 
 | Purpose | Calls |
 | --- | --- |
@@ -150,7 +150,7 @@ This round used 157 of its 400-call budget, counted from `voice/segmentation/cal
 | One segment per call, for the bundling comparison | 24 |
 | Repeat of the final and streamed runs, for determinism | 11 + 35 |
 
-Round 1 made 1 more call, recorded in `voice/segmentation/round1-probe.json`. The script that made it is gone, and `voice/segmentation/probes.py` makes the same kind of call through the shared client. The key endpoint and network-floor GETs are not model calls, so the budget does not count them. Re-running any command replays from the cache and makes no calls.
+Round 1 made 1 more call, recorded in `voice/research/segmentation/round1-probe.json`. The script that made it is gone, and `voice/research/segmentation/probes.py` makes the same kind of call through the shared client. The key endpoint and network-floor GETs are not model calls, so the budget does not count them. Re-running any command replays from the cache and makes no calls.
 
 ## Limits of this evaluation
 
@@ -174,13 +174,13 @@ Ran 28 tests in 0.102s
 OK
 ```
 
-`test_replay.py` re-runs all seven recorded runs from `voice/segmentation/cache/` and checks that each one reproduces its committed task records, snapshot, and score. `test_orchestrator.py` and `test_contract.py` cover the dispatch policy, corrections, delegates, revisions, the transition table, the splitter, and answer parsing.
+`test_replay.py` re-runs all seven recorded runs from `voice/research/segmentation/cache/` and checks that each one reproduces its committed task records, snapshot, and score. `test_orchestrator.py` and `test_contract.py` cover the dispatch policy, corrections, delegates, revisions, the transition table, the splitter, and answer parsing.
 
 To repeat a live run, set `VOICE_ENV_FILE` to the env file that holds `OPENROUTER_API_KEY`, or set the variable itself. Then wrap the command in `quiet_run.py`:
 
 ```
 python quiet_run.py --holder voice-stage2 -- python -m voice.segmentation.run --option a --mode stream
-python -m voice.segmentation.report
+python -m voice.research.segmentation.report
 ```
 
 `voice.segmentation.run` takes `--option a|b|c`, `--mode stream|final`, `--separate`, `--repeat N`, and `--offline`. `--offline` fails on any request that has no recorded response.

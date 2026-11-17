@@ -1,11 +1,11 @@
 # Loop visualization
 
-`voice/viz/` is a Remotion project that renders a loop archive as video. It has two compositions. `LoopReplay` plays a whole run in real time with its audio. `Blooper` cuts a run into a short edit from a shot list. The archive drives every element of the frame. Nothing in the frame is written by hand except an edit's captions.
+`voice/research/viz/` is a Remotion project that renders a loop archive as video. It has two compositions. `LoopReplay` plays a whole run in real time with its audio. `Blooper` cuts a run into a short edit from a shot list. The archive drives every element of the frame. Nothing in the frame is written by hand except an edit's captions.
 
 ## Render a run
 
 ```bash
-cd voice/viz
+cd voice/research/viz
 npm i
 node scripts/stage.mjs "$VOICE_HOME/archives/<run>" <name>
 npx remotion render LoopReplay "$VOICE_HOME/viz/renders/<name>.mp4" --props='{"archive":"<name>"}'
