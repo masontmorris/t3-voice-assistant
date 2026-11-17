@@ -111,6 +111,11 @@ class SnapshotBuildTest(unittest.TestCase):
 		self.assertIn("t4", [t["threadId"] for t in wide["threads"]])
 		self.assertEqual([t["settledAt"] for t in wide["threads"] if t["threadId"] == "t4"], ["2026-10-01T08:00:00Z"])
 
+	def test_an_until_bound_keeps_only_threads_older_than_it(self):
+		old = self.build_one({"visible": {"untilDays": 30, "excludeProjects": ["outside"]}, "outside": {}})
+		self.assertEqual([t["threadId"] for t in old["threads"]], ["t4"])
+		self.assertTrue(old["truncated"])
+
 	def test_a_cut_list_reports_total_and_truncated(self):
 		snap = self.build_one({"visible": {"projects": ["alpha", "beta"], "perProject": 10, "limit": 2}, "outside": {}})
 		self.assertEqual([t["threadId"] for t in snap["threads"]], ["t1", "t2"])
