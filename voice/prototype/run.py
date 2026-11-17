@@ -1276,7 +1276,7 @@ async def main_async(args):
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
             asked = record.pop("shadow_request", None)
             if shadow_out is not None and asked is not None:
-                shadow_out.write(shadow_log.run(decider, asked))
+                shadow_out.write(shadow_log.run(decider, asked, name=args.decider))
                 record["shadow"] = shadow_log.FILE
             record["server_startup_s"] = server.startup_s
             record["mcp_startup_s"] = tools.mcp.startup_s if tools is not None else None

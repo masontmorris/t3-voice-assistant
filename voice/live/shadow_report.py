@@ -61,7 +61,7 @@ def print_table(entries, detail=False):
         if detail:
             for line in (entries[index].get("agreement") or {}).get("rows") or ():
                 print(f"    {line['verdict']:<12} {line['task']:<9} decider {str(line['decider']):<7} "
-                      f"lfm {str(line['lfm']):<7} {line['text']}")
+                      f"lfm {str(line['lfm']):<7} turn {str(line.get('turn')):<10} {line['text']}")
     totals, mistakes, authorities = summary(entries)
     first = "  ".join("".ljust(widths[name]) for name in COLUMNS[:2])
     print(first + "  " + "  ".join(str(totals[name]).ljust(widths[name]) for name in COLUMNS[2:-2]) + "  totals")

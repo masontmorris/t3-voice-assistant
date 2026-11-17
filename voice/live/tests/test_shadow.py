@@ -102,6 +102,14 @@ class AgreementTest(unittest.TestCase):
         self.assertEqual({row["task"]: row["verdict"] for row in result["rows"]},
                          {"task_1": "agree", "task_2": "lfm_only", "task_3": "decider_only", "task_4": "disagree"})
 
+    def test_a_row_carries_what_the_turn_did_when_the_task_had_no_id_yet(self):
+        answers = Decisions({"s1": decided("s1")}, {}, [])
+        asked = shadow.request("turn_001", "turn_001.json", "decider", body(["the weather"]),
+                               outcomes=[{"task": "task_1", "status": "dispatched", "instruction": "the weather"}])
+        result = shadow.agreement([], shadow.task_decisions(answers, asked["body"]), outcomes=asked["outcomes"])
+        self.assertEqual(result["rows"][0]["task"], "new:s1", "the shadow saw no task before the turn's own call")
+        self.assertEqual(result["rows"][0]["turn"], "dispatched", "the same words tie it to what the turn did")
+
     def test_a_decider_piece_that_makes_no_task_is_not_a_row(self):
         answers = Decisions({"s1": decided("s1", kind=Kind.CHITCHAT)}, {}, [])
         result = shadow.agreement([], shadow.task_decisions(answers, body(["mm-hm"])))

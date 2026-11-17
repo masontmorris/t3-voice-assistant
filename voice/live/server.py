@@ -293,6 +293,7 @@ class Conversation:
         self.pending, self.started = set(), time.perf_counter()
         self.playback, self.overlap = Playback(), None
         self.checks, self.shadows = set(), set()
+        self.hung_up = asyncio.Event()
 
     def voice_clock(self):
         """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
@@ -578,15 +579,17 @@ class Conversation:
         task.add_done_callback(self.shadows.discard)
 
     async def shadow_utterance(self, asked, heard):
-        while time.perf_counter() < min(heard, self.playback.until):
+        while time.perf_counter() < min(heard, self.playback.until) and not self.hung_up.is_set():
             await asyncio.sleep(shadow_log.POLL_S)
         started = time.perf_counter()
         try:
             entry = await asyncio.wait_for(
-                asyncio.to_thread(lambda: shadow_log.run(self.live.decider, asked, lock=self.live.decider_lock)),
+                asyncio.to_thread(lambda: shadow_log.run(self.live.decider, asked, lock=self.live.decider_lock,
+                                                         name=getattr(self.live.args, "decider", None))),
                 shadow_log.TIMEOUT_S + 1)
         except Exception as exc:
-            entry = shadow_log.timed_out(asked, exc, round((time.perf_counter() - started) * 1000, 1))
+            entry = shadow_log.timed_out(asked, exc, round((time.perf_counter() - started) * 1000, 1),
+                                         getattr(self.live.args, "decider", None))
         try:
             self.live.shadow.write(entry)
         except OSError as exc:
@@ -598,8 +601,11 @@ class Conversation:
             self.overlap.task.cancel()
         for check in list(self.checks):
             check.cancel()
-        for shadow in list(self.shadows):
-            shadow.cancel()
+        # A call that hangs up mid-reply would otherwise lose its last utterance: the shadow stops waiting for
+        # playback and asks at once, and the disconnect waits a moment for the line.
+        self.hung_up.set()
+        if self.shadows:
+            await asyncio.wait(list(self.shadows), timeout=3.0)
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")

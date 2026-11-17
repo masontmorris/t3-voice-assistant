@@ -137,10 +137,16 @@ def _stops(action):
     return action in ("cancel", "amend")
 
 
-def agreement(lfm, decided, texts=None):
+def agreement(lfm, decided, texts=None, outcomes=None):
     """Per task: both run it or both leave it, `agree`; one runs it alone, that side's `…_only`; one runs it while the
-    other cancels or amends it, `disagree`. A `drop` from the decider with no task behind it is not a row."""
+    other cancels or amends it, `disagree`. A `drop` from the decider with no task behind it is not a row.
+
+    `texts` names a task's words, and `outcomes` is what the turn ended up doing with it (its status), so a row whose
+    task the shadow would have created (`new:<sid>`) still shows what the turn did with the same words."""
     texts = texts or {}
+    by_key = outcomes_by_key(outcomes)
+    by_text = {text_key(item.get("instruction")): item.get("status") for item in outcomes or ()
+               if item.get("instruction")}
     rows, counts = [], {"agree": 0, "disagree": 0, "decider_only": 0, "lfm_only": 0}
     keys = list(dict.fromkeys([d["key"] for d in decided] + [call["key"] for call in lfm]))
     for key in keys:
@@ -161,19 +167,26 @@ def agreement(lfm, decided, texts=None):
         else:
             verdict = "agree"
         counts[verdict] += 1
-        rows.append({"task": key, "text": texts.get(key) or (mine or theirs).get("text")
-                     or (theirs or {}).get("instruction"),
+        text = texts.get(key) or (mine or theirs).get("text") or (theirs or {}).get("instruction")
+        rows.append({"task": key, "text": text,
                      "decider": None if mine is None else mine["action"],
-                     "lfm": None if theirs is None else theirs["action"], "verdict": verdict})
+                     "lfm": None if theirs is None else theirs["action"],
+                     "turn": by_key.get(key) or by_text.get(text_key(text)),
+                     "verdict": verdict})
     return {**counts, "rows": rows}
 
 
-def run(decider, asked, gate=PLAN_A, lock=None):
+def outcomes_by_key(outcomes):
+    return {item.get("task"): item.get("status") for item in outcomes or () if item.get("task")}
+
+
+def run(decider, asked, gate=PLAN_A, lock=None, name=None):
     """One shadow call for one utterance: the request, its parsed task decisions and the comparison.
 
     `lock` is the decider's one-call-at-a-time lock the turns already share, so the shadow never puts a second
-    request in flight. Never raises: a decider that is down, busy, slow or answers nonsense gives a line with `error`
-    set, and the call it was taken from has already finished."""
+    request in flight. `name` is the configured decider (`d1`, `cloud` or `liquid`), which the record needs because
+    the body's model field names the cloud client whatever answers. Never raises: a decider that is down, busy, slow
+    or answers nonsense gives a line with `error` set, and the call it was taken from has already finished."""
     body = asked["body"]
     started = time.perf_counter()
     entry = {"utterance": asked["utterance"], "turn_record": asked["turn_record"],
@@ -192,14 +205,15 @@ def run(decider, asked, gate=PLAN_A, lock=None):
         answers = parse_decisions(record.get("response"), body)
         decided = task_decisions(answers, body, gate)
         entry["decider"] = {"tasks": decided, "problems": answers.problems}
-        entry["agreement"] = agreement(asked.get("lfm", []), decided, _texts(body))
-        entry["call"] = _call_record(record, body, started)
+        entry["agreement"] = agreement(asked.get("lfm", []), decided, _texts(body), asked.get("outcomes"))
+        entry["call"] = _call_record(record, body, started, name)
     except Exception as exc:
         entry["error"] = _detail(exc)
         entry["decider"] = {"tasks": [], "problems": [entry["error"]]}
-        entry["agreement"] = agreement(asked.get("lfm", []), [], _texts(body))
-        entry["call"] = {"route": "decisions", "status": None, "questions": len(body.get("questions") or {}),
-                         "ms": _ms(started), "ok": False, "timed_out": isinstance(exc, TimeoutError)}
+        entry["agreement"] = agreement(asked.get("lfm", []), [], _texts(body), asked.get("outcomes"))
+        entry["call"] = {"route": "decisions", "decider": name, "status": None,
+                         "questions": len(body.get("questions") or {}), "ms": _ms(started), "ok": False,
+                         "timed_out": isinstance(exc, TimeoutError)}
     return entry
 
 
@@ -212,8 +226,9 @@ def _call(decider, body, label):
         return decider.call("decisions", body, label=label)
 
 
-def _call_record(record, body, started):
-    return {"route": "decisions", "model": record.get("model") or body.get("model"),
+def _call_record(record, body, started, name=None):
+    return {"route": "decisions", "decider": name,
+            "model": record.get("model") or (body.get("model") if name in (None, "cloud") else None),
             "status": record.get("status"), "questions": len(body.get("questions") or {}),
             "ms": _ms(started), "ok": True, "timed_out": False}
 
@@ -232,7 +247,7 @@ def _texts(body):
             if task.get("instruction")}
 
 
-def timed_out(asked, error=None, ms=None):
+def timed_out(asked, error=None, ms=None, name=None):
     """The line for a call the caller stopped waiting on."""
     detail = _detail(error) if error is not None else f"timed out after {TIMEOUT_S} s"
     entry = {"utterance": asked["utterance"], "turn_record": asked["turn_record"],
@@ -240,8 +255,9 @@ def timed_out(asked, error=None, ms=None):
              "transcript": _reference(asked["body"].get("state", {}).get("transcript", "")),
              "lfm": {"calls": asked.get("lfm", [])}, "outcomes": asked.get("outcomes", []),
              "decider": {"tasks": [], "problems": [detail]},
-             "agreement": agreement(asked.get("lfm", []), [], _texts(asked["body"])),
-             "call": {"route": "decisions", "status": None, "questions": len(asked["body"].get("questions") or {}),
+             "agreement": agreement(asked.get("lfm", []), [], _texts(asked["body"]), asked.get("outcomes")),
+             "call": {"route": "decisions", "decider": name, "status": None,
+                     "questions": len(asked["body"].get("questions") or {}),
                      "ms": round(TIMEOUT_S * 1000, 1) if ms is None else ms, "ok": False, "timed_out": True},
              "error": detail,
              "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
