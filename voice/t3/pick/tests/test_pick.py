@@ -45,6 +45,15 @@ class StateWordTest(unittest.TestCase):
 		self.assertEqual(picked.kind, "one")
 		self.assertEqual(picked.thread_id, "t-flaky")
 
+	def test_a_state_word_in_a_title_keeps_that_title_among_the_candidates(self):
+		threads = [
+			{"threadId": "t-fix", "projectId": "p1", "title": "Fix broken login", "activity": "idle", "lastActivityAt": "2026-11-16T10:00:00Z"},
+			{"threadId": "t-page", "projectId": "p1", "title": "Login page redesign", "activity": "failed", "lastActivityAt": "2026-11-16T09:00:00Z"},
+		]
+		picked = prefilter_pick("how's the broken login thread", threads)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"t-fix", "t-page"})
+
 
 class RecallTest(unittest.TestCase):
 	def test_contractions_do_not_add_content_words(self):

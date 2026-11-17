@@ -95,9 +95,12 @@ def prefilter(utterance, threads):
 		return Match(hits, words, True)
 	hits = [t["threadId"] for t in threads if matches(t.get("title", ""), topic)]
 	if state and hits:
+		# A title that carries the state word ("Fix broken login") stays a candidate, so it ties
+		# with the thread whose activity matches instead of losing to it.
 		activities = _activities(state)
 		narrowed = [t["threadId"] for t in threads
-		            if t["threadId"] in hits and t.get("activity") in activities]
+		            if t["threadId"] in hits and (t.get("activity") in activities
+		                                          or any(matches(t.get("title", ""), [w]) for w in state))]
 		if narrowed:
 			hits = narrowed
 	return Match(hits, words, False)
