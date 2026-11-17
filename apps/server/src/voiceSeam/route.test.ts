@@ -7,6 +7,7 @@ import { assert, it } from "@effect/vitest";
 import { EventId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
 import * as Path from "effect/Path";
@@ -123,6 +124,104 @@ const upgradeStatus = (url: string, token: string | null) =>
       resolve(Number(received.split(" ")[1]));
     });
     socket.on("error", reject);
+  });
+
+/** Server frames carry no mask; a 126 or 127 length is followed by a 2- or 8-byte length. */
+const readFrame = (bytes: Buffer, at: number) => {
+  if (bytes.length < at + 2) return null;
+  const opcode = bytes[at]! & 0x0f;
+  const short = bytes[at + 1]! & 0x7f;
+  const header = short === 126 ? 4 : short === 127 ? 10 : 2;
+  if (bytes.length < at + header) return null;
+  const length =
+    short === 126
+      ? bytes.readUInt16BE(at + 2)
+      : short === 127
+        ? Number(bytes.readBigUInt64BE(at + 2))
+        : short;
+  if (bytes.length < at + header + length) return null;
+  const next = at + header + length;
+  return { opcode, payload: bytes.subarray(at + header, next), next };
+};
+
+/**
+ * A client that completes the handshake and then stops reading its TCP socket, so whatever the
+ * server sends piles up on the server's side. `drain` reads again and returns what had piled up.
+ */
+const stalledClient = (url: string, token: string) =>
+  new Promise<{
+    readonly send: (text: string) => void;
+    readonly drain: () => Promise<{ readonly payloadBytes: number; readonly code: number | null }>;
+  }>((resolve, reject) => {
+    const { hostname, port, pathname } = new URL(url);
+    const socket = NodeNet.connect({ host: hostname.replace(/^\[|\]$/g, ""), port: Number(port) });
+    let received = Buffer.alloc(0);
+    const onHandshake = (chunk: Buffer) => {
+      received = Buffer.concat([received, chunk]);
+      const end = received.indexOf(`${CRLF}${CRLF}`);
+      if (end === -1) return;
+      socket.pause();
+      socket.off("data", onHandshake);
+      if (!received.subarray(0, end).toString("latin1").startsWith("HTTP/1.1 101")) {
+        return reject(new Error(received.subarray(0, end).toString("latin1")));
+      }
+      received = received.subarray(end + 4);
+      resolve({
+        send: (text) => {
+          const payload = Buffer.from(text);
+          // Client frames are masked; an all-zero key leaves the payload as it is.
+          const length =
+            payload.length < 126
+              ? Buffer.from([0x80 | payload.length])
+              : Buffer.from([0x80 | 126, payload.length >> 8, payload.length & 0xff]);
+          socket.write(Buffer.concat([Buffer.from([0x81]), length, Buffer.alloc(4), payload]));
+        },
+        drain: () =>
+          new Promise((done) => {
+            let at = 0;
+            let payloadBytes = 0;
+            const parse = () => {
+              for (
+                let frame = readFrame(received, at);
+                frame !== null;
+                frame = readFrame(received, at)
+              ) {
+                at = frame.next;
+                if (frame.opcode !== 0x8) {
+                  payloadBytes += frame.payload.length;
+                  continue;
+                }
+                socket.destroy();
+                return done({ payloadBytes, code: frame.payload.readUInt16BE(0) });
+              }
+            };
+            socket.on("data", (chunk: Buffer) => {
+              received = Buffer.concat([received, chunk]);
+              parse();
+            });
+            socket.on("close", () => done({ payloadBytes, code: null }));
+            parse();
+            socket.resume();
+          }),
+      });
+    };
+    socket.on("data", onHandshake);
+    socket.on("error", reject);
+    socket.on("connect", () =>
+      socket.write(
+        [
+          `GET ${pathname} HTTP/1.1`,
+          `Host: ${hostname}:${port}`,
+          "Connection: Upgrade",
+          "Upgrade: websocket",
+          "Sec-WebSocket-Version: 13",
+          "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==",
+          `Authorization: Bearer ${token}`,
+          "",
+          "",
+        ].join(CRLF),
+      ),
+    );
   });
 
 const serveSeam = Effect.fn("test.serveSeam")(function* (
@@ -276,6 +375,47 @@ it.live("closes a session revoked between the upgrade and hello before any servi
       assert.strictEqual(closed.code, 1008);
       assert.deepStrictEqual(client.unread, []);
       assert.strictEqual(yield* Ref.get(projectReads), 0);
+    }),
+  ),
+);
+
+it.live("closes with 1013 and keeps its send buffer bounded for a client that stops reading", () =>
+  live(
+    Effect.gen(function* () {
+      const seam = yield* serveSeam();
+      yield* seam.configure(CONFIG_TEXT);
+      // 200 listed threads with long titles make each list answer about 450 KB.
+      yield* write(
+        Array.from({ length: 200 }, (_, index) => {
+          const created = thread({ id: `long-${index}`, minutes: index, projectId: PROJECT });
+          return created.type === "thread.created"
+            ? { ...created, payload: { ...created.payload, title: "t".repeat(2000) } }
+            : created;
+        }),
+      );
+      const session = yield* seam.voiceSession;
+      const sessions = yield* SessionStore.SessionStore;
+      const disconnected = yield* sessions.streamChanges.pipe(
+        Stream.filter(
+          (change) =>
+            change.type === "clientUpserted" &&
+            change.clientSession.sessionId === session.sessionId &&
+            !change.clientSession.connected,
+        ),
+        Stream.runHead,
+        Effect.forkScoped,
+      );
+      const client = yield* Effect.promise(() => stalledClient(seam.ws, session.token));
+
+      // About 36 MB of answers, far past the cap plus what the kernel buffers on both ends.
+      for (let id = 1; id <= 80; id += 1) {
+        client.send(JSON.stringify({ id, op: "list_threads", input: {} }));
+      }
+      yield* Fiber.join(disconnected);
+      const drained = yield* Effect.promise(client.drain);
+
+      assert.strictEqual(drained.code, 1013);
+      assert.isBelow(drained.payloadBytes, 8 * 1024 * 1024);
     }),
   ),
 );
