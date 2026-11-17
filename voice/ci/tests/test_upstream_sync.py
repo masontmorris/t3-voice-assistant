@@ -1,0 +1,286 @@
+"""The upstream sync, exercised on throwaway repo pairs.
+
+Each test builds two bare remotes (a fake origin and a fake upstream) and a clone with both remotes. The sync runs
+for real against those paths. The test.sh inside the fixture is a stand-in, because these tests cover the sync's
+control flow; the real suite runs in the real repo.
+"""
+
+from __future__ import annotations
+
+import os
+import shutil
+import subprocess
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+CI_DIR = Path(__file__).resolve().parents[1]
+SCRIPT = CI_DIR / "upstream_sync.sh"
+CHECK_SEAM = CI_DIR / "check_seam.py"
+
+SEAM_MD = "# Upstream files\n\n| Path | Reason |\n| --- | --- |\n"
+PASSING_TEST = '#!/usr/bin/env bash\necho "voice tests OK: 0 python tests ran in 0.0s, 0 known failure(s)."\nexit 0\n'
+FAILING_TEST = '#!/usr/bin/env bash\necho "voice tests FAILED: 1 failure(s) not in the baseline."\necho "  test_a_thing (fail)"\nexit 1\n'
+
+
+def git(*args: str, cwd: Path | None = None) -> str:
+    completed = subprocess.run(
+        ["git", *args],
+        cwd=cwd,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    )
+    if completed.returncode != 0:
+        raise AssertionError(f"git {' '.join(args)} failed: {completed.stderr.strip()}")
+    return completed.stdout.strip()
+
+
+def posix(path: Path) -> str:
+    return path.resolve().as_posix()
+
+
+def find_bash() -> str | None:
+    candidates = [
+        os.environ.get("VOICE_BASH"),
+        shutil.which("bash"),
+        r"C:\Program Files\Git\bin\bash.exe",
+        "/bin/bash",
+    ]
+    probe = Path(tempfile.gettempdir())
+    for candidate in candidates:
+        if not candidate:
+            continue
+        result = subprocess.run(
+            [candidate, "-c", 'test -d "$1"', "-", posix(probe)],
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode == 0:
+            return candidate
+    return None
+
+
+class Fixture:
+    def __init__(self, root: Path, test_script: str = PASSING_TEST) -> None:
+        self.root = root
+        self.origin = root / "origin.git"
+        self.upstream = root / "upstream.git"
+        self.source = root / "source"
+        self.worktree = root / "sync-worktree"
+        self.voice_home = root / "voice-home"
+        self.test_script = test_script
+
+        git("init", "--bare", "-q", "--initial-branch=main", str(self.origin))
+        git("init", "--bare", "-q", "--initial-branch=main", str(self.upstream))
+        git("clone", "-q", str(self.origin), str(self.source))
+        self.git("checkout", "-q", "-B", "main")
+        self.git("config", "user.email", "sync@example.test")
+        self.git("config", "user.name", "Sync Test")
+        self.git("config", "commit.gpgsign", "false")
+        self.git("config", "core.autocrlf", "false")
+        self.git("remote", "add", "upstream", str(self.upstream))
+
+    def git(self, *args: str) -> str:
+        return git(*args, cwd=self.source)
+
+    def write(self, relative: str, text: str) -> None:
+        path = self.source / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8", newline="\n")
+
+    def commit(self, message: str) -> None:
+        self.git("add", "-A")
+        self.git("commit", "-q", "-m", message)
+
+    def publish_base(self) -> None:
+        self.write("README.md", "base readme\n")
+        self.write("docs/voice/seam.md", SEAM_MD)
+        self.commit("base")
+        self.git("push", "-q", "origin", "main")
+        self.git("push", "-q", "upstream", "main")
+
+    def publish_voice_branch(self) -> None:
+        self.git("checkout", "-q", "-B", "voice/main")
+        self.write("voice/app.py", "VOICE = 1\n")
+        self.write("voice/ci/test.sh", self.test_script)
+        self.write("voice/ci/check_seam.py", CHECK_SEAM.read_text(encoding="utf-8"))
+        self.commit("voice work")
+        self.git("push", "-q", "origin", "voice/main")
+        self.git("checkout", "-q", "main")
+
+    def advance_upstream(self, relative: str = "CHANGELOG.md", text: str = "upstream change\n") -> str:
+        work = self.root / "upstream-work"
+        git("clone", "-q", str(self.upstream), str(work))
+        git("config", "user.email", "sync@example.test", cwd=work)
+        git("config", "user.name", "Sync Test", cwd=work)
+        git("config", "commit.gpgsign", "false", cwd=work)
+        target = work / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8", newline="\n")
+        git("add", "-A", cwd=work)
+        git("commit", "-q", "-m", "upstream change", cwd=work)
+        git("push", "-q", "origin", "main", cwd=work)
+        return git("rev-parse", "HEAD", cwd=work)
+
+    def on_voice_branch(self, relative: str, text: str) -> None:
+        self.git("checkout", "-q", "voice/main")
+        self.write(relative, text)
+        self.commit("voice edit")
+        self.git("push", "-q", "origin", "voice/main")
+        self.git("checkout", "-q", "main")
+
+    def remote_sha(self, repo: Path, ref: str) -> str:
+        return git("-C", str(repo), "rev-parse", ref)
+
+
+class UpstreamSyncTest(unittest.TestCase):
+    bash: str
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        bash = find_bash()
+        if not bash:
+            raise unittest.SkipTest("no bash that can see this checkout")
+        cls.bash = bash
+
+    def setUp(self) -> None:
+        self._temp = tempfile.TemporaryDirectory()
+        self.addCleanup(self._temp.cleanup)
+        self.fixture = Fixture(Path(self._temp.name) / "fixture")
+
+    def sync(self, *args: str) -> subprocess.CompletedProcess[str]:
+        env = dict(os.environ, VOICE_PYTHON=sys.executable)
+        return subprocess.run(
+            [
+                self.bash,
+                posix(SCRIPT),
+                *args,
+                "--repo",
+                posix(self.fixture.source),
+                "--worktree",
+                posix(self.fixture.worktree),
+                "--log",
+                posix(self.fixture.voice_home / "sync" / "sync.log"),
+            ],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            env=env,
+            timeout=300,
+        )
+
+    def log_lines(self) -> list[str]:
+        log = self.fixture.voice_home / "sync" / "sync.log"
+        if not log.is_file():
+            return []
+        return [line for line in log.read_text(encoding="utf-8").splitlines() if line]
+
+    def test_a_clean_dry_run_merges_and_leaves_both_remotes_alone(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        upstream_sha = self.fixture.advance_upstream()
+        origin_before = self.fixture.remote_sha(self.fixture.origin, "main")
+        voice_before = self.fixture.remote_sha(self.fixture.origin, "voice/main")
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("dry run passed", completed.stdout)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "main"), origin_before)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "voice/main"), voice_before)
+        head = git("-C", str(self.fixture.worktree), "rev-parse", "HEAD")
+        git("-C", str(self.fixture.worktree), "merge-base", "--is-ancestor", upstream_sha, head)
+        self.assertIn("dry_run=1", self.log_lines()[-1])
+        self.assertIn("code=0", self.log_lines()[-1])
+
+    def test_a_second_run_with_nothing_new_says_up_to_date(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertIn("up to date", completed.stdout)
+        self.assertIn("nothing new", completed.stdout)
+
+    def test_a_fork_commit_on_main_is_an_alarm(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.write("README.md", "a fork-only edit\n")
+        self.fixture.commit("fork edit on main")
+        self.fixture.git("push", "-q", "origin", "main")
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 11, completed.stdout + completed.stderr)
+        self.assertIn("not a pure mirror", completed.stdout)
+        self.assertIn("code=11", self.log_lines()[-1])
+
+    def test_a_conflicting_merge_stops_and_names_the_file(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream("README.md", "upstream readme\n")
+        self.fixture.on_voice_branch("README.md", "voice readme\n")
+        voice_before = self.fixture.remote_sha(self.fixture.origin, "voice/main")
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 12, completed.stdout + completed.stderr)
+        self.assertIn("README.md", completed.stdout)
+        self.assertIn("CONFLICT", completed.stdout)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "voice/main"), voice_before)
+        status = git("-C", str(self.fixture.worktree), "status", "--porcelain")
+        self.assertEqual(status, "", "the abort left the worktree dirty")
+
+    def test_a_failing_test_stops_before_the_push(self) -> None:
+        self.fixture = Fixture(Path(self._temp.name) / "failing-fixture", test_script=FAILING_TEST)
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        origin_before = self.fixture.remote_sha(self.fixture.origin, "main")
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 13, completed.stdout + completed.stderr)
+        self.assertIn("voice tests FAILED", completed.stdout + completed.stderr)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "main"), origin_before)
+        self.assertIn("code=13", self.log_lines()[-1])
+
+    def test_an_upstream_file_the_allowlist_does_not_cover_fails_the_seam_check(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        self.fixture.on_voice_branch("README.md", "voice readme\n")
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 14, completed.stdout + completed.stderr)
+        self.assertIn("README.md", completed.stdout)
+        self.assertIn("not covered", completed.stdout)
+
+    def test_a_running_sync_holds_a_lock(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        lock = self.fixture.voice_home / "sync" / "run.lock"
+        lock.mkdir(parents=True)
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 17, completed.stdout + completed.stderr)
+        self.assertIn("already running", completed.stdout)
+        lock.rmdir()
+
+    def test_the_lock_is_released_after_a_run(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+
+        completed = self.sync("--dry-run")
+
+        self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
+        self.assertFalse((self.fixture.voice_home / "sync" / "run.lock").exists())
+
+
+if __name__ == "__main__":
+    unittest.main()
