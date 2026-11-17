@@ -15,7 +15,7 @@ from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 from voice.research.audio_probe import liquid as L, vad  # noqa: E402
 
 EV = L.HOME / "evidence" / "live"
