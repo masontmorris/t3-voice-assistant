@@ -2,9 +2,9 @@
 
 This is the milestone 1 design for the seam that lets the Python voice server list, read, launch, send to, and follow real T3 threads. It is a design, not code. Nothing here is implemented. The PM reviews it before anyone builds it.
 
-**Bottom line.** Add one voice-owned WebSocket route, `GET /voice-seam`, inside `apps/server/src/voiceSeam/`, mounted with one import and one line in `apps/server/src/server.ts`. Behind it, a `VoiceSeam` service calls T3's own orchestration services in-process: `ThreadLaunchService`, `ThreadManagementService`, and `OrchestrationEventStore`. Python sees only voice domain types, and every result and event carries the stored-event `sequence` it came from. The seam says a thread is done only after a fresh read of T3's own settle rule, and it speaks T3's own result for that run. Models make the judgments: the decider decides "this is T3 work", and a fast model picks the thread for Twin B. The project pick for Twin A starts as a deterministic match, and a fast model takes it over only if an eval passes. The seam performs the operation, and the launched thread is the frontier agent. The voice gets its own read-scoped bearer session, which can write only through the seam, under a ceiling the seam enforces.
+**Bottom line.** Add one voice-owned WebSocket route, `GET /voice-seam`, inside `apps/server/src/voiceSeam/`, mounted with one import and one line in `apps/server/src/server.ts`. Behind it, a `VoiceSeam` service calls T3's own orchestration services in-process: `ThreadLaunchService`, `ThreadManagementService`, and `OrchestrationEventStore`. Python sees only voice domain types, and every result and event carries the `sequence` of the stored event or the read it came from. The seam says a thread is done only after a fresh read of T3's own settle rule, and it speaks T3's own result for that run. Models make the judgments: the decider decides "this is T3 work", and a fast model picks the thread for Twin B. The project pick for Twin A starts as a deterministic match, and a fast model takes it over only if an eval passes. The seam performs the operation, and the launched thread is the frontier agent. The voice gets its own read-scoped bearer session, which can write only through the seam, under a ceiling the seam enforces.
 
-Claims carry a label. Measured means read in the code at `voice/main` `ce984f9eae` (upstream `980f5d4128`) or run. Inferred means derived from the code without running it. Guess means a judgment with no evidence behind it yet.
+Claims carry a label. Measured means read in the code at `voice/main` `ce984f9eae` (upstream `980f5d4128`) or run. The server code is identical at `voice/main` `7af2f4911c` (measured: no diff under `apps/` or `packages/`). Inferred means derived from the code without running it. Guess means a judgment with no evidence behind it yet.
 
 ## Problem
 
@@ -14,11 +14,11 @@ T3 already has every operation as an in-process service (measured):
 
 | Operation | Existing service | New in the seam |
 | --- | --- | --- |
-| List threads | `loadSubscriberShellSnapshot` (`apps/server/src/orchestration-v2/ShellStream.ts:413-450`) over `listActiveShellIndex` and `readShellSnapshot` (`ProjectionStore.ts:598`, `:615`), as `orchestration-v2/http.ts:83-102` already calls it | the lineage and project filter, the voice summary type, and "state as of S" |
-| Read a thread's live state | `getThreadShell`, `getThreadEventSequence`, `getThreadRecords` (`ThreadManagementService.ts:414`, `:453`, `:524`; filters at `ProjectionStore.ts:349-380`) | `VoiceThreadState`, with the latest run's result and any pending question |
+| List threads | `loadSubscriberShellSnapshot` (`apps/server/src/orchestration-v2/ShellStream.ts:413-450`) over `listActiveShellIndex` and `readShellSnapshot` (`ProjectionStore.ts:598`, `:615`), as `orchestration-v2/http.ts:83-102` already calls it | the lineage and project filter, the voice summary type, the truncation count, and "state as of S" |
+| Read a thread's live state | `getThreadRecords`, `getThreadShell`, `getThreadEventSequence` (`ThreadManagementService.ts:414`, `:453`, `:524`; filters at `ProjectionStore.ts:349-380`) | `VoiceThreadState`, with the latest run's result and any pending question |
 | Decide that a thread is done | `waitForThread` with `untilDelegatedWorkSettled` (`ThreadManagementService.ts:991-1125`) and `subagentResultForRun` (`packages/provider-core/src/server/subagentProjection.ts:254`) | the `done` event, emitted only from that read |
-| Launch | `ThreadLaunchService.launch` (`ThreadLaunchService.ts:1205`) | the launch policy, the ceiling clamp, and the receipt gate |
-| Send | `ThreadManagementService.sendToThread` (`ThreadManagementService.ts:868-989`) | the mode preflight and the idempotency key |
+| Launch | `ThreadLaunchService.launch` (`ThreadLaunchService.ts:1205`) | the launch policy, the ceiling clamp, and the receipt gate over `CommandReceiptStoreV2` (`CommandReceiptStore.ts:84-87`) |
+| Send | `ThreadManagementService.sendToThread` (`ThreadManagementService.ts:868-989`) | the mode preflight, the receipt gate, and the idempotency key |
 | Interrupt | `ThreadManagementService.interruptThread` | the idempotency key |
 | Follow events | `OrchestrationEventStore.readAgentEvents` for the replay, then `ThreadManagementService.streamStoredEventsFrom` live, as WS `subscribeThread` does (`ws.ts:938-1123`) | the prune checks, the distiller, and the resubscribe loop |
 
@@ -44,7 +44,7 @@ for event in seam.drain():                    # Run, Reply, NeedsYou, Resolved, 
 	...
 ```
 
-Every write takes a `request_id`, a ULID that Python mints once per write and journals before it calls the seam. The same `request_id` never acts twice, across reconnects, voice-server restarts, and new tokens. Every event carries the stored-event sequence it came from. A re-watch from a cursor replays what was missed, in order, and Python drops any event whose sequence is at or below its cursor.
+Every write takes a `request_id`, a ULID that Python mints once per write and journals before it calls the seam. The same `request_id` never acts twice, across reconnects, voice-server restarts, and new tokens. Every event except `done` comes from one stored event and carries its sequence, and only those events move Python's cursor. A re-watch from the cursor replays what was missed, in order. `done` comes from a read, not from a stored event, so it never moves the cursor (see "The cursor rule").
 
 Twin A runs inside `T3TaskService.sync`, after the gated end-of-utterance turn releases the held launch:
 
@@ -56,7 +56,7 @@ def _launch(self, task_id, record, now):
 	link = self.journal.begin(task_id, request_id=ulid(), project_id=pick.project_id)   # saved before the call
 	try:
 		launched = self.seam.launch(link.request_id, pick.project_id, record["instruction"])
-	except SeamRefused as refusal:                 # project_not_allowed, above_ceiling, gone, ...
+	except SeamRefused as refusal:                 # project_not_allowed, above_ceiling, refused, gone, ...
 		self.journal.fail(task_id, refusal.code)
 		return Execution(task_id, Run.FAILED, now, None, finished_at=now,
 		                 result_summary=refusal.spoken(), mode="t3")
@@ -76,10 +76,12 @@ Twin B is read-only, so the gate never holds it:
 
 ```python
 def _ask_about(self, task_id, record, now):
-	listing = self.seam.list_threads(limit=40)
+	listing = self.seam.list_threads()             # every active thread in allowed projects, up to 200
 	pick = self.picker.pick_thread(record["instruction"], listing.threads, self._my_threads())
 	if pick.kind == "none":
-		return self._done(task_id, "I don't see a thread like that.", [listing.as_of_sequence], now)
+		line = (f"I don't see it among your {len(listing.threads)} most recent threads." if listing.truncated
+		        else "I don't see an active thread like that.")
+		return self._done(task_id, line, [listing.as_of_sequence], now)
 	if pick.kind == "ask":                          # two or three candidates, worded from titles
 		return self._ask(task_id, pick.question, now, candidates=pick.thread_ids)
 	state = self.seam.read_thread(pick.thread_id)
@@ -100,7 +102,7 @@ import * as VoiceSeamRoute from "./voiceSeam/route.ts";
 	VoiceSeamRoute.layer,
 ```
 
-`layerMakeRoutes` (`server.ts:837-908`) merges every route layer, and the services the seam needs are already in context there (measured: `ws.ts:1440-1457` yields the same services from ambient context). The precedent is `speechStreamRouteLayer` (`apps/server/src/speech/stream.ts:92-112`). It is a `Layer.unwrap` that authenticates the upgrade, checks a scope, and runs a plain-JSON socket. The lines around `server.ts:857-861` changed once in 30 days, when upstream added that speech route on 2026-11-05 (measured). The global readiness middleware (`server.ts:829-835`) holds the route until orchestration accepts commands (measured).
+`layerMakeRoutes` (`server.ts:837-908`) merges every route layer, and the services the seam needs are already in context there (measured for two of three: `ws.ts:1440-1457` yields `ThreadManagementService` and `OrchestrationEventStore` directly, and names `ThreadLaunchService` only in the type of the ambient context it captures). `CommandReceiptStoreV2` is not in that context, because `runtimeLayer.ts:75-84` provides it to the stores rather than merging it out (inferred). The seam builds its own read-only copy from the exported `CommandReceiptStore.layerFromApplicationReceipts` (`CommandReceiptStore.ts:202`) over `OrchestrationCommandReceipts.layer`, which needs only the shared `SqlClient` (inferred). Unit 5 proves it resolves. The precedent is `speechStreamRouteLayer` (`apps/server/src/speech/stream.ts:92-112`). It is a `Layer.unwrap` that authenticates the upgrade, checks a scope, and runs a plain-JSON socket. The lines around `server.ts:857-861` changed once in 30 days, when upstream added that speech route on 2026-11-05 (measured). The global readiness middleware (`server.ts:829-835`) holds the route until orchestration accepts commands (measured).
 
 The voice-owned files:
 
@@ -142,7 +144,7 @@ export type ThreadActivity =
 	| "waiting_on_background" // the turn ended, and awaited background work holds completion
 	| "queued"
 	| "idle" // no run yet
-	| "finished" | "failed" | "interrupted" | "cancelled"; // the latest run is terminal and settled
+	| "finished" | "failed" | "interrupted" | "cancelled" | "rolled_back"; // the latest run is terminal and settled
 
 export const VOICE_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt"] as const;
 export type VoiceOperation = (typeof VOICE_OPERATIONS)[number];
@@ -175,8 +177,11 @@ export interface VoiceThreadSummary {
 }
 
 export interface VoiceThreadList {
-	/** Listed lineage only, in allowed projects, newest activity first. */
+	/** Every active thread with listed lineage in an allowed project, newest activity first, cut to `limit`. */
 	readonly threads: ReadonlyArray<VoiceThreadSummary>;
+	/** How many threads matched before the cut. */
+	readonly total: number;
+	/** total > threads.length. When true, "no such thread" is not a claim the voice may make. */
 	readonly truncated: boolean;
 	/** The rows are the state as of this sequence: both come from one read-only transaction. */
 	readonly asOfSequence: number;
@@ -233,27 +238,40 @@ export type VoiceInterruptResult =
 	| { readonly kind: "requested"; readonly runId: RunId; readonly sequence: number }
 	| { readonly kind: "nothing_running" };
 
-/** `sequence` is the stored event's global sequence, or for `done` the thread's sequence at the settle read. */
+/** The five statuses `isTerminalRunStatus` accepts (ThreadManagementService.ts:143-146, :549-558). */
+export type VoiceTerminalStatus = "completed" | "failed" | "interrupted" | "cancelled" | "rolled_back";
+
+/**
+ * Cursor events: each comes from exactly one stored event, and `sequence` is that event's global sequence.
+ * `done` comes from a settle read. Its `sequence` is the stored event that triggered the read, and
+ * `asOfSequence` is the thread's sequence at the read. Neither moves Python's cursor.
+ */
 export type VoiceEvent =
 	| { readonly type: "run"; readonly threadId: ThreadId; readonly runId: RunId; readonly status: VoiceRunStatus; readonly sequence: number }
 	| { readonly type: "reply"; readonly threadId: ThreadId; readonly runId: RunId | null; readonly messageId: MessageId; readonly text: string; readonly sequence: number }
 	| ({ readonly type: "needs_you"; readonly threadId: ThreadId; readonly sequence: number } & VoicePending)
 	| { readonly type: "resolved"; readonly threadId: ThreadId; readonly requestId: string; readonly status: "resolved" | "expired" | "cancelled"; readonly sequence: number }
-	| { readonly type: "done"; readonly threadId: ThreadId; readonly runId: RunId; readonly status: "completed" | "failed" | "interrupted" | "cancelled"; readonly result: VoiceRunResult; readonly sequence: number }
+	| { readonly type: "done"; readonly threadId: ThreadId; readonly runId: RunId; readonly status: VoiceTerminalStatus; readonly result: VoiceRunResult; readonly sequence: number; readonly asOfSequence: number }
 	| { readonly type: "gone"; readonly threadId: ThreadId; readonly sequence: number };
 
 export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("VoiceSeamRefusal", {
 	code: Schema.Literals([
 		"operation_not_allowed", "project_not_allowed", "above_ceiling", "not_found", "gone",
-		"too_many_watches", "no_default_model", "invalid_request", "unavailable",
+		"refused", "too_many_watches", "no_default_model", "invalid_request", "unavailable",
 	]),
 	/** Short text the voice may speak. Never built from a cause. */
 	message: Schema.String,
+	/** For "refused" only: T3's recorded rejection, the receipt's `error`, cut to 200 characters. */
+	reason: Schema.optional(Schema.String),
+	/** For "refused" only: the command whose receipt was read, so the claim traces to it. */
+	commandId: Schema.optional(CommandId),
+	/** For "refused" after an accepted launch: the thread that exists although its first message was refused. */
+	threadId: Schema.optional(ThreadId),
 	cause: Schema.optional(Schema.Defect()),
 }) {}
 ```
 
-The seam has one error class with a `code`, because its only consumer is the wire. Python maps each `code` to a spoken line. Voice send has no mode in milestone 1. It always queues behind an active run and never steers one (see the open questions).
+The seam has one error class with a `code`, because its only consumer is the wire. Python maps each `code` to a spoken line. `refused` means T3 recorded a rejected receipt for the command, and Python speaks it as "T3 refused it", followed by `reason`. `gone` means the command was accepted and its thread has since been deleted. The two never stand in for each other. Voice send has no mode in milestone 1. It always queues behind an active run and never steers one (see the open questions).
 
 ### The service
 
@@ -285,10 +303,14 @@ const make = Effect.gen(function* () {
 		// loadSubscriberShellSnapshot({ sql, listShellIndex: threads.listActiveShellIndex(),
 		//   readThreads: ids => threads.readShellSnapshot({ location: "active", threadIds: ids }),
 		//   listProjects, latestSequence: eventStore.latestApplicationSequence,
-		//   options: { omitIdleSubagents: true, omitOlderSettled: true } })   // one read-only transaction, as http.ts:88-98
+		//   options: { omitIdleSubagents: true, omitOlderSettled: false } })   // one read-only transaction, as http.ts:88-98
+		//   // omitOlderSettled: false. The opt-in keeps only the 25 newest settled top-level threads and
+		//   // reports the rest as a per-project count (ShellStream.ts:199, :330-345). The seam would drop
+		//   // that count, so it reads every active shell, as a client that does not opt in does (ws.ts:1145-1146).
 		// keep rows where isListedThreadLineage(row.lineage) && !isDelegatedAppThread(row), the rule of
 		//   listProjectThreads (ThreadManagementService.ts:844-866), and row.projectId is allowed
-		// map with deriveActivity; sort by lastActivityAt descending; cut to min(limit, 60)
+		// map with deriveActivity; sort by lastActivityAt descending
+		// total = the kept count; cut to min(limit ?? 200, 200); truncated = total > threads.length
 		// asOfSequence = the snapshot's sequence
 		return yield* Effect.die("not implemented");
 	});
@@ -312,9 +334,14 @@ const make = Effect.gen(function* () {
 		// TODO
 		// require "launch" and an allowed project; requestId must decode as a ULID
 		// commandId = sha256(["voice", "launch", requestId]); threadId = messageId = commandId
-		// if (yield* threads.hasReceipt(commandId)):                  // never call launch on a receipt
-		//   shell = threads.getThreadShell(threadId); missing or deletedAt set -> refusal "gone"
-		//   return { threadId, runId: shell.latestRunId, sequence: threads.getThreadEventSequence(threadId), replayed: true, ... }
+		// launchReceipt = receipts.getByCommandId(commandId)          // never call launch on a receipt
+		// messageReceipt = receipts.getByCommandId(`${commandId}:initial-message`)   // ThreadLaunchService.ts:1373
+		// match:
+		//   launchReceipt rejected  -> refusal "refused", reason = launchReceipt.error, commandId; no thread exists
+		//   launchReceipt accepted, messageReceipt rejected -> refusal "refused", reason, commandId, threadId
+		//   launchReceipt accepted  -> shell = threads.getThreadShell(threadId); missing or deletedAt set -> "gone"
+		//     else return { threadId, runId: shell.latestRunId, sequence: threads.getThreadEventSequence(threadId), replayed: true, ... }
+		//   no launchReceipt        -> launch, below
 		// policy = resolveLaunchPolicy(projectId, ceiling)            // below
 		// launches.launch({ commandId, threadId, projectId, title: firstWords(instruction), generateTitle: true,
 		//   modelSelection, runtimeMode, interactionMode, workspaceStrategy,
@@ -325,10 +352,14 @@ const make = Effect.gen(function* () {
 
 	const send = Effect.fn("VoiceSeam.send")(function* (caller, input) {
 		// TODO
-		// require "send" and an allowed project; commandId = sha256(["voice", "send", requestId])
+		// require "send" and an allowed project
+		// commandId = sha256(["voice", "send", requestId]); messageId = commandId
+		//   // both from the request id alone, so a crash retry dispatches the same command and the
+		//   // service finds the same message by messageId (ThreadManagementService.ts:942-945)
+		// receipt = receipts.getByCommandId(commandId); rejected -> refusal "refused", reason = receipt.error, commandId
 		// preflight: shell = threads.getThreadShell(threadId); exceededDispatchModeLimit(ceiling, shell) -> above_ceiling
-		//   // before sendToThread, which restores the worktree before its own mode check (ThreadManagementService.ts:909-922)
-		// threads.sendToThread({ ..., mode: "queue", createdBy: "user", creationSource: "server" })
+		//   // before sendToThread, which restores the worktree before its own mode check (ThreadManagementService.ts:908-924)
+		// threads.sendToThread({ commandId, messageId, ..., mode: "queue", createdBy: "user", creationSource: "server" })
 		//   .pipe(Effect.provideService(DispatchModeLimit, ceiling))   // the recheck under the command lock
 		return yield* Effect.die("not implemented");
 	});
@@ -350,7 +381,18 @@ const make = Effect.gen(function* () {
 
 **The launch guard.** The orchestrator's `DispatchModeLimit` recheck reads the target thread's shell (`Orchestrator.ts:15420-15429`, measured). A `thread.create` has no shell yet, so the recheck does not cover a launch. The seam's clamp in `resolveLaunchPolicy` is the guard. The managed-policy ceiling still refuses a `thread.created` event above it (`DispatchModeLimit.ts:72-90`, measured).
 
-**The receipt gate.** A launch replay inside `ThreadLaunchService` reads the original command's events by command id (`Orchestrator.ts:15366`). When the event log has pruned them, it looks for a `run.created` event that is gone, dispatches the initial message again, and fails with "Initial message was accepted without a durable run" (`ThreadLaunchService.ts:1369-1414`, inferred from the code). The seam therefore checks `hasReceipt(commandId)` (`ThreadManagementService.ts:475`) and never calls `launch` when a receipt exists. It answers from the thread's current state instead, and reports a deleted thread as `gone`.
+**The receipt gate.** A launch replay inside `ThreadLaunchService` reads the original command's events by command id (`Orchestrator.ts:15366`). When the event log has pruned them, it looks for a `run.created` event that is gone, dispatches the initial message again, and fails with "Initial message was accepted without a durable run" (`ThreadLaunchService.ts:1369-1414`, inferred from the code). The seam therefore reads the receipt itself and never calls `launch` when one exists.
+
+The gate reads the whole receipt, not `hasReceipt`. `hasReceipt` (`ThreadManagementService.ts:649-653`) answers true for a receipt whose `status` is `rejected` (`CommandReceiptStore.ts:40-51`, measured). The orchestrator records a rejection, with the error's message, for every refused command except a mode-limit or ceiling refusal, which it leaves unrecorded so that a retry can pass after Mason changes the mode (`Orchestrator.ts:15469-15499`, measured). A gate on `hasReceipt` would read the missing thread of a rejected launch and answer `gone`, and the voice would say "That thread was deleted" about a thread that never existed. So the seam reads `CommandReceiptStoreV2.getByCommandId` for the launch command and for its `:initial-message` command, and answers by status:
+
+| Launch receipt | Initial-message receipt | Answer |
+| --- | --- | --- |
+| none | (not read) | call `launch`. A mode or ceiling refusal arrives live, and the seam maps it to `above_ceiling` (inferred). A retry runs the same check again. |
+| rejected | (not read) | `refused`, with the recorded `error` as `reason`. No thread exists. |
+| accepted | rejected | `refused`, with `reason` and `threadId`. The thread exists, and its first message was refused. |
+| accepted | accepted or none | read the shell. A missing or deleted shell is `gone`. Otherwise the replayed result from current state. |
+
+Send applies the same rule to its own command id. A rejected send receipt answers `refused`, so a retried send never reports success for a message T3 refused.
 
 ### Who calls the thread operations
 
@@ -367,28 +409,44 @@ Code performs every operation, and its result is the only record of what happene
 
 ### Events back to the voice
 
-The watch has three parts: the event path, a pure distiller, and two reads. The distiller turns one stored event into at most one signal. It has no state, so a replay from any cursor yields the same signals in the same order. The reads turn some signals into voice events against current state.
+The watch has three parts: the event path, a pure distiller, and two reads. The distiller turns one stored event into at most one signal, and a signal may also ask for a settle check. The distiller keeps no state, so a replay from any cursor yields the same signals in the same order. The reads turn some signals into voice events against current state. The only state a watch holds is in `watch.ts`, per watch fiber: the `messageId`s it has emitted as `reply`, and the settle check in flight. That state survives the watch's own resubscribe after a `LiveStreamBufferError` and dies with the watch. Python's `T3Link.replies` is the durable copy, and it survives reconnects and restarts.
 
 | Stored event | Signal | Voice event |
 | --- | --- | --- |
-| `run.updated` | the run id and status | `run`. Python drops a repeated pair of run id and status. |
-| `run.updated` with a terminal status | the same, plus a settle check | `run`, then `done` only if the settle read says so |
-| `subagent.updated` or `provider-thread.updated`, while a settle check is outstanding | a settle check | `done` only if the settle read says so |
-| `message.updated` with role `assistant` and `streaming: false` | the message | `reply`, once per `messageId` |
+| `run.updated` | the run id and status, plus a settle check | `run`, then `done` only if the settle read says so. Python drops a repeated pair of run id and status. |
+| `subagent.updated` or `provider-thread.updated` | a settle check | `done` only if the settle read says so |
+| `message.updated` with role `assistant` and `streaming: false` | the message | `reply`, unless this watch already emitted that `messageId` |
 | `runtime-request.updated` with status `pending` | the request id and kind | `needs_you`, after the pending read |
 | `runtime-request.updated` with status `resolved`, `expired`, or `cancelled` | the request id and status | `resolved` |
 | `turn-item.updated` with a pending `secret_request` or `link_request` | the item id | `needs_you` with kind `in_app` |
-| `thread.deleted` | gone | `gone`, and the watch ends |
+| `thread.deleted` | gone | `gone`, and the watch ends with no settle check |
 | everything else | nothing | nothing |
+
+The settle triggers are the event types `waitForThread` subscribes to itself with `untilDelegatedWorkSettled` (`ThreadManagementService.ts:1077-1095`, measured): every `run.updated`, `subagent.updated`, and `provider-thread.updated`, plus `thread.deleted`, which the watch turns into `gone` instead. Any `run.updated` can settle the thread, not only a terminal one. A new run that replaces a cut run, and a run update that releases a parent's wait, are both non-terminal events that change the answer (inferred from `outcome` and `delegatedWorkResult` in `ThreadManagementService.ts:1022-1053`).
 
 The interrogate pass counted 1,078 streaming message frames among 158,596 stored events in a read-only copy of real data (measured there, not re-run here). The distiller drops them. The same count found 3,096 messages with one final frame and 9 with two, so duplicate finals are real. The seam and Python both dedupe `reply` on `messageId`.
 
 **The settle read decides "done".** A terminal `run.updated` from a replay can belong to a run that a later run has replaced. A replayed event cannot tell that, so the distiller never decides "done". On each settle check, `outcome.ts` reads fresh state:
 
-1. It calls `threads.waitForThread({ projectId, threadId, timeoutMs: 1, untilDelegatedWorkSettled: true })`. With no `runId`, `waitForThread` selects the thread's latest run, follows restart continuations, and waits for children, background tasks, and completion deliveries through `delegatedTaskResultPending` (`ThreadManagementService.ts:991-1125`, measured). A 1 ms timeout makes it a check, not a wait (inferred).
-2. If it timed out, nothing is spoken. The next settle check repeats the read.
-3. If it settled, the seam reads the settled run's records, narrowed by run id, and computes the result with `subagentResultForRun`. That function orders by turn item, because providers can finalize two messages with the same timestamp. It also returns an error turn item for a failed run and honors stop notices (`subagentProjection.ts:254-330`, measured). The seam passes no `runs`, so the function never falls back to an earlier run's reply (inferred from `delegatedTaskReportRuns`, `subagentProjection.ts:224-249`).
-4. The `done` event carries that result and the thread's event sequence read before the records.
+1. It reads the thread's event sequence, then calls `threads.waitForThread({ projectId, threadId, timeoutMs: 1, untilDelegatedWorkSettled: true })`. With no `runId`, `waitForThread` selects the thread's latest run, follows restart continuations, and waits for children, background tasks, and completion deliveries through `delegatedTaskResultPending` (`ThreadManagementService.ts:991-1125`, measured). A 1 ms timeout makes it a check, not a wait (inferred).
+2. The result has two runs (`ThreadManagementWaitResult`, `ThreadManagementService.ts:191-197`, measured). `run` is the selected run after restart continuations. `resultRun`, present only once settled, is the run that holds the thread's final answer, and it can differ from `run` when delegated work finished in a later run. The check counts as settled only when `timedOut` is false and `resultRun` is present.
+3. If it is not settled, nothing is spoken. If `run` is terminal and the check still timed out, a restart continuation or delegated work is pending. A declined continuation stores no event (`ThreadManagementService.ts:1075-1076`, `:1107-1109`), so no trigger would arrive. The watch then forks one follow-up `waitForThread` with a 60 s timeout, which also wakes on `awaitRestartContinuation`. Its result counts as a settle read, and it repeats while the answer stays terminal and unsettled. A watch has at most one follow-up in flight, and `unwatch` interrupts it.
+4. If it settled, the seam reads `resultRun`'s records, narrowed by its run id, and computes the result with `subagentResultForRun`. That function orders by turn item, because providers can finalize two messages with the same timestamp. It also returns an error turn item for a failed run and honors stop notices (`subagentProjection.ts:254-330`, measured). The seam passes no `runs`, so the function never falls back to an earlier run's reply (inferred from `delegatedTaskReportRuns`, `subagentProjection.ts:224-249`).
+5. The `done` event has `runId = resultRun.id`, `status = resultRun.status`, which is one of the five `VoiceTerminalStatus` values, and that run's result. Its `asOfSequence` is the sequence from step 1, and its `sequence` is the trigger's.
+
+Settle checks run one at a time per watch, and triggers that arrive while one runs collapse into a single next check. A replay batch runs at most one check, after the whole batch is emitted, with the last trigger in the batch as its `sequence`. A live trigger's check runs after that event's own voice event is emitted. So `done` never precedes an event at or below its own `sequence`.
+
+**The cursor rule.** Python keeps one cursor per watched thread, saved in the task record. The rule covers every event type:
+
+| Event | Compared with the cursor | Moves the cursor | Dedupe beyond the cursor |
+| --- | --- | --- | --- |
+| `run`, `reply`, `needs_you`, `resolved`, `gone` | applied only when `sequence > cursor` | to `sequence`, saved before the next event | `run` on its pair of run id and status, `reply` on `messageId` |
+| `done` | never | never | applied once per task. A second `done` for a completed task is dropped. |
+| `watch_ended` | never | never | none |
+
+`done` is exempt because its `sequence` names the trigger, not the state it reports. The settle read can see state past events the watch has not yet emitted: a reconnect replay emits through the high-water while the read sees the store now, and a live trigger's read sees events committed after it. A cursor moved to the read's sequence would skip those events, and a re-watch would never replay them. A pending `needs_you` could vanish that way. With the exemption, the cursor only ever reaches a sequence whose stored event Python has applied, so a re-watch from it misses nothing (inferred).
+
+A separate applied watermark would also work. It would need a checkpoint frame after each stored event and an idempotent apply for every event type, because events would replay up to the last checkpoint. The exemption costs one rule for the one event that comes from a read, so the design takes it. After `done`, Python unwatches. Events past the trigger that the watch had not yet emitted are then dropped. They are safe to drop, because the settle read already includes them. A request still pending holds its run in `waiting`, which is not terminal, so the read would not have settled (inferred).
 
 **The pending read builds `needs_you`.** A `runtime-request.updated` payload has an id, a kind, and a status, and no text (`packages/contracts/src/orchestrationV2.ts:1283-1307`, measured). The text lives on the turn item with the same request id: `approval_request` has `prompt` and `reason` (`:1811-1821`), and `user_input_request` has `questions[].question` (`:1766-1773`, `:1437-1440`). On a pending request, the seam reads that turn item with `getThreadRecords(threadId, ["turnItems"], { turnItemRequestIds: [id] })`. `readThread` uses the same join. The kinds map like this (the 5 provider kinds are at `packages/contracts/src/providerPolicy.ts:49-55`):
 
@@ -405,14 +463,15 @@ A pending request whose turn item is not yet stored gets the fixed line for its 
 
 1. Read the thread's high-water with `eventStore.latestAgentSequence(threadId)` and the prune floor with `eventStore.prunedThroughSequence` (`apps/server/src/persistence/OrchestrationEventStore.ts:94`, `:101`).
 2. If the cursor is below the high-water and below the floor, end the watch with `resync`. A cursor at or above the high-water missed nothing.
-3. Read the replay separately with `readAgentEvents({ threadId, afterSequence: cursor, throughSequence: highWater, limit })`. A per-thread replay uses the `(stream_id, sequence)` index (`apps/server/src/persistence/Migrations/OrchestrationV2/ApplicationEventSequenceIndexes.ts:14-16`, measured). More than `limit` events also ends with `resync`.
-4. Check the floor again. Pruning publishes its boundary before it deletes, so a pass during the read shows up here (`ws.ts:1100-1104`, measured). If the cursor is now below it, end with `resync`.
-5. Emit the distilled replay, then follow `streamStoredEventsFrom({ threadId, afterSequence: highWater })` live. Every scanned event moves `lastSeen`, whether or not it yields a voice event.
-6. The live stream fails past 1,000 items or 8 MiB of backlog with `LiveStreamBufferError` (`LiveStreamBudget.ts:13-19`, measured), and that error arrives wrapped in `OrchestratorDomainEventStreamError` (`Orchestrator.ts:16416-16424`, measured). The watch unwraps the cause. On `LiveStreamBufferError` it goes back to step 1 with `cursor = lastSeen`. Any other error ends the watch with `unavailable`.
+3. Measure the replay before reading it, with `eventStore.getAgentReplayStats({ threadId, afterSequence: cursor, throughSequence: highWater, maxEvents })` (`OrchestrationEventStore.ts:69-78`, `:595-623`, measured). End with `resync` if it holds more than 128 events or more than 1 MiB of stored payload JSON. Those are the limits `/ws` applies, `THREAD_RESUME_MAX_REPLAY_EVENTS` and `isThreadReplayRawPayloadSafe` (`orchestration-v2/ThreadStream.ts:18-27`, `ws.ts:1062-1085`, measured), and the seam imports both rather than copying the numbers. The byte budget bounds the memory of one replay read. A count limit alone would let 128 large tool-output events through.
+4. Read the replay with `readAgentEvents({ threadId, afterSequence: cursor, throughSequence: highWater })`. A per-thread replay uses the `(stream_id, sequence)` index (`apps/server/src/persistence/Migrations/OrchestrationV2/ApplicationEventSequenceIndexes.ts:14-16`, measured).
+5. Check the floor again. Pruning publishes its boundary before it deletes, so a pass during the read shows up here (`ws.ts:1100-1117`, measured). If the cursor is now below it, end with `resync`.
+6. Emit the distilled replay, then follow `streamStoredEventsFrom({ threadId, afterSequence: highWater })` live. Every scanned event moves `lastSeen`, whether or not it yields a voice event.
+7. The live stream fails past 1,000 items or 8 MiB of backlog with `LiveStreamBufferError` (`LiveStreamBudget.ts:13-19`, measured), and that error arrives wrapped in `OrchestratorDomainEventStreamError` (`Orchestrator.ts:16416-16424`, measured). The watch unwraps the cause. On `LiveStreamBufferError` it goes back to step 1 with `cursor = lastSeen`. Any other error ends the watch with `unavailable`.
 
-The stream itself has no prune check, so steps 2 and 4 are the only guard against a silent gap (measured: `streamStoredEventsFrom` passes straight to `eventSink.stream`).
+The stream itself has no prune check, so steps 2 and 5 are the only guard against a silent gap (measured: `streamStoredEventsFrom` passes straight to `eventSink.stream`).
 
-On `resync`, Python reads the thread, speaks only what the read shows, and watches again from the read's `asOfSequence`. Python owns one cursor per watched thread, stored in the task record and saved across restarts. Sequences are global and increase monotonically (measured). Dropping any event at or below the cursor rules out duplicates, and re-watching from the cursor rules out loss (inferred). The server keeps no per-client cursor.
+On `resync`, Python reads the thread, speaks only what the read shows, and watches again from the read's `asOfSequence`. Sequences are global and increase monotonically (measured). Under the cursor rule above, dropping a cursor event at or below the cursor rules out duplicates, and re-watching from the cursor rules out loss (inferred). The server keeps no per-client cursor.
 
 The outbound socket queue holds 256 frames. When Python stops reading and the queue fills, the seam closes with code 1013, and Python reconnects with its cursors. Each socket may hold at most `maxWatches` watches, 16 by default.
 
@@ -423,10 +482,12 @@ Every spoken claim traces to evidence:
 | "Started a thread in t3-voice." | `VoiceLaunchResult.sequence`, and the task record |
 | "I've asked T3 to start it." | the journaled request id, before a launch result arrives |
 | "It's waiting for your approval to run the tests." | `needs_you.sequence` |
-| "It finished. It said ..." | `done.sequence`, `done.runId`, and `done.result.messageId` or `turnItemId` |
+| "It finished. It said ..." | `done.asOfSequence` (the settle read), `done.sequence` (its trigger), `done.runId`, and `done.result.messageId` or `turnItemId` |
+| "T3 refused to start it: ..." | the `refused` refusal's `commandId`, whose receipt holds the recorded `reason` |
 | "I've asked it to stop." | `VoiceInterruptResult.sequence`, saved in the task record |
 | "The PR thread is still working. Its last reply said ..." | `VoiceThreadState.asOfSequence` |
-| "I don't see a thread like that." | `VoiceThreadList.asOfSequence`, and the picker's logged decision |
+| "I don't see an active thread like that." | `VoiceThreadList.asOfSequence` with `truncated: false`, and the picker's logged decision |
+| "I don't see it among your 200 most recent threads." | `VoiceThreadList.asOfSequence` with `truncated: true`, and the picker's logged decision |
 
 Python attaches these to each `task_update` and snapshot entry as `evidence`.
 
@@ -443,7 +504,7 @@ server -> client  { "type": "event", "event": VoiceEvent }
 server -> client  { "type": "watch_ended", "threadId": "...", "reason": "gone" | "resync" | "not_found" | "unavailable" }
 ```
 
-`route.ts` keeps one handler table typed `Record<WireOp, Handler>`, and `voice-seam.json` decodes its `operations` against `VOICE_OPERATIONS`. Adding an operation therefore fails the build until it is handled. Each request runs in its own fiber, with up to 4 in flight, so a slow launch never blocks a read. Each watch is a forked fiber that writes to the bounded outbound queue, and `unwatch` interrupts it.
+`route.ts` keeps one handler table typed `Record<WireOp, Handler>`, and `voice-seam.json` decodes its `operations` against `VOICE_OPERATIONS`. Adding an operation therefore fails the build until it is handled. Unit 4 mounts the table with all seven entries. `launch`, `send`, and `interrupt` answer `unavailable` there until units 5 and 6 replace those entries, so the order of units holds and the type check stays total. Each request runs in its own fiber, with up to 4 in flight, so a slow launch never blocks a read. Each watch is a forked fiber that writes to the bounded outbound queue, and `unwatch` interrupts it.
 
 ### Access and ceiling
 
@@ -521,14 +582,22 @@ class T3TaskService(MockTaskService):
 		#   A retry after success gets nothing_running; the saved first result is what the voice reports.
 
 	def poll(self, now): ...
-		# For each event from seam.drain(): skip it if event.sequence <= link.cursor, else advance and save the cursor.
+		# Cursor events (run, reply, needs_you, resolved, gone): skip one if event.sequence <= link.cursor,
+		#   else apply it, then advance and save the cursor.
+		# done and watch_ended never touch the cursor.
 		# reply: skip a messageId already in link.replies.
 		# needs_you: a one-time update "It needs you: <prompt>"; in_app says to open the app.
-		# done: COMPLETED with the first two sentences of done.result.text, or FAILED, INTERRUPTED,
-		#   or CANCELLED, said as that status. Then unwatch.
+		# done: skip it if the task is already terminal. Else, by done.status:
+		#   completed   -> COMPLETED, with the first two sentences of done.result.text
+		#   failed      -> FAILED, "It failed.", plus the first sentence of done.result.text if any
+		#   interrupted -> CANCELLED, "It was stopped."
+		#   cancelled   -> CANCELLED, "It was cancelled."
+		#   rolled_back -> CANCELLED, "Its work was rolled back."
+		#   Then unwatch.
 		# run: progress only. A terminal run event never completes a task.
 		# watch_ended resync: read_thread, speak only from it, re-watch from its as_of_sequence.
-		# gone: FAILED, "That thread was deleted."
+		# gone (event): FAILED, "That thread was deleted." Only a stored thread.deleted produces it.
+		# A launch refusal "refused" is FAILED, "T3 refused to start it: <reason>". Never spoken as deleted.
 ```
 
 A T3 task record links to its thread through `Execution.t3`, a `T3Link`, which `T3Journal` saves so a restarted voice server re-watches each thread from its cursor. `take_updates` and `build_snapshot` gain one field per entry, `evidence: {thread_id, sequences}`. Snapshot status still comes from the `Execution` alone, so T3 adds no state that the voice model can read around the task record.
@@ -544,7 +613,7 @@ The gate and the end-of-utterance turn treat a launch as a side effect:
 
 The PM's Twin B eval brief runs this eval on branch `voice/twinb-pick`, before the seam exists. It follows the evaluation rules in the lane's common worker rules. Labels are written before any picker run, known failures come first, every output is saved before scoring, and Mason reads 10 scored outputs, with their reasons, before anyone trusts the result. Mason reads results. He does not label.
 
-**The snapshots** are four frozen thread lists in the `VoiceThreadSummary` shape, built from a read-only copy of the real `statev2.sqlite` with varied windows and project subsets. Each has 20 to 60 threads, and each applies the seam's listing rule, so subagent children and delegated threads never appear. They include the cases the slices need: shared title prefixes, several threads in one project, and two threads that finished recently. Snapshots, labels, and raw outputs stay local. Only the harness, the prefilter, its test on a synthetic fixture, and an aggregate results doc with no real titles go into the repo.
+**The snapshots** are four frozen `VoiceThreadList` values, built from a read-only copy of the real `statev2.sqlite` with varied windows and project subsets. Each applies the seam's listing rule exactly: every active shell, read with `omitOlderSettled: false`, filtered to listed lineage and allowed projects, sorted newest first, and cut at 200 with `total` and `truncated` set. Subagent children and delegated threads therefore never appear. A snapshot built from the trimmed shell, which keeps only the 25 newest settled top-level threads, would hide the case below and pass a picker that fails it. They include the cases the slices need: shared title prefixes, several threads in one project, two threads that finished recently, and at least one snapshot with more than 25 settled threads whose gold thread is older than the 25th. One snapshot is cut, with `truncated: true`, so its nonexistent-thread cases check that the voice says "not among your most recent threads" and never "no such thread". Snapshots, labels, and raw outputs stay local. Only the harness, the prefilter, its test on a synthetic fixture, and an aggregate results doc with no real titles go into the repo.
 
 **The labels** come from an Opus labeler that sees the snapshots and the slice table and never sees a picker output. The known-failure cases are written first, by hand, from the list below. The labels are committed to the local eval directory before the first picker run, and the PM reads a sample of them first.
 
@@ -556,7 +625,8 @@ The PM's Twin B eval brief runs this eval on branch `voice/twinb-pick`, before t
 | By state or recency ("the one waiting on me") | 20 | one id |
 | Back-reference to a voice-launched task ("how's that going") | 15 | one id, resolved from the task record |
 | Ambiguous, two or more plausible | 25 | ask, with the candidate set |
-| A thread that does not exist | 15 | none |
+| A thread that does not exist | 15 | none, worded by `truncated` |
+| A settled thread older than the 25 newest settled | 10 | one id |
 | No subject at all ("how's it going?") with no recent voice task | 10 | ask |
 | A same-title thread outside the allowed projects | 10 | none, or the allowed one |
 
@@ -565,7 +635,7 @@ The PM's Twin B eval brief runs this eval on branch `voice/twinb-pick`, before t
 **The pass bar** (guess at every number):
 
 - Zero wrong-thread picks in the ambiguous, nonexistent, and outside-project slices.
-- At most 2 wrong-thread picks across all 180 cases.
+- At most 2 wrong-thread picks across all 190 cases.
 - At least 90% correct on the unambiguous slices.
 - Unnecessary questions on at most 10% of cases.
 - p95 latency at or under 700 ms.
@@ -579,6 +649,7 @@ The eval must catch these known failures:
 - "The PR thread", when no title or state mentions a PR, must say none and must not pick the newest thread.
 - Recency words, when two threads just finished, must ask.
 - A deleted thread, absent from the list, must say none.
+- An older settled thread, past the 25 newest settled, must be found, not answered as none.
 - A back-reference after a reconnect must resolve through the task record, not through the model.
 
 **What the metric cannot see.** It scores the pick on frozen lists, not the spoken summary that follows, and not live lists that change while Mason talks. It uses typed utterances, so ASR errors on thread titles are out of scope.
@@ -624,7 +695,8 @@ Verification after revision: I re-read every load-bearing citation in this doc a
 - We accept `creationSource: "server"` and `createdBy: "user"` on voice launches in exchange for no contracts edit. The voice's task records, not a T3 field, record which threads the voice started.
 - We accept a voice-owned JSON protocol beside T3's Effect RPC, in exchange for Python never parsing T3 wire shapes. Python has exactly one way in.
 - We accept an extractive result summary, the first two sentences of T3's own result for the settled run, over a model-written one. It is less fluent, and it cannot invent.
-- We accept one settle read per terminal run and per later subagent or provider-thread event while a check is outstanding. That costs a few reads per run, in exchange for never saying "done" from a stale event (inferred cost).
+- We accept a settle read after every `run.updated`, `subagent.updated`, and `provider-thread.updated`, coalesced to one in flight per watch, plus a 60 s follow-up wait while a terminal run is unsettled. That costs a few reads per run, in exchange for never saying "done" from a stale event and never missing a settle that stores no event (inferred cost).
+- We accept reading every active shell for each Twin B listing, more than the trimmed snapshot that T3's own clients read, in exchange for a list from which "no such thread" is true. Unit 3 measures the read on a copy of real data.
 - We accept that a request with no confident project asks Mason instead of handing it to a frontier agent to work out. That costs a turn.
 
 ## Alternatives considered
@@ -665,20 +737,21 @@ Each question carries a recommendation. The design proceeds on the recommendatio
 - **Event order within a turn is inferred.** Whether an approval's turn item is stored before its runtime request decides whether `needs_you` gets the real prompt or the fixed line. The first unit records it.
 - **The launch-policy copy can drift.** The parity test catches the drift, and the fallback is in-process MCP for launch.
 - **Reads can write.** `getThreadRecords` first runs `ensureLegacyTranscript`, which can import a v1 transcript (`ThreadManagementService.ts:655-677`, `:1742-1746`, measured). `readThread` calls it once before its read-only transaction. If the second call inside `getThreadRecords` tries to write within that transaction, the unit test fails and `readThread` moves the records read out of the transaction, reading the sequence first.
-- **The settle read uses `waitForThread` with a 1 ms timeout.** That still opens and closes event subscriptions on each check (inferred from `ThreadManagementService.ts:1076-1116`). Unit 2 counts the reads per run, and if they cost too much it calls the same evaluation without the wait.
+- **The settle read uses `waitForThread` with a 1 ms timeout.** That still opens and closes event subscriptions on each check (inferred from `ThreadManagementService.ts:1077-1116`). Unit 2 counts the reads per run, and if they cost too much it calls the same evaluation without the wait.
+- **An accepted send replayed after its events were pruned is untested.** The launch path has a known failure there. `sendToThread` finds its message by `messageId` after the dispatch (`ThreadManagementService.ts:942-945`), but whether the dispatch itself replays cleanly with pruned events is unverified. Unit 6 tests it, and if it fails, send answers from the message's projection when its receipt is accepted, as launch does.
 - **The CLI mint and a running server share SQLite.** Mint with the server stopped until concurrent writes are verified.
 
 ## Next implementation steps
 
 Each unit is one small PR into `voice/main` that ends in a check. A unit starts only after the units it depends on have merged. Units 1 to 6 live in `apps/server/src/voiceSeam/` and do not mount the route until unit 4, so `server.ts` stays untouched until then.
 
-1. **The distiller and the event path.** Write `events.ts`, the pure map from a stored event to a signal, and `watch.ts`, with the two prune checks, the separate replay read, the live follow from the high-water, and the resubscribe loop that unwraps `LiveStreamBufferError`. Record stored events from Replay (dev) turns into `fixtures/`: a plain reply, an approval, a user-input question, an interrupted run, a failed run, and a run that starts a subagent. Proof: `events.test.ts` is a table over those fixtures, and its first rows record the event order the risks name. `watch.test.ts` covers a cursor below the floor that resyncs before the replay, a prune that lands during the replay read and resyncs after it, a wrapped buffer error that resubscribes from `lastSeen` with no duplicate and no gap, and a cursor at the high-water that replays nothing. Depends on nothing.
-2. **The settle read and the run result.** Write `outcome.ts`: the `waitForThread` check and `subagentResultForRun` over records narrowed by run id. Wire it into the watch as the only source of `done`. Proof: `outcome.test.ts` over fixtures shows an old run's terminal event replayed while a newer run is active emits no `done`, a parent emits `done` only after its subagent settles, a failed run's result is its error text, and a message with two finals yields one `reply`. Depends on 1.
-3. **List and read.** Write `listThreads` and `readThread`, with the one read-only transaction, the lineage and project filter, `deriveActivity` from the shell row, and the pending join. Proof: `VoiceSeam.test.ts` on a seeded projection shows a subagent child and a delegated thread are absent from the list and read as `not_found`, every runtime request kind maps as the table says, and a watch from a read's `asOfSequence` misses no event committed after the read. Depends on 1 and 2.
-4. **The route, the protocol, and the mount.** Write `route.ts`, `protocol.ts`, `ceiling.ts`, and the two `server.ts` lines, and add the `server.ts` entry to `docs/voice/seam.md`. Proof: `route.test.ts` shows the seam answers 404 with no `voice-seam.json`, refuses a session without subject `voice`, and closes the socket when the session is revoked. `protocol.test.ts` fails when `voice/t3/seam.schema.json` is stale. `voice/ci/check_seam.py` passes. Depends on 3.
-5. **Launch.** Write `resolveLaunchPolicy`, the clamp, and the receipt gate. Proof: the parity test against `t3_thread_launch` compares model, runtime mode, interaction mode, and workspace. A launch whose receipt exists never calls `ThreadLaunchService.launch`, even with its events pruned, and a deleted thread answers `gone`. Depends on 4.
-6. **Send and interrupt.** Write the send preflight and `DispatchModeLimit`, and interrupt without it. Proof: on a thread raised above the ceiling, send refuses with `above_ceiling` and no worktree restore runs, while interrupt succeeds. A second interrupt with the same request id answers `nothing_running`. Depends on 5.
+1. **The distiller and the event path.** Write `events.ts`, the pure map from a stored event to a signal, with a settle-check flag on every `run.updated`, `subagent.updated`, and `provider-thread.updated`. Write `watch.ts`, with the two prune checks, the replay measured against both the count and the payload-byte budgets before it is read, the live follow from the high-water, the resubscribe loop that unwraps `LiveStreamBufferError`, the per-watch `reply` dedupe on `messageId`, and a settle hook that runs one check at a time, coalesces triggers, and runs once after a replay batch. Until unit 2, the hook emits nothing. Record stored events from Replay (dev) turns into `fixtures/`: a plain reply, an approval, a user-input question, an interrupted run, a failed run, and a run that starts a subagent. Proof: `events.test.ts` is a table over those fixtures, and its first rows record the event order the risks name. `watch.test.ts` covers a cursor below the floor that resyncs before the replay, a prune that lands during the replay read and resyncs after it, a wrapped buffer error that resubscribes from `lastSeen` with no duplicate and no gap, a replay over 1 MiB of payload that resyncs, and a cursor at the high-water that replays nothing. Depends on nothing.
+2. **The settle read and the run result.** Write `outcome.ts`: the `waitForThread` check, the 60 s follow-up wait, and `subagentResultForRun` over `resultRun`'s records. Wire it into the settle hook as the only source of `done`. Proof: `outcome.test.ts` over fixtures shows an old run's terminal event replayed while a newer run is active emits no `done`, a parent emits `done` only after its subagent settles and with `runId` equal to `resultRun.id`, a failed run's result is its error text, a rolled-back run emits `done` with status `rolled_back`, and a message with two finals yields one `reply`. `watch.test.ts` gains the cursor case: a reconnect replay whose settle read sees a later `needs_you` emits `done` with the trigger's `sequence`, and a re-watch from the last cursor event still delivers that `needs_you`. Depends on 1.
+3. **List and read.** Write `listThreads` and `readThread`, with the one read-only transaction, the lineage and project filter, `deriveActivity` from the shell row, and the pending join. Proof: `VoiceSeam.test.ts` on a seeded projection shows a subagent child and a delegated thread are absent from the list and read as `not_found`, a 26th-newest settled thread is listed, a cut list sets `total` and `truncated`, every runtime request kind maps as the table says, and a watch from a read's `asOfSequence` misses no event committed after the read. Depends on 1 and 2.
+4. **The route, the protocol, and the mount.** Write `route.ts`, `protocol.ts`, `ceiling.ts`, and the two `server.ts` lines, and add the `server.ts` entry to `docs/voice/seam.md`. The handler table has all seven entries, with `launch`, `send`, and `interrupt` answering `unavailable`. Proof: `route.test.ts` shows the seam answers 404 with no `voice-seam.json`, refuses a session without subject `voice`, and closes the socket when the session is revoked. `protocol.test.ts` fails when `voice/t3/seam.schema.json` is stale. `voice/ci/check_seam.py` passes. Depends on 3.
+5. **Launch.** Write `resolveLaunchPolicy`, the clamp, the seam's own `CommandReceiptStoreV2` layer, and the receipt gate, and replace the `launch` stub. Proof: the parity test against `t3_thread_launch` compares model, runtime mode, interaction mode, and workspace. A launch whose receipt exists never calls `ThreadLaunchService.launch`, even with its events pruned. Each row of the receipt table answers as it says: a rejected launch receipt answers `refused` with the recorded error, a rejected initial message answers `refused` with the thread id, and only an accepted launch whose thread was deleted answers `gone`. Depends on 4.
+6. **Send and interrupt.** Write the send receipt gate, the preflight, and `DispatchModeLimit`, and interrupt without it, replacing the last two stubs. Proof: on a thread raised above the ceiling, send refuses with `above_ceiling` and no worktree restore runs, while interrupt succeeds. A send retried with the same request id returns the same `messageId` and run, a rejected send receipt answers `refused`, and an accepted send replayed with its events pruned still answers. A second interrupt with the same request id answers `nothing_running`. Depends on 5.
 7. **The Python client.** Write `voice/t3/seam.py` and `voice/t3/types.py`. Proof: a Python test checks `types.py` against the golden schema, and another drives the client against a fake server that replays frames recorded from unit 4's route test. Depends on 4.
-8. **The task service and the journal.** Write `voice/t3/journal.py` and `voice/live/t3_tasks.py`, with ULID request ids, the journal-before-call order, cursors, reply dedupe, and evidence on every update. Proof: unit tests show a crash between `launch` and `journal.started` replays on restart and resumes from a read, two turns never share a request id, "done" comes only from a `done` event, and the saved interrupt result survives a retry. Depends on 7.
+8. **The task service and the journal.** Write `voice/t3/journal.py` and `voice/live/t3_tasks.py`, with ULID request ids, the journal-before-call order, cursors, reply dedupe, and evidence on every update. Proof: unit tests show a crash between `launch` and `journal.started` replays on restart and resumes from a read, two turns never share a request id, "done" comes only from a `done` event, a `done` never moves the cursor, a `refused` launch is never spoken as deleted, and the saved interrupt result survives a retry. Depends on 7.
 9. **The pickers.** Wire in `voice/t3/pick/` from the Twin B eval PR, and run the 30-utterance Twin A project-pick eval. Proof: the Twin B results doc, `docs/voice/twinb-pick-eval.md`, and a matching Twin A results table. Until Twin A passes, `pick_project` uses only the `spokenNames` match. Depends on 8 and on the Twin B eval.
 10. **One integrated pass.** Run the fork's dev server with its own T3 home and the Replay (dev) provider, and drive both twins with synthetic audio through the live voice server. Proof: a run transcript where each spoken line carries its evidence sequence and the threads appear in the web client. Mason's live call then closes the milestone. Depends on 1 to 9.
