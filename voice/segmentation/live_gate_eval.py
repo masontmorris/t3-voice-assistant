@@ -31,7 +31,7 @@ from voice.segmentation.gate import PLAN_A, SCORED, scores
 from voice.segmentation.hybrid import HybridSegmenter
 from voice.segmentation.intent import utterance_intent
 from voice.tools import registry
-from voice.tools.registry import NONE, TOOL_THRESHOLD, ToolCall
+from voice.tools.registry import GENERAL, NONE, TOOL_THRESHOLD, ToolCall
 
 ROOT = Path(__file__).resolve().parent
 EVAL = ROOT / "eval" / "live_gate.jsonl"
@@ -134,9 +134,14 @@ def weakest(task):
 
 
 def current_rule(task):
-    """The gate as shipped: the weakest answer against the bar for that task."""
+    """The gate as shipped on a final transcript: the weakest answer against the bar for that task, or a read-only
+    task's firm answer naming one registered tool."""
     score = weakest(task)
-    return score is not None and score >= PLAN_A.bar(task["side_effect"])
+    if score is not None and score >= PLAN_A.bar(task["side_effect"]):
+        return True
+    tool = task.get("tool") or {}
+    return (not task["side_effect"] and tool.get("tool") not in (None, NONE, GENERAL)
+            and (tool.get("confidence") or 0) >= PLAN_A.named_tool_threshold)
 
 
 def kind_in_score(task):

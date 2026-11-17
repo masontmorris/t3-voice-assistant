@@ -406,7 +406,7 @@ class Orchestrator:
         elif task.side_effect and not self.is_final and self.side_effects_wait_for_final:
             status, reason = Status.READY, "side effect held for the final transcript"
         elif self.gate is not None:
-            verdict = self.gate(decision)
+            verdict = self.gate(decision, self.is_final)
             self._log(task, "gate", passed=verdict.passed, score=round(verdict.score, 4), weakest=verdict.weakest,
                       threshold=verdict.threshold)
             status, reason = (Status.DISPATCHED if verdict.passed else Status.HELD), verdict.reason()

@@ -193,6 +193,15 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
         note, = self.notes()
         self.assertIn('they heard only the start of your last reply, "It\'s sunny in Denver"', note)
 
+    def test_a_stop_while_the_lookup_runs_says_it_is_running_and_names_no_old_value(self):
+        """Demo call 20261117-013438, turn 004: the stop note told the model nothing gave it the earlier Raleigh
+        forecast, and it then said it didn't know the weather in Raleigh for four turns."""
+        found = {"ungrounded": ["weekday Tuesday", "date November 17", "number 59"]}
+        note = prototype.continue_note("Why don't scientists trust atoms", found, running=True)
+        self.assertIn("because the lookup is still running and has no answer yet", note)
+        self.assertNotIn("nothing gave you", note)
+        self.assertNotIn("59", note)
+
     def test_heard_prefix_is_never_past_the_last_word_matched(self):
         self.assertEqual(prototype.heard_prefix("The weather in Raleigh today is a high of 57 degrees.",
                                                 "the weather in raleigh today"), "The weather in Raleigh today")

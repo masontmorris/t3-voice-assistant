@@ -143,7 +143,9 @@ class Agent:
         if choice is None:
             raise Failed("The lookup got no usable answer.", detail)
         if choice[0] == "cannot":
-            raise Failed("The lookup can't answer that with the tools it has.", {**detail, "reason": choice[1]})
+            reason = spoken(choice[1])
+            raise Failed(f"The lookup can't answer that. Its reason: {reason}" if reason
+                         else "The lookup can't answer that with the tools it has.", {**detail, "reason": choice[1]})
         if choice[0] == "answer":
             answer = spoken(choice[1])
             if not answer:

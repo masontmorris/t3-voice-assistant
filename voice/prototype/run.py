@@ -404,10 +404,14 @@ def chosen_places(text, sources, running):
 
 def continue_note(heard, found, running):
     """The note after a reply stopped part way. It quotes what the person heard, because asked again from the top
-    the model would say that part twice, and it names a value that stopped the rest so the model drops it."""
+    the model would say that part twice, and it names a value that stopped the rest so the model drops it.
+
+    While a lookup runs, the note says so and names no value, as `retry_note` does. A value stopped then is an earlier
+    result said for the new lookup, and "nothing gave you" it was false: measured on demo call 20261117-013438, turn
+    004, the model took it as having no forecast and said "I don't know the weather in Raleigh" for four turns."""
     values = [fact.split(" ", 1)[1] for fact in found.get("ungrounded", ())]
-    why = (f", because nothing gave you {', '.join(values)}" if values
-           else ", because the lookup is still running and has no answer yet" if running else "")
+    why = (", because the lookup is still running and has no answer yet" if running
+           else f", because nothing gave you {', '.join(values)}" if values else "")
     return (f"{NOTE_OPEN}they heard only the start of your last reply, \"{heard}\", and not the rest{why}. Go on "
             "from there in one short sentence, as \"I\", talking to them, without saying again what they heard.]")
 

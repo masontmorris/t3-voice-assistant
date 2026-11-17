@@ -9,6 +9,7 @@ import unittest
 
 from voice.segmentation.contract import Kind, Readiness, SegmentDecision
 from voice.segmentation.gate import PLAN_A, Gate
+from voice.tools.registry import ToolChoice
 
 
 def decision(**confidence):
@@ -47,3 +48,25 @@ class GateScoreTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class NamedToolTest(unittest.TestCase):
+    """Demo call 20261117-013438, turn 011: "check the weather in Charlotte, Nuxunda?" read `ready` at 0.33."""
+
+    def charlotte(self, tool="weather", tool_confidence=0.90, side_effect=False):
+        return SegmentDecision("s1", Kind.REQUEST, Readiness.DISPATCH_NOW, None, None, side_effect,
+                               {"ready": 0.33, "side_effect": 0.97},
+                               ToolChoice(tool, tool_confidence, {"place": "Charlotte", "when": None}))
+
+    def test_a_firm_named_tool_runs_a_read_only_task_on_the_final_transcript(self):
+        verdict = PLAN_A(self.charlotte(), is_final=True)
+        self.assertTrue(verdict.passed)
+        self.assertEqual(verdict.reason(), "gate: tool confidence 0.90 reached 0.70")
+
+    def test_during_speech_the_weak_readiness_still_holds_it(self):
+        self.assertFalse(PLAN_A(self.charlotte()).passed)
+
+    def test_the_general_worker_a_weak_tool_answer_or_a_side_effect_is_still_held(self):
+        self.assertFalse(PLAN_A(self.charlotte(tool="agent"), is_final=True).passed)
+        self.assertFalse(PLAN_A(self.charlotte(tool_confidence=0.60), is_final=True).passed)
+        self.assertFalse(PLAN_A(self.charlotte(side_effect=True), is_final=True).passed)

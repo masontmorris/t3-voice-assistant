@@ -153,7 +153,8 @@ class AgentTest(unittest.TestCase):
         cases = [("Sure, here is the weather!", "The lookup got no usable answer."),
                  ('{"tool": "weather", "place": ', "The lookup got no usable answer."),
                  ('{"answer": "  "}', "The lookup got no usable answer."),
-                 ('{"cannot": "needs your calendar"}', "The lookup can't answer that with the tools it has.")]
+                 ('{"cannot": "needs your calendar"}', "The lookup can't answer that. Its reason: needs your calendar"),
+                 ('{"cannot": " "}', "The lookup can't answer that with the tools it has.")]
         for reply, summary in cases:
             with self.subTest(reply):
                 result, fetch = run(FakeChat(reply), "Check my calendar for Friday")
