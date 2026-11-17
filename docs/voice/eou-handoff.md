@@ -1,6 +1,6 @@
 # End of the utterance: the task gate and LFM3's authority
 
-**Live calls differ from this design.** By Mason's decision of 2026-11-17, live calls (`voice/live/server.py`, `final_decider=True`) end each utterance with the decider's own final call, and LFM3 opens no tool turn. `gated` remains in the prototype for offline evaluation.
+**Live calls differ from this design.** Mason decided on 2026-11-17 (about 02:55 ET, when he chose option 3) that LFM3 takes no actions in v1: it is the voice and conversation layer only. An LFM3 tool turn at the end of an utterance would be an action. So live calls (`voice/live/server.py`, `final_decider=True`) end each utterance with the decider's own final call, and LFM3 opens no tool turn. `gated` remains in the prototype for offline evaluation.
 
 Mason set the design on 2026-11-16. While the person speaks, the decider segments and classifies, and a task gate decides whether each task may run. When the person stops, there is no decider call, and LFM3 has authority: "lfm has authority when an utterance is done". This doc measures that design, `gated`, against the two earlier end-of-utterance modes on the same audio. It also explains where the first handoff run lost its tasks. Each claim says whether it is measured, inferred, or a guess. The measured numbers come from one run per mode over 14 clips: Mason's 10 recordings and Stage 1's 4 synthetic clips. Every run used the GPU lease and `quiet_run.py`, LFM3 at `-c 32768`, real weather and time lookups from #13, and a live call for every decider request.
 
