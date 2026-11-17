@@ -13,6 +13,8 @@ from unittest import mock
 from voice.t3 import fork_env
 from voice.t3.fork_env import EnvPaths
 
+REPO = Path(__file__).resolve().parents[2]
+
 
 def make_paths(root: Path) -> EnvPaths:
     """Isolated home and sandbox under a temp dir, never the real voice home."""
@@ -483,6 +485,16 @@ class SeamConfigTest(unittest.TestCase):
                 set(doc["operations"]), {"list", "read", "watch", "launch", "send", "interrupt"}
             )
             self.assertEqual([p["projectId"] for p in doc["projects"]], ["proj_sandbox"])
+            self.assertEqual(doc["workspace"], {"proj_sandbox": {"type": "root"}})
+
+    def test_the_ceiling_has_the_keys_the_seam_schema_decodes(self):
+        schema = json.loads((REPO / "voice" / "t3" / "seam.schema.json").read_text(encoding="utf-8"))
+        config = schema["$defs"]["VoiceSeamConfig"]
+        doc = fork_env.seam_config_document("proj_sandbox")
+        self.assertLessEqual(set(doc), set(config["properties"]))
+        self.assertLessEqual(set(config["required"]), set(doc))
+        project_ids = {project["projectId"] for project in doc["projects"]}
+        self.assertLessEqual(set(doc["workspace"]), project_ids)
 
 
 if __name__ == "__main__":

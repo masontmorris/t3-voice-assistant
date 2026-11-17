@@ -441,11 +441,16 @@ def ensure_project(repo: Path, home: Path, sandbox: Path, stored_id: str | None)
 
 
 def seam_config_document(project_id: str) -> dict:
-    """Ceiling document. Unit 4 owns this schema, so this stays minimal."""
+    """Ceiling document, in the shape VoiceSeamConfig in voice/t3/seam.schema.json decodes.
+
+    The sandbox launches in its root: a worktree needs a base ref, and the sandbox's branch name
+    depends on the machine's git config.
+    """
     return {
         "maxRuntimeMode": "auto-accept-edits",
         "operations": list(SEAM_OPERATIONS),
         "projects": [{"projectId": project_id, "spokenNames": ["sandbox", "voice sandbox"]}],
+        "workspace": {project_id: {"type": "root"}},
         "maxWatches": 16,
     }
 

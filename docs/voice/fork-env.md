@@ -46,4 +46,4 @@ The home holds `fork-env.json` (port, sandbox project id, server pid and creatio
 
 ## Ceiling
 
-`voice-seam.json` caps the voice at `auto-accept-edits` for the sandbox project only. Its schema still belongs to unit 4, so this file stays minimal until that unit merges.
+`voice-seam.json` caps the voice at `auto-accept-edits` for the sandbox project only, and launches there run in the sandbox's root. `VoiceSeamConfig` in `apps/server/src/voiceSeam/ceiling.ts` defines the file, and `voice/t3/seam.schema.json` carries the same schema for Python. Setup writes the file once and never overwrites it, so a home set up earlier keeps its old file. The `workspace` and `maxWatches` keys are optional, so that file still loads. Each new socket reads the file again. A missing file, or one that does not decode, answers 404 and turns the seam off.
