@@ -67,6 +67,14 @@ class GateTest(unittest.TestCase):
         self.assertIn("cancelled", completed.stdout)
         self.assertIn("hook threw", completed.stdout)
 
+    def test_node_skips_must_be_in_the_baseline(self) -> None:
+        if not shutil.which("node"):
+            self.skipTest("node is not on PATH")
+        write(self.repo, "voice/bot/skipped.test.mjs", 'import { it } from "node:test"; it.skip("missing coverage", () => {});')
+        completed = run_gate(self.repo)
+        self.assertEqual(completed.returncode, 1, completed.stdout + completed.stderr)
+        self.assertIn("node", completed.stdout)
+
     def test_a_skip_not_in_the_skip_baseline_fails_the_gate(self) -> None:
         self.skipping_module()
 
