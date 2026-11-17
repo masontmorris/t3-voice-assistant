@@ -5,6 +5,7 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2StoredEvent,
   type ProjectId,
+  RuntimeRequestId,
   type ThreadId,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
@@ -25,8 +26,10 @@ import {
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
+import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import { distill } from "./events.ts";
 import { FIXTURES } from "./testFixtures.ts";
+import { checksOnLiveClock, realWatch, seamLayer, writer } from "./testLayer.ts";
 import * as Watch from "./watch.ts";
 
 const layer = Layer.mergeAll(
@@ -88,6 +91,9 @@ const pruneThrough = Effect.fn("test.pruneThrough")(function* (sequence: number)
   `;
 });
 
+/** A check that never settles, for cases about the event path alone. */
+const settleNothing: Watch.SettleCheck = () => Effect.succeed({ kind: "nothing" });
+
 type Threads = Watch.WatchSources["threads"];
 type EventStoreSource = Watch.WatchSources["eventStore"];
 
@@ -119,7 +125,7 @@ const sources = Effect.fn("test.sources")(function* (overrides?: {
     threads: overrides?.threads?.(threads) ?? threads,
     eventStore: overrides?.eventStore?.(eventStore) ?? eventStore,
     isProjectAllowed: overrides?.isProjectAllowed ?? (() => true),
-    settle: overrides?.settle ?? Watch.settleNothing,
+    settle: overrides?.settle ?? settleNothing,
   } satisfies Watch.WatchSources;
 });
 
@@ -538,16 +544,32 @@ it.effect("applies a follow-up wait's answer on the watch fiber and keeps one wa
   ).pipe(Effect.provide(layer)),
 );
 
-it.effect("ends with gone when a settle check finds the thread gone", () =>
+it.effect.each([
+  { case: "finds the thread gone", answer: { kind: "gone" }, reason: "gone" },
+  {
+    case: "cannot read the thread",
+    answer: { kind: "unavailable", cause: "read failed" },
+    reason: "unavailable",
+  },
+  {
+    case: "forks a follow-up wait that dies",
+    answer: { kind: "follow_up", wait: Effect.die("wait died") },
+    reason: "unavailable",
+  },
+] satisfies ReadonlyArray<{
+  case: string;
+  answer: Watch.SettleAnswer;
+  reason: Watch.WatchEndReason;
+}>)("ends with $reason when a settle check $case", ({ answer, reason }) =>
   Effect.gen(function* () {
     const replayed = yield* writeFixture(0);
-    const watchSources = yield* sources({ settle: () => Effect.succeed({ kind: "gone" }) });
+    const watchSources = yield* sources({ settle: () => Effect.succeed(answer) });
     const items = yield* Watch.make(watchSources)({ threadId, afterSequence: 0 }).pipe(
       Stream.runCollect,
     );
     assert.deepStrictEqual(Array.from(items), [
       ...signalsOf(replayed),
-      { type: "watch_ended", threadId, reason: "gone" },
+      { type: "watch_ended", threadId, reason },
     ]);
   }).pipe(Effect.provide(layer)),
 );
@@ -846,4 +868,307 @@ it.effect.each([
       );
     }),
   ).pipe(Effect.provide(layer)),
+);
+
+const isDone = (item: Watch.WatchItem) => item.type === "done";
+
+/**
+ * A need that does not hold its run, cut out of its fixture so a test can commit it after the
+ * run's terminal run.updated. `end` is the stored event that ends the need, a settle trigger.
+ */
+interface MovedNeed {
+  readonly name: string;
+  readonly before: ReadonlyArray<OrchestrationV2StoredEvent>;
+  readonly need: ReadonlyArray<OrchestrationV2DomainEvent>;
+  readonly after: ReadonlyArray<OrchestrationV2StoredEvent>;
+  readonly expected: Pick<Watch.WatchNeedsYou, "kind" | "prompt">;
+}
+
+const moveNeed = (
+  name: string,
+  fixture: ReadonlyArray<OrchestrationV2StoredEvent>,
+  isNeed: (event: OrchestrationV2DomainEvent) => boolean,
+  isEnd: (event: OrchestrationV2DomainEvent) => boolean,
+  expected: MovedNeed["expected"],
+): MovedNeed => {
+  const rest = fixture.filter((stored) => !isNeed(stored.event));
+  const terminal = rest.findIndex(
+    (stored) => stored.event.type === "run.updated" && stored.event.payload.status === "completed",
+  );
+  const end = rest.findIndex((stored) => isEnd(stored.event));
+  return {
+    name,
+    before: rest.slice(0, terminal + 1),
+    need: fixture.filter((stored) => isNeed(stored.event)).map((stored) => stored.event),
+    after: rest.slice(terminal + 1, end + 1),
+    expected,
+  };
+};
+
+const linkCardNeed = moveNeed(
+  "a link card",
+  FIXTURES.linkCard,
+  (event) =>
+    event.type === "turn-item.updated" &&
+    event.payload.type === "link_request" &&
+    event.payload.status === "waiting",
+  (event) =>
+    event.type === "turn-item.updated" &&
+    event.payload.type === "link_request" &&
+    event.payload.status !== "waiting",
+  { kind: "in_app", prompt: "It needs something from you in the app." },
+);
+
+const messageQuestionNeed = moveNeed(
+  "a message-capability question",
+  FIXTURES.messageQuestion,
+  (event) =>
+    (event.type === "turn-item.updated" &&
+      event.payload.type === "user_input_request" &&
+      event.payload.status === "waiting") ||
+    (event.type === "runtime-request.updated" && event.payload.status === "pending"),
+  (event) =>
+    event.type === "turn-item.updated" &&
+    event.payload.type === "user_input_request" &&
+    event.payload.status !== "waiting",
+  { kind: "question", prompt: "Which fixture turn should run next?" },
+);
+
+const lastTriggerOf = (stored: ReadonlyArray<OrchestrationV2StoredEvent>) =>
+  stored.findLast((event) => distill(event)?.settleCheck === true)!.sequence;
+
+it.effect.each([linkCardNeed, messageQuestionNeed])(
+  "holds done while $name stored after the last emitted event still waits",
+  (moved) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const threadId = moved.before[0]!.event.threadId;
+        yield* write(moved.before.map((event) => event.event));
+        const commit = yield* writer;
+        let asked: ReadonlyArray<OrchestrationV2StoredEvent> = [];
+        let first = true;
+        const watch = yield* realWatch(
+          { threadId, afterSequence: 0 },
+          {
+            // The need commits after the watch emitted its last event and before the check reads.
+            beforeCheck: () =>
+              Effect.suspend(() => {
+                if (!first) return Effect.void;
+                first = false;
+                return commit(moved.need).pipe(
+                  Effect.map((stored) => {
+                    asked = stored;
+                  }),
+                );
+              }),
+          },
+        );
+        const settledRun = yield* watch.nextCheck;
+        const needs = yield* watch.until((item) => item.type === "needs_you");
+        const ended = yield* write(moved.after.map((event) => event.event));
+        const rest = yield* watch.until(isDone);
+        const atEnd = yield* watch.nextCheck;
+        const done = rest.at(-1) as Watch.WatchDone;
+
+        assert.deepStrictEqual(settledRun.answer, { kind: "nothing" });
+        assert.isFalse(
+          [...needs, ...rest.slice(0, -1)].some(isDone),
+          "no done before the need ends",
+        );
+        assert.deepInclude(needs.at(-1), {
+          ...moved.expected,
+          sequence: asked.findLast((stored) => distill(stored)?.signal?.type === "pending")!
+            .sequence,
+        });
+        assert.strictEqual(done.sequence, lastTriggerOf(ended));
+        assert.strictEqual(atEnd.trigger.sequence, done.sequence);
+        assert.isAtLeast(done.asOfSequence, ended.at(-1)!.sequence);
+      }),
+    ).pipe(Effect.provide(seamLayer)),
+);
+
+/**
+ * Commits `inject` inside the first settle check, after the check's snapshot and before its
+ * re-read: the snapshot reads the thread's sequence first and the re-read second.
+ */
+const injectBetweenSnapshotAndReread = Effect.fn("test.injectBetweenSnapshotAndReread")(function* (
+  inject: ReadonlyArray<OrchestrationV2DomainEvent>,
+) {
+  const commit = yield* writer;
+  let reads: number | null = null;
+  let injected: ReadonlyArray<OrchestrationV2StoredEvent> = [];
+  return {
+    injected: () => injected,
+    beforeCheck: () =>
+      Effect.sync(() => {
+        if (injected.length === 0) reads = 0;
+      }),
+    threads: (
+      real: ThreadManagementService.ThreadManagementService["Service"],
+    ): ThreadManagementService.ThreadManagementService["Service"] => ({
+      ...real,
+      getThreadEventSequence: (id) =>
+        Effect.suspend(() => {
+          if (reads === null || ++reads < 2) return real.getThreadEventSequence(id);
+          reads = null;
+          return commit(inject).pipe(
+            Effect.tap((stored) =>
+              Effect.sync(() => {
+                injected = stored;
+              }),
+            ),
+            Effect.andThen(real.getThreadEventSequence(id)),
+          );
+        }),
+    }),
+  };
+});
+
+it.effect.each([linkCardNeed, messageQuestionNeed])(
+  "sends no done when $name commits between the check's snapshot and its re-read",
+  (moved) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const threadId = moved.before[0]!.event.threadId;
+        yield* write(moved.before.map((event) => event.event));
+        const gate = yield* injectBetweenSnapshotAndReread(moved.need);
+        const watch = yield* realWatch(
+          { threadId, afterSequence: 0 },
+          { beforeCheck: gate.beforeCheck, threads: gate.threads },
+        );
+        const gated = yield* watch.nextCheck;
+        const needs = yield* watch.until((item) => item.type === "needs_you");
+        const caughtUp = yield* watch.nextCheck;
+        const asked = gate.injected();
+
+        assert.deepStrictEqual(gated.answer, {
+          kind: "catch_up",
+          atSequence: asked.at(-1)!.sequence,
+        });
+        assert.isFalse(needs.some(isDone));
+        assert.deepInclude(needs.at(-1), {
+          ...moved.expected,
+          sequence: asked.findLast((stored) => distill(stored)?.signal?.type === "pending")!
+            .sequence,
+        });
+        assert.deepStrictEqual(caughtUp, { trigger: gated.trigger, answer: { kind: "nothing" } });
+
+        const ended = yield* write(moved.after.map((event) => event.event));
+        const rest = yield* watch.until(isDone);
+        assert.strictEqual((rest.at(-1) as Watch.WatchDone).sequence, lastTriggerOf(ended));
+      }),
+    ).pipe(Effect.provide(seamLayer)),
+);
+
+it.effect("sends done from the catch-up when an unrelated event commits before the re-read", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const stored = yield* write(PLAIN.map((event) => event.event));
+      const gate = yield* injectBetweenSnapshotAndReread([sentinelReply("after-snapshot")]);
+      const watch = yield* realWatch(
+        { threadId, afterSequence: 0 },
+        { beforeCheck: gate.beforeCheck, threads: gate.threads },
+      );
+      const gated = yield* watch.nextCheck;
+      const items = yield* watch.until(isDone);
+      const caughtUp = yield* watch.nextCheck;
+      const unrelated = gate.injected()[0]!;
+      const done = items.at(-1) as Watch.WatchDone;
+
+      assert.deepStrictEqual(gated.answer, { kind: "catch_up", atSequence: unrelated.sequence });
+      assert.strictEqual(caughtUp.answer.kind, "done");
+      assert.deepInclude(items.at(-2), { type: "reply", sequence: unrelated.sequence });
+      assert.strictEqual(done.sequence, stored.at(-1)!.sequence);
+      assert.isAtLeast(done.asOfSequence, unrelated.sequence);
+    }),
+  ).pipe(Effect.provide(seamLayer)),
+);
+
+/** A dynamic tool call the agent's provider asked one second after the link card. */
+const dynamicToolCall = (status: "pending" | "resolved"): OrchestrationV2DomainEvent => {
+  const request = FIXTURES.linkCard.find(
+    (stored) => stored.event.type === "runtime-request.updated",
+  )!.event;
+  if (request.type !== "runtime-request.updated") throw new Error("no runtime request");
+  const createdAt = DateTime.add(request.payload.createdAt, { seconds: 1 });
+  return {
+    ...request,
+    id: EventId.make(`dynamic-tool-call-${status}`),
+    payload: {
+      ...request.payload,
+      id: RuntimeRequestId.make("dynamic-tool-call"),
+      kind: "dynamic_tool_call",
+      status,
+      createdAt,
+      resolvedAt: status === "pending" ? null : createdAt,
+    },
+  };
+};
+
+it.effect("holds done while a dynamic tool call hides a waiting link card, and after it ends", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const threadId = LINK_UNANSWERED[0]!.event.threadId;
+      yield* write([...LINK_UNANSWERED.map((event) => event.event), dynamicToolCall("pending")]);
+      const watch = yield* realWatch({ threadId, afterSequence: 0 });
+      const hidden = yield* watch.nextCheck;
+      const card = yield* watch.until((item) => item.type === "needs_you");
+
+      const resolved = yield* write([dynamicToolCall("resolved")]);
+      const shown = yield* watch.nextCheck;
+      const answer = FIXTURES.linkCard.slice(LINK_UNANSWERED.length);
+      const answered = yield* write(answer.map((event) => event.event));
+      const rest = yield* watch.until(isDone);
+
+      assert.deepStrictEqual(hidden.answer, { kind: "nothing" });
+      assert.deepInclude(card.at(-1), { kind: "in_app" });
+      assert.deepStrictEqual(shown, {
+        trigger: { ...hidden.trigger, sequence: resolved[0]!.sequence },
+        answer: { kind: "nothing" },
+      });
+      assert.isFalse([...card, ...rest.slice(0, -1)].some(isDone));
+      assert.strictEqual((rest.at(-1) as Watch.WatchDone).sequence, lastTriggerOf(answered));
+    }),
+  ).pipe(Effect.provide(seamLayer)),
+);
+
+/** The production watch, run to its first `done` or its end. */
+const firstDone = Effect.fn("test.firstDone")(function* (input: Watch.WatchInput) {
+  const watch = Watch.fromServices({
+    sql: yield* SqlClient.SqlClient,
+    threads: checksOnLiveClock(yield* ThreadManagementService.ThreadManagementService),
+    eventStore: yield* OrchestrationEventStore.OrchestrationEventStore,
+    isProjectAllowed: () => true,
+  });
+  return Array.from(
+    yield* watch(input).pipe(
+      Stream.takeUntil((item) => item.type === "done" || item.type === "watch_ended"),
+      Stream.runCollect,
+    ),
+  );
+});
+
+it.effect("the subscribe check sends done for a settled thread watched from its high-water", () =>
+  Effect.gen(function* () {
+    const stored = yield* write(PLAIN.map((event) => event.event));
+    const items = yield* firstDone({ threadId, afterSequence: stored.at(-1)!.sequence });
+
+    assert.strictEqual(items.length, 1);
+    assert.deepInclude(items[0], { type: "done", sequence: stored.at(-1)!.sequence });
+  }).pipe(Effect.provide(seamLayer)),
+);
+
+it.effect(
+  "the subscribe check sends done for a cursor past the terminal run.updated, with no trigger",
+  () =>
+    Effect.gen(function* () {
+      const stored = yield* write(PLAIN.map((event) => event.event));
+      const terminal = stored.findLast((event) => event.event.type === "run.updated")!;
+      const replayed = stored.filter((event) => event.sequence > terminal.sequence);
+      const items = yield* firstDone({ threadId, afterSequence: terminal.sequence });
+
+      assert.isNotEmpty(replayed);
+      assert.isFalse(replayed.some((event) => distill(event)?.settleCheck === true));
+      assert.deepInclude(items.at(-1), { type: "done", sequence: stored.at(-1)!.sequence });
+    }).pipe(Effect.provide(seamLayer)),
 );

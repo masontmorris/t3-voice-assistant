@@ -11,6 +11,7 @@ import * as Effect from "effect/Effect";
 import * as Queue from "effect/Queue";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
+import type * as SqlClient from "effect/sql/SqlClient";
 import * as Stream from "effect/Stream";
 
 import { LiveStreamBufferError } from "../orchestration-v2/LiveStreamBudget.ts";
@@ -21,6 +22,7 @@ import {
 import type * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import type * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import { distill, type VoiceSignal } from "./events.ts";
+import { makeSettleCheck } from "./outcome.ts";
 import { readNeed, type VoicePending } from "./pending.ts";
 
 export type WatchEndReason = "gone" | "resync" | "not_found" | "unavailable";
@@ -77,6 +79,8 @@ export interface SettleTrigger {
   readonly projectId: ProjectId;
   /** The stored event that asked for the check. */
   readonly sequence: number;
+  /** The run the watch reports on; an earlier run's result is never this run's. */
+  readonly anchorRunId?: RunId;
 }
 
 export type SettleAnswer =
@@ -86,7 +90,8 @@ export type SettleAnswer =
   | { readonly kind: "catch_up"; readonly atSequence: number }
   /** A wait the watch forks; its answer comes back to the watch fiber under the same rules. */
   | { readonly kind: "follow_up"; readonly wait: Effect.Effect<SettleAnswer> }
-  | { readonly kind: "gone" };
+  | { readonly kind: "gone" }
+  | { readonly kind: "unavailable"; readonly cause: unknown };
 
 export type SettleCheck = (trigger: SettleTrigger) => Effect.Effect<SettleAnswer>;
 
@@ -106,6 +111,8 @@ export interface WatchSources {
 export interface WatchInput {
   readonly threadId: ThreadId;
   readonly afterSequence: number;
+  /** The run the voice started or sent to. Without it, `done` reports the thread's latest answer. */
+  readonly runId?: RunId;
 }
 
 type Subscription =
@@ -120,9 +127,6 @@ const OUTBOUND_CAPACITY = 16;
 
 const isLiveStreamBufferError = Schema.is(LiveStreamBufferError);
 
-/** Until the settle read lands, a check answers nothing. */
-export const settleNothing: SettleCheck = () => Effect.succeed({ kind: "nothing" });
-
 export const make =
   (sources: WatchSources) =>
   (input: WatchInput): Stream.Stream<WatchItem> =>
@@ -134,6 +138,8 @@ export const make =
 
         // Watch state. Only the watch fiber touches it, and it survives resubscribes.
         const replied = new Set<MessageId>();
+        // A later check of a settled thread reads the same answer again.
+        const reported = new Set<string>();
         let lastSeen = input.afterSequence;
         let pending: SettleTrigger | null = null;
         let catchUp: { readonly atSequence: number; readonly trigger: SettleTrigger } | null = null;
@@ -144,6 +150,11 @@ export const make =
             if (replied.has(item.messageId)) return Effect.void;
             replied.add(item.messageId);
           }
+          if (item.type === "done") {
+            const key = `${item.runId}:${item.status}`;
+            if (reported.has(key)) return Effect.void;
+            reported.add(key);
+          }
           return Queue.offer(out, item).pipe(Effect.asVoid);
         };
         const unavailable = (cause: unknown) =>
@@ -151,48 +162,66 @@ export const make =
             Effect.as<Subscription>({ kind: "ended", reason: "unavailable" }),
           );
 
-        /** Applies one answer. Reports whether it ended the watch. */
+        /** Applies one answer. Returns the reason it ended the watch, if it did. */
         const apply = Effect.fn("VoiceSeam.watch.applySettle")(function* (
           trigger: SettleTrigger,
           answer: SettleAnswer,
         ) {
           switch (answer.kind) {
             case "nothing":
-              return false;
+              return null;
             case "gone":
-              return true;
+              return "gone" as const;
+            case "unavailable":
+              yield* Effect.logWarning("voice seam settle read is unavailable", {
+                threadId,
+                cause: answer.cause,
+              });
+              return "unavailable" as const;
             case "done":
               if (lastSeen >= answer.done.asOfSequence) yield* emit(answer.done);
               else catchUp = { atSequence: answer.done.asOfSequence, trigger };
-              return false;
+              return null;
             case "catch_up":
               catchUp = { atSequence: answer.atSequence, trigger };
-              return false;
+              return null;
             case "follow_up":
-              if (followUpInFlight) return false;
+              if (followUpInFlight) return null;
               followUpInFlight = true;
               yield* answer.wait.pipe(
+                // A wait that dies would leave the watch thinking it still runs.
+                Effect.catchCause((cause) =>
+                  Effect.succeed<SettleAnswer>({ kind: "unavailable", cause }),
+                ),
                 Effect.flatMap((next) =>
                   Queue.offer(followUps, { kind: "follow_up", trigger, answer: next }),
                 ),
                 Effect.forkScoped,
               );
-              return false;
+              return null;
           }
         });
 
-        /** Runs the checks that are due, one at a time, on this fiber. Reports whether one ended the watch. */
+        /** Runs the checks that are due, one at a time, on this fiber. Returns the reason one ended the watch. */
         const settleDue = Effect.fn("VoiceSeam.watch.settleDue")(function* () {
           while (true) {
             if (catchUp !== null && lastSeen >= catchUp.atSequence) {
               pending ??= catchUp.trigger;
               catchUp = null;
             }
-            if (pending === null) return false;
+            if (pending === null) return null;
             const trigger: SettleTrigger = pending;
             pending = null;
-            if (yield* apply(trigger, yield* sources.settle(trigger))) return true;
+            const ended = yield* apply(trigger, yield* sources.settle(trigger));
+            if (ended !== null) return ended;
           }
+        });
+
+        const triggerAt = (projectId: ProjectId, sequence: number): SettleTrigger => ({
+          threadId,
+          projectId,
+          sequence,
+          ...(input.runId === undefined ? {} : { anchorRunId: input.runId }),
         });
 
         /** Emits a batch of stored events and keeps its last trigger. Reports whether it ended the watch. */
@@ -215,8 +244,7 @@ export const make =
               yield* emit(signal);
               if (signal.type === "gone") return true;
             }
-            if (distilled.settleCheck)
-              pending = { threadId, projectId, sequence: distilled.sequence };
+            if (distilled.settleCheck) pending = triggerAt(projectId, distilled.sequence);
           }
           return false;
         });
@@ -265,10 +293,11 @@ export const make =
           lastSeen = Math.max(lastSeen, highWater);
           // One check after every replay, even an empty one: a catch-up armed by an earlier watch
           // died with it, and a thread that settled while no one watched stores nothing more.
-          pending = { threadId, projectId, sequence: highWater };
-          if (yield* settleDue()) return { kind: "ended", reason: "gone" } as const;
+          pending = triggerAt(projectId, highWater);
+          const settled = yield* settleDue();
+          if (settled !== null) return { kind: "ended", reason: settled } as const;
 
-          let gone = false;
+          let ended: WatchEndReason | null = null;
           const live = sources.threads
             .streamStoredEventsFrom({ threadId, afterSequence: lastSeen })
             .pipe(
@@ -281,22 +310,23 @@ export const make =
             Stream.mapEffect((next) =>
               next.kind === "events"
                 ? scan(next.events, projectId).pipe(
-                    Effect.flatMap((ended) => (ended ? Effect.succeed(true) : settleDue())),
+                    Effect.flatMap((gone) =>
+                      gone ? Effect.succeed<WatchEndReason>("gone") : settleDue(),
+                    ),
                   )
                 : Effect.gen(function* () {
                     followUpInFlight = false;
-                    if (yield* apply(next.trigger, next.answer)) return true;
-                    return yield* settleDue();
+                    return (yield* apply(next.trigger, next.answer)) ?? (yield* settleDue());
                   }),
             ),
-            Stream.takeUntil((ended) => {
-              gone = ended;
-              return ended;
+            Stream.takeUntil((reason) => {
+              ended = reason;
+              return reason !== null;
             }),
             Stream.runDrain,
             Effect.result,
           );
-          if (gone) return { kind: "ended", reason: "gone" } as const;
+          if (ended !== null) return { kind: "ended", reason: ended } as const;
           if (Result.isSuccess(handled)) return yield* unavailable("the live event stream ended");
           const error = handled.failure;
           if (
@@ -335,3 +365,17 @@ export const make =
         return Stream.fromQueue(out);
       }),
     );
+
+/** The watch the seam serves: T3's own services, with the settle read as the only source of `done`. */
+export const fromServices = (services: {
+  readonly sql: SqlClient.SqlClient;
+  readonly threads: ThreadManagementService.ThreadManagementService["Service"];
+  readonly eventStore: OrchestrationEventStore.OrchestrationEventStore["Service"];
+  readonly isProjectAllowed: (projectId: ProjectId) => boolean;
+}) =>
+  make({
+    threads: services.threads,
+    eventStore: services.eventStore,
+    isProjectAllowed: services.isProjectAllowed,
+    settle: makeSettleCheck({ sql: services.sql, threads: services.threads }),
+  });

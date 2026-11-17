@@ -120,7 +120,7 @@ const isPromptOf = (requestId: string) => (item: OrchestrationV2TurnItem) =>
   item.requestId === requestId;
 
 /** A pending request as the voice relays it, with its prompt from the turn item of the same id. */
-const requestNeed = (
+export const requestNeed = (
   request: OrchestrationV2RuntimeRequest,
   turnItems: ReadonlyArray<OrchestrationV2TurnItem>,
 ): VoicePending | null => {
@@ -133,7 +133,7 @@ const requestNeed = (
   };
 };
 
-const cardNeed = (cardId: string): VoicePending => ({
+export const cardNeed = (cardId: string): VoicePending => ({
   requestId: cardId,
   kind: "in_app",
   prompt: CARD_LINE,
