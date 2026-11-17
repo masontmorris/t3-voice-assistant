@@ -589,7 +589,7 @@ async def main_async(args):
     lfm_args = ("-c", str(args.lfm_ctx), "-kvu")
     cloud_lock = threading.Lock()
     tools_context = nullcontext() if args.mock_tools else open_registry(lock=cloud_lock)
-    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, slots(args.asr_stagger)) as server, \
+    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, slots(getattr(args, "asr_stagger", 1))) as server, \
             make_decider(args.decider, out) as decider:
         live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock)
         watcher = asyncio.create_task(watch_lag())
