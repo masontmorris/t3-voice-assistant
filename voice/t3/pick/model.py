@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from .pick import Pick, question_for
+from .project import ProjectPick, question_for_projects
 
 MODEL = "particle-ai/particle-1:free"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
@@ -257,6 +258,67 @@ class LocalClient:
 				"schema": shape.get("schema") is not None,
 			}
 		raise ModelFailed(last or "local server refused every response shape")
+
+
+PROJECT_SYSTEM = (
+	"You match one spoken request to one project in a list. "
+	'Return one JSON object and nothing else: {"choice": "<id>" or null, "candidates": ["<id>", ...]}. '
+	"Set choice only when exactly one project is clearly what the speaker means. "
+	"When several projects are plausible, set choice null and list their ids in candidates. "
+	"When nothing in the list matches, set choice null and candidates empty. "
+	"Use only ids that appear in the list. Never explain."
+)
+
+
+def render_projects(utterance, projects):
+	lines = ["Projects, one per line as id | name | also called:"]
+	for p in projects:
+		lines.append(" | ".join([
+			p["projectId"], p.get("name", ""), ", ".join(p.get("spokenNames", [])),
+		]))
+	lines.append("")
+	lines.append(f'Spoken request: "{utterance}"')
+	return [{"role": "system", "content": PROJECT_SYSTEM}, {"role": "user", "content": "\n".join(lines)}]
+
+
+def pick_project_via_model(utterance, projects, client, fallback_ids=None):
+	"""Return (ProjectPick, meta). `projects` carry `projectId`, `name` and `spokenNames`.
+
+	`fallback_ids` are the deterministic stage's candidates, used for the question whenever
+	the reply cannot be trusted. Without them the first three listed projects stand in.
+	"""
+	listed = [p["projectId"] for p in projects]
+	names = {p["projectId"]: p.get("name", "") for p in projects}
+	fallback = list(fallback_ids) if fallback_ids is not None else listed[:3]
+	fallback_names = [names[i] for i in fallback]
+	if not projects:
+		return ProjectPick.ask([], "There are no projects to check."), {"ms": 0, "parse": "ok"}
+	record = client.complete(render_projects(utterance, projects))
+	meta = {"ms": record["ms"], "parse": "ok", "raw": record["text"],
+	        "tokens": record.get("tokens", {}), "schema": record.get("schema")}
+	try:
+		answer = parse_json(record["text"])
+	except (ValueError, json.JSONDecodeError) as e:
+		meta["parse"] = "unparseable"
+		meta["parse_error"] = str(e)
+		return ProjectPick.ask(fallback, question_for_projects(fallback_names),
+		                       f"unparseable reply: {e}"), meta
+	choice = answer.get("choice")
+	if isinstance(choice, str) and choice.strip().lower() in NO_CHOICE:
+		choice = None
+	candidates = [c for c in (answer.get("candidates") or []) if c in listed]
+	if choice in listed and len(candidates) >= 2:
+		return ProjectPick.ask(candidates, question_for_projects([names[i] for i in candidates]),
+		                       "model hedged with two candidates"), meta
+	if choice in listed:
+		return ProjectPick.one(choice, listed, "model"), meta
+	if choice:
+		coerce_ids = fallback or listed
+		return ProjectPick.coerce(choice, coerce_ids,
+		                          question_for_projects([names[i] for i in coerce_ids])), meta
+	if candidates:
+		return ProjectPick.ask(candidates, question_for_projects([names[i] for i in candidates]), "model"), meta
+	return ProjectPick.none("model"), meta
 
 
 def pick_thread(utterance, threads, projects, now, client):
