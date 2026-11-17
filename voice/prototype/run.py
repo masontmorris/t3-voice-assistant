@@ -62,7 +62,7 @@ from pathlib import Path
 
 import numpy as np
 
-from voice.live.facts import names_machinery, speaks_of_person, ungrounded
+from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
 from voice.live.recall import recall_note
 from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
@@ -196,6 +196,14 @@ STILL_RUNNING_NOTE = (NOTE_OPEN + "the lookup is still running and has no answer
                       "checking, in a few words.]")
 ASK_NOTE = (NOTE_OPEN + "they said your last answer was not what they wanted, and did not say what they want "
             "instead. Ask them what they would like instead, in one short sentence.]")
+REPEAT_NOTE = (NOTE_OPEN + "you said that already. Answer what they said in this turn, in one short sentence, and "
+               "do not say it again or give them anything you have already given them.]")
+NEW_WORDS_NOTE = (NOTE_OPEN + "you repeated yourself. Set your last answer aside and answer only what they said in "
+                  "this turn, in one short sentence, with no weather, forecast, city, day, time or number in it.]")
+FINAL_NOTE = (NOTE_OPEN + "your last reply still cannot be said. Answer what they said in this turn, in one short "
+              "sentence, as yourself and to them, and name no weather, forecast, city, day, time or number.]")
+# A line this short is not screened for repeating: "I understand." twice is conversation, not a stale reply.
+REPEAT_WORDS = 8
 SYNTHETIC_CALL_ID = "snapshot_1"
 
 
@@ -231,16 +239,20 @@ async def respond(session, rate, since, **response):
     return reply_summary(session, mark, since, rate)
 
 
-def retry_note(found, running):
+def retry_note(found, running, repeats=False):
     """The note a refused reply is answered with. A reply that stated values nothing gave it is told which, because
-    asked again with a general note the model repeated the same sentence (measured: callfix3 replay fix1, turn 2)."""
+    asked again with a general note the model repeated the same sentence (measured: callfix3 replay fix1, turn 2). A
+    reply that only said what the assistant already said is told that instead: naming no value would leave the model
+    with nothing to change."""
     if running:
         return STILL_RUNNING_NOTE
     values = [fact.split(" ", 1)[1] for fact in found.get("ungrounded", ())]
-    if not values:
-        return RETRY_NOTE
-    return (f"{NOTE_OPEN}your last reply was not spoken, because nothing gave you {', '.join(values)}. Reply again "
-            "without that. If they asked for something you were not given, say you can't look that up.]")
+    if values:
+        return (f"{NOTE_OPEN}your last reply was not spoken, because nothing gave you {', '.join(values)}. Reply again "
+                "without that. If they asked for something you were not given, say you can't look that up.]")
+    if repeats:
+        return REPEAT_NOTE
+    return RETRY_NOTE
 
 
 def lookup_name(entry):
@@ -292,6 +304,29 @@ def refused(text, sources, running=False):
     return found
 
 
+def repeated(text, earlier):
+    """True when `text` says again a line the assistant already said in this call, word for word.
+
+    A reply that opens with the line just said, or that repeats an earlier line exactly, is stale. Measured on the
+    tool-pick replays' first arm: turns 25, 26 and 28 to 37 re-said "Hello! I'm checking the weather in a city on the
+    East Coast. Which one?", and the reply-path replay's baseline re-said its New York forecast for nine turns. The
+    model, with no note and its own last reply as the nearest thing in the append-only session, continues itself."""
+    said = normalised(text)
+    if len(said.split()) < REPEAT_WORDS or not earlier:
+        return False
+    last = normalised(earlier[-1])
+    if len(last.split()) >= REPEAT_WORDS and said.startswith(last):
+        return True
+    return any(said == normalised(line) for line in earlier)
+
+
+def place_only(found):
+    """True when a reply's only screen objection is a place nothing in the call states."""
+    return (bool(found["ungrounded"]) and not found["machinery"] and not found["third_person"]
+            and not found.get("contradicts")
+            and all(fact.startswith("place ") for fact in found["ungrounded"]))
+
+
 SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 PAUSE_SEARCH = 0.2
 PAUSE_WINDOW_S = 0.1
@@ -336,6 +371,8 @@ def spoken_part(reply, pcm, rate, sources, running):
     if not kept:
         return None
     text = " ".join(kept)
+    if len(text.split()) < 3:
+        return None
     part = cut_at_pause(pcm, rate, len(text) / max(1, len(reply["text"].strip())))
     if part is None:
         return None
@@ -343,8 +380,8 @@ def spoken_part(reply, pcm, rate, sources, running):
 
 
 async def answer(session, rate, since, sources, log, fallback=None, running=False, retry_item=None, escalate=None,
-                 keep_opening=False, **response):
-    """A reply that states only facts the call gave it, and never names the machinery.
+                 keep_opening=False, previous=(), asked_to_choose=False, last_ask=False, **response):
+    """A reply that states only facts the call gave it, never names the machinery, and is not one it already said.
 
     `sources` is what the assistant may say: the person's words in this call and the newest machine note, never its
     own earlier replies. A reply that names a day, date, time, number or place no source states, that talks about
@@ -354,19 +391,37 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     turn has not said it yet. Nothing is substituted for a wrong value, because a different wrong value is worse than
     saying less.
 
+    `asked_to_choose` says the person handed the assistant a choice ("Pick a city on the east coast to check the
+    weather for."). A reply whose only ungrounded value is the place it chose is then spoken, and the place comes back
+    on `established` so the call's later turns may name it: measured on the 2026-11-16 call, turns 25, 27 and 28, the
+    screen refused the chosen city on every turn and two of them went silent.
+
+    `previous` is what the assistant has already said in this call. A reply that repeats one of those lines word for
+    word, or that opens with the line just said, is asked again with `REPEAT_NOTE`. With `last_ask`, a retry that
+    fails again gets one last ask with a note that takes the content away (`NEW_WORDS_NOTE` after a repeat,
+    `FINAL_NOTE` otherwise), so a live turn that would have gone silent may still say one short, uncheckable thing.
+    Only a reply stale through all three asks is spoken as it is, because silence after the person speaks is worse
+    than a stale line.
+
     `retry_item` replaces the machine note a refused reply is answered with; given a function, it is called with
-    what the screens found and returns the item. `escalate`, when given, is called
-    with the facts a reply stated that nothing gave it: it may start a lookup for the person's words and return
+    what the screens found and whether the reply only repeated itself and returns the item. `escalate`, when given, is
+    called with the facts a reply stated that nothing gave it: it may start a lookup for the person's words and return
     the note for it, so a fact the model does not have is looked up instead of refused. The turn then says it is
     checking, and the result arrives as a task update. With `keep_opening`, a refused reply whose opening
     sentences pass is spoken up to there and not asked again (`spoken_part`)."""
     reply, pcm = await respond(session, rate, since, **response)
-    if not any((found := refused(reply["text"], sources, running)).values()):
+    found = refused(reply["text"], sources, running)
+    stale = repeated(reply["text"], previous)
+    if not any(found.values()) and not stale:
         return reply, pcm
-    if keep_opening and (part := spoken_part(reply, pcm, rate, sources, running)) is not None:
+    if asked_to_choose and place_only(found):
+        chosen = [fact.split(" ", 1)[1] for fact in found["ungrounded"]]
+        log("picked", reply=reply["text"], places=chosen)
+        return {**reply, "established": chosen}, pcm
+    if not stale and keep_opening and (part := spoken_part(reply, pcm, rate, sources, running)) is not None:
         log("fact_check", reply=reply["text"], **found, kept=part[0]["text"])
         return part
-    log("fact_check", reply=reply["text"], **found, asked_again=True)
+    log("fact_check", reply=reply["text"], **found, **({"repeated": True} if stale else {}), asked_again=True)
     looked_up = None
     if escalate is not None and found["ungrounded"] and not found["machinery"] and not found["third_person"]:
         looked_up = escalate(found["ungrounded"])
@@ -375,16 +430,30 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
         sources, running = [*sources, looked_up], True
         await create_item(session, plain_text(looked_up))
     elif retry_item is not None:
-        await create_item(session, retry_item(found) if callable(retry_item) else retry_item)
+        await create_item(session, retry_item(found, stale) if callable(retry_item) else retry_item)
     else:
         await create_item(session, user_text(FACT_CHECK_PREFIX, RUNNING_REJECTED if running else FACT_CHECK_REJECTED))
     retry, retry_pcm = await respond(session, rate, since, **response)
-    if not any((again := refused(retry["text"], sources, running)).values()):
+    again = refused(retry["text"], sources, running)
+    stale_again = repeated(retry["text"], previous)
+    if not any(again.values()) and not stale_again:
         return retry, retry_pcm
-    if keep_opening and (part := spoken_part(retry, retry_pcm, rate, sources, running)) is not None:
+    if not stale_again and keep_opening and (part := spoken_part(retry, retry_pcm, rate, sources, running)) is not None:
         log("fact_check", reply=retry["text"], **again, kept=part[0]["text"])
         return part
-    blocked = {"reply": retry["text"], **again}
+    log("fact_check", reply=retry["text"], **again, **({"repeated": True} if stale_again else {}), asked_twice=True)
+    if last_ask:
+        await create_item(session, plain_text(NEW_WORDS_NOTE if stale_again else FINAL_NOTE))
+        fresh, fresh_pcm = await respond(session, rate, since, **response)
+        fresh_found = refused(fresh["text"], sources, running)
+        stale_fresh = repeated(fresh["text"], previous)
+        if not any(fresh_found.values()) and not stale_fresh:
+            return fresh, fresh_pcm
+        if not any(fresh_found.values()):
+            log("repeat", reply=fresh["text"], spoken=True)
+            return fresh, fresh_pcm
+        again, retry, retry_pcm, stale_again = fresh_found, fresh, fresh_pcm, stale_fresh
+    blocked = {"reply": retry["text"], **again, **({"repeated": True} if stale_again else {})}
     log("fact_check", **blocked, blocked=True)
     if fallback is None or fallback.spoken:
         return {**retry, "text": "", "blocked": blocked}, b""
@@ -564,7 +633,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
-                   recall="off", context=(), prior_results=(), asr_stagger=1):
+                   recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=()):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -599,6 +668,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     played. A reply that states a fact nothing gave it starts a lookup for the person's words when the registry has
     an agent. `context` is the call so far for that agent, as `ConversationLedger.context` gives it, and
     `prior_results` is every lookup result the call has had, which the fact check accepts as said.
+    `prior_replies` is what the assistant already said in this call, which a reply must not repeat word for word, and
+    `established` is every place an earlier turn chose at the person's request, which this turn may name.
 
     `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
@@ -721,6 +792,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         worker = asyncio.create_task(segment_worker())
 
         replies, tool_turn, injection, answered = [], None, [], None
+        given, picked = [*established], []
         fallback = Fallback(fallback_pcm)
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
@@ -753,6 +825,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)
         log("snapshot", snapshot=snapshot)
         read_before = prior_snapshot if snapshot_mode == "before-audio" else None
+        choosing = asks_to_choose(adapter.text())
 
         tool_results, extra = [], {"tool_choice": "none"} if inject == "b" else {}
         if eou in TOOL_SESSIONS:
@@ -803,7 +876,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             # An earlier lookup's values count as given only on a turn with no note of its own. Beside a note they
             # would let the model say an old result for the new lookup (measured: callfix3 replay fix1, turn 25).
             earlier_results = prior_results if noted and item is None else ()
-            sources = [adapter.text(), *prior_utterances, *earlier_results, read_before, item]
+            sources = [adapter.text(), *prior_utterances, *earlier_results, *given, read_before, item]
 
             def look_up(_facts):
                 """Start a lookup for the person's words when the reply stated a fact nothing gave it."""
@@ -818,12 +891,16 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 running = is_running(answered)
                 reply, reply_pcm = await answer(
                     voice, out_rate, audio_end, sources, log, running=running, escalate=look_up,
-                    keep_opening=True, retry_item=lambda found: plain_text(retry_note(found, running)))
+                    keep_opening=True, previous=prior_replies, asked_to_choose=choosing, last_ask=True,
+                    retry_item=lambda found, repeats=False: plain_text(retry_note(found, running, repeats)))
             elif service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
             else:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback,
-                                                running=is_running(answered))
+                                                running=is_running(answered), previous=prior_replies,
+                                                asked_to_choose=choosing)
+            picked.extend(reply.get("established", ()))
+            given.extend(reply.get("established", ()))
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             if reply_pcm:
@@ -849,8 +926,11 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         if eou not in TOOL_SESSIONS:
             log("injection", items=injection)
             reply, reply_pcm = await answer(voice, out_rate, audio_end,
-                                            [adapter.text(), *prior_utterances, read_before, item], log,
-                                            fallback=fallback, running=is_running(snapshot), **extra)
+                                            [adapter.text(), *prior_utterances, *given, read_before, item], log,
+                                            fallback=fallback, running=is_running(snapshot), previous=prior_replies,
+                                            asked_to_choose=choosing, **extra)
+            picked.extend(reply.get("established", ()))
+            given.extend(reply.get("established", ()))
             replies.append({"kind": "snapshot", **reply})
             log("reply", reply="snapshot", text=reply["text"])
             if reply_pcm:
@@ -869,16 +949,20 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         if updates is not None:
             boundary = clock()
             log("task_updates", updates=task_updates)
+            said = (*prior_replies, *[r["text"] for r in replies if r.get("text")])
             if snapshot_mode == "note":
                 injection_update = await create_item(voice, plain_text(updates))
                 update_reply, update_pcm = await answer(
-                    voice, out_rate, boundary, [adapter.text(), *prior_utterances, updates], log,
-                    keep_opening=True, retry_item=lambda found: plain_text(retry_note(found, False)), **extra)
+                    voice, out_rate, boundary, [adapter.text(), *prior_utterances, *given, updates], log,
+                    keep_opening=True, previous=said, last_ask=True,
+                    retry_item=lambda found, repeats=False: plain_text(retry_note(found, False, repeats)), **extra)
             else:
                 injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
                 update_reply, update_pcm = await answer(voice, out_rate, boundary,
-                                                        [adapter.text(), *prior_utterances, updates], log,
-                                                        fallback=fallback, **extra)
+                                                        [adapter.text(), *prior_utterances, *given, updates], log,
+                                                        fallback=fallback, previous=said, **extra)
+            picked.extend(update_reply.get("established", ()))
+            given.extend(update_reply.get("established", ()))
             replies.append({"kind": "update", "injection": injection_update, **update_reply})
             log("reply", reply="update", text=update_reply["text"])
             if update_pcm:
@@ -923,6 +1007,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         "injection": injection,
         "tool_turn": tool_turn,
         "replies": replies,
+        "established": list(dict.fromkeys(picked)),
         "task_updates": task_updates,
         "tasks": segmenter.records(),
         "dispatch_log": segmenter.dispatch_log,

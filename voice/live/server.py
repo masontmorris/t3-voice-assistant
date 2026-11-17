@@ -54,13 +54,15 @@ slot is in docs/voice/live-call3-fix.md.
 
 A reply is checked before it is heard. `voice/live/facts.py` reads the days, dates, times, numbers and places in the
 reply and asks whether the person said them in this call or a lookup gave them; the assistant's own earlier replies
-do not count. A reply that fails, that talks about the note, or that speaks of the person or of itself in the third
-person, is not sent: the turn says so in its record, sends one short note naming what was wrong, and asks again once.
-In note mode a second failure is silence, recorded as blocked. No fixed line is played, because a line rendered by
-the TTS endpoint is a different voice from the call's (measured: turns 22 and 26 of the recorded call, after which
-the person asked why it sounded different). When the registry has a general worker (`voice/tools/agent.py`,
-VOICE_AGENT=on), a reply that states a fact nothing gave it starts a lookup for the person's words in place of
-the retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
+do not count, except a place it chose when the person asked it to choose. A reply that fails, that talks about the
+note, that speaks of the person or of itself in the third person, or that repeats a line the assistant
+already said in this call, is not sent: the turn says so in its record, sends one short note naming what was wrong,
+and asks again once. In note mode a second failure is silence, recorded as blocked, unless the only thing wrong with
+it was the repetition. No fixed line is played, because a line rendered by the TTS endpoint is a different voice from
+the call's (measured: turns 22 and 26 of the recorded call, after which the person asked why it sounded different).
+When the registry has a general worker (`voice/tools/agent.py`, VOICE_AGENT=on), a reply that states a fact nothing
+gave it starts a lookup for the person's words in place of the retry. The older modes keep their fixed lines,
+`FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
@@ -515,7 +517,9 @@ class Conversation:
                                     ask_pcm=live.ask.pcm(turn.out_rate), asr_stagger=getattr(live.args, "asr_stagger", 1),
                                     simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True,
                                     recall=live.args.recall, context=self.ledger.context(),
-                                    prior_results=tuple(self.ledger.results()))
+                                    prior_results=tuple(self.ledger.results()),
+                                    prior_replies=tuple(self.ledger.replies()),
+                                    established=tuple(self.ledger.established()))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:

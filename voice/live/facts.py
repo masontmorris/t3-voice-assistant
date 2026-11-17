@@ -84,6 +84,22 @@ def speaks_of_person(text):
     return [match.group(0).lower() for match in THIRD_PERSON.finditer(text or "")]
 
 
+# A request that hands the choice of a detail to the assistant. Measured on the 2026-11-16 call, turn 25: "Pick a city
+# on the east coast to check the weather for." The reply chose Boston, which nothing in the call states, so the screen
+# refused it, the retry repeated it, and turns 27 and 28 went silent.
+CHOICE_REQUEST = re.compile(
+    r"\b(?:pick|choose)\b[^.?!]*\b(?:city|place|one|for me)\b"
+    r"|\byou (?:pick|choose|decide)\b"
+    r"|\b(?:pick|choose) for me\b"
+    r"|\bsurprise me\b", re.IGNORECASE)
+
+
+def asks_to_choose(text):
+    """True when the person asked the assistant to choose the detail itself, so a place the reply names is the answer
+    to that request rather than a value nothing gave it."""
+    return bool(CHOICE_REQUEST.search(text or ""))
+
+
 def _strings(payload):
     """Every string inside a machine note, so a status, a task id and a result summary are all readable."""
     if isinstance(payload, str):

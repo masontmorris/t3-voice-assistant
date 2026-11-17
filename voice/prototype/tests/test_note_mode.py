@@ -98,12 +98,19 @@ class NoteTurnTest(NoteTurn):
         self.assertEqual(texts(self.voice), [prototype.RETRY_NOTE])
         self.assertEqual(self.spoken, ["Glad to hear it."])
 
-    async def test_a_reply_refused_twice_is_not_spoken_and_no_fixed_line_plays(self):
-        record = await self.turn(["The user wants the weather.", "The user asked about results."])
+    async def test_a_reply_refused_twice_is_asked_one_last_time_and_a_third_refusal_is_silent(self):
+        record = await self.turn(["The user wants the weather.", "The user asked about results.",
+                                  "The user is still asking."])
         self.assertEqual(self.spoken, [])
         self.assertEqual(record["replies"][0]["text"], "")
         self.assertIn("blocked", record["replies"][0])
         self.assertNotIn("fallback", [event["kind"] for event in record["timeline"]])
+
+    async def test_the_last_ask_gives_a_turn_that_would_be_silent_one_short_line(self):
+        record = await self.turn(["The user wants the weather.", "The user asked about results.",
+                                  "I'm not sure what you mean."])
+        self.assertEqual(self.spoken, ["I'm not sure what you mean."])
+        self.assertEqual(record["replies"][0]["text"], "I'm not sure what you mean.")
 
     async def test_a_refused_value_is_named_in_the_retry(self):
         await self.turn(["George Washington was born on February 22, 1732.", "I can't look that up."])
@@ -159,18 +166,32 @@ class StaleReplyTest(NoteTurn):
         self.assertEqual(self.spoken[-1], "I can hear you fine.")
         self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
 
-    async def test_a_stale_line_that_survives_the_retry_is_spoken_not_dropped(self):
-        record = await self.turn([self.STALE, self.STALE], prior_replies=(self.STALE,))
+    async def test_a_stale_retry_is_asked_once_more_with_the_old_answer_set_aside(self):
+        record = await self.turn([self.STALE, self.STALE, "I can hear you fine."], prior_replies=(self.STALE,))
+        notes = [text for text in texts(self.voice) if text in (prototype.REPEAT_NOTE, prototype.NEW_WORDS_NOTE)]
+        self.assertEqual(notes, [prototype.REPEAT_NOTE, prototype.NEW_WORDS_NOTE])
+        self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
+
+    async def test_a_stale_line_that_survives_every_ask_is_spoken_not_dropped(self):
+        record = await self.turn([self.STALE, self.STALE, self.STALE], prior_replies=(self.STALE,))
         self.assertEqual(self.spoken, [self.STALE], "silence after the person speaks is worse than a stale line")
         self.assertEqual(record["replies"][0]["text"], self.STALE)
         self.assertIn("repeat", [event["kind"] for event in record["timeline"]])
 
-    async def test_a_reply_that_carries_a_fact_may_repeat_a_result(self):
+    async def test_a_repeated_forecast_is_asked_again(self):
         forecast = "The weather in Durham today is a high of 57 degrees Fahrenheit with a 0% chance."
         given = "Forecast for Durham: a high of 57 degrees Fahrenheit with a 0 percent chance."
-        await self.turn([forecast], prior_replies=(forecast,), prior_results=(given,))
-        self.assertEqual(self.spoken, [forecast], "asking for the same forecast twice is not a stale reply")
-        self.assertEqual([text for text in texts(self.voice) if text == prototype.REPEAT_NOTE], [])
+        record = await self.turn([forecast, "Both forecasts agree on a high of 57 degrees."],
+                                 prior_replies=(forecast,), prior_results=(given,))
+        self.assertEqual(self.spoken, ["Both forecasts agree on a high of 57 degrees."],
+                         "the same forecast again is a stale reply, so the model answers in new words")
+        self.assertEqual([text for text in texts(self.voice) if text == prototype.REPEAT_NOTE], [prototype.REPEAT_NOTE])
+        self.assertEqual(record["replies"][0]["text"], "Both forecasts agree on a high of 57 degrees.")
+
+    async def test_a_stale_line_that_grows_a_sentence_is_still_stale(self):
+        record = await self.turn([self.STALE + " You likely won't need a jacket.", "I can hear you fine."],
+                                 prior_replies=(self.STALE,))
+        self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
 
 
 def tone(seconds, rate=24_000, level=8000):
@@ -200,6 +221,12 @@ class SpokenPartTest(unittest.TestCase):
 
     def test_a_reply_of_one_sentence_has_no_part(self):
         self.assertIsNone(self.part("It's a high of 68 degrees in Durham."))
+
+    def test_a_one_word_opening_is_not_a_reply(self):
+        """Measured on the baseline reply-path replay, turn 25: the refused pick was cut to "Hello!" and spoken."""
+        pcm = tone(0.3) + b"\x00\x00" * 7200 + tone(1.0)
+        self.assertIsNone(prototype.spoken_part({"text": "Hello! It's a high of 68 degrees in Boston."}, pcm,
+                                                24_000, self.HEARD, True))
 
 
 class AskRegistry:
