@@ -1,0 +1,507 @@
+"""Voice domain types for the T3 seam.
+
+Every frame the seam sends decodes into one of these frozen dataclasses, and
+every way a socket ends reports as one SocketEnd value. Nothing here names a
+T3 wire type. The schema test checks these against voice/t3/seam.schema.json.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import Any, Callable, Literal, Union
+
+
+class RefusalCode(str, Enum):
+    """One member per code in the schema's RefusalCode enum."""
+
+    OPERATION_NOT_ALLOWED = "operation_not_allowed"
+    PROJECT_NOT_ALLOWED = "project_not_allowed"
+    ABOVE_CEILING = "above_ceiling"
+    NOT_FOUND = "not_found"
+    GONE = "gone"
+    REFUSED = "refused"
+    TOO_MANY_WATCHES = "too_many_watches"
+    NO_DEFAULT_MODEL = "no_default_model"
+    INVALID_REQUEST = "invalid_request"
+    UNAVAILABLE = "unavailable"
+
+
+class WatchEndReason(str, Enum):
+    """One member per reason in the schema's WatchEndReason enum."""
+
+    GONE = "gone"
+    RESYNC = "resync"
+    NOT_FOUND = "not_found"
+    UNAVAILABLE = "unavailable"
+
+
+class ThreadActivity(str, Enum):
+    """How a thread reads, from the shell row alone."""
+
+    WORKING = "working"
+    WAITING_ON_YOU = "waiting_on_you"
+    WAITING_ON_BACKGROUND = "waiting_on_background"
+    QUEUED = "queued"
+    IDLE = "idle"
+    FINISHED = "finished"
+    FAILED = "failed"
+    INTERRUPTED = "interrupted"
+    CANCELLED = "cancelled"
+    ROLLED_BACK = "rolled_back"
+
+
+class RunStatus(str, Enum):
+    """All ten run statuses, by name."""
+
+    PREPARING = "preparing"
+    QUEUED = "queued"
+    STARTING = "starting"
+    RUNNING = "running"
+    WAITING = "waiting"
+    COMPLETED = "completed"
+    INTERRUPTED = "interrupted"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    ROLLED_BACK = "rolled_back"
+
+
+class TerminalStatus(str, Enum):
+    """The five statuses isTerminalRunStatus accepts."""
+
+    COMPLETED = "completed"
+    FAILED = "failed"
+    INTERRUPTED = "interrupted"
+    CANCELLED = "cancelled"
+    ROLLED_BACK = "rolled_back"
+
+
+class PendingKind(str, Enum):
+    """Kinds a needs_you carries."""
+
+    APPROVAL = "approval"
+    QUESTION = "question"
+    IN_APP = "in_app"
+
+
+class ResolvedStatus(str, Enum):
+    """Statuses a resolved event carries."""
+
+    RESOLVED = "resolved"
+    EXPIRED = "expired"
+    CANCELLED = "cancelled"
+
+
+class RuntimeMode(str, Enum):
+    """Ceiling runtime modes hello carries."""
+
+    APPROVAL_REQUIRED = "approval-required"
+    AUTO_ACCEPT_EDITS = "auto-accept-edits"
+    AUTO = "auto"
+    FULL_ACCESS = "full-access"
+
+
+class Operation(str, Enum):
+    """Ceiling operations, the short names hello carries."""
+
+    LIST = "list"
+    READ = "read"
+    WATCH = "watch"
+    LAUNCH = "launch"
+    SEND = "send"
+    INTERRUPT = "interrupt"
+
+
+WIRE_OPS: tuple[str, ...] = (
+    "list_threads",
+    "read_thread",
+    "watch",
+    "unwatch",
+    "launch",
+    "send",
+    "interrupt",
+)
+
+
+@dataclass(frozen=True)
+class Ceiling:
+    max_runtime_mode: RuntimeMode
+    interaction_mode: str
+    operations: tuple[Operation, ...]
+    max_watches: int
+
+
+@dataclass(frozen=True)
+class Project:
+    project_id: str
+    name: str
+    spoken_names: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True)
+class Hello:
+    ceiling: Ceiling
+    projects: tuple[Project, ...]
+    latest_sequence: int
+
+
+@dataclass(frozen=True)
+class ThreadSummary:
+    thread_id: str
+    project_id: str
+    title: str
+    activity: ThreadActivity
+    last_activity_at: str
+    pinned: bool
+
+
+@dataclass(frozen=True)
+class ThreadList:
+    threads: tuple[ThreadSummary, ...]
+    total: int
+    truncated: bool
+    as_of_sequence: int
+
+
+@dataclass(frozen=True)
+class RunInfo:
+    run_id: str
+    status: RunStatus
+    started_at: str | None
+
+
+@dataclass(frozen=True)
+class PendingNeed:
+    request_id: str
+    kind: PendingKind
+    prompt: str
+
+
+@dataclass(frozen=True)
+class RunResult:
+    text: str
+    message_id: str | None
+    turn_item_id: str | None
+
+
+@dataclass(frozen=True)
+class LastReply:
+    text: str
+    message_id: str | None
+    turn_item_id: str | None
+    run_id: str
+    at: str
+
+
+@dataclass(frozen=True)
+class ThreadState:
+    thread_id: str
+    project_id: str
+    title: str
+    activity: ThreadActivity
+    run: RunInfo | None
+    pending: PendingNeed | None
+    last_reply: LastReply | None
+    as_of_sequence: int
+
+
+@dataclass(frozen=True)
+class WatchStarted:
+    thread_id: str
+
+
+@dataclass(frozen=True)
+class RunEvent:
+    thread_id: str
+    run_id: str
+    status: RunStatus
+    sequence: int
+
+
+@dataclass(frozen=True)
+class ReplyEvent:
+    thread_id: str
+    run_id: str | None
+    message_id: str
+    text: str
+    sequence: int
+
+
+@dataclass(frozen=True)
+class NeedsYouEvent:
+    thread_id: str
+    sequence: int
+    request_id: str
+    kind: PendingKind
+    prompt: str
+
+
+@dataclass(frozen=True)
+class ResolvedEvent:
+    thread_id: str
+    request_id: str
+    status: ResolvedStatus
+    sequence: int
+
+
+@dataclass(frozen=True)
+class DoneEvent:
+    thread_id: str
+    run_id: str
+    status: TerminalStatus
+    result: RunResult
+    sequence: int
+    as_of_sequence: int
+
+
+@dataclass(frozen=True)
+class GoneEvent:
+    thread_id: str
+    sequence: int
+
+
+VoiceEvent = Union[RunEvent, ReplyEvent, NeedsYouEvent, ResolvedEvent, DoneEvent, GoneEvent]
+
+EVENT_TYPES: dict[str, type] = {
+    "run": RunEvent,
+    "reply": ReplyEvent,
+    "needs_you": NeedsYouEvent,
+    "resolved": ResolvedEvent,
+    "done": DoneEvent,
+    "gone": GoneEvent,
+}
+
+
+@dataclass(frozen=True)
+class WatchEnded:
+    thread_id: str
+    reason: WatchEndReason
+
+
+@dataclass(frozen=True)
+class ResultErr:
+    code: RefusalCode
+    message: str
+
+    def spoken(self) -> str:
+        """The server's message is short text the voice may speak."""
+        return self.message
+
+
+@dataclass(frozen=True)
+class Close1013:
+    label: str = field(default="close-1013", init=False)
+
+
+@dataclass(frozen=True)
+class Close1008:
+    label: str = field(default="close-1008", init=False)
+
+
+@dataclass(frozen=True)
+class Close1007:
+    label: str = field(default="close-1007", init=False)
+
+
+@dataclass(frozen=True)
+class CloseOther:
+    code: int
+    label: str = field(default="close-other", init=False)
+
+
+@dataclass(frozen=True)
+class Upgrade401:
+    label: str = field(default="upgrade-401", init=False)
+
+
+@dataclass(frozen=True)
+class Upgrade404:
+    label: str = field(default="upgrade-404", init=False)
+
+
+@dataclass(frozen=True)
+class Unreachable:
+    label: str = field(default="unreachable", init=False)
+
+
+SocketEnd = Union[Close1013, Close1008, Close1007, CloseOther, Upgrade401, Upgrade404, Unreachable]
+
+CLOSE_1013 = Close1013()
+CLOSE_1008 = Close1008()
+CLOSE_1007 = Close1007()
+UPGRADE_401 = Upgrade401()
+UPGRADE_404 = Upgrade404()
+UNREACHABLE = Unreachable()
+
+
+def decode_close(code: int | None) -> SocketEnd:
+    """Map a socket close code to its typed value. None means no close frame."""
+    if code == 1013:
+        return CLOSE_1013
+    if code == 1008:
+        return CLOSE_1008
+    if code == 1007:
+        return CLOSE_1007
+    return CloseOther(code=code if code is not None else 1006)
+
+
+def _need(obj: Any, name: str) -> Any:
+    if not isinstance(obj, dict) or name not in obj:
+        raise ValueError(f"seam frame is missing {name!r}: {obj!r}")
+    return obj[name]
+
+
+def decode_hello(obj: Any) -> Hello:
+    ceiling = _need(obj, "ceiling")
+    return Hello(
+        ceiling=Ceiling(
+            max_runtime_mode=RuntimeMode(_need(ceiling, "maxRuntimeMode")),
+            interaction_mode=_need(ceiling, "interactionMode"),
+            operations=tuple(Operation(op) for op in _need(ceiling, "operations")),
+            max_watches=_need(ceiling, "maxWatches"),
+        ),
+        projects=tuple(
+            Project(
+                project_id=_need(p, "projectId"),
+                name=_need(p, "name"),
+                spoken_names=tuple(p.get("spokenNames", ())),
+            )
+            for p in _need(obj, "projects")
+        ),
+        latest_sequence=_need(obj, "latestSequence"),
+    )
+
+
+def decode_thread_list(value: Any) -> ThreadList:
+    return ThreadList(
+        threads=tuple(
+            ThreadSummary(
+                thread_id=_need(t, "threadId"),
+                project_id=_need(t, "projectId"),
+                title=_need(t, "title"),
+                activity=ThreadActivity(_need(t, "activity")),
+                last_activity_at=_need(t, "lastActivityAt"),
+                pinned=_need(t, "pinned"),
+            )
+            for t in _need(value, "threads")
+        ),
+        total=_need(value, "total"),
+        truncated=_need(value, "truncated"),
+        as_of_sequence=_need(value, "asOfSequence"),
+    )
+
+
+def _decode_run(raw: Any) -> RunInfo | None:
+    if raw is None:
+        return None
+    return RunInfo(
+        run_id=_need(raw, "runId"),
+        status=RunStatus(_need(raw, "status")),
+        started_at=raw.get("startedAt"),
+    )
+
+
+def _decode_pending(raw: Any) -> PendingNeed | None:
+    if raw is None:
+        return None
+    return PendingNeed(
+        request_id=_need(raw, "requestId"),
+        kind=PendingKind(_need(raw, "kind")),
+        prompt=_need(raw, "prompt"),
+    )
+
+
+def _decode_last_reply(raw: Any) -> LastReply | None:
+    if raw is None:
+        return None
+    return LastReply(
+        text=_need(raw, "text"),
+        message_id=raw.get("messageId"),
+        turn_item_id=raw.get("turnItemId"),
+        run_id=_need(raw, "runId"),
+        at=_need(raw, "at"),
+    )
+
+
+def decode_thread_state(value: Any) -> ThreadState:
+    return ThreadState(
+        thread_id=_need(value, "threadId"),
+        project_id=_need(value, "projectId"),
+        title=_need(value, "title"),
+        activity=ThreadActivity(_need(value, "activity")),
+        run=_decode_run(value.get("run")),
+        pending=_decode_pending(value.get("pending")),
+        last_reply=_decode_last_reply(value.get("lastReply")),
+        as_of_sequence=_need(value, "asOfSequence"),
+    )
+
+
+def decode_event(obj: Any) -> VoiceEvent:
+    """Decode one VoiceEvent. A done with empty text passes through unchanged."""
+    kind = _need(obj, "type")
+    if kind == "run":
+        return RunEvent(
+            thread_id=_need(obj, "threadId"),
+            run_id=_need(obj, "runId"),
+            status=RunStatus(_need(obj, "status")),
+            sequence=_need(obj, "sequence"),
+        )
+    if kind == "reply":
+        return ReplyEvent(
+            thread_id=_need(obj, "threadId"),
+            run_id=obj.get("runId"),
+            message_id=_need(obj, "messageId"),
+            text=_need(obj, "text"),
+            sequence=_need(obj, "sequence"),
+        )
+    if kind == "needs_you":
+        return NeedsYouEvent(
+            thread_id=_need(obj, "threadId"),
+            sequence=_need(obj, "sequence"),
+            request_id=_need(obj, "requestId"),
+            kind=PendingKind(_need(obj, "kind")),
+            prompt=_need(obj, "prompt"),
+        )
+    if kind == "resolved":
+        return ResolvedEvent(
+            thread_id=_need(obj, "threadId"),
+            request_id=_need(obj, "requestId"),
+            status=ResolvedStatus(_need(obj, "status")),
+            sequence=_need(obj, "sequence"),
+        )
+    if kind == "done":
+        result = _need(obj, "result")
+        return DoneEvent(
+            thread_id=_need(obj, "threadId"),
+            run_id=_need(obj, "runId"),
+            status=TerminalStatus(_need(obj, "status")),
+            result=RunResult(
+                text=_need(result, "text"),
+                message_id=result.get("messageId"),
+                turn_item_id=result.get("turnItemId"),
+            ),
+            sequence=_need(obj, "sequence"),
+            as_of_sequence=_need(obj, "asOfSequence"),
+        )
+    if kind == "gone":
+        return GoneEvent(thread_id=_need(obj, "threadId"), sequence=_need(obj, "sequence"))
+    raise ValueError(f"unknown seam event type: {kind!r}")
+
+
+def decode_watch_ended(obj: Any) -> WatchEnded:
+    return WatchEnded(
+        thread_id=_need(obj, "threadId"),
+        reason=WatchEndReason(_need(obj, "reason")),
+    )
+
+
+RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
+    "list_threads": decode_thread_list,
+    "read_thread": decode_thread_state,
+    "watch": lambda value: WatchStarted(thread_id=_need(value, "threadId")),
+    "unwatch": lambda value: WatchStarted(thread_id=_need(value, "threadId")),
+}
+
+ResultValue = Union[ThreadList, ThreadState, WatchStarted]
+
+DrainItem = Union[VoiceEvent, WatchEnded, SocketEnd]
