@@ -1,9 +1,14 @@
 import {
+  idleCompactionOf,
   RuntimeRequestId,
+  type OrchestrationV2ConversationMessage,
   type OrchestrationV2Run,
   type OrchestrationV2RuntimeRequest,
+  type OrchestrationV2ThreadProjection,
   type OrchestrationV2ThreadShell,
   type OrchestrationV2TurnItem,
+  type RunId,
+  type ThreadId,
 } from "@t3tools/contracts";
 import { subagentResultForRun } from "@t3tools/provider-core/server/subagentProjection";
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
@@ -23,12 +28,15 @@ const CHECK_TIMEOUT_MS = 1;
 const FOLLOW_UP_TIMEOUT_MS = 60_000;
 const RESULT_TEXT_LIMIT = 1_200;
 
-export interface OutcomeSources {
+type Threads = ThreadManagementService.ThreadManagementService["Service"];
+
+interface ReadSources {
   readonly sql: SqlClient.SqlClient;
-  readonly threads: Pick<
-    ThreadManagementService.ThreadManagementService["Service"],
-    "waitForThread" | "getThreadRecords" | "getThreadEventSequence" | "getThreadShell"
-  >;
+  readonly threads: Pick<Threads, "getThreadRecords" | "getThreadEventSequence" | "getThreadShell">;
+}
+
+export interface OutcomeSources extends ReadSources {
+  readonly threads: ReadSources["threads"] & Pick<Threads, "waitForThread">;
 }
 
 export type PendingJoin =
@@ -75,6 +83,130 @@ export const cutAtSentence = (text: string, limit = RESULT_TEXT_LIMIT) => {
   return `${(space > 0 ? head.slice(0, space) : head).trimEnd()}…`;
 };
 
+/** The turn items `subagentResultForRun` reads: the reply, a failure, and a stop notice. */
+const RESULT_ITEM_TYPES = [
+  "assistant_message",
+  "error",
+  "system_notice",
+] as const satisfies ReadonlyArray<OrchestrationV2TurnItem["type"]>;
+
+/** The join for a shell that shows a pending request or card, from the thread's pending records. */
+export const readPendingJoin = Effect.fn("VoiceSeam.outcome.readPendingJoin")(function* (
+  threads: Pick<Threads, "getThreadRecords">,
+  shell: Pick<OrchestrationV2ThreadShell, "id" | "pendingRuntimeRequest">,
+) {
+  const { runtimeRequests } = yield* threads.getThreadRecords(shell.id, ["runtimeRequests"], {
+    runtimeRequestStatuses: ["pending"],
+  });
+  const prompts =
+    runtimeRequests.length === 0
+      ? []
+      : (yield* threads.getThreadRecords(shell.id, ["turnItems"], {
+          turnItemRequestIds: runtimeRequests.map((request) => RuntimeRequestId.make(request.id)),
+        })).turnItems;
+  return pendingJoin(shell, { runtimeRequests, turnItems: prompts });
+});
+
+/** An assistant message a voice may speak: the text is final and a run owns it. */
+export const isFinishedReply = (
+  message: OrchestrationV2ConversationMessage,
+): message is OrchestrationV2ConversationMessage & { readonly runId: RunId } =>
+  message.role === "assistant" &&
+  message.runId !== null &&
+  !message.streaming &&
+  message.text.trim().length > 0;
+
+export const newestFirst = (
+  left: OrchestrationV2ConversationMessage,
+  right: OrchestrationV2ConversationMessage,
+) => DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt);
+
+/**
+ * The newest finished reply among `runs`, leaving out a run T3 started on its own to compact the
+ * thread: its user message is T3's idle `/compact`, and the user never saw it as a turn.
+ */
+const newestVisibleReply = (
+  runs: ReadonlyArray<OrchestrationV2Run>,
+  messages: ReadonlyArray<OrchestrationV2ConversationMessage>,
+) => {
+  const compactionRunIds = new Set(
+    runs.flatMap((run) => {
+      const prompt = messages.find((message) => message.id === run.userMessageId);
+      return prompt !== undefined && idleCompactionOf(prompt) !== undefined ? [run.id] : [];
+    }),
+  );
+  return messages
+    .filter(isFinishedReply)
+    .filter((message) => !compactionRunIds.has(message.runId))
+    .toSorted(newestFirst)[0];
+};
+
+/**
+ * The thread now, in one read-only transaction: its sequence first, so a need committed after it
+ * shows in the records or a later re-read. Null when no thread. `earlierRuns` also reads an earlier
+ * run's reply when the latest has none.
+ */
+export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(function* (
+  sources: ReadSources,
+  threadId: ThreadId,
+  runIdsOf: (shell: OrchestrationV2ThreadShell) => ReadonlyArray<RunId>,
+  earlierRuns = 0,
+) {
+  const { threads } = sources;
+  return yield* sources.sql
+    .withTransaction(
+      Effect.gen(function* () {
+        const asOfSequence = yield* threads.getThreadEventSequence(threadId);
+        const shell = yield* threads.getThreadShell(threadId);
+        if (shell === null) return null;
+        const join = yield* readPendingJoin(threads, shell);
+        const runIds = runIdsOf(shell);
+        const records = yield* threads.getThreadRecords(
+          threadId,
+          ["runs", "messages", "turnItems", "providerTurns"],
+          {
+            runIds,
+            messageRoles: ["assistant"],
+            messageRunIds: runIds,
+            turnItemRunIds: runIds,
+            turnItemTypes: RESULT_ITEM_TYPES,
+          },
+        );
+        const earlierReply =
+          earlierRuns === 0 || records.messages.some(isFinishedReply)
+            ? undefined
+            : yield* Effect.gen(function* () {
+                const { runs } = yield* threads.getThreadRecords(threadId, ["runs"], {
+                  latestRunLimit: earlierRuns + 1,
+                });
+                const earlier = runs.filter((run) => !runIds.includes(run.id));
+                if (earlier.length === 0) return undefined;
+                const { messages } = yield* threads.getThreadRecords(threadId, ["messages"], {
+                  messageRoles: ["user", "assistant"],
+                  messageRunIds: earlier.map((run) => run.id),
+                });
+                return newestVisibleReply(earlier, messages);
+              });
+        return { asOfSequence, shell, join, records, earlierReply };
+      }),
+    )
+    .pipe(NodeSqliteClient.readOnly);
+});
+
+/** T3's own result for a run, cut for speech. No `runs`, so it never falls back to an earlier run's reply. */
+export const runResult = (
+  records: Pick<OrchestrationV2ThreadProjection, "messages" | "turnItems" | "providerTurns">,
+  run: OrchestrationV2Run,
+): VoiceRunResult => {
+  const { messages, turnItems, providerTurns } = records;
+  const result = subagentResultForRun({ messages, turnItems, providerTurns }, run);
+  return {
+    text: cutAtSentence(result.text),
+    messageId: result.messageId,
+    turnItemId: result.turnItemId,
+  };
+};
+
 const isThreadNotFound = Schema.is(ThreadManagementService.ThreadManagementThreadNotFoundError);
 
 const NOTHING: SettleAnswer = { kind: "nothing" };
@@ -86,7 +218,7 @@ const NOTHING: SettleAnswer = { kind: "nothing" };
  * anchor's. Every failure becomes an answer, so the watch fiber decides what happens next.
  */
 export const makeSettleCheck = (sources: OutcomeSources): SettleCheck => {
-  const { sql, threads } = sources;
+  const { threads } = sources;
 
   const report = Effect.fn("VoiceSeam.outcome.report")(function* (
     trigger: SettleTrigger,
@@ -94,57 +226,17 @@ export const makeSettleCheck = (sources: OutcomeSources): SettleCheck => {
   ) {
     const { threadId } = trigger;
     const reportedId = trigger.anchorRunId ?? resultRun.id;
-    const runIds = [reportedId];
-    const read = yield* sql
-      .withTransaction(
-        Effect.gen(function* () {
-          // Read first, so a need committed after it shows in the records or in the re-read.
-          const asOfSequence = yield* threads.getThreadEventSequence(threadId);
-          const shell = yield* threads.getThreadShell(threadId);
-          if (shell === null) return null;
-          const { runtimeRequests } = yield* threads.getThreadRecords(
-            threadId,
-            ["runtimeRequests"],
-            { runtimeRequestStatuses: ["pending"] },
-          );
-          const prompts =
-            runtimeRequests.length === 0
-              ? []
-              : (yield* threads.getThreadRecords(threadId, ["turnItems"], {
-                  turnItemRequestIds: runtimeRequests.map((request) =>
-                    RuntimeRequestId.make(request.id),
-                  ),
-                })).turnItems;
-          const result = yield* threads.getThreadRecords(
-            threadId,
-            ["runs", "messages", "turnItems", "providerTurns"],
-            {
-              runIds,
-              messageRoles: ["assistant"],
-              messageRunIds: runIds,
-              turnItemRunIds: runIds,
-            },
-          );
-          return { asOfSequence, shell, runtimeRequests, prompts, result };
-        }),
-      )
-      .pipe(NodeSqliteClient.readOnly);
+    const read = yield* readThreadNow(sources, threadId, () => [reportedId]);
     if (read === null) return { kind: "gone" } as const;
-    if (
-      pendingJoin(read.shell, { runtimeRequests: read.runtimeRequests, turnItems: read.prompts })
-        .kind !== "none"
-    ) {
-      // The need ends with a stored event, and that event triggers the next check.
-      return NOTHING;
-    }
+    // The need ends with a stored event, and that event triggers the next check.
+    if (read.join.kind !== "none") return NOTHING;
     // The anchor's status comes from its own stored record, never from `resultRun` or a guess.
-    const stored = read.result.runs.find((candidate) => candidate.id === reportedId);
+    const stored = read.records.runs.find((candidate) => candidate.id === reportedId);
     const run = trigger.anchorRunId === undefined ? (stored ?? resultRun) : stored;
     if (run === undefined) return NOTHING;
     const status = run.status;
     if (!ThreadManagementService.isTerminalRunStatus(status)) return NOTHING;
-    // No `runs`, so the result never falls back to another run's reply.
-    const own = subagentResultForRun(read.result, run);
+    const own = runResult(read.records, run);
     // An anchor that is not the result run speaks only what that run itself stored. T3's stand-in
     // line for a run with no answer ("Child task ended with status ...") is not that.
     const result =
@@ -162,11 +254,7 @@ export const makeSettleCheck = (sources: OutcomeSources): SettleCheck => {
         threadId,
         runId: run.id,
         status,
-        result: {
-          text: cutAtSentence(result.text),
-          messageId: result.messageId,
-          turnItemId: result.turnItemId,
-        } satisfies VoiceRunResult,
+        result,
         sequence: trigger.sequence,
         asOfSequence: read.asOfSequence,
       },
