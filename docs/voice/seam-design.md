@@ -741,7 +741,8 @@ The table has 27 rows. A second test in `lifecycle_test.py` reads `voice/t3/seam
 ```text
 voice/t3/seam.py           T3Seam client: one socket on a background thread, typed calls, drain() for events
 voice/t3/types.py          Hello, Project, ThreadSummary, ThreadList, ThreadState, Launched, Sent, VoiceEvent
-voice/t3/seam.schema.json  written by the server's golden test; a Python test checks types.py against it
+voice/t3/seam.schema.json  written by write_seam_schema.ts, compared by the server's golden test; a Python test checks types.py against it
+voice/t3/write_seam_schema.ts  regenerates seam.schema.json from protocol.ts
 voice/t3/journal.py        T3Journal: request ids, thread links, cursors, and interrupt results, saved before each call
 voice/t3/lifecycle.py      the watch lifecycle table as one dict keyed by row, and Follow, which runs it
 voice/t3/pick/             the Pick type, the prefilter, and the model picker, from the Twin B eval
