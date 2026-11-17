@@ -150,7 +150,6 @@ def summarise(runs, arms):
 			bucket["p95_wall_ms"] = p95(bucket["wall_ms"])
 			bucket["median_wall_ms"] = round(statistics.median(bucket["wall_ms"]), 2)
 			bucket["request_runs"] = len(requests)
-			bucket.pop("wall_ms")
 		out[arm] = per_slice
 	return out
 
@@ -198,7 +197,7 @@ def pass_bar(summary, arm):
 	pooled = [ms for v in s.values() for ms in v.get("request_ms", [])]
 	result["p95_single_request_ms"] = p95(pooled)
 	result["p95_single_request_worst_slice_ms"] = max(latencies)
-	result["p95_wall_ms"] = max(v["p95_wall_ms"] for v in s.values())
+	result["p95_wall_ms"] = p95([ms for v in s.values() for ms in v["wall_ms"]])
 	result["p95_at_most_700ms"] = result["p95_single_request_ms"] <= LATENCY_BAR_MS
 	result["request_runs"] = sum(v["request_runs"] for v in s.values())
 	result["passes"] = all(

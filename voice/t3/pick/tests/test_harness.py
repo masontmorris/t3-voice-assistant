@@ -81,6 +81,14 @@ class SummaryTest(unittest.TestCase):
 		self.assertEqual(bar["p95_single_request_ms"], 900)
 		self.assertFalse(bar["p95_at_most_700ms"])
 
+	def test_the_pass_bar_pools_latency_across_slices(self):
+		rows = [run_row("exact", "correct", request_ms=100, wall_ms=100) for _ in range(19)]
+		rows.append(run_row("older", "correct", request_ms=5000, wall_ms=5000))
+		bar = pass_bar(summarise(rows, ["model"]), "model")
+		self.assertEqual(bar["p95_single_request_ms"], 100)
+		self.assertEqual(bar["p95_single_request_worst_slice_ms"], 5000)
+		self.assertEqual(bar["p95_wall_ms"], 100)
+
 	def test_unparseable_replies_reach_the_strict_outcome_counts(self):
 		rows = [run_row("ambiguous", "unparseable", parse="unparseable", gold=GOLD_ASK)]
 		bucket = summarise(rows, ["model"])["model"]["ambiguous"]
