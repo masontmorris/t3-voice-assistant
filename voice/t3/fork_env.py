@@ -4,7 +4,8 @@ Mason's daily T3 install is never touched. The fork's server runs from this
 checkout against a dedicated T3 home, so fork code never writes his database.
 Run with ``python voice/t3/fork_env.py <up|down|status|token|pair>`` from the
 repo root. Every path below hangs off VOICE_HOME, which defaults to
-``~/voice``. Only the standard library is used.
+``~/voice``. Only the standard library is used. Windows only: process checks
+use Get-CimInstance and taskkill, and secret files use icacls.
 
 The server runs as ``vp run dev`` with ``--home-dir``, because the free
 ``Replay (dev)`` provider only registers on a dev server. It needs a dev web
@@ -23,8 +24,10 @@ import os
 import re
 import shutil
 import socket
+import sqlite3
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -32,6 +35,10 @@ from pathlib import Path
 FORK_PORT = 3779
 SERVER_READY_TIMEOUT_S = 240
 SERVER_POLL_INTERVAL_S = 2
+DOWN_TIMEOUT_S = 30
+DOWN_POLL_INTERVAL_S = 1
+PAIR_ATTEMPTS = 3
+PAIR_RETRY_DELAY_S = 2
 
 STATE_FILE = "fork-env.json"
 PID_FILE = "fork-env.pid"
@@ -39,6 +46,8 @@ SEAM_CONFIG_FILE = "voice-seam.json"
 TOKEN_FILE = "t3-seam-token"
 PAIR_FILE = "pairing-url.txt"
 LOG_FILE = "fork-env.log"
+
+RUNTIME_STATE_FILES = ("userdata/server-runtime.json", "dev/server-runtime.json")
 
 DEV_REPLAY_PROVIDER = "devReplay"
 DEV_REPLAY_MODEL = "showcase"
@@ -51,6 +60,7 @@ TOKEN_LABEL = "Voice server (ceiling in voice-seam.json)"
 SEAM_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt"]
 
 PROJECT_ADD_RE = re.compile(r"Added project (\S+)")
+ALREADY_EXISTS_RE = re.compile(r"already exists", re.IGNORECASE)
 PAIR_URL_RE = re.compile(r"Pairing URL:\s*(\S+)")
 
 
@@ -139,12 +149,163 @@ def _tasklist_has_pid(pid: int) -> bool:
     return any(len(row) > 1 and row[1].strip() == str(pid) for row in rows)
 
 
+def _process_info(pid: int) -> tuple[str | None, str | None]:
+    """Creation stamp and command line for a pid. (None, None) when unknown.
+
+    Both halves must match what this tool recorded before the pid counts as
+    ours. A recycled pid fails the stamp, and another program fails the
+    command line. Never raises.
+    """
+    if pid is None or pid <= 0:
+        return (None, None)
+    try:
+        if os.name == "nt":
+            return _process_info_windows(pid)
+        return _process_info_ps(pid)
+    except Exception:
+        return (None, None)
+
+
+def _process_info_windows(pid: int) -> tuple[str | None, str | None]:
+    """Creation stamp and command line from CIM. (None, None) when unknown."""
+    probe = (
+        f"$p = Get-CimInstance Win32_Process -Filter 'ProcessId = {int(pid)}' "
+        "| Select-Object -First 1; "
+        "if ($p) { "
+        "@{creation=$p.CreationDate.ToString('o'); cmdline=$p.CommandLine} "
+        "| ConvertTo-Json -Compress }"
+    )
+    done = subprocess.run(
+        ["powershell", "-NoProfile", "-NonInteractive", "-Command", probe],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if done.returncode != 0:
+        return (None, None)
+    text = (done.stdout or "").strip()
+    if not text:
+        return (None, None)
+    try:
+        doc = json.loads(text)
+    except ValueError:
+        return (None, None)
+    if not isinstance(doc, dict):
+        return (None, None)
+    creation = doc.get("creation")
+    cmdline = doc.get("cmdline")
+    if not creation or not isinstance(cmdline, str):
+        return (None, None)
+    return (str(creation), cmdline)
+
+
+def _process_info_ps(pid: int) -> tuple[str | None, str | None]:
+    """Creation stamp and command line from ps. Fallback for non-Windows."""
+    done = subprocess.run(
+        ["ps", "-o", "lstart=", "-o", "args=", "-p", str(int(pid))],
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if done.returncode != 0:
+        return (None, None)
+    text = (done.stdout or "").strip()
+    if not text:
+        return (None, None)
+    parts = text.split(None, 5)
+    if len(parts) < 5:
+        return (None, None)
+    cmdline = parts[5] if len(parts) > 5 else ""
+    return (" ".join(parts[:5]), cmdline)
+
+
+def _cmdline_is_ours(cmdline: str | None, home: Path) -> bool:
+    """True when this command line started our server for this home."""
+    if not cmdline:
+        return False
+    home_text = os.path.normcase(os.path.abspath(str(home)))
+    shown = os.path.normcase(cmdline)
+    return "--home-dir" in shown and home_text in shown
+
+
+def server_identity_ok(paths: EnvPaths, pid: int) -> bool:
+    """True when pid is the server this tool recorded for this home."""
+    try:
+        state = read_state(paths)
+        if state.get("serverPid") != pid:
+            return False
+        stamp = state.get("serverStarted")
+        if not stamp:
+            return False
+        creation, cmdline = _process_info(pid)
+        if creation != stamp:
+            return False
+        return _cmdline_is_ours(cmdline, paths.home)
+    except Exception:
+        return False
+
+
+def record_server_identity(paths: EnvPaths, pid: int, attempts: int = 5) -> bool:
+    """Stamp this spawn's creation time into the state file. False when unknown."""
+    for _ in range(attempts):
+        creation, _cmdline = _process_info(pid)
+        if creation is not None:
+            update_state(paths, serverPid=pid, serverStarted=creation)
+            return True
+        time.sleep(1.0)
+    return False
+
+
+def clear_pid_file(paths: EnvPaths) -> None:
+    """Drop the pid file. Only for pids this tool checked first."""
+    try:
+        paths.pid_file.unlink()
+    except OSError:
+        pass
+
+
 def environment_up(paths: EnvPaths) -> int | None:
-    """Pid of our server when it is up, else None. A stale file reads as down."""
+    """Pid of our server when it is up, else None. A stale file is cleared."""
     pid = read_pid(paths)
     if pid is None:
         return None
-    return pid if pid_alive(pid) else None
+    if server_identity_ok(paths, pid) and pid_alive(pid):
+        return pid
+    clear_pid_file(paths)
+    return None
+
+
+def runtime_candidates(paths: EnvPaths) -> list[Path]:
+    """Server runtime files, userdata first. The dev variant covers old layouts."""
+    return [paths.home / name for name in RUNTIME_STATE_FILES]
+
+
+def runtime_state(paths: EnvPaths) -> dict | None:
+    """First parseable server runtime file, else None. Never raises."""
+    for candidate in runtime_candidates(paths):
+        try:
+            text = candidate.read_text(encoding="utf-8")
+        except OSError:
+            continue
+        try:
+            doc = json.loads(text)
+        except ValueError:
+            continue
+        if isinstance(doc, dict):
+            return doc
+    return None
+
+
+def runtime_web_url(paths: EnvPaths) -> str | None:
+    """Web URL the pairing link uses, from the runtime file. None when unknown."""
+    state = runtime_state(paths)
+    if not state:
+        return None
+    for key in ("devUrl", "origin"):
+        value = state.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+    return None
 
 
 def port_open(port: int, host: str = "127.0.0.1") -> bool:
@@ -204,8 +365,49 @@ def ensure_sandbox_repo(sandbox: Path) -> bool:
     return True
 
 
+def _same_root(left: str, right: str) -> bool:
+    """True when two workspace roots name the same directory on this platform."""
+    return os.path.normcase(os.path.normpath(left)) == os.path.normcase(os.path.normpath(right))
+
+
+def find_project_id_by_root(home: Path, sandbox: Path) -> str | None:
+    """Live project id for this root in this home, else None. Read-only."""
+    want = str(sandbox)
+    for variant in ("userdata", "dev"):
+        db = home / variant / "statev2.sqlite"
+        if not db.is_file():
+            continue
+        try:
+            conn = sqlite3.connect(f"file:{db}?mode=ro", uri=True, timeout=10)
+        except sqlite3.Error:
+            continue
+        try:
+            try:
+                rows = conn.execute(
+                    "SELECT project_id, workspace_root FROM projection_projects "
+                    "WHERE deleted_at IS NULL"
+                )
+            except sqlite3.Error:
+                continue
+            for project_id, workspace_root in rows:
+                if isinstance(workspace_root, str) and _same_root(workspace_root, want):
+                    return project_id
+        except sqlite3.Error:
+            continue
+        finally:
+            try:
+                conn.close()
+            except sqlite3.Error:
+                pass
+    return None
+
+
 def ensure_project(repo: Path, home: Path, sandbox: Path, stored_id: str | None) -> tuple[str, bool]:
-    """Register the sandbox project. True when it registered a new one."""
+    """Register the sandbox project. True when it registered a new one.
+
+    When the state file is lost and add answers that the project already
+    exists, recovers the id from the database instead of failing.
+    """
     if stored_id:
         return stored_id, False
     done = run_node_cli(
@@ -218,12 +420,24 @@ def ensure_project(repo: Path, home: Path, sandbox: Path, stored_id: str | None)
         "--base-dir",
         str(home),
     )
-    if done.returncode != 0:
-        raise RuntimeError(f"fork_env: project add failed: {(done.stderr or done.stdout).strip()}")
-    match = PROJECT_ADD_RE.search(done.stdout)
-    if match is None:
-        raise RuntimeError(f"fork_env: project add printed no id: {done.stdout.strip()}")
-    return match.group(1), True
+    if done.returncode == 0:
+        match = PROJECT_ADD_RE.search(done.stdout)
+        if match is None:
+            raise RuntimeError(f"fork_env: project add printed no id: {done.stdout.strip()}")
+        return match.group(1), True
+    output = f"{done.stdout or ''}\n{done.stderr or ''}"
+    if ALREADY_EXISTS_RE.search(output):
+        found = find_project_id_by_root(home, sandbox)
+        if found is not None:
+            return found, False
+        raise RuntimeError(
+            "fork_env: project add says the sandbox already exists but no live "
+            f"project names {sandbox} (exit {done.returncode})"
+        )
+    raise RuntimeError(
+        f"fork_env: project add failed (exit {done.returncode}): "
+        f"{(done.stderr or done.stdout).strip()}"
+    )
 
 
 def seam_config_document(project_id: str) -> dict:
@@ -260,19 +474,27 @@ def write_state(paths: EnvPaths, state: dict) -> None:
     paths.state_file.write_text(json.dumps(state, indent=2) + "\n", encoding="utf-8")
 
 
+def update_state(paths: EnvPaths, **fields) -> dict:
+    """Merge fields into the saved state and write it. Returns the state."""
+    state = read_state(paths)
+    state.update(fields)
+    write_state(paths, state)
+    return state
+
+
 def setup_environment(repo: Path, paths: EnvPaths) -> dict:
     """Idempotent first-time setup, with the server stopped. Reports what it made."""
     paths.home.mkdir(parents=True, exist_ok=True)
     state = read_state(paths)
     sandbox_created = ensure_sandbox_repo(paths.sandbox)
     project_id, project_created = ensure_project(repo, paths.home, paths.sandbox, state.get("sandboxProjectId"))
-    seam_created = ensure_seam_config(paths, project_id)
     write_state(paths, {"port": FORK_PORT, "sandboxProjectId": project_id})
+    seam_created = ensure_seam_config(paths, project_id)
     return {
         "sandbox_created": sandbox_created,
         "project_created": project_created,
         "project_id": project_id,
-        "seam_config_created": seam_created,
+        "seam_created": seam_created,
     }
 
 
@@ -327,42 +549,119 @@ def spawn_dev_server(repo: Path, paths: EnvPaths, port: int):
     )
 
 
-def wait_ready(port: int, timeout_s: int = SERVER_READY_TIMEOUT_S) -> bool:
-    """Wait until the server accepts TCP. Polls, so no fixed sleep can pass."""
+def wait_ready(
+    port: int,
+    paths: EnvPaths,
+    proc: subprocess.Popen | None = None,
+    timeout_s: int = SERVER_READY_TIMEOUT_S,
+    poll_s: float = SERVER_POLL_INTERVAL_S,
+) -> bool:
+    """Wait until the server answers TCP and has written its runtime file.
+
+    The runtime file is what pair reads, so waiting for it as well as the
+    port means pair works right after up. Returns False early when the child
+    process dies instead of waiting out the timeout. The file names the inner
+    server, never the spawned wrapper, so no pid equality is required here;
+    the port plus a live recorded pid is what readiness means.
+    """
     deadline = time.monotonic() + timeout_s
     while time.monotonic() < deadline:
+        if proc is not None:
+            try:
+                if proc.poll() is not None:
+                    return False
+            except Exception:
+                return False
         if port_open(port):
-            return True
-        time.sleep(SERVER_POLL_INTERVAL_S)
+            state = runtime_state(paths)
+            pid = state.get("pid") if isinstance(state, dict) else None
+            if (
+                isinstance(state, dict)
+                and state.get("port") == port
+                and isinstance(pid, int)
+                and pid_alive(pid)
+            ):
+                return True
+        time.sleep(poll_s)
     return False
 
 
-def kill_tree(pid: int) -> None:
-    """Stop the spawned server and its process tree. Only the recorded pid."""
-    subprocess.run(
-        ["taskkill", "/PID", str(pid), "/T", "/F"],
-        capture_output=True,
-        timeout=60,
-    )
-
-
-def restrict_file(path: Path) -> None:
-    """Limit a secret file to the current user. Best effort on Windows."""
+def kill_tree(pid: int) -> subprocess.CompletedProcess[str]:
+    """Stop the spawned server and its process tree. Returns the taskkill result."""
     try:
-        user = getpass.getuser()
-        done = subprocess.run(
-            ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
+        return subprocess.run(
+            ["taskkill", "/PID", str(pid), "/T", "/F"],
             capture_output=True,
+            text=True,
             timeout=60,
         )
-        if done.returncode == 0:
-            return
-    except OSError:
-        pass
+    except OSError as exc:
+        return subprocess.CompletedProcess(args=["taskkill"], returncode=1, stdout="", stderr=str(exc))
+
+
+def restrict_file(path: Path) -> bool:
+    """Limit a secret file to the current user. True when the ACL held."""
+    if os.name == "nt":
+        try:
+            user = getpass.getuser()
+        except Exception:
+            return False
+        try:
+            done = subprocess.run(
+                ["icacls", str(path), "/inheritance:r", "/grant:r", f"{user}:F"],
+                capture_output=True,
+                timeout=60,
+            )
+            return done.returncode == 0
+        except OSError:
+            return False
     try:
         os.chmod(path, 0o600)
     except OSError:
-        pass
+        return False
+    return True
+
+
+def write_secret_file(path: Path, text: str) -> bool:
+    """Write a secret atomically with user-only permissions. True when the ACL held.
+
+    Writes to a temp file in the same directory, locks it, then renames, so a
+    crash never leaves a half-written or wide-open secret behind. Warns on
+    stderr when icacls fails.
+    """
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=path.name + ".", suffix=".tmp")
+    tmp = Path(tmp_name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            handle.write(text)
+        held = restrict_file(tmp)
+        os.replace(tmp, path)
+    except Exception:
+        try:
+            tmp.unlink()
+        except OSError:
+            pass
+        raise
+    if not held:
+        print(
+            f"fork_env: warning: icacls failed for {path}, permissions are inherited",
+            file=sys.stderr,
+        )
+    return held
+
+
+def validate_home(home: Path) -> str | None:
+    """Refusal reason when this home would touch the daily install, else None."""
+    text = os.path.abspath(str(home))
+    protected = [os.path.abspath(str(Path.home() / ".t3"))]
+    ambient = os.environ.get("T3CODE_HOME")
+    if ambient:
+        protected.append(os.path.abspath(ambient))
+    for guard in protected:
+        if text == guard or text.startswith(guard + os.sep):
+            return f"fork_env: refusing --home under Mason's daily install ({guard})"
+    return None
 
 
 def cmd_up(repo: Path, paths: EnvPaths) -> int:
@@ -376,12 +675,19 @@ def cmd_up(repo: Path, paths: EnvPaths) -> int:
         return 1
     made = setup_environment(repo, paths)
     print(f"fork_env: sandbox project {made['project_id']}")
-    if not made["sandbox_created"] and not made["project_created"] and not made["seam_config_created"]:
+    if not made["sandbox_created"] and not made["project_created"] and not made["seam_created"]:
         print("fork_env: setup already done, created nothing")
     proc = spawn_dev_server(repo, paths, FORK_PORT)
     assert proc.pid is not None
+    if not record_server_identity(paths, proc.pid):
+        print(
+            f"fork_env: cannot verify spawned server (pid {proc.pid}), stopping it",
+            file=sys.stderr,
+        )
+        kill_tree(proc.pid)
+        return 1
     paths.pid_file.write_text(str(proc.pid), encoding="utf-8")
-    if not wait_ready(FORK_PORT):
+    if not wait_ready(FORK_PORT, paths, proc):
         print(f"fork_env: server did not answer on {FORK_PORT}, see {paths.log_file}", file=sys.stderr)
         return 1
     print(f"fork_env: up on port {FORK_PORT} (pid {proc.pid})")
@@ -389,21 +695,35 @@ def cmd_up(repo: Path, paths: EnvPaths) -> int:
 
 
 def cmd_down(paths: EnvPaths) -> int:
-    """Stop the recorded server only. A stale pid file is safe."""
+    """Stop the recorded server only. A stale pid file is cleared, never killed."""
     pid = read_pid(paths)
     if pid is None:
         print("fork_env: down (no pid file)")
         return 0
-    if pid_alive(pid):
-        kill_tree(pid)
-        print(f"fork_env: stopped pid {pid}")
-    else:
-        print(f"fork_env: pid {pid} already gone, clearing the stale file")
-    try:
-        paths.pid_file.unlink()
-    except OSError:
-        pass
-    return 0
+    if environment_up(paths) is None:
+        print(f"fork_env: pid {pid} is not ours or already gone, cleared the stale file")
+        return 0
+    done = kill_tree(pid)
+    if done.returncode != 0:
+        print(
+            f"fork_env: taskkill failed for pid {pid} (exit {done.returncode}), "
+            "keeping the pid file",
+            file=sys.stderr,
+        )
+        return 1
+    deadline = time.monotonic() + DOWN_TIMEOUT_S
+    while time.monotonic() < deadline:
+        if not pid_alive(pid) and not port_open(FORK_PORT):
+            clear_pid_file(paths)
+            print(f"fork_env: stopped pid {pid}")
+            return 0
+        time.sleep(DOWN_POLL_INTERVAL_S)
+    print(
+        f"fork_env: pid {pid} did not stop or port {FORK_PORT} is still open, "
+        "keeping the pid file",
+        file=sys.stderr,
+    )
+    return 1
 
 
 def cmd_status(paths: EnvPaths) -> int:
@@ -413,6 +733,8 @@ def cmd_status(paths: EnvPaths) -> int:
     home = paths.home
     print(f"state: {'up' if live is not None else 'down'}")
     print(f"port: {FORK_PORT}")
+    web = runtime_web_url(paths) if live is not None else None
+    print(f"web: {web if web is not None else 'unknown'}")
     print(f"home: {home}")
     print(f"sandbox: {paths.sandbox}")
     print(f"sandbox_project: {state.get('sandboxProjectId', 'unknown')}")
@@ -444,14 +766,13 @@ def cmd_token(repo: Path, paths: EnvPaths) -> int:
         "--token-only",
     )
     if done.returncode != 0:
-        print(f"fork_env: token mint failed: {(done.stderr or done.stdout).strip()}", file=sys.stderr)
+        print(f"fork_env: token mint failed (exit {done.returncode})", file=sys.stderr)
         return 1
     token = done.stdout.strip()
     if not token:
-        print("fork_env: token mint printed nothing", file=sys.stderr)
+        print(f"fork_env: token mint failed (exit {done.returncode})", file=sys.stderr)
         return 1
-    paths.token_file.write_text(token + "\n", encoding="utf-8")
-    restrict_file(paths.token_file)
+    write_secret_file(paths.token_file, token + "\n")
     print(f"fork_env: wrote {paths.token_file} (subject {TOKEN_SUBJECT}, scope {TOKEN_SCOPE})")
     return 0
 
@@ -461,16 +782,21 @@ def cmd_pair(repo: Path, paths: EnvPaths) -> int:
     if environment_up(paths) is None:
         print("fork_env: pair needs the environment up, run up first", file=sys.stderr)
         return 1
-    done = run_node_cli(repo, "pair", "--base-dir", str(paths.home))
+    done = None
+    for _ in range(PAIR_ATTEMPTS):
+        done = run_node_cli(repo, "pair", "--base-dir", str(paths.home))
+        if done.returncode == 0:
+            break
+        time.sleep(PAIR_RETRY_DELAY_S)
+    assert done is not None
     if done.returncode != 0:
-        print(f"fork_env: pair failed: {(done.stderr or done.stdout).strip()}", file=sys.stderr)
+        print(f"fork_env: pair failed (exit {done.returncode})", file=sys.stderr)
         return 1
     match = PAIR_URL_RE.search(done.stdout)
     if match is None:
         print("fork_env: pair printed no pairing URL", file=sys.stderr)
         return 1
-    paths.pair_file.write_text(match.group(1) + "\n", encoding="utf-8")
-    restrict_file(paths.pair_file)
+    write_secret_file(paths.pair_file, match.group(1) + "\n")
     print(f"fork_env: wrote {paths.pair_file} (hand the link to Mason, do not open it)")
     return 0
 
@@ -480,7 +806,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Bring the fork's T3 environment up and down.")
     parser.add_argument("--home", default=None, help="Fork T3 home (default VOICE_HOME/t3-fork-home).")
     parser.add_argument("--sandbox", default=None, help="Sandbox repo dir (default VOICE_HOME/t3-fork-sandbox).")
-    parser.add_argument("command", choices=["up", "down", "status", "token", "pair"])
+    parser.add_argument("command", choices=["up", "status", "down", "token", "pair"])
     return parser
 
 
@@ -489,7 +815,13 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     voice_home = default_voice_home()
     home = Path(args.home) if args.home else voice_home / "t3-fork-home"
+    home = Path(os.path.abspath(os.path.expanduser(str(home))))
     sandbox = Path(args.sandbox) if args.sandbox else voice_home / "t3-fork-sandbox"
+    sandbox = Path(os.path.abspath(os.path.expanduser(str(sandbox))))
+    refusal = validate_home(home)
+    if refusal is not None:
+        print(refusal, file=sys.stderr)
+        return 2
     paths = EnvPaths.from_home(home, sandbox)
     repo = repo_root()
     if args.command == "up":
