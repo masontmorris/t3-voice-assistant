@@ -402,8 +402,8 @@ def instruction_of(item):
 
 def print_readings(traces, items):
     readings = reading_accuracy(traces, items)
-    print(f"\nARGUMENTS, {readings['n']} labeled items: the decider's reading filled for dispatch {readings['decider']} "
-          f"exact, the word rules {readings['rules']} exact")
+    print(f"\nARGUMENTS, {readings['n']} labeled items: the decider's reading filled for dispatch "
+          f"{readings['decider']} exact, the word rules {readings['rules']} exact")
     for row in readings["rows"]:
         print(f"{row['id']:5}{row['split']:8}{'ok ' if row['read'] == row['rules'] else 'DIFF'} want {row['want']} "
               f"decider {row['read']} (read {row['raw']}) rules {row['rules']}")

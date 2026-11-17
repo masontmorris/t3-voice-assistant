@@ -166,8 +166,8 @@ class MockTaskService:
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
 
     def _start(self, task_id, instruction, side_effect, now, choice=None):
-        routed = self.tools.dispatch(instruction, self.earlier, self.context, choice) if self.tools and not side_effect \
-            else None
+        routed = (self.tools.dispatch(instruction, self.earlier, self.context, choice)
+                  if self.tools and not side_effect else None)
         call = routed.call if routed is not None else None
         if call is None:
             if not self.simulate:
