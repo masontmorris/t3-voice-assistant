@@ -1,0 +1,1616 @@
+{
+  "scenario": "Orchestrator with the ACP registry approval replay: a link card asked while the approval holds the run, answered after the run completes (needs.integration.test.ts)",
+  "events": [
+    {
+      "sequence": 1,
+      "commandId": "command:fixture:voice_link_card:thread-create:ea50ea93-b0ab-4c77-a9e4-4fcde38dabb3",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Athread-create%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "thread.created",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "projectId": "project:fixture:voice_link_card:f2604e9d-55b7-45de-a716-838867faae7e",
+          "title": "Replay fixture: voice_link_card",
+          "providerInstanceId": "acpRegistry",
+          "modelSelection": {
+            "instanceId": "acpRegistry",
+            "model": "default"
+          },
+          "runtimeMode": "full-access",
+          "interactionMode": "default",
+          "branch": null,
+          "worktreePath": null,
+          "pullRequests": [],
+          "activeProviderThreadId": null,
+          "lineage": {
+            "parentThreadId": null,
+            "relationshipToParent": null,
+            "rootThreadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7"
+          },
+          "forkedFrom": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "archivedAt": null,
+          "settledOverride": null,
+          "settledAt": null,
+          "snoozedUntil": null,
+          "snoozedAt": null,
+          "lastVisitedAt": null,
+          "deletedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 2,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:63eeefed-6d16-4148-87c0-1fc053d7697f",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "thread.metadata-updated",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "projectId": "project:fixture:voice_link_card:f2604e9d-55b7-45de-a716-838867faae7e",
+          "title": "Replay fixture: voice_link_card",
+          "providerInstanceId": "acpRegistry",
+          "modelSelection": {
+            "instanceId": "acpRegistry",
+            "model": "default"
+          },
+          "runtimeMode": "full-access",
+          "interactionMode": "default",
+          "branch": null,
+          "worktreePath": null,
+          "pullRequests": [],
+          "activeProviderThreadId": null,
+          "lineage": {
+            "parentThreadId": null,
+            "relationshipToParent": null,
+            "rootThreadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7"
+          },
+          "forkedFrom": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "archivedAt": null,
+          "settledOverride": null,
+          "settledAt": null,
+          "snoozedUntil": null,
+          "snoozedAt": null,
+          "lastVisitedAt": "1969-12-31T23:59:59.999Z",
+          "deletedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 3,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:4f546d75-4aea-4531-b605-37a50b11eff2",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "acpRegistry",
+          "providerSessionId": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79",
+          "appThreadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": null,
+          "nativeConversationHeadRef": null,
+          "status": "not_loaded",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": null,
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 4,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:dce9078c-dbe7-4a4c-aabe-c14cc39b54cd",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "run.created",
+        "payload": {
+          "id": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ordinal": 1,
+          "providerInstanceId": "acpRegistry",
+          "modelSelection": {
+            "instanceId": "acpRegistry",
+            "model": "default"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "userMessageId": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "status": "starting",
+          "queuePosition": null,
+          "requestedAt": "1970-01-01T00:00:00.000Z",
+          "startedAt": null,
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null
+        }
+      }
+    },
+    {
+      "sequence": 5,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:bcfc7880-7220-452f-8fe4-4e2871e0d922",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "run-attempt.created",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerInstanceId": "acpRegistry",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "pending",
+          "startedAt": null,
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 6,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:7a16900a-16fb-4595-acb7-aadbd72e38a3",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "pending",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "startedAt": null,
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 7,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:6737dc57-1fcc-475e-b9c0-09c826c08619",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "checkpoint-scope.created",
+        "payload": {
+          "id": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "parentScopeId": null,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "kind": "root_run",
+          "ordinalWithinParent": 0,
+          "advancesAppRunCount": true,
+          "cwd": "/workspace/voice-fixtures",
+          "createdAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 8,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:36247615-9857-4272-a312-be63cf804442",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "message.updated",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "role": "user",
+          "text": "Create or overwrite .codex-probe-write-action.txt with exactly this text: codex app-server approval fixture. Use a local shell command or file edit only, then briefly report what happened. Do not read package metadata, use GitHub, use web, or use MCP.",
+          "attachments": [],
+          "streaming": false,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 9,
+      "commandId": "command:fixture:voice_link_card:message-1:eb0c8710-ce93-4a66-a7a4-438c4bb1eece",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Avoice_link_card%3Amessage-1%3Aeb0c8710-ce93-4a66-a7a4-438c4bb1eece:f7722a9a-786c-435e-9717-e5c31f12a418",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:message:message%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1%3Aa209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000001,
+          "status": "completed",
+          "title": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "createdBy": "user",
+          "creationSource": "web",
+          "type": "user_message",
+          "messageId": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "inputIntent": "turn_start",
+          "text": "Create or overwrite .codex-probe-write-action.txt with exactly this text: codex app-server approval fixture. Use a local shell command or file edit only, then briefly report what happened. Do not read package metadata, use GitHub, use web, or use MCP.",
+          "attachments": []
+        }
+      }
+    },
+    {
+      "sequence": 10,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:60ae850c-0af3-4468-9967-365ecc316207",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-session.attached",
+        "payload": {
+          "id": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79",
+          "driver": "acpRegistry",
+          "providerInstanceId": "acpRegistry",
+          "status": "ready",
+          "cwd": "/workspace/voice-fixtures",
+          "model": "default",
+          "capabilities": {
+            "sessions": {
+              "supportsMultipleProviderThreadsPerSession": false,
+              "supportsModelSwitchInSession": true,
+              "supportsProviderSwitchingViaHandoff": true,
+              "supportsRuntimeModeSwitchInSession": false,
+              "pendingRequestsSurviveRestart": false
+            },
+            "threads": {
+              "canCreateEmptyThread": true,
+              "canReadThreadSnapshot": true,
+              "canRollbackThread": true,
+              "canForkThread": false,
+              "canForkFromTurn": false,
+              "canForkFromSubagentThread": false,
+              "exposesNativeThreadId": true
+            },
+            "turns": {
+              "exposesNativeTurnId": false,
+              "emitsTurnStarted": true,
+              "emitsTurnCompleted": true,
+              "supportsInterrupt": true,
+              "supportsActiveSteering": false,
+              "supportsSteeringByInterruptRestart": true,
+              "supportsQueuedMessages": true,
+              "terminalStatusQuality": "strong"
+            },
+            "streaming": {
+              "streamsAssistantText": true,
+              "streamsReasoning": true,
+              "streamsToolOutput": true,
+              "streamsPlanText": false,
+              "emitsMessageCompleted": true
+            },
+            "tools": {
+              "exposesToolItemIds": true,
+              "emitsToolStarted": true,
+              "emitsToolCompleted": true,
+              "emitsToolOutput": true,
+              "supportsMcpTools": true,
+              "supportsDynamicToolCallbacks": false
+            },
+            "approvals": {
+              "supportsCommandApproval": true,
+              "supportsFileReadApproval": true,
+              "supportsFileChangeApproval": true,
+              "supportsApplyPatchApproval": false,
+              "approvalsHaveNativeRequestIds": false,
+              "approvalCallbacksAreLiveOnly": true,
+              "approvalsCanOriginateFromSubagents": false
+            },
+            "planning": {
+              "emitsPlanUpdated": true,
+              "emitsTodoList": true,
+              "emitsProposedPlan": false,
+              "supportsStructuredQuestions": true,
+              "planDeltasHaveItemIds": false
+            },
+            "subagents": {
+              "supportsSubagents": false,
+              "exposesSubagentThreadIds": false,
+              "emitsSubagentLifecycle": false,
+              "canWaitForSubagents": false,
+              "canCloseSubagents": false,
+              "canForkSubagentThread": false
+            },
+            "context": {
+              "acceptsSystemContext": false,
+              "acceptsDeveloperContext": false,
+              "acceptsSyntheticUserContext": true,
+              "canGenerateSummaries": true,
+              "canConsumeHandoffSummaries": true,
+              "supportsDeltaHandoff": true,
+              "supportsFullThreadHandoff": true,
+              "maxRecommendedHandoffChars": null
+            },
+            "checkpointing": {
+              "appCanCheckpointFilesystem": true,
+              "supportsNestedCheckpointScopes": true,
+              "providerCanRollbackConversation": false,
+              "providerRollbackReturnsSnapshot": true,
+              "providerCanReadConversationSnapshot": true
+            },
+            "identity": {
+              "nativeThreadIds": "strong",
+              "nativeTurnIds": "weak",
+              "nativeItemIds": "weak",
+              "nativeRequestIds": "weak"
+            },
+            "runtimePolicy": {
+              "enforcement": "client-boundary"
+            }
+          },
+          "extensionStatuses": [],
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "lastError": null
+        }
+      }
+    },
+    {
+      "sequence": 11,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:4d5d9862-e86b-4ae5-89bd-fef707188ea9",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-session.updated",
+        "payload": {
+          "id": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79",
+          "driver": "acpRegistry",
+          "providerInstanceId": "acpRegistry",
+          "status": "ready",
+          "cwd": "/workspace/voice-fixtures",
+          "model": "default",
+          "capabilities": {
+            "sessions": {
+              "supportsMultipleProviderThreadsPerSession": false,
+              "supportsModelSwitchInSession": true,
+              "supportsProviderSwitchingViaHandoff": true,
+              "supportsRuntimeModeSwitchInSession": false,
+              "pendingRequestsSurviveRestart": false
+            },
+            "threads": {
+              "canCreateEmptyThread": true,
+              "canReadThreadSnapshot": true,
+              "canRollbackThread": true,
+              "canForkThread": false,
+              "canForkFromTurn": false,
+              "canForkFromSubagentThread": false,
+              "exposesNativeThreadId": true
+            },
+            "turns": {
+              "exposesNativeTurnId": false,
+              "emitsTurnStarted": true,
+              "emitsTurnCompleted": true,
+              "supportsInterrupt": true,
+              "supportsActiveSteering": false,
+              "supportsSteeringByInterruptRestart": true,
+              "supportsQueuedMessages": true,
+              "terminalStatusQuality": "strong"
+            },
+            "streaming": {
+              "streamsAssistantText": true,
+              "streamsReasoning": true,
+              "streamsToolOutput": true,
+              "streamsPlanText": false,
+              "emitsMessageCompleted": true
+            },
+            "tools": {
+              "exposesToolItemIds": true,
+              "emitsToolStarted": true,
+              "emitsToolCompleted": true,
+              "emitsToolOutput": true,
+              "supportsMcpTools": true,
+              "supportsDynamicToolCallbacks": false
+            },
+            "approvals": {
+              "supportsCommandApproval": true,
+              "supportsFileReadApproval": true,
+              "supportsFileChangeApproval": true,
+              "supportsApplyPatchApproval": false,
+              "approvalsHaveNativeRequestIds": false,
+              "approvalCallbacksAreLiveOnly": true,
+              "approvalsCanOriginateFromSubagents": false
+            },
+            "planning": {
+              "emitsPlanUpdated": true,
+              "emitsTodoList": true,
+              "emitsProposedPlan": false,
+              "supportsStructuredQuestions": true,
+              "planDeltasHaveItemIds": false
+            },
+            "subagents": {
+              "supportsSubagents": false,
+              "exposesSubagentThreadIds": false,
+              "emitsSubagentLifecycle": false,
+              "canWaitForSubagents": false,
+              "canCloseSubagents": false,
+              "canForkSubagentThread": false
+            },
+            "context": {
+              "acceptsSystemContext": false,
+              "acceptsDeveloperContext": false,
+              "acceptsSyntheticUserContext": true,
+              "canGenerateSummaries": true,
+              "canConsumeHandoffSummaries": true,
+              "supportsDeltaHandoff": true,
+              "supportsFullThreadHandoff": true,
+              "maxRecommendedHandoffChars": null
+            },
+            "checkpointing": {
+              "appCanCheckpointFilesystem": true,
+              "supportsNestedCheckpointScopes": true,
+              "providerCanRollbackConversation": false,
+              "providerRollbackReturnsSnapshot": true,
+              "providerCanReadConversationSnapshot": true
+            },
+            "identity": {
+              "nativeThreadIds": "strong",
+              "nativeTurnIds": "weak",
+              "nativeItemIds": "weak",
+              "nativeRequestIds": "weak"
+            },
+            "runtimePolicy": {
+              "enforcement": "client-boundary"
+            }
+          },
+          "extensionStatuses": [],
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "lastError": null
+        }
+      }
+    },
+    {
+      "sequence": 12,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:82db2fd3-8161-4e09-90a5-257cd19ecdc7",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "acpRegistry",
+          "providerSessionId": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79",
+          "appThreadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 13,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:93cc7724-4120-478e-ac3c-e12809d7e033",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "run.updated",
+        "payload": {
+          "id": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ordinal": 1,
+          "providerInstanceId": "acpRegistry",
+          "modelSelection": {
+            "instanceId": "acpRegistry",
+            "model": "default"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "userMessageId": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "status": "running",
+          "queuePosition": null,
+          "requestedAt": "1970-01-01T00:00:00.000Z",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null
+        }
+      }
+    },
+    {
+      "sequence": 14,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:5dbefaa2-c267-4efd-b8cd-6c26bbe184e5",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "run-attempt.updated",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeThreadId": "grok-replay-session-1",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerInstanceId": "acpRegistry",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "running",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 15,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:3bb0ca6c-65c5-4af2-b541-2f2ffb33e2c0",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "running",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 16,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:6ba8464e-b9d7-4907-96af-00316e4a3c76",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeTurnRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1:turn:1",
+            "strength": "weak"
+          },
+          "ordinal": 1,
+          "status": "running",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 17,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:994cc9c2-ee4d-47ee-adf5-be8a0f3f9e6b",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "acpRegistry",
+          "providerSessionId": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79",
+          "appThreadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 18,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:c706cd23-e77a-4599-8583-393d3f7490c2",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "tool_call",
+          "status": "running",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "strong"
+          },
+          "runtimeRequestId": null,
+          "checkpointScopeId": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 19,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:b6230d0f-7c18-4f5c-aad0-6ace63bbf897",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "strong"
+          },
+          "parentItemId": null,
+          "ordinal": 1000002,
+          "status": "pending",
+          "title": "Ran command",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null,
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "command_execution",
+          "input": "printf 'codex app-server approval fixture' > .codex-probe-write-action.txt"
+        }
+      }
+    },
+    {
+      "sequence": 20,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:d2e582e1-617c-4c2f-9eb0-24ce2c5ebc9e",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "approval_request",
+          "status": "waiting",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "weak"
+          },
+          "runtimeRequestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AacpRegistry%253Agrok-replay-session-1%253Aturn%253A1:native-request:write-probe:110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "checkpointScopeId": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 21,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:bfe022cb-a480-4387-a40c-911017e18388",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "runtime-request.updated",
+        "payload": {
+          "id": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AacpRegistry%253Agrok-replay-session-1%253Aturn%253A1:native-request:write-probe:110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeRequestRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "weak"
+          },
+          "kind": "command",
+          "status": "pending",
+          "responseCapability": {
+            "type": "live",
+            "providerSessionId": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79"
+          },
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "resolvedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 22,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:b93128f7-9ed1-48f9-8694-bd1833f13cce",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "weak"
+          },
+          "parentItemId": null,
+          "ordinal": 1000003,
+          "status": "waiting",
+          "title": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null,
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "approval_request",
+          "requestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AacpRegistry%253Agrok-replay-session-1%253Aturn%253A1:native-request:write-probe:110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "requestKind": "command",
+          "prompt": "printf 'codex app-server approval fixture' > .codex-probe-write-action.txt"
+        }
+      }
+    },
+    {
+      "sequence": 23,
+      "commandId": "voice_link_card-ask",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-ask:45aabfbe-9d28-4faa-9cb6-f838414eda38",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "voice_link_card",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000004,
+          "status": "waiting",
+          "title": "Link an environment",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null,
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "link_request",
+          "reason": "Link the build machine so the agent can run the tests there.",
+          "linkStatus": "pending"
+        }
+      }
+    },
+    {
+      "sequence": 24,
+      "commandId": "voice_link_card-approve",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-approve:987ce235-3bb2-4e54-ac94-197e4a733889",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "runtime-request.updated",
+        "payload": {
+          "id": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AacpRegistry%253Agrok-replay-session-1%253Aturn%253A1:native-request:write-probe:110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeRequestRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "weak"
+          },
+          "kind": "command",
+          "status": "resolved",
+          "responseCapability": {
+            "type": "live",
+            "providerSessionId": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79"
+          },
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "resolvedAt": "1970-01-01T00:00:00.000Z",
+          "decision": "accept"
+        }
+      }
+    },
+    {
+      "sequence": 25,
+      "commandId": "voice_link_card-approve",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-approve:21d01f76-b180-40f9-a076-6a385d05b519",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "approval_request",
+          "status": "completed",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "weak"
+          },
+          "runtimeRequestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AacpRegistry%253Agrok-replay-session-1%253Aturn%253A1:native-request:write-probe:110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "checkpointScopeId": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 26,
+      "commandId": "voice_link_card-approve",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-approve:5c0d54f6-b546-4f37-8dc7-d8295fa2d999",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "weak"
+          },
+          "parentItemId": null,
+          "ordinal": 1000003,
+          "status": "completed",
+          "title": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "approval_request",
+          "requestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AacpRegistry%253Agrok-replay-session-1%253Aturn%253A1:native-request:write-probe:110eed0e-70f9-4e05-98b5-f71cdc6279a2",
+          "requestKind": "command",
+          "prompt": "printf 'codex app-server approval fixture' > .codex-probe-write-action.txt"
+        }
+      }
+    },
+    {
+      "sequence": 27,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:26c6c88f-c7db-42d9-9760-efac21ca6b88",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "tool_call",
+          "status": "completed",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "strong"
+          },
+          "runtimeRequestId": null,
+          "checkpointScopeId": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 28,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:11e2f6e1-035e-4d31-b2e6-055db3fbc171",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Atool%3Awrite-probe",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "write-probe",
+            "strength": "strong"
+          },
+          "parentItemId": null,
+          "ordinal": 1000002,
+          "status": "completed",
+          "title": "Ran command",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "command_execution",
+          "input": "printf 'codex app-server approval fixture' > .codex-probe-write-action.txt",
+          "exitCode": 0
+        }
+      }
+    },
+    {
+      "sequence": 29,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:d25dd6ec-4818-48ff-801a-062d5ce8afff",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "assistant_message",
+          "status": "completed",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1:turn:1:assistant:0",
+            "strength": "weak"
+          },
+          "runtimeRequestId": null,
+          "checkpointScopeId": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 30,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:e5cdcd6b-ba70-4e32-ad1e-79bcfaaa3b0a",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "message.updated",
+        "payload": {
+          "createdBy": "agent",
+          "creationSource": "provider",
+          "id": "message:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+          "role": "assistant",
+          "text": "Created the requested probe file.",
+          "attachments": [],
+          "streaming": false,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 31,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:d532cb45-a5b3-42a0-aecc-cb632d084e61",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1:turn:1:assistant:0",
+            "strength": "weak"
+          },
+          "parentItemId": null,
+          "ordinal": 1000005,
+          "status": "completed",
+          "title": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "assistant_message",
+          "messageId": "message:provider:acpRegistry:native-item:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1%3Aassistant%3A0",
+          "text": "Created the requested probe file.",
+          "streaming": false
+        }
+      }
+    },
+    {
+      "sequence": 32,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:179798cc-6c75-43a1-aaa0-1f6723c43873",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeTurnRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1:turn:1",
+            "strength": "weak"
+          },
+          "ordinal": 1,
+          "status": "completed",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "turnTokenUsage": {
+            "usageScope": "main_agent",
+            "hasSubagents": false,
+            "usageStatus": "unavailable"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 33,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:b0626600-5a2f-4683-bdd5-290f29a5c874",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "acpRegistry",
+          "providerSessionId": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79",
+          "appThreadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 34,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:d3e4ec65-0311-41b3-87f1-fe67dc5c04df",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "run-attempt.updated",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "nativeThreadId": "grok-replay-session-1",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerInstanceId": "acpRegistry",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "completed",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 35,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:fca0a642-9a33-4471-a7fd-daca4427241e",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "run.updated",
+        "payload": {
+          "id": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ordinal": 1,
+          "providerInstanceId": "acpRegistry",
+          "modelSelection": {
+            "instanceId": "acpRegistry",
+            "model": "default"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "userMessageId": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "status": "waiting",
+          "queuePosition": null,
+          "requestedAt": "1970-01-01T00:00:00.000Z",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null
+        }
+      }
+    },
+    {
+      "sequence": 36,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:14ba435c-3a39-4a8d-bd94-8a3af938693a",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "waiting",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
+      "sequence": 37,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b3aab037-d9e6-4c94-babf-88939072f47d",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "provider-thread.updated",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "acpRegistry",
+          "providerSessionId": "provider-session:provider-instance:acpRegistry:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b840ed8c-dc22-461b-9638-4a7526021f79",
+          "appThreadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "grok-replay-session-1",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "idle",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "goal": null,
+          "createdAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 38,
+      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:4e49b6cc-aaa7-4311-abd6-5b4610b80641",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "checkpoint.captured",
+        "payload": {
+          "id": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:0",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "scopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "runId": null,
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "parentCheckpointId": null,
+          "ordinalWithinScope": 0,
+          "appRunOrdinal": null,
+          "ref": "refs/t3/orchestration-v2/checkpoints/ZDM5NTkzOGExYzUxMTQzOGNjZWI2YTQzODcyNGRmZTU/ordinal/0",
+          "status": "ready",
+          "files": [],
+          "capturedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 39,
+      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:449a6a16-7f83-4507-af08-671225bb42d8",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "checkpoint.captured",
+        "payload": {
+          "id": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:1",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "scopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "parentCheckpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:0",
+          "ordinalWithinScope": 1,
+          "appRunOrdinal": 1,
+          "ref": "refs/t3/orchestration-v2/checkpoints/ZDM5NTkzOGExYzUxMTQzOGNjZWI2YTQzODcyNGRmZTU/ordinal/1",
+          "status": "ready",
+          "files": [],
+          "capturedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 40,
+      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:5ceb737a-54be-4285-ac81-7d6048b959bb",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:checkpoint%3Acheckpoint%3Ascope%3Acheckpoint-scope%253Athread%253Athread%25253Afixture%25253Avoice_link_card%25253Aproject%25253Aproject%2525253Afixture%2525253Avoice_link_card%2525253Af2604e9d-55b7-45de-a716-838867faae7e%25253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%253Aname%253Aroot%3Aname%3A1",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000006,
+          "status": "completed",
+          "title": null,
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "checkpoint",
+          "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:1",
+          "scopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "files": []
+        }
+      }
+    },
+    {
+      "sequence": 41,
+      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:7aa211df-51c4-46ce-8a44-3565886d51b4",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "run.updated",
+        "payload": {
+          "id": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "ordinal": 1,
+          "providerInstanceId": "acpRegistry",
+          "modelSelection": {
+            "instanceId": "acpRegistry",
+            "model": "default"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "userMessageId": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
+          "status": "completed",
+          "queuePosition": null,
+          "requestedAt": "1970-01-01T00:00:00.000Z",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:1",
+          "contextHandoffId": null
+        }
+      }
+    },
+    {
+      "sequence": 42,
+      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:9d769702-9e86-47b5-abac-4c43005766be",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "completed",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z"
+        }
+      }
+    },
+    {
+      "sequence": 43,
+      "commandId": "voice_link_card-answer",
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-answer:9201226e-f279-4fa0-8a89-bbede182dec4",
+        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+        "providerInstanceId": "acpRegistry",
+        "occurredAt": "1970-01-01T00:00:00.000Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "voice_link_card",
+          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AacpRegistry%3Agrok-replay-session-1%3Aturn%3A1",
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000004,
+          "status": "completed",
+          "title": "Link an environment",
+          "startedAt": "1970-01-01T00:00:00.000Z",
+          "completedAt": "1970-01-01T00:00:00.000Z",
+          "updatedAt": "1970-01-01T00:00:00.000Z",
+          "type": "link_request",
+          "reason": "Link the build machine so the agent can run the tests there.",
+          "linkStatus": "linked",
+          "linkedEnvironmentId": "environment-build-machine"
+        }
+      }
+    }
+  ]
+}

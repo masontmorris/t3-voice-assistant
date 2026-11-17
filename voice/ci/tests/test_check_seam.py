@@ -147,6 +147,60 @@ class SeamCheckTest(unittest.TestCase):
         entries = check_seam.read_allowlist(self.repo.root / ALLOWLIST)
         self.assertEqual(entries, {})
 
+    def test_a_file_under_a_listed_dir_passes(self) -> None:
+        self.touch_upstream_file("apps/server/src/voiceSeam/events.ts")
+        self.repo.allow("apps/server/src/voiceSeam/ | voice-owned seam")
+        code, output = self.repo.check()
+        self.assertEqual(code, check_seam.EXIT_OK, output)
+        self.assertIn("each listed", output)
+        self.assertIn("apps/server/src/voiceSeam/events.ts", output)
+
+    def test_a_file_under_an_unlisted_dir_fails(self) -> None:
+        self.touch_upstream_file("apps/server/src/unlistedDir/events.ts")
+        self.repo.allow("apps/server/src/voiceSeam/ | voice-owned seam")
+        code, output = self.repo.check()
+        self.assertEqual(code, check_seam.EXIT_UNLISTED, output)
+        self.assertIn("FAILED", output)
+        self.assertIn("apps/server/src/unlistedDir/events.ts", output)
+
+    def test_a_listed_dir_that_upstream_also_has_files_in_fails(self) -> None:
+        self.repo.git("checkout", "-q", "main")
+        self.repo.write("apps/server/src/preview/existing.ts", "export const x = 1;\n")
+        self.repo.commit("upstream preview file")
+        self.repo.git("checkout", "-q", "voice")
+        self.touch_upstream_file("apps/server/src/preview/new.ts")
+        self.repo.allow("apps/server/src/preview/ | voice-owned seam")
+        code, output = self.repo.check()
+        self.assertEqual(code, check_seam.EXIT_UNLISTED, output)
+        self.assertIn("FAILED", output)
+        self.assertIn("apps/server/src/preview/existing.ts", output)
+
+    def test_a_dir_row_with_no_reason_fails(self) -> None:
+        self.touch_upstream_file("apps/server/src/voiceSeam/events.ts")
+        self.repo.allow("apps/server/src/voiceSeam/ |")
+        code, output = self.repo.check()
+        self.assertEqual(code, check_seam.EXIT_UNLISTED, output)
+        self.assertIn("no reason", output)
+
+    def test_a_reason_of_dash_fails(self) -> None:
+        self.touch_upstream_file()
+        self.repo.allow("app.ts | -")
+        code, output = self.repo.check()
+        self.assertEqual(code, check_seam.EXIT_UNLISTED, output)
+        self.assertIn("no reason", output)
+
+    def test_rows_inside_fenced_code_blocks_are_ignored(self) -> None:
+        body = (
+            "# Code block with a table\n\n"
+            "```markdown\n"
+            "| app.ts | inside code block |\n"
+            "```\n"
+        )
+        self.repo.write(ALLOWLIST, EMPTY_TABLE + body)
+        self.repo.commit("add code block")
+        entries = check_seam.read_allowlist(self.repo.root / ALLOWLIST)
+        self.assertEqual(entries, {})
+
 
 if __name__ == "__main__":
     unittest.main()

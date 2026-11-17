@@ -51,21 +51,46 @@ def changed_files(repo: Path, base: str, head: str) -> list[str]:
     return [path for path in listing.split("\0") if path]
 
 
+def has_letters(text: str) -> bool:
+    return any(c.isalpha() for c in text)
+
+
 def read_allowlist(path: Path) -> dict[str, str]:
     entries: dict[str, str] = {}
+    in_fence = False
     for line in path.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line.startswith("|"):
+        stripped = line.strip()
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            in_fence = not in_fence
             continue
-        cells = [cell.strip() for cell in line.strip("|").split("|")]
+        if in_fence or not stripped.startswith("|"):
+            continue
+        cells = [cell.strip() for cell in stripped.strip("|").split("|")]
         if len(cells) < 2:
             continue
         listed = cells[0].strip("` ")
         reason = cells[1].strip("` ")
         if not listed or listed.lower() == "path" or set(listed) <= set("-: "):
             continue
+        if not has_letters(reason):
+            reason = ""
         entries[listed] = reason
     return entries
+
+
+def lookup_allowlist(path: str, allowed: dict[str, str]) -> tuple[str | None, str]:
+    if path in allowed:
+        return path, allowed[path]
+    matching_dirs = [d for d in allowed if d.endswith("/") and path.startswith(d)]
+    if matching_dirs:
+        best_dir = max(matching_dirs, key=len)
+        return best_dir, allowed[best_dir]
+    return None, ""
+
+
+def upstream_files_in_dir(repo: Path, base: str, dir_path: str) -> list[str]:
+    listing = git(repo, "ls-tree", "-r", "--name-only", "-z", base, "--", dir_path)
+    return [p for p in listing.split("\0") if p]
 
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
@@ -93,24 +118,63 @@ def main(argv: list[str] | None = None) -> int:
         return EXIT_SETUP
 
     allowed = read_allowlist(allowlist_path)
-    unlisted = [path for path in touched if not allowed.get(path)]
-    bare = [path for path in unlisted if path in allowed]
 
-    if not unlisted:
-        if not touched:
-            print("seam check OK: no upstream files changed outside voice/ and docs/voice/.")
-        else:
-            print(f"seam check OK: {len(touched)} upstream file(s) changed, each listed in {args.allowlist}.")
-            for path in touched:
-                print(f"  {path}  {allowed[path]}")
-        return EXIT_OK
+    upstream_conflicts: dict[str, list[str]] = {}
+    for d in allowed:
+        if d.endswith("/"):
+            try:
+                files = upstream_files_in_dir(repo, args.base, d)
+                if files:
+                    upstream_conflicts[d] = files
+            except GitError as error:
+                print(f"seam check ERROR: {error}", file=sys.stderr)
+                return EXIT_SETUP
 
-    print(f"seam check FAILED: {len(unlisted)} upstream file(s) outside voice/ and docs/voice/ are not covered.")
-    for path in unlisted:
-        suffix = "  (listed with no reason)" if path in bare else ""
-        print(f"  {path}{suffix}")
-    print(f"Add each path to the table in {args.allowlist} with a one-line reason, or keep the change under voice/.")
-    return EXIT_UNLISTED
+    bare_dirs = [d for d, r in allowed.items() if d.endswith("/") and not r]
+
+    unlisted: list[str] = []
+    bare: set[str] = set()
+    for path in touched:
+        entry, reason = lookup_allowlist(path, allowed)
+        if not reason:
+            unlisted.append(path)
+            if entry is not None:
+                bare.add(path)
+
+    has_error = False
+    if upstream_conflicts:
+        has_error = True
+        print(f"seam check FAILED: directory row(s) contain upstream file(s) on {args.base}:")
+        for d, files in upstream_conflicts.items():
+            print(f"  {d} contains {len(files)} file(s) on {args.base}:")
+            for f in files:
+                print(f"    {f}")
+
+    if bare_dirs:
+        has_error = True
+        print(f"seam check FAILED: {len(bare_dirs)} directory row(s) listed with no reason:")
+        for d in bare_dirs:
+            print(f"  {d}  (listed with no reason)")
+
+    if unlisted:
+        has_error = True
+        print(f"seam check FAILED: {len(unlisted)} upstream file(s) outside voice/ and docs/voice/ are not covered.")
+        for path in unlisted:
+            suffix = "  (listed with no reason)" if path in bare else ""
+            print(f"  {path}{suffix}")
+        print(f"Add each path to the table in {args.allowlist} with a one-line reason, or keep the change under voice/.")
+
+    if has_error:
+        return EXIT_UNLISTED
+
+    if not touched:
+        print("seam check OK: no upstream files changed outside voice/ and docs/voice/.")
+    else:
+        print(f"seam check OK: {len(touched)} upstream file(s) changed, each listed in {args.allowlist}.")
+        for path in touched:
+            _, reason = lookup_allowlist(path, allowed)
+            print(f"  {path}  {reason}")
+    return EXIT_OK
 
 
 if __name__ == "__main__":
