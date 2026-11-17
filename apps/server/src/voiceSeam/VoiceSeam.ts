@@ -1,12 +1,10 @@
 import {
+  type AuthSessionId,
   isDelegatedAppThread,
   isListedThreadLineage,
   type OrchestrationV2ConversationMessage,
   type OrchestrationV2Run,
   type OrchestrationV2ThreadShell,
-  type ProjectId,
-  type RunId,
-  type ThreadId,
 } from "@t3tools/contracts";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import * as Context from "effect/Context";
@@ -15,27 +13,32 @@ import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/sql/SqlClient";
+import type * as Stream from "effect/Stream";
 
+import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import { loadSubscriberShellSnapshot } from "../orchestration-v2/ShellStream.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
+import {
+  allowsOperation,
+  allowsProject,
+  type VoiceOperation,
+  type VoiceSeamConfig,
+} from "./ceiling.ts";
 import { cutAtSentence, readThreadNow, runResult } from "./outcome.ts";
-import type { VoicePending } from "./pending.ts";
-import type { VoiceRunResult } from "./watch.ts";
+import {
+  LIST_LIMIT,
+  RefusalCode,
+  type RequestInput,
+  type ThreadActivity as ThreadActivitySchema,
+  type VoiceHello,
+  type VoiceThreadList,
+  type VoiceThreadState,
+} from "./protocol.ts";
+import * as Watch from "./watch.ts";
 
 export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("VoiceSeamRefusal", {
-  code: Schema.Literals([
-    "operation_not_allowed",
-    "project_not_allowed",
-    "above_ceiling",
-    "not_found",
-    "gone",
-    "refused",
-    "too_many_watches",
-    "no_default_model",
-    "invalid_request",
-    "unavailable",
-  ]),
+  code: RefusalCode,
   /** Short text the voice may speak. Never built from a cause. */
   message: Schema.String,
   cause: Schema.optional(Schema.Defect()),
@@ -46,77 +49,66 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
 
   static readonly unavailable = (cause: unknown) =>
     new VoiceSeamRefusal({ code: "unavailable", message: "I can't reach T3 right now.", cause });
+
+  static readonly operationNotAllowed = () =>
+    new VoiceSeamRefusal({ code: "operation_not_allowed", message: "I'm not allowed to do that." });
+
+  static readonly projectNotAllowed = () =>
+    new VoiceSeamRefusal({
+      code: "project_not_allowed",
+      message: "I'm not allowed to work in that project.",
+    });
+
+  static readonly tooManyWatches = () =>
+    new VoiceSeamRefusal({
+      code: "too_many_watches",
+      message: "I'm following too many threads already.",
+    });
+
+  static readonly invalidRequest = () =>
+    new VoiceSeamRefusal({ code: "invalid_request", message: "T3 couldn't read that request." });
+
+  /** An operation the seam lists but does not perform yet. */
+  static readonly notBuilt = () =>
+    new VoiceSeamRefusal({ code: "unavailable", message: "I can't do that yet." });
 }
 
-/** How a thread reads to someone asking about it. */
-export type ThreadActivity =
-  | "working"
-  | "waiting_on_you"
-  | "waiting_on_background"
-  | "queued"
-  | "idle"
-  | "finished"
-  | "failed"
-  | "interrupted"
-  | "cancelled"
-  | "rolled_back";
+export type ThreadActivity = typeof ThreadActivitySchema.Type;
+export type { VoiceThreadList, VoiceThreadState };
 
-export interface VoiceThreadSummary {
-  readonly threadId: ThreadId;
-  readonly projectId: ProjectId;
-  readonly title: string;
-  readonly activity: ThreadActivity;
-  readonly lastActivityAt: string;
-  readonly pinned: boolean;
-}
-
-export interface VoiceThreadList {
-  /** Every active thread with listed lineage in an allowed project, newest activity first, cut to `limit`. */
-  readonly threads: ReadonlyArray<VoiceThreadSummary>;
-  /** How many threads matched before the cut. */
-  readonly total: number;
-  /** When true, "no such thread" is not a claim the voice may make. */
-  readonly truncated: boolean;
-  /** The rows are the state as of this sequence: both come from one read-only transaction. */
-  readonly asOfSequence: number;
-}
-
-export interface VoiceThreadState {
-  readonly threadId: ThreadId;
-  readonly projectId: ProjectId;
-  readonly title: string;
-  readonly activity: ThreadActivity;
-  /** The shell's latest run, read in the same transaction as the shell. */
-  readonly run: {
-    readonly runId: RunId;
-    readonly status: OrchestrationV2Run["status"];
-    readonly startedAt: string | null;
-  } | null;
-  readonly pending: VoicePending | null;
-  /** A settled terminal run's result, else the latest run's newest final assistant message. */
-  readonly lastReply: (VoiceRunResult & { readonly at: string }) | null;
-  /** This thread's event sequence, read first in the same read-only transaction as the rest. */
-  readonly asOfSequence: number;
-}
-
-export interface VoiceSeamConfig {
-  readonly allowedProjects: ReadonlySet<ProjectId>;
+/** A caller the route authenticated. Only sessions minted with subject "voice" get one. */
+export interface VoiceCaller {
+  readonly sessionId: AuthSessionId;
+  /** The idempotency namespace is the subject, not the session, so a retry with a new token still replays. */
+  readonly namespace: "voice";
+  /** voice-seam.json as it read when this caller's socket opened. */
+  readonly config: VoiceSeamConfig;
 }
 
 export class VoiceSeam extends Context.Service<
   VoiceSeam,
   {
-    readonly listThreads: (input: {
-      readonly limit?: number;
-    }) => Effect.Effect<VoiceThreadList, VoiceSeamRefusal>;
-    readonly readThread: (input: {
-      readonly threadId: ThreadId;
-    }) => Effect.Effect<VoiceThreadState, VoiceSeamRefusal>;
+    readonly hello: (caller: VoiceCaller) => Effect.Effect<VoiceHello, VoiceSeamRefusal>;
+    readonly listThreads: (
+      caller: VoiceCaller,
+      input: RequestInput<"list_threads">,
+    ) => Effect.Effect<VoiceThreadList, VoiceSeamRefusal>;
+    readonly readThread: (
+      caller: VoiceCaller,
+      input: RequestInput<"read_thread">,
+    ) => Effect.Effect<VoiceThreadState, VoiceSeamRefusal>;
+    /** Checks the thread now, then replays after `afterSequence` and follows live. */
+    readonly watch: (
+      caller: VoiceCaller,
+      input: Watch.WatchInput,
+    ) => Effect.Effect<Stream.Stream<Watch.WatchItem>, VoiceSeamRefusal>;
   }
 >()("t3/voiceSeam/VoiceSeam") {}
 
-/** The most threads a list carries; Python's picker reads at most this many. */
-const LIST_LIMIT = 200;
+export const requireOperation = (caller: VoiceCaller, operation: VoiceOperation) =>
+  allowsOperation(caller.config, operation)
+    ? Effect.void
+    : Effect.fail(VoiceSeamRefusal.operationNotAllowed());
 
 const TERMINAL_ACTIVITY = {
   completed: "finished",
@@ -176,20 +168,53 @@ const latestFinalReply = (
       };
 };
 
-const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
+/** The rule of listProjectThreads, narrowed to the allowed projects. List, read and watch share it. */
+const isVisible = (config: VoiceSeamConfig) => (shell: OrchestrationV2ThreadShell) =>
+  isListedThreadLineage(shell.lineage) &&
+  !isDelegatedAppThread(shell) &&
+  allowsProject(config, shell.projectId);
+
+const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const eventStore = yield* OrchestrationEventStore.OrchestrationEventStore;
+  const projects = yield* ProjectStore.ProjectStoreV2;
 
-  /** The rule of listProjectThreads, narrowed to the allowed projects. */
-  const isVisible = (shell: OrchestrationV2ThreadShell) =>
-    isListedThreadLineage(shell.lineage) &&
-    !isDelegatedAppThread(shell) &&
-    config.allowedProjects.has(shell.projectId);
+  const hello = Effect.fn("VoiceSeam.hello")(function* (caller: VoiceCaller) {
+    const { config } = caller;
+    const rows = yield* projects.list({
+      projectIds: config.projects.map((project) => project.projectId),
+    });
+    const latestSequence = yield* eventStore.latestApplicationSequence;
+    return {
+      type: "hello",
+      ceiling: {
+        maxRuntimeMode: config.maxRuntimeMode,
+        interactionMode: "default",
+        operations: config.operations,
+        maxWatches: config.maxWatches,
+      },
+      // A configured project that no longer exists is not one the voice can work in.
+      projects: config.projects.flatMap((project) => {
+        const row = rows.find((candidate) => candidate.projectId === project.projectId);
+        return row === undefined
+          ? []
+          : [{ projectId: project.projectId, name: row.title, spokenNames: project.spokenNames }];
+      }),
+      latestSequence,
+    } satisfies VoiceHello;
+  }, Effect.mapError(VoiceSeamRefusal.unavailable));
 
-  const listThreads = Effect.fn("VoiceSeam.listThreads")(function* (input: {
-    readonly limit?: number;
-  }) {
+  const listThreads = Effect.fn("VoiceSeam.listThreads")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"list_threads">,
+  ) {
+    yield* requireOperation(caller, "list");
+    const { projectId } = input;
+    if (projectId !== undefined && !allowsProject(caller.config, projectId)) {
+      return yield* VoiceSeamRefusal.projectNotAllowed();
+    }
+    const visible = isVisible(caller.config);
     const { snapshot } = yield* loadSubscriberShellSnapshot({
       sql,
       listShellIndex: threads.listActiveShellIndex(),
@@ -205,7 +230,9 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
       options: { omitIdleSubagents: true, omitOlderSettled: false },
     }).pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
     const kept = snapshot.threads
-      .filter(isVisible)
+      .filter(
+        (shell) => visible(shell) && (projectId === undefined || shell.projectId === projectId),
+      )
       .toSorted(
         (left, right) =>
           DateTime.toEpochMillis(right.updatedAt) - DateTime.toEpochMillis(left.updatedAt) ||
@@ -213,7 +240,7 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
       );
     const listed = kept.slice(0, Math.min(input.limit ?? LIST_LIMIT, LIST_LIMIT));
     return {
-      threads: listed.map((shell): VoiceThreadSummary => ({
+      threads: listed.map((shell): VoiceThreadList["threads"][number] => ({
         threadId: shell.id,
         projectId: shell.projectId,
         title: shell.title,
@@ -227,9 +254,11 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
     } satisfies VoiceThreadList;
   });
 
-  const readThread = Effect.fn("VoiceSeam.readThread")(function* (input: {
-    readonly threadId: ThreadId;
-  }) {
+  const readThread = Effect.fn("VoiceSeam.readThread")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"read_thread">,
+  ) {
+    yield* requireOperation(caller, "read");
     const { threadId } = input;
     // The only write: a migrated v1 thread imports its transcript before any records read.
     yield* threads
@@ -238,7 +267,9 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
     const read = yield* readThreadNow({ sql, threads }, threadId, (shell) =>
       shell.latestRunId === null ? [] : [shell.latestRunId],
     ).pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
-    if (read === null || !isVisible(read.shell)) return yield* VoiceSeamRefusal.notFound();
+    if (read === null || !isVisible(caller.config)(read.shell)) {
+      return yield* VoiceSeamRefusal.notFound();
+    }
     const { shell, records } = read;
     const pending = read.join.kind === "need" ? read.join.pending : null;
     // The join can find a need the shell's pick hides behind a request that asks no one.
@@ -269,7 +300,21 @@ const make = Effect.fn("VoiceSeam.make")(function* (config: VoiceSeamConfig) {
     } satisfies VoiceThreadState;
   });
 
-  return VoiceSeam.of({ listThreads, readThread });
+  const watch = Effect.fn("VoiceSeam.watch")(function* (
+    caller: VoiceCaller,
+    input: Watch.WatchInput,
+  ) {
+    yield* requireOperation(caller, "watch");
+    const visible = isVisible(caller.config);
+    // The watch checks again as it starts, and ends with not_found if the thread went in between.
+    const shell = yield* threads
+      .getThreadShell(input.threadId)
+      .pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
+    if (shell === null || !visible(shell)) return yield* VoiceSeamRefusal.notFound();
+    return Watch.fromServices({ sql, threads, eventStore, isVisible: visible })(input);
+  });
+
+  return VoiceSeam.of({ hello, listThreads, readThread, watch });
 });
 
-export const layer = (config: VoiceSeamConfig) => Layer.effect(VoiceSeam, make(config));
+export const layer = Layer.effect(VoiceSeam, make);

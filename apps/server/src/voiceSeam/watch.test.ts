@@ -4,7 +4,6 @@ import {
   MessageId,
   type OrchestrationV2DomainEvent,
   type OrchestrationV2StoredEvent,
-  type ProjectId,
   RunId,
   RuntimeRequestId,
   type ThreadId,
@@ -102,7 +101,7 @@ const sources = Effect.fn("test.sources")(function* (overrides?: {
   readonly threads?: (real: Threads) => Threads;
   readonly eventStore?: (real: EventStoreSource) => EventStoreSource;
   readonly settle?: Watch.SettleCheck;
-  readonly isProjectAllowed?: (projectId: ProjectId) => boolean;
+  readonly isVisible?: Watch.WatchSources["isVisible"];
 }) {
   const sink = yield* EventSink.EventSinkV2;
   const projections = yield* ProjectionStore.ProjectionStoreV2;
@@ -125,7 +124,7 @@ const sources = Effect.fn("test.sources")(function* (overrides?: {
   return {
     threads: overrides?.threads?.(threads) ?? threads,
     eventStore: overrides?.eventStore?.(eventStore) ?? eventStore,
-    isProjectAllowed: overrides?.isProjectAllowed ?? (() => true),
+    isVisible: overrides?.isVisible ?? (() => true),
     settle: overrides?.settle ?? settleNothing,
   } satisfies Watch.WatchSources;
 });
@@ -334,7 +333,7 @@ it.effect.each(["missing", "deleted", "disallowed"] as const)(
       }
       let replayReads = 0;
       const watchSources = yield* sources({
-        isProjectAllowed: () => kind !== "disallowed",
+        isVisible: () => kind !== "disallowed",
         eventStore: (real) => ({
           ...real,
           readAgentEvents: (input) => {
@@ -1229,7 +1228,7 @@ const firstDone = Effect.fn("test.firstDone")(function* (input: Watch.WatchInput
     sql: yield* SqlClient.SqlClient,
     threads: checksOnLiveClock(yield* ThreadManagementService.ThreadManagementService),
     eventStore: yield* OrchestrationEventStore.OrchestrationEventStore,
-    isProjectAllowed: () => true,
+    isVisible: () => true,
   });
   return Array.from(
     yield* watch(input).pipe(

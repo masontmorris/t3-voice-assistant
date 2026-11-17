@@ -1,0 +1,1093 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "T3 voice seam protocol",
+  "$defs": {
+    "ClientFrame": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["list_threads"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "projectId": {
+                  "type": "string"
+                },
+                "limit": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 200
+                }
+              },
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["read_thread"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "threadId": {
+                  "type": "string"
+                }
+              },
+              "required": ["threadId"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["watch"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "threadId": {
+                  "type": "string"
+                },
+                "afterSequence": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "maximum": 9007199254740991
+                },
+                "runId": {
+                  "type": "string"
+                }
+              },
+              "required": ["threadId", "afterSequence"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["unwatch"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "threadId": {
+                  "type": "string"
+                }
+              },
+              "required": ["threadId"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["launch"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string"
+                },
+                "projectId": {
+                  "type": "string"
+                },
+                "instruction": {
+                  "type": "string"
+                }
+              },
+              "required": ["requestId", "projectId", "instruction"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["send"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string"
+                },
+                "threadId": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                }
+              },
+              "required": ["requestId", "threadId", "text"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["interrupt"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string"
+                },
+                "threadId": {
+                  "type": "string"
+                }
+              },
+              "required": ["requestId", "threadId"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
+        }
+      ]
+    },
+    "HelloFrame": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["hello"]
+        },
+        "ceiling": {
+          "type": "object",
+          "properties": {
+            "maxRuntimeMode": {
+              "type": "string",
+              "enum": ["approval-required", "auto-accept-edits", "auto", "full-access"]
+            },
+            "interactionMode": {
+              "type": "string",
+              "enum": ["default"]
+            },
+            "operations": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": ["list", "read", "watch", "launch", "send", "interrupt"]
+              }
+            },
+            "maxWatches": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["maxRuntimeMode", "interactionMode", "operations", "maxWatches"],
+          "additionalProperties": true
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "spokenNames": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["projectId", "name", "spokenNames"],
+            "additionalProperties": true
+          }
+        },
+        "latestSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": ["type", "ceiling", "projects", "latestSequence"],
+      "additionalProperties": true
+    },
+    "RefusalCode": {
+      "type": "string",
+      "enum": [
+        "operation_not_allowed",
+        "project_not_allowed",
+        "above_ceiling",
+        "not_found",
+        "gone",
+        "refused",
+        "too_many_watches",
+        "no_default_model",
+        "invalid_request",
+        "unavailable"
+      ]
+    },
+    "ServerFrame": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/HelloFrame"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "$ref": "#/$defs/VoiceThreadList"
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "$ref": "#/$defs/VoiceThreadState"
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "threadId": {
+                  "type": "string"
+                }
+              },
+              "required": ["threadId"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "type": "object",
+              "properties": {
+                "threadId": {
+                  "type": "string"
+                }
+              },
+              "required": ["threadId"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "not": {}
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "not": {}
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "not": {}
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [false]
+            },
+            "error": {
+              "type": "object",
+              "properties": {
+                "code": {
+                  "$ref": "#/$defs/RefusalCode"
+                },
+                "message": {
+                  "type": "string"
+                }
+              },
+              "required": ["code", "message"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["type", "id", "ok", "error"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["event"]
+            },
+            "event": {
+              "$ref": "#/$defs/VoiceEvent"
+            }
+          },
+          "required": ["type", "event"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["watch_ended"]
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "reason": {
+              "$ref": "#/$defs/WatchEndReason"
+            }
+          },
+          "required": ["type", "threadId", "reason"],
+          "additionalProperties": true
+        }
+      ]
+    },
+    "ThreadActivity": {
+      "type": "string",
+      "enum": [
+        "working",
+        "waiting_on_you",
+        "waiting_on_background",
+        "queued",
+        "idle",
+        "finished",
+        "failed",
+        "interrupted",
+        "cancelled",
+        "rolled_back"
+      ]
+    },
+    "VoiceEvent": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["run"]
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "runId": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": [
+                "preparing",
+                "queued",
+                "starting",
+                "running",
+                "waiting",
+                "completed",
+                "interrupted",
+                "failed",
+                "cancelled",
+                "rolled_back"
+              ]
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["type", "threadId", "runId", "status", "sequence"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["reply"]
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "runId": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            },
+            "messageId": {
+              "type": "string"
+            },
+            "text": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["type", "threadId", "runId", "messageId", "text", "sequence"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["needs_you"]
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "requestId": {
+              "type": "string"
+            },
+            "kind": {
+              "type": "string",
+              "enum": ["approval", "question", "in_app"]
+            },
+            "prompt": {
+              "type": "string"
+            }
+          },
+          "required": ["type", "threadId", "sequence", "requestId", "kind", "prompt"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["resolved"]
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "requestId": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string",
+              "enum": ["resolved", "expired", "cancelled"]
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["type", "threadId", "requestId", "status", "sequence"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["done"]
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "runId": {
+              "type": "string"
+            },
+            "status": {
+              "$ref": "#/$defs/VoiceTerminalStatus"
+            },
+            "result": {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "messageId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "turnItemId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["text", "messageId", "turnItemId"],
+              "additionalProperties": true
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "asOfSequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["type", "threadId", "runId", "status", "result", "sequence", "asOfSequence"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["gone"]
+            },
+            "threadId": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["type", "threadId", "sequence"],
+          "additionalProperties": true
+        }
+      ]
+    },
+    "VoiceSeamConfig": {
+      "type": "object",
+      "properties": {
+        "maxRuntimeMode": {
+          "type": "string",
+          "enum": ["approval-required", "auto-accept-edits", "auto", "full-access"]
+        },
+        "operations": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["list", "read", "watch", "launch", "send", "interrupt"]
+          }
+        },
+        "projects": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "projectId": {
+                "type": "string"
+              },
+              "spokenNames": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "required": ["projectId", "spokenNames"],
+            "additionalProperties": true
+          }
+        },
+        "workspace": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["root"]
+                  },
+                  "branch": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["type"],
+                "additionalProperties": true
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["existing_worktree"]
+                  },
+                  "worktreePath": {
+                    "type": "string"
+                  },
+                  "branch": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["type", "worktreePath"],
+                "additionalProperties": true
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "type": {
+                    "type": "string",
+                    "enum": ["worktree"]
+                  },
+                  "baseRef": {
+                    "type": "string"
+                  },
+                  "branch": {
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "startFromOrigin": {
+                    "anyOf": [
+                      {
+                        "type": "boolean"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  }
+                },
+                "required": ["type", "baseRef"],
+                "additionalProperties": true
+              }
+            ]
+          }
+        },
+        "maxWatches": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": ["maxRuntimeMode", "operations", "projects"],
+      "additionalProperties": true
+    },
+    "VoiceTerminalStatus": {
+      "type": "string",
+      "enum": ["completed", "failed", "interrupted", "cancelled", "rolled_back"]
+    },
+    "VoiceThreadList": {
+      "type": "object",
+      "properties": {
+        "threads": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "threadId": {
+                "type": "string"
+              },
+              "projectId": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "activity": {
+                "$ref": "#/$defs/ThreadActivity"
+              },
+              "lastActivityAt": {
+                "type": "string"
+              },
+              "pinned": {
+                "type": "boolean"
+              }
+            },
+            "required": ["threadId", "projectId", "title", "activity", "lastActivityAt", "pinned"],
+            "additionalProperties": true
+          }
+        },
+        "total": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "asOfSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": ["threads", "total", "truncated", "asOfSequence"],
+      "additionalProperties": true
+    },
+    "VoiceThreadState": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": "string"
+        },
+        "projectId": {
+          "type": "string"
+        },
+        "title": {
+          "type": "string"
+        },
+        "activity": {
+          "$ref": "#/$defs/ThreadActivity"
+        },
+        "run": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "runId": {
+                  "type": "string"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "preparing",
+                    "queued",
+                    "starting",
+                    "running",
+                    "waiting",
+                    "completed",
+                    "interrupted",
+                    "failed",
+                    "cancelled",
+                    "rolled_back"
+                  ]
+                },
+                "startedAt": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                }
+              },
+              "required": ["runId", "status", "startedAt"],
+              "additionalProperties": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "pending": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": ["approval", "question", "in_app"]
+                },
+                "prompt": {
+                  "type": "string"
+                }
+              },
+              "required": ["requestId", "kind", "prompt"],
+              "additionalProperties": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "lastReply": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "text": {
+                  "type": "string"
+                },
+                "messageId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "turnItemId": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "at": {
+                  "type": "string"
+                }
+              },
+              "required": ["text", "messageId", "turnItemId", "at"],
+              "additionalProperties": true
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "asOfSequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        }
+      },
+      "required": [
+        "threadId",
+        "projectId",
+        "title",
+        "activity",
+        "run",
+        "pending",
+        "lastReply",
+        "asOfSequence"
+      ],
+      "additionalProperties": true
+    },
+    "WatchEndReason": {
+      "type": "string",
+      "enum": ["gone", "resync", "not_found", "unavailable"]
+    }
+  }
+}

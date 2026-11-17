@@ -13,6 +13,7 @@ import * as EventSink from "../orchestration-v2/EventSink.ts";
 import * as EventStore from "../orchestration-v2/EventStore.ts";
 import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
+import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ProviderSessionManager from "../orchestration-v2/ProviderSessionManager.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
@@ -22,6 +23,7 @@ import * as Watch from "./watch.ts";
 
 const stores = Layer.mergeAll(
   OrchestrationEventStore.layer,
+  ProjectStore.layer,
   EventSink.layer.pipe(Layer.provideMerge(Layer.merge(EventStore.layer, ProjectionStore.layer))),
 ).pipe(Layer.provideMerge(Sqlite.layerMemory));
 
@@ -156,7 +158,7 @@ export const realWatch = Effect.fn("test.realWatch")(function* (
   yield* Watch.make({
     threads,
     eventStore: yield* OrchestrationEventStore.OrchestrationEventStore,
-    isProjectAllowed: () => true,
+    isVisible: () => true,
     settle,
   })(input).pipe(
     Stream.runForEach((item) => Queue.offer(items, item)),
