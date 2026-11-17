@@ -8,9 +8,10 @@ a question, never a guess.
 
 from urllib.error import URLError
 
-from .model import ModelFailed, pick_thread
+from .model import ModelFailed, pick_project_via_model, pick_thread
 from .pick import Pick, question_for
 from .prefilter import prefilter
+from .project import ProjectPick, pick_project, question_for_projects
 
 FAILURES = (ModelFailed, URLError, OSError, TimeoutError)
 
@@ -32,6 +33,23 @@ def prefilter_pick(utterance, threads, projects=None):
 	if match.state_only:
 		return Pick.ask([], question_for([]), "state word with no matching activity")
 	return Pick.none("no listed title contains " + " ".join(match.words))
+
+
+def decide_project(utterance, projects, client=None):
+	"""Return (ProjectPick, meta). A deterministic hit wins; anything else reaches the model."""
+	first = pick_project(utterance, projects)
+	if first.kind == "one" or client is None:
+		return first, {"ms": 0, "model": False, "parse": "ok"}
+	names = {p["projectId"]: p.get("name", "") for p in projects}
+	try:
+		picked, meta = pick_project_via_model(utterance, projects, client)
+		return picked, {**meta, "model": True, "shortlist": len(projects)}
+	except FAILURES as e:
+		candidates = [p["projectId"] for p in projects[:3]]
+		return (ProjectPick.ask(candidates, question_for_projects([names[i] for i in candidates]),
+		                        f"picker failed: {type(e).__name__}"),
+		        {"ms": 0, "model": True, "parse": "failed", "error": str(e)[:200],
+		         "shortlist": len(projects)})
 
 
 def pick(utterance, threads, projects, now, client=None, break_tie=False):
