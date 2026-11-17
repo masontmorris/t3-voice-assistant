@@ -107,6 +107,17 @@ HEADER = "X-Voice-Secret"
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
+# One slot is held for the whole call by the call's one voice session. A turn also needs a slot for its ASR and one
+# for the reply it generates, and the previous turn's reply can still be generating while the next turn's ASR runs.
+# With two slots all 39 llama-server tasks of the 2026-11-16 17:38 replay ran on the one free slot, one at a time, and
+# five turns' final transcripts arrived 27 to 30 s after their audio, against 0.03 to 0.28 s in the recorded call's
+# three-slot server (measured).
+SLOTS = 3
+
+
+def slots(asr_stagger=1):
+    """llama-server slots for one call: the voice session, one per ASR lane, and one for the reply being generated."""
+    return SLOTS + asr_stagger - 1
 CALL_RULES = (
     "\n\nThis is one ongoing call, so what you and the person said earlier in it is still here. Only the newest "
     "task snapshot is current: earlier snapshots belong to earlier turns and may be out of date, so never speak a "
@@ -550,6 +561,22 @@ async def wait_for_stop(max_minutes, stop_file=STOP_FILE):
     print(f"stopping after --max-minutes {max_minutes}", flush=True)
 
 
+async def watch_lag(limit_s=1.0):
+    """Prints each stall of the event loop.
+
+    The client's socket, the ASR's events and every reply share this loop, so a stall is the first thing to read for a
+    turn that arrived late, a final transcript that timed out, or a client whose keepalive expired. The 2026-11-16
+    17:38 replay's turn 38 held 11.9 s of the person's audio and never reached a transcript: the client closed the
+    call on a keepalive ping timeout, and its records cannot say whether this loop was stalled."""
+    woke = time.perf_counter()
+    while True:
+        await asyncio.sleep(0.2)
+        now = time.perf_counter()
+        if now - woke - 0.2 >= limit_s:
+            print(f"event loop stalled for {now - woke - 0.2:.2f} s", flush=True)
+        woke = now
+
+
 async def main_async(args):
     host = check_bind(args.host or tailscale_ipv4())
     secret = shared_secret()
@@ -562,9 +589,10 @@ async def main_async(args):
     lfm_args = ("-c", str(args.lfm_ctx), "-kvu")
     cloud_lock = threading.Lock()
     tools_context = nullcontext() if args.mock_tools else open_registry(lock=cloud_lock)
-    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, 1 + args.asr_stagger) as server, \
+    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, slots(args.asr_stagger)) as server, \
             make_decider(args.decider, out) as decider:
         live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock)
+        watcher = asyncio.create_task(watch_lag())
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
             print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
@@ -574,6 +602,7 @@ async def main_async(args):
             await wait_for_stop(args.max_minutes, args.stop_file)
             if live.active is not None:
                 await live.active.ws.close(1001, "server stopping")
+        watcher.cancel()
 
 
 def main():

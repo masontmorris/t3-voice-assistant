@@ -39,7 +39,11 @@ All on the recorded turn audio, voice path only, with the lookup states the reco
 - Live mode defaults to `--snapshot note`. The voice session holds the call's audio and replies, plus one short
   private note after the audio on a turn that has a lookup. A turn with no lookup sends no text.
 - The session is never restarted and never rebuilt from text. `--call-max-turns` and `--call-keep-turns` are gone.
-- llama-server runs two slots with a unified KV pool (`-kvu`), so the voice session can use all of `--lfm-ctx`.
+- llama-server runs three slots with a unified KV pool (`-kvu`), so the voice session can use all of `--lfm-ctx`.
+  One slot is held by the call's voice session for the whole call; the other two carry the turn's ASR and the reply it
+  generates at the same time. Two slots left one free, and every task ran on it one at a time (measured: all 39 of the
+  2026-11-16 17:38 replay's llama-server tasks ran on slot 1, and five turns' final transcripts arrived 27 to 30 s
+  after their audio, against 0.03 to 0.28 s in the recorded call's three-slot server).
 - The voice session gets a turn's audio once, when the turn ends.
 - No fixed line is played. A refused reply whose opening sentences pass the check is spoken up to there, cut at the
   pause between sentences. Otherwise it is asked again once with a note naming what was wrong, and a second failure
