@@ -295,9 +295,14 @@ def earlier_of(item):
 
 
 def rules_tool(item):
-    """The tool today's word rules pick for this item, on the instruction live mode would route: the item's own words,
-    or for a correction the amended earlier request, which live mode routes with no tool answer."""
-    return RULES.dispatch(instruction_of(item), earlier_of(item)).record()["tool"] or NONE
+    """The tool a dispatch runs with no decider answer: for a correction, the corrected task's own tool on the amended
+    words, which is what live mode re-runs; otherwise what the word rules route. A correction turn asks the decider
+    nothing, so this is the whole answer for those items."""
+    earlier, amended_text = earlier_of(item), amended_of(item)
+    if earlier is not None and amended_text is not None:
+        call = RULES.corrected(earlier, amended_text)
+        return call.tool if call is not None else NONE
+    return RULES.dispatch(instruction_of(item), earlier).record()["tool"] or NONE
 
 
 def decided_tool(trace, item, bar):
@@ -391,13 +396,18 @@ def reading_accuracy(traces, items):
     return {"n": total, "decider": agree, "rules": ruled_agree, "rows": rows}
 
 
-def instruction_of(item):
-    """The words live mode would route for this item: its own, or for a correction the amended earlier request."""
+def amended_of(item):
+    """The amended earlier request a correction states, or None when it states no value the earlier request has."""
     intent = utterance_intent(item["utterance"])
     resolved = item["context"].get("resolved") or []
     if intent.intent == Intent.CORRECTION and resolved and intent.replacement:
-        return (amended(resolved[-1]["instruction"], intent.replacement) or (item["utterance"],))[0]
-    return item["utterance"]
+        return (amended(resolved[-1]["instruction"], intent.replacement) or (None,))[0]
+    return None
+
+
+def instruction_of(item):
+    """The words live mode would route for this item: its own, or for a correction the amended earlier request."""
+    return amended_of(item) or item["utterance"]
 
 
 def print_readings(traces, items):

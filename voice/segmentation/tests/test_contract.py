@@ -151,6 +151,20 @@ class ToolQuestion(unittest.TestCase):
         self.assertEqual(parsed.segments["s1"].tool.arguments, {"place": "Denver", "when": "tomorrow"})
         self.assertEqual(parsed.problems, [])
 
+    def test_a_place_answer_that_is_not_a_name_leaves_the_argument_to_the_words(self):
+        """The recorded answer from turn 020 of the 37-turn replay: the model copied the request's own state."""
+        body = self.body(tools=TOOLS, arguments=True)
+        echoed = 'Seattle right now? [1]",\n  "prior_resolved_tasks": [\n    {\n      "call": {\n        "arguments"'
+        response = good_answers(body, s1_place={"type": "text", "text": echoed},
+                                s1_when={"type": "choice", "choice": "today", "confidence": 0.9})
+        parsed = parse_decisions(response, body)
+        self.assertIsNone(parsed.segments["s1"].tool.arguments["place"])
+        self.assertTrue(parsed.problems[0].startswith("s1_place: not a name"), parsed.problems)
+        spelled = good_answers(body, s1_place={"type": "text", "text": "Coeur d'Alene"},
+                               s1_when={"type": "choice", "choice": "today"})
+        self.assertEqual(parse_decisions(spelled, body).segments["s1"].tool.arguments["place"], "Coeur d'Alene",
+                         "a name with an apostrophe is a name")
+
 
 if __name__ == "__main__":
     unittest.main()

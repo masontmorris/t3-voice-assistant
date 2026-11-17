@@ -36,6 +36,7 @@ RESTATED = re.compile(r"(?:i (?:meant|mean|said|asked for|asked about|wanted)|i 
                       r"|make (?:it|that)|change (?:it|that) to)[\s,]+(?P<rest>.+)", re.IGNORECASE)
 NOT_THIS_BUT = re.compile(r"not\s+(?P<old>[^,]+?)(?:,|\s+but)\s+(?P<rest>.+)", re.IGNORECASE)
 THIS_NOT = re.compile(r"(?P<rest>[^,]+),\s*not\s+(?P<old>[^,]+)", re.IGNORECASE)
+REJECTED_FIRST = re.compile(r"^not\s+[^,]+\s*,\s*", re.IGNORECASE)
 ASKS = re.compile(r"\b(?:what|what's|whats|how|when|where|who|which|why|is|are|will|can|could|would|should|do|does|did"
                   r"|tell|give|find|show|set|send|book|check|look|get|play|call|text|remind|add|turn|open|search"
                   r"|let's|i want|i need|i'd like)\b", re.IGNORECASE)
@@ -73,8 +74,10 @@ def _clean(text):
 
 
 def _replacement(rest):
-    """The words a correction states instead, without "..., not Saturday" or a trailing "instead"."""
-    return _clean(re.sub(r",\s*not\s+[^,]+$", "", _clean(rest), flags=re.IGNORECASE)) or None
+    """The words a correction states instead, without the value it rejects. "Not Saturday, Sunday" and "Sunday, not
+    Saturday" both state Sunday."""
+    said = REJECTED_FIRST.sub("", _clean(rest))
+    return _clean(re.sub(r",\s*not\s+[^,]+$", "", said, flags=re.IGNORECASE)) or None
 
 
 def asks_about_call(text):

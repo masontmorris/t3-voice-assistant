@@ -1,6 +1,6 @@
 import unittest
 
-from voice.live.facts import names_machinery, speaks_of_person, ungrounded
+from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
 
 # The three turns of the demo call in $VOICE_HOME/evidence/live/memory-20261116/ablation/demo-runC, text side only:
 # what the person said, the machine note the voice session received, and what the assistant said. Turn 3 is the
@@ -116,5 +116,57 @@ class ThirdPersonTest(unittest.TestCase):
         self.assertEqual(speaks_of_person("Saturday looks sunny, with a high of 54."), [])
 
 
+class ChoiceRequestTest(unittest.TestCase):
+    """The person's turn 25 of 20261116-152653 asked the assistant to choose a city. Without this rule no place the
+    assistant then named could ever be grounded, which is how turns 25, 27 and 28 lost their replies."""
+
+    def test_a_request_to_choose(self):
+        for said in ("Pick a city on the east coast to check the weather for.", "Pick for me, please.",
+                     "You pick the city.", "Choose a place for the forecast.", "Surprise me.", "Pick one."):
+            with self.subTest(said=said):
+                self.assertTrue(asks_to_choose(said))
+
+    def test_an_ordinary_request_is_not_one(self):
+        for said in ("I'll pick up the dry cleaning later.", "What's the weather in Denver tomorrow?",
+                     "Choose the meeting slot.", "And what about San Diego?"):
+            with self.subTest(said=said):
+                self.assertFalse(asks_to_choose(said))
+
+
 if __name__ == "__main__":
     unittest.main()
+
+
+class FalsePositiveTest(unittest.TestCase):
+    """Correct replies the screens refused, found by the false-positive review of the records on disk."""
+
+    def test_a_truthful_failed_lookup_is_not_machinery(self):
+        """toolpick-polish2 turn 016 and toolpick-args turn 025: the task failed, and the reply said so."""
+        self.assertEqual(names_machinery("I couldn't check the weather in Raleigh because the lookup failed."), [])
+
+    def test_reading_the_running_note_aloud_is_still_machinery(self):
+        self.assertTrue(names_machinery("It looks like the lookup is still running and has no answer yet."))
+
+    def test_note_is_matched_as_a_word(self):
+        self.assertEqual(names_machinery("Got it, I've noted that. The keynote starts soon."), [])
+        self.assertEqual(names_machinery("The notes say it is running."), ["note"])
+
+    def test_a_date_is_not_also_a_bare_number(self):
+        self.assertEqual([fact.surface for fact in ungrounded("He was born on February 22, 1732.", [])],
+                         ["February 22", "1732"])
+
+    def test_thousands_commas_match_either_way(self):
+        self.assertEqual(ungrounded("About 1200 people live there.", ["Population: 1,200."]), [])
+        self.assertEqual(ungrounded("About 1,200 people live there.", ["Population: 1200."]), [])
+
+    def test_a_rounded_source_value_may_be_said(self):
+        self.assertEqual(ungrounded("A high of 57 degrees.", ["High 57.2 F."]), [])
+        self.assertTrue(ungrounded("A high of 58 degrees.", ["High 57.2 F."]))
+
+    def test_a_spoken_compound_number_is_one_value(self):
+        for said in ("I need twenty five of them.", "I need twenty-five of them."):
+            with self.subTest(said=said):
+                self.assertEqual(ungrounded("You need 25.", [said]), [])
+
+    def test_a_unit_is_not_a_place(self):
+        self.assertEqual(ungrounded("It is 57 degrees in Fahrenheit.", ["a high of 57 degrees"]), [])

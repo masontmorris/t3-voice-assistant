@@ -19,7 +19,7 @@ from enum import StrEnum
 
 from voice.live.facts import facts_in
 from voice.prototype.segmenter import Segmenter
-from voice.tools.registry import ToolChoice
+from voice.tools.registry import ToolCall, ToolChoice
 
 
 class Run(StrEnum):
@@ -159,6 +159,7 @@ class MockTaskService:
         self.simulate = simulate
         self.holds_side_effects = holds_side_effects
         self.executions: dict[str, Execution] = {}
+        self.corrected_calls: dict[str, ToolCall] = {}
         self.correction = None
         self.extra = {}
         self._seen = 0
@@ -166,7 +167,8 @@ class MockTaskService:
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
 
     def _start(self, task_id, instruction, side_effect, now, choice=None):
-        routed = (self.tools.dispatch(instruction, self.earlier, self.context, choice)
+        corrected = self.corrected_calls.pop(task_id, None)
+        routed = (self.tools.dispatch(instruction, self.earlier, self.context, choice, corrected)
                   if self.tools and not side_effect else None)
         call = routed.call if routed is not None else None
         if call is None:
@@ -278,8 +280,8 @@ class MockTaskService:
 
     def correct(self, replacement, prior_tasks, now):
         """The utterance corrects an earlier turn, so nothing it said becomes a new task. With a `replacement` that
-        changes a value of the call's newest task, a task with that value replaces it. Otherwise the voice asks what
-        to change. Returns the service events."""
+        changes a value of the call's newest task, a task with that value replaces it, and it runs that task's own tool
+        on the amended words. Otherwise the voice asks what to change. Returns the service events."""
         orch = self.segmenter.orch
         orch.take_back_utterance("the utterance corrects an earlier turn")
         target = prior_tasks[-1] if prior_tasks else None
@@ -288,6 +290,8 @@ class MockTaskService:
             self.correction = ASK_WHAT_CHANGED
         else:
             task = orch.amend_earlier(target["ref"], change[0], target["side_effect"])
+            if self.tools is not None and target.get("call"):
+                self.corrected_calls[task.task_id] = self.tools.corrected(ToolCall(**target["call"]), change[0])
             self.correction = {"status": "amended", "task_id": task.task_id,
                                "changed": {"from": change[1], "to": change[2]}}
         return self.sync(now)

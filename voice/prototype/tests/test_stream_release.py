@@ -176,7 +176,7 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
     async def test_a_reply_refused_before_any_audio_is_asked_again_from_the_top(self):
         reply, _ = await self.answer([["The", " user"], [" wants", " Sunday"], ["."]],
                                      [["It's", " sunny"], [" tomorrow", "."]],
-                                     retry_item=lambda found: prototype.plain_text(prototype.RETRY_NOTE))
+                                     retry_item=lambda found, repeats=False: prototype.plain_text(prototype.RETRY_NOTE))
         self.assertEqual(self.notes(), [prototype.RETRY_NOTE], "nothing was heard, so there is nothing to continue")
         self.assertEqual(reply["text"], "It's sunny tomorrow.")
         self.assertEqual(self.speaker.blocks(), [0, 1], "only the retry's blocks were spoken")
@@ -192,6 +192,32 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
         reply, _ = await self.answer([["Sunday", "."]], [["Sunday", " again."]], fallback=fallback)
         self.assertEqual(reply["text"], prototype.FALLBACK_LINE)
         self.assertEqual(self.speaker.blocks(), [7])
+
+    STALE = "Hello! I'm checking the weather in a city on the East Coast. Which one?"
+
+    async def test_a_stale_repeat_releases_nothing_before_it_is_asked_again(self):
+        """The stale line of tool-pick arm 1, generated block by block: every prefix could still be the old line,
+        so none of it is released, and the retry is told it repeated itself."""
+        reply, _ = await self.answer(
+            [["Hello!", " I'm"], [" checking", " the"], [" weather", " in"], [" a", " city"], [" on", " the"],
+             [" East", " Coast."], [" Which", " one?"]],
+            [["I", " can"], [" hear", " you"], [" fine", "."]],
+            previous=(self.STALE,),
+            retry_item=lambda found, repeats=False: prototype.plain_text(
+                prototype.REPEAT_NOTE if repeats else prototype.RETRY_NOTE))
+        self.assertEqual([call for call in self.speaker.calls if call["responses_done"] == 0], [],
+                         "nothing of the stale line reached the speaker")
+        self.assertEqual(self.notes(), [prototype.REPEAT_NOTE])
+        self.assertEqual(reply["text"], "I can hear you fine.")
+
+    async def test_a_reply_that_opens_like_an_earlier_line_streams_once_it_differs(self):
+        reply, _ = await self.answer(
+            [["Hello!", " I'm"], [" checking", " the"], [" news", " for"], [" you", " now"], ["."]],
+            previous=(self.STALE,))
+        held = self.speaker.calls[0]
+        self.assertEqual(held["responses_done"], 0, "released while generating, once 'news' parted from the old line")
+        self.assertEqual(held["blocks"], [0, 1])
+        self.assertEqual(reply["text"], "Hello! I'm checking the news for you now.")
 
 
 if __name__ == "__main__":

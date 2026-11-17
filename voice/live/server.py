@@ -54,16 +54,19 @@ slot is in docs/voice/live-call3-fix.md.
 
 A reply is checked before it is heard, and heard while it is generated. `voice/live/facts.py` reads the days, dates,
 times, numbers and places in the reply and asks whether the person said them in this call or a lookup gave them; the
-assistant's own earlier replies do not count. The turn screens the reply's text as it arrives and sends each block of
-audio once the text up to the block after it has passed (`voice/prototype/release.py`), so the first audio goes out
-about 0.2 s after the model starts speaking instead of after the whole reply. A reply that fails, that talks about the
-note, or that speaks of the person or of itself in the third person, stops at the last block that passed: the turn
-says so in its record, sends one short note, and asks again once. A reply stopped part way is asked to go on from
-what the person heard, without saying it again. In note mode a second failure stops the reply, recorded as
-blocked. No fixed line is played, because a line rendered by the TTS endpoint is a different voice from the call's
-(measured: turns 22 and 26 of the recorded call, after which the person asked why it sounded different). When the
-registry has a general worker (`voice/tools/agent.py`, VOICE_AGENT=on), a reply that states a fact nothing gave it
-starts a lookup for the person's words in place of the retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
+assistant's own earlier replies do not count, except a place it chose when the person asked it to choose. The turn
+screens the reply's text as it arrives and sends each block of audio once the text up to the block after it has
+passed (`voice/prototype/release.py`), so the first audio goes out about 0.2 s after the model starts speaking instead
+of after the whole reply. A reply that fails, that talks about the note, that speaks of the person or of itself in the
+third person, or that repeats a line the assistant already said in this call, stops at the last block that passed;
+a reply that could still turn into a repeat releases nothing until it is clear. The turn says so in its record,
+sends one short note, and asks again once. A reply stopped part way is asked to go on from what the person heard,
+without saying it again. In note mode a turn that has still said nothing gets one last ask for a short reply with no
+facts in it, and only then is it silent, recorded as blocked. No fixed line is played, because a line rendered by the
+TTS endpoint is a different voice from the call's (measured: turns 22 and 26 of the recorded call, after which the
+person asked why it sounded different). When the registry has a general worker (`voice/tools/agent.py`,
+VOICE_AGENT=on), a reply that states a fact nothing gave it starts a lookup for the person's words in place of the
+retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
@@ -527,7 +530,9 @@ class Conversation:
                                     ask_pcm=live.ask.pcm(turn.out_rate), asr_stagger=getattr(live.args, "asr_stagger", 1),
                                     simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True,
                                     recall=live.args.recall, context=self.ledger.context(),
-                                    prior_results=tuple(self.ledger.results()))
+                                    prior_results=tuple(self.ledger.results()),
+                                    prior_replies=tuple(self.ledger.replies()),
+                                    established=tuple(self.ledger.established()))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
