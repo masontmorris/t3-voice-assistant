@@ -5,14 +5,15 @@ use it. `Registry.choices` is that table plus the general worker and `none`, and
 tool question (`voice/segmentation/contract.py`), so a tool added here appears there with no other edit.
 
 `Registry.dispatch` runs the tool the decider picked when that answer clears `TOOL_THRESHOLD`, and otherwise falls
-back to the word rules. `Registry.route` is the word rules on their own: the first tool whose parser accepts the
-instruction. Given the earlier `ToolCall` a follow-up continues, that tool also accepts a request with no subject word
-that states a value of its own, and fills what the request leaves out from the earlier call. With the general lookup
-worker configured (`voice/tools/agent.py`), a request no parser claims goes to it, and so does a request that names a
-subject but states no place and no day of its own while an earlier lookup exists, since the parsers would only guess
-the place. Without the worker such a request keeps the parsers' answer, or None. `Registry.run` never raises. It
-returns a `ToolResult` whose outcome is ok, failed or timeout, and whose summary is the sentence the voice may speak, a
-failure included.
+back to the word rules. `Registry.corrected` is the call a correction of an earlier task runs: that task's own tool
+and arguments, with what the amended words change. `Registry.route` is the word rules on their own: the first tool
+whose parser accepts the instruction. Given the earlier `ToolCall` a follow-up continues, that tool also accepts a
+request with no subject word that states a value of its own, and fills what the request leaves out from the earlier
+call. With the general lookup worker configured (`voice/tools/agent.py`), a request no parser claims goes to it, and
+so does a request that names a subject but states no place and no day of its own while an earlier lookup exists, since
+the parsers would only guess the place. Without the worker such a request keeps the parsers' answer, or None.
+`Registry.run` never raises. It returns a `ToolResult` whose outcome is ok, failed or timeout, and whose summary is the
+sentence the voice may speak, a failure included.
 
     python -m voice.tools.registry "What time is it in Tokyo right now?"
 
@@ -73,8 +74,9 @@ class ToolChoice:
 class Routed:
     """One routing: the call to run, or None, and how the registry got there.
 
-    `via` is `decider` when the tool answer cleared the bar, or `rules` when it was absent or under it. A `rules`
-    routing that a choice under the bar disagreed with is a logged disagreement.
+    `via` is `decider` when the tool answer cleared the bar, `correction` when the call re-runs the task a correction
+    amended, or `rules` when the answer was absent or under the bar. A `rules` routing that a choice under the bar
+    disagreed with is a logged disagreement.
     """
     call: ToolCall | None
     via: str
@@ -125,13 +127,17 @@ class Registry:
         """The tool question's options: every registered tool with its line, the general worker, and `none`."""
         return {tool.name: tool.line for tool in self.tools.values()} | {GENERAL: GENERAL_LINE, NONE: NONE_LINE}
 
-    def dispatch(self, instruction, earlier=None, context=None, choice=None):
-        """The tool that carries out a task: the decider's choice when it clears `tool_threshold`, else the word rules.
+    def dispatch(self, instruction, earlier=None, context=None, choice=None, corrected=None):
+        """The tool that carries out a task: the call a correction of an earlier task runs, else the decider's choice
+        when it clears `tool_threshold`, else the word rules.
 
-        A choice naming `none` runs nothing, and so does `agent` when no general worker is configured: a confident
-        choice is not overruled by the rules, since the rules are what misrouted the requests this replaced. Only a
-        choice under the bar falls back to them.
+        `corrected` is `Registry.corrected`'s call, which wins because a correction is about that task and the words
+        of an amended instruction are no evidence of which tool it needs. A choice naming `none` runs nothing, and so
+        does `agent` when no general worker is configured: a confident choice is not overruled by the rules, since the
+        rules are what misrouted the requests this replaced. Only a choice under the bar falls back to them.
         """
+        if corrected is not None:
+            return Routed(corrected, "correction", choice)
         if choice is not None and choice.confidence >= self.tool_threshold:
             if choice.tool == NONE:
                 return Routed(None, "decider", choice)
@@ -140,17 +146,38 @@ class Registry:
             return Routed(call, "decider", choice)
         return Routed(self.route(instruction, earlier, context), "rules", choice)
 
+    def corrected(self, earlier, instruction):
+        """The call a correction of `earlier` runs: that task's own tool, with the argument this correction changes
+        read from the amended `instruction` and the rest kept.
+
+        A tool the registry does not hold is the general worker's, which is the only route that can act on the amended
+        words; with no worker configured the call still names it, so a caller reads the same answer, and `run` fails
+        it rather than raising.
+        """
+        if earlier is None:
+            return None
+        if earlier.tool not in self.tools:
+            return ToolCall(GENERAL, {"instruction": instruction, "context": []})
+        return ToolCall(earlier.tool, self.filled(earlier.tool, None, instruction, earlier))
+
     def named(self, name, instruction, earlier, reading=None):
         """A call to the tool `name`, with the arguments `filled` takes from the decider's reading and the words."""
         if name not in self.tools:
             return None
         return ToolCall(name, self.filled(name, reading, instruction, earlier))
 
+    def continues(self, name, instruction, earlier):
+        """Whether `instruction` continues an earlier call of `name`: the tool's own parser takes it with that call's
+        arguments, which needs a subject word of its own or a value of its own such as a place or a day. "Wait, do it
+        again." states neither, so it continues nothing, and "And what about Saturday?" states a day, so it does."""
+        return (name in self.tools and earlier is not None and earlier.tool == name
+                and self.tools[name].parse(instruction, earlier.arguments) is not None)
+
     def filled(self, name, reading, instruction, earlier):
         """The arguments one tool takes, in this order: what the decider read, what the instruction states, the earlier
-        lookup's own, and the default place."""
+        lookup's own when this is a follow-up of it, and the default place."""
         reading = reading or {}
-        prior = earlier.arguments if earlier is not None and earlier.tool == name else {}
+        prior = earlier.arguments if self.continues(name, instruction, earlier) else {}
         place = reading.get("place") or lookups.find_place(instruction) or prior.get("place") or self.default_place
         if name != "weather":
             return {"place": place}
@@ -188,6 +215,9 @@ class Registry:
         label = self.tools[call.tool].label if call.tool in self.tools else "lookup"
         timeout_s = self.timeout_for(call)
         started = time.perf_counter()
+        if call.tool == GENERAL and self.agent is None:
+            return ToolResult(call.tool, call.arguments, Outcome.FAILED, "The lookup failed, so there is no result.",
+                              0.0, {"error": "the general worker is not configured"})
         try:
             run = self.agent.call if call.tool == "agent" else self.tools[call.tool].call
             summary, detail = run(call.arguments, time.monotonic() + timeout_s)
