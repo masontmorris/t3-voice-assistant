@@ -1,11 +1,15 @@
 """Deterministic project pick for Twin A. It matches `spokenNames` only and asks whenever the
-match is not exact or names more than one project.
+match is not a lone target or names more than one project.
 
 An exact match is one spoken name appearing as a contiguous word run in the request. A partial
-match shares a content word with a spoken name but never picks. With no overlap at all, an
-explicit "project X" names something the list does not carry and is none; a request with no
-project wording asks which project. The tokenizer and stopwords are Twin B's, imported, not
-forked.
+match shares a content word with a spoken name, singularized both sides, and never picks. A
+match counts toward a pick only from the target seat: after "in", "for" or "project", after
+"in the" or "for the", or right before "project". A weak spoken name, one token or all
+stopwords, counts only from that seat and is invisible elsewhere. A lone exact match outside
+the seat never picks, and neither does a strict prefix of another project's longer spoken
+name. With no overlap at all, an explicit "project X" the list does not carry is none; a
+request with no project wording asks which project. The tokenizer and stopwords are Twin B's,
+imported, not forked.
 """
 
 from dataclasses import dataclass, field
@@ -76,43 +80,121 @@ def _phrase_tokens(text):
 	return [_singular(_bare(t)) for t in TOKEN.findall((text or "").lower())]
 
 
-def _says(phrase_tokens, utter_tokens):
-	"""True when the phrase appears as one contiguous word run in the utterance."""
-	n = len(phrase_tokens)
-	return bool(n) and any(utter_tokens[i:i + n] == phrase_tokens for i in range(len(utter_tokens) - n + 1))
-
-
 EXPLICIT_PROJECT_WORDS = frozenset({"project", "projects"})
+
+_TARGET_BEFORE = frozenset({"in", "for", "project"})
+_TARGET_PAIRS = (("in", "the"), ("for", "the"))
+
+
+def _occurrences(phrase_tokens, utter_tokens):
+	"""Every start index where the phrase appears as one contiguous word run."""
+	n = len(phrase_tokens)
+	if not n:
+		return []
+	return [i for i in range(len(utter_tokens) - n + 1)
+	        if utter_tokens[i:i + n] == phrase_tokens]
+
+
+def _is_weak(spoken):
+	"""A spoken name too common to trust outside the target seat."""
+	tokens = _phrase_tokens(spoken)
+	return len(tokens) <= 1 or not content_words(spoken)
+
+
+def _is_target(tokens, start, end):
+	"""True when the span sits where the request names its target project."""
+	if start > 0 and tokens[start - 1] in _TARGET_BEFORE:
+		return True
+	if start > 1 and (tokens[start - 2], tokens[start - 1]) in _TARGET_PAIRS:
+		return True
+	return end < len(tokens) and tokens[end] in EXPLICIT_PROJECT_WORDS
+
+
+def _content_set(text):
+	return {_singular(w) for w in content_words(text)}
+
+
+def _names_listed_project(tokens, idx, spoken_tokens, spoken_content):
+	"""True when the "project" word at idx touches a listed name or its words."""
+	for start in range(max(0, idx - 4), idx):
+		if any(tokens[start:idx] == s for s in spoken_tokens if len(s) == idx - start):
+			return True
+	for length in range(1, 5):
+		if any(tokens[idx + 1:idx + 1 + length] == s for s in spoken_tokens if len(s) == length):
+			return True
+	near = _content_set(" ".join(tokens[max(0, idx - 2):idx] + tokens[idx + 1:idx + 3]))
+	return bool(near & spoken_content)
 
 
 def pick_project(utterance, projects):
 	"""Match one instruction against projects with `projectId`, `name` and `spokenNames`.
 
-	Returns a `ProjectPick`: one exact project, a question with the tied or partial projects,
-	or none when the request explicitly names a project the list does not carry.
+	Returns a `ProjectPick`: one exact target project, a question with the tied or partial
+	projects, or none when the request explicitly names a project the list does not carry.
 	"""
 	listed = [p["projectId"] for p in projects]
 	names = {p["projectId"]: p.get("name", "") for p in projects}
 	utter_tokens = _phrase_tokens(utterance)
-	words = content_words(utterance)
-	exact, partial = [], []
+	spoken_names = [s for p in projects for s in p.get("spokenNames", []) if s]
+	spoken_tokens = [_phrase_tokens(s) for s in spoken_names]
+	spoken_content = set().union(*[_content_set(s) for s in spoken_names]) if spoken_names else set()
+
+	weak_spans = []
+	target_hits, task_exact, exact_spans = {}, {}, []
 	for p in projects:
 		pid = p["projectId"]
-		spoken = [s for s in p.get("spokenNames", []) if s]
-		if any(_says(_phrase_tokens(s), utter_tokens) for s in spoken):
-			exact.append(pid)
+		for s in [s for s in p.get("spokenNames", []) if s]:
+			phrase = _phrase_tokens(s)
+			runs = _occurrences(phrase, utter_tokens)
+			if not runs:
+				continue
+			if _is_weak(s) and not any(_is_target(utter_tokens, i, i + len(phrase)) for i in runs):
+				weak_spans += [(i, i + len(phrase)) for i in runs]
+				continue
+			slot = (target_hits if any(_is_target(utter_tokens, i, i + len(phrase)) for i in runs)
+			        else task_exact)
+			slot.setdefault(pid, []).append(phrase)
+			exact_spans += [(i, i + len(phrase)) for i in runs]
+	ignored = {i for start, end in weak_spans for i in range(start, end)}
+	for pid in list(task_exact):
+		if pid in target_hits:
+			target_hits[pid] += task_exact.pop(pid)
+	for pid, runs in list(target_hits.items()) + list(task_exact.items()):
+		for s in runs:
+			for other in projects:
+				if other["projectId"] == pid:
+					continue
+				prefix_tied = [t2 for s2 in other.get("spokenNames", []) if s2
+				               for t2 in [_phrase_tokens(s2)]
+				               if len(t2) > len(s) and t2[:len(s)] == s]
+				if prefix_tied:
+					(task_exact if pid in task_exact else target_hits).setdefault(
+						other["projectId"], []).extend(prefix_tied)
+	covered = ignored | {i for start, end in exact_spans for i in range(start, end)}
+	words = content_words(" ".join(t for i, t in enumerate(utter_tokens) if i not in covered))
+	task_partial = set()
+	for p in projects:
+		pid = p["projectId"]
+		if pid in target_hits or pid in task_exact:
 			continue
-		for s in spoken:
-			if any(w in content_words(s) for w in words):
-				partial.append(pid)
-				break
-	if len(exact) == 1:
-		return ProjectPick.one(exact[0], listed, "exact spoken name")
-	if exact:
-		return ProjectPick.ask(exact, question_for_projects([names[i] for i in exact]), "exact tie")
-	if partial:
-		return ProjectPick.ask(partial, question_for_projects([names[i] for i in partial]),
-		                       "inexact match")
-	if EXPLICIT_PROJECT_WORDS & set(_phrase_tokens(utterance)):
+		if any(any(_singular(w) in _content_set(s) for w in words)
+		       for s in p.get("spokenNames", []) if s):
+			task_partial.add(pid)
+
+	exact_target = [pid for pid in listed if pid in target_hits]
+	exact_task = [pid for pid in listed if pid in task_exact]
+	if len(exact_target) == 1 and not exact_task:
+		return ProjectPick.one(exact_target[0], listed, "exact spoken name")
+	project_idx = [i for i, t in enumerate(utter_tokens)
+	               if t in EXPLICIT_PROJECT_WORDS and i not in ignored]
+	if not exact_target and any(not _names_listed_project(utter_tokens, i, spoken_tokens,
+	                                                       spoken_content)
+	                            for i in project_idx):
+		return ProjectPick.none("names a project no listing carries")
+	candidates = exact_target + exact_task + [pid for pid in listed if pid in task_partial]
+	if candidates:
+		return ProjectPick.ask(candidates, question_for_projects([names[i] for i in candidates]),
+		                       "exact tie" if exact_target or exact_task else "inexact match")
+	if project_idx:
 		return ProjectPick.none("names a project no listing carries")
 	return ProjectPick.ask([], question_for_projects([]), "no project named")

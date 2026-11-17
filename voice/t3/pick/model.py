@@ -281,10 +281,16 @@ def render_projects(utterance, projects):
 	return [{"role": "system", "content": PROJECT_SYSTEM}, {"role": "user", "content": "\n".join(lines)}]
 
 
-def pick_project_via_model(utterance, projects, client):
-	"""Return (ProjectPick, meta). `projects` carry `projectId`, `name` and `spokenNames`."""
+def pick_project_via_model(utterance, projects, client, fallback_ids=None):
+	"""Return (ProjectPick, meta). `projects` carry `projectId`, `name` and `spokenNames`.
+
+	`fallback_ids` are the deterministic stage's candidates, used for the question whenever
+	the reply cannot be trusted. Without them the first three listed projects stand in.
+	"""
 	listed = [p["projectId"] for p in projects]
 	names = {p["projectId"]: p.get("name", "") for p in projects}
+	fallback = list(fallback_ids) if fallback_ids is not None else listed[:3]
+	fallback_names = [names[i] for i in fallback]
 	if not projects:
 		return ProjectPick.ask([], "There are no projects to check."), {"ms": 0, "parse": "ok"}
 	record = client.complete(render_projects(utterance, projects))
@@ -295,16 +301,21 @@ def pick_project_via_model(utterance, projects, client):
 	except (ValueError, json.JSONDecodeError) as e:
 		meta["parse"] = "unparseable"
 		meta["parse_error"] = str(e)
-		return ProjectPick.ask(listed[:3], question_for_projects([names[i] for i in listed[:3]]),
+		return ProjectPick.ask(fallback, question_for_projects(fallback_names),
 		                       f"unparseable reply: {e}"), meta
 	choice = answer.get("choice")
 	if isinstance(choice, str) and choice.strip().lower() in NO_CHOICE:
 		choice = None
 	candidates = [c for c in (answer.get("candidates") or []) if c in listed]
+	if choice in listed and len(candidates) >= 2:
+		return ProjectPick.ask(candidates, question_for_projects([names[i] for i in candidates]),
+		                       "model hedged with two candidates"), meta
 	if choice in listed:
 		return ProjectPick.one(choice, listed, "model"), meta
 	if choice:
-		return ProjectPick.coerce(choice, listed, question_for_projects([names[i] for i in listed[:3]])), meta
+		coerce_ids = fallback or listed
+		return ProjectPick.coerce(choice, coerce_ids,
+		                          question_for_projects([names[i] for i in coerce_ids])), meta
 	if candidates:
 		return ProjectPick.ask(candidates, question_for_projects([names[i] for i in candidates]), "model"), meta
 	return ProjectPick.none("model"), meta

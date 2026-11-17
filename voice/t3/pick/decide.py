@@ -42,10 +42,10 @@ def decide_project(utterance, projects, client=None):
 		return first, {"ms": 0, "model": False, "parse": "ok"}
 	names = {p["projectId"]: p.get("name", "") for p in projects}
 	try:
-		picked, meta = pick_project_via_model(utterance, projects, client)
+		picked, meta = pick_project_via_model(utterance, projects, client, list(first.candidates))
 		return picked, {**meta, "model": True, "shortlist": len(projects)}
 	except FAILURES as e:
-		candidates = [p["projectId"] for p in projects[:3]]
+		candidates = list(first.candidates)
 		return (ProjectPick.ask(candidates, question_for_projects([names[i] for i in candidates]),
 		                        f"picker failed: {type(e).__name__}"),
 		        {"ms": 0, "model": True, "parse": "failed", "error": str(e)[:200],
