@@ -112,6 +112,9 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     );
 
   const watches = new Map<ThreadId, Fiber.Fiber<void>>();
+  // Admission, replacement and unwatch wait on a stopping fiber between reading and writing
+  // `watches`, so each runs alone, through its result frame.
+  const watchLock = yield* Semaphore.make(1);
   const stopWatch = Effect.fn("VoiceSeam.route.stopWatch")(function* (threadId: ThreadId) {
     const fiber = watches.get(threadId);
     watches.delete(threadId);
@@ -198,7 +201,8 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     }
     const { id, op, input: raw } = envelope.value;
     if (!isWireOp(op)) return yield* refuse(id, VoiceSeam.VoiceSeamRefusal.invalidRequest());
-    return yield* dispatch(op, id, raw);
+    const request = dispatch(op, id, raw);
+    return yield* op === "watch" || op === "unwatch" ? watchLock.withPermit(request) : request;
   });
 
   const permits = yield* Semaphore.make(MAX_IN_FLIGHT);
