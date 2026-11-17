@@ -102,7 +102,7 @@ def load_baseline(path: Path) -> set[str]:
 
 
 def run_node_suite(repo: Path) -> tuple[str, str] | None:
-    files = sorted((repo / "voice" / "bot" / "test").glob("*.test.mjs"))
+    files = sorted((repo / "voice").rglob("*.test.mjs"))
     if not files:
         return None
     node = shutil.which("node")
