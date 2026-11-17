@@ -121,7 +121,13 @@ type Subscription =
 
 type Input =
   | { readonly kind: "events"; readonly events: ReadonlyArray<OrchestrationV2StoredEvent> }
-  | { readonly kind: "follow_up"; readonly trigger: SettleTrigger; readonly answer: SettleAnswer };
+  | {
+      readonly kind: "follow_up";
+      readonly trigger: SettleTrigger;
+      readonly answer: SettleAnswer;
+      /** The count of settle triggers scanned when the wait was forked. */
+      readonly triggersAtFork: number;
+    };
 
 const OUTBOUND_CAPACITY = 16;
 
@@ -142,6 +148,10 @@ export const make =
         const reported = new Set<string>();
         let lastSeen = input.afterSequence;
         let pending: SettleTrigger | null = null;
+        // A follow-up's answer describes the thread as of its read. A trigger scanned after the
+        // fork means the thread moved on, so the answer is dropped and a fresh check runs.
+        let triggersScanned = 0;
+        let latestTrigger: SettleTrigger | null = null;
         let catchUp: { readonly atSequence: number; readonly trigger: SettleTrigger } | null = null;
         let followUpInFlight = false;
 
@@ -188,13 +198,19 @@ export const make =
             case "follow_up":
               if (followUpInFlight) return null;
               followUpInFlight = true;
+              const triggersAtFork = triggersScanned;
               yield* answer.wait.pipe(
                 // A wait that dies would leave the watch thinking it still runs.
                 Effect.catchCause((cause) =>
                   Effect.succeed<SettleAnswer>({ kind: "unavailable", cause }),
                 ),
                 Effect.flatMap((next) =>
-                  Queue.offer(followUps, { kind: "follow_up", trigger, answer: next }),
+                  Queue.offer(followUps, {
+                    kind: "follow_up",
+                    trigger,
+                    answer: next,
+                    triggersAtFork,
+                  }),
                 ),
                 Effect.forkScoped,
               );
@@ -217,12 +233,16 @@ export const make =
           }
         });
 
-        const triggerAt = (projectId: ProjectId, sequence: number): SettleTrigger => ({
-          threadId,
-          projectId,
-          sequence,
-          ...(input.runId === undefined ? {} : { anchorRunId: input.runId }),
-        });
+        const arm = (projectId: ProjectId, sequence: number) => {
+          triggersScanned += 1;
+          latestTrigger = {
+            threadId,
+            projectId,
+            sequence,
+            ...(input.runId === undefined ? {} : { anchorRunId: input.runId }),
+          };
+          pending = latestTrigger;
+        };
 
         /** Emits a batch of stored events and keeps its last trigger. Reports whether it ended the watch. */
         const scan = Effect.fn("VoiceSeam.watch.scan")(function* (
@@ -244,7 +264,7 @@ export const make =
               yield* emit(signal);
               if (signal.type === "gone") return true;
             }
-            if (distilled.settleCheck) pending = triggerAt(projectId, distilled.sequence);
+            if (distilled.settleCheck) arm(projectId, distilled.sequence);
           }
           return false;
         });
@@ -293,7 +313,7 @@ export const make =
           lastSeen = Math.max(lastSeen, highWater);
           // One check after every replay, even an empty one: a catch-up armed by an earlier watch
           // died with it, and a thread that settled while no one watched stores nothing more.
-          pending = triggerAt(projectId, highWater);
+          arm(projectId, highWater);
           const settled = yield* settleDue();
           if (settled !== null) return { kind: "ended", reason: settled } as const;
 
@@ -316,7 +336,12 @@ export const make =
                   )
                 : Effect.gen(function* () {
                     followUpInFlight = false;
-                    return (yield* apply(next.trigger, next.answer)) ?? (yield* settleDue());
+                    if (next.triggersAtFork !== triggersScanned) pending ??= latestTrigger;
+                    else {
+                      const ended = yield* apply(next.trigger, next.answer);
+                      if (ended !== null) return ended;
+                    }
+                    return yield* settleDue();
                   }),
             ),
             Stream.takeUntil((reason) => {
