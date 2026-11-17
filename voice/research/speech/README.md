@@ -1,6 +1,6 @@
 # How to run the Stage 1 speech path
 
-These scripts run LFM3-Audio-2B locally. `llamacpp_rt.py` drives llama.cpp's `/v1/realtime` WebSocket server, which is the runtime Stage 1 recommends. The other scripts load the model in Transformers as the reference implementation and benchmark it. The measured results are in [stage1-speech-path.md](../../docs/voice/stage1-speech-path.md).
+These scripts run LFM3-Audio-2B locally. `llamacpp_rt.py` drives llama.cpp's `/v1/realtime` WebSocket server, which is the runtime Stage 1 recommends. The other scripts load the model in Transformers as the reference implementation and benchmark it. The measured results are in [stage1-speech-path.md](../../../docs/voice/stage1-speech-path.md).
 
 Stage 1 ran on Windows 11 with an RTX 3060 12 GB. The llama.cpp steps use the Windows CUDA 12.4 build. The commands below are for Git Bash. In PowerShell, write `$env:VOICE_HOME` for `$VOICE_HOME`.
 
@@ -82,12 +82,12 @@ cd "$VOICE_HOME/hf/hub/models--LiquidAI--LFM3-Audio-2B/snapshots/2d6c1f99c129b3e
 sha256sum *.py
 ```
 
-`lfm.py` loads this snapshot with `trust_remote_code=True`, which runs its nine Python modules. Compare each digest with the table in [Remote-code review](../../docs/voice/stage1-speech-path.md#remote-code-review) before the first load.
+`lfm.py` loads this snapshot with `trust_remote_code=True`, which runs its nine Python modules. Compare each digest with the table in [Remote-code review](../../../docs/voice/stage1-speech-path.md#remote-code-review) before the first load.
 
 ## Make the test clips
 
 ```bash
-powershell -ExecutionPolicy Bypass -File voice/speech/make_audio.ps1
+powershell -ExecutionPolicy Bypass -File voice/research/speech/make_audio.ps1
 ```
 
 The script uses the built-in Windows SAPI voices to write `single`, `two_request`, `correction`, and `long` as 16 kHz mono WAVs, each with a `.txt` reference, to `$VOICE_HOME/evidence/stage1/audio/`.
@@ -97,7 +97,7 @@ The script uses the built-in Windows SAPI voices to write `single`, `two_request
 From the repo root, with the venv active:
 
 ```bash
-python voice/speech/llamacpp_rt.py 1 gpu concurrent
+python voice/research/speech/llamacpp_rt.py 1 gpu concurrent
 ```
 
 The script starts `llama-server.exe` on `127.0.0.1:8093` with every layer on the GPU and waits for `/health`. Every clip streams in at real-time pace. The script runs the tool-call probe on `two_request.wav` and prints the tool call, the reply to the injected result, and the cancelled reply. It runs a live-transcription probe on `correction.wav`, one warm-up, and one timed round with the voice and transcription sessions open at once. It stops the server on exit. Output goes to `$VOICE_HOME/evidence/stage1/`: `llamacpp_rt_gpu_concurrent.json`, the reply in `llamacpp_reply_gpu_concurrent.wav`, and the server log.
@@ -105,7 +105,7 @@ The script starts `llama-server.exe` on `127.0.0.1:8093` with every layer on the
 To run without the GPU, pass `cpu` and hide the GPU:
 
 ```bash
-CUDA_VISIBLE_DEVICES= python voice/speech/llamacpp_rt.py 1 cpu concurrent
+CUDA_VISIBLE_DEVICES= python voice/research/speech/llamacpp_rt.py 1 cpu concurrent
 ```
 
-Run `python voice/speech/llamacpp_rt.py --help` for the arguments. To reproduce every Stage 1 table, follow the steps in [Reproduce](../../docs/voice/stage1-speech-path.md#reproduce).
+Run `python voice/research/speech/llamacpp_rt.py --help` for the arguments. To reproduce every Stage 1 table, follow the steps in [Reproduce](../../../docs/voice/stage1-speech-path.md#reproduce).

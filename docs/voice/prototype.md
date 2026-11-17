@@ -20,7 +20,7 @@ All code is in `voice/prototype/`.
 | File | What it does |
 | --- | --- |
 | `run.py` | Starts `llama-server`, streams the clip at real-time pace into a `realtime` voice session and a `?intent=transcription` session at once, and drives one turn. |
-| `realtime.py` | The server process and a WebSocket session with a background reader. It uses Stage 1's server flags (`--temp 0 -np 2 -ngl 99`) and the GGUF files from `voice/speech/llamacpp_rt.py`. |
+| `realtime.py` | The server process and a WebSocket session with a background reader. It uses Stage 1's server flags (`--temp 0 -np 2 -ngl 99`) and the GGUF files from `voice/research/speech/llamacpp_rt.py`. |
 | `transcript.py` | `TranscriptAdapter` turns transcription deltas into `TranscriptUpdate` records. Each update carries the whole utterance, a new revision number, and `is_final` on the last completed item after the final commit. |
 | `segmenter.py` | The `Segmenter` interface, the update coalescing, and the two segmenters. The default is the hybrid from `voice/segmentation/hybrid.py` (see [stage2-hybrid.md](stage2-hybrid.md)). `--segmenter baseline` picks `BaselineSegmenter`, which wraps round 2's `Runner("a")` and `Orchestrator` from PR #2. The runs in this doc used the baseline. |
 | `tasks.py` | `MockTaskService` and `build_snapshot`. A mock worker completes read-only tasks after 4 s with a canned result. Side-effect tasks, and delegate tasks that no decider answer classified, are held and never run. |

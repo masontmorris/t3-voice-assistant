@@ -12,8 +12,8 @@ This fork of [pingdotgg/t3code](https://github.com/pingdotgg/t3code) explores a 
 
 `voice/` holds what the live call runs. `voice/research/` holds everything else.
 
-- `voice/live` is the server and client a call runs. `voice/prototype`, `voice/segmentation`, `voice/local_decider`, `voice/liquid_decider` and `voice/tools` are the turn's pipeline, segmenter, deciders and lookups, which `voice/live/server.py` imports. `voice/speech` is the LFM3 and llama.cpp harness. `voice/bot` is the bot spike.
-- `voice/research/` holds the experiments, offline evals and benchmarks those packages do not import, with the recorded answers and run results they read. The tag `prototype-v0` keeps the history before the split.
+- `voice/live` is the server and client a call runs. `voice/prototype`, `voice/segmentation`, `voice/local_decider`, `voice/liquid_decider` and `voice/tools` are the turn's pipeline, segmenter, deciders and lookups, which `voice/live/server.py` imports. `voice/bot` is the bot spike.
+- `voice/research/` holds the experiments, offline evals and benchmarks those packages do not import, with the recorded answers and run results they read. `voice/research/speech` is the LFM3 and llama.cpp harness the live call's server flags came from. The tag `prototype-v0` keeps the history before the split.
 
 Trace imports from `voice/live/server.py` and `voice/live/client.py` before moving a research package back into `voice/`.
 

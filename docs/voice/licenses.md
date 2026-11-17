@@ -13,7 +13,7 @@ Each row records a model or dependency the voice assistant uses or studies.
 
 ## Stage 1 speech path
 
-These rows cover `voice/speech/` and [stage1-speech-path.md](stage1-speech-path.md). Package versions and license strings come from each package's installed metadata (`importlib.metadata`) in `$VOICE_HOME/venv-lfm3`, measured on 2026-11-15.
+These rows cover `voice/research/speech/` and [stage1-speech-path.md](stage1-speech-path.md). Package versions and license strings come from each package's installed metadata (`importlib.metadata`) in `$VOICE_HOME/venv-lfm3`, measured on 2026-11-15.
 
 | Name | Version or revision | License | Source | Notable terms |
 | --- | --- | --- | --- | --- |
