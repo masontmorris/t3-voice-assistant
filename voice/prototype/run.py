@@ -52,6 +52,7 @@ decider LIQUID_API_KEY in it, for calls that miss the cache. Writes CLIP.json, C
 import argparse
 import asyncio
 import bisect
+import difflib
 import json
 import os
 import re
@@ -61,7 +62,10 @@ from contextlib import nullcontext
 from dataclasses import asdict
 from pathlib import Path
 
+import numpy as np
+
 from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
+from voice.live.overlap import transcribe as overlap_transcribe
 from voice.live.recall import recall_note
 from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
@@ -451,11 +455,38 @@ async def stream_reply(session, rate, since, gate, **response):
                 done = event
             seen += 1
     summary, _ = reply_summary(session, mark, since, rate)
-    return {**summary, "passed": gate.passed, "heard": gate.heard(), "releases": gate.releases}
+    return {**summary, "passed": gate.passed, "heard": gate.heard(), "releases": gate.releases}, bytes(
+        gate.pcm[:gate.sent])
+
+
+WORD = re.compile(r"[A-Za-z0-9']+")
+
+
+def heard_prefix(text, transcript):
+    """The start of `text` up to the last of its words that the transcript of its released audio matched.
+
+    The released audio lags the text it was released on by a median of 7 words at a block boundary (measured,
+    docs/voice/stream-release.md), so the text a stopped reply was released on overstates what was heard."""
+    spans = [(match.group(0).lower(), match.end()) for match in WORD.finditer(text or "")]
+    said = WORD.findall((transcript or "").lower())
+    matcher = difflib.SequenceMatcher(a=[word for word, _ in spans], b=said, autojunk=False)
+    ends = [block.a + block.size for block in matcher.get_matching_blocks() if block.size]
+    return text[:spans[max(ends) - 1][1]].strip() if ends else ""
+
+
+def by_ear(url, rate):
+    """A `transcribe` for `answer`: the released audio of a stopped reply, at 16 kHz, through llama-server's
+    transcription session."""
+    async def transcribe(pcm):
+        samples = np.frombuffer(pcm, dtype="<i2").astype(np.float64)
+        positions = np.arange(0, len(samples), rate / MODEL_RATE)
+        audio = np.interp(positions, np.arange(len(samples)), samples).astype("<i2").tobytes()
+        return await overlap_transcribe(url, audio, Session)
+    return transcribe
 
 
 async def answer(session, rate, since, sources, log, fallback=None, running=False, retry_item=None, escalate=None,
-                 speak=None, previous=(), asked_to_choose=False, last_ask=False, **response):
+                 speak=None, previous=(), asked_to_choose=False, last_ask=False, transcribe=None, **response):
     """A reply that states only facts the call gave it, never names the machinery, and is not one it already said,
     released to `speak` while it is generated.
 
@@ -484,7 +515,10 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     A reply already partly heard is not asked a third time: the person is not left in silence.
 
     `speak(text, pcm, done)` gets each released piece of audio with the text heard so far, then one call with `done`
-    set once the reply is over. It is never called for a reply that released nothing.
+    set once the reply is over. It is never called for a reply that released nothing. `transcribe(pcm)`, when given,
+    reads back what a stopped reply's released audio said, so the continuation note quotes the words the person heard
+    rather than the text the audio was released on (`heard_prefix`); without it, or if it fails, the note quotes the
+    text of the released blocks.
 
     `retry_item` replaces the machine note a refused reply that released nothing is answered with; given a function,
     it is called with what the screens found and whether the reply only repeated itself, and returns the item.
@@ -498,10 +532,20 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
 
     async def ask(heard="", repeats=True):
         gate = Release(lambda text, final: not any(check(text, heard, final, repeats).values()), spoken.add)
-        result = await stream_reply(session, rate, since, gate, **response)
-        return {**result, "screened_against": {"sources": list(sources), "running": running, "heard": heard,
-                                               "previous": list(previous) if repeats else [],
-                                               "choose": asked_to_choose}}
+        result, released = await stream_reply(session, rate, since, gate, **response)
+        result["screened_against"] = {"sources": list(sources), "running": running, "heard": heard,
+                                      "previous": list(previous) if repeats else [], "choose": asked_to_choose}
+        if released and not result["passed"] and transcribe is not None:
+            try:
+                transcript = await transcribe(released)
+            except Exception as exc:
+                log("heard_by_ear_failed", error=repr(exc))
+            else:
+                by_ear_text = heard_prefix(result["text"], transcript)
+                log("heard_by_ear", transcript=transcript, heard=by_ear_text, released_on=result["heard"])
+                if len(by_ear_text) <= len(result["heard"]):
+                    result["heard"] = by_ear_text
+        return result
 
     def done(last, responses, **more):
         chosen = chosen_places(spoken.text, sources, running) if asked_to_choose else []
@@ -874,6 +918,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 "output_modalities": ["text"]})
         created = await voice.wait_for("session.created")
         out_rate = created["session"]["audio"]["output"]["format"]["rate"]
+        hear = by_ear(url, out_rate)
         partial["events"] = {"voice": voice.events[voice_mark:], "voice_sent": voice.sent[voice_sent_mark:],
                              "asr": asr.events, "asr_sent": asr.sent}
         await asr.wait_for("session.created")
@@ -990,6 +1035,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 running = is_running(answered)
                 reply, reply_pcm = await answer(
                     voice, out_rate, audio_end, sources, log, running=running, escalate=look_up, speak=speak,
+                    transcribe=hear,
                     previous=prior_replies, asked_to_choose=choosing, last_ask=True,
                     retry_item=lambda found, repeats=False: plain_text(retry_note(found, running, repeats)))
             elif service.correction is ASK_WHAT_CHANGED:
@@ -998,7 +1044,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     speak(reply["text"], reply_pcm, True)
             else:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, fallback=fallback,
-                                                running=is_running(answered), speak=speak, previous=prior_replies,
+                                                running=is_running(answered), speak=speak, transcribe=hear,
+                                                previous=prior_replies,
                                                 asked_to_choose=choosing)
             picked.extend(reply.get("established", ()))
             given.extend(reply.get("established", ()))
@@ -1027,6 +1074,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             reply, reply_pcm = await answer(voice, out_rate, audio_end,
                                             [adapter.text(), *prior_utterances, *given, read_before, item], log,
                                             fallback=fallback, running=is_running(snapshot), speak=speak,
+                                            transcribe=hear,
                                             previous=prior_replies, asked_to_choose=choosing, **extra)
             picked.extend(reply.get("established", ()))
             given.extend(reply.get("established", ()))
@@ -1051,13 +1099,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 injection_update = await create_item(voice, plain_text(updates))
                 update_reply, update_pcm = await answer(
                     voice, out_rate, boundary, [adapter.text(), *prior_utterances, *given, updates], log,
-                    speak=speak, previous=said, last_ask=True,
+                    speak=speak, transcribe=hear, previous=said, last_ask=True,
                     retry_item=lambda found, repeats=False: plain_text(retry_note(found, False, repeats)), **extra)
             else:
                 injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
                 update_reply, update_pcm = await answer(voice, out_rate, boundary,
                                                         [adapter.text(), *prior_utterances, *given, updates], log,
-                                                        fallback=fallback, speak=speak, previous=said, **extra)
+                                                        fallback=fallback, speak=speak, transcribe=hear,
+                                                        previous=said, **extra)
             picked.extend(update_reply.get("established", ()))
             given.extend(update_reply.get("established", ()))
             replies.append({"kind": "update", "injection": injection_update, **update_reply})

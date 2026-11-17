@@ -164,6 +164,27 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
         stop, = [e for e in self.timeline if e["kind"] == "fact_check"]
         self.assertEqual(stop["heard"], "It's sunny in Denver tomorrow and")
 
+    async def test_the_continuation_quotes_what_the_released_audio_said_not_what_it_was_released_on(self):
+        """The audio lags the text it is released on (measured: 7 words at the median), so the note quotes the
+        transcript of the released audio, matched back to the reply's own words."""
+        heard_audio = []
+
+        async def transcribe(pcm):
+            heard_audio.append(blocks_in(pcm))
+            return "it's sunny in"
+
+        await self.answer(
+            [["It's", " sunny"], [" in", " Denver"], [" tomorrow", " and"], [" on", " Sunday"], [" too", "."]],
+            [[" Denver", " has"], [" no", " more"], [" yet", "."]], transcribe=transcribe)
+        self.assertEqual(heard_audio, [[0, 1, 2]], "the transcript is of the audio that went out")
+        note, = self.notes()
+        self.assertIn('they heard only the start of your last reply, "It\'s sunny in"', note)
+
+    def test_heard_prefix_is_never_past_the_last_word_matched(self):
+        self.assertEqual(prototype.heard_prefix("The weather in Raleigh today is a high of 57 degrees.",
+                                                "the weather in raleigh today"), "The weather in Raleigh today")
+        self.assertEqual(prototype.heard_prefix("It's sunny.", ""), "")
+
     async def test_a_continuation_that_says_the_heard_part_again_is_not_spoken(self):
         reply, _ = await self.answer(
             [["It's", " sunny"], [" in", " Denver"], [" on", " Sunday"], [" too", "."]],
