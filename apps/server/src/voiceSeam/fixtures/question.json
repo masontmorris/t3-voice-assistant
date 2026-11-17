@@ -1,0 +1,1694 @@
+{
+  "scenario": "Replay (dev) question scenario, answered in the web client",
+  "events": [
+    {
+      "sequence": 133,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:59377e7c-0312-46ae-80b4-9d99b8cc369b",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "thread.created",
+        "occurredAt": "2026-11-17T11:19:53.939Z",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "projectId": "2908bdff-784c-4d4e-b12e-333874ca081f",
+          "title": "Replay: question",
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "runtimeMode": "approval-required",
+          "interactionMode": "default",
+          "branch": "main",
+          "worktreePath": null,
+          "pullRequests": [],
+          "activeProviderThreadId": null,
+          "lineage": {
+            "parentThreadId": null,
+            "relationshipToParent": null,
+            "rootThreadId": "492fd514-f4f1-4115-9377-70c19af2b111"
+          },
+          "forkedFrom": null,
+          "createdAt": "2026-11-17T11:19:53.939Z",
+          "updatedAt": "2026-11-17T11:19:53.939Z",
+          "archivedAt": null,
+          "settledOverride": null,
+          "settledAt": null,
+          "snoozedUntil": null,
+          "snoozedAt": null,
+          "lastVisitedAt": null,
+          "deletedAt": null
+        },
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 134,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:536fdfbd-5825-4bf2-ab6e-41b087a02f41",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "thread.metadata-updated",
+        "occurredAt": "2026-11-17T11:19:53.978Z",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "projectId": "2908bdff-784c-4d4e-b12e-333874ca081f",
+          "title": "Replay: question",
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "runtimeMode": "approval-required",
+          "interactionMode": "default",
+          "branch": "main",
+          "worktreePath": null,
+          "pullRequests": [],
+          "activeProviderThreadId": null,
+          "lineage": {
+            "parentThreadId": null,
+            "relationshipToParent": null,
+            "rootThreadId": "492fd514-f4f1-4115-9377-70c19af2b111"
+          },
+          "forkedFrom": null,
+          "createdAt": "2026-11-17T11:19:53.939Z",
+          "updatedAt": "2026-11-17T11:19:53.939Z",
+          "archivedAt": null,
+          "settledOverride": null,
+          "settledAt": null,
+          "snoozedUntil": null,
+          "snoozedAt": null,
+          "lastVisitedAt": "2026-11-17T11:19:53.977Z",
+          "deletedAt": null
+        },
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 135,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:a036309b-0c6b-4776-9ce0-e69e4e98b660",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-thread.updated",
+        "occurredAt": "2026-11-17T11:19:54.001Z",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "devReplay",
+          "providerSessionId": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b",
+          "appThreadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ownerNodeId": null,
+          "nativeThreadRef": null,
+          "nativeConversationHeadRef": null,
+          "status": "not_loaded",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "createdAt": "2026-11-17T11:19:54.001Z",
+          "updatedAt": "2026-11-17T11:19:54.001Z"
+        },
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 136,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:19e83a43-5d9b-4c17-84ee-d419ebd39bed",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run.created",
+        "occurredAt": "2026-11-17T11:19:54.001Z",
+        "payload": {
+          "id": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ordinal": 1,
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "userMessageId": "fb609389-3725-4837-a67e-5b69388dbbcb",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "status": "preparing",
+          "queuePosition": null,
+          "requestedAt": "2026-11-17T11:19:54.001Z",
+          "startedAt": null,
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null,
+          "workspacePreparation": {
+            "type": "root"
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 137,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:394a8686-a249-47cf-8d43-b0228167e021",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run-attempt.created",
+        "occurredAt": "2026-11-17T11:19:54.001Z",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "providerInstanceId": "devReplay",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "pending",
+          "startedAt": null,
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 138,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:d050fd57-0994-4f96-845b-5692f60f7347",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:19:54.001Z",
+        "payload": {
+          "id": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "pending",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": null,
+          "startedAt": null,
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 139,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:f962ecd8-188d-4757-b285-5b7027f04dc3",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "message.updated",
+        "occurredAt": "2026-11-17T11:19:54.001Z",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "fb609389-3725-4837-a67e-5b69388dbbcb",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "role": "user",
+          "text": "Replay: question",
+          "attachments": [],
+          "streaming": false,
+          "createdAt": "2026-11-17T11:19:54.001Z",
+          "updatedAt": "2026-11-17T11:19:54.001Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 140,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:1c3d3886-0b6d-465f-b086-94e68e6a420a",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "turn-item.updated",
+        "occurredAt": "2026-11-17T11:19:54.001Z",
+        "payload": {
+          "id": "turn-item:message:fb609389-3725-4837-a67e-5b69388dbbcb",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000001,
+          "status": "completed",
+          "title": null,
+          "startedAt": "2026-11-17T11:19:54.001Z",
+          "completedAt": "2026-11-17T11:19:54.001Z",
+          "updatedAt": "2026-11-17T11:19:54.001Z",
+          "createdBy": "user",
+          "creationSource": "web",
+          "type": "user_message",
+          "messageId": "fb609389-3725-4837-a67e-5b69388dbbcb",
+          "inputIntent": "turn_start",
+          "text": "Replay: question",
+          "attachments": []
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 141,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:a689540b-24ae-44a3-9c48-a115dac4313a",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "turn-item.updated",
+        "occurredAt": "2026-11-17T11:19:54.001Z",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:workspace-preparation%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000002,
+          "status": "running",
+          "title": "Preparing workspace",
+          "startedAt": "2026-11-17T11:19:54.001Z",
+          "completedAt": null,
+          "updatedAt": "2026-11-17T11:19:54.001Z",
+          "type": "command_execution",
+          "input": "Preparing workspace"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 142,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:workspace",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7%3Aworkspace:864893cb-3aac-4799-8ff9-91ff8a53af04",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "thread.metadata-updated",
+        "occurredAt": "2026-11-17T11:19:54.266Z",
+        "payload": {
+          "createdBy": "user",
+          "creationSource": "web",
+          "id": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "projectId": "2908bdff-784c-4d4e-b12e-333874ca081f",
+          "title": "Replay: question",
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "runtimeMode": "approval-required",
+          "interactionMode": "default",
+          "branch": "main",
+          "worktreePath": null,
+          "pullRequests": [],
+          "activeProviderThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "lineage": {
+            "parentThreadId": null,
+            "relationshipToParent": null,
+            "rootThreadId": "492fd514-f4f1-4115-9377-70c19af2b111"
+          },
+          "forkedFrom": null,
+          "createdAt": "2026-11-17T11:19:53.939Z",
+          "updatedAt": "2026-11-17T11:19:54.266Z",
+          "archivedAt": null,
+          "settledOverride": null,
+          "settledAt": null,
+          "snoozedUntil": null,
+          "snoozedAt": null,
+          "lastVisitedAt": "2026-11-17T11:19:53.977Z",
+          "deletedAt": null
+        },
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 143,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:release",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7%3Arelease:7121581a-6e88-4c61-a06b-fd2e6a8f7492",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "checkpoint-scope.created",
+        "occurredAt": "2026-11-17T11:19:54.446Z",
+        "payload": {
+          "id": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "parentScopeId": null,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "kind": "root_run",
+          "ordinalWithinParent": 0,
+          "advancesAppRunCount": true,
+          "cwd": "/workspace/voice-fixtures",
+          "createdAt": "2026-11-17T11:19:54.446Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 144,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:release",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7%3Arelease:38eb71ff-9bc8-46c8-a9ab-88a07e9f8a71",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:19:54.446Z",
+        "payload": {
+          "id": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "pending",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "startedAt": null,
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 145,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:release",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7%3Arelease:0038f162-336e-4a7b-844c-9259b3e98e54",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "turn-item.updated",
+        "occurredAt": "2026-11-17T11:19:54.446Z",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:workspace-preparation%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000002,
+          "status": "completed",
+          "title": "Workspace ready",
+          "startedAt": "2026-11-17T11:19:54.001Z",
+          "completedAt": "2026-11-17T11:19:54.446Z",
+          "updatedAt": "2026-11-17T11:19:54.446Z",
+          "type": "command_execution",
+          "input": "Preparing workspace",
+          "output": "Workspace preparation completed.",
+          "exitCode": 0
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 146,
+      "commandId": "7adf8782-a5fc-4088-87a0-5cdbeec6a9d7:release",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:7adf8782-a5fc-4088-87a0-5cdbeec6a9d7%3Arelease:1c63c74a-d806-4c2b-b4a7-16c3626ce2c5",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run.updated",
+        "occurredAt": "2026-11-17T11:19:54.446Z",
+        "payload": {
+          "id": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ordinal": 1,
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "userMessageId": "fb609389-3725-4837-a67e-5b69388dbbcb",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "status": "starting",
+          "queuePosition": null,
+          "requestedAt": "2026-11-17T11:19:54.001Z",
+          "startedAt": null,
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null,
+          "workspacePreparation": {
+            "type": "root"
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 147,
+      "commandId": "d7d4f1ac-2555-49ce-8632-f098313d6fbf",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:d7d4f1ac-2555-49ce-8632-f098313d6fbf:0e6d928b-f255-4379-8657-0f1fbf9f8cd9",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "thread.visit-recorded",
+        "occurredAt": "2026-11-17T11:19:54.608Z",
+        "payload": {
+          "lastVisitedAt": "2026-11-17T11:19:54.001Z",
+          "opens": {
+            "openedAt": 1794914394608,
+            "score": 1,
+            "picks": []
+          }
+        },
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 148,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:47f04e89-40fd-4c22-ad6f-1af294e3acb0",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-session.attached",
+        "occurredAt": "2026-11-17T11:19:55.524Z",
+        "payload": {
+          "id": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b",
+          "driver": "acpRegistry",
+          "providerInstanceId": "devReplay",
+          "status": "ready",
+          "cwd": "/workspace/voice-fixtures",
+          "model": "question",
+          "capabilities": {
+            "sessions": {
+              "supportsMultipleProviderThreadsPerSession": false,
+              "supportsModelSwitchInSession": true,
+              "supportsProviderSwitchingViaHandoff": true,
+              "supportsRuntimeModeSwitchInSession": false,
+              "pendingRequestsSurviveRestart": false
+            },
+            "threads": {
+              "canCreateEmptyThread": true,
+              "canReadThreadSnapshot": true,
+              "canRollbackThread": true,
+              "canForkThread": false,
+              "canForkFromTurn": false,
+              "canForkFromSubagentThread": false,
+              "exposesNativeThreadId": true
+            },
+            "turns": {
+              "exposesNativeTurnId": false,
+              "emitsTurnStarted": true,
+              "emitsTurnCompleted": true,
+              "supportsInterrupt": true,
+              "supportsActiveSteering": false,
+              "supportsSteeringByInterruptRestart": true,
+              "supportsQueuedMessages": true,
+              "terminalStatusQuality": "strong"
+            },
+            "streaming": {
+              "streamsAssistantText": true,
+              "streamsReasoning": true,
+              "streamsToolOutput": true,
+              "streamsPlanText": false,
+              "emitsMessageCompleted": true
+            },
+            "tools": {
+              "exposesToolItemIds": true,
+              "emitsToolStarted": true,
+              "emitsToolCompleted": true,
+              "emitsToolOutput": true,
+              "supportsMcpTools": true,
+              "supportsDynamicToolCallbacks": false
+            },
+            "approvals": {
+              "supportsCommandApproval": true,
+              "supportsFileReadApproval": true,
+              "supportsFileChangeApproval": true,
+              "supportsApplyPatchApproval": false,
+              "approvalsHaveNativeRequestIds": false,
+              "approvalCallbacksAreLiveOnly": true,
+              "approvalsCanOriginateFromSubagents": false
+            },
+            "planning": {
+              "emitsPlanUpdated": true,
+              "emitsTodoList": true,
+              "emitsProposedPlan": false,
+              "supportsStructuredQuestions": true,
+              "planDeltasHaveItemIds": false
+            },
+            "subagents": {
+              "supportsSubagents": false,
+              "exposesSubagentThreadIds": false,
+              "emitsSubagentLifecycle": false,
+              "canWaitForSubagents": false,
+              "canCloseSubagents": false,
+              "canForkSubagentThread": false
+            },
+            "context": {
+              "acceptsSystemContext": false,
+              "acceptsDeveloperContext": false,
+              "acceptsSyntheticUserContext": true,
+              "canGenerateSummaries": true,
+              "canConsumeHandoffSummaries": true,
+              "supportsDeltaHandoff": true,
+              "supportsFullThreadHandoff": true,
+              "maxRecommendedHandoffChars": null
+            },
+            "checkpointing": {
+              "appCanCheckpointFilesystem": true,
+              "supportsNestedCheckpointScopes": true,
+              "providerCanRollbackConversation": false,
+              "providerRollbackReturnsSnapshot": true,
+              "providerCanReadConversationSnapshot": true
+            },
+            "identity": {
+              "nativeThreadIds": "strong",
+              "nativeTurnIds": "weak",
+              "nativeItemIds": "weak",
+              "nativeRequestIds": "weak"
+            },
+            "runtimePolicy": {
+              "enforcement": "client-boundary"
+            }
+          },
+          "createdAt": "2026-11-17T11:19:55.523Z",
+          "updatedAt": "2026-11-17T11:19:55.523Z",
+          "lastError": null
+        },
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 149,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:84e36aaa-6afa-48f6-8e20-ad666c6427a2",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-session.updated",
+        "occurredAt": "2026-11-17T11:19:55.690Z",
+        "payload": {
+          "id": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b",
+          "driver": "acpRegistry",
+          "providerInstanceId": "devReplay",
+          "status": "ready",
+          "cwd": "/workspace/voice-fixtures",
+          "model": "question",
+          "capabilities": {
+            "sessions": {
+              "supportsMultipleProviderThreadsPerSession": false,
+              "supportsModelSwitchInSession": true,
+              "supportsProviderSwitchingViaHandoff": true,
+              "supportsRuntimeModeSwitchInSession": false,
+              "pendingRequestsSurviveRestart": false
+            },
+            "threads": {
+              "canCreateEmptyThread": true,
+              "canReadThreadSnapshot": true,
+              "canRollbackThread": true,
+              "canForkThread": false,
+              "canForkFromTurn": false,
+              "canForkFromSubagentThread": false,
+              "exposesNativeThreadId": true
+            },
+            "turns": {
+              "exposesNativeTurnId": false,
+              "emitsTurnStarted": true,
+              "emitsTurnCompleted": true,
+              "supportsInterrupt": true,
+              "supportsActiveSteering": false,
+              "supportsSteeringByInterruptRestart": true,
+              "supportsQueuedMessages": true,
+              "terminalStatusQuality": "strong"
+            },
+            "streaming": {
+              "streamsAssistantText": true,
+              "streamsReasoning": true,
+              "streamsToolOutput": true,
+              "streamsPlanText": false,
+              "emitsMessageCompleted": true
+            },
+            "tools": {
+              "exposesToolItemIds": true,
+              "emitsToolStarted": true,
+              "emitsToolCompleted": true,
+              "emitsToolOutput": true,
+              "supportsMcpTools": true,
+              "supportsDynamicToolCallbacks": false
+            },
+            "approvals": {
+              "supportsCommandApproval": true,
+              "supportsFileReadApproval": true,
+              "supportsFileChangeApproval": true,
+              "supportsApplyPatchApproval": false,
+              "approvalsHaveNativeRequestIds": false,
+              "approvalCallbacksAreLiveOnly": true,
+              "approvalsCanOriginateFromSubagents": false
+            },
+            "planning": {
+              "emitsPlanUpdated": true,
+              "emitsTodoList": true,
+              "emitsProposedPlan": false,
+              "supportsStructuredQuestions": true,
+              "planDeltasHaveItemIds": false
+            },
+            "subagents": {
+              "supportsSubagents": false,
+              "exposesSubagentThreadIds": false,
+              "emitsSubagentLifecycle": false,
+              "canWaitForSubagents": false,
+              "canCloseSubagents": false,
+              "canForkSubagentThread": false
+            },
+            "context": {
+              "acceptsSystemContext": false,
+              "acceptsDeveloperContext": false,
+              "acceptsSyntheticUserContext": true,
+              "canGenerateSummaries": true,
+              "canConsumeHandoffSummaries": true,
+              "supportsDeltaHandoff": true,
+              "supportsFullThreadHandoff": true,
+              "maxRecommendedHandoffChars": null
+            },
+            "checkpointing": {
+              "appCanCheckpointFilesystem": true,
+              "supportsNestedCheckpointScopes": true,
+              "providerCanRollbackConversation": false,
+              "providerRollbackReturnsSnapshot": true,
+              "providerCanReadConversationSnapshot": true
+            },
+            "identity": {
+              "nativeThreadIds": "strong",
+              "nativeTurnIds": "weak",
+              "nativeItemIds": "weak",
+              "nativeRequestIds": "weak"
+            },
+            "runtimePolicy": {
+              "enforcement": "client-boundary"
+            }
+          },
+          "createdAt": "2026-11-17T11:19:55.523Z",
+          "updatedAt": "2026-11-17T11:19:55.523Z",
+          "lastError": null
+        },
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 150,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:f30d9f45-dbf3-41b9-a0f0-7ae3b2626933",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-thread.updated",
+        "occurredAt": "2026-11-17T11:19:55.690Z",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "devReplay",
+          "providerSessionId": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b",
+          "appThreadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "createdAt": "2026-11-17T11:19:54.001Z",
+          "updatedAt": "2026-11-17T11:19:55.690Z"
+        },
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 151,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:17d315b0-e97a-4868-8719-e801623f0613",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run.updated",
+        "occurredAt": "2026-11-17T11:19:55.690Z",
+        "payload": {
+          "id": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ordinal": 1,
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "userMessageId": "fb609389-3725-4837-a67e-5b69388dbbcb",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "status": "running",
+          "queuePosition": null,
+          "requestedAt": "2026-11-17T11:19:54.001Z",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null,
+          "workspacePreparation": {
+            "type": "root"
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 152,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:2d693900-6898-4109-ad75-f524a66f4cb9",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run-attempt.updated",
+        "occurredAt": "2026-11-17T11:19:55.690Z",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "nativeThreadId": "d2ad871e-0a90-44b6-8373-151f36d9eef8",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "providerInstanceId": "devReplay",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "running",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 153,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:3658415b-fbb2-47d0-84f4-048ff6913c07",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:19:55.690Z",
+        "payload": {
+          "id": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "running",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 154,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:960678a0-891a-46d9-a79c-7177506e25d2",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-turn.updated",
+        "occurredAt": "2026-11-17T11:19:56.621Z",
+        "payload": {
+          "id": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "nativeTurnRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:turn:1",
+            "strength": "weak"
+          },
+          "ordinal": 1,
+          "status": "running",
+          "startedAt": "2026-11-17T11:19:56.619Z",
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 155,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:23ee12a0-3894-42de-9d0e-f5af3c3055f0",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-thread.updated",
+        "occurredAt": "2026-11-17T11:19:56.639Z",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "devReplay",
+          "providerSessionId": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b",
+          "appThreadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "goal": null,
+          "createdAt": "2026-11-17T11:19:54.001Z",
+          "updatedAt": "2026-11-17T11:19:56.619Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 156,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:9ba63a14-dda2-47b4-add3-6461aa3d7778",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:19:56.895Z",
+        "payload": {
+          "id": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "user_input_request",
+          "status": "waiting",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:elicitation:0",
+            "strength": "weak"
+          },
+          "runtimeRequestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AdevReplay%253Ad2ad871e-0a90-44b6-8373-151f36d9eef8%253Aturn%253A1:native-request:d2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0:2438ea5a-a862-4f57-a617-e0c40b0eb5ca",
+          "checkpointScopeId": null,
+          "startedAt": "2026-11-17T11:19:56.893Z",
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 157,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:f3784cfc-a2a3-45d9-9a97-925ae170e85e",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "runtime-request.updated",
+        "occurredAt": "2026-11-17T11:19:56.901Z",
+        "payload": {
+          "id": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AdevReplay%253Ad2ad871e-0a90-44b6-8373-151f36d9eef8%253Aturn%253A1:native-request:d2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0:2438ea5a-a862-4f57-a617-e0c40b0eb5ca",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeRequestRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:elicitation:0",
+            "strength": "weak"
+          },
+          "kind": "user_input",
+          "status": "pending",
+          "responseCapability": {
+            "type": "live",
+            "providerSessionId": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b"
+          },
+          "createdAt": "2026-11-17T11:19:56.893Z",
+          "resolvedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 158,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:faa5a067-24c7-4b10-9fbf-77790d1c96ef",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "turn-item.updated",
+        "occurredAt": "2026-11-17T11:19:56.912Z",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:elicitation:0",
+            "strength": "weak"
+          },
+          "parentItemId": null,
+          "ordinal": 1000003,
+          "status": "waiting",
+          "title": null,
+          "startedAt": "2026-11-17T11:19:56.893Z",
+          "completedAt": null,
+          "updatedAt": "2026-11-17T11:19:56.893Z",
+          "type": "user_input_request",
+          "requestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AdevReplay%253Ad2ad871e-0a90-44b6-8373-151f36d9eef8%253Aturn%253A1:native-request:d2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0:2438ea5a-a862-4f57-a617-e0c40b0eb5ca",
+          "questions": [
+            {
+              "id": "schema_vs_ui_flexibility",
+              "header": "Fixture",
+              "question": "Should this fixture prefer strict schemas or UI flexibility?",
+              "options": [
+                {
+                  "label": "Strict schemas (Recommended)",
+                  "description": "Strict schemas (Recommended)",
+                  "value": "Strict schemas (Recommended)"
+                },
+                {
+                  "label": "UI flexibility",
+                  "description": "UI flexibility",
+                  "value": "UI flexibility"
+                }
+              ],
+              "allowCustomAnswer": false
+            }
+          ]
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 159,
+      "commandId": "cfe1f354-fec5-499c-9795-a43cbc6bf046",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:cfe1f354-fec5-499c-9795-a43cbc6bf046:7d4b4000-6020-47eb-a053-a6de93a16871",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "thread.visit-recorded",
+        "occurredAt": "2026-11-17T11:20:04.533Z",
+        "payload": {
+          "lastVisitedAt": "2026-11-17T11:19:56.912Z"
+        },
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 160,
+      "commandId": "9eb840b9-3a85-4b8c-8d2f-5dd1220b96f1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:9eb840b9-3a85-4b8c-8d2f-5dd1220b96f1:a62bb768-fdc2-49f9-a58a-f36d8e8d7fbd",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "runtime-request.updated",
+        "occurredAt": "2026-11-17T11:20:19.613Z",
+        "payload": {
+          "id": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AdevReplay%253Ad2ad871e-0a90-44b6-8373-151f36d9eef8%253Aturn%253A1:native-request:d2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0:2438ea5a-a862-4f57-a617-e0c40b0eb5ca",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeRequestRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:elicitation:0",
+            "strength": "weak"
+          },
+          "kind": "user_input",
+          "status": "resolved",
+          "responseCapability": {
+            "type": "live",
+            "providerSessionId": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b"
+          },
+          "createdAt": "2026-11-17T11:19:56.893Z",
+          "resolvedAt": "2026-11-17T11:20:19.613Z",
+          "answers": {
+            "schema_vs_ui_flexibility": "Strict schemas (Recommended)"
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 161,
+      "commandId": "9eb840b9-3a85-4b8c-8d2f-5dd1220b96f1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:9eb840b9-3a85-4b8c-8d2f-5dd1220b96f1:934e76b4-0c12-4ff0-a744-4ae13cafea5c",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:20:19.613Z",
+        "payload": {
+          "id": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "user_input_request",
+          "status": "completed",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:elicitation:0",
+            "strength": "weak"
+          },
+          "runtimeRequestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AdevReplay%253Ad2ad871e-0a90-44b6-8373-151f36d9eef8%253Aturn%253A1:native-request:d2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0:2438ea5a-a862-4f57-a617-e0c40b0eb5ca",
+          "checkpointScopeId": null,
+          "startedAt": "2026-11-17T11:19:56.893Z",
+          "completedAt": "2026-11-17T11:20:19.613Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 162,
+      "commandId": "9eb840b9-3a85-4b8c-8d2f-5dd1220b96f1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:9eb840b9-3a85-4b8c-8d2f-5dd1220b96f1:48d1d9aa-fd14-49b4-811e-d914cc7cad2d",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "turn-item.updated",
+        "occurredAt": "2026-11-17T11:20:19.613Z",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:elicitation:0",
+            "strength": "weak"
+          },
+          "parentItemId": null,
+          "ordinal": 1000003,
+          "status": "completed",
+          "title": null,
+          "startedAt": "2026-11-17T11:19:56.893Z",
+          "completedAt": "2026-11-17T11:20:19.613Z",
+          "updatedAt": "2026-11-17T11:20:19.613Z",
+          "type": "user_input_request",
+          "requestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AdevReplay%253Ad2ad871e-0a90-44b6-8373-151f36d9eef8%253Aturn%253A1:native-request:d2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0:2438ea5a-a862-4f57-a617-e0c40b0eb5ca",
+          "questions": [
+            {
+              "id": "schema_vs_ui_flexibility",
+              "header": "Fixture",
+              "question": "Should this fixture prefer strict schemas or UI flexibility?",
+              "options": [
+                {
+                  "label": "Strict schemas (Recommended)",
+                  "description": "Strict schemas (Recommended)",
+                  "value": "Strict schemas (Recommended)"
+                },
+                {
+                  "label": "UI flexibility",
+                  "description": "UI flexibility",
+                  "value": "UI flexibility"
+                }
+              ],
+              "allowCustomAnswer": false
+            }
+          ],
+          "questionAnswer": {
+            "requestId": "runtime-request:provider:acpRegistry:provider-turn:provider-turn%3Aprovider%3AacpRegistry%3Anative-turn%3Aprovider-instance%253AdevReplay%253Ad2ad871e-0a90-44b6-8373-151f36d9eef8%253Aturn%253A1:native-request:d2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0:2438ea5a-a862-4f57-a617-e0c40b0eb5ca",
+            "questionTextById": {
+              "schema_vs_ui_flexibility": "Should this fixture prefer strict schemas or UI flexibility?"
+            },
+            "answers": {
+              "schema_vs_ui_flexibility": "Strict schemas (Recommended)"
+            },
+            "attachmentsByQuestionId": {}
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aelicitation%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 163,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:6f9e5299-1e07-4a9c-8d46-a3e0659bdffb",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:20:19.702Z",
+        "payload": {
+          "id": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "assistant_message",
+          "status": "completed",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:turn:1:assistant:0",
+            "strength": "weak"
+          },
+          "runtimeRequestId": null,
+          "checkpointScopeId": null,
+          "startedAt": "2026-11-17T11:20:19.666Z",
+          "completedAt": "2026-11-17T11:20:19.700Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 164,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:238b16af-6340-4743-b9ce-1171563e4d1a",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "message.updated",
+        "occurredAt": "2026-11-17T11:20:19.705Z",
+        "payload": {
+          "createdBy": "agent",
+          "creationSource": "provider",
+          "id": "message:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+          "role": "assistant",
+          "text": "plan questions fixture complete",
+          "attachments": [],
+          "streaming": false,
+          "createdAt": "2026-11-17T11:20:19.666Z",
+          "updatedAt": "2026-11-17T11:20:19.700Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 165,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:7da3a420-64db-4baa-8e98-d4ebd3c46596",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "turn-item.updated",
+        "occurredAt": "2026-11-17T11:20:19.707Z",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "nativeItemRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:turn:1:assistant:0",
+            "strength": "weak"
+          },
+          "parentItemId": null,
+          "ordinal": 1000004,
+          "status": "completed",
+          "title": null,
+          "startedAt": "2026-11-17T11:20:19.666Z",
+          "completedAt": "2026-11-17T11:20:19.700Z",
+          "updatedAt": "2026-11-17T11:20:19.700Z",
+          "type": "assistant_message",
+          "messageId": "message:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+          "text": "plan questions fixture complete",
+          "streaming": false
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:provider:acpRegistry:native-item:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1%3Aassistant%3A0",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 166,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:99d3ef14-6f81-4780-ba1c-b62b468eafbb",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-turn.updated",
+        "occurredAt": "2026-11-17T11:20:19.727Z",
+        "payload": {
+          "id": "provider-turn:provider:acpRegistry:native-turn:provider-instance%3AdevReplay%3Ad2ad871e-0a90-44b6-8373-151f36d9eef8%3Aturn%3A1",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "nativeTurnRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8:turn:1",
+            "strength": "weak"
+          },
+          "ordinal": 1,
+          "status": "completed",
+          "startedAt": "2026-11-17T11:19:56.619Z",
+          "completedAt": "2026-11-17T11:20:19.700Z",
+          "turnTokenUsage": {
+            "usageScope": "main_agent",
+            "hasSubagents": false,
+            "usageStatus": "unavailable"
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 167,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:provider-session:provider-session%3Aprovider-instance%3AdevReplay%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3A1205793e-bd74-49f0-a149-8c62959a6b2b:ef1ef386-7844-4647-a838-f0058888154e",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-thread.updated",
+        "occurredAt": "2026-11-17T11:20:19.743Z",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "devReplay",
+          "providerSessionId": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b",
+          "appThreadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "active",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "pendingBackgroundTasks": [],
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "goal": null,
+          "createdAt": "2026-11-17T11:19:54.001Z",
+          "updatedAt": "2026-11-17T11:20:19.700Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 168,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:8d5a9b8d-6832-4fa4-9218-3b7bf79aa8fa",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run-attempt.updated",
+        "occurredAt": "2026-11-17T11:20:19.813Z",
+        "payload": {
+          "id": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "nativeThreadId": "d2ad871e-0a90-44b6-8373-151f36d9eef8",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "attemptOrdinal": 1,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "providerInstanceId": "devReplay",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "reason": "initial",
+          "status": "completed",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": "2026-11-17T11:20:19.813Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 169,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:63139a65-eb16-4daf-8667-d19288fc2ea5",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run.updated",
+        "occurredAt": "2026-11-17T11:20:19.813Z",
+        "payload": {
+          "id": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ordinal": 1,
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "userMessageId": "fb609389-3725-4837-a67e-5b69388dbbcb",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "status": "waiting",
+          "queuePosition": null,
+          "requestedAt": "2026-11-17T11:19:54.001Z",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": null,
+          "checkpointId": null,
+          "contextHandoffId": null,
+          "workspacePreparation": {
+            "type": "root"
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 170,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:16810ea7-59fd-4cc6-9970-db5bafcaea38",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:20:19.813Z",
+        "payload": {
+          "id": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "waiting",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": null
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 171,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:47fa2ed7-4062-48ac-9e18-56268716c47d",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "provider-thread.updated",
+        "occurredAt": "2026-11-17T11:20:19.813Z",
+        "payload": {
+          "id": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "driver": "acpRegistry",
+          "providerInstanceId": "devReplay",
+          "providerSessionId": "provider-session:provider-instance:devReplay:thread:492fd514-f4f1-4115-9377-70c19af2b111:1205793e-bd74-49f0-a149-8c62959a6b2b",
+          "appThreadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ownerNodeId": null,
+          "nativeThreadRef": {
+            "driver": "acpRegistry",
+            "nativeId": "d2ad871e-0a90-44b6-8373-151f36d9eef8",
+            "strength": "strong"
+          },
+          "nativeConversationHeadRef": null,
+          "status": "idle",
+          "firstRunOrdinal": 1,
+          "lastRunOrdinal": 1,
+          "handoffIds": [],
+          "forkedFrom": null,
+          "contextUsage": null,
+          "nativeMetadata": {
+            "itemIdentityVersion": 2
+          },
+          "createdAt": "2026-11-17T11:19:54.001Z",
+          "updatedAt": "2026-11-17T11:20:19.813Z"
+        },
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 172,
+      "commandId": "d338631d-0998-4489-b957-51d7f59dec12",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:d338631d-0998-4489-b957-51d7f59dec12:f42f3fce-327c-4020-8c62-370f28d8f06a",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "thread.visit-recorded",
+        "occurredAt": "2026-11-17T11:20:19.835Z",
+        "payload": {
+          "lastVisitedAt": "2026-11-17T11:20:19.613Z"
+        },
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 173,
+      "commandId": "command:effect:checkpoint.capture:run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:6dd7a627-1a61-4dbe-aa37-1f9699825ea9",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "checkpoint.captured",
+        "occurredAt": "2026-11-17T11:20:19.837Z",
+        "payload": {
+          "id": "checkpoint:scope:checkpoint-scope%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aname%3Aroot:name:0",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "scopeId": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "runId": null,
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "parentCheckpointId": null,
+          "ordinalWithinScope": 0,
+          "appRunOrdinal": null,
+          "ref": "refs/t3/orchestration-v2/checkpoints/NGY2MGVkODQ4NzFkZTdkNGJkOGE1NWRkOGEwZWEwNzg/ordinal/0",
+          "status": "ready",
+          "files": [],
+          "capturedAt": "2026-11-17T11:19:54.001Z"
+        },
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 174,
+      "commandId": "command:effect:checkpoint.capture:run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:8a9234b7-d26e-4e72-a346-e32e1c7ee854",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "checkpoint.captured",
+        "occurredAt": "2026-11-17T11:20:19.837Z",
+        "payload": {
+          "id": "checkpoint:scope:checkpoint-scope%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aname%3Aroot:name:1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "scopeId": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "parentCheckpointId": "checkpoint:scope:checkpoint-scope%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aname%3Aroot:name:0",
+          "ordinalWithinScope": 1,
+          "appRunOrdinal": 1,
+          "ref": "refs/t3/orchestration-v2/checkpoints/NGY2MGVkODQ4NzFkZTdkNGJkOGE1NWRkOGEwZWEwNzg/ordinal/1",
+          "status": "ready",
+          "files": [],
+          "capturedAt": "2026-11-17T11:20:19.837Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 175,
+      "commandId": "command:effect:checkpoint.capture:run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:d713f75b-7087-4a05-9877-bb9d359384b1",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "turn-item.updated",
+        "occurredAt": "2026-11-17T11:20:19.837Z",
+        "payload": {
+          "id": "turn-item:provider:acpRegistry:native-item:checkpoint%3Acheckpoint%3Ascope%3Acheckpoint-scope%253Athread%253A492fd514-f4f1-4115-9377-70c19af2b111%253Aname%253Aroot%3Aname%3A1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "parentItemId": null,
+          "ordinal": 1000005,
+          "status": "completed",
+          "title": null,
+          "startedAt": "2026-11-17T11:20:19.837Z",
+          "completedAt": "2026-11-17T11:20:19.837Z",
+          "updatedAt": "2026-11-17T11:20:19.837Z",
+          "type": "checkpoint",
+          "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aname%3Aroot:name:1",
+          "scopeId": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "files": []
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "driver": "acpRegistry",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 176,
+      "commandId": "command:effect:checkpoint.capture:run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:4bb1c45a-9004-4cd1-8c48-ca45a22aed5f",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "run.updated",
+        "occurredAt": "2026-11-17T11:20:19.837Z",
+        "payload": {
+          "id": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "ordinal": 1,
+          "providerInstanceId": "devReplay",
+          "modelSelection": {
+            "instanceId": "devReplay",
+            "model": "question"
+          },
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "userMessageId": "fb609389-3725-4837-a67e-5b69388dbbcb",
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "activeAttemptId": "run-attempt:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:attempt:1",
+          "status": "completed",
+          "queuePosition": null,
+          "requestedAt": "2026-11-17T11:19:54.001Z",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": "2026-11-17T11:20:19.837Z",
+          "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aname%3Aroot:name:1",
+          "contextHandoffId": null,
+          "workspacePreparation": {
+            "type": "root"
+          }
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 177,
+      "commandId": "command:effect:checkpoint.capture:run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:54bfa3be-d667-4fad-8456-34605cad4e33",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "node.updated",
+        "occurredAt": "2026-11-17T11:20:19.837Z",
+        "payload": {
+          "id": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+          "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+          "parentNodeId": null,
+          "rootNodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+          "kind": "root_turn",
+          "status": "completed",
+          "countsForRun": true,
+          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1",
+          "providerTurnId": null,
+          "nativeItemRef": null,
+          "runtimeRequestId": null,
+          "checkpointScopeId": "checkpoint-scope:thread:492fd514-f4f1-4115-9377-70c19af2b111:name:root",
+          "startedAt": "2026-11-17T11:19:55.690Z",
+          "completedAt": "2026-11-17T11:20:19.837Z"
+        },
+        "runId": "run:thread:492fd514-f4f1-4115-9377-70c19af2b111:ordinal:1",
+        "nodeId": "node:run:run%3Athread%3A492fd514-f4f1-4115-9377-70c19af2b111%3Aordinal%3A1:root",
+        "providerInstanceId": "devReplay"
+      }
+    },
+    {
+      "sequence": 178,
+      "commandId": "1be7aa92-495a-4a3b-9a55-ac90e34e37ae",
+      "event": {
+        "id": "event:thread:492fd514-f4f1-4115-9377-70c19af2b111:command:1be7aa92-495a-4a3b-9a55-ac90e34e37ae:c602c2ab-fef1-4f53-b39a-8ff405fb73e4",
+        "threadId": "492fd514-f4f1-4115-9377-70c19af2b111",
+        "type": "thread.visit-recorded",
+        "occurredAt": "2026-11-17T11:20:21.146Z",
+        "payload": {
+          "lastVisitedAt": "2026-11-17T11:20:19.837Z"
+        },
+        "providerInstanceId": "devReplay"
+      }
+    }
+  ]
+}

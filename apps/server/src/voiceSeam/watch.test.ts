@@ -1,0 +1,536 @@
+import { assert, it } from "@effect/vitest";
+import {
+  EventId,
+  MessageId,
+  type OrchestrationV2DomainEvent,
+  type OrchestrationV2StoredEvent,
+  type ProjectId,
+} from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
+import * as Deferred from "effect/Deferred";
+import * as Effect from "effect/Effect";
+import * as Layer from "effect/Layer";
+import * as Queue from "effect/Queue";
+import * as Stream from "effect/Stream";
+import * as SqlClient from "effect/sql/SqlClient";
+
+import * as EventSink from "../orchestration-v2/EventSink.ts";
+import * as EventStore from "../orchestration-v2/EventStore.ts";
+import { LiveStreamBufferError } from "../orchestration-v2/LiveStreamBudget.ts";
+import {
+  OrchestratorDomainEventStreamError,
+  OrchestratorProjectionError,
+} from "../orchestration-v2/Orchestrator.ts";
+import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
+import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
+import * as Sqlite from "../persistence/Sqlite.ts";
+import { distill, type VoiceSignal } from "./events.ts";
+import { FIXTURES } from "./testFixtures.ts";
+import * as Watch from "./watch.ts";
+
+const layer = Layer.mergeAll(
+  OrchestrationEventStore.layer,
+  EventSink.layer.pipe(Layer.provideMerge(Layer.merge(EventStore.layer, ProjectionStore.layer))),
+).pipe(Layer.provideMerge(Sqlite.layerMemory));
+
+const PLAIN = FIXTURES.plainReply;
+const threadId = PLAIN[0]!.event.threadId;
+
+/** One commit, so a reader sees all of these events or none. */
+const write = Effect.fn("test.write")(function* (
+  events: ReadonlyArray<OrchestrationV2DomainEvent>,
+) {
+  const sink = yield* EventSink.EventSinkV2;
+  return yield* sink.write({ events });
+});
+
+const writeFixture = (from: number, to?: number) =>
+  write(PLAIN.slice(from, to).map((stored) => stored.event));
+
+const assistantMessage = PLAIN.flatMap((stored) =>
+  stored.event.type === "message.updated" && stored.event.payload.role === "assistant"
+    ? [stored.event]
+    : [],
+)[0]!;
+
+/** A reply nothing else in the fixture yields, written to mark a point in the live stream. */
+const sentinelReply = (name: string, text = name): OrchestrationV2DomainEvent => ({
+  ...assistantMessage,
+  id: EventId.make(`sentinel-event:${name}`),
+  payload: { ...assistantMessage.payload, id: MessageId.make(`sentinel:${name}`), text },
+});
+
+const lastRunUpdate = PLAIN.flatMap((stored) =>
+  stored.event.type === "run.updated" ? [stored.event] : [],
+).at(-1)!;
+
+const signalsOf = (stored: ReadonlyArray<OrchestrationV2StoredEvent>): Array<VoiceSignal> =>
+  stored.flatMap((event) => distill(event)?.signal ?? []);
+
+const pruneThrough = Effect.fn("test.pruneThrough")(function* (sequence: number) {
+  const sql = yield* SqlClient.SqlClient;
+  const now = DateTime.formatIso(yield* DateTime.now);
+  yield* sql`
+    INSERT INTO orchestration_v2_projection_metadata (
+      projection_name, schema_version, last_sequence, updated_at
+    ) VALUES (${OrchestrationEventStore.EVENT_LOG_PRUNED_THROUGH}, 2, ${sequence}, ${now})
+    ON CONFLICT (projection_name) DO UPDATE SET last_sequence = excluded.last_sequence
+  `;
+});
+
+type Threads = Watch.WatchSources["threads"];
+type EventStoreSource = Watch.WatchSources["eventStore"];
+
+const sources = Effect.fn("test.sources")(function* (overrides?: {
+  readonly threads?: (real: Threads) => Threads;
+  readonly eventStore?: (real: EventStoreSource) => EventStoreSource;
+  readonly settle?: Watch.SettleCheck;
+  readonly isProjectAllowed?: (projectId: ProjectId) => boolean;
+}) {
+  const sink = yield* EventSink.EventSinkV2;
+  const projections = yield* ProjectionStore.ProjectionStoreV2;
+  const eventStore = yield* OrchestrationEventStore.OrchestrationEventStore;
+  // As OrchestratorV2 wraps the sink's stream and the projection's shell read.
+  const threads: Threads = {
+    streamStoredEventsFrom: (input) =>
+      sink
+        .stream({ ...input, bounded: true })
+        .pipe(Stream.mapError((cause) => new OrchestratorDomainEventStreamError({ cause }))),
+    getThreadShell: (id) =>
+      projections
+        .getThreadShell(id)
+        .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId: id, cause }))),
+  };
+  return {
+    threads: overrides?.threads?.(threads) ?? threads,
+    eventStore: overrides?.eventStore?.(eventStore) ?? eventStore,
+    isProjectAllowed: overrides?.isProjectAllowed ?? (() => true),
+    settle: overrides?.settle ?? Watch.settleNothing,
+  } satisfies Watch.WatchSources;
+});
+
+/** Runs a watch into a queue so a test can interleave writes with what it has received. */
+const follow = Effect.fn("test.follow")(function* (
+  watchSources: Watch.WatchSources,
+  afterSequence: number,
+) {
+  const received = yield* Queue.unbounded<Watch.WatchItem>();
+  yield* Watch.make(watchSources)({ threadId, afterSequence }).pipe(
+    Stream.runForEach((item) => Queue.offer(received, item)),
+    Effect.forkScoped,
+  );
+  return {
+    take: (count: number) =>
+      Effect.forEach(Array.from({ length: count }), () => Queue.take(received)),
+  };
+});
+
+const resync: Watch.WatchItem = { type: "watch_ended", threadId, reason: "resync" };
+
+it.effect("replays from the cursor, then follows live with no gap and no duplicate", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const replayed = yield* writeFixture(0, 20);
+      const watch = yield* follow(yield* sources(), 0);
+      const first = yield* watch.take(signalsOf(replayed).length);
+      const live = yield* writeFixture(20);
+      const rest = yield* watch.take(signalsOf(live).length);
+      const sentinel = yield* write([sentinelReply("after-live")]);
+      const [next] = yield* watch.take(1);
+      assert.deepStrictEqual([...first, ...rest], signalsOf([...replayed, ...live]));
+      assert.deepStrictEqual(next, signalsOf(sentinel)[0]);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("resyncs before reading the replay when the cursor is below the prune floor", () =>
+  Effect.gen(function* () {
+    const stored = yield* writeFixture(0);
+    yield* pruneThrough(stored[10]!.sequence);
+    let replayReads = 0;
+    const watchSources = yield* sources({
+      eventStore: (real) => ({
+        ...real,
+        readAgentEvents: (input) => {
+          replayReads += 1;
+          return real.readAgentEvents(input);
+        },
+      }),
+    });
+    const items = yield* Watch.make(watchSources)({
+      threadId,
+      afterSequence: stored[5]!.sequence,
+    }).pipe(Stream.runCollect);
+    assert.deepStrictEqual(Array.from(items), [resync]);
+    assert.strictEqual(replayReads, 0);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("resyncs without emitting the replay when a prune lands during the replay read", () =>
+  Effect.gen(function* () {
+    const stored = yield* writeFixture(0);
+    const sql = yield* SqlClient.SqlClient;
+    const prune = pruneThrough(stored.at(-1)!.sequence).pipe(
+      Effect.provideService(SqlClient.SqlClient, sql),
+      Effect.orDie,
+    );
+    const watchSources = yield* sources({
+      eventStore: (real) => ({
+        ...real,
+        readAgentEvents: (input) =>
+          Stream.unwrap(prune.pipe(Effect.as(real.readAgentEvents(input)))),
+      }),
+    });
+    const items = yield* Watch.make(watchSources)({ threadId, afterSequence: 0 }).pipe(
+      Stream.runCollect,
+    );
+    assert.deepStrictEqual(Array.from(items), [resync]);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("resyncs when the replay holds more than 1 MiB of stored payload", () =>
+  Effect.gen(function* () {
+    yield* writeFixture(0);
+    yield* write([sentinelReply("oversized", "x".repeat(1_100_000))]);
+    const items = yield* Watch.make(yield* sources())({ threadId, afterSequence: 0 }).pipe(
+      Stream.runCollect,
+    );
+    assert.deepStrictEqual(Array.from(items), [resync]);
+  }).pipe(Effect.provide(layer)),
+);
+
+it.effect("replays nothing from a cursor at the high-water, even below the prune floor", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const stored = yield* writeFixture(0);
+      yield* pruneThrough(stored.at(-1)!.sequence);
+      let replayReads = 0;
+      const highWaterRead = yield* Deferred.make<void>();
+      const watchSources = yield* sources({
+        eventStore: (real) => ({
+          ...real,
+          latestAgentSequence: (id) =>
+            real
+              .latestAgentSequence(id)
+              .pipe(Effect.tap(() => Deferred.succeed(highWaterRead, undefined))),
+          readAgentEvents: (input) => {
+            replayReads += 1;
+            return real.readAgentEvents(input);
+          },
+        }),
+      });
+      const watch = yield* follow(watchSources, stored.at(-1)!.sequence);
+      yield* Deferred.await(highWaterRead);
+      const sentinel = yield* write([sentinelReply("at-high-water")]);
+      const [first] = yield* watch.take(1);
+      assert.deepStrictEqual(first, signalsOf(sentinel)[0]);
+      assert.strictEqual(replayReads, 0);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("resubscribes from the last scanned event after a wrapped buffer error", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const replayCursors: Array<number> = [];
+      let subscriptions = 0;
+      const watchSources = yield* sources({
+        eventStore: (real) => ({
+          ...real,
+          readAgentEvents: (input) => {
+            replayCursors.push(input?.afterSequence ?? 0);
+            return real.readAgentEvents(input);
+          },
+        }),
+        // The first live subscription delivers four events, then overflows.
+        threads: (real) => ({
+          ...real,
+          streamStoredEventsFrom: (input) => {
+            subscriptions += 1;
+            const stream = real.streamStoredEventsFrom(input);
+            return subscriptions > 1
+              ? stream
+              : stream.pipe(
+                  Stream.take(4),
+                  Stream.concat(
+                    Stream.fail(
+                      new OrchestratorDomainEventStreamError({
+                        cause: new LiveStreamBufferError({
+                          message: "The live event buffer is full.",
+                        }),
+                      }),
+                    ),
+                  ),
+                );
+          },
+        }),
+      });
+      const before = yield* writeFixture(0, 20);
+      const watch = yield* follow(watchSources, 0);
+      const first = yield* watch.take(signalsOf(before).length);
+      const during = yield* writeFixture(20, 34);
+      const second = yield* watch.take(signalsOf(during).length);
+      const after = yield* writeFixture(34);
+      const third = yield* watch.take(signalsOf(after).length);
+      // A second final frame of a message the first subscription already emitted.
+      yield* write([{ ...assistantMessage, id: EventId.make("duplicate-final") }]);
+      const sentinel = yield* write([sentinelReply("after-resubscribe")]);
+      const [next] = yield* watch.take(1);
+
+      assert.isTrue(
+        during.slice(0, 4).some((stored) => distill(stored)?.signal?.type === "reply"),
+        "the first subscription emitted the reply before it overflowed",
+      );
+      assert.deepStrictEqual(
+        [...first, ...second, ...third, next],
+        signalsOf([...before, ...during, ...after, ...sentinel]),
+      );
+      assert.strictEqual(subscriptions, 2);
+      assert.deepStrictEqual(replayCursors, [0, during[3]!.sequence]);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+const created = PLAIN.flatMap((stored) =>
+  stored.event.type === "thread.created" ? [stored.event] : [],
+)[0]!;
+
+it.effect.each(["missing", "deleted", "disallowed"] as const)(
+  "ends with not_found before any replay for a %s thread",
+  (kind) =>
+    Effect.gen(function* () {
+      if (kind !== "missing") yield* writeFixture(0);
+      if (kind === "deleted") {
+        yield* write([
+          {
+            ...created,
+            id: EventId.make("thread-deleted"),
+            type: "thread.deleted",
+            payload: { ...created.payload, deletedAt: created.occurredAt },
+          },
+        ]);
+      }
+      let replayReads = 0;
+      const watchSources = yield* sources({
+        isProjectAllowed: () => kind !== "disallowed",
+        eventStore: (real) => ({
+          ...real,
+          readAgentEvents: (input) => {
+            replayReads += 1;
+            return real.readAgentEvents(input);
+          },
+        }),
+      });
+      const items = yield* Watch.make(watchSources)({ threadId, afterSequence: 0 }).pipe(
+        Stream.runCollect,
+      );
+      assert.deepStrictEqual(Array.from(items), [
+        { type: "watch_ended", threadId, reason: "not_found" },
+      ]);
+      assert.strictEqual(replayReads, 0);
+    }).pipe(Effect.provide(layer)),
+);
+
+/** A live source the test feeds one batch at a time; the replay and the shell stay real. */
+const scriptedLive = Effect.fn("test.scriptedLive")(function* () {
+  const batches = yield* Queue.unbounded<ReadonlyArray<OrchestrationV2StoredEvent>>();
+  return {
+    push: (events: ReadonlyArray<OrchestrationV2StoredEvent>) => Queue.offer(batches, events),
+    threads: (real: Threads): Threads => ({
+      ...real,
+      streamStoredEventsFrom: () =>
+        Stream.fromQueue(batches).pipe(Stream.flatMap((events) => Stream.fromIterable(events))),
+    }),
+  };
+});
+
+/** A settle check that answers from a script and hands each trigger to the test. */
+const scriptedChecks = Effect.fn("test.scriptedChecks")(function* (
+  answer: (trigger: Watch.SettleTrigger, call: number) => Effect.Effect<Watch.SettleAnswer>,
+) {
+  const triggers = yield* Queue.unbounded<Watch.SettleTrigger>();
+  let calls = 0;
+  const settle: Watch.SettleCheck = (trigger) =>
+    Queue.offer(triggers, trigger).pipe(
+      Effect.andThen(Effect.suspend(() => answer(trigger, ++calls))),
+    );
+  return { settle, next: Queue.take(triggers) };
+});
+
+const lastTrigger = (stored: ReadonlyArray<OrchestrationV2StoredEvent>) =>
+  stored.flatMap((event) => (distill(event)?.settleCheck ? [event.sequence] : [])).at(-1);
+
+const doneFor = (trigger: Watch.SettleTrigger, asOfSequence: number): Watch.WatchDone => ({
+  type: "done",
+  threadId,
+  runId: lastRunUpdate.payload.id,
+  status: "completed",
+  result: { text: "first fixture turn complete", messageId: null, turnItemId: null },
+  sequence: trigger.sequence,
+  asOfSequence,
+});
+
+const nothing: Watch.SettleAnswer = { kind: "nothing" };
+
+it.effect("runs one settle check per batch, for its last trigger, with the shell's project", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const replayed = yield* writeFixture(0, 20);
+      const live = yield* scriptedLive();
+      const checks = yield* scriptedChecks(() => Effect.succeed(nothing));
+      yield* follow(yield* sources({ threads: live.threads, settle: checks.settle }), 0);
+      const afterReplay = yield* checks.next;
+
+      const batch = yield* writeFixture(20, 30);
+      yield* live.push(batch);
+      const afterBatch = yield* checks.next;
+
+      // A batch with no trigger runs no check, so the next check is the following batch's.
+      yield* live.push(yield* write([sentinelReply("no-trigger")]));
+      const last = yield* writeFixture(30);
+      yield* live.push(last);
+      const afterLast = yield* checks.next;
+
+      const shell = yield* (yield* ProjectionStore.ProjectionStoreV2).getThreadShell(threadId);
+      assert.deepStrictEqual(
+        [afterReplay, afterBatch, afterLast].map((trigger) => trigger.sequence),
+        [lastTrigger(replayed), lastTrigger(batch), lastTrigger(last)],
+      );
+      for (const trigger of [afterReplay, afterBatch, afterLast]) {
+        assert.strictEqual(trigger.projectId, shell?.projectId);
+      }
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect(
+  "holds a done until the watch has emitted every stored event through its asOfSequence",
+  () =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const replayed = yield* writeFixture(0, 20);
+        // The first check's read saw three events the watch has not emitted yet.
+        const ahead = replayed.at(-1)!.sequence + 3;
+        const live = yield* scriptedLive();
+        const checks = yield* scriptedChecks((trigger, call) =>
+          Effect.succeed<Watch.SettleAnswer>({
+            kind: "done",
+            done: doneFor(trigger, call === 1 ? ahead : trigger.sequence),
+          }),
+        );
+        const watch = yield* follow(
+          yield* sources({ threads: live.threads, settle: checks.settle }),
+          0,
+        );
+        yield* watch.take(signalsOf(replayed).length);
+        yield* checks.next;
+
+        const batch = yield* writeFixture(20, 30);
+        assert.isAtLeast(batch.at(-1)!.sequence, ahead);
+        yield* live.push(batch);
+        const items = yield* watch.take(signalsOf(batch).length + 1);
+        const second = yield* checks.next;
+
+        assert.deepStrictEqual(items, [...signalsOf(batch), doneFor(second, second.sequence)]);
+        assert.strictEqual(second.sequence, lastTrigger(batch));
+      }),
+    ).pipe(Effect.provide(layer)),
+);
+
+it.effect("runs a catch-up check once the watch reaches its sequence, with no new trigger", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const replayed = yield* writeFixture(0);
+      const target = replayed.at(-1)!.sequence + 2;
+      const live = yield* scriptedLive();
+      const checks = yield* scriptedChecks((trigger, call) =>
+        Effect.succeed<Watch.SettleAnswer>(
+          call === 1
+            ? { kind: "catch_up", atSequence: target }
+            : { kind: "done", done: doneFor(trigger, target) },
+        ),
+      );
+      const watch = yield* follow(
+        yield* sources({ threads: live.threads, settle: checks.settle }),
+        0,
+      );
+      yield* watch.take(signalsOf(replayed).length);
+      const first = yield* checks.next;
+
+      const before = yield* write([sentinelReply("before-target")]);
+      yield* live.push(before);
+      const atTarget = yield* write([sentinelReply("at-target")]);
+      assert.strictEqual(atTarget[0]!.sequence, target);
+      yield* live.push(atTarget);
+      const items = yield* watch.take(3);
+      const second = yield* checks.next;
+
+      assert.deepStrictEqual(second, first);
+      assert.deepStrictEqual(items, [
+        ...signalsOf(before),
+        ...signalsOf(atTarget),
+        doneFor(first, target),
+      ]);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("applies a follow-up wait's answer on the watch fiber and keeps one wait at a time", () =>
+  Effect.scoped(
+    Effect.gen(function* () {
+      const replayed = yield* writeFixture(0);
+      const release = yield* Deferred.make<void>();
+      let secondWaitRan = false;
+      const live = yield* scriptedLive();
+      const checks = yield* scriptedChecks((trigger, call) =>
+        Effect.succeed<Watch.SettleAnswer>({
+          kind: "follow_up",
+          wait:
+            call === 1
+              ? Deferred.await(release).pipe(
+                  Effect.as<Watch.SettleAnswer>({
+                    kind: "done",
+                    done: doneFor(trigger, trigger.sequence),
+                  }),
+                )
+              : Effect.sync(() => {
+                  secondWaitRan = true;
+                  return nothing;
+                }),
+        }),
+      );
+      const watch = yield* follow(
+        yield* sources({ threads: live.threads, settle: checks.settle }),
+        0,
+      );
+      yield* watch.take(signalsOf(replayed).length);
+      const first = yield* checks.next;
+
+      // The wait does not hold the watch: a later batch still arrives, and its check runs.
+      const later = yield* write([{ ...lastRunUpdate, id: EventId.make("later-run-update") }]);
+      yield* live.push(later);
+      const [laterSignal] = yield* watch.take(1);
+      yield* checks.next;
+      yield* Deferred.succeed(release, undefined);
+      const [done] = yield* watch.take(1);
+
+      assert.deepStrictEqual(laterSignal, signalsOf(later)[0]);
+      assert.deepStrictEqual(done, doneFor(first, first.sequence));
+      assert.isFalse(secondWaitRan);
+    }),
+  ).pipe(Effect.provide(layer)),
+);
+
+it.effect("ends with gone when a settle check finds the thread gone", () =>
+  Effect.gen(function* () {
+    const replayed = yield* writeFixture(0);
+    const watchSources = yield* sources({ settle: () => Effect.succeed({ kind: "gone" }) });
+    const items = yield* Watch.make(watchSources)({ threadId, afterSequence: 0 }).pipe(
+      Stream.runCollect,
+    );
+    assert.deepStrictEqual(Array.from(items), [
+      ...signalsOf(replayed),
+      { type: "watch_ended", threadId, reason: "gone" },
+    ]);
+  }).pipe(Effect.provide(layer)),
+);
