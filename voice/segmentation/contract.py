@@ -4,11 +4,17 @@ The decider can only pick among options the caller offers, so every decision is 
 question built from the current segments. Answers are untrusted and parsed here; the rest of the package trusts the types.
 """
 
+import re
 from dataclasses import dataclass, field
 from enum import StrEnum
 
 from voice.segmentation.client import MODEL
 from voice.tools.registry import ToolChoice
+
+# A place answer is a name: letters, spaces, and the punctuation a name can carry. Measured in the 37-turn replay:
+# turn 020's answer was a copy of the request's own state, quotes and newlines included, and the forecast ran on it and
+# failed where the words name Seattle.
+PLACE_NAME = re.compile(r"^[\w\s.,'’-]+$")
 
 
 class Kind(StrEnum):
@@ -244,7 +250,7 @@ def _text(answers, name):
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
-def _reading(answers, sid, questions):
+def _reading(answers, sid, questions, problems):
     """The place and day the decider read for one segment, or None when the request did not ask for them. An
     unreadable answer leaves the argument to the tool's parser rather than failing the segment."""
     if f"{sid}_place" not in questions:
@@ -253,7 +259,11 @@ def _reading(answers, sid, questions):
     when = answer.get("choice") if isinstance(answer, dict) and answer.get("type") == "choice" else None
     if when not in WHEN_CRITERIA:
         return None
-    return {"place": _text(answers, f"{sid}_place"), "when": None if when == "none" else when}
+    place = _text(answers, f"{sid}_place")
+    if place is not None and not PLACE_NAME.match(place):
+        problems.append(f"{sid}_place: not a name, {place[:40]!r}")
+        place = None
+    return {"place": place, "when": None if when == "none" else when}
 
 
 def parse_decisions(response, body):
@@ -283,7 +293,7 @@ def parse_decisions(response, body):
             picked = _choice(answers, f"{sid}_tool", set(questions[f"{sid}_tool"]["criteria"]), tool_problems)
             margin = answers.get(f"{sid}_tool", {}).get("confidence")
             tool = None if picked is None else ToolChoice(picked, margin if isinstance(margin, (int, float)) else 0.0,
-                                                          _reading(answers, sid, questions))
+                                                          _reading(answers, sid, questions, tool_problems))
         if len(problems) > before:
             continue
         correction = None

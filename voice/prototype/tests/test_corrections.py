@@ -167,6 +167,11 @@ class FollowUpTest(Call):
                          "the amended task keeps the place and changes only the day")
         self.assert_no_item_holds("No, Sunday.", items[2])
 
+    async def test_a_correction_that_names_the_rejected_place_runs_the_new_one(self):
+        records, _ = await self.call("What time is it in Tokyo?", "No, not Tokyo, Denver.", tools=self.tools)
+        self.assertEqual(self.lookup(records[1]), [("time", {"place": "Denver"}, "ok")],
+                         "the corrected task runs again, in the place the correction states")
+
     async def test_with_no_earlier_place_a_follow_up_stays_empty(self):
         records, _ = await self.call("What's the weather tomorrow?", "And what about Saturday?", tools=self.tools)
         self.assertEqual(self.lookup(records[0]), [("weather", {"place": None, "when": "tomorrow"}, "failed")],
