@@ -136,11 +136,17 @@ take_lock() {
   return 0
 }
 
-# Only the run whose rename succeeds holds the stale lock, so a takeover cannot delete a lock another run just took.
+# The rename is atomic, so only one run can move a given lock aside. If the lock it moved is not the stale one it
+# judged (another run took the lock in between), it puts that lock back and refuses rather than deleting it.
 take_over_stale_lock() {
-  local moved
+  local stale_pid=$1 stale_started=$2 moved
   moved=$lock_path.stale.$$.$(date +%s%N)
   mv "$lock_path" "$moved" 2>/dev/null || return 1
+  if [ "$(cat "$moved/pid" 2>/dev/null)" != "$stale_pid" ] ||
+    [ "$(cat "$moved/started" 2>/dev/null)" != "$stale_started" ]; then
+    mv "$moved" "$lock_path" 2>/dev/null
+    return 1
+  fi
   rm -rf "$moved"
   take_lock
 }
@@ -148,15 +154,16 @@ take_over_stale_lock() {
 trap release_lock EXIT
 if ! take_lock; then
   lock_pid=$(cat "$lock_pid_file" 2>/dev/null)
+  lock_started=$(cat "$lock_started_file" 2>/dev/null)
   lock_age=$(lock_age_seconds)
   if [ "$lock_age" != "-" ] && [ "$lock_age" -ge "$lock_stale_seconds" ]; then
     printf 'upstream_sync.sh: taking over a stale lock: pid %s, started %s s ago\n' \
       "${lock_pid:-unknown}" "$lock_age" >&2
-    take_over_stale_lock || true
+    take_over_stale_lock "$lock_pid" "$lock_started" || true
   elif [ -n "$lock_pid" ] && ! pid_alive "$lock_pid"; then
     printf 'upstream_sync.sh: taking over a lock whose pid %s is gone, started %s s ago\n' \
       "$lock_pid" "$lock_age" >&2
-    take_over_stale_lock || true
+    take_over_stale_lock "$lock_pid" "$lock_started" || true
   fi
   if [ -z "$lock_dir" ]; then
     lock_pid=$(cat "$lock_pid_file" 2>/dev/null)

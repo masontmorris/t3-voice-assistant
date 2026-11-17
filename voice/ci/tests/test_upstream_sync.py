@@ -458,7 +458,7 @@ class UpstreamSyncTest(unittest.TestCase):
         self.fixture.publish_voice_branch()
         self.fixture.advance_upstream()
         voice_before = self.fixture.remote_sha(self.fixture.origin, "voice/main")
-        started = root / "first-run-test-step"
+        started = self.fixture.worktree / "first-run-test-step"
         env = {"VOICE_SYNC_TEST_STARTED": posix(started)}
 
         first = self.start_sync("--dry-run", env=env)
@@ -492,6 +492,35 @@ class UpstreamSyncTest(unittest.TestCase):
         self.assertEqual(completed.returncode, 0, completed.stdout + completed.stderr)
         self.assertIn("taking over a lock whose pid 99999999 is gone", completed.stderr)
         self.assertFalse(lock.exists())
+
+    def test_a_takeover_that_finds_a_fresh_lock_puts_it_back_and_refuses(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        self.fixture.advance_upstream()
+        lock = self.lock(99999999, 0)
+        hook = self.fixture.root / "bash-env.sh"
+        hook.write_text(
+            'mv() {\n'
+            '  case "$1" in\n'
+            '    */run.lock)\n'
+            '      printf "%s\\n" "$VOICE_SYNC_RIVAL_PID" >"$1/pid"\n'
+            '      date +%s >"$1/started"\n'
+            '      ;;\n'
+            '  esac\n'
+            '  command mv "$@"\n'
+            '}\n',
+            encoding="utf-8",
+            newline="\n",
+        )
+
+        completed = self.sync(
+            "--dry-run", env={"BASH_ENV": posix(hook), "VOICE_SYNC_RIVAL_PID": str(os.getpid())}
+        )
+
+        self.assertEqual(completed.returncode, 17, completed.stdout + completed.stderr)
+        self.assertEqual((lock / "pid").read_text(encoding="utf-8").strip(), str(os.getpid()))
+        self.assertEqual(list(lock.parent.glob("run.lock.stale.*")), [])
+        self.assertFalse(self.fixture.worktree.exists(), "the run went on without the lock")
 
     def test_a_lock_older_than_three_hours_is_taken_over(self) -> None:
         self.fixture.publish_base()
