@@ -5,6 +5,7 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2StoredEvent,
   type ProjectId,
+  RunId,
   RuntimeRequestId,
   type ThreadId,
 } from "@t3tools/contracts";
@@ -529,11 +530,11 @@ it.effect("applies a follow-up wait's answer on the watch fiber and keeps one wa
       yield* watch.take(signalsOf(replayed).length);
       const first = yield* checks.next;
 
-      // The wait does not hold the watch: a later batch still arrives, and its check runs.
-      const later = yield* write([{ ...lastRunUpdate, id: EventId.make("later-run-update") }]);
+      // The wait does not hold the watch: a later batch still arrives. It holds no settle trigger,
+      // so the wait's answer is still current.
+      const later = yield* write([sentinelReply("while-waiting")]);
       yield* live.push(later);
       const [laterSignal] = yield* watch.take(1);
-      yield* checks.next;
       yield* Deferred.succeed(release, undefined);
       const [done] = yield* watch.take(1);
 
@@ -542,6 +543,96 @@ it.effect("applies a follow-up wait's answer on the watch fiber and keeps one wa
       assert.isFalse(secondWaitRan);
     }),
   ).pipe(Effect.provide(layer)),
+);
+
+/** A run that starts after `fixture`'s last run, as a follow-up's turn does. */
+const startsRun = (
+  fixture: ReadonlyArray<OrchestrationV2StoredEvent>,
+  ordinal: number,
+): OrchestrationV2DomainEvent => {
+  const last = fixture.flatMap((stored) =>
+    stored.event.type === "run.updated" ? [stored.event] : [],
+  )[0]!;
+  return {
+    ...last,
+    id: EventId.make(`run-${ordinal}-running`),
+    payload: { ...last.payload, id: RunId.make(`run-${ordinal}`), ordinal, status: "running" },
+  };
+};
+
+it.effect.each([
+  { case: "run B starts", need: false },
+  { case: "run B starts and a new need waits", need: true },
+])(
+  "drops a follow-up answer for run A that finishes after settle triggers arrive: $case",
+  ({ need }) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const settled = linkCardNeed.before;
+        const linkThread = settled[0]!.event.threadId;
+        const runA = settled.flatMap((stored) =>
+          stored.event.type === "run.updated" ? [stored.event.payload.id] : [],
+        )[0]!;
+        const replayed = yield* write(settled.map((stored) => stored.event));
+        const release = yield* Deferred.make<void>();
+        const live = yield* scriptedLive();
+        const checks = yield* scriptedChecks((trigger, call) =>
+          Effect.succeed<Watch.SettleAnswer>(
+            call === 1
+              ? {
+                  kind: "follow_up",
+                  // The read for run A is done; the answer reaches the watch later.
+                  wait: Deferred.await(release).pipe(
+                    Effect.as<Watch.SettleAnswer>({
+                      kind: "done",
+                      done: {
+                        ...doneFor(trigger, trigger.sequence),
+                        threadId: linkThread,
+                        runId: runA,
+                      },
+                    }),
+                  ),
+                }
+              : nothing,
+          ),
+        );
+        const watch = yield* follow(
+          yield* sources({ threads: live.threads, settle: checks.settle }),
+          0,
+          linkThread,
+        );
+        yield* watch.take(signalsOf(replayed).length);
+        const first = yield* checks.next;
+
+        const events = [startsRun(settled, 2), ...(need ? linkCardNeed.need : [])];
+        yield* live.push(yield* write(events));
+        const scanned = yield* watch.take(events.length);
+        yield* checks.next;
+        assert.deepStrictEqual(
+          scanned.map((item) => item.type),
+          need ? ["run", "needs_you"] : ["run"],
+        );
+
+        yield* Deferred.succeed(release, undefined);
+        // Run A's answer is stale, so the watch runs a fresh check instead of sending it.
+        const next = yield* Effect.raceFirst(
+          checks.next.pipe(Effect.map((trigger) => ({ trigger }))),
+          watch.take(1).pipe(Effect.map(([item]) => ({ item }))),
+        );
+        assert.isTrue(
+          "trigger" in next,
+          `no done for run A after run B's events: ${JSON.stringify(next)}`,
+        );
+        assert.isAbove((next as { trigger: Watch.SettleTrigger }).trigger.sequence, first.sequence);
+
+        const sentinel = fixtureSentinel(settled, "end");
+        yield* live.push(yield* write([sentinel.event]));
+        assert.deepStrictEqual(
+          (yield* watch.take(1)).map((item) => item.type === "reply" && item.messageId),
+          [sentinel.messageId],
+        );
+      }),
+    ).pipe(Effect.provide(layer)),
 );
 
 it.effect.each([
