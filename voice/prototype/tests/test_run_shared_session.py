@@ -14,8 +14,8 @@ from pathlib import Path
 from unittest import mock
 
 from voice.prototype import run as prototype
+from voice.prototype.tests import isolate_decider_cache
 from voice.live.facts import names_machinery, ungrounded
-from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.transcript import COMPLETED
 
 CLOCK = 0.0
@@ -132,7 +132,7 @@ class SnapshotPlacementTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         self.original_open = prototype.Session.open
 
         async def open_session(url, name, clock, on_event=None):
@@ -338,7 +338,7 @@ class SessionOrderTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         patch = mock.patch.object(prototype.Session, "open", FakeSession.open)
         patch.start()
         self.addCleanup(patch.stop)
@@ -402,7 +402,7 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         self.original_open = prototype.Session.open
         self.voice = None
 
@@ -507,7 +507,7 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         self.original_open = prototype.Session.open
         self.voice = None
 
@@ -561,7 +561,7 @@ class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
-        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         self.opened = []
         self.original_open = prototype.Session.open
 
