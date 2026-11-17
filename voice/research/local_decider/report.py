@@ -12,8 +12,8 @@ import statistics
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from voice.local_decider.bench import CACHES, OUT, compact, load, same, sequences
 from voice.local_decider.client import VOICE_HOME
+from voice.research.local_decider.bench import CACHES, OUT, compact, load, same, sequences
 from voice.segmentation.cursor import words
 from voice.research.segmentation.report import dist
 from voice.segmentation.run import RESULTS

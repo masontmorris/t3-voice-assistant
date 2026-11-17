@@ -14,7 +14,7 @@ d1 fits beside LFM3 and keeps up with speech, but it loses too many scenarios to
 
 ## d1 alone
 
-`python -m voice.local_decider.bench replay` sends all 565 recorded decisions requests once per server setting per round. They come from the prototype's decider cache (80) and the fork's `voice/research/segmentation/cache/` (485). Settings alternate within each round, over 3 rounds.
+`python -m voice.research.local_decider.bench replay` sends all 565 recorded decisions requests once per server setting per round. They come from the prototype's decider cache (80) and the fork's `voice/research/segmentation/cache/` (485). Settings alternate within each round, over 3 rounds.
 
 | Setting | Median | p95 | Max | Calls per second | GPU memory over idle | Errors |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -90,7 +90,7 @@ d1 found the same final segments as pplx in all but 3 of 29 scenarios, so the lo
 
 ### Barge-in: d1 while LFM3 speaks
 
-`python -m voice.local_decider.bench bargein 02_two_requests.wav --lfm-ctx 32768` asked LFM3 for a spoken reply 12 times. In 6 of them, d1 answered recorded hybrid requests back to back for the whole reply. The two kinds alternated.
+`python -m voice.research.local_decider.bench bargein 02_two_requests.wav --lfm-ctx 32768` asked LFM3 for a spoken reply 12 times. In 6 of them, d1 answered recorded hybrid requests back to back for the whole reply. The two kinds alternated.
 
 | Measurement | Without d1 | With d1 busy |
 | --- | --- | --- |
@@ -102,7 +102,7 @@ The replies held 3.4 to 4.6 s of audio (measured). With d1 busy the whole time, 
 
 ## llama.cpp's prompt cache reuses nothing
 
-`python -m voice.local_decider.bench promptcache` ran 6 flag sets with debug logging. It read the server's own per-task `cached n_tokens` counts. The flag sets were the default, `--cache-ram 4096`, context checkpoints with `--checkpoint-min-step 0 --ctx-checkpoints 128`, both together, both with `--swa-full`, and `--cache-ram 4096 --cache-reuse 16`.
+`python -m voice.research.local_decider.bench promptcache` ran 6 flag sets with debug logging. It read the server's own per-task `cached n_tokens` counts. The flag sets were the default, `--cache-ram 4096`, context checkpoints with `--checkpoint-min-step 0 --ctx-checkpoints 128`, both together, both with `--swa-full`, and `--cache-ram 4096 --cache-reuse 16`.
 
 - **Across calls.** Over the hybrid's 68 scenario calls in order, every flag set reused 0 of 179,483 prompt tokens (measured, round 0).
 - **Within a request.** On the 5 slowest requests, each question's prompt shared 465 to 552 tokens with the question before it. Every flag set reused 0 of them, in all 3 rounds (measured).
@@ -113,7 +113,7 @@ The model rules this out. d1-2B's config sets `"d1_attention": "set"`, and its `
 
 ## Answer reuse
 
-`voice/local_decider/reuse.py` keeps each answer keyed by its question, its piece's text, and whether that piece is still being spoken. It re-asks a question when that key changes. It always re-asks the break questions of the newest piece and the one before it, and any question that names no segment. `python -m voice.local_decider.bench reuse` replayed the hybrid's 94 calls in order. It sent each request twice, once in full and once through the reuse layer, alternating which went first.
+`voice/local_decider/reuse.py` keeps each answer keyed by its question, its piece's text, and whether that piece is still being spoken. It re-asks a question when that key changes. It always re-asks the break questions of the newest piece and the one before it, and any question that names no segment. `python -m voice.research.local_decider.bench reuse` replayed the hybrid's 94 calls in order. It sent each request twice, once in full and once through the reuse layer, alternating which went first.
 
 | Measurement | Full request | With reuse |
 | --- | --- | --- |
@@ -152,7 +152,7 @@ mistral.rs 0.10.0, commit `fb4cdc3730dc64b366724e7637a205a8b7747499`, built for 
 
 ### Packing is active: tokens follow the groups
 
-`python -m voice.local_decider.bench packing` sent mistral.rs's three largest recorded requests at five set sizes. Input tokens are the server's own `usage.input_tokens`, which sums each group's prompt length.
+`python -m voice.research.local_decider.bench packing` sent mistral.rs's three largest recorded requests at five set sizes. Input tokens are the server's own `usage.input_tokens`, which sums each group's prompt length.
 
 | Questions | Groups | Set size | Input tokens | Latency |
 | --- | --- | --- | --- | --- |
@@ -171,7 +171,7 @@ Two checks confirm it is the packing the Transformers path did and that it stops
 
 ### The replay
 
-`python -m voice.local_decider.bench replay --configs mr16,mr1 --rounds 2 --paged-attn off` sent all 590 recorded requests twice per config, alternating. `mr16` sends no `set_size` and gets the model's default 16 questions per state read; `mr1` sends 1, which is llama.cpp's one-state-read-per-question shape. No errors, and round 1 repeated round 0 within 2.5% at the median (measured).
+`python -m voice.research.local_decider.bench replay --configs mr16,mr1 --rounds 2 --paged-attn off` sent all 590 recorded requests twice per config, alternating. `mr16` sends no `set_size` and gets the model's default 16 questions per state read; `mr1` sends 1, which is llama.cpp's one-state-read-per-question shape. No errors, and round 1 repeated round 0 within 2.5% at the median (measured).
 
 | Setting | Requests | Median | p95 | Max | Calls per second | Questions per second | Peak VRAM | Startup |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -217,7 +217,7 @@ On the ten requests the Transformers bench used (164 answers), against pplx's re
 
 ### Paged attention
 
-`python -m voice.local_decider.bench replay --configs mr16 --rounds 1 --paged-attn on` ran the same 590 requests with `--paged-attn on`. Every answer was identical, with no probability movement on 3,744 answers and the same token count on 590 of 590 requests (measured). The median was 148.4 ms against 149.5 and 153.4 ms with it off, and the peak 3,362 MiB against 3,397 and 3,400 (measured). That is inside the off runs' own spread, so there is no measurable difference either way. It follows from the code: a decision request runs its own forward pass and does not use the KV cache (`pipeline/mod.rs`, the decision branch of `submit_step`), which is why the flag cannot change a decision.
+`python -m voice.research.local_decider.bench replay --configs mr16 --rounds 1 --paged-attn on` ran the same 590 requests with `--paged-attn on`. Every answer was identical, with no probability movement on 3,744 answers and the same token count on 590 of 590 requests (measured). The median was 148.4 ms against 149.5 and 153.4 ms with it off, and the peak 3,362 MiB against 3,397 and 3,400 (measured). That is inside the off runs' own spread, so there is no measurable difference either way. It follows from the code: a decision request runs its own forward pass and does not use the KV cache (`pipeline/mod.rs`, the decision branch of `submit_step`), which is why the flag cannot change a decision.
 
 ### Beside LFM3 at 32k
 
@@ -249,7 +249,7 @@ The build itself is already in place: a CUDA sm_86 build from source on a machin
 - `voice/local_decider/client.py` holds `D1Client`, the same `call(route, body, label)` interface as the cloud client, and the one adapter between the two APIs. The request drops the OpenRouter `model` and `user` fields. `set_size` is sent only when a run sets it, so llama.cpp never sees the field. Each choice answer's `confidence` is rescaled from d1's top probability to pplx's scale, (p_max - 1/n) / (1 - 1/n). That matters because the hybrid holds a `dispatch_now` whose confidence is under 0.2, and a top probability over 3 options is never under 0.33 (measured on cached pplx answers).
 - `client.py` also holds `MistralRsServer`, which starts mistral.rs in WSL through `serve-d1.sh` and stops it by its binary path, since killing `wsl.exe` leaves the Linux process running. It refuses to start over a server that is already up.
 - `voice/local_decider/reuse.py` is the answer-reuse layer, as `ReusingClient`.
-- `voice/local_decider/bench.py` and `voice/research/local_decider/transformers_bench.py` produce every bench in this doc. `replay --configs mr16,mr1` selects the mistral.rs configs and `--paged-attn` its KV mode; the `packing` subcommand is the set-size proof above.
+- `voice/research/local_decider/bench.py` and `voice/research/local_decider/transformers_bench.py` produce every bench in this doc. `replay --configs mr16,mr1` selects the mistral.rs configs and `--paged-attn` its KV mode; the `packing` subcommand is the set-size proof above.
 - `voice/prototype/realtime.py` takes extra LFM3 server arguments, for `--lfm-ctx`.
 - Offline tests: `python -m unittest discover -s voice/local_decider/tests -t .`.
 

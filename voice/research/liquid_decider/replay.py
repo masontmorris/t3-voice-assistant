@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from voice.liquid_decider.client import LiquidClient, OUT
-from voice.local_decider import bench
+from voice.research.local_decider import bench
 
 GROUPS = ("kind", "ready", "side_effect", "depends", "corrects", "finished", "at", "same_as")
 SUFFIX = re.compile(r"_(kind|ready|side_effect|depends|corrects|finished|at)$")

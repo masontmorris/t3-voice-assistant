@@ -1,12 +1,12 @@
 """Bench d1-2B on llama.cpp and mistral.rs against the segmenter's recorded decider requests. GPU: run inside the
 lease and quiet_run.
 
-    python -m voice.local_decider.bench replay [--configs ub8192,ub2048,ub512,ub8192-nofa] [--rounds 3]
-    python -m voice.local_decider.bench replay --configs mr16,mr1 --tag mistralrs [--paged-attn on]
-    python -m voice.local_decider.bench packing [--requests 3] [--sizes default,8,4,2,1] [--concurrent]
-    python -m voice.local_decider.bench promptcache [--variants default,prompt-cache,...] [--rounds 3]
-    python -m voice.local_decider.bench reuse
-    python -m voice.local_decider.bench bargein CLIP.wav [--lfm-ctx 32768]
+    python -m voice.research.local_decider.bench replay [--configs ub8192,ub2048,ub512,ub8192-nofa] [--rounds 3]
+    python -m voice.research.local_decider.bench replay --configs mr16,mr1 --tag mistralrs [--paged-attn on]
+    python -m voice.research.local_decider.bench packing [--requests 3] [--sizes default,8,4,2,1] [--concurrent]
+    python -m voice.research.local_decider.bench promptcache [--variants default,prompt-cache,...] [--rounds 3]
+    python -m voice.research.local_decider.bench reuse
+    python -m voice.research.local_decider.bench bargein CLIP.wav [--lfm-ctx 32768]
 
 replay sends every recorded decisions request once per config per round, configs alternating, and records latency,
 input tokens, the answers, startup time and VRAM. `mr` configs run mistral.rs and name the `set_size` sent with each
@@ -27,19 +27,20 @@ import asyncio
 import json
 import re
 import statistics
-import subprocess
 import threading
 import time
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from voice.local_decider.client import D1Client, MistralRsServer, VOICE_HOME, d1_server
+from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
 
-REPO = Path(__file__).resolve().parents[1]
-CACHES = {"prototype": VOICE_HOME / "evidence" / "prototype" / "decider-cache", "fork": REPO / "segmentation" / "cache"}
-RUNS = {"original": REPO / "segmentation" / "results" / "stream-h",
-        "heldout": REPO / "segmentation" / "results" / "stream-h-heldout",
+RESEARCH = Path(__file__).resolve().parents[1]
+CACHES = {"prototype": VOICE_HOME / "evidence" / "prototype" / "decider-cache",
+          "fork": RESEARCH / "segmentation" / "cache"}
+RUNS = {"original": RESEARCH / "segmentation" / "results" / "stream-h",
+        "heldout": RESEARCH / "segmentation" / "results" / "stream-h-heldout",
         "clips": VOICE_HOME / "evidence" / "hybrid" / "run-h-c"}
 OUT = VOICE_HOME / "evidence" / "local-decider"
 CONFIGS = {
@@ -53,12 +54,6 @@ CONFIGS = {
 # mistral.rs config name to the `set_size` sent with each request. None is the model's own default, 16 questions per
 # state read (mistralrs-core/src/gguf/lfm3_d1_config.rs, DEFAULT_SET_SIZE).
 MISTRALRS = {"mr16": None, "mr8": 8, "mr4": 4, "mr2": 2, "mr1": 1}
-
-
-def gpu_used_mib():
-    out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-                         capture_output=True, text=True, check=True).stdout
-    return int(out.split()[0])
 
 
 class VramPeak:

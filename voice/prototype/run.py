@@ -67,8 +67,8 @@ import numpy as np
 from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
 from voice.live.overlap import transcribe as overlap_transcribe
 from voice.live.recall import recall_note
-from voice.local_decider.bench import gpu_used_mib
 from voice.local_decider.client import decider as make_decider, default_decider
+from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
 from voice.prototype.release import Release
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16

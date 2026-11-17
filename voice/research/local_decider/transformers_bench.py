@@ -12,7 +12,6 @@ import argparse
 import json
 import os
 import statistics
-import subprocess
 import sys
 import time
 from pathlib import Path
@@ -22,16 +21,11 @@ os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("HF_MODULES_CACHE", str(OUT / "hf-modules"))
 sys.dont_write_bytecode = True
 
-from voice.local_decider.bench import CACHES, compact, load, same  # noqa: E402
+from voice.local_decider.gpu import gpu_used_mib  # noqa: E402
+from voice.research.local_decider.bench import CACHES, compact, load, same  # noqa: E402
 
 REPO_ID = "LiquidAI/d1-2B"
 SET_SIZES = (None, 1)
-
-
-def gpu_used_mib():
-    out = subprocess.run(["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"],
-                         capture_output=True, text=True, check=True).stdout
-    return int(out.split()[0])
 
 
 def picks():
