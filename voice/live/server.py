@@ -13,11 +13,12 @@ down. Text frames are JSON control messages:
   server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, duck, unduck, barge_in,
                     turn_done
 
-Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-of-utterance authority (injection (c),
-the hybrid segmenter, the `gated` default from `voice/main`): live ASR, the segmenter and decider, the task service
-with real weather and time lookups, the snapshot, and the reply. The endpointer in endpoint.py ends a turn after
---silence-ms of silence, or, with `--eou audio`, as soon as the local d1-Omni-2B says the person has finished
-(voice/live/eou_audio.py), and never later than --silence-ms.
+Each turn runs `voice.prototype.run.run_clip` with the task gate, the hybrid segmenter and `final_decider=True`: live
+mode opens no LFM3 tool session, so the decider's own call on the final transcript decides the end of the utterance
+(the `gated` design's tool turn, `final_decider=False`, is the prototype's). Live ASR, the decider, the task service
+with real weather and time lookups, the snapshot, and the reply run per turn. The endpointer in endpoint.py ends a
+turn after --silence-ms of silence, or, with `--eou audio`, as soon as the local d1-Omni-2B says the person has
+finished (voice/live/eou_audio.py), and never later than --silence-ms.
 
 One client connection is one call, and one call is one LFM3 voice session. The first turn opens it and every later
 turn adds its audio and its reply to the same conversation. That session is the call's memory: the model hears what
@@ -73,8 +74,12 @@ the file is missing, note mode uses `NOTE_PERSONA` and the older modes the proto
 
 Needs the GPU (run it inside the lease) and, for the decider, LIQUID_API_KEY (liquid, the default) or
 OPENROUTER_API_KEY (cloud) from VOICE_ENV_FILE. Writes one JSON record and the turn's input and reply audio per turn
-under --out, all under $VOICE_HOME, never in the repo. Stops on Ctrl+C, when $VOICE_HOME/live/STOP appears, or after
---max-minutes.
+under --out, all under $VOICE_HOME, never in the repo. With --shadow on, the default, each gated turn also makes the
+end-of-utterance decider call the `decider` mode makes, once the reply has played, and writes its task decisions
+beside LFM3's tool calls to shadow.jsonl in the same directory: one line per utterance, acting on nothing
+(voice/live/shadow.py, report with `python -m voice.live.shadow_report DIR`). A failure or timeout of that call is
+one line with `error` set. --shadow off leaves the call out. Stops on Ctrl+C, when $VOICE_HOME/live/STOP appears, or
+after --max-minutes.
 """
 
 import argparse
@@ -97,6 +102,7 @@ from websockets.asyncio.server import serve
 
 from voice.live import fallback
 from voice.live import eou_audio
+from voice.live import shadow as shadow_log
 from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start
 from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
@@ -214,6 +220,7 @@ class MicTurn:
         self.started = time.perf_counter()
         self.speech_end = self.turn_end = self.first_audio = None
         self.out_rate, self.reply_started, self.speaking, self.spoken_text = None, False, False, ""
+        self.playback_until = None
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
         self.task = self.decider = self.overlap = None
         self.checks, self.check = [], None
@@ -285,7 +292,7 @@ class Conversation:
         self.ledger = ConversationLedger()
         self.pending, self.started = set(), time.perf_counter()
         self.playback, self.overlap = Playback(), None
-        self.checks = set()
+        self.checks, self.shadows = set(), set()
 
     def voice_clock(self):
         """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
@@ -495,6 +502,7 @@ class Conversation:
             self.post_audio(turn, pcm)
         if done and turn.speaking:
             turn.speaking = False
+            turn.playback_until = self.playback.until
             self.post({"type": "reply_end", "turn": turn.n}, turn)
 
     async def open_voice(self):
@@ -532,19 +540,24 @@ class Conversation:
                                     recall=live.args.recall, context=self.ledger.context(),
                                     prior_results=tuple(self.ledger.results()),
                                     prior_replies=tuple(self.ledger.replies()),
-                                    established=tuple(self.ledger.established()))
+                                    established=tuple(self.ledger.established()),
+                                    shadow=live.shadow is not None)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
             record = {"clip": turn.name, "error": repr(exc), **partial}
         finally:
             self.voice_turn = None
+        asked = record.pop("shadow_request", None)
+        heard = turn.playback_until or self.playback.until
         turn.decider.closed = True
         self.ledger.record(record, muted=turn.muted)
         record["ledger"] = self.ledger.record_dict()
         record["live"] = {**turn.metrics(), "prompt": self.prompt_source, "endpointer": vars(live.settings),
                           "mode": self.mode, "snapshot": live.args.snapshot, "recall": live.args.recall,
                           "eou": getattr(live.args, "eou", "silence"),
+                          "shadow": {"log": shadow_log.FILE if live.shadow is not None else None,
+                                     "booked": asked is not None},
                           "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns}}
         write_pcm16(live.out / f"{turn.name}_input.wav", bytes(turn.pcm), RATE)
         (live.out / f"{turn.name}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
@@ -554,12 +567,39 @@ class Conversation:
                 "metrics": {**record.get("metrics", {}), **turn.metrics()}}
         self.post(done)
         print(f"{turn.name} {json.dumps(done['metrics'])}", flush=True)
+        if asked is not None and live.shadow is not None:
+            self.watch_shadow(asked, heard)
+
+    def watch_shadow(self, asked, heard):
+        """Books the decider's end-of-utterance call for this turn. It waits for the reply to finish playing, then
+        runs beside the call: a slow or broken decider reaches no turn, and nothing it decides is acted on."""
+        task = asyncio.create_task(self.shadow_utterance(asked, heard))
+        self.shadows.add(task)
+        task.add_done_callback(self.shadows.discard)
+
+    async def shadow_utterance(self, asked, heard):
+        while time.perf_counter() < min(heard, self.playback.until):
+            await asyncio.sleep(shadow_log.POLL_S)
+        started = time.perf_counter()
+        try:
+            entry = await asyncio.wait_for(
+                asyncio.to_thread(lambda: shadow_log.run(self.live.decider, asked, lock=self.live.decider_lock)),
+                shadow_log.TIMEOUT_S + 1)
+        except Exception as exc:
+            entry = shadow_log.timed_out(asked, exc, round((time.perf_counter() - started) * 1000, 1))
+        try:
+            self.live.shadow.write(entry)
+        except OSError as exc:
+            print(f"{asked['utterance']} shadow not written: {exc}", flush=True)
+        print(f"{asked['utterance']} shadow {json.dumps({k: entry.get(k) for k in ('error', 'call')})}", flush=True)
 
     async def close(self):
         if self.overlap is not None and self.overlap.task is not None:
             self.overlap.task.cancel()
         for check in list(self.checks):
             check.cancel()
+        for shadow in list(self.shadows):
+            shadow.cancel()
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")
@@ -581,6 +621,7 @@ class Live:
                                  check_ms=check_ms)
         self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
         self.active, self.turns, self.overlaps = None, 0, 0
+        self.shadow = shadow_log.Log(out) if getattr(args, "shadow", "on") == "on" else None
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
 
@@ -719,6 +760,9 @@ def main():
     parser.add_argument("--decider", choices=["liquid", "cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
+    parser.add_argument("--shadow", choices=["on", "off"], default="on",
+                        help="after each gated turn's reply has played, ask the decider's end-of-utterance question "
+                             "and log its task decisions beside LFM3's, acting on nothing (default on)")
     parser.add_argument("--asr-stagger", type=int, default=1, choices=[1, 2, 3, 4, 6, 12],
                         help="transcription sessions fed the same audio, shifted by 0.96 s / N so the live "
                              "transcript updates N times per block (default 1: one update per 0.96 s)")

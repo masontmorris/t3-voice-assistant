@@ -3,6 +3,7 @@ import base64
 import contextlib
 import json
 import tempfile
+import time
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -89,6 +90,45 @@ async def streaming_run_clip(source, *args, persona, voice=None, speak=None, **k
             "replies": [{"text": f"reply to {source.name}"}], "metrics": {}}
 
 
+class FakeDecider:
+    """The shared decider, answering one utterance's decisions request from a canned answer set."""
+
+    def __init__(self, answers=None, error=None, delay_s=0.0):
+        self.answers, self.error, self.delay_s, self.calls = answers, error, delay_s, []
+
+    def call(self, route, body, label="", fresh=False):
+        self.calls.append({"route": route, "label": label, "fresh": fresh})
+        if self.delay_s:
+            time.sleep(self.delay_s)
+        if self.error is not None:
+            raise self.error
+        return {"route": route, "label": label, "status": 200, "model": "test:free",
+                "response": {"answers": self.answers or {
+                    "s1_kind": {"type": "choice", "choice": "request", "confidence": 0.8},
+                    "s1_ready": {"type": "choice", "choice": "dispatch_now", "confidence": 0.9},
+                    "s1_side_effect": {"type": "noul", "noul": 0.0, "confidence": 0.0}}},
+                "timing": {"ms": 1.0, "started_at": "x"}}
+
+
+async def shadow_run_clip(source, *args, persona, voice=None, speak=None, shadow=False, **kwargs):
+    """A turn with a fifth of a second of reply audio, and the shadow's request when the server asked for one."""
+    voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+    await source.stream(FakeSession(), FakeSession())
+    speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE // 5 * 2), True)
+    record = {"clip": source.name, "final_transcript": f"words in {source.name}",
+              "replies": [{"text": f"reply to {source.name}"}], "metrics": {}, "tasks": []}
+    if shadow:
+        record["shadow_request"] = server.shadow_log.request(
+            utterance=source.name, turn_record=f"{source.name}.json", authority="decider",
+            body={"model": "test:free",
+                  "state": {"transcript": record["final_transcript"], "transcript_is_final": True,
+                            "segments": {"s1": record["final_transcript"]}, "still_being_spoken": None,
+                            "tasks": [], "delegate_requests": {}},
+                  "questions": {"s1_kind": {}}},
+            lfm=[], outcomes=[], intent="request")
+    return record
+
+
 class LiveServerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.frames = []
@@ -99,7 +139,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.tmp = tempfile.TemporaryDirectory()
         args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
-                               segmenter="hybrid", snapshot="reply",
+                               segmenter="hybrid", snapshot="reply", shadow="off",
                                recall="note")
         self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name))
         self.patch = mock.patch.object(server, "run_clip", fake_run_clip)
@@ -158,6 +198,59 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(CALLS[0][7], "hybrid", "gated needs the hybrid segmenter")
         self.assertTrue((Path(self.tmp.name) / "turn_001.json").is_file())
         await ws.close()
+
+    async def test_a_gated_turn_logs_the_shadow_after_its_reply(self):
+        self.live.args.shadow = "on"
+        self.live.shadow = server.shadow_log.Log(Path(self.tmp.name))
+        self.live.decider = FakeDecider()
+        with mock.patch.object(server, "run_clip", shadow_run_clip):
+            ws = await self.connect()
+            log = []
+            await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+            done = await self.until(ws, "turn_done", log)
+            self.assertEqual(done["turn"], 1, "the reply is the turn's, and it has played by the time the file is read")
+            self.assertNotIn("shadow", log, "the shadow puts nothing on the wire")
+            tasks = list(self.live.active.shadows)
+            self.assertEqual(len(tasks), 1, "one call per utterance, booked after the turn's record")
+            await asyncio.wait_for(asyncio.gather(*tasks), 10)
+            await ws.close()
+        lines = server.shadow_log.Log(Path(self.tmp.name)).lines()
+        self.assertEqual(len(lines), 1)
+        self.assertEqual((lines[0]["utterance"], lines[0]["turn_record"]), ("turn_001", "turn_001.json"))
+        self.assertEqual(lines[0]["authority"], "decider")
+        self.assertTrue(lines[0]["call"]["ok"], "one real call, timed by the record")
+        self.assertEqual(lines[0]["decider"]["tasks"][0]["action"], "run")
+        self.assertEqual(lines[0]["agreement"]["decider_only"], 1, "LFM3 made no call to agree with")
+
+    async def test_shadow_off_makes_no_call_and_says_so(self):
+        with mock.patch.object(server, "run_clip", shadow_run_clip):
+            ws = await self.connect()
+            await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+            await self.until(ws, "turn_done", [])
+            await ws.close()
+        self.assertEqual(list(self.live.active.shadows), [])
+        self.assertFalse((Path(self.tmp.name) / "shadow.jsonl").exists())
+        self.assertFalse(json.loads((Path(self.tmp.name) / "turn_001.json").read_text())["live"]["shadow"]["log"])
+        self.assertFalse(json.loads((Path(self.tmp.name) / "turn_001.json").read_text())["live"]["shadow"]["booked"])
+
+    async def test_a_failing_shadow_call_is_logged_and_leaves_the_turn_alone(self):
+        self.live.args.shadow = "on"
+        self.live.shadow = server.shadow_log.Log(Path(self.tmp.name))
+        self.live.decider = FakeDecider(error=ConnectionError("decider down"))
+        with mock.patch.object(server, "run_clip", shadow_run_clip):
+            ws = await self.connect()
+            log = []
+            await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+            done = await self.until(ws, "turn_done", log)
+            self.assertIn("reply_end", log)
+            self.assertIsNone(done["error"])
+            tasks = list(self.live.active.shadows)
+            await asyncio.wait_for(asyncio.gather(*tasks), 10)
+            await ws.close()
+        line = server.shadow_log.Log(Path(self.tmp.name)).lines()[0]
+        self.assertIn("decider down", line["error"])
+        self.assertFalse(line["call"]["ok"])
+        self.assertIsNone(json.loads((Path(self.tmp.name) / "turn_001.json").read_text()).get("error"))
 
     async def test_the_prompt_file_sets_the_turn_persona(self):
         (Path(self.tmp.name) / "prompt.txt").write_text("Be brief.\n", encoding="utf-8")

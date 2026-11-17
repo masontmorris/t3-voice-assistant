@@ -307,13 +307,38 @@ class HybridSegmenter:
     def _segment(self, sid, piece, open_):
         return Segment(sid, *span_text(self.last.text, self.ws, piece), open=open_)
 
-    def _ask(self, update, committed, proposal, sids, live, kind):
-        final = update.is_final
-        asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
-        tasks = [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
-                  "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
-        body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates), tools=self.tool_choices,
-                                arguments=self.read_arguments)
+    def shadow_state(self):
+        """The task list and pending delegations to copy before the turn's last decision point, so the shadow sees
+        what `decider` mode's final call would have seen (voice/live/shadow.py)."""
+        return {"tasks": self._tasks(), "delegates": dict(self.orch.pending_delegates)}
+
+    def final_request(self, tasks=None, delegates=None):
+        """The decisions body `decider` mode sends on the final transcript, built and not sent.
+
+        Read after `close`, so the pieces and the committed segments are the final ones. `tasks` and `delegates` come
+        from `shadow_state` taken before the turn's own final call, since that call is what a shadow compares."""
+        if self.last is None:
+            return None
+        proposal = self._proposal()
+        k = len(self.committed)
+        live = {f"s{k + i + 1}": p for i, p in enumerate(proposal.pieces) if not proposal.filler(p)}
+        segments = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(self.committed)
+                    if c.w0 < len(self.ws)]
+        segments += [self._segment(sid, p, False) for sid, p in live.items()]
+        body = self._assemble(self.last, segments, tasks, delegates)
+        asked, gaps, marked, questions = break_questions(proposal, list(live), True)
+        body["state"]["new_speech"] = marked
+        body["questions"].update(questions)
+        return body
+
+    def _tasks(self):
+        return [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
+                 "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
+
+    def _assemble(self, update, segments, tasks=None, delegates=None):
+        body = decision_request(update, segments, self._tasks() if tasks is None else tasks,
+                                dict(self.orch.pending_delegates) if delegates is None else delegates,
+                                tools=self.tool_choices, arguments=self.read_arguments)
         if self.conversation_mode:
             for name, question in body["questions"].items():
                 if name.endswith("_side_effect"):
@@ -344,6 +369,12 @@ class HybridSegmenter:
                                                              "complete; otherwise judge it on its own words. A search "
                                                              "or lookup can start from the words given, even when "
                                                              "they are broad: the worker reports what it finds.")
+        return body
+
+    def _ask(self, update, committed, proposal, sids, live, kind):
+        final = update.is_final
+        asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
+        body = self._assemble(update, asked_segs)
         asked, gaps, marked, questions = break_questions(proposal, sids, final)
         body["state"]["new_speech"] = marked
         body["questions"].update(questions)
