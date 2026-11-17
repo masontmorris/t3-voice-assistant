@@ -79,7 +79,7 @@ export interface SettleTrigger {
   readonly projectId: ProjectId;
   /** The stored event that asked for the check. */
   readonly sequence: number;
-  /** The run the watch reports on; an earlier run's result is never this run's. */
+  /** The run the watch reports on. `done` carries this run's own outcome, never another run's text. */
   readonly anchorRunId?: RunId;
 }
 
@@ -111,7 +111,10 @@ export interface WatchSources {
 export interface WatchInput {
   readonly threadId: ThreadId;
   readonly afterSequence: number;
-  /** The run the voice started or sent to. Without it, `done` reports the thread's latest answer. */
+  /**
+   * The run the voice started or sent to. `done` reports that run's own status and final message,
+   * even when T3's result run is another. Without it, `done` reports T3's result run.
+   */
   readonly runId?: RunId;
 }
 

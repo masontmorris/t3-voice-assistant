@@ -108,47 +108,88 @@ it.effect("sends no done for an old run's terminal event replayed while a newer 
   ).pipe(Effect.provide(seamLayer)),
 );
 
-it.effect("sends a parent's done only after its subagent settles, naming the result run", () =>
-  Effect.scoped(
-    Effect.gen(function* () {
-      const fixture = FIXTURES.subagentAfterRoot;
-      const threadId = fixture[0]!.event.threadId;
-      const rootEnds = indexOf(
-        fixture,
-        (event) =>
-          event.type === "run.updated" &&
-          event.payload.ordinal === 1 &&
-          event.payload.status === "completed",
-      );
-      const before = yield* write(fixture.slice(0, rootEnds + 1).map((event) => event.event));
-      // Anchored on the run the voice launched, which is not the run that answers.
-      const watch = yield* realWatch({ threadId, afterSequence: 0, runId: runOf(fixture, 1) });
-      const atReplay = yield* watch.nextCheck;
-      const replayed = yield* watch.until(
-        (item) => item.type === "run" && item.sequence === before.at(-1)!.sequence,
-      );
-      const after = yield* write(fixture.slice(rootEnds + 1).map((event) => event.event));
-      const live = yield* watch.until(isDone);
-      const done = live.at(-1) as Watch.WatchDone;
-      const subagentSettled = before.findLast(
-        (stored) =>
-          stored.event.type === "subagent.updated" && stored.event.payload.status === "completed",
-      );
-
-      assert.isDefined(subagentSettled, "the subagent settles before the root run ends");
-      assert.deepStrictEqual(atReplay.answer, { kind: "nothing" });
-      assert.isFalse(replayed.some(isDone));
-      assert.deepInclude(done, { runId: runOf(fixture, 2), status: "completed" });
-      assert.strictEqual(done.result.text, "ROOT_WAKE_DONE");
-      assert.strictEqual(
-        done.sequence,
-        after.findLast(
+it.effect.each([
+  {
+    case: "anchored on the root run, whose own answer it reports",
+    anchor: 1,
+    reported: 1,
+    text: "ROOT_STARTED",
+  },
+  {
+    case: "with no anchor, naming the result run",
+    anchor: null,
+    reported: 2,
+    text: "ROOT_WAKE_DONE",
+  },
+] as const)(
+  "sends a parent's done only after its subagent settles, $case",
+  ({ anchor, reported, text }) =>
+    Effect.scoped(
+      Effect.gen(function* () {
+        const fixture = FIXTURES.subagentAfterRoot;
+        const threadId = fixture[0]!.event.threadId;
+        const rootEnds = indexOf(
+          fixture,
+          (event) =>
+            event.type === "run.updated" &&
+            event.payload.ordinal === 1 &&
+            event.payload.status === "completed",
+        );
+        const before = yield* write(fixture.slice(0, rootEnds + 1).map((event) => event.event));
+        const watch = yield* realWatch({
+          threadId,
+          afterSequence: 0,
+          ...(anchor === null ? {} : { runId: runOf(fixture, anchor) }),
+        });
+        const atReplay = yield* watch.nextCheck;
+        const replayed = yield* watch.until(
+          (item) => item.type === "run" && item.sequence === before.at(-1)!.sequence,
+        );
+        const after = yield* write(fixture.slice(rootEnds + 1).map((event) => event.event));
+        const live = yield* watch.until(isDone);
+        const done = live.at(-1) as Watch.WatchDone;
+        const subagentSettled = before.findLast(
           (stored) =>
-            stored.event.type === "run.updated" && stored.event.payload.status === "completed",
-        )!.sequence,
-      );
-    }),
-  ).pipe(Effect.provide(seamLayer)),
+            stored.event.type === "subagent.updated" && stored.event.payload.status === "completed",
+        );
+
+        assert.isDefined(subagentSettled, "the subagent settles before the root run ends");
+        assert.deepStrictEqual(atReplay.answer, { kind: "nothing" });
+        assert.isFalse(replayed.some(isDone));
+        assert.deepInclude(done, { runId: runOf(fixture, reported), status: "completed" });
+        assert.strictEqual(done.result.text, text);
+        assert.strictEqual(
+          done.sequence,
+          after.findLast(
+            (stored) =>
+              stored.event.type === "run.updated" && stored.event.payload.status === "completed",
+          )!.sequence,
+        );
+      }),
+    ).pipe(Effect.provide(seamLayer)),
+);
+
+it.effect.each([
+  { case: "anchored on run 1, which said nothing", anchor: 1, reported: 1, text: "" },
+  { case: "anchored on run 2", anchor: 2, reported: 2, text: "second fixture turn complete" },
+  { case: "with no anchor", anchor: null, reported: 2, text: "second fixture turn complete" },
+] as const)(
+  "reports the anchor's own outcome, never the result run's text: $case",
+  ({ anchor, reported, text }) =>
+    Effect.gen(function* () {
+      const fixture = FIXTURES.messageQuestion;
+      yield* write(fixture.map((event) => event.event));
+      const done = (yield* firstDone({
+        threadId: fixture[0]!.event.threadId,
+        afterSequence: 0,
+        ...(anchor === null ? {} : { runId: runOf(fixture, anchor) }),
+      })).at(-1) as Watch.WatchDone;
+
+      assert.deepInclude(done, { runId: runOf(fixture, reported), status: "completed" });
+      assert.strictEqual(done.result.text, text);
+      assert.strictEqual(done.result.messageId === null, text === "");
+      assert.strictEqual(done.result.turnItemId === null, text === "");
+    }).pipe(Effect.provide(seamLayer)),
 );
 
 it.effect("reports a failed run's error text as its result", () =>

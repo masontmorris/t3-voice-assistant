@@ -80,15 +80,10 @@ const isThreadNotFound = Schema.is(ThreadManagementService.ThreadManagementThrea
 const NOTHING: SettleAnswer = { kind: "nothing" };
 
 /**
- * A run queued after `anchor` holds the anchor's own answer. A run before it does not: the anchor
- * never ran, as when a follow-up is cancelled while it waits behind a running turn.
- */
-const reportedRun = (resultRun: OrchestrationV2Run, anchor: OrchestrationV2Run | undefined) =>
-  anchor !== undefined && resultRun.ordinal < anchor.ordinal ? anchor : resultRun;
-
-/**
- * The settle read: `done` only from a fresh read of T3's own settle rule, with T3's own result for
- * that run. Every failure becomes an answer, so the watch fiber decides what happens next.
+ * The settle read: `done` only from a fresh read of T3's own settle rule. T3 says when the thread
+ * settled. The run `done` names is `resultRun`, or, for a watch anchored on a run, that run's own
+ * stored record, with its own final message or none. `resultRun`'s text is never spoken as the
+ * anchor's. Every failure becomes an answer, so the watch fiber decides what happens next.
  */
 export const makeSettleCheck = (sources: OutcomeSources): SettleCheck => {
   const { sql, threads } = sources;
@@ -98,10 +93,8 @@ export const makeSettleCheck = (sources: OutcomeSources): SettleCheck => {
     resultRun: OrchestrationV2Run,
   ) {
     const { threadId } = trigger;
-    const runIds = [
-      resultRun.id,
-      ...(trigger.anchorRunId === undefined ? [] : [trigger.anchorRunId]),
-    ];
+    const reportedId = trigger.anchorRunId ?? resultRun.id;
+    const runIds = [reportedId];
     const read = yield* sql
       .withTransaction(
         Effect.gen(function* () {
@@ -144,14 +137,20 @@ export const makeSettleCheck = (sources: OutcomeSources): SettleCheck => {
       // The need ends with a stored event, and that event triggers the next check.
       return NOTHING;
     }
-    const run = reportedRun(
-      read.result.runs.find((candidate) => candidate.id === resultRun.id) ?? resultRun,
-      read.result.runs.find((candidate) => candidate.id === trigger.anchorRunId),
-    );
+    // The anchor's status comes from its own stored record, never from `resultRun` or a guess.
+    const stored = read.result.runs.find((candidate) => candidate.id === reportedId);
+    const run = trigger.anchorRunId === undefined ? (stored ?? resultRun) : stored;
+    if (run === undefined) return NOTHING;
     const status = run.status;
     if (!ThreadManagementService.isTerminalRunStatus(status)) return NOTHING;
-    // No `runs`, so the result never falls back to an earlier run's reply.
-    const result = subagentResultForRun(read.result, run);
+    // No `runs`, so the result never falls back to another run's reply.
+    const own = subagentResultForRun(read.result, run);
+    // An anchor that is not the result run speaks only what that run itself stored. T3's stand-in
+    // line for a run with no answer ("Child task ended with status ...") is not that.
+    const result =
+      run.id !== resultRun.id && own.messageId === null && own.turnItemId === null
+        ? { ...own, text: "" }
+        : own;
     // A need stored after the first read is not in the records, so the send waits for the watch
     // to emit everything through the re-read and checks again.
     const reread = yield* threads.getThreadEventSequence(threadId);
