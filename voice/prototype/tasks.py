@@ -19,7 +19,7 @@ from enum import StrEnum
 
 from voice.live.facts import facts_in
 from voice.prototype.segmenter import Segmenter
-from voice.tools.registry import ToolCall, ToolChoice
+from voice.tools.registry import Routed, ToolCall, ToolChoice
 
 
 class Run(StrEnum):
@@ -129,6 +129,12 @@ def build_snapshot(records, executions, conversation_id, utterance_id, final_tra
             entry["capability"] = execution.tool["tool"]
             # The general worker's arguments are the person's words and the call so far, which no snapshot repeats.
             entry["arguments"] = {} if entry["capability"] == "agent" else execution.tool.get("arguments", {})
+        elif status == "needs_clarification" and (record.get("tool") or {}).get("tool"):
+            # A task that never started still names the tool it would run and what it would ask, so a note can say.
+            entry["capability"] = record["tool"]["tool"]
+            entry["arguments"] = (record.get("waiting") or {}).get("arguments") or record["tool"].get("arguments") or {}
+        if record.get("waiting"):
+            entry["needs"] = list(record["waiting"]["missing"])
         if record["depends_on"]:
             entry["depends_on"] = record["depends_on"]
         if status in (Run.COMPLETED, Run.FAILED):
@@ -153,24 +159,40 @@ class MockTaskService:
     def __init__(self, segmenter: Segmenter, conversation_id, delay_s=4.0, tools=None, holds_side_effects=True,
                  earlier=None, simulate=True, context=None):
         """`earlier` is the newest lookup the call resolved before this turn, a `ToolCall`, which a follow-up that
-        names no place continues. `context` is the call's recent turns, which the general lookup worker reads."""
+        names no place continues. `context` is the call's recent turns, which the general lookup worker reads.
+
+        With `tools`, a task whose call would lack an argument its tool needs (a forecast with no place) waits for the
+        person's answer instead of running and failing: the orchestrator's `waits` hook asks the registry what it would
+        have to ask them, and `answer` runs that task with the value they give."""
         self.segmenter, self.conversation_id, self.delay_s, self.tools = segmenter, conversation_id, delay_s, tools
         self.earlier, self.context = earlier, context
         self.simulate = simulate
         self.holds_side_effects = holds_side_effects
         self.executions: dict[str, Execution] = {}
         self.corrected_calls: dict[str, ToolCall] = {}
+        self.answer_calls: dict[str, ToolCall] = {}
         self.correction = None
         self.extra = {}
         self._seen = 0
         self._calls = {}
         self._pool = ThreadPoolExecutor(max_workers=4) if tools else None
+        if tools is not None:
+            segmenter.orch.waits = self._waiting
+
+    def _waiting(self, task):
+        """What a confident tool choice would have to ask the person first. An answer under the bar decides nothing,
+        and a tool that needs no argument, or has the earlier lookup's place or a default to fall back on, can run."""
+        choice = task.tool
+        if choice is None or choice.confidence < self.tools.tool_threshold or choice.tool not in self.tools.tools:
+            return None
+        return self.tools.waiting(choice.tool, task.instruction, self.earlier, choice.arguments)
 
     def _start(self, task_id, instruction, side_effect, now, choice=None):
+        answered = self.answer_calls.pop(task_id, None)
         corrected = self.corrected_calls.pop(task_id, None)
         routed = (self.tools.dispatch(instruction, self.earlier, self.context, choice, corrected)
-                  if self.tools and not side_effect else None)
-        call = routed.call if routed is not None else None
+                  if self.tools and not side_effect and answered is None else None)
+        call = answered or (routed.call if routed is not None else None)
         if call is None:
             if not self.simulate:
                 return Execution(task_id, Run.FAILED, now, None,
@@ -184,7 +206,7 @@ class MockTaskService:
         self._calls[task_id] = self._pool.submit(self.tools.run, call)
         execution = Execution(task_id, Run.RUNNING, now, now + self.tools.timeout_for(call) + HUNG_LOOKUP_GRACE_S,
                               tool={"tool": call.tool, "arguments": call.arguments})
-        execution.routing = routed.record()
+        execution.routing = routed.record() if routed is not None else Routed(answered, "answer").record()
         return execution
 
     def _records(self):
@@ -277,6 +299,21 @@ class MockTaskService:
     def next_due(self):
         due = [e.due_at for e in self.executions.values() if e.state == Run.RUNNING]
         return min(due) if due else None
+
+    def answer(self, waiting, instruction, now):
+        """The person answered the question a task could not start without, so that task runs with the value they
+        gave. Returns the service events, empty when these words are not that answer.
+
+        `waiting` is the earlier turn's task as `carried_tasks` gives it: `{"ref", "instruction", "side_effect",
+        "waiting": {"tool", "arguments", "missing"}}`. The words must fill what it lacked and name no other tool's
+        subject, so "What's the time in Tokyo?" runs a time lookup rather than a forecast in Tokyo."""
+        call = self.tools.answered(waiting["waiting"], instruction) if self.tools else None
+        if call is None:
+            return []
+        task = self.segmenter.orch.answer_earlier(waiting["ref"], waiting["instruction"],
+                                                  bool(waiting.get("side_effect")))
+        self.answer_calls[task.task_id] = call
+        return self.sync(now)
 
     def correct(self, replacement, prior_tasks, now):
         """The utterance corrects an earlier turn, so nothing it said becomes a new task. With a `replacement` that
