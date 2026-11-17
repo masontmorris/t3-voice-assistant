@@ -195,6 +195,24 @@ class UpstreamSyncTest(unittest.TestCase):
         self.assertIn("dry_run=1", self.log_lines()[-1])
         self.assertIn("code=0", self.log_lines()[-1])
 
+    def test_a_live_run_pushes_both_branches_and_the_next_run_is_up_to_date(self) -> None:
+        self.fixture.publish_base()
+        self.fixture.publish_voice_branch()
+        upstream_sha = self.fixture.advance_upstream()
+
+        first = self.sync()
+
+        self.assertEqual(first.returncode, 0, first.stdout + first.stderr)
+        self.assertIn("upstream merged and pushed", first.stdout)
+        self.assertEqual(self.fixture.remote_sha(self.fixture.origin, "main"), upstream_sha)
+        merged = self.fixture.remote_sha(self.fixture.origin, "voice/main")
+        git("-C", str(self.fixture.origin), "merge-base", "--is-ancestor", upstream_sha, merged)
+
+        second = self.sync()
+
+        self.assertEqual(second.returncode, 0, second.stdout + second.stderr)
+        self.assertIn("up to date", second.stdout)
+
     def test_a_second_run_with_nothing_new_says_up_to_date(self) -> None:
         self.fixture.publish_base()
         self.fixture.publish_voice_branch()
