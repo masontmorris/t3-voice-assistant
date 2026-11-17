@@ -7,9 +7,11 @@ they are. The answers come back in the same TypeSafe shape (`type`, `choice`, `p
 except that `confidence` is on a different scale. No call leaves the machine.
 """
 
+import contextlib
 import http.client
 import json
 import os
+import socket
 import subprocess
 import time
 import urllib.request
@@ -85,19 +87,30 @@ class D1Client:
         self.host, self.port = parts.hostname, parts.port
         self.set_size = set_size
         self._conn = None
+        self.timeout_s, self.attempts, self.aborted = TIMEOUT_S, 2, False
+
+    def lane(self, timeout_s):
+        """A second client on the same server for a caller that must never hold up this one's requests: its own
+        connection, one attempt, and `timeout_s` on each socket operation."""
+        lane = D1Client(f"http://{self.host}:{self.port}", self.set_size)
+        lane.timeout_s, lane.attempts = timeout_s, 1
+        return lane
 
     def _post(self, payload):
-        for attempt in range(2):
-            if self._conn is None:
-                self._conn = http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT_S)
+        for attempt in range(self.attempts):
             try:
+                if self._conn is None:
+                    conn = http.client.HTTPConnection(self.host, self.port, timeout=self.timeout_s)
+                    conn.connect()
+                    self._conn = conn
+                    if self.aborted:
+                        raise ConnectionAbortedError("the client was aborted")
                 self._conn.request("POST", "/v1/systemone", body=payload, headers={"Content-Type": "application/json"})
                 response = self._conn.getresponse()
                 return response.status, response.read()
             except (ConnectionError, http.client.HTTPException):
-                self._conn.close()
-                self._conn = None
-                if attempt:
+                self.close()
+                if self.aborted or attempt + 1 == self.attempts:
                     raise
 
     def close(self):
@@ -105,8 +118,22 @@ class D1Client:
             self._conn.close()
             self._conn = None
 
-    def call(self, route, body, label=""):
-        """Ask every question in `body` and return a record shaped like the cloud client's cache record."""
+    def abort(self):
+        """Ends this client's request in flight from another thread, and any it would start. A shutdown wakes a read
+        blocked on the socket on Linux, and only closing the handle does on Windows (measured: after a shutdown alone
+        the read waited out its timeout), so it does both."""
+        self.aborted = True
+        conn = self._conn
+        sock = conn.sock if conn is not None else None
+        if sock is not None:
+            with contextlib.suppress(OSError):
+                sock.shutdown(socket.SHUT_RDWR)
+            with contextlib.suppress(OSError):
+                socket.close(sock.detach())
+
+    def call(self, route, body, label="", fresh=False):
+        """Ask every question in `body` and return a record shaped like the cloud client's cache record. `fresh` is
+        the cloud clients' cache bypass; this client keeps no cache, so every call is fresh."""
         assert route == "decisions", route
         request = to_systemone(body)
         if self.set_size is not None:

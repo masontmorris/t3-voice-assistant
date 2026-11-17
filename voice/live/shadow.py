@@ -7,7 +7,11 @@ once the reply audio has played, and writes one line per utterance to `shadow.js
 
 It cannot change the call. It is handed a request built from a copy of the turn's state, sends that one request, and
 parses the answers into a record. It holds no orchestrator and no task service, so it has nothing to dispatch with,
-and it writes nothing to the voice session. A failure or a timeout is one line with `error` set.
+and it writes nothing to the voice session. A failure, a timeout or a skip is one line with `error` set.
+
+It cannot delay a turn either. It asks on its own client (`Lane`): its own connection and pacer, one attempt, and a
+short ceiling, and it takes no lock a turn takes. The caller starts it only when no turn is running, and a turn that
+starts ends the shadow's request instead of waiting for it.
 
 One line per utterance:
   utterance      the turn's name (`turn_003` in live mode, the clip's stem in a prototype run)
@@ -15,18 +19,25 @@ One line per utterance:
                  metrics; `transcript` here only ties the line to it, so no call content is copied
   authority      "lfm" or "decider": which rule decided the end of this utterance
   transcript     the final transcript's word count and the first 12 hex digits of its SHA-256
-  lfm            LFM3's task calls, and the action each asks for
+  lfm            LFM3's task calls, the action each asks for, and the task each one reached
   decider        the shadow's task decisions: the task each matches or `new:<sid>`, its action, its side effect, the
                  answers' confidences, and the task gate's verdict
-  agreement      agree, disagree, decider_only, lfm_only, and one row per task naming both sides
+  agreement      the per-task verdict counts, and one row per task naming both sides
   outcomes       every task the turn ended with and its status, which no row above takes credit for
-  call           route, model, status, questions, milliseconds, and whether it timed out
+  call           route, decider, model, status, questions, milliseconds, and whether it timed out
+  skipped        set when no call was made, with the reason; `abandoned` when a starting turn ended the call
 
 An agreement row asks one thing of each side: does this task run? Both run or both leave it, `agree`; the decider
 alone runs it, `decider_only`; LFM3 alone runs it, `lfm_only`; one runs it while the other cancels or amends it,
-`disagree`. A decider piece that is not a task at all (`drop`) has no LFM3 counterpart, so it is a row only when it
-matches a task the turn already made. Segments are tied to tasks by their words, since the shadow applies nothing and
-so has no task ids of its own.
+`disagree`; one cancels or amends it while the other does nothing, `decider_correction` or `lfm_correction`. A decider
+piece that is not a task at all (`drop`) has no LFM3 counterpart, so it is a row only when it matches a task the turn
+already made.
+
+A row is keyed by a task id. LFM3's calls carry one: `run_task`, `cancel_task` and `amend_task` name it, and a
+`delegate` reaches the task its call returned, the one it made or the one the orchestrator linked it to. A decider
+piece takes the id of the task the turn already had with the same words. A request piece with no task yet joins a task
+LFM3's calls reached, or else one the turn ended with, when the two pass the orchestrator's own duplicate rule (content
+word overlap), so one request is one row whichever side worded it.
 """
 
 import hashlib
@@ -38,13 +49,51 @@ from pathlib import Path
 
 from voice.segmentation.contract import CorrectionMode, Kind, parse_decisions
 from voice.segmentation.gate import PLAN_A
+from voice.segmentation.tasks import MATCH_THRESHOLD, content_words, overlap
 
 FILE = "shadow.jsonl"
-# The wait for playback is the reply's own length, so this bounds a broken clock rather than a long answer.
-TIMEOUT_S = 20.0
+# The shadow call's ceiling on each socket operation, with no retry. Measured shadow calls took 0.1 to 2.9 s on the
+# local d1 (docs/voice/eou-handoff.md), and a turn never waits for this one, so it bounds a hung backend.
+TIMEOUT_S = 8.0
 POLL_S = 0.05
-RUNS = ("run",)
 TASK_CALLS = {"run_task": "run", "delegate": "run", "cancel_task": "cancel", "amend_task": "amend"}
+VERDICTS = ("agree", "disagree", "decider_only", "lfm_only", "decider_correction", "lfm_correction")
+
+
+class Lane:
+    """The shadow's own decider client, one call at a time, which a starting turn ends.
+
+    A client that offers `lane` gives a second connection to the same backend with its own pacer, one attempt and
+    `TIMEOUT_S`, so the shadow's request never sits in front of a turn's. A new connection per call, because a server
+    drops an idle keep-alive socket and a single attempt has no retry to hide that (measured: 3 of 4 calls failed with
+    WinError 10053 on a reused socket to the local d1). A client without `lane` (a test fake) is used as it is."""
+
+    def __init__(self):
+        self.client, self.decider, self.ended = None, None, None
+
+    @property
+    def busy(self):
+        return self.client is not None
+
+    def open(self, decider):
+        make = getattr(decider, "lane", None)
+        self.decider, self.ended = decider, None
+        self.client = make(TIMEOUT_S) if make is not None else decider
+        return self.client
+
+    def abort(self, reason):
+        """Ends the call in flight, if any. Its line says why."""
+        if self.client is None:
+            return
+        self.ended = reason
+        stop = getattr(self.client, "abort", None)
+        if stop is not None:
+            stop()
+
+    def finish(self):
+        client, self.client = self.client, None
+        if client is not None and client is not self.decider:
+            client.close()
 
 
 def request(utterance, turn_record, authority, body, lfm=(), outcomes=(), intent=None):
@@ -58,27 +107,24 @@ def request(utterance, turn_record, authority, body, lfm=(), outcomes=(), intent
             "body": body, "lfm": list(lfm), "outcomes": list(outcomes)}
 
 
-def lfm_calls(tool_turn):
-    """LFM3's task calls from the turn's tool session, with the action each one asks for.
+def lfm_calls(tool_results):
+    """LFM3's task calls, from the turn's `tool_results` (each call with its parsed arguments and the task service's
+    result), with the action each asks for and the task it reached.
 
     The live server opens no tool session on its decider path, so this is empty there, and `authority` records which
     rule decided the end of the utterance instead."""
     calls = []
-    for call in (tool_turn or {}).get("function_calls") or ():
+    for call in tool_results or ():
         action = TASK_CALLS.get(call.get("name"))
         if action is None:
             continue
-        arguments = call.get("arguments")
-        if isinstance(arguments, str):
-            try:
-                arguments = json.loads(arguments or "{}")
-            except ValueError:
-                arguments = {}
-        arguments = arguments if isinstance(arguments, dict) else {}
-        key = arguments.get("task_id") or arguments.get("task")
-        calls.append({"name": call.get("name"), "action": action,
-                      "key": key or f"new:lfm{len(calls) + 1}", "task": key,
-                      "instruction": arguments.get("instruction") or arguments.get("new_request")})
+        arguments = call.get("arguments") if isinstance(call.get("arguments"), dict) else {}
+        result = call.get("result") if isinstance(call.get("result"), dict) else {}
+        task = arguments.get("task_id")
+        if call["name"] == "delegate" and result.get("ok"):
+            task = result.get("task_id")
+        calls.append({"name": call["name"], "action": action, "key": task or f"new:lfm{len(calls) + 1}",
+                      "task": task, "instruction": arguments.get("instruction") or arguments.get("new_request")})
     return calls
 
 
@@ -130,111 +176,103 @@ def _match(groups, text, taken):
     return None
 
 
-def _runs(action):
-    return action in RUNS
+def _side(action):
+    """What a side does with a task: runs it, stops it (cancel or amend), or neither."""
+    return "run" if action == "run" else "stop" if action in ("cancel", "amend") else None
 
 
-def _stops(action):
-    return action in ("cancel", "amend")
+# (decider, lfm) -> verdict, for what each side does with one task.
+VERDICT = {("run", "run"): "agree", ("stop", "stop"): "agree", (None, None): "agree",
+           ("run", "stop"): "disagree", ("stop", "run"): "disagree",
+           ("run", None): "decider_only", (None, "run"): "lfm_only",
+           ("stop", None): "decider_correction", (None, "stop"): "lfm_correction"}
+
+
+def _joined(decided, lfm, outcomes):
+    """The decider's request pieces with no task yet, each moved onto the task the same request became, when one passes
+    the orchestrator's duplicate rule. LFM3's tasks come first, so a delegate and the piece it repeats share a row."""
+    named = {d["key"] for d in decided}
+    words = {item.get("task"): item.get("instruction") for item in outcomes or () if item.get("task")}
+    candidates = [c["key"] for c in lfm if not c["key"].startswith("new:") and c["key"] not in named]
+    candidates += [task for task in words if task not in named and task not in candidates]
+    texts = {c["key"]: c.get("instruction") for c in lfm}
+    texts.update({task: text for task, text in words.items() if text})
+    joined = []
+    for decision in decided:
+        if decision["key"].startswith("new:") and decision["action"] in ("run", "hold"):
+            mine = content_words(decision.get("text"))
+            shares = [(overlap(mine, content_words(texts.get(task))), task) for task in candidates]
+            share, task = max(shares, key=lambda item: item[0], default=(0.0, None))
+            if task is not None and share >= MATCH_THRESHOLD:
+                candidates.remove(task)
+                decision = {**decision, "key": task}
+        joined.append(decision)
+    return joined
 
 
 def agreement(lfm, decided, texts=None, outcomes=None):
-    """Per task: both run it or both leave it, `agree`; one runs it alone, that side's `…_only`; one runs it while the
-    other cancels or amends it, `disagree`. A `drop` from the decider with no task behind it is not a row.
-
-    `texts` names a task's words, and `outcomes` is what the turn ended up doing with it (its status), so a row whose
-    task the shadow would have created (`new:<sid>`) still shows what the turn did with the same words."""
+    """Per task, what each side does with it (`VERDICT`). A `drop` from the decider with no task behind it is not a
+    row. `texts` names the tasks the request listed, and `outcomes` is what the turn ended up doing with each task (its
+    status), so every row shows what the turn did."""
     texts = texts or {}
-    by_key = outcomes_by_key(outcomes)
-    by_text = {text_key(item.get("instruction")): item.get("status") for item in outcomes or ()
-               if item.get("instruction")}
-    # A delegate names no task, so its words are what tie it to the piece the decider answered with.
-    pieces = {text_key(item.get("text")): item["key"] for item in decided if item.get("text")}
-
-    def canonical(call):
-        key = call.get("key")
-        if key and key.startswith("new:") and call.get("instruction"):
-            return pieces.get(text_key(call["instruction"]), key)
-        return key
-
-    lfm = [{**call, "key": canonical(call)} for call in lfm]
-    rows, counts = [], {"agree": 0, "disagree": 0, "decider_only": 0, "lfm_only": 0}
-    keys = list(dict.fromkeys([d["key"] for d in decided] + [call["key"] for call in lfm]))
-    for key in keys:
+    status = {item.get("task"): item.get("status") for item in outcomes or () if item.get("task")}
+    words = {item.get("task"): item.get("instruction") for item in outcomes or () if item.get("task")}
+    decided = _joined(decided, lfm, outcomes)
+    rows, counts = [], dict.fromkeys(VERDICTS, 0)
+    for key in dict.fromkeys([d["key"] for d in decided] + [call["key"] for call in lfm]):
         mine = next((d for d in reversed(decided) if d["key"] == key), None)
         theirs = next((c for c in reversed(lfm) if c["key"] == key), None)
         if mine is not None and mine["action"] == "drop" and key.startswith("new:"):
             continue
-        mine_runs = mine is not None and _runs(mine["action"])
-        theirs_runs = theirs is not None and _runs(theirs["action"])
-        if mine_runs and theirs is not None and _stops(theirs["action"]):
-            verdict = "disagree"
-        elif theirs_runs and mine is not None and _stops(mine["action"]):
-            verdict = "disagree"
-        elif mine_runs and not theirs_runs:
-            verdict = "decider_only"
-        elif theirs_runs and not mine_runs:
-            verdict = "lfm_only"
-        else:
-            verdict = "agree"
+        verdict = VERDICT[(_side(mine and mine["action"]), _side(theirs and theirs["action"]))]
         counts[verdict] += 1
-        text = texts.get(key) or (mine or theirs).get("text") or (theirs or {}).get("instruction")
-        rows.append({"task": key, "text": text,
+        rows.append({"task": key,
+                     "text": texts.get(key) or words.get(key) or (mine or {}).get("text")
+                     or (theirs or {}).get("instruction"),
                      "decider": None if mine is None else mine["action"],
                      "lfm": None if theirs is None else theirs["action"],
-                     "turn": by_key.get(key) or by_text.get(text_key(text)),
-                     "verdict": verdict})
+                     "turn": status.get(key), "verdict": verdict})
     return {**counts, "rows": rows}
 
 
-def outcomes_by_key(outcomes):
-    return {item.get("task"): item.get("status") for item in outcomes or () if item.get("task")}
-
-
-def run(decider, asked, gate=PLAN_A, lock=None, name=None):
+def run(decider, asked, gate=PLAN_A, name=None):
     """One shadow call for one utterance: the request, its parsed task decisions and the comparison.
 
-    `lock` is the decider's one-call-at-a-time lock the turns already share, so the shadow never puts a second
-    request in flight. `name` is the configured decider (`d1`, `cloud` or `liquid`), which the record needs because
-    the body's model field names the cloud client whatever answers. Never raises: a decider that is down, busy, slow
-    or answers nonsense gives a line with `error` set, and the call it was taken from has already finished."""
+    `decider` is the shadow's own client (`Lane.open`), never the turns' one. `name` is the configured decider (`d1`,
+    `cloud` or `liquid`), which the record needs because the body's model field names the cloud client whatever
+    answers. Never raises: a decider that is down, slow, ended by a turn or answers nonsense gives a line with `error`
+    set, and the call it was taken from has already finished."""
     body = asked["body"]
     started = time.perf_counter()
-    entry = {"utterance": asked["utterance"], "turn_record": asked["turn_record"],
-             "authority": asked["authority"], "intent": asked.get("intent"),
-             "transcript": _reference(body.get("state", {}).get("transcript", "")),
-             "lfm": {"calls": asked.get("lfm", [])}, "outcomes": asked.get("outcomes", []),
-             "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+    entry = _line(asked)
     try:
-        if lock is not None and not lock.acquire(timeout=TIMEOUT_S):
-            raise TimeoutError(f"the decider was busy for {TIMEOUT_S} s")
-        try:
-            record = _call(decider, body, f"shadow:{asked['utterance']}")
-        finally:
-            if lock is not None:
-                lock.release()
+        record = decider.call("decisions", body, label=f"shadow:{asked['utterance']}", fresh=True)
+        if record.get("status") != 200:
+            raise ConnectionError(f"decisions http {record.get('status')}")
         answers = parse_decisions(record.get("response"), body)
         decided = task_decisions(answers, body, gate)
         entry["decider"] = {"tasks": decided, "problems": answers.problems}
         entry["agreement"] = agreement(asked.get("lfm", []), decided, _texts(body), asked.get("outcomes"))
         entry["call"] = _call_record(record, body, started, name)
     except Exception as exc:
-        entry["error"] = _detail(exc)
-        entry["decider"] = {"tasks": [], "problems": [entry["error"]]}
-        entry["agreement"] = agreement(asked.get("lfm", []), [], _texts(body), asked.get("outcomes"))
-        entry["call"] = {"route": "decisions", "decider": name, "status": None,
-                         "questions": len(body.get("questions") or {}), "ms": _ms(started), "ok": False,
-                         "timed_out": isinstance(exc, TimeoutError)}
+        entry.update(_failed(asked, _detail(exc), name, _ms(started), timed_out=isinstance(exc, TimeoutError)))
     return entry
 
 
-def _call(decider, body, label):
-    """One decider call, sent again even when an identical request is cached: a cached answer would report no latency
-    and could not disagree. The local d1 client keeps no cache and takes no such argument."""
-    try:
-        return decider.call("decisions", body, label=label, fresh=True)
-    except TypeError:
-        return decider.call("decisions", body, label=label)
+def _line(asked):
+    return {"utterance": asked["utterance"], "turn_record": asked["turn_record"],
+            "authority": asked["authority"], "intent": asked.get("intent"),
+            "transcript": _reference(asked["body"].get("state", {}).get("transcript", "")),
+            "lfm": {"calls": asked.get("lfm", [])}, "outcomes": asked.get("outcomes", []),
+            "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
+
+
+def _failed(asked, detail, name, ms, timed_out=False):
+    return {"error": detail, "decider": {"tasks": [], "problems": [detail]},
+            "agreement": agreement(asked.get("lfm", []), [], _texts(asked["body"]), asked.get("outcomes")),
+            "call": {"route": "decisions", "decider": name, "status": None,
+                     "questions": len(asked["body"].get("questions") or {}), "ms": ms, "ok": False,
+                     "timed_out": timed_out}}
 
 
 def _call_record(record, body, started, name=None):
@@ -261,18 +299,14 @@ def _texts(body):
 def timed_out(asked, error=None, ms=None, name=None):
     """The line for a call the caller stopped waiting on."""
     detail = _detail(error) if error is not None else f"timed out after {TIMEOUT_S} s"
-    entry = {"utterance": asked["utterance"], "turn_record": asked["turn_record"],
-             "authority": asked["authority"], "intent": asked.get("intent"),
-             "transcript": _reference(asked["body"].get("state", {}).get("transcript", "")),
-             "lfm": {"calls": asked.get("lfm", [])}, "outcomes": asked.get("outcomes", []),
-             "decider": {"tasks": [], "problems": [detail]},
-             "agreement": agreement(asked.get("lfm", []), [], _texts(asked["body"]), asked.get("outcomes")),
-             "call": {"route": "decisions", "decider": name, "status": None,
-                     "questions": len(asked["body"].get("questions") or {}),
-                     "ms": round(TIMEOUT_S * 1000, 1) if ms is None else ms, "ok": False, "timed_out": True},
-             "error": detail,
-             "at": datetime.now(timezone.utc).isoformat(timespec="seconds")}
-    return entry
+    return {**_line(asked), **_failed(asked, detail, name, round(TIMEOUT_S * 1000, 1) if ms is None else ms,
+                                      timed_out=True)}
+
+
+def skipped(asked, reason, name=None):
+    """The line for an utterance the shadow did not ask about, and why: a turn was running, the decider was busy, or
+    the call ended before the reply finished playing."""
+    return {**_line(asked), **_failed(asked, f"no shadow call: {reason}", name, 0.0), "skipped": reason}
 
 
 def _detail(error):

@@ -1167,7 +1167,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 shadow_request = shadow_log.request(
                     utterance=stem, turn_record=f"{stem}.json",
                     authority="decider" if final_decider else "lfm", body=body,
-                    lfm=shadow_log.lfm_calls(tool_turn),
+                    lfm=shadow_log.lfm_calls(tool_results),
                     outcomes=[{"task": t["task_id"], "status": t["status"], "instruction": t["instruction"]}
                               for t in segmenter.records()],
                     intent=closed["intent"].intent.value)
@@ -1258,6 +1258,7 @@ async def main_async(args):
     tools_context = nullcontext() if args.mock_tools else open_registry()
     server_context = Server(args.port, out / "llama-server.log", ("-c", str(args.lfm_ctx)), slots)
     with tools_context as tools, server_context as server, make_decider(args.decider, out) as decider:
+        shadow_lane, shadow_decider = shadow_log.Lane(), decider
         if args.fresh:
             decider = FreshClient(decider)
         if tools is not None:
@@ -1276,7 +1277,10 @@ async def main_async(args):
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
             asked = record.pop("shadow_request", None)
             if shadow_out is not None and asked is not None:
-                shadow_out.write(shadow_log.run(decider, asked, name=args.decider))
+                try:
+                    shadow_out.write(shadow_log.run(shadow_lane.open(shadow_decider), asked, name=args.decider))
+                finally:
+                    shadow_lane.finish()
                 record["shadow"] = shadow_log.FILE
             record["server_startup_s"] = server.startup_s
             record["mcp_startup_s"] = tools.mcp.startup_s if tools is not None else None

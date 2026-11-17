@@ -11,6 +11,7 @@ import unittest
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from unittest import mock
 
 from voice.liquid_decider import client as liquid
 
@@ -40,6 +41,9 @@ class Handler(BaseHTTPRequestHandler):
         sent = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         Handler.seen.append((self.path, sent, self.headers.get("Authorization")))
         status, headers, payload = Handler.scripted.pop(0) if Handler.scripted else (200, {}, None)
+        if status is None:
+            self.close_connection = True
+            return
         raw = json.dumps(payload if payload is not None else answer(sent["questions"])).encode()
         self.send_response(status)
         for name, value in headers.items():
@@ -188,6 +192,32 @@ class Limits(LiquidCase):
         record = self.client.call("decisions", body(), label="u:r1")
         self.assertEqual(record["status"], 200)
         self.assertEqual([entry["status"] for entry in record["attempts"]], [500, 200])
+
+
+class Lanes(LiquidCase):
+    def test_a_lane_makes_one_attempt_and_sleeps_for_no_retry(self):
+        Handler.scripted = [(500, {}, {"error": "boom"})]
+        lane = self.client.lane(2.0)
+        self.addCleanup(lane.close)
+        with mock.patch.object(liquid.time, "sleep") as sleep:
+            record = lane.call("decisions", body(), label="shadow:u")
+        self.assertEqual([entry["status"] for entry in record["attempts"]], [500])
+        sleep.assert_not_called()
+
+    def test_a_dropped_call_is_not_cached(self):
+        Handler.scripted = [(None, {}, None)]
+        lane = self.client.lane(2.0)
+        self.addCleanup(lane.close)
+        record = lane.call("decisions", body(), label="shadow:u")
+        self.assertIsNone(record["status"])
+        self.assertIsNone(liquid.cached("decisions", body()), "a later call asks again instead of replaying a failure")
+
+    def test_a_429_on_the_lane_leaves_the_turns_pacing_alone(self):
+        Handler.scripted = [(429, {"Retry-After": "7"}, {"error": "slow down"})]
+        lane = self.client.lane(2.0)
+        self.addCleanup(lane.close)
+        lane.call("decisions", body(), label="shadow:u")
+        self.assertEqual(self.client.pacer.gap_s, 0.0)
 
 
 if __name__ == "__main__":

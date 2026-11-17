@@ -78,8 +78,9 @@ under --out, all under $VOICE_HOME, never in the repo. With --shadow on, the def
 end-of-utterance decider call the `decider` mode makes, once the reply has played, and writes its task decisions
 beside LFM3's tool calls to shadow.jsonl in the same directory: one line per utterance, acting on nothing
 (voice/live/shadow.py, report with `python -m voice.live.shadow_report DIR`). A failure or timeout of that call is
-one line with `error` set. --shadow off leaves the call out. Stops on Ctrl+C, when $VOICE_HOME/live/STOP appears, or
-after --max-minutes.
+one line with `error` set. The call never delays a turn: it asks on its own decider connection, takes no lock a turn
+takes, starts only when no turn is running, and a new utterance ends it. --shadow off leaves the call out. Stops on
+Ctrl+C, when $VOICE_HOME/live/STOP appears, or after --max-minutes.
 """
 
 import argparse
@@ -416,6 +417,7 @@ class Conversation:
         running drops its later audio, such as a task update, rather than talk over the person; it keeps running,
         because closing it mid-response would cut the call's one session off."""
         prior, carry = self.turn, b""
+        self.live.shadow_lane.abort("a new utterance started")
         if barge_in:
             self.post({"type": "barge_in", "turn": self.playback.turn})
             self.playback.stop(time.perf_counter())
@@ -569,43 +571,68 @@ class Conversation:
         self.post(done)
         print(f"{turn.name} {json.dumps(done['metrics'])}", flush=True)
         if asked is not None and live.shadow is not None:
-            self.watch_shadow(asked, heard)
+            self.watch_shadow(asked, heard, turn)
 
-    def watch_shadow(self, asked, heard):
+    def watch_shadow(self, asked, heard, turn):
         """Books the decider's end-of-utterance call for this turn. It waits for the reply to finish playing, then
         runs beside the call: a slow or broken decider reaches no turn, and nothing it decides is acted on."""
-        task = asyncio.create_task(self.shadow_utterance(asked, heard))
+        task = asyncio.create_task(self.shadow_utterance(asked, heard, turn))
         self.shadows.add(task)
         task.add_done_callback(self.shadows.discard)
 
-    async def shadow_utterance(self, asked, heard):
+    def shadow_blocked(self, turn):
+        """Why the shadow must not ask now, or None. The check and the lane's opening happen in one step of the event
+        loop `start_turn` runs on, so a turn cannot start between them, and one that starts later ends the call."""
+        if self.hung_up.is_set():
+            return "the call ended before the reply finished playing"
+        if self.turn is not turn or any(other is not turn for other in self.pending):
+            return "a turn was running"
+        if self.live.decider_lock.locked():
+            return "the decider was busy"
+        if self.live.shadow_lane.busy:
+            return "another shadow call was in flight"
+        return None
+
+    async def shadow_utterance(self, asked, heard, turn):
+        name = getattr(self.live.args, "decider", None)
         while time.perf_counter() < min(heard, self.playback.until) and not self.hung_up.is_set():
             await asyncio.sleep(shadow_log.POLL_S)
+        reason = self.shadow_blocked(turn)
+        if reason is not None:
+            self.write_shadow(shadow_log.skipped(asked, reason, name))
+            return
+        lane = self.live.shadow_lane
+        client = lane.open(self.live.decider)
         started = time.perf_counter()
         try:
-            entry = await asyncio.wait_for(
-                asyncio.to_thread(lambda: shadow_log.run(self.live.decider, asked, lock=self.live.decider_lock,
-                                                         name=getattr(self.live.args, "decider", None))),
-                shadow_log.TIMEOUT_S + 1)
+            entry = await asyncio.wait_for(asyncio.to_thread(shadow_log.run, client, asked, name=name),
+                                           shadow_log.TIMEOUT_S + 2)
         except Exception as exc:
-            entry = shadow_log.timed_out(asked, exc, round((time.perf_counter() - started) * 1000, 1),
-                                         getattr(self.live.args, "decider", None))
+            lane.abort("no answer in time")
+            entry = shadow_log.timed_out(asked, exc, round((time.perf_counter() - started) * 1000, 1), name)
+        finally:
+            ended = lane.ended
+            lane.finish()
+        if ended is not None and not entry["call"]["ok"]:
+            entry["abandoned"] = ended
+        self.write_shadow(entry)
+
+    def write_shadow(self, entry):
         try:
             self.live.shadow.write(entry)
         except OSError as exc:
-            print(f"{asked['utterance']} shadow not written: {exc}", flush=True)
-        print(f"{asked['utterance']} shadow {json.dumps({k: entry.get(k) for k in ('error', 'call')})}", flush=True)
+            print(f"{entry['utterance']} shadow not written: {exc}", flush=True)
+        print(f"{entry['utterance']} shadow {json.dumps({k: entry.get(k) for k in ('error', 'call')})}", flush=True)
 
     async def close(self):
         if self.overlap is not None and self.overlap.task is not None:
             self.overlap.task.cancel()
         for check in list(self.checks):
             check.cancel()
-        # A call that hangs up mid-reply would otherwise lose its last utterance: the shadow stops waiting for
-        # playback and asks at once, and the disconnect waits a moment for the line.
+        # The next client is refused until this returns, so nothing here waits on the shadow: a shadow waiting for
+        # playback writes a skipped line, and one in flight is ended and writes its own line when its thread returns.
         self.hung_up.set()
-        if self.shadows:
-            await asyncio.wait(list(self.shadows), timeout=3.0)
+        self.live.shadow_lane.abort("the call ended")
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")
@@ -628,6 +655,7 @@ class Live:
         self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
         self.active, self.turns, self.overlaps = None, 0, 0
         self.shadow = shadow_log.Log(out) if getattr(args, "shadow", "on") == "on" else None
+        self.shadow_lane = shadow_log.Lane()
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
 
