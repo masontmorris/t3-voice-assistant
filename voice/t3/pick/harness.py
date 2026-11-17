@@ -24,14 +24,19 @@ LABEL_FILES = ("known-failures.jsonl", "labels-labeler.jsonl")
 ARMS = ("prefilter", "model", "model_tie", "local")
 LATENCY_METRIC = "single_request_p95_ms"
 LATENCY_BAR_MS = 700
+PASSING = ("correct", "confirmed")
+# Each scoring view and the run-row field that holds its outcome.
+VIEWS = {"strict": "outcome", "lenient": "lenient", "confirm": "confirm", "confirm_lenient": "confirm_lenient"}
 
-def load_inputs():
-	verify(ROOT)
+
+def load_inputs(root=ROOT):
+	root = Path(root)
+	verify(root)
 	snaps = {p.stem.split("-")[-1]: json.loads(p.read_text(encoding="utf-8"))
-	         for p in sorted((ROOT / "snapshots").glob("snap-*.json"))}
+	         for p in sorted((root / "snapshots").glob("snap-*.json"))}
 	cases = []
 	for name in LABEL_FILES:
-		path = ROOT / "labels" / name
+		path = root / "labels" / name
 		cases += [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 	return snaps, cases
 
@@ -78,6 +83,20 @@ def lenient(verdict, gold):
 	return verdict
 
 
+def confirm_outcome(picked, gold, listed, parse="ok"):
+	"""Score a model's single pick as the question "do you mean <that thread>?".
+
+	A prefilter hit is still spoken directly. A confirmation of the gold thread is `confirmed`, a
+	confirmation of another thread is `confirm_wrong`, and any other gold scores it as a one-thread
+	question.
+	"""
+	if picked.kind != "one" or picked.reason != "model":
+		return outcome(picked, gold, listed, parse)
+	if gold["kind"] == "one":
+		return "confirmed" if picked.thread_id == gold["thread_id"] else "confirm_wrong"
+	return outcome(Pick.ask([picked.thread_id], "Do you mean that one?"), gold, listed, parse)
+
+
 def one_run(case, snap, arm, client, attempt):
 	threads = visible(snap)
 	listed = [t["threadId"] for t in threads]
@@ -92,6 +111,7 @@ def one_run(case, snap, arm, client, attempt):
 		                    break_tie=(arm == "model_tie"))
 	wall = round((time.perf_counter() - start) * 1000, 2)
 	verdict = outcome(picked, case["gold"], listed, meta.get("parse", "ok"))
+	confirmed = confirm_outcome(picked, case["gold"], listed, meta.get("parse", "ok"))
 	request_ms = meta.get("ms") if meta.get("model") and meta.get("parse") != "failed" else 0
 	return {
 		"case": case["id"], "snapshot": case["snapshot"], "slice": case["slice"], "arm": arm,
@@ -99,6 +119,7 @@ def one_run(case, snap, arm, client, attempt):
 		"pick": {"kind": picked.kind, "thread_id": picked.thread_id, "candidates": list(picked.candidates),
 		         "question": picked.question, "reason": picked.reason},
 		"outcome": verdict, "lenient": lenient(verdict, case["gold"]),
+		"confirm": confirmed, "confirm_lenient": lenient(confirmed, case["gold"]),
 		"parse": meta.get("parse", "ok"), "model_call": bool(meta.get("model")),
 		"shortlist": meta.get("shortlist"), "tokens": meta.get("tokens"),
 		"wall_ms": wall, "request_ms": request_ms, "raw": meta.get("raw"), "titles": titles,
@@ -112,6 +133,10 @@ def p95(values):
 	return values[min(len(values) - 1, int(round(0.95 * (len(values) - 1))))]
 
 
+def _outcome_key(view):
+	return "outcomes" if view == "strict" else f"{view}_outcomes"
+
+
 def summarise(runs, arms):
 	out = {}
 	for arm in arms:
@@ -123,16 +148,19 @@ def summarise(runs, arms):
 		for attempts in cases.values():
 			slice_name = attempts[0]["slice"]
 			bucket = per_slice.setdefault(slice_name, {
-				"cases": 0, "pass_strict": 0, "pass_lenient": 0, "outcomes": {}, "lenient_outcomes": {},
+				"cases": 0, **{f"pass_{v}": 0 for v in VIEWS}, **{_outcome_key(v): {} for v in VIEWS},
 				"request_ms": [], "wall_ms": [], "reasoning_tokens": 0, "content_tokens": 0,
 				"model_calls": 0, "unparseable": 0,
 			})
 			bucket["cases"] += 1
-			bucket["pass_strict"] += int(all(a["outcome"] == "correct" for a in attempts))
-			bucket["pass_lenient"] += int(all(a["lenient"] == "correct" for a in attempts))
+			for view, field in VIEWS.items():
+				# Round 2's run files carry no confirm fields; there the confirm view is the direct one.
+				verdicts = [a.get(field, a["lenient" if "lenient" in field else "outcome"]) for a in attempts]
+				bucket[f"pass_{view}"] += int(all(v in PASSING for v in verdicts))
+				counts = bucket[_outcome_key(view)]
+				for v in verdicts:
+					counts[v] = counts.get(v, 0) + 1
 			for a in attempts:
-				bucket["outcomes"][a["outcome"]] = bucket["outcomes"].get(a["outcome"], 0) + 1
-				bucket["lenient_outcomes"][a["lenient"]] = bucket["lenient_outcomes"].get(a["lenient"], 0) + 1
 				bucket["wall_ms"].append(a["wall_ms"])
 				if a["request_ms"]:
 					bucket["request_ms"].append(a["request_ms"])
@@ -154,33 +182,27 @@ def summarise(runs, arms):
 	return out
 
 
-def _merge(slices, *names):
+def _merge(slices, view, *names):
 	total = {}
-	for name in names:
-		for k, v in slices.get(name, {}).get("outcomes", {}).items():
+	for name in names or slices:
+		for k, v in slices.get(name, {}).get(_outcome_key(view), {}).items():
 			total[k] = total.get(k, 0) + v
 	return total
 
 
-def _merge_lenient(slices, *names):
-	total = {}
-	for name in names:
-		for k, v in slices.get(name, {}).get("lenient_outcomes", {}).items():
-			total[k] = total.get(k, 0) + v
-	return total
+WRONG = ("wrong_thread", "picked_when_should_ask")
 
 
 def pass_bar(summary, arm):
 	s = summary[arm]
 	result = {"latency_metric": LATENCY_METRIC, "latency_bar_ms": LATENCY_BAR_MS}
-	for view, merged in (("strict", _merge(s, *s)), ("lenient", _merge_lenient(s, *s))):
-		bad_slices = _merge(s, "ambiguous", "nonexistent", "outside") if view == "strict" else \
-			_merge_lenient(s, "ambiguous", "nonexistent", "outside")
-		ambiguous_bad = sum(bad_slices.get(k, 0) for k in ("wrong_thread", "picked_when_should_ask"))
-		overall_bad = sum(merged.get(k, 0) for k in ("wrong_thread", "picked_when_should_ask"))
-		unambiguous = {"strict": _merge(s, "exact", "paraphrase"),
-		               "lenient": _merge_lenient(s, "exact", "paraphrase")}[view]
+	for view in VIEWS:
+		merged = _merge(s, view)
+		ambiguous_bad = sum(_merge(s, view, "ambiguous", "nonexistent", "outside").get(k, 0) for k in WRONG)
+		overall_bad = sum(merged.get(k, 0) for k in WRONG)
+		unambiguous = _merge(s, view, "exact", "paraphrase")
 		unamb_total = sum(unambiguous.values())
+		unamb_correct = sum(unambiguous.get(k, 0) for k in PASSING)
 		unnecessary = merged.get("asked_when_one", 0) + merged.get("unnecessary_question", 0)
 		total_runs = sum(merged.values())
 		result[view] = {
@@ -188,10 +210,12 @@ def pass_bar(summary, arm):
 			"at_most_two_wrong_overall": overall_bad <= 2,
 			"ambiguous_wrong": ambiguous_bad,
 			"overall_wrong": overall_bad,
-			"unambiguous_correct_rate": round(unambiguous.get("correct", 0) / max(1, unamb_total), 4),
-			"unambiguous_at_least_90pct": unambiguous.get("correct", 0) / max(1, unamb_total) >= 0.90,
+			"unambiguous_correct_rate": round(unamb_correct / max(1, unamb_total), 4),
+			"unambiguous_at_least_90pct": unamb_correct / max(1, unamb_total) >= 0.90,
 			"unnecessary_question_rate": round(unnecessary / max(1, total_runs), 4),
 			"unnecessary_at_most_10pct": unnecessary / max(1, total_runs) <= 0.10,
+			"confirmations": merged.get("confirmed", 0) + merged.get("confirm_wrong", 0),
+			"confirm_wrong": merged.get("confirm_wrong", 0),
 		}
 	latencies = [v["p95_single_request_ms"] for v in s.values()]
 	pooled = [ms for v in s.values() for ms in v.get("request_ms", [])]
@@ -200,13 +224,11 @@ def pass_bar(summary, arm):
 	result["p95_wall_ms"] = p95([ms for v in s.values() for ms in v["wall_ms"]])
 	result["p95_at_most_700ms"] = result["p95_single_request_ms"] <= LATENCY_BAR_MS
 	result["request_runs"] = sum(v["request_runs"] for v in s.values())
-	result["passes"] = all(
-		result[view]["zero_wrong_in_ambiguous_nonexistent_outside"]
-		and result[view]["at_most_two_wrong_overall"]
-		and result[view]["unambiguous_at_least_90pct"]
-		and result[view]["unnecessary_at_most_10pct"]
-		for view in ("strict", "lenient")
-	) and result["p95_at_most_700ms"]
+	gates = ("zero_wrong_in_ambiguous_nonexistent_outside", "at_most_two_wrong_overall",
+	         "unambiguous_at_least_90pct", "unnecessary_at_most_10pct")
+	for pair in (("strict", "lenient"), ("confirm", "confirm_lenient")):
+		name = "passes" if pair[0] == "strict" else "passes_confirm"
+		result[name] = all(result[v][g] for v in pair for g in gates) and result["p95_at_most_700ms"]
 	return result
 
 
@@ -217,13 +239,14 @@ def main():
 	parser.add_argument("--config-line", default="", help="one line naming what differs from the last run")
 	parser.add_argument("--expect", default="", help="one sentence on what this run should teach")
 	parser.add_argument("--limit", type=int, default=0)
+	parser.add_argument("--root", type=Path, default=ROOT, help="the eval directory: snapshots, labels, runs, cache")
 	parser.add_argument("--summarise-only", action="store_true", help="score the run files already on disk; makes no pick")
 	args = parser.parse_args()
 
-	snaps, cases = load_inputs()
+	snaps, cases = load_inputs(args.root)
 	if args.limit:
 		cases = cases[: args.limit]
-	out_dir = ROOT / "runs" / args.arm
+	out_dir = args.root / "runs" / args.arm
 	out_dir.mkdir(parents=True, exist_ok=True)
 	if args.summarise_only:
 		runs = [json.loads(p.read_text(encoding="utf-8")) for p in sorted(out_dir.glob("*-r*.json"))]
@@ -232,7 +255,7 @@ def main():
 		(out_dir / "summary.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
 		print(json.dumps(result, indent=1))
 		return
-	client = ModelClient() if args.arm in ("model", "model_tie") else LocalClient() if args.arm == "local" else None
+	client = ModelClient(cache_dir=args.root / "cache") if args.arm in ("model", "model_tie") else LocalClient() if args.arm == "local" else None
 	header = [
 		f"arm: {args.arm}",
 		f"model: {client.model if client else 'none'}",

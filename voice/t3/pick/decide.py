@@ -19,15 +19,16 @@ def _titles(threads):
 	return {t["threadId"]: t.get("title", "") for t in threads}
 
 
-def prefilter_pick(utterance, threads):
+def prefilter_pick(utterance, threads, projects=None):
 	listed = [t["threadId"] for t in threads]
-	match = prefilter(utterance, threads)
+	match = prefilter(utterance, threads, projects)
 	titles = _titles(threads)
 	hits = match.candidates
 	if len(hits) == 1:
 		return Pick.one(hits[0], listed, "prefilter")
 	if hits:
-		return Pick.ask(hits, question_for([titles[i] for i in hits]), "prefilter tie")
+		reason = "project name" if match.by_project else "prefilter tie"
+		return Pick.ask(hits, question_for([titles[i] for i in hits]), reason)
 	if match.state_only:
 		return Pick.ask([], question_for([]), "state word with no matching activity")
 	return Pick.none("no listed title contains " + " ".join(match.words))
@@ -35,7 +36,7 @@ def prefilter_pick(utterance, threads):
 
 def pick(utterance, threads, projects, now, client=None, break_tie=False):
 	"""Return (Pick, meta). Meta carries `model`, `parse`, `shortlist`, latency and tokens."""
-	first = prefilter_pick(utterance, threads)
+	first = prefilter_pick(utterance, threads, projects)
 	if first.kind == "one" or client is None:
 		return first, {"ms": 0, "model": False, "parse": "ok"}
 	if first.kind == "ask":

@@ -111,6 +111,52 @@ class PrefilterTest(unittest.TestCase):
 		self.assertEqual(set(picked.candidates), {"a", "b"})
 
 
+PROJECT_THREADS = [
+	{"threadId": "g-loader", "projectId": "p3", "title": "Gamma loader cleanup", "activity": "finished", "lastActivityAt": "2026-11-16T10:00:00Z"},
+	{"threadId": "g-save", "projectId": "p3", "title": "Fix the save bug", "activity": "finished", "lastActivityAt": "2026-11-16T09:00:00Z"},
+	{"threadId": "s-solo", "projectId": "p4", "title": "Delta notes", "activity": "finished", "lastActivityAt": "2026-11-16T08:00:00Z"},
+	{"threadId": "a-other", "projectId": "p1", "title": "Merge upstream main", "activity": "failed", "lastActivityAt": "2026-11-16T07:00:00Z"},
+]
+PROJECT_NAMES = {"p1": "alpha", "p3": "gamma-engine", "p4": "delta"}
+
+
+class RoundThreeRuleTest(unittest.TestCase):
+	def test_asking_what_is_happening_adds_no_content_word(self):
+		self.assertEqual(content_words("what's happening with the flaky asr test"), ["flaky", "asr", "test"])
+		self.assertEqual(content_words("any news on what happened to the merge"), ["merge"])
+		picked = prefilter_pick("what's happening with the verify pr 12 thread", THREADS)
+		self.assertEqual(picked.kind, "ask")
+		self.assertEqual(set(picked.candidates), {"t-pr-a", "t-pr-b"})
+
+	def test_a_project_name_alone_asks_even_when_one_title_carries_it(self):
+		for utterance in ("how's the gamma thread going", "what about gamma engine", "how's the gamma engine project"):
+			picked = prefilter_pick(utterance, PROJECT_THREADS, PROJECT_NAMES)
+			self.assertEqual(picked.kind, "ask", utterance)
+			self.assertEqual(set(picked.candidates), {"g-loader", "g-save"}, utterance)
+
+	def test_a_project_name_with_one_listed_thread_still_matches_titles(self):
+		picked = prefilter_pick("the delta one", PROJECT_THREADS, PROJECT_NAMES)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.thread_id, "s-solo")
+
+	def test_a_project_name_with_a_state_word_keeps_the_title_match(self):
+		threads = PROJECT_THREADS + [
+			{"threadId": "g-run", "projectId": "p3", "title": "Gamma perf pass", "activity": "failed", "lastActivityAt": "2026-11-16T06:00:00Z"},
+		]
+		picked = prefilter_pick("the gamma one that failed", threads, PROJECT_NAMES)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.thread_id, "g-run")
+
+	def test_a_one_word_spelling_matches_a_title_that_splits_it(self):
+		threads = [
+			{"threadId": "p-run", "projectId": "p1", "title": "Play test runner review", "activity": "finished", "lastActivityAt": "2026-11-16T10:00:00Z"},
+			{"threadId": "p-cache", "projectId": "p1", "title": "Runner cache", "activity": "finished", "lastActivityAt": "2026-11-16T09:00:00Z"},
+		]
+		picked = prefilter_pick("how's the playtest runner one", threads)
+		self.assertEqual(picked.kind, "one")
+		self.assertEqual(picked.thread_id, "p-run")
+
+
 class PickMembershipTest(unittest.TestCase):
 	def test_an_unlisted_id_becomes_a_question_with_the_listing(self):
 		picked = Pick.coerce("t-made-up", [t["threadId"] for t in THREADS], "Which thread?")

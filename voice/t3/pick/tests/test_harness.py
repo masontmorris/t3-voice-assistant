@@ -1,6 +1,6 @@
 import unittest
 
-from voice.t3.pick.harness import lenient, outcome, p95, pass_bar, summarise
+from voice.t3.pick.harness import confirm_outcome, lenient, outcome, p95, pass_bar, summarise
 from voice.t3.pick.pick import Pick
 
 LISTED = ["a", "b", "c"]
@@ -39,6 +39,13 @@ class OutcomeTest(unittest.TestCase):
 	def test_a_model_that_could_not_be_reached_is_unavailable(self):
 		self.assertEqual(outcome(Pick.ask([], "Which?"), GOLD_ONE, LISTED, parse="failed"), "unavailable")
 
+	def test_the_confirm_view_turns_only_a_model_pick_into_a_question(self):
+		self.assertEqual(confirm_outcome(Pick.one("a", LISTED, "model"), GOLD_ONE, LISTED), "confirmed")
+		self.assertEqual(confirm_outcome(Pick.one("b", LISTED, "model"), GOLD_ONE, LISTED), "confirm_wrong")
+		self.assertEqual(confirm_outcome(Pick.one("a", LISTED, "model"), GOLD_ASK, LISTED), "question_missing_gold")
+		self.assertEqual(confirm_outcome(Pick.one("a", LISTED, "model"), GOLD_NONE, LISTED), "unnecessary_question")
+		self.assertEqual(confirm_outcome(Pick.one("b", LISTED, "prefilter"), GOLD_ONE, LISTED), "wrong_thread")
+
 	def test_lenient_counts_a_question_as_correct_when_the_gold_was_a_question(self):
 		self.assertEqual(lenient("question_missing_gold", GOLD_ASK), "correct")
 		self.assertEqual(lenient("unparseable", GOLD_ASK), "correct")
@@ -66,6 +73,19 @@ class SummaryTest(unittest.TestCase):
 		summary = summarise(rows, ["model"])
 		self.assertEqual(summary["model"]["exact"]["cases"], 1)
 		self.assertEqual(summary["model"]["exact"]["pass_strict"], 0)
+
+	def test_a_confirmed_pick_passes_the_confirm_view_and_counts_as_a_confirmation(self):
+		row = run_row("paraphrase", "wrong_thread")
+		row.update(confirm="confirm_wrong", confirm_lenient="confirm_wrong")
+		good = run_row("exact", "correct")
+		good.update(confirm="confirmed", confirm_lenient="confirmed")
+		summary = summarise([row, good], ["model"])
+		self.assertEqual(summary["model"]["exact"]["pass_confirm"], 1)
+		self.assertEqual(summary["model"]["paraphrase"]["pass_confirm"], 0)
+		bar = pass_bar(summary, "model")
+		self.assertEqual(bar["strict"]["overall_wrong"], 1)
+		self.assertEqual(bar["confirm"]["overall_wrong"], 0)
+		self.assertEqual((bar["confirm"]["confirmations"], bar["confirm"]["confirm_wrong"]), (2, 1))
 
 	def test_single_request_latency_is_reported_apart_from_wall_time(self):
 		rows = [run_row("exact", "correct", request_ms=900, wall_ms=1400)]

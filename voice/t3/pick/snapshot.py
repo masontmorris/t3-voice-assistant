@@ -90,21 +90,22 @@ def _since(now, days):
 	return start.isoformat().replace("+00:00", "Z")
 
 
-def _in_window(row, since):
-	return since is None or row["lastActivityAt"] >= since
+def _in_window(row, since, until=None):
+	return (since is None or row["lastActivityAt"] >= since) and (until is None or row["lastActivityAt"] < until)
 
 
 def _visible(rows, names, spec, now):
 	by_name = {name: pid for pid, name in names.items()}
 	since = _since(now, spec["sinceDays"]) if spec.get("sinceDays") else None
+	until = _since(now, spec["untilDays"]) if spec.get("untilDays") else None
 	skip = {by_name.get(n) for n in spec.get("excludeProjects", [])}
 	if "projects" in spec:
 		out = []
 		for name in spec["projects"]:
-			block = [r for r in rows if r["projectId"] == by_name.get(name) and _in_window(r, since)]
+			block = [r for r in rows if r["projectId"] == by_name.get(name) and _in_window(r, since, until)]
 			out += block[: spec.get("perProject") or None]
 	else:
-		out = [r for r in rows if _in_window(r, since) and r["projectId"] not in skip]
+		out = [r for r in rows if _in_window(r, since, until) and r["projectId"] not in skip]
 	return out[: spec["limit"]] if spec.get("limit") else out
 
 
