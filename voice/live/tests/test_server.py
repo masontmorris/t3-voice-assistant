@@ -69,10 +69,24 @@ async def fake_run_clip(source, *args, persona, voice=None, speak=None, prior_ut
     voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
     await asyncio.sleep(0.3)
-    speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE * 2))
+    speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE * 2), True)
     return {"clip": source.name, "final_transcript": f"words in {source.name}",
             "replies": [{"text": f"reply to {source.name}"}], "metrics": {},
             "snapshot": {"final_transcript": f"state after {source.name}"}}
+
+
+async def streaming_run_clip(source, *args, persona, voice=None, speak=None, **kwargs):
+    """A turn whose 2 s reply is released in eight quarter-second pieces 0.2 s apart, as the release gate hands
+    them over while the model generates."""
+    VOICES.append(voice)
+    voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+    await source.stream(FakeSession(), FakeSession())
+    for _ in range(8):
+        speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE // 4), False)
+        await asyncio.sleep(0.2)
+    speak(f"reply to {source.name}", b"", True)
+    return {"clip": source.name, "final_transcript": f"words in {source.name}",
+            "replies": [{"text": f"reply to {source.name}"}], "metrics": {}}
 
 
 class LiveServerTest(unittest.IsolatedAsyncioTestCase):
@@ -238,7 +252,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         barge = await self.until(ws, "barge_in", log)
         self.assertEqual(barge["turn"], 1, "the reply the person talked over is the one flushed")
         self.assertIn("duck", log, "the reply is turned down as soon as the speech starts")
-        self.assertIn("reply_end", log, "the whole reply was handed to the client before it was flushed")
+        self.assertIn("reply_end", log, "the reply ended before the person spoke")
         after = []
         started = await self.until(ws, "turn_start", after)
         self.assertEqual(started["turn"], 2)
@@ -252,6 +266,24 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(VOICES[0].closed, "a barge-in keeps the call's session, and its history, open")
         self.assertIs(VOICES[0], VOICES[1], "the next turn continues on the same session")
         await ws.close()
+
+    async def test_a_barge_in_during_a_streamed_reply_stops_its_audio_and_ends_it_once(self):
+        self.heard("unused")
+        with mock.patch.object(server, "run_clip", streaming_run_clip):
+            ws = await self.connect()
+            log = await self.reply_playing(ws)
+            await self.send(ws, tone(800))
+            await self.until(ws, "barge_in", log)
+            sent_before = sum(self.frames)
+            after = []
+            while (await self.until(ws, "turn_done", after))["turn"] != 1:
+                pass
+            self.assertNotIn("audio", after, "nothing of the reply goes out once the person talks over it")
+            self.assertEqual(after.count("reply_end"), 1, "the client still hears the reply end, once")
+            self.assertEqual(log.count("reply_start"), 1, "one reply, however many pieces it was released in")
+            self.assertLess(sent_before, OUT_RATE * 2 * 2, "the reply was cut before its 2 s were sent")
+            self.assertFalse(VOICES[0].closed, "the call's one session stays open")
+            await ws.close()
 
     async def test_the_barge_in_turn_keeps_the_words_that_caused_it(self):
         self.heard("unused")
@@ -391,27 +423,58 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         conversation = await self.conversation()
         turn = server.MicTurn(1, b"")
         turn.out_rate = OUT_RATE
-        conversation.speak(turn, "I don't have the day for that yet.", b"\x01\x00" * OUT_RATE)
+        conversation.speak(turn, "I don't have the day for that yet.", b"\x01\x00" * OUT_RATE, True)
+        kinds, frames = self.drain(conversation)
+        self.assertEqual(kinds[0], "reply_start")
+        self.assertEqual(kinds[-1], "reply_end")
+        self.assertEqual(set(kinds[1:-1]), {"audio"})
+        self.assertEqual(frames, OUT_RATE * 2, "one second of 16-bit audio")
+
+    def drain(self, conversation):
+        """What the client would get from the outbox: the send loop drops a muted turn's audio."""
         kinds, frames = [], 0
         while not conversation.outbox.empty():
-            _, payload = conversation.outbox.get_nowait()
+            turn, payload = conversation.outbox.get_nowait()
             if isinstance(payload, bytes):
+                if turn is not None and turn.muted:
+                    continue
                 kinds.append("audio")
                 frames += len(payload)
                 self.assertLessEqual(len(payload), OUT_RATE * 2 // 25, "no frame longer than 40 ms")
             else:
                 kinds.append(json.loads(payload)["type"])
-        self.assertEqual(kinds[0], "reply_start")
-        self.assertEqual(kinds[-1], "reply_end")
-        self.assertEqual(set(kinds[1:-1]), {"audio"})
-        self.assertEqual(frames, OUT_RATE * 2, "one second of 16-bit audio")
+        return kinds, frames
+
+    async def test_a_reply_released_in_pieces_is_one_reply_on_the_wire(self):
+        conversation = await self.conversation()
+        turn = server.MicTurn(1, b"")
+        turn.out_rate = OUT_RATE
+        conversation.speak(turn, "It's sunny", b"\x01\x00" * (OUT_RATE // 2), False)
+        conversation.speak(turn, "It's sunny in Denver", b"\x01\x00" * (OUT_RATE // 2), False)
+        conversation.speak(turn, "It's sunny in Denver tomorrow.", b"", True)
+        kinds, frames = self.drain(conversation)
+        self.assertEqual((kinds.count("reply_start"), kinds.count("reply_end")), (1, 1))
+        self.assertEqual((kinds[0], kinds[-1]), ("reply_start", "reply_end"))
+        self.assertEqual(frames, OUT_RATE * 2, "both pieces, one second in all")
+        self.assertEqual(conversation.playback.text, "It's sunny in Denver", "the echo check hears each word once")
+
+    async def test_a_turn_muted_mid_reply_sends_no_more_audio_and_still_ends_the_reply(self):
+        conversation = await self.conversation()
+        turn = server.MicTurn(1, b"")
+        turn.out_rate = OUT_RATE
+        conversation.speak(turn, "It's sunny", b"\x01\x00" * (OUT_RATE // 2), False)
+        turn.mute("barge_in")
+        conversation.speak(turn, "It's sunny in Denver", b"\x01\x00" * (OUT_RATE // 2), False)
+        conversation.speak(turn, "It's sunny in Denver.", b"", True)
+        kinds, _ = self.drain(conversation)
+        self.assertEqual(kinds, ["reply_start", "reply_end"], "the muted turn's audio is dropped, its end is not")
 
     async def test_a_muted_turn_says_nothing(self):
         conversation = await self.conversation()
         turn = server.MicTurn(1, b"")
         turn.out_rate = OUT_RATE
         turn.muted = True
-        conversation.speak(turn, "I'm running the task for Sunday.", b"\x01\x00" * OUT_RATE)
+        conversation.speak(turn, "I'm running the task for Sunday.", b"\x01\x00" * OUT_RATE, True)
         self.assertTrue(conversation.outbox.empty(), "the person already talked over this reply")
 
     async def test_a_delta_on_the_session_alone_sends_no_audio(self):
