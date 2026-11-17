@@ -1,7 +1,7 @@
 import json
 import threading
 import unittest
-from http.server import BaseHTTPRequestHandler, HTTPServer
+from http.server import BaseHTTPRequestHandler, HTTPServer, ThreadingHTTPServer
 
 from voice.local_decider.client import D1Client, from_systemone, to_systemone
 
@@ -80,6 +80,76 @@ class Client(unittest.TestCase):
         self.addCleanup(unpacked.close)
         unpacked.call("decisions", body)
         self.assertNotIn("set_size", Handler.seen[-1][1])
+
+
+class Held(Handler):
+    """Answers only once `release` is set, as a server still working on a long request does."""
+
+    release, arrived = threading.Event(), threading.Event()
+
+    def do_POST(self):
+        Held.arrived.set()
+        Held.release.wait(10)
+        try:
+            super().do_POST()
+        except ConnectionError:
+            pass
+
+
+class Lane(unittest.TestCase):
+    BODY = {"state": {"segments": {}},
+            "questions": {"s1_ready": {"type": "choice", "instructions": "x", "criteria": {"wait": "W", "go": "G"}}}}
+
+    def setUp(self):
+        Held.release, Held.arrived, Handler.seen = threading.Event(), threading.Event(), []
+        self.server = ThreadingHTTPServer(("127.0.0.1", 0), Held)
+        threading.Thread(target=self.server.serve_forever, daemon=True).start()
+        self.addCleanup(self.server.server_close)
+        self.addCleanup(self.server.shutdown)
+        self.addCleanup(Held.release.set)
+        self.turns = D1Client(f"http://127.0.0.1:{self.server.server_port}")
+        self.addCleanup(self.turns.close)
+
+    def test_abort_ends_a_request_the_server_is_still_working_on(self):
+        lane = self.turns.lane(5.0)
+        self.addCleanup(lane.close)
+        failed = []
+        worker = threading.Thread(target=lambda: self._call(lane, failed))
+        worker.start()
+        self.assertTrue(Held.arrived.wait(5))
+        lane.abort()
+        worker.join(5)
+        self.assertFalse(worker.is_alive(), "the call returned without the server's answer")
+        self.assertFalse(Held.release.is_set())
+        self.assertEqual(len(failed), 1)
+        Held.release.set()
+        self.assertEqual(self.turns.call("decisions", self.BODY)["status"], 200, "the turns' own client is untouched")
+
+    def test_a_lane_aborted_before_it_asks_sends_nothing(self):
+        lane = self.turns.lane(5.0)
+        lane.abort()
+        with self.assertRaises(ConnectionError):
+            lane.call("decisions", self.BODY)
+        self.assertEqual(Handler.seen, [])
+
+    def test_a_lane_asks_in_pieces_and_merges_the_answers(self):
+        Held.release.set()
+        body = {"state": {"segments": {}},
+                "questions": {f"s{i}_ready": {"type": "choice", "instructions": "x", "criteria": {"wait": "W", "go": "G"}}
+                              for i in range(1, 7)}}
+        whole = self.turns.call("decisions", body)
+        lane = self.turns.lane(5.0)
+        self.addCleanup(lane.close)
+        pieces = lane.call("decisions", body)
+        self.assertEqual([len(sent["questions"]) for _, sent in Handler.seen], [6, 4, 2])
+        self.assertEqual(pieces["response"]["answers"], whole["response"]["answers"])
+
+    @staticmethod
+    def _call(lane, failed):
+        try:
+            lane.call("decisions", Lane.BODY)
+        except (ConnectionError, OSError) as exc:
+            failed.append(exc)
 
 
 if __name__ == "__main__":

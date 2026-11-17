@@ -19,6 +19,7 @@ The key comes from LIQUID_API_KEY or the env file named by VOICE_ENV_FILE and is
 Authorization header. Requests and responses hold transcripts, so the cache and the ledger live under $VOICE_HOME.
 """
 
+import contextlib
 import http.client
 import json
 import os
@@ -143,15 +144,27 @@ class LiquidClient:
         self._last = None
         self.pacer = pacer or api.Pacer()
         self.day_limit = day_limit
+        self.timeout_s, self.attempts, self.aborted = TIMEOUT_S, MAX_ATTEMPTS, False
+
+    def lane(self, timeout_s):
+        """A second client on the same endpoint for a caller that must never hold up this one's requests: its own
+        connection and pacer, one attempt, and `timeout_s` on each socket operation."""
+        url = f"{'https' if self.secure else 'http'}://{self.host}" + (f":{self.port}" if self.port else "")
+        lane = LiquidClient(url, day_limit=self.day_limit)
+        lane.timeout_s, lane.attempts = timeout_s, 1
+        return lane
 
     def _connection(self):
         if self._conn is not None:
             return self._conn, None
         connect = http.client.HTTPSConnection if self.secure else http.client.HTTPConnection
-        conn = connect(self.host, self.port, timeout=TIMEOUT_S)
+        conn = connect(self.host, self.port, timeout=self.timeout_s)
         started = time.perf_counter()
         conn.connect()
         self._conn = conn
+        if self.aborted:
+            self._drop()
+            raise ConnectionAbortedError("the client was aborted")
         return conn, (time.perf_counter() - started) * 1000
 
     def _drop(self):
@@ -161,6 +174,19 @@ class LiquidClient:
 
     def close(self):
         self._drop()
+
+    def abort(self):
+        """Ends this client's request in flight from another thread, and any it would start. A shutdown wakes a read
+        blocked on the socket on Linux, and only closing the handle does on Windows (measured: after a shutdown alone
+        the read waited out its timeout), so it does both."""
+        self.aborted = True
+        conn = self._conn
+        sock = conn.sock if conn is not None else None
+        if sock is not None:
+            with contextlib.suppress(OSError):
+                sock.shutdown(socket.SHUT_RDWR)
+            with contextlib.suppress(OSError):
+                socket.close(sock.detach())
 
     def live_calls(self):
         """The attempts this decider's ledger holds, so a run's own record counts Liquid's calls too."""
@@ -261,7 +287,7 @@ class LiquidClient:
             raise BillingStop(BILLING.read_text(encoding="utf-8"))
         self._guard(label)
         payload_attempts, sent, status, response, started_at = [], [], None, None, None
-        for attempt in range(MAX_ATTEMPTS):
+        for attempt in range(self.attempts):
             if self._last is not None and self.pacer.gap_s:
                 time.sleep(max(0.0, self.pacer.gap_s - (time.monotonic() - self._last)))
             self._last = time.monotonic()
@@ -281,7 +307,8 @@ class LiquidClient:
                 self.pacer.on_429(int(retry_after) if retry_after.isdigit() else None)
                 continue
             if status in (500, 502, 503, 504, 524, 529) or status is None:
-                time.sleep(2 ** (attempt + 1))
+                if attempt + 1 < self.attempts:
+                    time.sleep(2 ** (attempt + 1))
                 continue
             self.pacer.on_success()
             break
@@ -292,6 +319,7 @@ class LiquidClient:
                   "attempts": payload_attempts,
                   "requests": len(sent)}
         CACHE.mkdir(parents=True, exist_ok=True)
-        if not cache_path(route, body).exists():
+        # A request that got no answer (a dropped or aborted connection) is not one to replay.
+        if status is not None and not cache_path(route, body).exists():
             cache_path(route, body).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         return record

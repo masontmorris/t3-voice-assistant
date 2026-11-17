@@ -619,5 +619,82 @@ class FallbackLineTest(unittest.TestCase):
         self.assertEqual(ungrounded(prototype.FALLBACK_LINE, []), [], "it names no fact")
 
 
+class CountingDecider:
+    """The segmenter's client, and the only place a turn's decider calls are counted."""
+
+    def __init__(self, answers=None):
+        self.answers, self.calls = answers or {}, []
+
+    def call(self, route, body, label="", fresh=False):
+        self.calls.append({"label": label, "body": body})
+        return {"route": route, "label": label, "status": 200, "model": "test:free",
+                "timing": {"ms": 1.0, "started_at": "x"}, "request": body, "response": {"answers": self.answers}}
+
+
+class ShadowTurnTest(unittest.IsolatedAsyncioTestCase):
+    """A turn's side of the shadow: it hands the caller the final question and changes nothing itself."""
+
+    async def asyncSetUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        use_decider_cache(Path(self.tmp.name) / "decider-cache", 20)
+        self.original_open = prototype.Session.open
+
+        async def open_session(url, name, clock, on_event=None):
+            return await FakeSession.open(url, name, clock, on_event)
+
+        prototype.Session.open = open_session
+        self.addCleanup(setattr, prototype.Session, "open", self.original_open)
+
+    async def turn(self, decider, eou="gated", **kwargs):
+        voice = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        return await prototype.run_clip(Streams(), "c", False, "ws://unused", decider, 0.0, Path(self.tmp.name),
+                                        {}, "hybrid", None, eou, voice=voice, **kwargs)
+
+    async def test_the_shadow_hands_over_the_final_question_and_makes_no_call(self):
+        decider = CountingDecider()
+        plain = await self.turn(decider, final_decider=True)
+        asked = await self.turn(decider, final_decider=True, shadow=True)
+        self.assertNotIn("shadow_request", plain, "the shadow is off by default")
+        self.assertEqual(len(decider.calls), 2, "one final decision call per turn, and the shadow adds none")
+        self.assertEqual(asked["tasks"], plain["tasks"], "no dispatch changed")
+        self.assertEqual(asked["snapshot"], plain["snapshot"], "no snapshot changed")
+        request = asked["shadow_request"]
+        self.assertEqual((request["utterance"], request["turn_record"]), ("turn_001", "turn_001.json"))
+        self.assertEqual(request["authority"], "decider", "live mode's final_decider leaves the end to the decider")
+        self.assertEqual(request["body"]["state"]["transcript"], asked["final_transcript"])
+        self.assertTrue(request["body"]["state"]["transcript_is_final"])
+        self.assertIn("s1_kind", request["body"]["questions"], "the same per-segment questions the final call asks")
+        self.assertEqual(request["outcomes"], [{"task": t["task_id"], "status": t["status"],
+                                                "instruction": t["instruction"]} for t in asked["tasks"]])
+
+    async def test_the_shadow_asks_what_decider_mode_asks_on_the_final_transcript(self):
+        with mock.patch.object(FakeSession, "transcript", "Find the weather in Denver and then set a timer."):
+            for final_decider in (True, False):
+                with self.subTest(path="live" if final_decider else "prototype"):
+                    reference = CountingDecider()
+                    await self.turn(reference, eou="decider", final_decider=final_decider)
+                    sent = next(call["body"] for call in reference.calls
+                                if call["body"]["state"]["transcript_is_final"])
+                    record = await self.turn(CountingDecider(), final_decider=final_decider, shadow=True)
+                    self.assertEqual(record["shadow_request"]["body"], sent)
+                    self.assertTrue(sent["state"]["new_speech"], "the final call asks about the new speech")
+
+    async def test_the_shadow_carries_the_tasks_the_final_call_saw(self):
+        decider = CountingDecider({"s1_kind": {"type": "choice", "choice": "request", "confidence": 0.8},
+                                   "s1_ready": {"type": "choice", "choice": "dispatch_now", "confidence": 0.9},
+                                   "s1_side_effect": {"type": "noul", "noul": 0.0, "confidence": 0.0}})
+        record = await self.turn(decider, final_decider=True, shadow=True)
+        self.assertTrue(record["tasks"], "the turn's own final call dispatched the task")
+        self.assertEqual(record["shadow_request"]["body"]["state"]["tasks"], [],
+                         "the shadow sees the list from before that call, as `decider` mode would")
+
+    async def test_a_chitchat_turn_is_logged_too(self):
+        decider = CountingDecider()
+        with mock.patch.object(FakeSession, "transcript", "Hey, hey, can you hear me?"):
+            record = await self.turn(decider, shadow=True)
+        self.assertIsNotNone(record["shadow_request"], "one record per utterance, whatever it asked for")
+
+
 if __name__ == "__main__":
     unittest.main()

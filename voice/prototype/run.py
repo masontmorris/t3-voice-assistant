@@ -42,6 +42,11 @@ voice/local_decider/). --reuse asks only the questions whose answers it has not 
 --segmenter picks the segmenter, the hybrid by default. The segmenter takes transcript updates one at a time. When
 newer updates queue behind a decision, only the newest is processed, and the timeline logs the dropped revisions.
 
+--shadow on adds the end-of-utterance decider call a `gated` turn does not make, after the reply's audio has been
+released, and writes one line per clip to shadow.jsonl in --out: the decider's task decisions beside the turn's LFM3
+tool calls, with per-task agreement (voice/live/shadow.py). It acts on nothing. Off by default here, so a research
+run's recorded decider call counts stay comparable; live mode, where the shadow runs on every gated turn, turns it on.
+
 --fresh sends every cloud or liquid decider request live, even when it is cached, so timings include each call.
 
 Needs the GPU (run it inside the lease). The cloud decider needs VOICE_ENV_FILE or OPENROUTER_API_KEY and the liquid
@@ -67,6 +72,7 @@ import numpy as np
 from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
 from voice.live.overlap import transcribe as overlap_transcribe
 from voice.live.recall import recall_note
+from voice.live import shadow as shadow_log
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
@@ -792,7 +798,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
-                   recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=()):
+                   recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=(),
+                   shadow=False):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -871,6 +878,11 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     executor = ThreadPoolExecutor(max_workers=1)
     calls_before = live_attempts(decider)
     closed = {}
+    # The shadow call is one more decider question on the final transcript, sent by the caller after the reply has
+    # played (voice/live/shadow.py). The state is copied before the turn's own final decision point, so the question
+    # is the one `decider` mode would have asked.
+    captured = {}
+    shadow_request = None
 
     def enqueue(update):
         log("transcript_update", revision=update.revision, text=update.text, is_final=update.is_final)
@@ -894,6 +906,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             for kind, payload in kept:
                 started, before = clock(), live_attempts(decider)
                 if kind == "update" and payload.is_final and eou in TOOL_SESSIONS:
+                    if shadow:
+                        captured.update(segmenter.shadow_state())
                     work = partial_close if eou == "gated" else segmenter.close
                 else:
                     work = segmenter.update if kind == "update" else service.submit_delegate
@@ -1147,6 +1161,17 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if update_pcm:
                 write_pcm16(out / f"{stem}_update.wav", update_pcm, out_rate)
 
+        if shadow and "tasks" in captured and closed.get("kind") == "close":
+            body = segmenter.final_request(captured)
+            if body is not None:
+                shadow_request = shadow_log.request(
+                    utterance=stem, turn_record=f"{stem}.json",
+                    authority="decider" if final_decider else "lfm", body=body,
+                    lfm=shadow_log.lfm_calls(tool_results),
+                    outcomes=[{"task": t["task_id"], "status": t["status"], "instruction": t["instruction"]}
+                              for t in segmenter.records()],
+                    intent=closed["intent"].intent.value)
+
     finally:
         if worker is not None:
             worker.cancel()
@@ -1190,6 +1215,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         "dispatch_log": segmenter.dispatch_log,
         "executions": {k: {**vars(v), "state": v.state.value} for k, v in service.executions.items()},
         "timeline": timeline,
+        **({"shadow_request": shadow_request} if shadow_request is not None else {}),
         "events": {"voice": voice.events[voice_mark:], "voice_sent": voice.sent[voice_sent_mark:],
                    "asr": asr.events, "asr_sent": asr.sent,
                    **({"asr_lanes": asr.extra_events} if asr_stagger > 1 else {}),
@@ -1228,9 +1254,11 @@ async def main_async(args):
     out.mkdir(parents=True, exist_ok=True)
     start = live_calls()
     slots = 3 if args.eou in TOOL_SESSIONS else 2
+    shadow_out = shadow_log.Log(out) if args.shadow == "on" else None
     tools_context = nullcontext() if args.mock_tools else open_registry()
     server_context = Server(args.port, out / "llama-server.log", ("-c", str(args.lfm_ctx)), slots)
     with tools_context as tools, server_context as server, make_decider(args.decider, out) as decider:
+        shadow_lane, shadow_decider = shadow_log.Lane(), decider
         if args.fresh:
             decider = FreshClient(decider)
         if tools is not None:
@@ -1244,13 +1272,21 @@ async def main_async(args):
             try:
                 record = await run_clip(WavInput(wav), args.inject, args.status_only,
                                         f"ws://127.0.0.1:{args.port}/v1/realtime", decider, args.delay, out, partial,
-                                        args.segmenter, tools, args.eou)
+                                        args.segmenter, tools, args.eou, shadow=shadow_out is not None)
             except Exception as exc:
                 record = {"clip": wav.name, "error": repr(exc), "metrics": {"error": repr(exc)}, **partial}
+            asked = record.pop("shadow_request", None)
+            if shadow_out is not None and asked is not None:
+                try:
+                    shadow_out.write(shadow_log.run(shadow_lane.open(shadow_decider), asked, name=args.decider))
+                finally:
+                    shadow_lane.finish()
+                record["shadow"] = shadow_log.FILE
             record["server_startup_s"] = server.startup_s
             record["mcp_startup_s"] = tools.mcp.startup_s if tools is not None else None
             record["config"] = {"eou": args.eou, "decider": args.decider, "reuse": args.reuse, "fresh": args.fresh,
-                                "lfm_ctx": args.lfm_ctx, "slots": slots, "vram_mib_after_load": vram_mib}
+                                "shadow": args.shadow, "lfm_ctx": args.lfm_ctx, "slots": slots,
+                                "vram_mib_after_load": vram_mib}
             (out / f"{wav.stem}.json").write_text(json.dumps(record, indent=1) + "\n", encoding="utf-8")
             print(wav.stem, json.dumps(record["metrics"]), flush=True)
             attempts, share = rate_limited_share(start)
@@ -1275,6 +1311,9 @@ def main():
                         help="send cached cloud or liquid decider requests again, for timing")
     parser.add_argument("--lfm-ctx", type=int, default=32768, help="LFM3's total context (default 32768)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
+    parser.add_argument("--shadow", choices=["on", "off"], default="off",
+                        help="after each turn's reply, ask the decider's end-of-utterance question and log it, "
+                             "acting on nothing (default off: a research run's recorded call counts stay comparable)")
     parser.add_argument("--decider-cache", type=Path, default=EVIDENCE / "decider-cache",
                         help="decider cache and call ledger, kept out of the repo")
     parser.add_argument("--decider-budget", type=int, default=DECIDER_BUDGET,
@@ -1284,6 +1323,8 @@ def main():
         parser.error(f"--eou {args.eou} injects as in c and needs the hybrid segmenter")
     if args.fresh and args.decider not in ("cloud", "liquid"):
         parser.error("--fresh resends cached cloud or liquid requests; the d1 decider has no such cache")
+    if args.shadow == "on" and args.eou != "gated":
+        parser.error("--shadow runs in gated mode only")
     missing = [str(c) for c in args.clips if not c.is_file()]
     if missing:
         parser.error(f"no such clip: {', '.join(missing)}")

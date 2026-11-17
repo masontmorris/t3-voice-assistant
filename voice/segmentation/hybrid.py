@@ -307,13 +307,37 @@ class HybridSegmenter:
     def _segment(self, sid, piece, open_):
         return Segment(sid, *span_text(self.last.text, self.ws, piece), open=open_)
 
-    def _ask(self, update, committed, proposal, sids, live, kind):
-        final = update.is_final
-        asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
-        tasks = [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
-                  "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
-        body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates), tools=self.tool_choices,
-                                arguments=self.read_arguments)
+    def shadow_state(self):
+        """What the turn's last decision point reads, copied before it runs, so the shadow can ask the question
+        `decider` mode's final call asks (voice/live/shadow.py). Live mode's own final call commits every piece, so the
+        piece state is copied with the task list, or the shadow would ask no break question about the new speech."""
+        return {"tasks": self._tasks(), "delegates": dict(self.orch.pending_delegates),
+                "committed": list(self.committed), "soft": set(self.soft), "soft_words": self.soft_words}
+
+    def final_request(self, state):
+        """The decisions body `decider` mode sends on the final transcript, built from a `shadow_state` copy and not
+        sent. Read after the turn's close, so `last` is the final transcript."""
+        if self.last is None:
+            return None
+        current = tuple(w.text for w in self.ws)
+        soft = {g for g in state["soft"] if current[:g] == state["soft_words"][:g]}
+        committed = state["committed"]
+        proposal = Proposal(self.last.text, self.ws, committed[-1].w1 if committed else 0, soft)
+        k = len(committed)
+        segments = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(committed) if c.w0 < len(self.ws)]
+        sids = [f"s{k + i + 1}" for i in range(len(proposal.pieces))]
+        segments += [self._segment(sid, p, False) for sid, p in zip(sids, proposal.pieces) if not proposal.filler(p)]
+        body, _, _ = self._body(self.last, segments, proposal, sids, state["tasks"], state["delegates"])
+        return body
+
+    def _tasks(self):
+        return [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
+                 "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
+
+    def _assemble(self, update, segments, tasks=None, delegates=None):
+        body = decision_request(update, segments, self._tasks() if tasks is None else tasks,
+                                dict(self.orch.pending_delegates) if delegates is None else delegates,
+                                tools=self.tool_choices, arguments=self.read_arguments)
         if self.conversation_mode:
             for name, question in body["questions"].items():
                 if name.endswith("_side_effect"):
@@ -344,9 +368,20 @@ class HybridSegmenter:
                                                              "complete; otherwise judge it on its own words. A search "
                                                              "or lookup can start from the words given, even when "
                                                              "they are broad: the worker reports what it finds.")
-        asked, gaps, marked, questions = break_questions(proposal, sids, final)
+        return body
+
+    def _body(self, update, segments, proposal, sids, tasks=None, delegates=None):
+        """One decision point's body, with the break questions it asks about the pieces in doubt."""
+        body = self._assemble(update, segments, tasks, delegates)
+        asked, gaps, marked, questions = break_questions(proposal, sids, update.is_final)
         body["state"]["new_speech"] = marked
         body["questions"].update(questions)
+        return body, asked, gaps
+
+    def _ask(self, update, committed, proposal, sids, live, kind):
+        final = update.is_final
+        asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
+        body, asked, gaps = self._body(update, asked_segs, proposal, sids)
         label = f"{self.label}:r{update.revision}" + ("" if kind == "revision" else f":{kind}{len(self.points)}")
         record = self.client.call("decisions", body, label=label)
         call = {"label": label, "route": "decisions", "file": api.cache_path("decisions", body).name,

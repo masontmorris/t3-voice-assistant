@@ -4,7 +4,7 @@ Mason talks into the laptop. The Desktop runs the whole assistant and streams th
 
 ## Result
 
-Live mode now runs the `gated` pipeline, the default on `voice/main` after PR #12 merged (measured: merge commit `4979ae3df`). Each turn takes the task gate, makes no decider call at the end of the utterance, and has LFM3's task session settle the tasks before the voice reply.
+Live mode now runs the `gated` pipeline, the default on `voice/main` after PR #12 merged (measured: merge commit `4979ae3df`). Each turn takes the task gate, and at the end of the utterance the decider's own call on the final transcript settles the tasks before the voice reply: live passes `final_decider=True` to `run_clip`, so no LFM3 task session runs there (inferred from `voice/live/server.py` since `97602a4245`; measured: `tool_turn` is null in every completed live turn record of the shadow runs in [EOU handoff](eou-handoff.md#the-shadow-decider-on-live-calls)). LFM3 settling the tasks is the prototype's `gated` turn.
 
 One client connection is now one LFM3 voice session, so every turn of a call adds to the same conversation (measured: one session for all five turns of the scripted call below, and a probe that answers recall questions about its own earlier audio turn).
 

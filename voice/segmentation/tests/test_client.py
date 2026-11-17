@@ -56,6 +56,14 @@ class Pacing(unittest.TestCase):
         client.call("decisions", self.body(0))
         self.assertEqual(len(api.LEDGER.read_text().splitlines()), 1)
 
+    def test_a_lane_makes_one_attempt_and_sleeps_for_no_retry(self):
+        lane = ScriptedClient([]).lane(2.0)
+        with mock.patch.object(api.Client, "_send", return_value={
+                "status": 503, "body": {}, "started_at": "t", "ms": 1.0, "connect_ms": None, "retry_after": None}):
+            record = lane.call("decisions", self.body(0))
+        self.assertEqual([entry["status"] for entry in record["attempts"]], [503])
+        self.assertEqual(self.sleeps, [])
+
     def test_a_non_free_model_is_refused_before_any_attempt(self):
         with self.assertRaises(AssertionError):
             ScriptedClient([200]).call("decisions", {"model": "paid/model", "state": {}, "questions": {}})

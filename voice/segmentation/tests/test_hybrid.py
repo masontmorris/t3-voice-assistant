@@ -116,6 +116,43 @@ class Breaks(unittest.TestCase):
                          ["find the weather", "and um and what time is it"])
 
 
+class ShadowRequest(unittest.TestCase):
+    """The shadow's body is the one `decider` mode's final call sends, whichever path closed the turn."""
+
+    TEXTS = ["find the recipe for lentil soup", "find the recipe for lentil soup then make a shopping"]
+    FINAL = TranscriptUpdate(3, "find the recipe for lentil soup then make a shopping list.", True)
+
+    def turn(self):
+        decider = FakeDecider(starters={"then"})
+        seg = HybridSegmenter(decider, "test")
+        for i, text in enumerate(self.TEXTS, 1):
+            seg.update(TranscriptUpdate(i, text, False))
+        return decider, seg
+
+    def decider_mode_final_body(self):
+        decider, seg = self.turn()
+        before = len(decider.bodies)
+        seg.update(self.FINAL)
+        return decider.bodies[before]
+
+    def test_live_mode_whose_final_call_commits_every_piece(self):
+        decider, seg = self.turn()
+        state = seg.shadow_state()
+        seg.update(self.FINAL)
+        seg.close(self.FINAL, settle=False)
+        self.assertFalse(seg.final_request(seg.shadow_state())["state"]["new_speech"],
+                         "without the copy the committed pieces leave nothing to ask about")
+        body = seg.final_request(state)
+        self.assertEqual(body, self.decider_mode_final_body())
+        self.assertIn("s1_finished", body["questions"], "the break questions are asked")
+
+    def test_the_prototype_gated_close_which_makes_no_call(self):
+        decider, seg = self.turn()
+        state = seg.shadow_state()
+        seg.close(self.FINAL, settle=False)
+        self.assertEqual(seg.final_request(state), self.decider_mode_final_body())
+
+
 class Hybrid(unittest.TestCase):
     def test_a_correction_naming_nothing_inside_a_request_is_the_request_it_leads_into(self):
         seg = stream(["That was wrong, now find the sales report for week 45."], CorrectionOnlyDecider())
