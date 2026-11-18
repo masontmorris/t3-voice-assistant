@@ -354,6 +354,15 @@ class LiveClientTest(unittest.TestCase):
 		with self.assertRaises(ValueError):
 			LiveClient(model="some-vendor/some-model")
 
+	def test_a_paid_model_runs_only_when_named_in_the_opt_in(self):
+		from voice.t3.pick import model as m
+		with mock.patch.object(m, "PAID_MODEL", "some-vendor/some-model"):
+			self.assertTrue(m.allowed_model("some-vendor/some-model"))
+			self.assertFalse(m.allowed_model("some-vendor/other-model"))
+			with self.assertRaises(ValueError):
+				LiveClient(model="some-vendor/other-model")
+		self.assertFalse(m.allowed_model("some-vendor/some-model"))
+
 
 if __name__ == "__main__":
 	unittest.main()

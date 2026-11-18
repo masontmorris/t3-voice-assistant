@@ -31,6 +31,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
+from voice.t3.pick.model import allowed_model
 from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, forbidden_claims, normalise
 from voice.t3.verify import Verdict
 
@@ -124,7 +125,7 @@ _QUOTES = "\"'\N{LEFT DOUBLE QUOTATION MARK}\N{RIGHT DOUBLE QUOTATION MARK}"
 
 
 def assert_free(model: str) -> None:
-    if not model.endswith(":free"):
+    if not allowed_model(model):
         raise ValueError(f"refusing a non-free model id: {model}")
 
 
