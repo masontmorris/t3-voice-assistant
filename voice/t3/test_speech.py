@@ -20,8 +20,8 @@ class Text:
 
     model = "fake/text:free"
 
-    def __init__(self, line="Add a clamp helper finished, and all 12 tests pass.", gate=None):
-        self.line, self.gate = line, gate
+    def __init__(self, line="Add a clamp helper finished, and all 12 tests pass.", gate=None, echo=False):
+        self.line, self.gate, self.echo = line, gate, echo
         self.summaries, self.renders, self.bodies = 0, 0, []
         self.started = threading.Event()
 
@@ -32,7 +32,9 @@ class Text:
         self.bodies.append(json.loads(messages[1]["content"]))
         if messages[0]["content"] == SUMMARY_SYSTEM:
             self.summaries += 1
-            return {"text": "It added clamp next to sum, and all 12 tests pass."}
+            question = self.bodies[-1].get("question")
+            return {"text": f"For {question}: it added clamp." if self.echo else
+                    "It added clamp next to sum, and all 12 tests pass."}
         assert messages[0]["content"] == RENDER_SYSTEM
         self.renders += 1
         return {"text": self.line}
@@ -115,10 +117,34 @@ class SummaryTest(unittest.TestCase):
         speech.prefetch("t5", "How's the clamp thread going?")
         self.assertTrue(text.started.wait(2), "the summary started before anyone asked for it")
         gate.set()
-        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished"),)
+        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
+                     asked="how's the clamp thread going"),)
         filled, _ = speech.fill(asked, "t5", (140,))
-        self.assertEqual((text.summaries, reads.count), (1, 1))
+        self.assertEqual((text.summaries, reads.count), (1, 1), "the final question normalises to the partial one")
         self.assertIn("summary", filled[0].slots)
+
+    def test_two_questions_at_one_sequence_get_two_answers(self):
+        text = Text(echo=True)
+        speech = Speech(Lane(text), Reads())
+        speech.remember(finished(140))
+        gists = []
+        for question in ("Did the tests pass?", "What did it change?", "did the tests pass"):
+            filled, _ = speech.fill((act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
+                                         asked=question),), "t5", (140,))
+            gists.append(filled[0].slots["summary"])
+        self.assertEqual(gists, ["For Did the tests pass?: it added clamp.", "For What did it change?: it added clamp.",
+                                 "For Did the tests pass?: it added clamp."])
+        self.assertEqual(text.summaries, 2, "the third question normalises to the first")
+
+    def test_a_partial_question_never_serves_a_different_final_one(self):
+        text, reads = Text(echo=True), Reads(finished(140))
+        speech = Speech(Lane(text), reads)
+        speech.prefetch("t5", "How's the clamp")
+        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
+                     asked="How's the clamp thread going?"),)
+        filled, _ = speech.fill(asked, "t5", (140,))
+        self.assertEqual(filled[0].slots["summary"], "For How's the clamp thread going?: it added clamp.")
+        self.assertEqual(text.summaries, 2)
 
     def test_no_reply_or_no_read_means_no_summary(self):
         text = Text()
