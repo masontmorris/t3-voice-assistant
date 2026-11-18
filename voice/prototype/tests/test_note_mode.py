@@ -490,15 +490,15 @@ class T3TurnTest(NoteTurn):
         self.assertTrue(fallback.closed)
 
     async def test_note_mode_speaks_stop_needs_you_and_done_without_a_model_reply(self):
-        needs_you = "The clamp helper thread needs you: Which file?"
-        done = "The release notes thread finished, and it wrote the notes."
+        needs_you = "The clamp helper thread needs you to tell it which file to use."
+        done = "The release notes thread finished, and it says it wrote the notes."
 
         class WithNews(T3SnapshotService):
             lines = {**T3SnapshotService.lines, "n1": needs_you, "n2": done}
 
             def take_updates(self):
                 return [{"type": "task_update", "task_id": "n1", "status": "live", "result_summary": None,
-                         "acts": [act(S.NEEDS_YOU, thread="clamp helper", prompt="Which file?").to_json()]},
+                         "acts": [act(S.NEEDS_YOU, thread="clamp helper", need="question", prompt="Which file?").to_json()]},
                         {"type": "task_update", "task_id": "n2", "status": "completed", "result_summary": None,
                          "acts": [act(S.DONE, thread="release notes", status="completed",
                                       summary="It wrote the notes.").to_json()]}]
