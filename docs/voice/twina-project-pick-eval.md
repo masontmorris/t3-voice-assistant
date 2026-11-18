@@ -241,11 +241,9 @@ records remain in `runs/narrow+decider` and `runs/full+decider`.
 
 ## Round B, matched request evidence
 
-**Use top-eight d1.2 with confirming delivery for project picks.** Both Round B arms passed the
-confirming-question gates on the frozen labels. Measured top-eight strict confirmation
-passed 26 of 30 cases versus 24 for the full list and 23 for particle-1. Both d1.2 arms
-passed 30 of 30 in confirm-lenient, and both met the 700 ms request p95 bar. The measured
-direct-pick errors rule out direct delivery.
+**Use top-eight d1.2 with confirming delivery for project picks. The choice rests on the gates, not on the strict count.** Both Round B arms passed the confirming-question gates on the frozen labels. Both had zero wrong confirmations and zero unnecessary questions, and both passed 30 of 30 cases in confirm-lenient, against 24 for particle-1. Request p95 was 220 ms for top eight and 232 ms for the full list, against 2341 ms for particle-1 (measured). The measured direct-pick errors rule out direct delivery.
+
+The strict confirmation counts were 26 of 30 for top eight, 24 for the full list and 23 for particle-1. That margin is not evidence of better choosing. Every d1.2 ask listed all offered options: 8 for top eight, 11 for the full list. Particle-1's asks named one to three. A strict ask passes whenever the gold sits inside the list. If an ask naming more than four options gets no credit, both d1.2 arms fall to 22 and particle-1 stays at 23 (recomputed from the saved runs). The shared-slice cases A-001 to A-004 pass only through those full-list asks. Listing every option was introduced in Round B, after Round A's strict failures were seen.
 
 Both arms used the particle-1 user message with the raw request, display names, and
 spoken aliases for the offered rows. Full-list input included all 11 projects. Project
@@ -291,8 +289,9 @@ runs had valid choices, and there were zero billing errors.
 The baseline and Round B use different routing and clients. Measured strict
 clarification scores require all gold names and allow extra offered names, so this
 eval does not measure how helpful a long spoken list is. Inferred from the frozen
-results, top-eight d1.2 is the better tested option for confirmation on Twin A.
-This result covers 30 cases and one 11-project snapshot.
+results, top-eight d1.2 is the better tested option for confirmation on Twin A, on its gates and its latency. The counted margin over particle-1 is not part of that case. This result covers 30 cases and one 11-project snapshot. Top eight against full (26 against 24) is within noise. This run did not measure "deterministic match first, then d1.2 on a miss", because d1.2 ran on every case.
+
+**Before wiring d1.2 into the live path.** The eval client can block for about 212 s: 5 attempts at 30 s each, plus backoff. `SpendStop` and `BillingStop` are not in `decide.FAILURES`. The live path needs a one-attempt, short-timeout client like `LiveClient`, with those stops caught. Its asks must also name a few likely options, not the whole list.
 
 Round B raw and scored records live in `runs/round-b-narrow+decider` and
 `runs/round-b-full+decider`. The PM's ten current scores and reasons across both
