@@ -1,8 +1,8 @@
 """The voice's durable record of the T3 work it started.
 
-One JSON file holds every task the voice launched or sent to: its request id, minted and saved
-before the seam call, the thread it reached, the cursor, the applied request ids, the reply
-dedupe, the first interrupt result, and pending spoken lines. A restarted voice server reads it back and follows each
+One JSON file holds every task the voice launched, sent to, held, or stopped: its request id,
+minted and saved before the seam call, the thread it reached, the cursor, the applied request
+ids, the reply dedupe, the first interrupt result, and pending spoken lines. A restarted voice server reads it back and follows each
 live thread from its own cursor. Every write replaces the file whole, so a crash leaves either
 the old record or the new one.
 """
@@ -44,6 +44,7 @@ def ulid(now_ms: int | None = None) -> str:
 class Status(StrEnum):
     UNSTARTED = "unstarted"
     LIVE = "live"
+    HELD = "held"
     COMPLETED = "completed"
     FAILED = "failed"
     CANCELLED = "cancelled"
@@ -56,6 +57,7 @@ ENDED = frozenset({Status.COMPLETED, Status.FAILED, Status.CANCELLED, Status.LOS
 class Kind(StrEnum):
     START = "start"
     TELL = "tell"
+    STOP = "stop"
 
 
 @dataclass
@@ -161,6 +163,11 @@ class T3Journal:
 
     def live(self) -> list[JournalTask]:
         return [t for t in self.tasks.values() if t.status is Status.LIVE]
+
+    def held(self, thread_id: str | None = None) -> list[JournalTask]:
+        """Follow-ups waiting for their thread's run to finish, oldest first."""
+        return [t for t in self.tasks.values()
+                if t.status is Status.HELD and thread_id in (None, t.link.thread_id)]
 
     def ensure_stop(self, task: JournalTask) -> dict:
         """The task's interrupt record. Its request id is minted and saved once, before the first call."""

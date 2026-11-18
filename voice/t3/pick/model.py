@@ -88,13 +88,13 @@ def _env_key():
 	raise SystemExit("OPENROUTER_API_KEY or VOICE_ENV_FILE with that key is required")
 
 
-def _post(body, key):
+def _post(body, key, timeout=TIMEOUT_S):
 	req = urllib.request.Request(
 		ENDPOINT,
 		data=json.dumps(body).encode(),
 		headers={"Authorization": f"Bearer {key}", "Content-Type": "application/json"},
 	)
-	with urllib.request.urlopen(req, timeout=TIMEOUT_S) as r:
+	with urllib.request.urlopen(req, timeout=timeout) as r:
 		return json.load(r)
 
 
@@ -135,6 +135,8 @@ class ModelClient:
 	calls: int = 0
 	paused: str | None = None
 	ledger: list = field(default_factory=list)
+	max_attempts: int = MAX_ATTEMPTS
+	timeout_s: float = TIMEOUT_S
 
 	def __post_init__(self):
 		if not self.model.endswith(":free"):
@@ -170,12 +172,13 @@ class ModelClient:
 		key = _env_key()
 		gap = 2.0
 		last = None
-		for _ in range(MAX_ATTEMPTS):
+		for attempt in range(self.max_attempts):
+			again = attempt + 1 < self.max_attempts
 			self._pace()
 			self.calls += 1
 			start = time.perf_counter()
 			try:
-				payload = _post(body, key)
+				payload = _post(body, key, self.timeout_s)
 			except urllib.error.HTTPError as e:
 				text = e.read().decode(errors="replace")
 				if error_is_billing(e.code, text):
@@ -183,17 +186,20 @@ class ModelClient:
 					raise BillingStop(self.paused)
 				if e.code == 429:
 					last = f"http 429: {text[:160]}"
-					time.sleep(RATE_LIMIT_WAIT_S)
+					if again:
+						time.sleep(RATE_LIMIT_WAIT_S)
 					continue
 				if e.code >= 500:
 					last = f"http {e.code}: {text[:160]}"
-					time.sleep(gap)
+					if again:
+						time.sleep(gap)
 					gap = min(30.0, gap * 2)
 					continue
 				raise ModelFailed(f"http {e.code}: {text[:160]}")
 			except (urllib.error.URLError, TimeoutError) as e:
 				last = f"{type(e).__name__}: {e}"
-				time.sleep(gap)
+				if again:
+					time.sleep(gap)
 				gap = min(30.0, gap * 2)
 				continue
 			elapsed = time.perf_counter() - start
@@ -207,8 +213,40 @@ class ModelClient:
 			path.write_text(json.dumps(record, indent=1), encoding="utf-8")
 			self.ledger.append({"attempt": self.attempt, "ms": record["ms"], **record["tokens"]})
 			return record
-		self.paused = f"gave up after {MAX_ATTEMPTS} attempts: {last}"
+		self.paused = f"gave up after {self.max_attempts} attempts: {last}"
 		raise ModelFailed(self.paused)
+
+
+@dataclass
+class LiveClient(ModelClient):
+	"""The model arm inside a voice turn, where the pick is spoken as a question: one attempt under a short
+	timeout. A failure or a 429 fails this pick and starts a cooldown, doubling while failures repeat, so a
+	turn never waits out a rate limit. A billing stop fails every later pick."""
+
+	max_attempts: int = 1
+	timeout_s: float = 5.0
+	cooldown_s: float = 30.0
+	quiet_until: float = 0.0
+	failures: int = 0
+	billing: bool = False
+
+	def complete(self, messages):
+		if self.billing:
+			raise ModelFailed(self.paused)
+		if time.monotonic() < self.quiet_until:
+			raise ModelFailed("the picker is cooling down after a failed pick")
+		try:
+			record = super().complete(messages)
+		except BillingStop as e:
+			self.billing = True
+			raise ModelFailed(str(e)) from e
+		except ModelFailed:
+			self.paused = None
+			self.failures += 1
+			self.quiet_until = time.monotonic() + min(300.0, self.cooldown_s * 2 ** (self.failures - 1))
+			raise
+		self.failures = 0
+		return record
 
 
 @dataclass

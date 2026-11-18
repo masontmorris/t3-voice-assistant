@@ -146,21 +146,35 @@ class CursorRule(JournalCase):
 
 
 class Interrupt(JournalCase):
+    def stop_task(self, follow: L.Follow):
+        return follow.journal.begin(Kind.STOP, "Stop it", "p1", "Voice sandbox", thread_id="t1")
+
     def test_the_saved_interrupt_result_survives_a_retry(self):
-        self.seam.answer("interrupt", {"kind": "requested", "runId": "r1", "sequence": 77},
-                         {"kind": "nothing_running"})
+        self.seam.answer("interrupt", F.requested(sequence=77), T.NothingRunning())
         follow = self.follow()
-        task = self.live(follow)
-        self.assertEqual(follow.stop(task, 0), "I've asked it to stop.")
-        self.assertEqual(follow.stop(task, 1), "I've asked it to stop.")
+        task = self.stop_task(follow)
+        self.assertEqual(follow.stop(task, 0), "Stopping it.")
+        self.assertEqual(follow.stop(task, 1), "Stopping it.")
         restarted = self.follow()
-        self.assertEqual(restarted.stop(restarted.journal.tasks[task.task_id], 2), "I've asked it to stop.")
+        self.assertEqual(restarted.stop(restarted.journal.tasks[task.task_id], 2), "Stopping it.")
         self.assertEqual(len(self.seam.ops("interrupt")), 1)
         self.assertEqual(restarted.journal.tasks[task.task_id].link.stop["sequence"], 77)
+        self.assertEqual(restarted.journal.tasks[task.task_id].status, Status.COMPLETED)
+
+    def test_a_stop_interrupted_before_its_answer_is_reissued_on_restart(self):
+        follow = self.follow()
+        task = self.stop_task(follow)
+        follow.journal.ensure_stop(task)
+        self.seam.answer("interrupt", T.NothingRunning())
+        restarted = self.follow()
+        restarted.resume(0)
+        self.assertEqual([c[1] for c in self.seam.ops("interrupt")], [task.link.stop["request_id"]])
+        self.assertEqual(self.lines(restarted), ["It isn't running anything right now."])
+        self.assertEqual(self.seam.ops("send"), [])
 
     def test_an_unavailable_interrupt_retries_with_the_same_request_id(self):
         follow = self.follow()
-        task = self.live(follow)
+        task = self.stop_task(follow)
         self.assertEqual(follow.stop(task, 0), L.STOP_UNAVAILABLE)
         restarted = self.follow()
         self.assertEqual(restarted.stop(restarted.journal.tasks[task.task_id], 1), L.STOP_UNAVAILABLE)
