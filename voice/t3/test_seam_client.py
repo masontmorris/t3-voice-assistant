@@ -8,6 +8,7 @@ and the client reports each one distinctly.
 """
 
 import asyncio
+import concurrent.futures
 import contextlib
 import json
 import logging
@@ -322,6 +323,33 @@ class SeamClientTest(unittest.TestCase):
         with self.assertRaises(S.SeamRefused) as caught:
             seam.watch("thread_missing", after_sequence=0)
         self.assertEqual(caught.exception.code, T.RefusalCode.NOT_FOUND)
+
+    def test_malformed_result_fails_its_caller_and_closes_1007(self):
+        for reply in (
+            result_ok(1, {"threads": [], "asOfSequence": 78, "truncated": False}),
+            result_err(1, "new_unknown_code", "Unexpected refusal."),
+        ):
+            with self.subTest(reply=reply):
+                async def handler(ws):
+                    await ws.send(json.dumps(HELLO))
+                    request = json.loads(await ws.recv())
+                    await ws.send(json.dumps({**reply, "id": request["id"]}))
+
+                server = ServerThread(handler)
+                seam = self.connect(server.start_and_wait())
+                answer = concurrent.futures.Future()
+
+                def list_threads():
+                    try:
+                        answer.set_result(seam.list_threads())
+                    except Exception as exc:
+                        answer.set_exception(exc)
+
+                threading.Thread(target=list_threads, daemon=True).start()
+                with self.assertRaises(S.SeamUnavailable) as caught:
+                    answer.result(timeout=1)
+                self.assertIsInstance(caught.exception, S.SeamProtocolError)
+                self.assertEqual(list(seam.drain(timeout=5)), [T.CLOSE_1007])
 
     def test_close_1013_mid_watch(self):
         async def handler(ws):
