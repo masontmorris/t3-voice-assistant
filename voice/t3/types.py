@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Callable, Literal, Union
+from typing import Any, Callable, ClassVar, Literal, Union
 
 
 class RefusalCode(str, Enum):
@@ -218,6 +218,35 @@ class LastReply:
     at: str
 
 
+class ToolOutcome(str, Enum):
+    OK = "ok"
+    FAILED = "failed"
+    RUNNING = "running"
+
+
+@dataclass(frozen=True)
+class RecentTool:
+    kind: ClassVar[Literal["tool"]] = "tool"
+    name: str
+    outcome: ToolOutcome
+
+
+@dataclass(frozen=True)
+class RecentFiles:
+    kind: ClassVar[Literal["files"]] = "files"
+    paths: tuple[str, ...]
+    count: int
+
+
+@dataclass(frozen=True)
+class RecentError:
+    kind: ClassVar[Literal["error"]] = "error"
+    message: str
+
+
+RecentRecord = RecentTool | RecentFiles | RecentError
+
+
 @dataclass(frozen=True)
 class ThreadState:
     thread_id: str
@@ -228,6 +257,7 @@ class ThreadState:
     pending: PendingNeed | None
     last_reply: LastReply | None
     as_of_sequence: int
+    recent: tuple[RecentRecord, ...]
 
 
 @dataclass(frozen=True)
@@ -513,6 +543,17 @@ def _decode_last_reply(raw: Any) -> LastReply | None:
     )
 
 
+def decode_recent_record(raw: Any) -> RecentRecord:
+    kind = _need(raw, "kind")
+    if kind == "tool":
+        return RecentTool(_need(raw, "name"), ToolOutcome(_need(raw, "outcome")))
+    if kind == "files":
+        return RecentFiles(tuple(_need(raw, "paths")), _need(raw, "count"))
+    if kind == "error":
+        return RecentError(_need(raw, "message"))
+    raise ValueError(f"unknown recent record kind: {kind!r}")
+
+
 def decode_thread_state(value: Any) -> ThreadState:
     return ThreadState(
         thread_id=_need(value, "threadId"),
@@ -523,6 +564,7 @@ def decode_thread_state(value: Any) -> ThreadState:
         pending=_decode_pending(value.get("pending")),
         last_reply=_decode_last_reply(value.get("lastReply")),
         as_of_sequence=_need(value, "asOfSequence"),
+        recent=tuple(decode_recent_record(item) for item in value.get("recent", ())),
     )
 
 

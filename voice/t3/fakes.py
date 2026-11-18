@@ -44,7 +44,7 @@ def busy() -> SeamRefused:
 
 def state(thread="t1", as_of=120, pending=None, activity=T.ThreadActivity.WORKING, title="Fix the flaky test",
           last_reply=None, project="p1") -> T.ThreadState:
-    return T.ThreadState(thread, project, title, activity, None, pending, last_reply, as_of)
+    return T.ThreadState(thread, project, title, activity, None, pending, last_reply, as_of, recent=())
 
 
 def need(request_id="q1", prompt="Run the tests?", kind=T.PendingKind.APPROVAL,

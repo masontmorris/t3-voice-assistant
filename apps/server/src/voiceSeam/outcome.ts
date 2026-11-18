@@ -14,12 +14,15 @@ import { subagentResultForRun } from "@t3tools/provider-core/server/subagentProj
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
+import * as Option from "effect/Option";
 import * as Result from "effect/Result";
 import * as Schema from "effect/Schema";
 import type * as SqlClient from "effect/sql/SqlClient";
 
+import type { ProjectStoreV2 } from "../orchestration-v2/ProjectStore.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import { cardNeed, requestNeed, type VoicePending } from "./pending.ts";
+import { RECENT_ITEM_TYPES, recentRecords } from "./recent.ts";
 import type { SettleAnswer, SettleCheck, SettleTrigger, VoiceRunResult } from "./watch.ts";
 
 /** A check reads current state; it does not wait (`waitForThread` waits at least 1 ms). */
@@ -27,6 +30,7 @@ const CHECK_TIMEOUT_MS = 1;
 /** A terminal run that has not settled stores no event when its continuation is declined. */
 const FOLLOW_UP_TIMEOUT_MS = 60_000;
 const RESULT_TEXT_LIMIT = 1_200;
+const READ_REPLY_LIMIT = 3_200;
 
 type Threads = ThreadManagementService.ThreadManagementService["Service"];
 
@@ -81,6 +85,16 @@ export const cutAtSentence = (text: string, limit = RESULT_TEXT_LIMIT) => {
   if (sentenceEnd > 0) return head.slice(0, sentenceEnd + 1).trimEnd();
   const space = head.lastIndexOf(" ");
   return `${(space > 0 ? head.slice(0, space) : head).trimEnd()}…`;
+};
+
+export const replyTail = (text: string) => {
+  const trimmed = text.trimEnd();
+  if (trimmed.length <= READ_REPLY_LIMIT) return text.length <= READ_REPLY_LIMIT ? text : trimmed;
+  const tail = trimmed.slice(-READ_REPLY_LIMIT);
+  const boundary = /[.!?][”"')\]]*\s+|\n[ \t\r]*\n\s*/u.exec(tail);
+  if (boundary !== null) return tail.slice(boundary.index + boundary[0].length);
+  const space = tail.search(/\s/u);
+  return "…" + (space >= 0 ? tail.slice(space + 1).trimStart() : tail.replace(/^./su, ""));
 };
 
 /** The turn items `subagentResultForRun` reads: the reply, a failure, and a stop notice. */
@@ -150,7 +164,10 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
   sources: ReadSources,
   threadId: ThreadId,
   runIdsOf: (shell: OrchestrationV2ThreadShell) => ReadonlyArray<RunId>,
-  earlierRuns = 0,
+  readOptions?: {
+    readonly earlierRuns: number;
+    readonly projects: Pick<ProjectStoreV2["Service"], "get">;
+  },
 ) {
   const { threads } = sources;
   return yield* sources.sql
@@ -169,9 +186,13 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
             messageRoles: ["assistant"],
             messageRunIds: runIds,
             turnItemRunIds: runIds,
-            turnItemTypes: RESULT_ITEM_TYPES,
+            turnItemTypes:
+              readOptions === undefined
+                ? RESULT_ITEM_TYPES
+                : [...RESULT_ITEM_TYPES, ...RECENT_ITEM_TYPES],
           },
         );
+        const earlierRuns = readOptions?.earlierRuns ?? 0;
         const earlierReply =
           earlierRuns === 0 || records.messages.some(isFinishedReply)
             ? undefined
@@ -187,7 +208,15 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
                 });
                 return newestVisibleReply(earlier, messages);
               });
-        return { asOfSequence, shell, join, records, earlierReply };
+        const workspaceRoot =
+          shell.worktreePath ??
+          (readOptions !== undefined &&
+          records.turnItems.some((item) => item.type === "file_change")
+            ? Option.getOrUndefined(yield* readOptions.projects.get(shell.projectId))?.workspaceRoot
+            : undefined);
+        const recent =
+          readOptions === undefined ? [] : recentRecords(records.turnItems, workspaceRoot);
+        return { asOfSequence, shell, join, records, earlierReply, recent };
       }),
     )
     .pipe(NodeSqliteClient.readOnly);
@@ -201,12 +230,13 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
 export const runResult = (
   records: Pick<OrchestrationV2ThreadProjection, "messages" | "turnItems" | "providerTurns">,
   run: OrchestrationV2Run,
+  formatText = cutAtSentence,
 ): VoiceRunResult => {
   const { messages, turnItems, providerTurns } = records;
   const result = subagentResultForRun({ messages, turnItems, providerTurns }, run);
   const said = result.messageId !== null || result.turnItemId !== null;
   return {
-    text: said ? cutAtSentence(result.text) : "",
+    text: said ? formatText(result.text) : "",
     messageId: result.messageId,
     turnItemId: result.turnItemId,
   };

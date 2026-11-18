@@ -5,11 +5,13 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2RuntimeRequest,
   type OrchestrationV2StoredEvent,
+  type OrchestrationV2TurnItem,
   MessageId,
   ProjectId,
   RunId,
   RuntimeRequestId,
   ThreadId,
+  TurnItemId,
 } from "@t3tools/contracts";
 import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
@@ -20,6 +22,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as Stream from "effect/Stream";
 
 import * as EventSink from "../orchestration-v2/EventSink.ts";
+import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import type { VoicePending } from "./pending.ts";
@@ -138,6 +141,7 @@ it.effect(
         run: null,
         pending: null,
         lastReply: null,
+        recent: [],
       });
       assert.deepStrictEqual(yield* Ref.get(yield* Migrations), [parent]);
     }).pipe(
@@ -672,6 +676,113 @@ const secondRunAfterReply = (replies: ReadonlyArray<{ text: string; streaming: b
   return [...PLAIN.slice(0, -1).map((stored) => stored.event), run, ...said];
 };
 
+it.effect("reads bounded recent records from the latest run without exposing command text", () =>
+  Effect.gen(function* () {
+    const rawCommand = "pnpm test --grep private-fixture";
+    const project = createdOf(PLAIN).payload;
+    const at = DateTime.formatIso(project.createdAt);
+    yield* (yield* ProjectStore.ProjectStoreV2).apply({
+      sequence: 1,
+      eventId: EventId.make("recent-project"),
+      aggregateKind: "project",
+      aggregateId: project.projectId,
+      occurredAt: at,
+      commandId: null,
+      causationEventId: null,
+      correlationId: null,
+      metadata: {},
+      type: "project.created",
+      payload: {
+        projectId: project.projectId,
+        title: "Recent records fixture",
+        workspaceRoot: "C:/fixture/workspace",
+        defaultModelSelection: project.modelSelection,
+        scripts: [],
+        createdAt: at,
+        updatedAt: at,
+      },
+    });
+    const command = (
+      index: number,
+      runId = SECOND_RUN_ID,
+    ): Extract<OrchestrationV2TurnItem, { type: "command_execution" }> => ({
+      id: TurnItemId.make(`recent-${index}`),
+      threadId: PLAIN_THREAD,
+      runId,
+      nodeId: null,
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      parentItemId: null,
+      ordinal: index,
+      title: rawCommand,
+      status: "completed",
+      startedAt: null,
+      completedAt: null,
+      updatedAt: DateTime.add(FIRST_REPLY.updatedAt, { minutes: 6, seconds: index }),
+      type: "command_execution",
+      input: rawCommand,
+      output: rawCommand,
+      exitCode: 0,
+    });
+    const items: ReadonlyArray<OrchestrationV2TurnItem> = [
+      ...Array.from({ length: 14 }, (_, index) => command(index)),
+      { ...command(14), status: "completed", exitCode: 1 },
+      {
+        ...command(15),
+        type: "file_change",
+        fileName: "src\\main.ts",
+        changes: [
+          { operation: "update", path: "src\\main.ts" },
+          { operation: "add", path: "c:\\Fixture\\Workspace\\tests\\main.test.ts" },
+          { operation: "add", path: "../outside.txt" },
+        ],
+      },
+      { ...command(16), type: "dynamic_tool", toolName: "read_file", input: {}, status: "running" },
+      {
+        ...command(17),
+        type: "error",
+        status: "failed",
+        failure: {
+          class: "provider_error",
+          code: null,
+          retryable: null,
+          message: `The build worker disconnected while running ${rawCommand}.\nExtra diagnostic detail.`,
+        },
+      },
+      { ...command(18, FIRST_RUN_ID), exitCode: 3 },
+    ];
+    const stored = yield* write([
+      ...secondRunAfterReply([]),
+      ...items.map((item): OrchestrationV2DomainEvent => ({
+        id: EventId.make(item.id),
+        type: "turn-item.updated",
+        threadId: item.threadId,
+        runId: item.runId ?? SECOND_RUN_ID,
+        occurredAt: item.updatedAt,
+        payload: item,
+      })),
+    ]);
+
+    const state = yield* readThread(PLAIN_THREAD);
+
+    assert.strictEqual(state.asOfSequence, stored.at(-1)?.sequence);
+    assert.deepStrictEqual(state.recent, [
+      { kind: "error", message: "The build worker disconnected while running [command]" },
+      { kind: "tool", name: "read_file", outcome: "running" },
+      { kind: "files", paths: ["src/main.ts", "tests/main.test.ts"], count: 2 },
+      { kind: "tool", name: "Test run", outcome: "failed" },
+      ...Array.from(
+        { length: 8 },
+        () => ({ kind: "tool", name: "Test run", outcome: "ok" }) as const,
+      ),
+    ]);
+    assert.notInclude(JSON.stringify(state.recent), rawCommand);
+  }).pipe(provideSeam),
+);
+
+const REPLY_END = `${"The fixture confirmed another behavior. ".repeat(34)}All 12 tests passed.`;
+
 it.effect.each([
   {
     case: "has not replied",
@@ -687,6 +798,13 @@ it.effect.each([
     case: "has finished a reply",
     replies: [{ text: "second reply", streaming: false }],
     reply: { text: "second reply", runId: SECOND_RUN_ID },
+  },
+  {
+    case: "has finished a long reply",
+    replies: [
+      { text: `A long setup ${"detail ".repeat(800)}ended. ${REPLY_END}`, streaming: false },
+    ],
+    reply: { text: REPLY_END, runId: SECOND_RUN_ID },
   },
 ] as const)("reads the last reply of a thread whose latest run $case", ({ replies, reply }) =>
   Effect.gen(function* () {
