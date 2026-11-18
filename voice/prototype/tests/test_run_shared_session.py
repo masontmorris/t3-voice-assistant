@@ -24,6 +24,14 @@ CLOCK = 0.0
 REFUSAL = "session.update: instructions cannot change after the first audio or message"
 
 
+def streamed(render):
+    """A `render` for say_verbatim that yields what `render(text, rate)` returns as one chunk, or raises what it
+    raises."""
+    async def stream(text, rate):
+        yield render(text, rate)
+    return stream
+
+
 def heard_by(into, with_bytes=False):
     """A `speak` that records each reply once it ends: its text, and with `with_bytes` how many bytes it released."""
     pending = bytearray()

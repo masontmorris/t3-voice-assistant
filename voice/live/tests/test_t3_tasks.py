@@ -16,7 +16,7 @@ from unittest.mock import patch
 from voice.live.t3_tasks import (ASK, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
                                  T3Tasks, reply_kind, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
-from voice.prototype.tests.test_run_shared_session import FakeSession
+from voice.prototype.tests.test_run_shared_session import FakeSession, heard_by, streamed
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
@@ -685,10 +685,8 @@ class Service(unittest.IsolatedAsyncioTestCase):
         def broken_tts(text, rate):
             raise OSError("TTS down")
 
-        def speak(text, pcm, done):
-            spoken.append(text)
-
-        await say_acts(voice, 24_000, 0, entry, first, [], lambda *args, **kwargs: None, speak, broken_tts,
+        speak = heard_by(spoken)
+        await say_acts(voice, 24_000, 0, entry, first, [], lambda *args, **kwargs: None, speak, streamed(broken_tts),
                        fallback_url="ws://unused", record_delivery=lambda state: first.record_delivery(entry, state))
         line = entry["spoken"]
         self.assertEqual((spoken, voice.sent), ([], []))
@@ -701,7 +699,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         entry = retry.snapshot("utt_1", "yes")["tasks"][0]
         self.assertEqual(entry["acts"], [act(S.CONFIRM_STOP, thread="Add a clamp helper").to_json()])
         await say_acts(voice, 24_000, 0, entry, retry, [], lambda *args, **kwargs: None, speak,
-                       lambda text, rate: bytes(960), fallback_url="ws://unused",
+                       streamed(lambda text, rate: bytes(960)), fallback_url="ws://unused",
                        record_delivery=lambda state: retry.record_delivery(entry, state))
         self.assertEqual(spoken, [line])
         third = self.service(t3, [])

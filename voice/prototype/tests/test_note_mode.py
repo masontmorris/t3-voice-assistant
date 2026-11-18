@@ -5,6 +5,7 @@ earlier turns before every reply, and the model answered the last line of that l
 tests stand in for llama.cpp, so they pin what the turn sends and speaks, not what the model then says.
 """
 
+import asyncio
 import base64
 import socket
 import tempfile
@@ -16,7 +17,7 @@ from voice.live.facts import ungrounded
 from voice.prototype import run as prototype
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.tests import isolate_decider_cache
-from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
+from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by, streamed
 from voice.segmentation.tasks import Orchestrator
 from voice.t3 import fakes as F
 from voice.t3.acts import Act, act
@@ -356,7 +357,7 @@ class SayVerbatimTest(NoteTurn):
 
         line = "Should I stop the clamp helper thread?"
         reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, checked(line),
-                                                  lambda kind, **detail: None, heard_by(spoken), render)
+                                                  lambda kind, **detail: None, heard_by(spoken), streamed(render))
         self.assertEqual((spoken, rendered), ([line], [(line, 24_000)]))
         self.assertEqual((reply["text"], len(pcm)), (line, 960))
         self.assertFalse([e for e in self.voice.sent if e.get("type") == "response.create"], "LFM3 words nothing")
@@ -371,16 +372,50 @@ class SayVerbatimTest(NoteTurn):
 
         line = checked("Should I stop the clamp helper thread?")
         reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, line,
-                                                  lambda kind, **detail: None, heard_by(spoken), render)
+                                                  lambda kind, **detail: None, heard_by(spoken), streamed(render))
         self.assertEqual((reply["text"], pcm, spoken), (line.text, b"", []))
         self.assertEqual(texts(self.voice), [], "a failed render never enters the conversation as heard")
+
+    async def test_the_first_chunk_plays_before_the_line_is_rendered_and_dates_the_first_audio(self):
+        spoken, clock, rest = [], [1.0], asyncio.Event()
+        self.voice.clock = lambda: clock[0]
+
+        async def render(text, rate):
+            yield b"\x01\x00" * 480
+            clock[0] = 3.0
+            await rest.wait()
+            yield b"\x02\x00" * 480
+
+        def speak(text, pcm, done):
+            spoken.append((len(pcm), done))
+            rest.set()
+
+        line = checked("Should I stop the clamp helper thread?")
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.5, line, lambda kind, **detail: None, speak,
+                                                  render)
+        self.assertEqual(spoken, [(960, False), (960, False), (0, True)], "each chunk plays as it is made")
+        self.assertEqual((reply["first_audio_after_s"], reply["delivery"], len(pcm)), (0.5, "sent", 1920))
+
+    async def test_a_render_that_fails_after_its_first_chunk_is_a_partial_delivery(self):
+        spoken, delivered = [], []
+
+        async def render(text, rate):
+            yield b"\x01\x00" * 480
+            raise OSError("the server stopped")
+
+        line = checked("Should I stop the clamp helper thread?")
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, line, lambda kind, **detail: None,
+                                                  heard_by(spoken, with_bytes=True), render,
+                                                  record_delivery=delivered.append)
+        self.assertEqual((reply["delivery"], delivered, len(pcm)), ("partial", ["partial"], 960))
+        self.assertEqual(texts(self.voice), [], "a cut line never enters the conversation as heard")
 
     async def test_a_plain_string_is_never_spoken(self):
         spoken, rendered = [], []
         for line in ("It finished.", ("It finished.",)):
             with self.subTest(line=line), self.assertRaises(TypeError):
                 await prototype.say_verbatim(self.voice, 24_000, 0.0, line, lambda kind, **detail: None,
-                                             heard_by(spoken), lambda text, rate: rendered.append(text) or b"")
+                                             heard_by(spoken), streamed(lambda text, rate: rendered.append(text) or b""))
         self.assertEqual((spoken, rendered, self.voice.sent), ([], [], []))
 
     def test_a_t3_entry_gets_no_task_note(self):
@@ -512,7 +547,7 @@ class T3TurnTest(NoteTurn):
             rendered.append(text)
             return bytes(960)
 
-        await self.turn([], task_service=WithNews, t3_voice=render)
+        await self.turn([], task_service=WithNews, t3_voice=streamed(render))
         lines = ["Should I stop the clamp helper thread?", needs_you, done]
         self.assertEqual(rendered, lines)
         self.assertEqual(self.spoken, lines)
@@ -522,7 +557,7 @@ class T3TurnTest(NoteTurn):
 
     async def test_a_turn_with_only_a_t3_line_speaks_it_and_asks_the_model_nothing(self):
         record = await self.turn(["I've stopped the clamp helper thread."], task_service=T3SnapshotService,
-                                 t3_voice=lambda text, rate: bytes(960))
+                                 t3_voice=streamed(lambda text, rate: bytes(960)))
         self.assertEqual(self.spoken, ["Should I stop the clamp helper thread?"])
         self.assertEqual(self.voice.asked, 0, "LFM3 words no T3 act the text model worded")
         self.assertEqual([(r["kind"], r["worded_by"]) for r in record["replies"]], [("t3", "text_model")])
@@ -533,7 +568,7 @@ class T3TurnTest(NoteTurn):
 
         BadWording.delivered = []
         record = await self.turn(["Do you want me to stop the clamp helper thread?"], task_service=BadWording,
-                                 t3_voice=lambda text, rate: bytes(960))
+                                 t3_voice=streamed(lambda text, rate: bytes(960)))
         self.assertEqual(self.spoken, ["Do you want me to stop the clamp helper thread?"])
         fallback, = self.fallback_sessions
         self.assertEqual((fallback.asked, self.voice.asked), (1, 0))
@@ -548,7 +583,7 @@ class T3TurnTest(NoteTurn):
 
         TimedOut.delivered = []
         record = await self.turn(["Do you want me to stop the clamp helper thread?"], task_service=TimedOut,
-                                 t3_voice=lambda text, rate: bytes(960))
+                                 t3_voice=streamed(lambda text, rate: bytes(960)))
         self.assertEqual(self.spoken, [], "neither the text model's line nor LFM3's is spoken unchecked")
         fallback, = self.fallback_sessions
         self.assertEqual((fallback.asked, texts(self.voice)), (1, []))
@@ -563,7 +598,7 @@ class T3TurnTest(NoteTurn):
 
         NoWording.delivered = []
         record = await self.turn(["I've stopped the clamp helper thread."], task_service=NoWording,
-                                 t3_voice=lambda text, rate: bytes(960))
+                                 t3_voice=streamed(lambda text, rate: bytes(960)))
         self.assertEqual(self.spoken, [], "no stock line stands in for the act")
         self.assertEqual([(r["kind"], r["worded_by"], r["delivery"], r["text"]) for r in record["replies"]],
                          [("t3", "lfm3", "unsent", "")])
