@@ -78,7 +78,7 @@ _LEAD = r"^\W*(?:(?:ok(?:ay)?|so|and|also|please|hey|actually|now)[,\s]+)*(?:(?:
 _TELL = re.compile(_LEAD + r"(?:tell|remind|ask|let)\s+(?P<ref>.+?)\s+(?:know\s+)?(?P<link>to|that)\s+"
                    r"(?P<message>.+?)[.!?\s]*$", re.IGNORECASE)
 _STOP_VERBS = re.compile(r"\b(?:stop|halt|interrupt|abort|kill|cancel)\b", re.IGNORECASE)
-# Mason takes back a held follow-up: by naming it at any time, or with a bare "never mind" right after the hold.
+# Mason takes back a held follow-up by naming it at any time, or with a bare "never mind" right after the hold.
 _DROP_NAMED = re.compile(r"\b(?:don'?t|do not|no need to)\s+(?:pass|send|tell|give)\b|\b(?:cancel|drop|forget|"
                          r"scrap|scratch|never ?mind)\s+(?:about\s+)?(?:the|that|my)\s+(?:message|follow[- ]?up|"
                          r"note|request)\b", re.IGNORECASE)

@@ -553,7 +553,7 @@ class Follow:
         if link.cursor is not None and event.sequence <= link.cursor:
             return
         seq = (event.sequence,)
-        # A held follow-up watches someone else's run: it speaks only what needs Mason.
+        # A held follow-up watches someone else's run, so it speaks only a need.
         quiet = task.status is Status.HELD
         if isinstance(event, T.RunEvent):
             pair = [event.run_id, event.status.value]
