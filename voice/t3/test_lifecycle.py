@@ -249,6 +249,34 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(h.said(), first)
         self.assertEqual(len(h.seam.ops("watch")), 1)
 
+    def test_needs_you_waiting_for_a_turn_survives_restart(self):
+        self.assert_pending_line_survives_restart(
+            F.needs_you(11), "It needs you: Run the tests?", (11,), watch_after=11,
+        )
+
+    def test_done_waiting_for_a_turn_survives_restart(self):
+        self.assert_pending_line_survives_restart(
+            F.done(12), "It finished. It said: I added clamp. The tests pass.", (12, 13), watch_after=None,
+        )
+
+    def assert_pending_line_survives_restart(self, event, line, evidence, *, watch_after):
+        h = Harness(self)
+        h.live()
+        h.start()
+        h.seam.push(event)
+        h.follow.tick(1)
+
+        h.restart(F.FakeSeam())
+        h.follow.resume(2)
+        expected_watches = [] if watch_after is None else [("watch", "t1", watch_after, "r1")]
+        self.assertEqual(h.seam.ops("watch"), expected_watches)
+        self.assertEqual([(u.line, u.sequences) for u in h.follow.take()], [(line, evidence)])
+        self.assertEqual(h.follow.take(), [])
+
+        h.restart(F.FakeSeam())
+        h.follow.resume(3)
+        self.assertEqual(h.follow.take(), [])
+
     def test_slot_wait(self):
         h = Harness(self, F.FakeSeam(max_watches=16))
         tasks = [h.live(cursor=10 + i, thread=f"t{i}") for i in range(17)]
