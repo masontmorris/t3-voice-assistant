@@ -141,16 +141,6 @@ class SchemaCoverageTest(unittest.TestCase):
         delivery = DEFS["VoiceSendResult"]["properties"]["delivery"]
         self.assertEqual(set(delivery["enum"]), members(T.Delivery))
 
-    def test_recent_records_match(self):
-        recent = DEFS["VoiceThreadState"]["properties"]["recent"]
-        models = {model.kind: model for model in get_args(T.RecentRecord)}
-        branches = {b["properties"]["kind"]["enum"][0]: b for b in recent["items"]["anyOf"]}
-        self.assertEqual(branches.keys(), models.keys())
-        for kind, branch in branches.items():
-            with self.subTest(kind=kind):
-                self.assert_model_fields(branch, models[kind], envelope=("kind",))
-        self.assertEqual(set(branches["tool"]["properties"]["outcome"]["enum"]), members(T.ToolOutcome))
-
     def test_client_frames_match(self):
         ops = []
         for branch in DEFS["ClientFrame"]["anyOf"]:

@@ -24,7 +24,7 @@ from voice.t3.speech import RENDER_SYSTEM, summary_messages
 
 FIXTURE = Path(__file__).resolve().parent / "fixtures" / "title_not_evidence"
 FIXED = re.compile(r"\bfix(?:ed|es|ing)?\b", re.IGNORECASE)
-STALE_SUMMARIES = {"abb441b23188ec923fe398b9ef21c9fc", "aa81d2d7b6e4271ad38b9c2e3c887f7d"}
+STALE_SUMMARIES = {"19af260b985bd1ec27b595236e1796f2", "5f40001a834029ab3fc3a2c104d79200"}
 STALE_RENDER_PROMPT = "38151655b88d9de8ff1362579b63ad55e7d65d1292a940121e3234a8d875744b"
 
 
