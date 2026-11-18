@@ -35,7 +35,8 @@ class ConversationLedger:
         proposals = [{**task, "ref": f"{turn_id}:{task['task_id']}"} for task in record.get("tasks", [])]
         executions = {f"{turn_id}:{task_id}": execution
                       for task_id, execution in record.get("executions", {}).items()}
-        generated = [r["text"] for r in record.get("replies", []) if r.get("text")]
+        generated = [r["text"] for r in record.get("replies", [])
+                     if r.get("text") and r.get("delivery", "sent") == "sent"]
         turn = Turn(turn_id, record.get("final_transcript"), revisions, generated,
                     "interrupted" if muted else "queued" if generated else "none",
                     proposals, executions, record.get("error") or record.get("cancelled"),

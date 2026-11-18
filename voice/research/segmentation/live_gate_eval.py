@@ -112,9 +112,9 @@ def trace_of(item, repeat, segmenter, intent):
             "tasks": tasks, "dispatched": bool(segmenter.dispatch_log)}
 
 
-def run_item(client, item, repeat, fresh, paid=False, calls=None, tools=None, arguments=False):
-    """One live end of turn. Returns its trace and what its calls cost."""
-    recording = Recording(client, f"{item['id']}.r{repeat}", fresh, paid, calls)
+def run_item(client, item, repeat, fresh, paid=False, calls=None, tools=None, arguments=False, recording=None):
+    """One live end of turn. Returns its trace and what its calls cost. `recording` replaces the default cache."""
+    recording = recording or Recording(client, f"{item['id']}.r{repeat}", fresh, paid, calls)
     segmenter = HybridSegmenter(recording, f"{item['id']}.r{repeat}", tools=tools, arguments=arguments)
     segmenter.conversation_mode = True
     segmenter.prior_resolved_tasks = tuple(item["context"].get("resolved") or ())

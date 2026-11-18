@@ -8,14 +8,15 @@ The seam runs inside the fork's own server. That server runs on the Desktop as a
 
 ## Use
 
-Run from the repo root.
+Run from the repo root, as a module. Run as a script, `voice/t3/types.py` shadows Python's own `types` module and the tool fails on import.
 
 ```text
-python voice/t3/fork_env.py up      # create the home once, then start the server
-python voice/t3/fork_env.py status  # up or down, plus ports, home, and sandbox project
-python voice/t3/fork_env.py down    # stop only the recorded server, then clear the pid file
-python voice/t3/fork_env.py token   # mint the voice session while the environment is down
-python voice/t3/fork_env.py pair    # mint a pairing URL while the environment is up
+python -m voice.t3.fork_env up                 # create the home once, then start the server
+python -m voice.t3.fork_env status             # up or down, plus ports, home, sandbox project, and its model
+python -m voice.t3.fork_env down               # stop only the recorded server, then clear the pid file
+python -m voice.t3.fork_env token              # mint the voice session while the environment is down
+python -m voice.t3.fork_env pair               # mint a pairing URL while the environment is up
+python -m voice.t3.fork_env model codex/gpt-x  # set the sandbox's default model while the environment is down
 ```
 
 Paths hang off `VOICE_HOME`, default `~/voice`. The T3 home is `$VOICE_HOME/t3-fork-home`. The sandbox repo is `$VOICE_HOME/t3-fork-sandbox`. Pass `--home` or `--sandbox` to move either one. A `--home` equal to or under `~/.t3` or `$T3CODE_HOME` is refused, so the tool cannot be pointed at the daily install.
@@ -27,6 +28,10 @@ First it runs the idempotent setup with the server stopped. It creates the sandb
 The API port is 3779. This differs from Mason's daily server on 3773 and from the dev runner's own range. Up fails clearly when the port is taken. The web port is derived from the dev runner's offset and shifts when the base ports are taken. Status shows it as `web`, and the pairing link uses it. The link expires after 5 minutes, so run `pair` just before linking the environment in Mason's apps.
 
 The run mode is the dev server. The free `Replay (dev)` provider only registers on a dev server, since it needs a dev web URL in its config. A plain `t3 serve` would skip it. The dev runner seeds nothing here, since up passes `--no-seed`. The fork home starts empty except for the sandbox project.
+
+## Model
+
+A voice launch runs on the sandbox project's default model. Setup gives a new home `devReplay/showcase`, the free Replay (dev) agent, and tests keep it. `model <provider instance>/<model>` sets another one in the fork home's `userdata/settings.json`, under the sandbox's project override. The provider instance is the id T3 shows for the provider, such as `codex` or `claudeAgent`. The command refuses while the environment is up or another server uses the home, because the server reads its settings at start. A later `up` keeps the chosen model. `model devReplay/showcase` puts Replay back.
 
 ## Safety
 

@@ -31,3 +31,15 @@
 {"id": "c01", "tool": "none", "utterance": "Thanks, that's great.", "source": "control: conversation"}
 {"id": "c02", "tool": "agent", "utterance": "Who won the World Series last year?", "source": "control: general lookup"}
 {"id": "c03", "tool": "none", "utterance": "Stop, I was talking to someone else.", "source": "control: stop that is not about a thread"}
+{"id": "c04", "tool": "none", "utterance": "How's your day going?", "source": "control: a how-is-it-going question about the person, near t3_ask"}
+{"id": "c05", "tool": "none", "utterance": "How's it going over there?", "source": "control: small talk, near t3_ask"}
+{"id": "c06", "tool": "none", "utterance": "My coworker started a new thread about the outage this morning.", "source": "control: describes someone else starting a thread, near t3_start"}
+{"id": "c07", "tool": "none", "utterance": "I was reading a thread on a forum about keyboards last night.", "source": "control: a forum thread, not a T3 thread"}
+{"id": "c08", "tool": "none", "utterance": "That test thread finished faster than I expected, nice.", "source": "control: a reaction to a thread, near t3_ask"}
+{"id": "c09", "tool": "none", "utterance": "Sounds like the clamp helper thread is doing fine.", "source": "control: a reaction to a thread, near t3_ask"}
+{"id": "c10", "tool": "none", "utterance": "I really need to stop staying up so late.", "source": "control: stop about the speaker, near t3_stop"}
+{"id": "c11", "tool": "none", "utterance": "Halt, who goes there? Just kidding.", "source": "control: halt as a joke, near t3_stop"}
+{"id": "c12", "tool": "none", "utterance": "I keep telling my sister to stop working weekends.", "source": "control: tell and stop about someone else, near t3_tell"}
+{"id": "c13", "tool": "none", "utterance": "I think the PR is in pretty good shape now.", "source": "control: an opinion about a PR"}
+{"id": "c14", "tool": "none", "utterance": "Good morning, how are you doing?", "source": "control: a greeting question"}
+{"id": "c15", "tool": "none", "utterance": "I'm going to kick off my shoes and relax for a bit.", "source": "control: kick off, near t3_start"}

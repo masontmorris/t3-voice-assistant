@@ -315,3 +315,86 @@ class MayChooseTest(unittest.TestCase):
 
     def test_no_pick_request_is_no_choice(self):
         self.assertFalse(prototype.may_choose("What's the weather in Boston?", []))
+
+
+
+class SayVerbatimTest(NoteTurn):
+    """Integrated runs 2 and 3 (2026-11-18): handed a T3 line to word, LFM3 said "I've stopped the thread" for "Stop
+    the X thread?" and made up quotes from the thread. A T3 line is now spoken as it is."""
+
+    async def test_a_t3_line_is_spoken_word_for_word_and_the_model_is_not_asked(self):
+        spoken, rendered = [], []
+
+        def render(text, rate):
+            rendered.append((text, rate))
+            return b"\x01\x00" * 480
+
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("Stop the clamp helper thread?",),
+                                                  lambda kind, **detail: None, heard_by(spoken), render)
+        self.assertEqual((spoken, rendered), (["Stop the clamp helper thread?"], [("Stop the clamp helper thread?",
+                                                                                   24_000)]))
+        self.assertEqual((reply["text"], len(pcm)), ("Stop the clamp helper thread?", 960))
+        self.assertFalse([e for e in self.voice.sent if e.get("type") == "response.create"], "LFM3 words nothing")
+        self.assertEqual(texts(self.voice), [prototype.NOTE_OPEN + "you just told them this, in T3's words: "
+                                                                   '"Stop the clamp helper thread?"]'])
+
+    async def test_a_failed_render_says_the_line_in_the_record_and_plays_nothing(self):
+        spoken = []
+
+        def render(text, rate):
+            raise OSError("no TTS")
+
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("It finished.",),
+                                                  lambda kind, **detail: None, heard_by(spoken), render)
+        self.assertEqual((reply["text"], pcm, spoken), ("It finished.", b"", []))
+        self.assertEqual(texts(self.voice), [], "a failed render never enters the conversation as heard")
+
+    def test_a_t3_line_gets_no_note_for_the_model(self):
+        self.assertIsNone(prototype.task_note({"spoken": "Stop the clamp helper thread?", "status": "completed"}))
+        self.assertIsNone(prototype.task_notes([{"spoken": "It finished.", "status": "completed"}]))
+
+
+class T3SnapshotService(MockTaskService):
+    """The task service with one T3 line in its snapshot, as T3TaskService gives it."""
+
+    def snapshot(self, *args, **kwargs):
+        snapshot = super().snapshot(*args, **kwargs)
+        snapshot["tasks"].append({"task_id": "t3_1", "description": "a T3 thread", "status": "completed",
+                                  "spoken": "Stop the clamp helper thread?",
+                                  "evidence": {"thread_id": "t5", "sequences": [150]}})
+        return snapshot
+
+
+class T3TurnTest(NoteTurn):
+    async def test_note_mode_speaks_stop_needs_you_and_done_without_a_model_reply(self):
+        needs_you = "The thread is waiting for you: which file?"
+        done = "The other thread finished."
+
+        class WithNews(T3SnapshotService):
+            def take_updates(self):
+                return [{"spoken": line, "status": status, "result_summary": line}
+                        for line, status in ((needs_you, "live"), (done, "completed"))]
+
+            def update_entries(self, updates):
+                return updates
+
+        rendered = []
+
+        def render(text, rate):
+            rendered.append(text)
+            return bytes(960)
+
+        await self.turn([], task_service=WithNews, t3_voice=render)
+        lines = ["Stop the clamp helper thread?", needs_you, done]
+        self.assertEqual(rendered, lines)
+        self.assertEqual(self.spoken, lines)
+        self.assertEqual(self.voice.asked, 0)
+        self.assertFalse([text for text in texts(self.voice)
+                          if text.startswith((prototype.SNAPSHOT_PREFIX, prototype.UPDATE_PREFIX))])
+
+    async def test_a_turn_with_only_a_t3_line_speaks_it_and_asks_the_model_nothing(self):
+        record = await self.turn(["I've stopped the clamp helper thread."], task_service=T3SnapshotService,
+                                 t3_voice=lambda text, rate: bytes(960))
+        self.assertEqual(self.spoken, ["Stop the clamp helper thread?"])
+        self.assertEqual(self.voice.asked, 0, "the model never words a T3 line")
+        self.assertEqual([r["kind"] for r in record["replies"]], ["t3"])

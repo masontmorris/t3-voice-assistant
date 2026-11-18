@@ -41,6 +41,9 @@ MCP_TIME = [str(VOICE_HOME / "venv-mcp-time" / "Scripts" / "mcp-server-time.exe"
 NONE, GENERAL = "none", "agent"
 # The two options that are not a registered tool. `none` starts nothing; `agent` is the general worker.
 NONE_LINE = "No tool: conversation, a reaction, or a question the assistant answers from this call's own words."
+# The T3 thread tools `voice/live/t3_tasks.py` adds under `--t3 on`. Each asks the person for an explicit yes before it
+# acts, which is why the gate lets a firm pick of one through (`voice/segmentation/gate.py`).
+T3_TOOLS = frozenset({"t3_start", "t3_ask", "t3_tell", "t3_stop"})
 GENERAL_LINE = ("General lookup: information from outside this call that no tool above covers, including a request "
                 "that asks the assistant to choose a detail first, such as a city.")
 # The decider's tool answer decides the dispatch only at or above this margin. Frozen on the live gate eval's

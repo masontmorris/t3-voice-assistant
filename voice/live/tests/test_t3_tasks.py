@@ -11,14 +11,17 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (ASK, START, STOP, T3_WAITING, TELL, T3Registry, T3TaskService, T3Tasks, reply_kind,
-                                 speak_state, tell_parts)
-from voice.prototype.run import task_note
+from voice.live.t3_tasks import (ASK, START, STOP, T3_TOOLS, T3_WAITING, TELL, T3Registry, T3TaskService, T3Tasks,
+                                 reply_kind, speak_state, tell_parts, transcript_rows)
+from voice.prototype.run import say_verbatim, task_note
+from voice.prototype.tests.test_run_shared_session import FakeSession
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.pick.pick import question_for
+from voice.segmentation.gate import PLAN_A
+from voice.tools import registry as tool_registry
 
 TWO_PROJECTS = (("p1", "Voice sandbox", ("sandbox", "voice sandbox")),
                 ("p2", "Voice server", ("voice server", "the server")))
@@ -458,7 +461,7 @@ class ExplicitYes(unittest.TestCase):
         return seam
 
 
-class Service(unittest.TestCase):
+class Service(unittest.IsolatedAsyncioTestCase):
     def service(self, t3, records):
         segmenter = SimpleNamespace(records=lambda: records,
                                     dispatch_log=[{"task_id": r["task_id"], "instruction": r["instruction"]}
@@ -493,7 +496,9 @@ class Service(unittest.TestCase):
     def test_the_next_turn_answers_and_later_news_arrives_as_updates(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
-        self.service(t3, [self.record("task_1", "Add a clamp helper in the sandbox project", START)]).sync(0)
+        first = self.service(t3, [self.record("task_1", "Add a clamp helper in the sandbox project", START)])
+        first.sync(0)
+        first.record_delivery(first.snapshot("utt_1", "...")["tasks"][0], "sent")
         turn2 = self.service(t3, [])
         waiting = turn2.open_question()
         events = turn2.answer(waiting, "yes", 1)
@@ -509,7 +514,60 @@ class Service(unittest.TestCase):
         self.assertEqual(updates[0]["evidence"], {"thread_id": "t1", "sequences": [160, 161]})
         self.assertEqual(updates[0]["task_id"], "conv_turn_001:task_1")
         self.assertEqual(turn3.update_entries(updates), updates)
-        self.assertIn("It finished. It said: I added clamp.", task_note(updates[0]))
+        self.assertIsNone(task_note(updates[0]), "a T3 line is said word for word, never handed to LFM3 to word")
+
+    async def test_unspoken_stop_confirmation_is_reasked_before_a_yes_can_act(self):
+        seam = F.FakeSeam()
+        seam.listing = listing(*THREADS)
+        t3 = tasks_over(self, seam)
+        first = self.service(t3, [self.record("task_1", "Stop the clamp helper thread.", STOP)])
+        first.sync(0)
+        entry = first.snapshot("utt_1", "...")["tasks"][0]
+        line = entry["spoken"]
+        voice = await FakeSession.open("ws://unused", "voice", lambda: 0)
+        spoken = []
+
+        def broken_tts(text, rate):
+            raise OSError("TTS down")
+
+        def speak(text, pcm, done):
+            spoken.append(text)
+
+        await say_verbatim(voice, 24_000, 0, (line,), lambda *args, **kwargs: None, speak, broken_tts,
+                           record_delivery=lambda state: first.record_delivery(entry, state))
+        self.assertEqual((spoken, voice.sent), ([], []))
+        first.close()
+
+        retry = self.service(t3, [])
+        retry.answer(retry.open_question(), "yes", 1)
+        self.assertEqual(seam.ops("interrupt"), [])
+        self.assertIsNotNone(t3.question)
+        entry = retry.snapshot("utt_1", "yes")["tasks"][0]
+        self.assertEqual(entry["spoken"], line)
+        await say_verbatim(voice, 24_000, 0, (entry["spoken"],), lambda *args, **kwargs: None, speak,
+                           lambda text, rate: bytes(960),
+                           record_delivery=lambda state: retry.record_delivery(entry, state))
+        self.assertEqual(spoken, [line])
+        third = self.service(t3, [])
+        third.answer(third.open_question(), "yes", 2)
+        self.assertEqual(len(seam.ops("interrupt")), 1)
+
+    def test_news_a_turn_never_spoke_is_taken_again_even_after_a_restart(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "journal.json"
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, path=path)
+        t3.start("a1", "Add a clamp helper in the sandbox project", 0)
+        t3.answer("yes", 1)
+        seam.push(F.done(160))
+        t3.poll(2)
+        taken = t3.take()
+        self.assertTrue(taken and not t3.has_news())
+        t3.give_back(taken)
+        self.assertTrue(t3.has_news())
+        restarted = tasks_over(self, F.FakeSeam(), path=path)
+        self.assertEqual([(u.line, u.sequences) for u in restarted.take()], [(u.line, u.sequences) for u in taken])
 
     def test_a_held_follow_up_keeps_the_answer_path_open(self):
         t3 = held_follow_up(self, busy_seam())
@@ -524,6 +582,28 @@ class Service(unittest.TestCase):
         self.assertEqual(list(registry.choices()),
                          ["weather", "agent", "t3_start", "t3_ask", "t3_tell", "t3_stop", "none"])
         self.assertEqual(registry.tool_threshold, 0.6)
+        self.assertEqual(set(T3_TOOLS), tool_registry.T3_TOOLS, "the gate and the kind hint name these tools")
+        self.assertEqual(PLAN_A.confirmed_tools, tool_registry.T3_TOOLS)
+
+    def test_the_transcript_names_each_spoken_line_its_evidence_and_its_record(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        records = Path(tmp.name)
+        start = {"clip": "turn_001", "final_transcript": "Start a thread in the sandbox.",
+                 "snapshot_after_tools": {"tasks": [{"task_id": "task_1", "spoken": "Start it in Voice sandbox?",
+                                                     "evidence": {"thread_id": None, "sequences": [681]}}]},
+                 "replies": [{"text": "Should I start it in Voice sandbox?"}]}
+        news = {"clip": "turn_002", "idle": True, "final_transcript": None,
+                "task_updates": [{"spoken": "It finished.", "row": "done-event",
+                                  "evidence": {"thread_id": "t1", "sequences": [750, 751]}}],
+                "replies": [{"text": "It finished."}]}
+        for record in (start, news):
+            (records / f"{record['clip']}.json").write_text(json.dumps(record), encoding="utf-8")
+        rows = transcript_rows(records)
+        self.assertEqual([r["record"] for r in rows], ["turn_001.json", "turn_002.json"])
+        self.assertEqual(rows[0]["t3"], [{"line": "Start it in Voice sandbox?", "thread_id": None, "sequences": [681]}])
+        self.assertEqual((rows[1]["idle"], rows[1]["t3"][0]["sequences"], rows[1]["said"]),
+                         (True, [750, 751], ["It finished."]))
 
 
 class Words(unittest.TestCase):

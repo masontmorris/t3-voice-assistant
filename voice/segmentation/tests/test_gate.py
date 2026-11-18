@@ -70,3 +70,13 @@ class NamedToolTest(unittest.TestCase):
         self.assertFalse(PLAN_A(self.charlotte(tool="agent"), is_final=True).passed)
         self.assertFalse(PLAN_A(self.charlotte(tool_confidence=0.60), is_final=True).passed)
         self.assertFalse(PLAN_A(self.charlotte(side_effect=True), is_final=True).passed)
+
+    def test_a_firm_t3_pick_passes_as_a_side_effect_because_it_asks_first(self):
+        """#57's replay: "Tell it to also add a test." read `ready` at 0.49 while its tool answer was t3_tell at 0.98."""
+        for tool in ("t3_start", "t3_ask", "t3_tell", "t3_stop"):
+            verdict = PLAN_A(self.charlotte(tool=tool, tool_confidence=0.98, side_effect=True), is_final=True)
+            self.assertEqual((verdict.passed, verdict.weakest), (True, "tool"), tool)
+        self.assertFalse(PLAN_A(self.charlotte(tool="t3_stop", tool_confidence=0.43, side_effect=True),
+                                is_final=True).passed, "a weak T3 pick is held, as on 'Stop, I was talking to someone'")
+        self.assertFalse(PLAN_A(self.charlotte(tool="t3_tell", tool_confidence=0.98, side_effect=True)).passed,
+                         "during speech a T3 pick waits like any side effect")

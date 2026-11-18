@@ -214,6 +214,9 @@ class _TimedPickClient:
         return result.result(timeout=PICK_TIMEOUT_S)
 
 
+MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting for a person turn.
+
+
 @dataclass
 class T3Tasks:
     """`model` is the Twin B model arm, asked only when the prefilter misses. None keeps the prefilter alone."""
@@ -225,6 +228,7 @@ class T3Tasks:
     recent: str | None = None
     just_held: bool = False
     lock: threading.RLock = field(default_factory=threading.RLock)
+    unasked: L.Update | None = field(default=None, init=False)
     _pick_in_flight: threading.Lock = field(default_factory=threading.Lock, init=False)
 
     @classmethod
@@ -259,6 +263,48 @@ class T3Tasks:
         for update in out:
             update.task_id = self.keys.get(update.task_id, update.task_id)
         return out
+
+    def has_news(self, *, idle=False) -> bool:
+        with self.lock:
+            return any(not idle or update.delivery_failures < MAX_IDLE_DELIVERY_FAILURES for update in self.follow.outbox)
+
+    def reserve_news(self, *, idle=False) -> list[L.Update]:
+        """Claim the news for a turn. The journal keeps it pending until audio is sent."""
+        with self.lock:
+            if not idle:
+                updates, self.follow.outbox = self.follow.outbox, []
+                return updates
+            updates, deferred = [], []
+            for update in self.follow.outbox:
+                if update.delivery_failures < MAX_IDLE_DELIVERY_FAILURES:
+                    updates.append(update)
+                else:
+                    deferred.append(update)
+            self.follow.outbox = deferred
+            return updates
+
+    def news_entry(self, update: L.Update, conversation_id: str) -> dict:
+        return update_entry(replace(update, task_id=self.keys.get(update.task_id, update.task_id)), conversation_id)
+
+    def ack_news(self, update: L.Update) -> None:
+        with self.lock:
+            self.follow.journal.remove_lines([update])
+
+    def retry_news(self, updates: list[L.Update]) -> None:
+        with self.lock:
+            pending = self.follow.journal.pending_lines
+            saved = set(map(id, pending))
+            for update in updates:
+                update.delivery_failures = min(update.delivery_failures + 1, MAX_IDLE_DELIVERY_FAILURES)
+                if id(update) not in saved:
+                    pending.append(update)
+            self.follow.outbox[:0] = updates
+            self.follow.journal.save()
+
+    def give_back(self, updates: list[L.Update]) -> None:
+        """Updates a turn took and never spoke, for the next one to take."""
+        with self.lock:
+            self.follow.give_back(updates)
 
     def holding(self) -> bool:
         return bool(self.follow.journal.held())
@@ -306,6 +352,8 @@ class T3Tasks:
     def answer(self, text: str, now: float) -> L.Update | None:
         """The next utterance, read as the answer to the open question, or as taking back a held follow-up."""
         with self.lock:
+            if self.question is not None and self.unasked is not None and self.question.key == self.unasked.task_id:
+                return self.unasked
             question, self.question = self.question, None
             just_held, self.just_held = self.just_held, False
             if question is None:
@@ -541,6 +589,13 @@ def _sentence(text: str | None) -> str:
     return text[:1].upper() + text[1:]
 
 
+def update_entry(update: L.Update, conversation_id: str) -> dict:
+    """One lifecycle update as the task update `task_note` speaks: its line, and the sequences it came from."""
+    return {"type": "task_update", "conversation_id": conversation_id, "task_id": update.task_id,
+            "description": "a T3 thread", "status": update.status, "result_summary": update.line,
+            "spoken": update.line, "row": update.row, "evidence": update.evidence()}
+
+
 T3_WAITING = {"t3": True}
 
 
@@ -570,6 +625,8 @@ class T3TaskService(MockTaskService):
         super().__init__(segmenter, conversation_id, *args, **kwargs)
         self.t3 = t3
         self.spoken: dict[str, L.Update] = {}
+        self.news: dict[int, L.Update] = {}
+        self.delivered: set[str] = set()
 
     def _threshold(self) -> float:
         return getattr(self.tools, "tool_threshold", 0.5) if self.tools is not None else 0.5
@@ -584,6 +641,8 @@ class T3TaskService(MockTaskService):
 
     def _execution(self, task_id, update: L.Update, now, tool):
         self.spoken[task_id] = update
+        if update.status == "needs_clarification":
+            self.t3.unasked = update
         state = Run.FAILED if update.status in ("failed", "lost") else Run.COMPLETED
         return Execution(task_id, state, now, None, result_summary=update.line, finished_at=now, mode="t3",
                          tool={"tool": tool, "arguments": {}})
@@ -616,12 +675,31 @@ class T3TaskService(MockTaskService):
         return snapshot
 
     def take_updates(self):
-        updates = super().take_updates()
-        for update in self.t3.take():
-            updates.append({"type": "task_update", "conversation_id": self.conversation_id,
-                            "task_id": update.task_id, "description": "a T3 thread", "status": update.status,
-                            "result_summary": update.line, "spoken": update.line, "evidence": update.evidence()})
-        return updates
+        entries = super().take_updates()
+        for update in self.t3.reserve_news():
+            entry = self.t3.news_entry(update, self.conversation_id)
+            self.news[id(entry)] = update
+            entries.append(entry)
+        return entries
+
+    def record_delivery(self, entry, state):
+        if state == "unsent":
+            return
+        if entry.get("type") == "task_update":
+            self.t3.ack_news(self.news.pop(id(entry)))
+        else:
+            task_id = entry["task_id"]
+            self.delivered.add(task_id)
+            if state == "sent" and self.t3.unasked is self.spoken[task_id]:
+                self.t3.unasked = None
+
+    def close(self):
+        super().close()
+        unsent = [update for task_id, update in self.spoken.items()
+                  if task_id not in self.delivered and update.status != "needs_clarification"]
+        unsent.extend(self.news.values())
+        if unsent:
+            self.t3.retry_news(unsent)
 
     def update_entries(self, updates):
         mine = [u for u in updates if "spoken" in u]
@@ -648,10 +726,11 @@ def default_model() -> LiveClient | None:
 
 
 class Poller:
-    """Keeps the lifecycle current between turns on its own thread: it waits on seam events, not a timer."""
+    """Keeps the lifecycle current between turns on its own thread: it waits on seam events, not a timer. `notify`
+    is called on this thread after a poll that leaves news to speak."""
 
-    def __init__(self, t3: T3Tasks, wait_s: float = 0.5):
-        self.t3, self.wait_s = t3, wait_s
+    def __init__(self, t3: T3Tasks, wait_s: float = 0.5, notify=None):
+        self.t3, self.wait_s, self.notify = t3, wait_s, notify
         self.stopped = threading.Event()
         self.thread = threading.Thread(target=self._run, name="t3-follow", daemon=True)
 
@@ -665,6 +744,8 @@ class Poller:
             if waited is None:
                 self.stopped.wait(self.wait_s)
             self.t3.poll(time.monotonic(), waited)
+            if self.notify is not None and self.t3.has_news(idle=True):
+                self.notify()
 
     def stop(self) -> None:
         self.stopped.set()
@@ -763,9 +844,39 @@ def smoke(args) -> int:
     return 0 if ok else 1
 
 
+def transcript_rows(records: Path) -> list[dict]:
+    """Every spoken line of a live call's records, oldest turn first, with the T3 lines it was asked to say and the
+    evidence each carries: the stored event sequences, or a read's `asOfSequence`."""
+    rows = []
+    for path in sorted(records.glob("turn_*.json")):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        tasks = (record.get("snapshot_after_tools") or {}).get("tasks") or []
+        t3 = [{"line": t["spoken"], **t["evidence"]} for t in tasks if t.get("spoken")]
+        t3 += [{"line": u["spoken"], "row": u.get("row"), **u["evidence"]}
+               for u in record.get("task_updates") or () if u.get("spoken")]
+        rows.append({"record": path.name, "idle": bool(record.get("idle")), "heard": record.get("final_transcript"),
+                     "t3": t3, "said": [r["text"] for r in record.get("replies") or ()
+                                       if r.get("text") and r.get("delivery", "sent") == "sent"],
+                     "given_back": bool(record.get("given_back"))})
+    return rows
+
+
+def transcript(args) -> int:
+    print("| record | heard | T3 line (thread, sequences) | voice said |")
+    print("| --- | --- | --- | --- |")
+    for row in transcript_rows(args.records):
+        heard = "(quiet: thread news)" if row["idle"] else row["heard"] or ""
+        lines = "<br>".join(f"{t['line']} ({(t.get('thread_id') or '-')[:8]}, {t['sequences']})" for t in row["t3"])
+        said = "<br>".join(row["said"]) or ("(given back, nothing heard)" if row["given_back"] else "")
+        print(f"| {row['record']} | {heard} | {lines} | {said} |")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
+    lines = sub.add_parser("transcript", help="a live call's spoken lines with their T3 evidence, from its records")
+    lines.add_argument("records", type=Path, help="the live server's --out directory")
     run = sub.add_parser("drive", help="launch, watch to done, then ask about a thread")
     run.add_argument("instruction")
     run.add_argument("--ask", help="a Twin B question to ask after the thread is done")
@@ -780,7 +891,7 @@ def main(argv=None) -> int:
         command.add_argument("--journal", type=Path, default=default_journal())
         command.add_argument("--timeout-s", type=float, default=180.0)
     args = parser.parse_args(argv)
-    return drive(args) if args.command == "drive" else smoke(args)
+    return {"drive": drive, "smoke": smoke, "transcript": transcript}[args.command](args)
 
 
 if __name__ == "__main__":

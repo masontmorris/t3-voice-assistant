@@ -20,16 +20,16 @@ The laptop runs `voice/live/client.py` and nothing else. It sends 16 kHz mono PC
 
 The Desktop runs `python -m voice.live.server`. It starts llama-server with LFM3 and three slots (voice, ASR, tools), opens the real weather and time tools, and listens on its Tailscale address. Each turn goes through the same `run_clip` that the recorded-clip runs use, with the `gated` end-of-turn design.
 
-| File | What it does |
-| --- | --- |
-| `voice/live/server.py` | The WebSocket server, the shared secret, the bind check, and one `Conversation` per client that turns endpointer events into turns. It owns the call's one LFM3 voice session. |
-| `voice/live/endpoint.py` | The energy-and-silence endpointer. |
-| `voice/live/client.py` | The laptop client. It uses the microphone or WAV clips, plays the reply, and has a push-to-talk fallback. |
-| `voice/live/web/` | The browser client, served by the server on GET `/`. See [browser-client.md](browser-client.md). |
-| `voice/live/script.py` | Renders a scripted conversation to WAV clips with the running server's own TTS, for a `--wav` run. |
-| `voice/live/package.py` | Builds the laptop zip under `$VOICE_HOME/live/dist/`. |
-| `voice/live/SETUP-LAPTOP.md` | The laptop's install steps. It ships in the zip. |
-| `voice/prototype/run.py` | The hook. `run_clip` takes an audio source, a persona and a voice-event callback, hands each voice-session event to that callback, and keeps the prototype's `gated` default. `WavInput` keeps the clip path the same. Live mode also passes its own long-lived voice session as `voice=`. |
+| File                         | What it does                                                                                                                                                                                                                                                                               |
+| ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `voice/live/server.py`       | The WebSocket server, the shared secret, the bind check, and one `Conversation` per client that turns endpointer events into turns. It owns the call's one LFM3 voice session.                                                                                                             |
+| `voice/live/endpoint.py`     | The energy-and-silence endpointer.                                                                                                                                                                                                                                                         |
+| `voice/live/client.py`       | The laptop client. It uses the microphone or WAV clips, plays the reply, and has a push-to-talk fallback.                                                                                                                                                                                  |
+| `voice/live/web/`            | The browser client, served by the server on GET `/`. See [browser-client.md](browser-client.md).                                                                                                                                                                                           |
+| `voice/live/script.py`       | Renders a scripted conversation to WAV clips with the running server's own TTS, for a `--wav` run.                                                                                                                                                                                         |
+| `voice/live/package.py`      | Builds the laptop zip under `$VOICE_HOME/live/dist/`.                                                                                                                                                                                                                                      |
+| `voice/live/SETUP-LAPTOP.md` | The laptop's install steps. It ships in the zip.                                                                                                                                                                                                                                           |
+| `voice/prototype/run.py`     | The hook. `run_clip` takes an audio source, a persona and a voice-event callback, hands each voice-session event to that callback, and keeps the prototype's `gated` default. `WavInput` keeps the clip path the same. Live mode also passes its own long-lived voice session as `voice=`. |
 
 ## Turn-taking
 
@@ -112,24 +112,24 @@ A CPU test writes "Be brief." to the prompt file and confirms the turn receives 
 
 All of these ran at this head, CPU only, in `$VOICE_HOME/venv-lfm3` (measured on 2026-11-16).
 
-| Check | Test | Result |
-| --- | --- | --- |
-| Bind to Tailscale or loopback only | `BindTest.test_only_tailnet_or_loopback`, plus two hand runs of the module | pass, both refusals exit 1 |
-| Secret and `Origin` rejection | `test_a_missing_or_wrong_secret_is_refused` | pass, HTTP 401 and 403 |
-| One client at a time | `test_a_second_client_is_turned_away` | pass, close 1013 |
-| PCM chunking | `test_upstream_audio_goes_to_llama_in_40_ms_chunks`, `test_a_turn_streams_its_reply_back` | pass, 1280 bytes up, no frame over 40 ms down |
-| Prompt config | `test_the_prompt_file_sets_the_turn_persona` | pass |
-| Silence ends a turn | five `EndpointerTest` cases | pass, 700 ms, pre-roll kept, click ignored |
-| Barge-in and continuation | `test_speech_during_the_reply_interrupts_it`, `test_speech_before_the_reply_continues_the_turn` | pass |
-| Speech after the turn ends stops playback | `test_speech_after_the_reply_stops_playback` | pass |
-| Voice events reach the live callback | `test_run_clip_hands_voice_audio_to_the_live_callback` | pass, real `run_clip` against a scripted realtime server |
-| One voice session per call | `test_a_call_keeps_one_voice_session` | pass, turn 2 is given turn 1's session |
-| A long call seeds a new session | `test_a_long_call_seeds_a_new_session_with_the_call_so_far` | pass, the seed holds the call's text and reaches `run_clip`, not the session |
-| The seed goes in after the settings | `SessionOrderTest.test_the_seed_goes_in_after_the_settings` | pass, against a fake that refuses as llama.cpp does |
-| A refused update ends the turn | `SessionOrderTest.test_a_refused_update_ends_the_turn_with_the_servers_words` | pass, the server's text, no timeout |
-| A new prompt starts a new session | `test_a_new_prompt_mid_call_starts_a_new_session` | pass, seeded with the call so far |
-| A barge-in keeps the session | `test_speech_during_the_reply_interrupts_it` | pass, session open, next turn on it |
-| The hook adds to a caller's session | `test_a_callers_session_is_added_to_and_left_open` | pass, settings sent once, not closed |
+| Check                                     | Test                                                                                            | Result                                                                       |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| Bind to Tailscale or loopback only        | `BindTest.test_only_tailnet_or_loopback`, plus two hand runs of the module                      | pass, both refusals exit 1                                                   |
+| Secret and `Origin` rejection             | `test_a_missing_or_wrong_secret_is_refused`                                                     | pass, HTTP 401 and 403                                                       |
+| One client at a time                      | `test_a_second_client_is_turned_away`                                                           | pass, close 1013                                                             |
+| PCM chunking                              | `test_upstream_audio_goes_to_llama_in_40_ms_chunks`, `test_a_turn_streams_its_reply_back`       | pass, 1280 bytes up, no frame over 40 ms down                                |
+| Prompt config                             | `test_the_prompt_file_sets_the_turn_persona`                                                    | pass                                                                         |
+| Silence ends a turn                       | five `EndpointerTest` cases                                                                     | pass, 700 ms, pre-roll kept, click ignored                                   |
+| Barge-in and continuation                 | `test_speech_during_the_reply_interrupts_it`, `test_speech_before_the_reply_continues_the_turn` | pass                                                                         |
+| Speech after the turn ends stops playback | `test_speech_after_the_reply_stops_playback`                                                    | pass                                                                         |
+| Voice events reach the live callback      | `test_run_clip_hands_voice_audio_to_the_live_callback`                                          | pass, real `run_clip` against a scripted realtime server                     |
+| One voice session per call                | `test_a_call_keeps_one_voice_session`                                                           | pass, turn 2 is given turn 1's session                                       |
+| A long call seeds a new session           | `test_a_long_call_seeds_a_new_session_with_the_call_so_far`                                     | pass, the seed holds the call's text and reaches `run_clip`, not the session |
+| The seed goes in after the settings       | `SessionOrderTest.test_the_seed_goes_in_after_the_settings`                                     | pass, against a fake that refuses as llama.cpp does                          |
+| A refused update ends the turn            | `SessionOrderTest.test_a_refused_update_ends_the_turn_with_the_servers_words`                   | pass, the server's text, no timeout                                          |
+| A new prompt starts a new session         | `test_a_new_prompt_mid_call_starts_a_new_session`                                               | pass, seeded with the call so far                                            |
+| A barge-in keeps the session              | `test_speech_during_the_reply_interrupts_it`                                                    | pass, session open, next turn on it                                          |
+| The hook adds to a caller's session       | `test_a_callers_session_is_added_to_and_left_open`                                              | pass, settings sent once, not closed                                         |
 
 The other live tests use a fake `run_clip` that stands in for the GPU pipeline. They exercise the server, endpointer, outbox, chunking and records, not LFM3. The seam test above runs the real `run_clip` against a scripted server, and still not LFM3.
 
@@ -203,6 +203,50 @@ If silence detection misbehaves, add `--ptt` and press Enter to start and stop t
 **Swap the prompt.** Write Mason's chosen persona to `$VOICE_HOME/live/prompt.txt`. The next turn uses it, on a new voice session seeded with the call so far. The record names the file and its hash. Delete the file to go back to the built-in persona.
 
 **Stop everything.** Press Ctrl+C in the laptop window. On the Desktop, press Ctrl+C in the server window, or run `touch "$VOICE_HOME/live/STOP"`. The server stops llama-server and the MCP time server on the way out, and the lease ends with it. Check with `python ~/.gpu/gpu_lease.py status`. A run started with `--stop-file PATH` watches that file instead, so a worker's check cannot stop Mason's demo.
+
+## Runbook for a call with T3
+
+This call starts and asks about T3 threads by voice. The threads run in the fork's own T3 environment (`fork-env.md`), never in the daily install. Run every command from the repo checkout, in Git Bash.
+
+**Bring up the fork environment.** The checkout needs `pnpm install --frozen-lockfile` once. Mint the voice session while the environment is down, then start it. The first start builds for a few minutes.
+
+```bash
+python -m voice.t3.fork_env token   # only if $VOICE_HOME/t3-fork-home/t3-seam-token is missing or older than 30 days
+python -m voice.t3.fork_env up
+python -m voice.t3.fork_env status  # state: up, and the web port the pairing link uses
+```
+
+**Set the model.** Threads run on the sandbox's default model, which is Replay (dev) until it is changed. Set it while the environment is down, then bring it up again. `model devReplay/showcase` puts Replay back.
+
+```bash
+python -m voice.t3.fork_env down
+python -m voice.t3.fork_env model <provider instance>/<model>
+python -m voice.t3.fork_env up
+```
+
+**Start the live server with T3 on.** Use the default snapshot mode, `note`, for a call with T3. With T3 on, the free decider skips place and day questions by default. The voice speaks each T3 line word for word and announces thread news while the call is quiet.
+
+```bash
+export VOICE_ENV_FILE=<path to the .env that holds OPENROUTER_API_KEY>
+python ~/.gpu/gpu_lease.py run --holder voice-live --purpose "call with T3" --max-minutes 60 -- \
+  "$VOICE_HOME/venv-lfm3/Scripts/python" -m voice.live.server --t3 on --decider cloud --max-minutes 55
+```
+
+**Pair Mason's apps.** The link expires in 5 minutes, so mint it just before he links the environment in Settings > Connections. It is written to `$VOICE_HOME/t3-fork-home/pairing-url.txt` and never printed. Hand it to him without opening it.
+
+```bash
+python -m voice.t3.fork_env pair
+```
+
+**Shut it all down.** Stop the live server as in the runbook above, then stop the fork server and check that the GPU is free.
+
+```bash
+touch "$VOICE_HOME/live/STOP"
+python -m voice.t3.fork_env down
+python ~/.gpu/gpu_lease.py status
+```
+
+The rehearsal on synthetic audio, its transcript, and what it cannot show are in the seam unit 10 PR.
 
 ## Limits
 

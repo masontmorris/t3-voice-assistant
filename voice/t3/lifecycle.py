@@ -280,9 +280,15 @@ class Follow:
 
     def take(self, task_id: str | None = None) -> list[Update]:
         taken = [u for u in self.outbox if task_id is None or u.task_id == task_id]
-        self.journal.take_lines(task_id)
+        self.journal.remove_lines(taken)
         self.outbox = [u for u in self.outbox if task_id is not None and u.task_id != task_id]
         return taken
+
+    def give_back(self, updates: list[Update]) -> None:
+        """Lines taken but never heard go back to the front of the outbox, and of the journal's pending lines."""
+        self.outbox[:0] = updates
+        self.journal.pending_lines[:0] = updates
+        self.journal.save()
 
     def speak(self, task: JournalTask, line: str, row: str | None = None, sequences=(), *,
               durable: bool = True) -> None:

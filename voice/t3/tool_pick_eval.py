@@ -1,16 +1,22 @@
-"""The decider's tool pick over the four T3 tools, weather, and time, through the end of turn live mode runs.
+"""The decider's tool pick over the four T3 tools, weather, and time, and whether each pick reaches its tool.
 
-Each case in `eval/tool_pick.jsonl` is one utterance with the tool a person labeled before any run. It runs as
-`live_gate_eval.run_item` runs a live turn: the intent rules decide whether the decider is asked, then the hybrid
-segmenter asks its questions with the tool question's options as `--t3 on` offers them (`T3Registry`). The pick is
-the tool the decider answered for the utterance's first segment. `reaches` says whether that pick would route:
-the gate dispatched the task and its tool answer clears the registry's bar. The free decider refuses the place and
-day questions (a 400 on their `text` type), so they are off unless `--arguments` asks for them.
+Each case in `eval/tool_pick.jsonl` is one utterance with the tool a person labeled before any run: 20 T3 requests,
+10 weather and time controls, and 15 controls where the right tool is none or the general lookup. `--gate` adds the
+live gate eval's weather and time items (`voice/research/segmentation/eval/live_gate.jsonl`), with the call context
+each carries. Every case runs as `live_gate_eval.run_item` runs a live turn: the intent rules decide whether the
+decider is asked, then the hybrid segmenter asks its questions with the tool options `--t3 on` offers (`T3Registry`).
+The pick is the tool answered for the utterance's first segment. `reaches` says whether a task with that tool was
+dispatched with a tool answer that clears the registry's bar, which is what routes it to the T3 service.
 
-    VOICE_ENV_FILE=<env file with OPENROUTER_API_KEY> python -m voice.t3.tool_pick_eval
+`--text before` scores the decider text and gate from before seam unit 10: no T3 sentence in the request-versus-chat
+question, and no T3 pass in the gate. It reproduces the old request bodies byte for byte, which the recorded calls
+check: a recorded answer is reused only when its request equals the body sent now.
 
-Every call goes to the free decider, one at a time, cached under `$VOICE_HOME/evals/t3-tool-pick`, so a rerun
-scores the recorded answers and calls nothing.
+    VOICE_ENV_FILE=<env file with OPENROUTER_API_KEY> python -m voice.t3.tool_pick_eval --text after --gate
+
+Every call goes to the free decider, one at a time, cached under `$VOICE_HOME/evals/t3-tool-pick`, so a rerun scores
+the recorded answers and calls nothing. The place and day questions stay off: the free decider refuses their `text`
+type with a 400.
 """
 
 from __future__ import annotations
@@ -18,17 +24,22 @@ from __future__ import annotations
 import argparse
 import json
 import os
-from collections import Counter
+from collections import Counter, defaultdict
+from contextlib import contextmanager
+from dataclasses import replace
 from pathlib import Path
 
 from voice.live.t3_tasks import T3Registry
 from voice.local_decider.client import decider as make_decider
 from voice.prototype.segmenter import live_calls, use_decider_cache
-from voice.research.segmentation.live_gate_eval import run_item
+from voice.research.segmentation import live_gate_eval
+from voice.segmentation import hybrid
 from voice.tools import registry
 
 CASES = Path(__file__).resolve().parent / "eval" / "tool_pick.jsonl"
+GATE_CASES = live_gate_eval.EVAL
 OUT = Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "evals" / "t3-tool-pick"
+CALLS = {"before": OUT / "calls", "after": OUT / "calls-after"}
 TOOLS = T3Registry(registry.build(None, None, None)).choices()
 NOT_ASKED = "not asked"
 
@@ -44,9 +55,61 @@ def picked(trace) -> tuple[str, float | None]:
     return "no answer", None
 
 
+def routed(trace) -> list[str]:
+    """The tools of every dispatched task whose tool answer clears the registry's bar."""
+    return [t["tool"]["tool"] for t in trace["tasks"] if t["dispatched"] and (t.get("tool") or {}).get("tool")
+            and (t["tool"].get("confidence") or 0) >= registry.TOOL_THRESHOLD]
+
+
 def reaches(trace, tool) -> bool:
-    return any(t["dispatched"] and (t.get("tool") or {}).get("tool") == tool
-               and (t["tool"].get("confidence") or 0) >= registry.TOOL_THRESHOLD for t in trace["tasks"])
+    return tool in routed(trace)
+
+
+@contextmanager
+def decider_text(which):
+    """`before` puts back the unit 9 text and gate for the length of a run; `after` is the shipped code."""
+    if which == "after":
+        yield
+        return
+    saved = hybrid.T3_REQUEST, hybrid.T3_CHITCHAT, live_gate_eval.PLAN_A
+    hybrid.T3_REQUEST = hybrid.T3_CHITCHAT = ""
+    live_gate_eval.PLAN_A = replace(saved[2], confirmed_tools=frozenset())
+    try:
+        yield
+    finally:
+        hybrid.T3_REQUEST, hybrid.T3_CHITCHAT, live_gate_eval.PLAN_A = saved
+
+
+class StrictRecording(live_gate_eval.Recording):
+    """A recorded answer counts only for the body it answered, so changed text never scores old answers."""
+
+    def call(self, route, body, label=""):
+        path = self.calls / f"{self.key}.{self.n + 1}.json"
+        if path.exists() and not self.fresh:
+            recorded = json.loads(path.read_text(encoding="utf-8"))
+            if recorded.get("request") != body:
+                raise RuntimeError(f"{path.name} answered a different body; record this text in its own directory")
+        return super().call(route, body, label)
+
+
+def cases(gate: bool) -> list[dict]:
+    rows = [{**json.loads(line), "set": "tool_pick", "context": {}}
+            for line in CASES.read_text(encoding="utf-8").splitlines() if line.strip()]
+    if gate:
+        rows += [{**item, "id": f"g_{item['id']}", "set": "gate"}
+                 for item in map(json.loads, GATE_CASES.read_text(encoding="utf-8").splitlines())
+                 if item.get("tool") in ("weather", "time")]
+    return rows
+
+
+def run_case(client, case, sample, calls) -> dict:
+    item = {"split": "t3", "category": case["tool"], "expect": case.get("expect", case["tool"]), **case}
+    recording = StrictRecording(client, f"{item['id']}.r{sample}", calls=calls)
+    trace, _ = live_gate_eval.run_item(client, item, sample, False, tools=TOOLS, recording=recording)
+    pick, confidence = picked(trace)
+    return {"id": case["id"], "set": case["set"], "sample": sample, "label": case["tool"], "pick": pick,
+            "confidence": confidence, "routed": routed(trace), "reaches": reaches(trace, case["tool"]),
+            "intent": trace["intent"], "utterance": case["utterance"]}
 
 
 def table(rows) -> str:
@@ -62,31 +125,59 @@ def table(rows) -> str:
     return "\n".join(lines)
 
 
+def majority(rows, passed) -> dict[str, bool]:
+    """Per case, whether more than half of its samples pass. A case fails when half or more of them fail."""
+    by_case = defaultdict(list)
+    for row in rows:
+        by_case[row["id"]].append(passed(row))
+    return {case: sum(results) * 2 > len(results) for case, results in by_case.items()}
+
+
+def summary(rows) -> str:
+    t3 = [r for r in rows if r["set"] == "tool_pick" and r["label"] in registry.T3_TOOLS]
+    chat = [r for r in rows if r["set"] == "tool_pick" and r["label"] in (registry.NONE, registry.GENERAL)]
+    gate = [r for r in rows if r["set"] == "gate"]
+    lookups = [r for r in rows if r["set"] == "tool_pick" and r["label"] in ("weather", "time")]
+    false_t3 = [r for r in chat if registry.T3_TOOLS & set(r["routed"])]
+    reached = majority(t3, lambda r: r["reaches"])
+    lines = [f"T3 requests that reach their tool: {sum(reached.values())} of {len(reached)} cases "
+             f"({sum(r['reaches'] for r in t3)} of {len(t3)} samples)",
+             f"false T3 actions on the {len(majority(chat, bool))} chitchat and lookup controls: {len(false_t3)} "
+             f"samples {sorted({r['id'] for r in false_t3})}",
+             f"weather and time controls that reach their tool: {sum(majority(lookups, lambda r: r['reaches']).values())}"
+             f" of {len(majority(lookups, bool))} cases"]
+    if gate:
+        lines.append("gate cases, tools routed per sample: " + "; ".join(
+            f"{case} {[r['routed'] for r in gate if r['id'] == case]}" for case in dict.fromkeys(r["id"] for r in gate)))
+    return "\n".join(lines)
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--budget", type=int, default=150, help="stop when the ledger holds this many attempts")
-    parser.add_argument("--only", help="one case id, for a setup check")
-    parser.add_argument("--arguments", action="store_true", help="also ask the place and day questions")
+    parser.add_argument("--text", choices=sorted(CALLS), default="after",
+                        help="the decider text and gate to score: before or after seam unit 10 (default after)")
+    parser.add_argument("--samples", type=int, default=3, help="samples per case (default 3)")
+    parser.add_argument("--gate", action="store_true", help="add the live gate eval's weather and time items")
+    parser.add_argument("--only", help="comma-separated case ids")
+    parser.add_argument("--budget", type=int, default=600, help="stop when the ledger holds this many attempts")
     args = parser.parse_args(argv)
-    cases = [json.loads(line) for line in CASES.read_text(encoding="utf-8").splitlines() if line.strip()]
+    chosen = cases(args.gate)
     if args.only:
-        cases = [c for c in cases if c["id"] == args.only]
+        wanted = set(args.only.split(","))
+        chosen = [c for c in chosen if c["id"] in wanted]
     use_decider_cache(OUT / "ledger", args.budget)
     before = live_calls()
     rows = []
-    with make_decider("cloud") as client:
-        for case in cases:
-            item = {**case, "split": "t3", "category": case["tool"], "expect": case["tool"], "context": {}}
-            trace, _ = run_item(client, item, 1, False, calls=OUT / "calls", tools=TOOLS,
-                                arguments=args.arguments)
-            pick, confidence = picked(trace)
-            rows.append({"id": case["id"], "label": case["tool"], "pick": pick, "confidence": confidence,
-                         "reaches": reaches(trace, pick), "intent": trace["intent"], "utterance": case["utterance"]})
-            print(json.dumps(rows[-1]), flush=True)
-    (OUT / "results.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
-    right = sum(r["pick"] == r["label"] for r in rows)
-    print(f"\n{right} of {len(rows)} picks match the label; {live_calls() - before} ledger attempts this run\n")
-    print(table(rows))
+    with decider_text(args.text), make_decider("cloud") as client:
+        for case in chosen:
+            for sample in range(1, args.samples + 1):
+                rows.append(run_case(client, case, sample, CALLS[args.text]))
+                print(json.dumps(rows[-1]), flush=True)
+    name = f"results-{args.text}.jsonl" if not args.only else f"results-{args.text}-only.jsonl"
+    (OUT / name).write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+    print(f"\n{live_calls() - before} ledger attempts this run, {args.samples} samples per case\n")
+    print(summary(rows) + "\n")
+    print(table([r for r in rows if r["set"] == "tool_pick"]))
     return 0
 
 

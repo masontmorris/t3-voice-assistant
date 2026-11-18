@@ -222,6 +222,19 @@ class Hybrid(unittest.TestCase):
         HybridSegmenter(baseline, "baseline").update(TranscriptUpdate(1, "Search my email.", True))
         self.assertNotIn("Reading or searching", baseline.bodies[-1]["questions"]["s1_side_effect"]["criteria"]["false"])
 
+    def test_the_t3_sentence_is_in_the_kind_question_only_when_the_t3_tools_are_offered(self):
+        criteria = {}
+        for name, tools in (("off", {"weather": "Weather.", "none": "No tool."}),
+                            ("on", {"t3_ask": "Report a thread.", "weather": "Weather.", "none": "No tool."})):
+            decider = FakeDecider()
+            segmenter = HybridSegmenter(decider, name, tools=tools)
+            segmenter.conversation_mode = True
+            segmenter.update(TranscriptUpdate(1, "How's the PR thread going?", True))
+            criteria[name] = decider.bodies[-1]["questions"]["s1_kind"]["criteria"]
+        self.assertNotIn("coding thread", criteria["off"]["request"])
+        self.assertIn("coding thread", criteria["on"]["request"])
+        self.assertIn("not chitchat", criteria["on"]["chitchat"])
+
     def test_a_voice_delegate_links_to_its_segment_and_dispatches_once(self):
         seg = stream(["look up tomorrow's weather in seattle", "look up tomorrow's weather in seattle and um",
                       "look up tomorrow's weather in seattle and um what time does the ferry leave",

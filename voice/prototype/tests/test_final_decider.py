@@ -1,6 +1,9 @@
+import os
 import unittest
+from types import SimpleNamespace
+from unittest import mock
 
-from voice.prototype.run import close_with_decider
+from voice.prototype.run import close_with_decider, decider_arguments, segmenter_for
 from voice.segmentation.contract import TranscriptUpdate
 
 
@@ -42,3 +45,41 @@ class FinalDeciderTest(unittest.TestCase):
         segmenter = Segmenter()
         close_with_decider(segmenter, TranscriptUpdate(1, "What was my first message in this conversation?", True))
         self.assertEqual(segmenter.calls, ["close"])
+
+
+class DeciderArgumentsTest(unittest.TestCase):
+    """The free cloud decider answers 400 to the place and day questions, so they are off for it by default."""
+
+    def test_a_decider_without_text_questions_is_not_asked_them_unless_the_setting_says_so(self):
+        cloud, liquid = SimpleNamespace(text_questions=False), SimpleNamespace()
+        with mock.patch.dict(os.environ):
+            os.environ.pop("VOICE_DECIDER_ARGS", None)
+            self.assertEqual((decider_arguments(cloud, t3_enabled=True), decider_arguments(liquid, t3_enabled=True)), (False, True))
+        with mock.patch.dict(os.environ, {"VOICE_DECIDER_ARGS": "on"}):
+            self.assertTrue(decider_arguments(cloud, t3_enabled=True))
+        with mock.patch.dict(os.environ, {"VOICE_DECIDER_ARGS": "off"}):
+            self.assertFalse(decider_arguments(liquid, t3_enabled=True))
+
+    def test_cloud_weather_with_t3_off_asks_for_place_and_day(self):
+        from voice.segmentation.client import Client
+        from voice.live.t3_tasks import T3Registry
+
+        tools = SimpleNamespace(choices=lambda: {"weather": "Forecast", "none": "No tool"})
+        for registry, expected in ((tools, True), (T3Registry(tools), False)):
+            cloud = Client()
+            with self.subTest(t3=not expected), mock.patch.dict(os.environ), \
+                    mock.patch.object(cloud, "call", return_value={
+                        "status": 400, "timing": {"ms": 0, "started_at": 0}, "response": {},
+                    }) as ask:
+                os.environ.pop("VOICE_DECIDER_ARGS", None)
+                segmenter_for("hybrid", cloud, "weather", registry).update(
+                    TranscriptUpdate(1, "What is the weather in Lisbon tomorrow?", True))
+                names = ask.call_args.args[1]["questions"]
+                self.assertEqual(any(name.endswith("_place") for name in names), expected)
+                self.assertEqual(any(name.endswith("_when") for name in names), expected)
+
+    def test_the_cloud_client_says_it_has_no_text_questions(self):
+        from voice.segmentation.client import Client
+        with mock.patch.dict(os.environ):
+            os.environ.pop("VOICE_DECIDER_ARGS", None)
+            self.assertFalse(decider_arguments(Client(), t3_enabled=True))

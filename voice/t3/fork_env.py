@@ -2,8 +2,8 @@
 
 Mason's daily T3 install is never touched. The fork's server runs from this
 checkout against a dedicated T3 home, so fork code never writes his database.
-Run with ``python voice/t3/fork_env.py <up|down|status|token|pair>`` from the
-repo root. Every path below hangs off VOICE_HOME, which defaults to
+Run with ``python -m voice.t3.fork_env <up|down|status|token|pair|model>`` from
+the repo root. Every path below hangs off VOICE_HOME, which defaults to
 ``~/voice``. Only the standard library is used. Windows only: process checks
 use Get-CimInstance and taskkill, and secret files use icacls.
 
@@ -346,6 +346,20 @@ def runtime_state(paths: EnvPaths) -> dict | None:
     return None
 
 
+def clear_runtime_files(paths: EnvPaths) -> None:
+    """Drop the server's runtime file. Only once no server uses this home and the port is free.
+
+    taskkill /F gives the server no chance to remove its own file, and a server refuses to start while the file names a
+    live pid. Windows reports a recycled pid held by a protected process as alive (EPERM), so a stale file stopped the
+    next up with no output: measured 2026-11-18, pid 25332.
+    """
+    for candidate in runtime_candidates(paths):
+        try:
+            candidate.unlink()
+        except FileNotFoundError:
+            pass
+
+
 def runtime_web_url(paths: EnvPaths) -> str | None:
     """Web URL the pairing link uses, from the runtime file. None when unknown."""
     state = runtime_state(paths)
@@ -516,6 +530,24 @@ def ensure_seam_config(paths: EnvPaths, project_id: str) -> bool:
     return True
 
 
+def read_settings(paths: EnvPaths) -> dict:
+    try:
+        return json.loads((paths.home / SETTINGS_FILE).read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+
+
+def write_settings(paths: EnvPaths, settings: dict) -> None:
+    file = paths.home / SETTINGS_FILE
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+
+
+def sandbox_model(paths: EnvPaths, project_id: str) -> dict | None:
+    """The sandbox's default model selection, or None when none is set."""
+    return read_settings(paths).get("projectSettingsOverrides", {}).get(project_id, {}).get("defaultModelSelection")
+
+
 def ensure_sandbox_model(paths: EnvPaths, project_id: str) -> bool:
     """Give the sandbox Replay (dev) as its default model. True when it wrote it.
 
@@ -523,17 +555,12 @@ def ensure_sandbox_model(paths: EnvPaths, project_id: str) -> bool:
     replay agent and never a paid one. A default model already set for the sandbox is kept.
     Runs with the server stopped, like the rest of setup.
     """
-    file = paths.home / SETTINGS_FILE
-    try:
-        settings = json.loads(file.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        settings = {}
+    settings = read_settings(paths)
     sandbox = settings.setdefault("projectSettingsOverrides", {}).setdefault(project_id, {})
     if sandbox.get("defaultModelSelection") is not None:
         return False
     sandbox["defaultModelSelection"] = {"instanceId": DEV_REPLAY_PROVIDER, "model": DEV_REPLAY_MODEL}
-    file.parent.mkdir(parents=True, exist_ok=True)
-    file.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    write_settings(paths, settings)
     return True
 
 
@@ -765,6 +792,7 @@ def cmd_up(repo: Path, paths: EnvPaths) -> int:
         print(f"fork_env: sandbox default model is {DEV_REPLAY_PROVIDER}/{DEV_REPLAY_MODEL}")
     if not any(made[key] for key in ("sandbox_created", "project_created", "seam_created", "model_set")):
         print("fork_env: setup already done, created nothing")
+    clear_runtime_files(paths)
     proc = spawn_dev_server(repo, paths, FORK_PORT)
     assert proc.pid is not None
     if not record_server_identity(paths, proc.pid):
@@ -802,7 +830,12 @@ def cmd_down(paths: EnvPaths) -> int:
     deadline = time.monotonic() + DOWN_TIMEOUT_S
     while time.monotonic() < deadline:
         if not pid_alive(pid) and not port_open(FORK_PORT):
-            clear_pid_file(paths)
+            refusal = foreign_server_refusal(paths)
+            if refusal is None:
+                clear_pid_file(paths)
+                clear_runtime_files(paths)
+            else:
+                print(f"{refusal}; kept runtime files", file=sys.stderr)
             print(f"fork_env: stopped pid {pid}")
             return 0
         time.sleep(DOWN_POLL_INTERVAL_S)
@@ -826,6 +859,9 @@ def cmd_status(paths: EnvPaths) -> int:
     print(f"home: {home}")
     print(f"sandbox: {paths.sandbox}")
     print(f"sandbox_project: {state.get('sandboxProjectId', 'unknown')}")
+    selection = sandbox_model(paths, state["sandboxProjectId"]) if state.get("sandboxProjectId") else None
+    shown = f"{selection['instanceId']}/{selection['model']}" if isinstance(selection, dict) else "unset"
+    print(f"sandbox_model: {shown}")
     if live is not None:
         print(f"pid: {live}")
     return 0
@@ -869,6 +905,37 @@ def cmd_token(repo: Path, paths: EnvPaths) -> int:
     return 0
 
 
+def cmd_model(paths: EnvPaths, selection: str) -> int:
+    """Set the sandbox's default model to `<provider instance>/<model>`. Refuses while a server runs on this home.
+
+    Voice launches take the sandbox's default model, so this picks the agent Mason's threads run on. The server
+    reads settings.json at start, and this tool never writes a running server's files.
+    """
+    instance, _, model = selection.partition("/")
+    if not instance or not model:
+        print("fork_env: model wants <provider instance>/<model>, such as devReplay/showcase", file=sys.stderr)
+        return 2
+    if environment_up(paths) is not None:
+        print("fork_env: model refuses while the environment is up, run down first", file=sys.stderr)
+        return 1
+    refusal = foreign_server_refusal(paths)
+    if refusal:
+        print(refusal, file=sys.stderr)
+        return 1
+    project_id = read_state(paths).get("sandboxProjectId")
+    if not project_id:
+        print("fork_env: no sandbox project yet, run up once first", file=sys.stderr)
+        return 1
+    settings = read_settings(paths)
+    sandbox = settings.setdefault("projectSettingsOverrides", {}).setdefault(project_id, {})
+    before = sandbox.get("defaultModelSelection")
+    sandbox["defaultModelSelection"] = {"instanceId": instance, "model": model}
+    write_settings(paths, settings)
+    was = f"{before['instanceId']}/{before['model']}" if isinstance(before, dict) else "unset"
+    print(f"fork_env: sandbox default model is {instance}/{model} (was {was})")
+    return 0
+
+
 def cmd_pair(repo: Path, paths: EnvPaths) -> int:
     """Mint a pairing URL for linking this environment. Never prints it."""
     if environment_up(paths) is None:
@@ -898,13 +965,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Bring the fork's T3 environment up and down.")
     parser.add_argument("--home", default=None, help="Fork T3 home (default VOICE_HOME/t3-fork-home).")
     parser.add_argument("--sandbox", default=None, help="Sandbox repo dir (default VOICE_HOME/t3-fork-sandbox).")
-    parser.add_argument("command", choices=["up", "status", "down", "token", "pair"])
+    parser.add_argument("command", choices=["up", "status", "down", "token", "pair", "model"])
+    parser.add_argument("selection", nargs="?",
+                        help="for model: <provider instance>/<model>, such as devReplay/showcase")
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     """Entry point. Secrets never reach stdout on any path."""
-    args = build_parser().parse_args(argv)
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    if (args.command == "model") != (args.selection is not None):
+        parser.error("only model takes a selection, and model needs one")
     voice_home = default_voice_home()
     home = Path(args.home) if args.home else voice_home / "t3-fork-home"
     home = Path(os.path.abspath(os.path.expanduser(str(home))))
@@ -926,6 +998,8 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_token(repo, paths)
     if args.command == "pair":
         return cmd_pair(repo, paths)
+    if args.command == "model":
+        return cmd_model(paths, args.selection)
     return 2
 
 
