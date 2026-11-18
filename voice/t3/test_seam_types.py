@@ -1,13 +1,13 @@
-"""Every frame type and refusal code in seam.schema.json has a type in types.py.
+"""Check the seam's frame fields and enums against the Python client."""
 
-A schema gain with no Python type fails here, so the seam cannot grow a frame
-or a code the voice client cannot read.
-"""
-
+import inspect
 import json
 import unittest
+from dataclasses import MISSING, fields, is_dataclass
 from pathlib import Path
+from typing import get_args, get_origin, get_type_hints
 
+from voice.t3 import seam as S
 from voice.t3 import types as T
 
 SCHEMA = json.loads((Path(__file__).parent / "seam.schema.json").read_text(encoding="utf-8"))
@@ -29,7 +29,40 @@ def branch_type(branch):
     return branch["properties"]["type"]["enum"]
 
 
+def wire_name(name):
+    first, *rest = name.split("_")
+    return first + "".join(word.title() for word in rest)
+
+
 class SchemaCoverageTest(unittest.TestCase):
+    def assert_fields(self, node, required, optional=()):
+        actual_required = set(node.get("required", ()))
+        self.assertEqual(actual_required, set(required), "required fields")
+        self.assertEqual(
+            node["properties"].keys() - actual_required, set(optional), "optional fields"
+        )
+
+    def assert_model_fields(self, node, model, *, envelope=()):
+        node = resolve(node)
+        required = set(envelope)
+        optional = set()
+        for f in fields(model):
+            names = required if f.default is MISSING and f.default_factory is MISSING else optional
+            names.add(wire_name(f.name))
+        self.assert_fields(node, required, optional)
+
+        for name, annotation in get_type_hints(model).items():
+            child = resolve(node["properties"][wire_name(name)])
+            if get_origin(annotation) is tuple:
+                child = resolve(child["items"])
+                annotation = get_args(annotation)[0]
+            if type(None) in get_args(annotation):
+                annotation, = (arg for arg in get_args(annotation) if arg is not type(None))
+                if is_dataclass(annotation):
+                    child, = (b for b in child["anyOf"] if b.get("type") != "null")
+            if is_dataclass(annotation):
+                self.assert_model_fields(child, annotation)
+
     def test_refusal_codes_match(self):
         self.assertEqual(set(DEFS["RefusalCode"]["enum"]), members(T.RefusalCode))
 
@@ -39,6 +72,10 @@ class SchemaCoverageTest(unittest.TestCase):
     def test_event_types_match(self):
         branches = DEFS["VoiceEvent"]["anyOf"]
         self.assertEqual({branch_type(b)[0] for b in branches}, set(T.EVENT_TYPES))
+        for branch in branches:
+            kind, = branch_type(branch)
+            with self.subTest(event=kind):
+                self.assert_model_fields(branch, T.EVENT_TYPES[kind], envelope=("type",))
 
     def test_event_enums_match(self):
         by_type = {branch_type(b)[0]: b["properties"] for b in DEFS["VoiceEvent"]["anyOf"]}
@@ -56,30 +93,58 @@ class SchemaCoverageTest(unittest.TestCase):
         ok_values = []
         for branch in DEFS["ServerFrame"]["anyOf"]:
             node = resolve(branch)
-            kinds.append(branch_type(node)[0])
-            if node["properties"].get("ok", {}).get("enum") == [True]:
-                ok_values.append(node["properties"]["value"])
+            kind, = branch_type(node)
+            kinds.append(kind)
+            properties = node["properties"]
+            with self.subTest(frame=kind):
+                if kind == "hello":
+                    self.assert_model_fields(node, T.Hello, envelope=("type",))
+                elif kind == "watch_ended":
+                    self.assert_model_fields(node, T.WatchEnded, envelope=("type",))
+                elif kind == "event":
+                    self.assert_fields(node, ("type", "event"))
+                    self.assertEqual(resolve(properties["event"]), DEFS["VoiceEvent"])
+                elif kind == "result":
+                    if properties["ok"]["enum"] == [True]:
+                        self.assert_fields(node, ("type", "id", "ok", "value"))
+                        ok_values.append(properties["value"])
+                    else:
+                        self.assertEqual(properties["ok"]["enum"], [False])
+                        self.assert_fields(node, ("type", "id", "ok", "error"))
+                        self.assert_model_fields(properties["error"], T.ResultErr)
         self.assertEqual(sorted(kinds), ["event", "hello"] + ["result"] * 8 + ["watch_ended"])
-        refs = {v.get("$ref", "inline") for v in ok_values}
-        self.assertIn("#/$defs/VoiceThreadList", refs)
-        self.assertIn("#/$defs/VoiceThreadState", refs)
         self.assertEqual(len(ok_values), len(T.WIRE_OPS))
+        models = {
+            "list_threads": T.ThreadList,
+            "read_thread": T.ThreadState,
+            "watch": T.WatchStarted,
+            "unwatch": T.WatchStarted,
+        }
+        self.assertEqual(models.keys(), T.RESULT_DECODERS.keys())
+        for op, node in zip(T.WIRE_OPS, ok_values, strict=True):
+            with self.subTest(result=op):
+                if op in models:
+                    self.assert_model_fields(node, models[op])
+                else:
+                    self.assertEqual(node, {"not": {}})
 
-    def test_client_ops_match(self):
-        ops = [
-            branch["properties"]["op"]["enum"][0] for branch in DEFS["ClientFrame"]["anyOf"]
-        ]
+    def test_client_frames_match(self):
+        ops = []
+        for branch in DEFS["ClientFrame"]["anyOf"]:
+            properties = branch["properties"]
+            op, = properties["op"]["enum"]
+            ops.append(op)
+            with self.subTest(op=op):
+                self.assert_fields(branch, ("id", "op", "input"))
+                parameters = inspect.signature(getattr(S.T3Seam, op)).parameters.values()
+                required = set()
+                optional = set()
+                for parameter in parameters:
+                    if parameter.name != "self":
+                        names = required if parameter.default is inspect.Parameter.empty else optional
+                        names.add(wire_name(parameter.name))
+                self.assert_fields(properties["input"], required, optional)
         self.assertEqual(ops, list(T.WIRE_OPS))
-
-    def test_watch_input_keeps_run_id_optional(self):
-        watch = next(
-            b
-            for b in DEFS["ClientFrame"]["anyOf"]
-            if b["properties"]["op"]["enum"] == ["watch"]
-        )
-        request_input = watch["properties"]["input"]
-        self.assertEqual(sorted(request_input["required"]), ["afterSequence", "threadId"])
-        self.assertIn("runId", request_input["properties"])
 
     def test_ceiling_enums_match(self):
         ceiling = DEFS["HelloFrame"]["properties"]["ceiling"]
