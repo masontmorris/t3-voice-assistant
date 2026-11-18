@@ -224,7 +224,7 @@ python -m voice.t3.fork_env model <provider instance>/<model>
 python -m voice.t3.fork_env up
 ```
 
-**Start the live server with T3 on.** Use the free decider, which leaves out the place and day questions on its own. The voice speaks every T3 line word for word, and speaks thread news while the call is quiet.
+**Start the live server with T3 on.** Use the default snapshot mode, `note`, for a call with T3. With T3 on, the free decider skips place and day questions by default. The voice speaks each T3 line word for word and announces thread news while the call is quiet.
 
 ```bash
 export VOICE_ENV_FILE=<path to the .env that holds OPENROUTER_API_KEY>

@@ -280,7 +280,7 @@ class Follow:
 
     def take(self, task_id: str | None = None) -> list[Update]:
         taken = [u for u in self.outbox if task_id is None or u.task_id == task_id]
-        self.journal.take_lines(task_id)
+        self.journal.remove_lines(taken)
         self.outbox = [u for u in self.outbox if task_id is not None and u.task_id != task_id]
         return taken
 

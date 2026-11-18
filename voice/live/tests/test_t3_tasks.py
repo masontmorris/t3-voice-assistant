@@ -13,7 +13,8 @@ from unittest.mock import patch
 
 from voice.live.t3_tasks import (ASK, START, STOP, T3_TOOLS, T3_WAITING, TELL, T3Registry, T3TaskService, T3Tasks,
                                  reply_kind, speak_state, tell_parts, transcript_rows)
-from voice.prototype.run import task_note
+from voice.prototype.run import say_verbatim, task_note
+from voice.prototype.tests.test_run_shared_session import FakeSession
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
@@ -460,7 +461,7 @@ class ExplicitYes(unittest.TestCase):
         return seam
 
 
-class Service(unittest.TestCase):
+class Service(unittest.IsolatedAsyncioTestCase):
     def service(self, t3, records):
         segmenter = SimpleNamespace(records=lambda: records,
                                     dispatch_log=[{"task_id": r["task_id"], "instruction": r["instruction"]}
@@ -495,7 +496,9 @@ class Service(unittest.TestCase):
     def test_the_next_turn_answers_and_later_news_arrives_as_updates(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
-        self.service(t3, [self.record("task_1", "Add a clamp helper in the sandbox project", START)]).sync(0)
+        first = self.service(t3, [self.record("task_1", "Add a clamp helper in the sandbox project", START)])
+        first.sync(0)
+        first.record_delivery(first.snapshot("utt_1", "...")["tasks"][0], "sent")
         turn2 = self.service(t3, [])
         waiting = turn2.open_question()
         events = turn2.answer(waiting, "yes", 1)
@@ -512,6 +515,42 @@ class Service(unittest.TestCase):
         self.assertEqual(updates[0]["task_id"], "conv_turn_001:task_1")
         self.assertEqual(turn3.update_entries(updates), updates)
         self.assertIsNone(task_note(updates[0]), "a T3 line is said word for word, never handed to LFM3 to word")
+
+    async def test_unspoken_stop_confirmation_is_reasked_before_a_yes_can_act(self):
+        seam = F.FakeSeam()
+        seam.listing = listing(*THREADS)
+        t3 = tasks_over(self, seam)
+        first = self.service(t3, [self.record("task_1", "Stop the clamp helper thread.", STOP)])
+        first.sync(0)
+        entry = first.snapshot("utt_1", "...")["tasks"][0]
+        line = entry["spoken"]
+        voice = await FakeSession.open("ws://unused", "voice", lambda: 0)
+        spoken = []
+
+        def broken_tts(text, rate):
+            raise OSError("TTS down")
+
+        def speak(text, pcm, done):
+            spoken.append(text)
+
+        await say_verbatim(voice, 24_000, 0, (line,), lambda *args, **kwargs: None, speak, broken_tts,
+                           record_delivery=lambda state: first.record_delivery(entry, state))
+        self.assertEqual((spoken, voice.sent), ([], []))
+        first.close()
+
+        retry = self.service(t3, [])
+        retry.answer(retry.open_question(), "yes", 1)
+        self.assertEqual(seam.ops("interrupt"), [])
+        self.assertIsNotNone(t3.question)
+        entry = retry.snapshot("utt_1", "yes")["tasks"][0]
+        self.assertEqual(entry["spoken"], line)
+        await say_verbatim(voice, 24_000, 0, (entry["spoken"],), lambda *args, **kwargs: None, speak,
+                           lambda text, rate: bytes(960),
+                           record_delivery=lambda state: retry.record_delivery(entry, state))
+        self.assertEqual(spoken, [line])
+        third = self.service(t3, [])
+        third.answer(third.open_question(), "yes", 2)
+        self.assertEqual(len(seam.ops("interrupt")), 1)
 
     def test_news_a_turn_never_spoke_is_taken_again_even_after_a_restart(self):
         tmp = tempfile.TemporaryDirectory()

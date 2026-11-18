@@ -642,35 +642,38 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, trans
     return item, reply, pcm
 
 
-def t3_lines_of(entries):
-    """The T3 lines in a turn's snapshot tasks or task updates."""
-    return tuple(entry["spoken"] for entry in entries or () if entry.get("spoken"))
-
-
 def tts_line(url):
     """`render(text, rate)` for `say_verbatim`: the line through the running llama-server's TTS, cached by its text."""
     base = url.replace("ws://", "http://").split("/v1/")[0]
     return lambda text, rate: line_pcm(line_wav(base, text), rate)
 
 
-async def say_verbatim(session, rate, since, lines, log, speak=None, render=None):
-    """T3's own lines, spoken word for word in the server's TTS voice. LFM3 does not word them: handed one to say, it
-    turned "Stop the X thread?" into "I've stopped the thread", "I've passed that on." into "I've added a test", and
-    then made up quotes from the thread (measured: integrated runs 2 and 3, 2026-11-18). The session gets a note of
-    what was said, so later turns hear it as said. Returns the reply and its audio; no audio when the TTS fails."""
+async def say_verbatim(session, rate, since, lines, log, speak=None, render=None, *,
+                       send_audio=None, record_delivery=None):
+    """Render T3's words and record how much audio reached the reply path."""
     text = " ".join(lines)
     try:
         pcm = await asyncio.to_thread(render, text, rate) if render is not None else b""
     except Exception as exc:
         log("t3_voice_failed", error=repr(exc))
         pcm = b""
-    if speak is not None and pcm:
-        speak(text, pcm, True)
-    reply = fixed_reply(text, pcm, rate, session.clock() - since)
-    reply["item"] = await create_item(session, plain_text(f"{NOTE_OPEN}you just told them this, in T3's words: "
-                                                          f"\"{text}\"]"))
-    log("t3_said", text=text, audio_s=round(reply["speech_s"], 3))
-    return reply, pcm
+    sent = b""
+    if pcm:
+        if send_audio is not None:
+            sent = await send_audio(text, pcm)
+        elif speak is not None:
+            speak(text, pcm, True)
+            sent = pcm
+    delivery = "sent" if sent and len(sent) == len(pcm) else "partial" if sent else "unsent"
+    if record_delivery is not None:
+        record_delivery(delivery)
+    reply = fixed_reply(text, sent, rate, session.clock() - since)
+    reply["delivery"] = delivery
+    if delivery == "sent":
+        reply["item"] = await create_item(session, plain_text(
+            f"{NOTE_OPEN}you just told them this, in T3's words: \"{text}\"]"))
+    log("t3_delivery", text=text, delivery=delivery, audio_s=round(reply["speech_s"], 3))
+    return reply, sent
 
 
 def fixed_reply(line, pcm, rate, after_s):
@@ -853,7 +856,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
                    recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=(),
-                   task_service=None, t3_voice=None):
+                   task_service=None, t3_voice=None, send_verbatim=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -928,9 +931,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
         earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")), None),
         simulate=simulate_tasks, context=list(context))
-    # The newest task an earlier turn left waiting on a question about its own arguments, as `carried_tasks` gives it,
-    # else a question the service holds itself.
-    waiting = next((t for t in reversed(prior_tasks) if t.get("waiting")), None) or service.open_question()
+    waiting = service.open_question() or next((t for t in reversed(prior_tasks) if t.get("waiting")), None)
     adapter = StaggeredTranscript(asr_stagger) if asr_stagger > 1 else TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -1035,6 +1036,19 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         worker = asyncio.create_task(segment_worker())
 
         replies, tool_turn, injection, answered = [], None, [], None
+        record_delivery = getattr(service, "record_delivery", None)
+
+        async def say_t3(entries, kind, since):
+            for index, entry in enumerate(entries):
+                delivery = None if record_delivery is None else lambda state: record_delivery(entry, state)
+                reply, pcm = await say_verbatim(voice, out_rate, since, (entry["spoken"],), log, speak, t3_voice,
+                                               send_audio=send_verbatim, record_delivery=delivery)
+                replies.append({"kind": kind, "row": entry.get("row"), **reply})
+                log("reply", reply=kind, text=reply["text"])
+                if pcm:
+                    suffix = f"_{index + 1}" if index else ""
+                    write_pcm16(out / f"{stem}_{kind}{suffix}.wav", pcm, out_rate)
+
         given, picked = [*established], []
         fallback = Fallback(fallback_pcm)
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
@@ -1110,7 +1124,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if note is not None:
                 injection.append(await create_item(voice, plain_text(note)))
                 log("recall_note", note=note)
-            t3_said = t3_lines_of(answered["tasks"]) if noted else ()
+            t3_entries = [entry for entry in answered["tasks"] if entry.get("spoken")] if noted else []
             if noted:
                 asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
                 item = ASK_NOTE if asks else task_notes(answered["tasks"])
@@ -1132,13 +1146,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     log("service", **event)
                 return STILL_RUNNING_NOTE if events else None
 
-            if t3_said:
-                t3_reply, t3_pcm = await say_verbatim(voice, out_rate, audio_end, t3_said, log, speak, t3_voice)
-                replies.append({"kind": "t3", **t3_reply})
-                log("reply", reply="t3", text=t3_reply["text"])
-                if t3_pcm:
-                    write_pcm16(out / f"{stem}_t3.wav", t3_pcm, out_rate)
-            if t3_said and item is None:
+            await say_t3(t3_entries, "t3", audio_end)
+            if t3_entries and item is None:
                 reply = None
             elif noted:
                 running = is_running(answered)
@@ -1199,20 +1208,16 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 log("service", task_id=task_id, event=service.executions[task_id].state.value)
         task_updates = service.take_updates()
         updates = shown({"updates": task_updates}, snapshot_mode, adapter.text(), update=True) if task_updates else None
-        t3_news = t3_lines_of(task_updates) if snapshot_mode == "note" else ()
-        if t3_news:
-            log("task_updates", updates=task_updates)
-            news_reply, news_pcm = await say_verbatim(voice, out_rate, clock(), t3_news, log, speak, t3_voice)
-            replies.append({"kind": "t3_update", **news_reply})
-            log("reply", reply="t3_update", text=news_reply["text"])
-            if news_pcm:
-                write_pcm16(out / f"{stem}_t3_update.wav", news_pcm, out_rate)
         if snapshot_mode == "note" and task_updates:
+            t3_news = [entry for entry in task_updates if entry.get("spoken")]
+            if t3_news:
+                log("task_updates", updates=task_updates)
+                await say_t3(t3_news, "t3_update", clock())
             updates = task_notes(service.update_entries(task_updates))
         if updates is not None:
             boundary = clock()
             log("task_updates", updates=task_updates)
-            said = (*prior_replies, *[r["text"] for r in replies if r.get("text")])
+            said = (*prior_replies, *[r["text"] for r in replies if r.get("text") and r.get("delivery", "sent") == "sent"])
             if snapshot_mode == "note":
                 injection_update, update_reply, update_pcm = await speak_note(
                     voice, out_rate, boundary, updates, [adapter.text(), *prior_utterances, *given], log,

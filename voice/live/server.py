@@ -124,11 +124,11 @@ from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, clas
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
-                                 heard_prefix, interrupted_note, plain_text, run_clip, say_verbatim, t3_lines_of,
+                                 heard_prefix, interrupted_note, plain_text, run_clip, say_verbatim,
                                  tts_line)
 from voice.live.ledger import ConversationLedger
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, default_journal, default_model, \
-    default_origin, default_token_file, update_entry
+    default_origin, default_token_file
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -310,6 +310,13 @@ def note_for(heard):
     return interrupted_note() if heard and heard["heard"] and not heard["whole"] else None
 
 
+@dataclass
+class VerbatimAudio:
+    pcm: bytes
+    reply: Reply
+    done: asyncio.Future[bytes]
+
+
 class MicTurn:
     """One turn's microphone audio, the source `run_clip` streams from, plus the turn's live timings."""
 
@@ -381,14 +388,12 @@ class MicTurn:
 
 
 class IdleTurn(MicTurn):
-    """A turn the server starts while the call is quiet, to speak T3 news (`updates`). It has no audio, and it takes the
-    call's voice session and the client's reply path the way a person's turn does, so a barge-in stops it."""
+    """A turn the server starts while the call is quiet, to speak T3 news on the usual reply path."""
 
     idle = True
 
-    def __init__(self, n, updates):
+    def __init__(self, n):
         super().__init__(n, b"")
-        self.updates = updates
         self.turn_end = self.speech_end = self.started
 
 
@@ -401,6 +406,7 @@ class Conversation:
 
     def __init__(self, live, ws, secret):
         self.live, self.ws = live, ws
+        self.sender: asyncio.Task | None = None
         self.secret = secret
         self.endpointer = Endpointer(live.settings)
         self.mode, self.ptt_down, self.turn = "vad", False, None
@@ -427,14 +433,31 @@ class Conversation:
             self.outbox.put_nowait((turn, pcm[offset:offset + step]))
 
     async def _send_loop(self):
-        while True:
-            turn, payload = await self.outbox.get()
-            if isinstance(payload, bytes) and turn is not None and turn.muted:
-                continue
-            await self.ws.send(payload)
+        try:
+            while True:
+                turn, payload = await self.outbox.get()
+                if isinstance(payload, VerbatimAudio):
+                    try:
+                        step = turn.out_rate * DOWN_CHUNK_MS // 1000 * 2
+                        for offset in range(0, len(payload.pcm), step):
+                            if turn.muted:
+                                break
+                            frame = payload.pcm[offset:offset + step]
+                            await self.ws.send(frame)
+                            turn.first_audio = turn.first_audio or time.perf_counter()
+                            payload.reply.pcm += frame
+                    finally:
+                        payload.done.set_result(bytes(payload.reply.pcm))
+                elif not (isinstance(payload, bytes) and turn is not None and turn.muted):
+                    await self.ws.send(payload)
+        finally:
+            while not self.outbox.empty():
+                _, payload = self.outbox.get_nowait()
+                if isinstance(payload, VerbatimAudio):
+                    payload.done.set_result(b"")
 
     async def run(self):
-        sender = asyncio.create_task(self._send_loop())
+        self.sender = sender = asyncio.create_task(self._send_loop())
         if self.live.t3 is not None:
             self.news = asyncio.create_task(self.speak_news())
         try:
@@ -504,21 +527,20 @@ class Conversation:
         one line per update. News waits while anyone talks, and lines a turn took but never spoke go back."""
         t3 = self.live.t3
         while True:
-            if not t3.has_news():
+            if not t3.has_news(idle=True):
                 await self.live.news.wait()
                 self.live.news.clear()
                 await asyncio.sleep(COALESCE_S)
             while not self.quiet(time.perf_counter()):
                 await asyncio.sleep(QUIET_CHECK_S)
-            updates = t3.take()
-            if updates:
-                # asyncio.wait, not gather: cancelling this loop must leave the turn to close(), which marks it.
-                await asyncio.wait({self.start_idle(updates).task})
+            if t3.has_news(idle=True):
+                # The turn owns its reservation, even when the idle loop is cancelled.
+                await asyncio.wait({self.start_idle().task})
 
-    def start_idle(self, updates):
+    def start_idle(self):
         self.live.turns += 1
-        turn = IdleTurn(self.live.turns, updates)
-        turn.task = asyncio.create_task(self.run_idle(turn, self.turn.task if self.turn is not None else None))
+        turn = IdleTurn(self.live.turns)
+        turn.task = asyncio.create_task(self.run_idle(turn))
         self.pending.add(turn)
         turn.task.add_done_callback(lambda _: self.pending.discard(turn))
         self.turn = turn
@@ -735,6 +757,26 @@ class Conversation:
             turn.speaking = False
             self.post({"type": "reply_end", "turn": turn.n}, turn)
 
+    async def speak_t3(self, turn, text, pcm):
+        if turn.muted or (self.sender is not None and self.sender.done()):
+            return b""
+        turn.speaking = turn.reply_started = True
+        reply = Reply(text)
+        turn.replies.append(reply)
+        now = time.perf_counter()
+        self.playback.add(len(pcm) / 2 / turn.out_rate, text, now, turn.n)
+        self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
+        done = asyncio.get_running_loop().create_future()
+        self.outbox.put_nowait((turn, VerbatimAudio(pcm, reply, done)))
+        try:
+            return await asyncio.shield(done)
+        except asyncio.CancelledError:
+            # The sender may already have written frames. Settle the line using its actual byte count.
+            return await asyncio.shield(done)
+        finally:
+            turn.speaking = False
+            self.post({"type": "reply_end", "turn": turn.n}, turn)
+
     async def open_voice(self):
         """The call's one voice session, opened by its first turn. The persona is read here and kept for the call."""
         live = self.live
@@ -779,7 +821,8 @@ class Conversation:
                                     prior_results=tuple(self.ledger.results()),
                                     prior_replies=tuple(self.ledger.replies()),
                                     established=tuple(self.ledger.established()),
-                                    task_service=live.task_service, t3_voice=live.t3_voice)
+                                    task_service=live.task_service, t3_voice=live.t3_voice,
+                                    send_verbatim=lambda text, pcm: self.speak_t3(turn, text, pcm))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -798,40 +841,47 @@ class Conversation:
         self.write_record(turn, record)
         if turn.barge_in is not None and not turn.barge_in.heard.done():
             turn.barge_in.heard.add_done_callback(lambda _: self.write_record(turn, record))
+        replies = [r for r in record.get("replies", []) if r.get("delivery", "sent") == "sent"]
         done = {"type": "turn_done", "turn": turn.n, "transcript": record.get("final_transcript"),
-                "replies": [r.get("text") for r in record.get("replies", [])], "error": record.get("error"),
+                "replies": [r.get("text") for r in replies], "error": record.get("error"),
                 "cancelled": turn.cancelled,
-                "rows": [u["row"] for u in record.get("task_updates") or () if u.get("row")],
+                "rows": [r["row"] for r in replies if r.get("row")],
                 "metrics": {**record.get("metrics", {}), **turn.metrics()}}
         self.post(done)
         print(f"{turn.name} {json.dumps(done['metrics'])}", flush=True)
 
-    async def run_idle(self, turn, prior):
-        """Speaks `turn.updates` word for word, as a turn's own T3 lines are. A turn muted before any of its audio went
-        out gives its updates back, so the news waits for the next quiet moment."""
+    async def run_idle(self, turn):
         live, timeline = self.live, []
-        entries = [update_entry(u, f"conv_{turn.stem}") for u in turn.updates]
+        updates = live.t3.reserve_news(idle=True)
+        entries = [live.t3.news_entry(update, f"conv_{turn.stem}") for update in updates]
+        unsent = {id(update): update for update in updates}
         record = {"clip": turn.name, "idle": True, "final_transcript": None,
-                  "t3_updates": [asdict(u) for u in turn.updates], "task_updates": entries, "timeline": timeline,
+                  "t3_updates": [asdict(update) for update in updates], "task_updates": entries, "timeline": timeline,
                   "replies": []}
 
         def log(kind, **detail):
             timeline.append({"t": round(self.voice_clock(), 4), "kind": kind, **detail})
 
         try:
-            if prior is not None:
-                await asyncio.gather(prior, return_exceptions=True)
             if not turn.muted:
                 if self.voice is None:
                     await self.open_voice()
                 self.voice_turn, self.session_turns = turn, self.session_turns + 1
                 turn.out_rate, self.started = self.out_rate, time.perf_counter()
                 log("task_updates", updates=entries)
-                reply, _ = await say_verbatim(
-                    self.voice, turn.out_rate, self.voice_clock(), t3_lines_of(entries), log,
-                    lambda text, pcm, done: self.speak(turn, text, pcm, done), live.t3_voice)
-                record["replies"].append({"kind": "t3_update", **reply})
-                log("reply", reply="t3_update", text=reply["text"])
+                for update, entry in zip(updates, entries):
+                    def delivered(state):
+                        if state != "unsent":
+                            live.t3.ack_news(unsent.pop(id(update)))
+
+                    reply, _ = await say_verbatim(
+                        self.voice, turn.out_rate, self.voice_clock(), (entry["spoken"],), log,
+                        render=live.t3_voice, send_audio=lambda text, pcm: self.speak_t3(turn, text, pcm),
+                        record_delivery=delivered)
+                    record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
+                    log("reply", reply="t3_update", text=reply["text"])
+                    if turn.muted:
+                        break
         except asyncio.CancelledError:
             turn.cancelled = turn.cancelled or "cancelled"
             record["cancelled"] = turn.cancelled
@@ -839,16 +889,17 @@ class Conversation:
             record["error"] = repr(exc)
         finally:
             self.voice_turn = None
-        if (turn.muted or turn.cancelled) and not turn.replies:
-            live.t3.give_back(turn.updates)
-            record["given_back"] = True
+            if unsent:
+                live.t3.retry_news(list(unsent.values()))
+                record["given_back"] = True
         self.ledger.record(record, muted=turn.muted)
         record["live"] = {**turn.metrics(), "idle": True, "barge_in": None,
                           "call": {"turn": len(self.ledger.turns), "session_turn": self.session_turns}}
         self.write_record(turn, record)
-        rows = [u.row for u in turn.updates]
+        replies = [r for r in record["replies"] if r["delivery"] == "sent"]
+        rows = [r["row"] for r in replies if r["row"]]
         self.post({"type": "turn_done", "turn": turn.n, "idle": True, "transcript": None,
-                   "replies": [r.get("text") for r in record["replies"]], "rows": rows, "error": record.get("error"),
+                   "replies": [r["text"] for r in replies], "rows": rows, "error": record.get("error"),
                    "cancelled": turn.cancelled, "given_back": bool(record.get("given_back")),
                    "metrics": turn.metrics()})
         print(f"{turn.name} idle {json.dumps({'rows': rows, 'muted': turn.muted})}", flush=True)
@@ -869,6 +920,8 @@ class Conversation:
         turns = list(self.pending)
         for turn in turns:
             turn.cancel("disconnected")
+        if self.sender is not None:
+            self.sender.cancel()
         await asyncio.gather(*(turn.task for turn in turns), return_exceptions=True)
         self.voice_turn = None
         if self.voice is not None:
@@ -1077,6 +1130,8 @@ def main():
     args = parser.parse_args()
     if args.segmenter != "hybrid":
         parser.error("the gated turn needs the hybrid segmenter")
+    if args.t3 == "on" and args.snapshot != "note":
+        parser.error("--t3 on requires --snapshot note so T3 lines are spoken verbatim")
     if args.t3 == "on" and args.mock_tools:
         parser.error("--t3 on needs the real registry: the decider's tool question offers the T3 tools")
     asyncio.run(main_async(args))

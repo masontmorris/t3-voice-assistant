@@ -347,6 +347,7 @@ class SayVerbatimTest(NoteTurn):
         reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("It finished.",),
                                                   lambda kind, **detail: None, heard_by(spoken), render)
         self.assertEqual((reply["text"], pcm, spoken), ("It finished.", b"", []))
+        self.assertEqual(texts(self.voice), [], "a failed render never enters the conversation as heard")
 
     def test_a_t3_line_gets_no_note_for_the_model(self):
         self.assertIsNone(prototype.task_note({"spoken": "Stop the clamp helper thread?", "status": "completed"}))
@@ -365,6 +366,32 @@ class T3SnapshotService(MockTaskService):
 
 
 class T3TurnTest(NoteTurn):
+    async def test_note_mode_speaks_stop_needs_you_and_done_without_a_model_reply(self):
+        needs_you = "The thread is waiting for you: which file?"
+        done = "The other thread finished."
+
+        class WithNews(T3SnapshotService):
+            def take_updates(self):
+                return [{"spoken": line, "status": status, "result_summary": line}
+                        for line, status in ((needs_you, "live"), (done, "completed"))]
+
+            def update_entries(self, updates):
+                return updates
+
+        rendered = []
+
+        def render(text, rate):
+            rendered.append(text)
+            return bytes(960)
+
+        await self.turn([], task_service=WithNews, t3_voice=render)
+        lines = ["Stop the clamp helper thread?", needs_you, done]
+        self.assertEqual(rendered, lines)
+        self.assertEqual(self.spoken, lines)
+        self.assertEqual(self.voice.asked, 0)
+        self.assertFalse([text for text in texts(self.voice)
+                          if text.startswith((prototype.SNAPSHOT_PREFIX, prototype.UPDATE_PREFIX))])
+
     async def test_a_turn_with_only_a_t3_line_speaks_it_and_asks_the_model_nothing(self):
         record = await self.turn(["I've stopped the clamp helper thread."], task_service=T3SnapshotService,
                                  t3_voice=lambda text, rate: bytes(960))

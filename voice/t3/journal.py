@@ -112,6 +112,7 @@ class Update:
     row: str | None = None
     thread_id: str | None = None
     sequences: tuple[int, ...] = ()
+    delivery_failures: int = 0
 
     def evidence(self) -> dict:
         return {"thread_id": self.thread_id, "sequences": list(self.sequences)}
@@ -138,9 +139,10 @@ class T3Journal:
         tmp.write_text(json.dumps(body, indent=1) + "\n", encoding="utf-8")
         os.replace(tmp, self.path)
 
-    def take_lines(self, task_id: str | None) -> None:
+    def remove_lines(self, updates: list[Update]) -> None:
+        taken = set(map(id, updates))
         previous = self.pending_lines
-        remaining = [u for u in previous if task_id is not None and u.task_id != task_id]
+        remaining = [u for u in previous if id(u) not in taken]
         if len(previous) != len(remaining):
             self.pending_lines = remaining
             try:
