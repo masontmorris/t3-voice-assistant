@@ -643,9 +643,9 @@ class Script:
         self.t3, self.clock = t3, time.monotonic
 
     def show(self, label, said, update):
-        if update is not None:
-            print(json.dumps({"turn": label, "said": said, "line": update.line, "status": update.status,
-                              "row": update.row, "evidence": update.evidence()}), flush=True)
+        line = {"line": None} if update is None else {"line": update.line, "status": update.status, "row": update.row,
+                                                      "evidence": update.evidence()}
+        print(json.dumps({"turn": label, "said": said, **line}), flush=True)
         return update
 
     def tool(self, label, tool, words):
@@ -664,10 +664,12 @@ class Script:
             if waited is None:
                 threading.Event().wait(1.0)
             self.t3.poll(self.clock(), waited)
+            done = False
             for update in self.t3.take():
-                self.show("watch", None, update)
-                if until(update):
-                    return True
+                self.show(f"watch {update.task_id}", None, update)
+                done = done or until(update)
+            if done:
+                return True
         return False
 
 
@@ -688,10 +690,13 @@ def drive(args) -> int:
         script.reply("b1", "yes")
     t3.poll(script.clock() + L.DONE_WINDOW_S)
     for update in t3.take():
-        script.show("watch", None, update)
+        script.show(f"watch {update.task_id}", None, update)
     if t3.follow.seam is not None:
         t3.follow.seam.close()
     return 0 if finished else 1
+
+
+ASKS = ("How is the clamping work coming along?", "How's the ASR fix coming along?")
 
 
 def smoke(args) -> int:
@@ -706,10 +711,11 @@ def smoke(args) -> int:
     ok = held is not None and held.row == "tell-busy"
     ok = script.follow(_done_for("a1"), args.timeout_s) and ok
     ok = script.follow(_done_for("c1"), args.timeout_s) and ok
-    calls = t3.model.calls if t3.model else 0
-    script.tool("b1", ASK, args.ask)
-    print(json.dumps({"model_calls_for_the_ask": (t3.model.calls if t3.model else 0) - calls}), flush=True)
-    script.reply("b1", "yes")
+    for n, ask in enumerate(args.ask or ASKS, 1):
+        calls = t3.model.calls if t3.model else 0
+        script.tool(f"b{n}", ASK, ask)
+        print(json.dumps({"model_calls_for_the_ask": (t3.model.calls if t3.model else 0) - calls}), flush=True)
+        script.reply(f"b{n}", "yes")
     script.tool("a2", START, args.second)
     script.reply("a2", "Yes, start it.")
     for label in ("s1", "s2"):
@@ -731,7 +737,7 @@ def main(argv=None) -> int:
     whole = sub.add_parser("smoke", help="launch, a held follow-up, an ask, and a stop said twice")
     whole.add_argument("instruction")
     whole.add_argument("--tell", default="Tell it to also add a test.")
-    whole.add_argument("--ask", default="How is the clamping work coming along?")
+    whole.add_argument("--ask", action="append", help=f"a Twin B ask, repeatable (default: {ASKS})")
     whole.add_argument("--second", default="Add a sum helper in the sandbox project")
     for command in (run, whole):
         command.add_argument("--origin", default=default_origin())
