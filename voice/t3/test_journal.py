@@ -189,7 +189,7 @@ class Interrupt(JournalCase):
 
 
 class PendingActs(JournalCase):
-    def test_pending_acts_round_trip_and_version_1_text_is_never_replayed(self):
+    def test_pending_acts_round_trip_and_version_1_text_becomes_a_legacy_update(self):
         follow = self.follow()
         task = self.live(follow)
         follow.speak(task, Act(S.NEEDS_YOU, {"prompt": "Merge it?", "waiting_for": "approval"}), "needs_you", (21,))
@@ -201,7 +201,10 @@ class PendingActs(JournalCase):
         raw["pending_lines"] = [{"task_id": task.task_id, "line": "old text", "status": "live", "row": "reply",
                                  "thread_id": "t1", "sequences": [5], "delivery_failures": 0}]
         self.path.write_text(json.dumps(raw), encoding="utf-8")
-        self.assertEqual(T3Journal(self.path).pending_lines, [])
+        upgraded, = T3Journal(self.path).pending_lines
+        self.assertEqual((upgraded.acts, upgraded.thread_id, upgraded.sequences, upgraded.row),
+                         ((Act(S.LEGACY_UPDATE, {"text": "old text"}),), "t1", (5,), "reply"),
+                         "an old line is news to word again, never dropped and never replayed as text")
 
 
 if __name__ == "__main__":

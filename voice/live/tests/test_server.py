@@ -836,7 +836,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         record = self.record(2)
         self.assertEqual(record["live"]["overlap"]["verdict"], "barge_in")
         self.assertIsNotNone(record["live"]["barge_in"], "the barge-in records what was heard of the idle line")
-        self.assertFalse(self.record(1).get("given_back"), "part of it was heard, so it is not said again")
+        self.assertTrue(self.record(1).get("given_back"), "a line cut off part way stays pending")
         await ws.close()
 
 
