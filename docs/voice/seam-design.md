@@ -258,8 +258,10 @@ export interface VoiceSendInput {
 }
 export interface VoiceSendResult {
   readonly threadId: ThreadId;
-  readonly runId: RunId;
+  readonly messageId: MessageId; // fixed by the request id
+  readonly runId: RunId; // the run the message started or queued; a watch anchors on it
   readonly delivery: "started" | "queued";
+  /** A fresh send: its accepted write. A replay: the thread's current event sequence. */
   readonly sequence: number;
   readonly replayed: boolean;
 }
@@ -270,7 +272,7 @@ export interface VoiceInterruptInput {
 }
 export type VoiceInterruptResult =
   | { readonly kind: "requested"; readonly runId: RunId; readonly sequence: number }
-  | { readonly kind: "nothing_running" };
+  | { readonly kind: "nothing_running" }; // no active run, or this request id already interrupted one
 
 /** The five statuses `isTerminalRunStatus` accepts (ThreadManagementService.ts:143-146, :549-558). */
 export type VoiceTerminalStatus =
@@ -455,12 +457,12 @@ const make = Effect.gen(function* () {
 
   const send = Effect.fn("VoiceSeam.send")(function* (caller, input) {
     // TODO
-    // require "send" and an allowed project
+    // require "send"; a thread the caller cannot see -> not_found
     // commandId = voiceCommandId("send", requestId); messageId = MessageId.make(commandId)
-    //   // both from the request id alone, so a crash retry dispatches the same command and the
-    //   // service finds the same message by messageId (ThreadManagementService.ts:942-945)
-    // receipt = receipts.getByCommandId(commandId); rejected -> refusal "refused", reason = receipt.error, commandId
-    // preflight: shell = threads.getThreadShell(threadId); exceededDispatchModeLimit(ceiling, shell) -> above_ceiling
+    // receipt = receipts.getByCommandId(commandId)                 // never call sendToThread on a receipt
+    //   another thread's -> invalid_request; rejected -> "refused", reason = receipt.error, commandId
+    //   accepted -> answer from the message's projection, replayed: true (gone if the thread was deleted)
+    // preflight: exceededDispatchModeLimit(ceiling, shell) -> above_ceiling
     //   // before sendToThread, which restores the worktree before its own mode check (ThreadManagementService.ts:908-924)
     // threads.sendToThread({ commandId, messageId, ..., mode: "queue", createdBy: "user", creationSource: "server" })
     //   .pipe(Effect.provideService(DispatchModeLimit, ceiling))   // the recheck under the command lock
@@ -469,9 +471,10 @@ const make = Effect.gen(function* () {
 
   const interrupt = Effect.fn("VoiceSeam.interrupt")(function* (caller, input) {
     // TODO
-    // require "interrupt" and an allowed project; no DispatchModeLimit, so the voice can stop any thread it can see
-    // threads.interruptThread with commandId = voiceCommandId("interrupt", requestId)
-    // interrupt_requested -> requested; no_active_run or already_terminal -> nothing_running
+    // require "interrupt" and a visible thread; no DispatchModeLimit, so the voice can stop any thread it can see
+    // commandId = voiceCommandId("interrupt", requestId)
+    // receipt accepted -> nothing_running, without calling interruptThread; rejected -> "refused"
+    // threads.interruptThread({ commandId, ... }): interrupt_requested -> requested; no_active_run -> nothing_running
     return yield* Effect.die("not implemented");
   });
 
@@ -505,7 +508,16 @@ The gate reads the whole receipt, not `hasReceipt`. `hasReceipt` (`ThreadManagem
 
 A launch that fails after T3 recorded its command reads both receipts again and answers by this table, so its retry and the failed call answer the same. A project with no entry in `workspace` launches in its root, as `t3_thread_launch` does without a strategy.
 
-Send applies the same rule to its own command id. A rejected send receipt answers `refused`, so a retried send never reports success for a message T3 refused.
+Send and interrupt apply the same rule to their own command ids, and neither calls `ThreadManagementService` on a receipt:
+
+| Receipt            | Send                                                                                                 | Interrupt                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| none               | preflight, then `sendToThread`                                                                       | `interruptThread`                        |
+| for another thread | `invalid_request`                                                                                    | `invalid_request`                        |
+| rejected           | `refused`, with `reason` and `commandId`                                                             | `refused`, with `reason` and `commandId` |
+| accepted           | the message's run and delivery from its projection, `replayed: true`, or `gone` for a deleted thread | `nothing_running`                        |
+
+A send replay reads the message by its id, so it answers after the event log pruned the command's events. It also skips the worktree restore that `sendToThread` runs before its dispatch. An interrupt replay must not reach `interruptThread`. That method aims the command at whichever run is active now, and the orchestrator's receipt replay would then report a later run as interrupted (measured: with the gate removed, a retry after a second run started answered `requested` for that run). A rejected send receipt answers `refused`, so a retried send never reports success for a message T3 refused. A mode refusal records no receipt, so a send refused for its mode can pass on retry after Mason lowers the mode.
 
 ### Who calls the thread operations
 
@@ -946,7 +958,6 @@ Each question carries a recommendation. The design proceeds on the recommendatio
 - **The launch-policy copy can drift.** The parity test catches the drift, and the fallback is in-process MCP for launch.
 - **Reads can write.** `getThreadRecords` first runs `ensureLegacyTranscript`, which can import a v1 transcript (`ThreadManagementService.ts:655-677`, `:1742-1746`, measured). `readThread` calls it once before its read-only transaction. If the second call inside `getThreadRecords` tries to write within that transaction, the unit test fails and `readThread` moves the records read out of the transaction, reading the sequence first.
 - **The settle read uses `waitForThread` with a 1 ms timeout.** That still opens and closes event subscriptions on each check (inferred from `ThreadManagementService.ts:1077-1116`). Unit 2 counts the reads per run, and if they cost too much it calls the same evaluation without the wait.
-- **An accepted send replayed after its events were pruned is untested.** The launch path has a known failure there. `sendToThread` finds its message by `messageId` after the dispatch (`ThreadManagementService.ts:942-945`), but whether the dispatch itself replays cleanly with pruned events is unverified. Unit 6 tests it, and if it fails, send answers from the message's projection when its receipt is accepted, as launch does.
 - **The CLI mint and a running server share SQLite.** Mint with the server stopped until concurrent writes are verified.
 
 ## Next implementation steps
