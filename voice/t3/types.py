@@ -211,6 +211,18 @@ class WatchStarted:
 
 
 @dataclass(frozen=True)
+class LaunchResult:
+    """A launch, fresh or replayed. When replayed, read the thread before watching it."""
+
+    thread_id: str
+    run_id: str | None
+    runtime_mode: RuntimeMode
+    model: str
+    sequence: int
+    replayed: bool
+
+
+@dataclass(frozen=True)
 class RunEvent:
     thread_id: str
     run_id: str
@@ -282,6 +294,9 @@ class WatchEnded:
 class ResultErr:
     code: RefusalCode
     message: str
+    reason: str | None = None
+    command_id: str | None = None
+    thread_id: str | None = None
 
     def spoken(self) -> str:
         """The server's message is short text the voice may speak."""
@@ -512,13 +527,25 @@ def decode_watch_ended(obj: Any) -> WatchEnded:
     )
 
 
+def decode_launch_result(value: Any) -> LaunchResult:
+    return LaunchResult(
+        thread_id=_need(value, "threadId"),
+        run_id=_need(value, "runId"),
+        runtime_mode=RuntimeMode(_need(value, "runtimeMode")),
+        model=_need(value, "model"),
+        sequence=_need(value, "sequence"),
+        replayed=_need(value, "replayed"),
+    )
+
+
 RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
     "list_threads": decode_thread_list,
     "read_thread": decode_thread_state,
     "watch": lambda value: WatchStarted(thread_id=_need(value, "threadId")),
     "unwatch": lambda value: WatchStarted(thread_id=_need(value, "threadId")),
+    "launch": decode_launch_result,
 }
 
-ResultValue = Union[ThreadList, ThreadState, WatchStarted]
+ResultValue = Union[ThreadList, ThreadState, WatchStarted, LaunchResult]
 
 DrainItem = Union[VoiceEvent, WatchEnded, SocketEnd]

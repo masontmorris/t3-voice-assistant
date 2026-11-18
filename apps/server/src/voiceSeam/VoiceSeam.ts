@@ -11,17 +11,22 @@ import {
 import * as NodeSqliteClient from "@t3tools/shared/nodeSqliteClient";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
 import * as Context from "effect/Context";
+import * as Digest from "effect/crypto/Digest";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
-import * as Schema from "effect/Schema";
 import * as SqlClient from "effect/sql/SqlClient";
 import type * as Stream from "effect/Stream";
 
+import * as CommandReceiptStore from "../orchestration-v2/CommandReceiptStore.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import { loadSubscriberShellSnapshot } from "../orchestration-v2/ShellStream.ts";
+import * as ThreadLaunch from "../orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
+import * as ProjectService from "../project/ProjectService.ts";
+import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
+import * as ServerSettings from "../serverSettings.ts";
 import {
   allowsOperation,
   allowsProject,
@@ -37,52 +42,20 @@ import {
   runResult,
   type PendingJoin,
 } from "./outcome.ts";
+import * as Launch from "./launch.ts";
 import {
   LIST_LIMIT,
-  RefusalCode,
   type RequestInput,
   type ThreadActivity as ThreadActivitySchema,
   type VoiceHello,
+  type VoiceLaunchResult,
   type VoiceThreadList,
   type VoiceThreadState,
 } from "./protocol.ts";
+import { VoiceSeamRefusal } from "./refusal.ts";
 import * as Watch from "./watch.ts";
 
-export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("VoiceSeamRefusal", {
-  code: RefusalCode,
-  /** Short text the voice may speak. Never built from a cause. */
-  message: Schema.String,
-  cause: Schema.optional(Schema.Defect()),
-}) {
-  /** Missing, deleted, unlisted, delegated, or outside the allowed projects: the voice cannot probe which. */
-  static readonly notFound = () =>
-    new VoiceSeamRefusal({ code: "not_found", message: "I can't see that thread." });
-
-  static readonly projectNotAllowed = () =>
-    new VoiceSeamRefusal({
-      code: "project_not_allowed",
-      message: "I'm not allowed to look at that project.",
-    });
-
-  static readonly invalidRequest = (message = "T3 couldn't read that request.") =>
-    new VoiceSeamRefusal({ code: "invalid_request", message });
-
-  static readonly unavailable = (cause: unknown) =>
-    new VoiceSeamRefusal({ code: "unavailable", message: "I can't reach T3 right now.", cause });
-
-  static readonly operationNotAllowed = () =>
-    new VoiceSeamRefusal({ code: "operation_not_allowed", message: "I'm not allowed to do that." });
-
-  static readonly tooManyWatches = () =>
-    new VoiceSeamRefusal({
-      code: "too_many_watches",
-      message: "I'm following too many threads already.",
-    });
-
-  /** An operation the seam lists but does not perform yet. */
-  static readonly notBuilt = () =>
-    new VoiceSeamRefusal({ code: "unavailable", message: "I can't do that yet." });
-}
+export { VoiceSeamRefusal };
 
 export type ThreadActivity = typeof ThreadActivitySchema.Type;
 export type { VoiceThreadList, VoiceThreadState };
@@ -108,6 +81,11 @@ export class VoiceSeam extends Context.Service<
       caller: VoiceCaller,
       input: RequestInput<"read_thread">,
     ) => Effect.Effect<VoiceThreadState, VoiceSeamRefusal>;
+    /** Starts a thread under the ceiling, or answers for the one this request id already started. */
+    readonly launch: (
+      caller: VoiceCaller,
+      input: RequestInput<"launch">,
+    ) => Effect.Effect<VoiceLaunchResult, VoiceSeamRefusal>;
     /** Checks the thread now, then replays after `afterSequence` and follows live. */
     readonly watch: (
       caller: VoiceCaller,
@@ -188,6 +166,15 @@ const make = Effect.gen(function* () {
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const eventStore = yield* OrchestrationEventStore.OrchestrationEventStore;
   const projects = yield* ProjectStore.ProjectStoreV2;
+  const launchThread = Launch.make({
+    digest: yield* Digest.Digest,
+    threads,
+    launches: yield* ThreadLaunch.ThreadLaunchService,
+    receipts: yield* CommandReceiptStore.CommandReceiptStoreV2,
+    projects: yield* ProjectService.ProjectService,
+    settings: yield* ServerSettings.ServerSettingsService,
+    providers: yield* ProviderRegistry.ProviderRegistry,
+  });
 
   const hello = Effect.fn("VoiceSeam.hello")(function* (caller: VoiceCaller) {
     const { config } = caller;
@@ -354,6 +341,18 @@ const make = Effect.gen(function* () {
     } satisfies VoiceThreadState;
   });
 
+  const launch = Effect.fn("VoiceSeam.launch")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"launch">,
+  ) {
+    yield* requireOperation(caller, "launch");
+    // Before any read: a project outside the ceiling starts nothing and replays nothing.
+    if (!allowsProject(caller.config, input.projectId)) {
+      return yield* VoiceSeamRefusal.projectNotAllowed();
+    }
+    return yield* launchThread(caller.config, input);
+  });
+
   const watch = Effect.fn("VoiceSeam.watch")(function* (
     caller: VoiceCaller,
     input: Watch.WatchInput,
@@ -366,7 +365,10 @@ const make = Effect.gen(function* () {
     );
   });
 
-  return VoiceSeam.of({ hello, listThreads, readThread, watch });
+  return VoiceSeam.of({ hello, listThreads, readThread, launch, watch });
 });
 
-export const layer = Layer.effect(VoiceSeam, make);
+/** The seam reads receipts through its own store, which the route's context does not carry. */
+export const layer = Layer.effect(VoiceSeam, make).pipe(
+  Layer.provide(Layer.merge(CommandReceiptStore.layer, Digest.layerWebCrypto)),
+);

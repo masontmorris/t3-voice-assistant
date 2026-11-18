@@ -327,6 +327,67 @@ class SeamClientTest(unittest.TestCase):
             seam.watch("thread_missing", after_sequence=0)
         self.assertEqual(caught.exception.code, T.RefusalCode.NOT_FOUND)
 
+    def test_launch_returns_its_result_and_a_refusal_keeps_its_receipt(self):
+        launched = {
+            "threadId": "voice:launch:ab12",
+            "runId": "run_1",
+            "runtimeMode": "auto-accept-edits",
+            "model": "Showcase",
+            "sequence": 81,
+            "replayed": True,
+        }
+        refused = {
+            "type": "result",
+            "ok": False,
+            "error": {
+                "code": "refused",
+                "message": "T3 refused it.",
+                "reason": "Thread is archived.",
+                "commandId": "voice:launch:cd34:initial-message",
+                "threadId": "voice:launch:cd34",
+            },
+        }
+
+        async def handler(ws):
+            await ws.send(json.dumps(HELLO))
+            async for message in ws:
+                req = json.loads(message)
+                if req["input"]["requestId"].endswith("A"):
+                    await ws.send(json.dumps(result_ok(req["id"], launched)))
+                else:
+                    await ws.send(json.dumps({**refused, "id": req["id"]}))
+
+        server = self.start_server(handler)
+        seam = self.connect(server.port)
+        result = seam.launch("01JD3Z8Q4W5X6Y7Z8A9B0C1D2A", "proj_sandbox", "Fix it")
+        self.assertEqual(
+            result,
+            T.LaunchResult(
+                thread_id="voice:launch:ab12",
+                run_id="run_1",
+                runtime_mode=T.RuntimeMode.AUTO_ACCEPT_EDITS,
+                model="Showcase",
+                sequence=81,
+                replayed=True,
+            ),
+        )
+        with self.assertRaises(S.SeamRefused) as caught:
+            seam.launch("01JD3Z8Q4W5X6Y7Z8A9B0C1D2B", "proj_sandbox", "Fix it")
+        self.assertEqual(
+            (
+                caught.exception.code,
+                caught.exception.reason,
+                caught.exception.command_id,
+                caught.exception.thread_id,
+            ),
+            (
+                T.RefusalCode.REFUSED,
+                "Thread is archived.",
+                "voice:launch:cd34:initial-message",
+                "voice:launch:cd34",
+            ),
+        )
+
     def test_malformed_result_fails_its_caller_and_closes_1007(self):
         for reply in (
             result_ok(1, {"threads": [], "asOfSequence": 78, "truncated": False}),

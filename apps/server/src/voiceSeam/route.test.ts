@@ -5,6 +5,8 @@ import * as NodeHttpServer from "@effect/platform-node/NodeHttpServer";
 import * as NodeServices from "@effect/platform-node/NodeServices";
 import { assert, it } from "@effect/vitest";
 import { EventId, ProviderInstanceId, ThreadId } from "@t3tools/contracts";
+import * as Digest from "effect/crypto/Digest";
+import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
 import * as Fiber from "effect/Fiber";
@@ -20,11 +22,13 @@ import * as ServerSecretStore from "../auth/ServerSecretStore.ts";
 import * as SessionStore from "../auth/SessionStore.ts";
 import * as ServerConfig from "../config.ts";
 import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
+import * as CommandReceiptStore from "../orchestration-v2/CommandReceiptStore.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import { VOICE_OPERATIONS, VOICE_SEAM_CONFIG_FILE } from "./ceiling.ts";
+import { voiceCommandId } from "./launch.ts";
 import * as VoiceSeamRoute from "./route.ts";
 import { createdOf, FIXTURES, thread } from "./testFixtures.ts";
 import { seamLayer, write } from "./testLayer.ts";
@@ -629,6 +633,26 @@ it.live("sends hello first, answers each op, and starts a watch's events after i
       yield* seam.configure(CONFIG_TEXT);
       yield* seedProject;
       yield* write(PLAIN.map((stored) => stored.event));
+      // T3 refused this request's launch, so the launch answers from the receipt without starting.
+      const launchCommand = yield* voiceCommandId(yield* Digest.Digest, "launch", ULID);
+      yield* CommandReceiptStore.CommandReceiptStoreV2.pipe(
+        Effect.flatMap((receipts) =>
+          DateTime.now.pipe(
+            Effect.flatMap((acceptedAt) =>
+              receipts.upsert({
+                commandId: launchCommand,
+                threadId: ThreadId.make(launchCommand),
+                commandType: "thread.create",
+                acceptedAt,
+                resultSequence: 0,
+                status: "rejected",
+                error: "Project is being cloned.",
+              }),
+            ),
+          ),
+        ),
+        Effect.provide(CommandReceiptStore.layer),
+      );
       const client = connect(seam.ws, (yield* seam.voiceSession).token);
 
       const hello = yield* Effect.promise(client.next);
@@ -681,7 +705,12 @@ it.live("sends hello first, answers each op, and starts a watch's events after i
         type: "result",
         id: 5,
         ok: false,
-        error: { code: "unavailable", message: "I can't do that yet." },
+        error: {
+          code: "refused",
+          message: "T3 refused it.",
+          reason: "Project is being cloned.",
+          commandId: launchCommand,
+        },
       });
       assert.deepStrictEqual(watched[0], {
         type: "result",

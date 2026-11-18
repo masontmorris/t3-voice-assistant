@@ -337,11 +337,76 @@ class HomeGuardTest(unittest.TestCase):
                 nested = str(Path(tmp) / "nested")
                 self.assertEqual(fork_env.main(["--home", nested, "status"]), 2)
 
+    @unittest.skipUnless(os.name == "nt", "Windows paths are case-insensitive")
+    def test_refuses_a_case_variant_of_dot_t3(self):
+        shouted = str(Path.home() / ".t3").upper()
+        self.assertIsNotNone(fork_env.validate_home(Path(shouted)))
+        self.assertEqual(fork_env.main(["--home", shouted, "status"]), 2)
+
     def test_allows_a_home_outside_dot_t3(self):
         with tempfile.TemporaryDirectory() as tmp:
             self.assertEqual(
                 fork_env.main(["--home", str(Path(tmp) / "fork-home"), "status"]), 0
             )
+
+
+class ForeignServerTest(unittest.TestCase):
+    """A server on this home that the pid file does not name must stop setup and token."""
+
+    def test_up_refuses_while_another_server_uses_this_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            setup = mock.Mock()
+            with (
+                mock.patch.object(fork_env, "environment_up", return_value=None),
+                mock.patch.object(fork_env, "port_open", return_value=False),
+                mock.patch.object(fork_env, "servers_on_home", return_value=[4242]),
+                mock.patch.object(fork_env, "setup_environment", setup),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                self.assertEqual(fork_env.cmd_up(Path(tmp), paths), 1)
+            setup.assert_not_called()
+
+    def test_up_refuses_when_the_scan_cannot_run(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            setup = mock.Mock()
+            with (
+                mock.patch.object(fork_env, "environment_up", return_value=None),
+                mock.patch.object(fork_env, "port_open", return_value=False),
+                mock.patch.object(fork_env, "servers_on_home", return_value=None),
+                mock.patch.object(fork_env, "setup_environment", setup),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                self.assertEqual(fork_env.cmd_up(Path(tmp), paths), 1)
+            setup.assert_not_called()
+
+    def test_token_refuses_while_another_server_uses_this_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            minted = mock.Mock()
+            with (
+                mock.patch.object(fork_env, "environment_up", return_value=None),
+                mock.patch.object(fork_env, "servers_on_home", return_value=[4242]),
+                mock.patch.object(fork_env, "run_node_cli", minted),
+                contextlib.redirect_stderr(io.StringIO()),
+            ):
+                self.assertEqual(fork_env.cmd_token(Path(tmp), paths), 1)
+            minted.assert_not_called()
+
+    def test_the_scan_finds_a_live_process_on_this_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "fork-home"
+            sleeper = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(60)", "--home-dir", str(home)]
+            )
+            try:
+                found = fork_env.servers_on_home(EnvPaths.from_home(home, Path(tmp) / "sandbox"))
+                self.assertIsNotNone(found)
+                self.assertIn(sleeper.pid, found)
+            finally:
+                sleeper.kill()
+                sleeper.wait()
 
 
 class SecretWriteTest(unittest.TestCase):
@@ -486,6 +551,33 @@ class SeamConfigTest(unittest.TestCase):
             )
             self.assertEqual([p["projectId"] for p in doc["projects"]], ["proj_sandbox"])
             self.assertEqual(doc["workspace"], {"proj_sandbox": {"type": "root"}})
+
+    def test_the_sandbox_launches_on_replay_and_a_model_already_set_stays(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            settings_file = paths.home / "userdata" / "settings.json"
+            settings_file.parent.mkdir(parents=True)
+            settings_file.write_text(
+                json.dumps({"providerInstances": {"devReplay": {"driver": "acpRegistry"}}}),
+                encoding="utf-8",
+            )
+            self.assertTrue(fork_env.ensure_sandbox_model(paths, "proj_sandbox"))
+            self.assertFalse(fork_env.ensure_sandbox_model(paths, "proj_sandbox"))
+            doc = json.loads(settings_file.read_text(encoding="utf-8"))
+            self.assertEqual(doc["providerInstances"], {"devReplay": {"driver": "acpRegistry"}})
+            self.assertEqual(
+                doc["projectSettingsOverrides"],
+                {"proj_sandbox": {"defaultModelSelection": {"instanceId": "devReplay", "model": "showcase"}}},
+            )
+
+            chosen = {"instanceId": "codex", "model": "gpt-5.4"}
+            doc["projectSettingsOverrides"]["proj_sandbox"]["defaultModelSelection"] = chosen
+            settings_file.write_text(json.dumps(doc), encoding="utf-8")
+            self.assertFalse(fork_env.ensure_sandbox_model(paths, "proj_sandbox"))
+            kept = json.loads(settings_file.read_text(encoding="utf-8"))
+            self.assertEqual(
+                kept["projectSettingsOverrides"]["proj_sandbox"]["defaultModelSelection"], chosen
+            )
 
     def test_the_ceiling_has_the_keys_the_seam_schema_decodes(self):
         schema = json.loads((REPO / "voice" / "t3" / "seam.schema.json").read_text(encoding="utf-8"))

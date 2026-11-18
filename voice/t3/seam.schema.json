@@ -423,7 +423,7 @@
               "enum": [true]
             },
             "value": {
-              "not": {}
+              "$ref": "#/$defs/VoiceLaunchResult"
             }
           },
           "required": ["type", "id", "ok", "value"],
@@ -498,6 +498,15 @@
                   "$ref": "#/$defs/RefusalCode"
                 },
                 "message": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                },
+                "commandId": {
+                  "type": "string"
+                },
+                "threadId": {
                   "type": "string"
                 }
               },
@@ -765,6 +774,41 @@
           "additionalProperties": true
         }
       ]
+    },
+    "VoiceLaunchResult": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": "string"
+        },
+        "runId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "runtimeMode": {
+          "type": "string",
+          "enum": ["approval-required", "auto-accept-edits", "auto", "full-access"]
+        },
+        "model": {
+          "type": "string"
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "required": ["threadId", "runId", "runtimeMode", "model", "sequence", "replayed"],
+      "additionalProperties": true
     },
     "VoiceSeamConfig": {
       "type": "object",

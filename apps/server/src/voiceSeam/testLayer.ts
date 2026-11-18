@@ -8,6 +8,8 @@ import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
 import * as ServerSettings from "../serverSettings.ts";
+import * as ProjectService from "../project/ProjectService.ts";
+import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import * as CommandReceiptStore from "../orchestration-v2/CommandReceiptStore.ts";
 import * as EventSink from "../orchestration-v2/EventSink.ts";
 import * as EventStore from "../orchestration-v2/EventStore.ts";
@@ -15,6 +17,7 @@ import * as Orchestrator from "../orchestration-v2/Orchestrator.ts";
 import * as ProjectionStore from "../orchestration-v2/ProjectionStore.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import * as ProviderSessionManager from "../orchestration-v2/ProviderSessionManager.ts";
+import * as ThreadLaunch from "../orchestration-v2/ThreadLaunchService.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import * as Sqlite from "../persistence/Sqlite.ts";
@@ -82,12 +85,19 @@ const storeOrchestrator = Layer.unwrap(
   }),
 );
 
+/** What only a launch reads. These tests never launch; launch.test.ts builds the real ones. */
+const launchStubs = Layer.mergeAll(
+  Layer.mock(ThreadLaunch.ThreadLaunchService)({}),
+  Layer.mock(ProjectService.ProjectService)({}),
+  Layer.mock(ProviderRegistry.ProviderRegistry)({}),
+);
+
 /** The real stores, with the real ThreadManagementService reading them. */
 export const seamLayer = ThreadManagementService.layer.pipe(
   Layer.provide(Layer.mock(ProviderSessionManager.ProviderSessionManagerV2)({})),
   Layer.provide(storeOrchestrator),
-  Layer.provide(ServerSettings.layerTest()),
   Layer.provide(CommandReceiptStore.layer.pipe(Layer.provide(Sqlite.layerMemory))),
+  Layer.provideMerge(Layer.merge(ServerSettings.layerTest(), launchStubs)),
   Layer.provideMerge(stores),
 );
 

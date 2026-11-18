@@ -119,6 +119,7 @@ class SchemaCoverageTest(unittest.TestCase):
             "read_thread": T.ThreadState,
             "watch": T.WatchStarted,
             "unwatch": T.WatchStarted,
+            "launch": T.LaunchResult,
         }
         self.assertEqual(models.keys(), T.RESULT_DECODERS.keys())
         for op, node in zip(T.WIRE_OPS, ok_values, strict=True):

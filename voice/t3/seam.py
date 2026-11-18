@@ -28,12 +28,19 @@ CONNECT_TIMEOUT_S = 30.0
 
 
 class SeamRefused(Exception):
-    """The seam answered a request with a refusal code."""
+    """The seam answered a request with a refusal code.
 
-    def __init__(self, code: T.RefusalCode, message: str) -> None:
-        super().__init__(f"{code.value}: {message}")
-        self.code = code
-        self.message = message
+    For ``refused``, ``reason`` is T3's recorded rejection and ``command_id`` the command whose
+    receipt said so. ``thread_id`` names a launched thread whose first message T3 refused.
+    """
+
+    def __init__(self, refusal: T.ResultErr) -> None:
+        super().__init__(f"{refusal.code.value}: {refusal.message}")
+        self.code = refusal.code
+        self.message = refusal.message
+        self.reason = refusal.reason
+        self.command_id = refusal.command_id
+        self.thread_id = refusal.thread_id
 
 
 class SeamUnavailable(Exception):
@@ -143,9 +150,9 @@ class T3Seam:
     def unwatch(self, thread_id: str) -> T.WatchStarted:
         return self._call("unwatch", {"threadId": thread_id})
 
-    def launch(self, request_id: str, project_id: str, instruction: str) -> None:
-        """Surface the server's unavailable until the launch unit lands."""
-        self._call(
+    def launch(self, request_id: str, project_id: str, instruction: str) -> T.LaunchResult:
+        """Start a thread, or answer for the one this request id already started."""
+        return self._call(
             "launch",
             {"requestId": request_id, "projectId": project_id, "instruction": instruction},
         )
@@ -305,7 +312,7 @@ class T3Seam:
             if result.code is T.RefusalCode.UNAVAILABLE:
                 future.set_exception(SeamUnavailable(result.message))
             else:
-                future.set_exception(SeamRefused(result.code, result.message))
+                future.set_exception(SeamRefused(result))
         else:
             future.set_result(result)
 
@@ -322,7 +329,13 @@ class T3Seam:
         error = frame.get("error")
         if not isinstance(error, dict) or not isinstance(error.get("message"), str):
             raise ValueError("seam refusal requires an error object with a message")
-        return T.ResultErr(code=T.RefusalCode(error.get("code")), message=error["message"])
+        return T.ResultErr(
+            code=T.RefusalCode(error.get("code")),
+            message=error["message"],
+            reason=error.get("reason"),
+            command_id=error.get("commandId"),
+            thread_id=error.get("threadId"),
+        )
 
     def _settle_ready(self, hello: T.Hello) -> None:
         self._handoff.put(("ready", hello))
