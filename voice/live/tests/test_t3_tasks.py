@@ -234,6 +234,80 @@ class Retries(unittest.TestCase):
         self.assertEqual((restored.tries, restored.refused), (2, (refused,)), "a restart keeps counting")
 
 
+class RefusesReplies(FakeText):
+    """The text model, except that every wording of a replied act fails the slot check, so it waits."""
+
+    def complete(self, messages):
+        if messages[0]["content"] == RENDER_SYSTEM and any(
+                a["act"] == "replied" for a in json.loads(messages[1]["content"])["acts"]):
+            return {"text": ""}
+        return super().complete(messages)
+
+
+class Superseded(unittest.TestCase):
+    """PM 2, 2026-11-18: nothing about a thread is ever spoken after a later act about that thread."""
+
+    def service(self, t3):
+        return T3TaskService(SimpleNamespace(records=lambda: [], dispatch_log=[]), "conv_turn_001", 0.0, None,
+                             holds_side_effects=False, t3=t3)
+
+    def waiting_reply(self, path):
+        seam = F.FakeSeam()
+        t3 = worded(tasks_over(self, seam, path=path), RefusesReplies())
+        t3.start("a1", "Add a clamp helper in the sandbox project", 0)
+        t3.ack_news(t3.answer("yes", 1))
+        seam.push(F.reply(150, text="I added clamp next to sum. The tests pass."))
+        t3.poll(2)
+        turn = self.service(t3)
+        entry, = turn.take_updates()
+        self.assertIsNone(turn.say(entry).line, "the reply's wording is refused, so it waits")
+        turn.close()
+        return seam, t3
+
+    def kinds(self, entries):
+        return [[a["kind"] for a in entry["acts"]] for entry in entries]
+
+    def test_a_waiting_reply_followed_by_done_speaks_only_done(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        seam, t3 = self.waiting_reply(Path(tmp.name) / "journal.json")
+        seam.push(F.done(160))
+        t3.poll(3)
+        self.assertEqual(self.kinds(self.service(t3).take_updates()), [["done"]])
+        self.assertFalse(t3.has_news(idle=True), "the waiting reply is never said after its thread's done")
+        replied, = [u for u in t3.follow.journal.pending_lines if u.acts[0].kind is S.REPLIED]
+        self.assertTrue(replied.superseded, "kept in the journal, marked, never deleted")
+
+    def test_a_superseded_act_survives_a_restart_and_is_not_replayed(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "journal.json"
+        seam, t3 = self.waiting_reply(path)
+        seam.push(F.done(160))
+        t3.poll(3)
+        saved = T3Journal(path)
+        self.assertEqual([(u.acts[0].kind, u.superseded) for u in saved.pending_lines],
+                         [(S.REPLIED, True), (S.DONE, False)])
+        restarted = worded(tasks_over(self, F.FakeSeam(), path=path), FakeText())
+        self.assertEqual([[a.kind for a in u.acts] for u in restarted.take()], [[S.DONE]])
+
+    def test_a_reply_in_flight_when_done_arrives_is_never_given_back(self):
+        seam = F.FakeSeam()
+        t3 = worded(tasks_over(self, seam), RefusesReplies())
+        t3.start("a1", "Add a clamp helper in the sandbox project", 0)
+        t3.ack_news(t3.answer("yes", 1))
+        seam.push(F.reply(150, text="I added clamp next to sum. The tests pass."))
+        t3.poll(2)
+        turn = self.service(t3)
+        entry, = turn.take_updates()
+        seam.push(F.done(160))
+        t3.poll(3)
+        self.assertIsNone(turn.say(entry).line)
+        turn.close()
+        self.assertEqual(self.kinds(self.service(t3).take_updates()), [["done"]],
+                         "a later act arrived while the reply was being worded, so the reply is not retried")
+
+
 class TwinB(unittest.TestCase):
     def test_a_lone_pick_is_asked_back_and_a_yes_reads_it(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
