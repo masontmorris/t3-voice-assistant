@@ -20,30 +20,31 @@ const els = {
   log: document.getElementById("log"),
 };
 
-// Scripted browser checks read recent protocol and playback events.
-window.voiceDebug = { events: [] };
+const debug = new URLSearchParams(window.location.search).has("debug") ? { events: [] } : null;
+if (debug) window.voiceDebug = debug;
 
 const state = {
   ws: null,
   context: null,
   micSource: null,
   capture: null,
+  captureGain: null,
   playback: null,
   micStream: null,
   mode: "vad",
   running: false,
   replyRate: 0,
   pttDown: false,
-  pingAt: 0,
   pingTimer: 0,
   rtts: [],
   status: "idle",
 };
 
 function note(kind, detail) {
-  const events = window.voiceDebug.events;
-  events.push({ kind, ...detail });
-  if (events.length > 100) events.shift();
+  if (debug) {
+    debug.events.push({ kind, ...detail });
+    if (debug.events.length > 100) debug.events.shift();
+  }
   if (kind === "control") {
     const line = document.createElement("div");
     line.textContent = detail.text;
@@ -97,6 +98,8 @@ async function start() {
   await state.context.audioWorklet.addModule("playback-worklet.js");
   state.micSource = state.context.createMediaStreamSource(state.micStream);
   state.capture = new AudioWorkletNode(state.context, "voice-capture");
+  state.captureGain = state.context.createGain();
+  state.captureGain.gain.value = 0;
   state.playback = new AudioWorkletNode(state.context, "voice-playback");
   state.playback.port.postMessage({ type: "config", deviceRate });
   state.capture.port.onmessage = (event) => onMic(event.data, deviceRate);
@@ -108,6 +111,9 @@ async function start() {
     }
   };
   state.micSource.connect(state.capture);
+  // WebKit needs a path from the capture worklet to the destination to process it.
+  state.capture.connect(state.captureGain);
+  state.captureGain.connect(state.context.destination);
   state.playback.connect(state.context.destination);
   state.replyRate = 0;
 
@@ -119,8 +125,7 @@ async function start() {
     ws.send(JSON.stringify({ type: "hello", mode: state.mode }));
     setStatus("connected");
     state.pingTimer = window.setInterval(() => {
-      state.pingAt = performance.now();
-      ws.send(JSON.stringify({ type: "ping", t: state.pingAt }));
+      ws.send(JSON.stringify({ type: "ping", t: performance.now() }));
     }, PING_MS);
   };
   ws.onmessage = (event) => {
@@ -128,8 +133,9 @@ async function start() {
     else onReply(event.data, deviceRate);
   };
   ws.onclose = (event) => {
+    if (state.ws !== ws) return;
     note("close", { code: event.code, reason: event.reason });
-    if (state.running) void stop(`closed ${event.code}`);
+    void stop(event.code === 1008 ? "wrong secret" : event.reason || `closed ${event.code}`);
   };
   ws.onerror = () => note("error", {});
   els.stop.disabled = false;
@@ -152,15 +158,16 @@ function onReply(data, deviceRate) {
 }
 
 function onControl(message) {
-  note("control", { text: describeControl(message) });
   if (message.type === "pong") {
     const rtt = performance.now() - message.t;
     state.rtts.push(rtt);
     if (state.rtts.length > 20) state.rtts.shift();
     const median = [...state.rtts].sort((a, b) => a - b)[Math.floor(state.rtts.length / 2)];
     els.rtt.textContent = `${Math.round(median)} ms`;
-    note("rtt", { median_ms: Math.round(median) });
-  } else if (message.type === "ready") {
+    return;
+  }
+  note("control", { text: describeControl(message) });
+  if (message.type === "ready") {
     els.talk.hidden = state.mode !== "ptt";
     setStatus("listening");
   } else if (message.type === "turn_start") {
@@ -219,7 +226,7 @@ async function stop(why) {
     }
     state.ws = null;
   }
-  for (const node of [state.micSource, state.capture, state.playback]) {
+  for (const node of [state.micSource, state.capture, state.captureGain, state.playback]) {
     if (node) {
       try {
         node.disconnect();
@@ -228,7 +235,7 @@ async function stop(why) {
       }
     }
   }
-  state.micSource = state.capture = state.playback = null;
+  state.micSource = state.capture = state.captureGain = state.playback = null;
   if (state.micStream) for (const track of state.micStream.getTracks()) track.stop();
   state.micStream = null;
   if (state.context) await state.context.suspend();
