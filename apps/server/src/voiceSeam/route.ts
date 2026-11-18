@@ -153,11 +153,6 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
         : encodeEvent({ type: "event", event: item }),
     );
 
-  // Unit 6 replaces these. The operations check still answers first.
-  const notBuilt = (operation: "send" | "interrupt") => () =>
-    VoiceSeam.requireOperation(caller, operation).pipe(
-      Effect.andThen(Effect.fail(VoiceSeam.VoiceSeamRefusal.notBuilt())),
-    );
   const handlers: Handlers = {
     list_threads: (request) => seam.listThreads(caller, request),
     read_thread: (request) => seam.readThread(caller, request),
@@ -184,8 +179,8 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     unwatch: (request) =>
       stopWatch(request.threadId).pipe(Effect.as({ threadId: request.threadId })),
     launch: (request) => seam.launch(caller, request),
-    send: notBuilt("send"),
-    interrupt: notBuilt("interrupt"),
+    send: (request) => seam.send(caller, request),
+    interrupt: (request) => seam.interrupt(caller, request),
   };
 
   const dispatch = Effect.fn("VoiceSeam.route.dispatch")(function* <Op extends WireOp>(

@@ -43,10 +43,6 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
       message: "I'm following too many threads already.",
     });
 
-  /** An operation the seam lists but does not perform yet. */
-  static readonly notBuilt = () =>
-    new VoiceSeamRefusal({ code: "unavailable", message: "I can't do that yet." });
-
   /** T3 recorded a rejected receipt for the command. `threadId` names a thread that exists anyway. */
   static readonly refused = (input: {
     readonly reason: string | null;
@@ -70,6 +66,14 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
       code: "above_ceiling",
       message: "T3's policy doesn't allow that mode.",
       cause,
+    });
+
+  /** The thread runs in a mode above the voice's ceiling, so the voice may not give it work. */
+  static readonly threadAboveCeiling = (cause?: unknown) =>
+    new VoiceSeamRefusal({
+      code: "above_ceiling",
+      message: "That thread runs in a mode I'm not allowed to use.",
+      ...(cause === undefined ? {} : { cause }),
     });
 
   static readonly noDefaultModel = () =>

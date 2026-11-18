@@ -446,7 +446,7 @@
               "enum": [true]
             },
             "value": {
-              "not": {}
+              "$ref": "#/$defs/VoiceSendResult"
             }
           },
           "required": ["type", "id", "ok", "value"],
@@ -469,7 +469,7 @@
               "enum": [true]
             },
             "value": {
-              "not": {}
+              "$ref": "#/$defs/VoiceInterruptResult"
             }
           },
           "required": ["type", "id", "ok", "value"],
@@ -775,6 +775,40 @@
         }
       ]
     },
+    "VoiceInterruptResult": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["requested"]
+            },
+            "runId": {
+              "type": "string"
+            },
+            "sequence": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            }
+          },
+          "required": ["kind", "runId", "sequence"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "kind": {
+              "type": "string",
+              "enum": ["nothing_running"]
+            }
+          },
+          "required": ["kind"],
+          "additionalProperties": true
+        }
+      ]
+    },
     "VoiceLaunchResult": {
       "type": "object",
       "properties": {
@@ -936,6 +970,34 @@
         }
       },
       "required": ["maxRuntimeMode", "operations", "projects"],
+      "additionalProperties": true
+    },
+    "VoiceSendResult": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": "string"
+        },
+        "messageId": {
+          "type": "string"
+        },
+        "runId": {
+          "type": "string"
+        },
+        "delivery": {
+          "type": "string",
+          "enum": ["started", "queued"]
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "required": ["threadId", "messageId", "runId", "delivery", "sequence", "replayed"],
       "additionalProperties": true
     },
     "VoiceTerminalStatus": {
