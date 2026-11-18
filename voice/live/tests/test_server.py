@@ -742,7 +742,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["task_updates"][0]["evidence"], {"thread_id": "thread-1", "sequences": [750, 751]})
         self.assertEqual(record["replies"][0]["text"], DONE_LINE)
         settings, draft, response = self.live.active.voice.sent
-        self.assertIn("say those words and nothing else", settings["session"]["instructions"].lower())
+        self.assertIn("say exactly those words and nothing else", settings["session"]["instructions"].lower())
         self.assertEqual(draft["item"]["role"], "user")
         self.assertEqual(response["type"], "response.create")
         self.assertEqual(record["task_updates"][0]["acts"], [a.to_json() for a in DONE.acts])

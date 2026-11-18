@@ -388,9 +388,9 @@ T3_NOTE = "[Private note for you, not said by the person. Say exactly these word
 T3_RELAY = (
     '\n\nSometimes a private note arrives from a colleague about their coding threads. A thread is a workspace '
     'conversation with a coding agent, separate from this call. The note gives the words to tell them now, and they '
-    'have not heard them yet. Say those words and nothing else, as "I" to "you": do not say that you have a note or '
-    'a draft, do not lead into the words, and do not add anything after them. Do not repeat the news unless a new '
-    'note arrives.'
+    'have not heard them yet. Say exactly those words and nothing else, as "I" to "you". Begin with the first word of '
+    'them and end with the last: no lead-in, no remark about what you are about to say, and no closing line. Do not '
+    'repeat the news unless a new note arrives.'
     '\n\nHere are examples of a note and the reply to it. The threads, projects and numbers in them are only examples.'
 )
 T3_RELAY += "".join(f"\n\nNote: {T3_NOTE}{line}]\nReply: {line}" for line in RELAY_EXAMPLES)
