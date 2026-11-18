@@ -20,14 +20,16 @@ from pathlib import Path
 from .pick import Pick, question_for
 from .project import ProjectPick, question_for_projects
 
-MODEL = "particle-ai/particle-1:free"
+# A paid id runs only when named here: Mason approves each paid model, and the key's own limit caps the spend.
+PAID_MODEL = os.environ.get("VOICE_PAID_TEXT_MODEL") or None
+MODEL = PAID_MODEL or "particle-ai/particle-1:free"
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ATTEMPTS = 8
 TIMEOUT_S = 30
 MAX_TOKENS = 200
 REASONING = {"enabled": False}
 # The free tier allows 20 requests a minute, so one request in flight is not enough on its own.
-MIN_GAP_S = float(os.environ.get("VOICE_MODEL_MIN_GAP_S", "3.2"))
+MIN_GAP_S = float(os.environ.get("VOICE_MODEL_MIN_GAP_S", "0" if PAID_MODEL else "3.2"))
 RATE_LIMIT_WAIT_S = 60.0
 
 SYSTEM = (
@@ -72,6 +74,10 @@ def error_is_billing(status, text):
 		return False
 	message = f"{error.get('message', '')} {error.get('code', '')}".lower()
 	return any(word in message for word in ("credit", "billing", "insufficient_quota", "payment required"))
+
+
+def allowed_model(model):
+	return model.endswith(":free") or (PAID_MODEL is not None and model == PAID_MODEL)
 
 
 def _env_key():
@@ -139,7 +145,7 @@ class ModelClient:
 	timeout_s: float = TIMEOUT_S
 
 	def __post_init__(self):
-		if not self.model.endswith(":free"):
+		if not allowed_model(self.model):
 			raise ValueError(f"refusing a non-free model id: {self.model}")
 		self.cache_dir = self.cache_dir or Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "evals" / "twinb-pick" / "cache"
 		self.cache_dir.mkdir(parents=True, exist_ok=True)
@@ -162,7 +168,7 @@ class ModelClient:
 		self._last = time.monotonic()
 
 	def complete(self, messages):
-		assert self.model.endswith(":free"), self.model
+		assert allowed_model(self.model), self.model
 		if self.paused:
 			raise ModelFailed(self.paused)
 		body = self._body(messages)
