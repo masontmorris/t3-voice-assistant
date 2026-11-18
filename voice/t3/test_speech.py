@@ -3,11 +3,15 @@ pass the slot check or are not returned."""
 
 from __future__ import annotations
 
+import asyncio
 import json
 import threading
 import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from unittest.mock import Mock, patch
 
+from voice.prototype.realtime import Session
+from voice.prototype.tests.test_run_shared_session import FakeSession
 from voice.t3 import fakes as F
 from voice.t3 import types as T
 from voice.t3.acts import Kind, act
@@ -292,32 +296,67 @@ class RenderTest(unittest.TestCase):
                 self.assertEqual(call.problems, wrong.problems)
 
 
-class RealtimeWriterTest(unittest.TestCase):
-    def test_complete_uses_a_fresh_text_only_session(self):
-        from unittest.mock import patch
+class WriterSession(FakeSession):
+    def __init__(self, name, on_event):
+        super().__init__(name, on_event)
+        self.closing, self.allow_close = asyncio.Event(), asyncio.Event()
+        self.ws = Mock()
+        self.ws.close = self._close_socket
+        self._reader = Mock()
+        self.close_error = None
 
-        from voice.prototype.tests.test_run_shared_session import FakeSession
+    async def send(self, **event):
+        if event["type"] == "response.create":
+            self.sent.append(event)
+            await self.push({"type": "response.output_text.delta", "delta": "Is Rotate Signing Keys the thread?"})
+            await self.push({"type": "response.done", "response": {"status": "completed"}})
+        else:
+            await super().send(**event)
 
-        class TextOnly(FakeSession):
-            async def send(self, **event):
-                if event["type"] == "response.create":
-                    self.sent.append(event)
-                    await self.push({"type": "response.output_text.delta", "delta": "Is Rotate Signing Keys the thread?"})
-                    await self.push({"type": "response.done", "response": {"status": "completed"}})
-                else:
-                    await super().send(**event)
+    async def _close_socket(self):
+        self.closing.set()
+        if self.close_error is not None:
+            raise self.close_error
+        await self.allow_close.wait()
+        self.closed = True
 
-        sessions = []
+    close = Session.close
+
+
+class RealtimeWriterTest(unittest.IsolatedAsyncioTestCase):
+    messages = reader_messages((act(Kind.CONFIRM_THREAD, thread="Rotate Signing Keys"),))
+
+    async def test_drafts_return_on_fresh_sessions_before_close_and_shutdown_drains(self):
+        drafts_ready = asyncio.Event()
+        writer = RealtimeWriter("ws://unused")
+        sessions, results = [], []
 
         async def capture_session(url, name, clock):
-            session = await TextOnly.open(url, name, clock)
+            session = await WriterSession.open(url, name, clock)
             sessions.append(session)
             return session
 
-        messages = reader_messages((act(Kind.CONFIRM_THREAD, thread="Rotate Signing Keys"),))
-        writer = RealtimeWriter("ws://unused")
-        with patch("voice.prototype.realtime.Session.open", new=capture_session):
-            results = [writer.complete(messages) for _ in range(2)]
+        async def write():
+            async with writer:
+                for _ in range(2):
+                    results.append(await asyncio.to_thread(writer.complete, self.messages))
+                with self.assertRaises(RuntimeError):
+                    await asyncio.to_thread(writer.complete, self.messages)
+                drafts_ready.set()
+
+        with patch.object(Session, "open", new=capture_session):
+            async with asyncio.TaskGroup() as group:
+                work = group.create_task(write())
+                await drafts_ready.wait()
+                try:
+                    self.assertEqual(len(sessions), 2)
+                    for session in sessions:
+                        await session.closing.wait()
+                        self.assertFalse(session.closed)
+                    self.assertFalse(work.done())
+                finally:
+                    for session in sessions:
+                        session.allow_close.set()
 
         self.assertEqual([r["text"] for r in results], ["Is Rotate Signing Keys the thread?"] * 2)
         self.assertTrue(all(isinstance(r["ms"], float) for r in results))
@@ -327,9 +366,36 @@ class RealtimeWriterTest(unittest.TestCase):
             self.assertEqual(session.configs[0]["output_modalities"], ["text"])
             received, = [e["item"] for e in session.sent if e["type"] == "conversation.item.create"]
             self.assertEqual(received["role"], "user")
-            self.assertEqual(received["content"], [{"type": "input_text", "text": messages[1]["content"]}])
+            self.assertEqual(received["content"], [{"type": "input_text", "text": self.messages[1]["content"]}])
             self.assertEqual(session.audio, [])
             self.assertTrue(session.closed)
+
+    async def test_close_timeout_or_error_logs_and_aborts_without_leaking_capacity(self):
+        for error in (None, OSError("close failed")):
+            with self.subTest(error=error):
+                sessions = []
+
+                async def capture_session(url, name, clock):
+                    session = await WriterSession.open(url, name, clock)
+                    session.close_error = error
+                    sessions.append(session)
+                    return session
+
+                writer = RealtimeWriter("ws://unused")
+                with patch.object(Session, "open", new=capture_session), \
+                        patch("voice.t3.realtime_writer.CLOSE_TIMEOUT_S", 0), \
+                        self.assertLogs("voice.t3.realtime_writer", "WARNING") as logs:
+                    async with writer:
+                        for _ in range(3):
+                            result = await asyncio.to_thread(writer.complete, self.messages)
+                            self.assertEqual(result["text"], "Is Rotate Signing Keys the thread?")
+
+                self.assertEqual(len(logs.output), 3)
+                expected = "TimeoutError" if error is None else "close failed"
+                self.assertTrue(all(expected in line for line in logs.output))
+                for session in sessions:
+                    session.ws.transport.abort.assert_called_once_with()
+                    session._reader.cancel.assert_called_once_with()
 
 
 if __name__ == "__main__":

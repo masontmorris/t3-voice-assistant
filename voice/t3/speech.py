@@ -47,7 +47,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread for their request in this project. Nothing has "
                          "started yet.",
     Kind.ASK_WHICH: "Ask which of these they mean. Name every candidate.",
-    Kind.NO_PROJECT: "No project matches what they named. Name the projects a thread can start in.",
+    Kind.NO_PROJECT: "In one sentence, tell them you couldn't find a project matching what they named and name every "
+                     "project in `available` as somewhere you can start a thread.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
     Kind.LAUNCHED: "The thread started in this project.",
     Kind.LAUNCH_UNCONFIRMED: "T3 was asked to start the thread but never confirmed it. They can check the app.",
@@ -68,7 +69,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.DROPPED_FOLLOWUP: "The held message will not be sent.",
     Kind.STOPPING: "T3 was asked to stop the thread's run. It has not stopped yet.",
     Kind.NOTHING_RUNNING: "The thread has no run going, so there was nothing to stop.",
-    Kind.STOP_UNCONFIRMED: "The voice could not reach T3 to stop the thread. They can stop it in the app.",
+    Kind.STOP_UNCONFIRMED: "Say that you couldn't reach T3 to stop the thread. Include its exact title in that "
+                           "sentence.",
     Kind.RUN_UPDATE: "The thread's run is now in this status (running or queued).",
     Kind.REPLIED: "The thread posted this reply while it works. Give its gist in one sentence. Attribute any claims "
                   "about work or results to the thread as what it says.",
@@ -77,13 +79,16 @@ MEANINGS: dict[Kind, str] = {
     Kind.NEED_RESOLVED: "A request the thread had made of them was settled (answered, expired or cancelled).",
     Kind.DONE: "The thread's run ended with this status. Say the status, then the summary.",
     Kind.THREAD_DELETED: "The thread was deleted.",
-    Kind.LOST_TRACK: "The voice lost track of the thread. It is still in the app.",
+    Kind.LOST_TRACK: "Say that you lost track of the named thread. Make no claim about where it is or whether it "
+                     "still exists.",
     Kind.THREAD_GONE: "The voice can no longer see the thread.",
     Kind.WATCH_QUEUED: "The voice already follows `following` threads and will follow this one when one ends.",
     Kind.UNREACHABLE: "The voice cannot reach T3 right now.",
     Kind.SEAM_DOWN: "The voice stopped following their threads, which are still in the app. `reason`: connection "
                     "(the connection to T3 was lost), access (T3 no longer accepts the voice's access) or seam_off.",
-    Kind.REFUSED: "T3 refused to do what was asked (`op`). Say why, from `reason`.",
+    Kind.REFUSED: "Say what T3 refused to do in plain words. For `op` tell, say it refused to send the follow-up "
+                  "message. For start, ask, or stop, say it refused to start, look up, or stop the thread, "
+                  "respectively. Include the reason when the record gives one.",
     Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
                         "same news in your own words, adding nothing. Attribute any work or results to the thread.",
 }
@@ -469,7 +474,7 @@ READER_EXAMPLES = {
     Kind.ASK_WHICH: ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"]},
                      "Do you mean Example Lilac Post or Example Daily Routes?"),
     Kind.NO_PROJECT: ({"available": ["Example Jog Log", "Example Comet Board"]},
-                      "I couldn't match that project. I can start a thread in Example Jog Log or Example Comet Board."),
+                      "I couldn't match that project, but I can start a thread in Example Jog Log or Example Comet Board."),
     Kind.LAUNCH_PENDING: ({"project": "Example Forest Timer"},
                           "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
     Kind.LAUNCHED: ({"project": "Example Dune Tracker", "request": "show the tide table"},
@@ -496,7 +501,7 @@ READER_EXAMPLES = {
     Kind.STOPPING: ({"thread": "Example Study Folder Sync"}, "I asked T3 to stop Example Study Folder Sync and it's stopping now."),
     Kind.NOTHING_RUNNING: ({"thread": "Example Tag Camera Clips"}, "Example Tag Camera Clips had no run going, so there was nothing to stop."),
     Kind.STOP_UNCONFIRMED: ({"thread": "Example Group Report Tabs"},
-                            "I couldn't reach T3 to stop Example Group Report Tabs. You can stop it in the app."),
+                            "I couldn't reach T3 to stop Example Group Report Tabs."),
     Kind.RUN_UPDATE: ({"thread": "Example Review Build Flags", "status": "queued"}, "Example Review Build Flags is queued to run."),
     Kind.REPLIED: ({"thread": "Example Check Delivery Types", "status": "running", "reply": "I found 12 duplicates."},
                    "Example Check Delivery Types reports that it found 12 duplicates."),
@@ -507,14 +512,14 @@ READER_EXAMPLES = {
     Kind.DONE: ({"thread": "Example Change Page Margins", "status": "completed", "summary": "It reports that 22 tests passed."},
                 "Example Change Page Margins finished and reports that 22 tests passed."),
     Kind.THREAD_DELETED: ({"thread": "Example Try Filter Chips"}, "Example Try Filter Chips was deleted."),
-    Kind.LOST_TRACK: ({"thread": "Example Review Old Webhooks"}, "I lost track of Example Review Old Webhooks. It's still in the app."),
+    Kind.LOST_TRACK: ({"thread": "Example Review Old Webhooks"}, "I lost track of Example Review Old Webhooks."),
     Kind.THREAD_GONE: ({"thread": "Example Check Button Focus"}, "I can no longer see Example Check Button Focus."),
     Kind.WATCH_QUEUED: ({"thread": "Example Expand Region Menu", "following": 8},
                         "I'm following 8 threads. I'll start following Example Expand Region Menu when one ends."),
     Kind.UNREACHABLE: ({}, "I can't reach T3 right now."),
     Kind.SEAM_DOWN: ({"reason": "connection"}, "I lost my connection to T3 and stopped following your threads."),
-    Kind.REFUSED: ({"op": "start", "code": "no_default_model", "reason": "this project has no default model"},
-                   "T3 refused to start the thread because the project has no default model."),
+    Kind.REFUSED: ({"op": "tell", "code": "refused", "reason": "the thread is archived"},
+                   "T3 refused to send your follow-up message because the thread is archived."),
     Kind.LEGACY_UPDATE: ({"thread": "Example Revise Column Labels", "text": "Example Revise Column Labels is still running."},
                          "Example Revise Column Labels is still running."),
 }

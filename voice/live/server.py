@@ -106,7 +106,7 @@ import secrets
 import subprocess
 import threading
 import time
-from contextlib import nullcontext
+from contextlib import AsyncExitStack, nullcontext
 from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from functools import partial
@@ -1043,21 +1043,29 @@ async def main_async(args):
     tools_context = nullcontext() if args.mock_tools else open_registry(lock=cloud_lock)
     eou_mode, eou_port = getattr(args, "eou", "silence"), getattr(args, "eou_port", eou_audio.PORT)
     eou_context = eou_audio.server(eou_port, out / "eou-server.log") if eou_mode == "audio" else nullcontext()
-    with tools_context as tools, Server(args.lfm_port, out / "llama-server.log", lfm_args, slots(getattr(args, "asr_stagger", 1))) as server, \
-            make_decider(args.decider, out) as decider, eou_context as eou_server:
+    async with AsyncExitStack() as stack:
+        tools = stack.enter_context(tools_context)
+        server = stack.enter_context(Server(args.lfm_port, out / "llama-server.log", lfm_args,
+                                            slots(getattr(args, "asr_stagger", 1))))
+        decider = stack.enter_context(make_decider(args.decider, out))
+        eou_server = stack.enter_context(eou_context)
         eou = None
         if eou_server is not None:
             eou = eou_audio.Decider(f"http://127.0.0.1:{eou_port}",
                                     eou_audio.Policy(theta=getattr(args, "eou_theta", eou_audio.Policy.theta)))
             print(f"d1-Omni pid {eou_server.proc.pid} on port {eou_port} after {eou_server.startup_s:.1f} s: "
                   f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
-        t3 = poller = None
+        t3 = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
         if getattr(args, "t3", "off") == "on":
+            writer = live_writer(url)
+            if writer is not None:
+                await stack.enter_async_context(writer)
             t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
-                              default_speech_decider(), writer=live_writer(url))
+                              default_speech_decider(), writer=writer)
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
+            stack.callback(poller.stop)
             tools = T3Registry(tools)
             print(f"t3 tasks on: {len(t3.follow.journal.live())} live threads and "
                   f"{len(t3.follow.journal.held())} held follow-ups resumed, thread picker model "
@@ -1068,6 +1076,7 @@ async def main_async(args):
         if t3 is not None:
             live.t3, live.task_service = t3, partial(T3TaskService, t3=t3)
         watcher = asyncio.create_task(watch_lag())
+        stack.callback(watcher.cancel)
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
             print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
@@ -1075,9 +1084,6 @@ async def main_async(args):
             await wait_for_stop(args.max_minutes, args.stop_file)
             if live.active is not None:
                 await live.active.ws.close(1001, "server stopping")
-        watcher.cancel()
-        if poller is not None:
-            poller.stop()
 
 
 def main():
