@@ -103,6 +103,7 @@ import time
 from contextlib import nullcontext
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import partial
 from http import HTTPStatus
 from pathlib import Path
 
@@ -118,6 +119,7 @@ from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
                                  heard_prefix, interrupted_note, plain_text, run_clip)
 from voice.live.ledger import ConversationLedger
+from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, default_journal, default_origin,     default_token_file
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -706,7 +708,8 @@ class Conversation:
                                     recall=live.args.recall, context=self.ledger.context(),
                                     prior_results=tuple(self.ledger.results()),
                                     prior_replies=tuple(self.ledger.replies()),
-                                    established=tuple(self.ledger.established()))
+                                    established=tuple(self.ledger.established()),
+                                    task_service=live.task_service)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -755,6 +758,7 @@ class Conversation:
 class Live:
     def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, *, secret):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
+        self.task_service = None
         self.secret = secret
         self.eou = eou
         # With an audio decider the endpointer also names the points of silence at which the turn may end.
@@ -863,8 +867,17 @@ async def main_async(args):
                                     eou_audio.Policy(theta=getattr(args, "eou_theta", eou_audio.Policy.theta)))
             print(f"d1-Omni pid {eou_server.proc.pid} on port {eou_port} after {eou_server.startup_s:.1f} s: "
                   f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
+        t3 = poller = None
+        if getattr(args, "t3", "off") == "on":
+            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal())
+            t3.resume(time.monotonic())
+            poller = Poller(t3).start()
+            tools = T3Registry(tools)
+            print(f"t3 tasks on: {len(t3.follow.journal.live())} live threads resumed", flush=True)
         live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock,
                     eou=eou, secret=secret)
+        if t3 is not None:
+            live.task_service = partial(T3TaskService, t3=t3)
         watcher = asyncio.create_task(watch_lag())
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
@@ -876,6 +889,8 @@ async def main_async(args):
             if live.active is not None:
                 await live.active.ws.close(1001, "server stopping")
         watcher.cancel()
+        if poller is not None:
+            poller.stop()
 
 
 def main():
@@ -921,6 +936,9 @@ def main():
     parser.add_argument("--decider", choices=["liquid", "cloud", "d1"], default=default_decider())
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
+    parser.add_argument("--t3", choices=["off", "on"], default="off",
+                        help="on: the decider may pick t3_start and t3_ask, which run on the fork's T3 server through "
+                             "the voice seam (VOICE_T3_ORIGIN, VOICE_T3_TOKEN_FILE, VOICE_T3_JOURNAL); off by default")
     parser.add_argument("--asr-stagger", type=int, default=1, choices=[1, 2, 3, 4, 6, 12],
                         help="transcription sessions fed the same audio, shifted by 0.96 s / N so the live "
                              "transcript updates N times per block (default 1: one update per 0.96 s)")
@@ -932,6 +950,8 @@ def main():
     args = parser.parse_args()
     if args.segmenter != "hybrid":
         parser.error("the gated turn needs the hybrid segmenter")
+    if args.t3 == "on" and args.mock_tools:
+        parser.error("--t3 on needs the real registry: the decider's tool question offers the T3 tools")
     asyncio.run(main_async(args))
 
 
