@@ -757,27 +757,38 @@ class Conversation:
             turn.speaking = False
             self.post({"type": "reply_end", "turn": turn.n}, turn)
 
-    async def speak_t3(self, turn, line, pcm):
-        """Send one T3 line's audio on the reply path. Only a RenderedLine is spoken; a plain string raises."""
+    async def speak_t3(self, turn, line, chunks):
+        """Send one T3 line's audio on the reply path as its chunks are made. Only a RenderedLine is spoken; a plain
+        string raises. Returns the audio the sender wrote."""
         text = speakable(line, "speak_t3").text
-        if turn.muted or (self.sender is not None and self.sender.done()):
-            return b""
-        turn.speaking = turn.reply_started = True
-        reply = Reply(text)
-        turn.replies.append(reply)
-        now = time.perf_counter()
-        self.playback.add(len(pcm) / 2 / turn.out_rate, text, now, turn.n)
-        self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
-        done = asyncio.get_running_loop().create_future()
-        self.outbox.put_nowait((turn, VerbatimAudio(pcm, reply, done)))
+        reply, sent, queued = None, b"", 0
         try:
-            return await asyncio.shield(done)
+            async for pcm in chunks:
+                if turn.muted or (self.sender is not None and self.sender.done()):
+                    break
+                if reply is None:
+                    turn.speaking = turn.reply_started = True
+                    reply = Reply(text)
+                    turn.replies.append(reply)
+                    self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
+                self.playback.add(len(pcm) / 2 / turn.out_rate, "" if sent else text, time.perf_counter(), turn.n)
+                done = asyncio.get_running_loop().create_future()
+                self.outbox.put_nowait((turn, VerbatimAudio(pcm, reply, done)))
+                queued += len(pcm)
+                try:
+                    sent = await asyncio.shield(done)
+                except asyncio.CancelledError:
+                    # The sender may already have written frames. Settle the line using its actual byte count.
+                    return await asyncio.shield(done)
+                if len(sent) < queued:
+                    break
         except asyncio.CancelledError:
-            # The sender may already have written frames. Settle the line using its actual byte count.
-            return await asyncio.shield(done)
+            return sent
         finally:
-            turn.speaking = False
-            self.post({"type": "reply_end", "turn": turn.n}, turn)
+            if reply is not None:
+                turn.speaking = False
+                self.post({"type": "reply_end", "turn": turn.n}, turn)
+        return sent
 
     async def open_voice(self):
         """The call's one voice session, opened by its first turn. The persona is read here and kept for the call."""

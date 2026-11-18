@@ -66,9 +66,9 @@ import numpy as np
 from websockets.exceptions import WebSocketException
 
 from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
-from voice.live.fallback import pcm as line_pcm, wav as line_wav
 from voice.live.overlap import transcribe as overlap_transcribe
 from voice.live.recall import recall_note
+from voice.live.tts import ServerTts
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
@@ -645,9 +645,8 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, trans
 
 
 def tts_line(url):
-    """`render(text, rate)` for `say_verbatim`: the line through the running llama-server's TTS, cached by its text."""
-    base = url.replace("ws://", "http://").split("/v1/")[0]
-    return lambda text, rate: line_pcm(line_wav(base, text), rate)
+    """`render(text, rate)` for `say_verbatim`: the line through the running llama-server's TTS, streamed."""
+    return ServerTts(url.replace("ws://", "http://").split("/v1/")[0]).stream
 
 
 def _verdict(rendered):
@@ -705,24 +704,43 @@ async def say_acts(session, rate, since, entry, words, turns, log, speak=None, r
 
 async def say_verbatim(session, rate, since, line, log, speak=None, render=None, *,
                        send_audio=None, record_delivery=None):
-    """Speak one RenderedLine and record how much of its audio reached the reply path."""
+    """Speak one RenderedLine as `render(text, rate)` makes its audio, chunk by chunk, and record how much of it
+    reached the reply path. `send_audio(line, chunks)` takes the chunks and returns the audio it sent."""
     text = speakable(line, "say_verbatim").text
-    try:
-        pcm = await asyncio.to_thread(render, text, rate) if render is not None else b""
-    except Exception as exc:
-        log("t3_voice_failed", error=repr(exc))
-        pcm = b""
+    made = {"bytes": 0, "whole": False, "first": None}
+
+    async def chunks():
+        try:
+            async for pcm in render(text, rate):
+                if pcm:
+                    made["first"] = made["first"] or session.clock()
+                    made["bytes"] += len(pcm)
+                    yield pcm
+        except Exception as exc:
+            log("t3_voice_failed", error=repr(exc))
+            return
+        made["whole"] = True
+
+    audio = chunks() if render is not None else None
     sent = b""
-    if pcm:
-        if send_audio is not None:
-            sent = await send_audio(line, pcm)
-        elif speak is not None:
-            speak(text, pcm, True)
-            sent = pcm
-    delivery = "sent" if sent and len(sent) == len(pcm) else "partial" if sent else "unsent"
+    try:
+        if audio is not None and send_audio is not None:
+            sent = await send_audio(line, audio)
+        elif audio is not None and speak is not None:
+            async for pcm in audio:
+                speak(text, pcm, False)
+                sent += pcm
+            if sent:
+                speak(text, b"", True)
+    finally:
+        if audio is not None:
+            await audio.aclose()
+    delivery = ("sent" if sent and made["whole"] and len(sent) == made["bytes"] else "partial" if sent
+                else "unsent")
     if record_delivery is not None:
         record_delivery(delivery)
-    reply = fixed_reply(text, sent, rate, session.clock() - since)
+    first = made["first"] if made["first"] is not None else session.clock()
+    reply = fixed_reply(text, sent, rate, first - since)
     reply["delivery"] = delivery
     if delivery == "sent":
         reply["item"] = await create_item(session, plain_text(
