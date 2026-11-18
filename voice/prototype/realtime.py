@@ -145,5 +145,10 @@ class Session:
         return start, self.clock()
 
     async def close(self):
-        await self.ws.close()
-        self._reader.cancel()
+        try:
+            await self.ws.close()
+        except BaseException:
+            self.ws.transport.abort()
+            raise
+        finally:
+            self._reader.cancel()

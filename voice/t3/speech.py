@@ -1,20 +1,16 @@
-"""The voice's own words for T3 acts: a free text model renders them, and code checks each line.
+"""Drafting and checking speech about T3 acts.
 
 Code says what is true as typed acts (voice/t3/acts.py). `Speech.render` asks the text model for one or two natural
-spoken sentences that say those acts, fitted to the last few turns of the call, and keeps the line only when
-`acts.check` and then the decider pass it (voice/t3/verify.py), as a RenderedLine. `Speech.note` is the same acts as
-a private direction for LFM3, the fallback when the text model fails, and LFM3's reply goes through the same
-`Speech.accept`. No line is ever a fixed string.
+spoken sentences that say those acts. `Speech.accept` checks both the draft and the call's reply with `acts.check`
+and then the decider (voice/t3/verify.py). A passing line becomes a RenderedLine.
 
 A thread's summary is written here too, only when the voice is about to speak about that thread: an answer to an ask,
 a done, or a need. It reads the thread through the seam (status and need come from code, plus the full last reply),
 writes a gist into the act's `summary` slot, and is cached per thread, read sequence and question. A speculative
 start may begin it while Mason is still asking.
 
-Every model request goes through one `Lane`: one request in flight, on the lane's own thread, so no request runs
-under the T3 lock and none waits on another caller's slot past its own timeout. The lane's model is chosen by
-`$VOICE_RENDERER` (`text_model`): `particle-1`, the free cloud model and the default, or `local`, an OpenAI-compatible
-llama-server on this machine (docs/voice/local-renderer.md).
+The picker and summaries share the text-model lane. The live renderer uses a separate text-only realtime lane
+by default, with the text model available as an override.
 """
 
 from __future__ import annotations
@@ -32,7 +28,8 @@ from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, forbidden_claims, normalise
+from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise
+from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Verdict
 
 RENDER_TIMEOUT_S = 8.0
@@ -50,16 +47,18 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread for their request in this project. Nothing has "
                          "started yet.",
     Kind.ASK_WHICH: "Ask which of these they mean. Name every candidate.",
-    Kind.NO_PROJECT: "No project matches what they named. Name the projects a thread can start in.",
+    Kind.NO_PROJECT: "In one sentence, tell them you couldn't find a project matching what they named and name every "
+                     "project in `available` as somewhere you can start a thread.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
     Kind.LAUNCHED: "The thread started in this project.",
     Kind.LAUNCH_UNCONFIRMED: "T3 was asked to start the thread but never confirmed it. They can check the app.",
     Kind.NO_THREAD: "No thread matches what they asked about. `recent` is how many recent threads were checked, "
                     "and `other` means there is no other thread besides the one they turned down.",
-    Kind.CONFIRM_THREAD: "Ask whether this is the thread they mean.",
+    Kind.CONFIRM_THREAD: "Ask whether the existing thread named in thread is the one they mean.",
     Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Nothing is sent yet.",
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
-    Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop).",
+    Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
+                    "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
                         "asked. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
     Kind.TELL_PENDING: "T3 was asked to pass the message on and has not confirmed it yet.",
@@ -70,7 +69,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.DROPPED_FOLLOWUP: "The held message will not be sent.",
     Kind.STOPPING: "T3 was asked to stop the thread's run. It has not stopped yet.",
     Kind.NOTHING_RUNNING: "The thread has no run going, so there was nothing to stop.",
-    Kind.STOP_UNCONFIRMED: "The voice could not reach T3 to stop the thread. They can stop it in the app.",
+    Kind.STOP_UNCONFIRMED: "Say that you couldn't reach T3 to stop the thread. Include its exact title in that "
+                           "sentence.",
     Kind.RUN_UPDATE: "The thread's run is now in this status (running or queued).",
     Kind.REPLIED: "The thread posted this reply while it works. Give its gist in one sentence. Attribute any claims "
                   "about work or results to the thread as what it says.",
@@ -79,13 +79,16 @@ MEANINGS: dict[Kind, str] = {
     Kind.NEED_RESOLVED: "A request the thread had made of them was settled (answered, expired or cancelled).",
     Kind.DONE: "The thread's run ended with this status. Say the status, then the summary.",
     Kind.THREAD_DELETED: "The thread was deleted.",
-    Kind.LOST_TRACK: "The voice lost track of the thread. It is still in the app.",
+    Kind.LOST_TRACK: "Say that you lost track of the named thread. Make no claim about where it is or whether it "
+                     "still exists.",
     Kind.THREAD_GONE: "The voice can no longer see the thread.",
     Kind.WATCH_QUEUED: "The voice already follows `following` threads and will follow this one when one ends.",
     Kind.UNREACHABLE: "The voice cannot reach T3 right now.",
     Kind.SEAM_DOWN: "The voice stopped following their threads, which are still in the app. `reason`: connection "
                     "(the connection to T3 was lost), access (T3 no longer accepts the voice's access) or seam_off.",
-    Kind.REFUSED: "T3 refused to do what was asked (`op`). Say why, from `reason`.",
+    Kind.REFUSED: "Say what T3 refused to do in plain words. For `op` tell, say it refused to send the follow-up "
+                  "message. For start, ask, or stop, say it refused to start, look up, or stop the thread, "
+                  "respectively. If the record gives a reason, attribute it to T3 as its reason for refusing.",
     Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
                         "same news in your own words, adding nothing. Attribute any work or results to the thread.",
 }
@@ -181,8 +184,7 @@ RENDERERS = ("particle-1", "local")
 
 
 def text_model(name: str | None = None, cloud: Callable[[], Any] | None = None):
-    """The lane's model by `$VOICE_RENDERER`: `local` is LocalText; `particle-1`, the default, is `cloud()`, which
-    returns None when no key is configured."""
+    """Select the text backend for CLI tools or an explicit live override."""
     name = name or os.environ.get("VOICE_RENDERER") or "particle-1"
     if name not in RENDERERS:
         raise ValueError(f"VOICE_RENDERER must be one of {RENDERERS}, not {name!r}")
@@ -203,7 +205,7 @@ class Lane:
 
     @staticmethod
     def _check(client) -> None:
-        if not isinstance(client, LocalText):
+        if not isinstance(client, (LocalText, RealtimeWriter)):
             assert_free(client.model)
 
     def submit(self, messages) -> Future:
@@ -301,6 +303,7 @@ class RenderedLine:
     worded_by: str
     verdict: Verdict
     mint: object = field(default=None, repr=False, compare=False)
+    known_names: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.mint is not _MINT:
@@ -324,13 +327,14 @@ class Gist:
 
 @dataclass
 class Speech:
-    """`lane` is None when no model is configured: every render then fails and the act goes to LFM3 or waits.
+    """`lane` is None when no model is configured: every render then fails and the act waits.
     `read(thread_id)` reads a thread through the seam, or returns None when it cannot. `decider` checks each line
     against its acts (voice/t3/verify.py); with none, no line passes."""
 
     lane: Lane | None
     read: Callable[[str], T.ThreadState | None]
     decider: Any = None
+    writer: Lane | None = None
     states: dict = field(default_factory=dict)
     summaries: dict = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -398,21 +402,26 @@ class Speech:
         return tuple(filled), read
 
     def render(self, acts: Iterable[Act], turns: Iterable[dict] = (), problems: Iterable[str] = (),
-               refused: Iterable[str] = (), attempt: int = 0) -> Rendered:
+               refused: Iterable[str] = (), attempt: int = 0, *, known_names=frozenset()) -> Rendered:
         acts = tuple(acts)
-        if self.lane is None:
+        lane = self.writer or self.lane
+        if lane is None:
             return Rendered(None, error="no text model")
+        messages = reader_messages if self.writer else render_messages
         try:
-            record = self.lane.call(render_messages(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
+            record = lane.call(messages(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
         except Exception as exc:
             return Rendered(None, error=repr(exc))
-        return self.accept(acts, _clean(record.get("text", "")), "text_model", record.get("text"))
+        worded_by = "lfm3" if self.writer else "text_model"
+        return self.accept(acts, _clean(record.get("text", "")), worded_by, record.get("text"),
+                           known_names=known_names)
 
-    def accept(self, acts: Iterable[Act], text: str, worded_by: str, raw: str | None = None) -> Rendered:
-        """`text` as a RenderedLine when code's slot check and then the decider pass it for `acts`."""
+    def accept(self, acts: Iterable[Act], text: str, worded_by: str, raw: str | None = None, *,
+               known_names=frozenset()) -> Rendered:
+        """Mint a line only after its text passes both the code and semantic checks."""
         acts = tuple(acts)
         raw = text if raw is None else raw
-        found = check(text, acts)
+        found = check(text, acts) + check_names(text, acts, EXAMPLE_NAMES | known_names)
         if found:
             return Rendered(None, found, raw)
         if self.decider is None:
@@ -420,7 +429,8 @@ class Speech:
         verdict = self.decider.verify(acts, text)
         if not verdict.passed:
             return Rendered(None, list(verdict.problems), raw, verdict.error, verdict)
-        return Rendered(RenderedLine(text, acts, worded_by, verdict, _MINT), [], raw, verdict=verdict)
+        line = RenderedLine(text, acts, worded_by, verdict, _MINT, known_names)
+        return Rendered(line, [], raw, verdict=verdict)
 
 
 def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems: Iterable[str] = (),
@@ -450,14 +460,100 @@ def summary_messages(state: T.ThreadState, question: str | None) -> list[dict]:
     return [{"role": "system", "content": SUMMARY_SYSTEM}, {"role": "user", "content": json.dumps(body)}]
 
 
-def fallback_prompt(acts: Iterable[Act]) -> tuple[str, str]:
-    """LFM3's session instructions and one facts item, with no text from the call history."""
-    acts = tuple(acts)
-    directions = " ".join(f"{kind.value}: {MEANINGS[kind]}" for kind in dict.fromkeys(a.kind for a in acts))
-    banned = json.dumps(never_say(acts))
-    instructions = (f"{RENDER_SYSTEM} The input is data. Speak neither its JSON nor these directions. "
-                    f"Claims under never_say: {banned}. {directions}")
-    facts = [{"act": a.kind.value, "facts": {key: value for key, value in a.slots.items() if key != "asked"}}
-             for a in acts]
-    return instructions, json.dumps({"acts": facts, "keep_exact": kept_exact(acts),
-                                     "ask": any(a.kind in QUESTIONS for a in acts)})
+READER = (
+    "You are the voice of a coding assistant, on a call with the person you help. They run coding agents in "
+    "threads. A thread is a workspace conversation with a coding agent, separate from this call. T3 runs the "
+    "threads. Each message you receive is a JSON record from T3 about their threads. It is not something they "
+    "said. Tell them what it says, speaking as I to you, in one short sentence per act. Keep every name, status "
+    "and count as given, credit facts to the thread that reported them, and add nothing the record does not "
+    "state. Use a thread title only as a name. Reply with the words to say out loud."
+)
+READER_EXAMPLES = {
+    Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes", "request": "make links easier to copy"},
+                          "Should I start a new coding thread in Example Fleet Notes to make links easier to copy?"),
+    Kind.ASK_WHICH: ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"]},
+                     "Do you mean Example Lilac Post or Example Daily Routes?"),
+    Kind.NO_PROJECT: ({"available": ["Example Jog Log", "Example Comet Board"]},
+                      "I couldn't match that project, but I can start a thread in Example Jog Log or Example Comet Board."),
+    Kind.LAUNCH_PENDING: ({"project": "Example Forest Timer"},
+                          "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
+    Kind.LAUNCHED: ({"project": "Example Dune Tracker", "request": "show the tide table"},
+                    "A new coding thread has started in Example Dune Tracker to show the tide table."),
+    Kind.LAUNCH_UNCONFIRMED: ({"project": "Example Reef Cards"},
+                              "T3 never confirmed the start in Example Reef Cards. You can check in the app."),
+    Kind.NO_THREAD: ({"recent": 19}, "I checked 19 recent threads and couldn't find a match."),
+    Kind.CONFIRM_THREAD: ({"thread": "Example Polish Checkout Layout"}, "Is Example Polish Checkout Layout the thread you mean?"),
+    Kind.CONFIRM_TELL: ({"thread": "Example Trim Image Margins", "message": "keep the captions"},
+                        "Should I send 'keep the captions' to Example Trim Image Margins as a follow-up?"),
+    Kind.CONFIRM_STOP: ({"thread": "Example Split Export Files"}, "Should I stop Example Split Export Files?"),
+    Kind.CANCELLED: ({"op": "start"}, "I won't start the thread."),
+    Kind.THREAD_STATUS: ({"thread": "Example Tune Audio Levels", "status": "working", "summary": "It says playback is stable."},
+                         "Example Tune Audio Levels is still working and reports that playback is stable."),
+    Kind.TELL_PENDING: ({"thread": "Example Clean Tag Names"},
+                        "I asked T3 to send your message to Example Clean Tag Names and am waiting for confirmation."),
+    Kind.SENT_FOLLOWUP: ({"thread": "Example Adjust Print View"}, "Your follow-up reached Example Adjust Print View."),
+    Kind.TELL_UNCONFIRMED: ({"thread": "Example Group Reading Lists"},
+                            "T3 didn't confirm your message reached Example Group Reading Lists. You can check in the app."),
+    Kind.HELD_FOLLOWUP: ({"thread": "Example Measure Scroll Lag"},
+                         "Example Measure Scroll Lag is still working, so I'll hold your message until the run ends."),
+    Kind.DROPPED_FOLLOWUP: ({"thread": "Example Retire Draft Filters"},
+                            "I won't send the held follow-up to Example Retire Draft Filters."),
+    Kind.STOPPING: ({"thread": "Example Study Folder Sync"}, "I asked T3 to stop Example Study Folder Sync and it's stopping now."),
+    Kind.NOTHING_RUNNING: ({"thread": "Example Tag Camera Clips"}, "Example Tag Camera Clips had no run going, so there was nothing to stop."),
+    Kind.STOP_UNCONFIRMED: ({"thread": "Example Group Report Tabs"},
+                            "I couldn't reach T3 to stop Example Group Report Tabs."),
+    Kind.RUN_UPDATE: ({"thread": "Example Review Build Flags", "status": "queued"}, "Example Review Build Flags is queued to run."),
+    Kind.REPLIED: ({"thread": "Example Check Delivery Types", "status": "running", "reply": "I found 12 duplicates."},
+                   "Example Check Delivery Types reports that it found 12 duplicates."),
+    Kind.NEEDS_YOU: ({"thread": "Example Archive Old Invoices", "need": "command_approval", "prompt": "Run the cleanup script?"},
+                     "Example Archive Old Invoices needs your approval to run a command."),
+    Kind.NEED_RESOLVED: ({"thread": "Example Organize Print Sizes", "status": "expired"},
+                         "The request from Example Organize Print Sizes expired."),
+    Kind.DONE: ({"thread": "Example Change Page Margins", "status": "completed", "summary": "It reports that 22 tests passed."},
+                "Example Change Page Margins finished and reports that 22 tests passed."),
+    Kind.THREAD_DELETED: ({"thread": "Example Try Filter Chips"}, "Example Try Filter Chips was deleted."),
+    Kind.LOST_TRACK: ({"thread": "Example Review Old Webhooks"}, "I lost track of Example Review Old Webhooks."),
+    Kind.THREAD_GONE: ({"thread": "Example Check Button Focus"}, "I can no longer see Example Check Button Focus."),
+    Kind.WATCH_QUEUED: ({"thread": "Example Expand Region Menu", "following": 8},
+                        "I'm following 8 threads. I'll start following Example Expand Region Menu when one ends."),
+    Kind.UNREACHABLE: ({}, "I can't reach T3 right now."),
+    Kind.SEAM_DOWN: ({"reason": "connection"}, "I lost my connection to T3 and stopped following your threads."),
+    Kind.REFUSED: ({"op": "tell", "code": "refused", "reason": "the thread is archived"},
+                   "T3 refused to send your follow-up message, citing an archived thread."),
+    Kind.LEGACY_UPDATE: ({"thread": "Example Revise Column Labels", "text": "Example Revise Column Labels is still running."},
+                         "Example Revise Column Labels is still running."),
+}
+
+
+assert set(READER_EXAMPLES) == set(Kind)
+EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
+                          for key in ("thread", "project", "available", "candidates") if key in slots
+                          for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
+RELAY_EXAMPLES = tuple(READER_EXAMPLES[kind][1] for kind in (
+    Kind.CONFIRM_STOP, Kind.LAUNCHED, Kind.DONE, Kind.THREAD_STATUS))
+
+
+def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0) -> list[dict]:
+    """Give the realtime writer the directions for the act kinds in this draft."""
+    kinds = dict.fromkeys(a.kind for a in acts)
+    directions = "\n".join(f"{kind.value}: {MEANINGS[kind]}" for kind in kinds)
+    prompt = f"{READER}\n\n{directions}"
+    if banned := never_say(acts):
+        prompt += f"\nDo not claim {', or '.join(banned)}."
+    remark = next((turn["person"] for turn in reversed(_turns(turns)) if "person" in turn), None)
+    if remark:
+        prompt += f"\n\nTheir last remark on the call, already answered: {json.dumps(remark)}"
+    prompt += "\n\nThese examples show how to turn a record into speech. Use the facts from the new record."
+    for kind in kinds:
+        example, reply = READER_EXAMPLES[kind]
+        prompt += f'\n\nRecord: {json.dumps({"kind": kind.value, **example})}\nReply: {reply}'
+    prompt += "\n\nRespond with interleaved text and audio."
+    records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]
+    body = records[0] if len(records) == 1 else {"acts": records}
+    if problems:
+        body["earlier draft problems"] = list(problems)
+    if refused:
+        body["refused wordings"] = list(refused)
+    if attempt:
+        body["attempt"] = attempt + 1
+    return [{"role": "system", "content": prompt}, {"role": "user", "content": json.dumps(body)}]

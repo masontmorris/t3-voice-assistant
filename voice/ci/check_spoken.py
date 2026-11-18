@@ -27,7 +27,7 @@ SPEAKING = {
     "voice/live/t3_tasks.py": None,
     "voice/t3/lifecycle.py": None,
     "voice/t3/acts.py": None,
-    "voice/prototype/run.py": ("say_acts", "say_verbatim", "say_t3"),
+    "voice/prototype/run.py": ("say_acts", "say_t3"),
     "voice/live/server.py": ("run_idle", "speak_t3"),
 }
 # Top-level names whose literals are not the voice's: the decider's tool text and the person's side of the CLI.
@@ -38,7 +38,7 @@ DESCRIBED_CALLS = frozenset({"Row"})
 ACT_BUILDERS = frozenset({"act", "Act", "with_slots"})
 
 # The calls that put a T3 line on the speaker.
-ENTRY_POINTS = frozenset({"say_verbatim", "speak_t3", "send_audio", "send_verbatim"})
+ENTRY_POINTS = frozenset({"relay_draft", "speak_t3", "send_audio", "send_checked"})
 
 TWO_WORDS = re.compile(r"[A-Za-z][A-Za-z']*[,;:]?\s+[A-Za-z']+")
 NOT_PROSE = re.compile(r"\\[a-zA-Z]|\(\?|\[\^|\{\d")
