@@ -12,7 +12,24 @@ for port in "$live_port" "$https_port"; do
   fi
 done
 
-tailscale serve status --json | python -c '
+python_cmd=python
+if command -v python3 >/dev/null 2>&1; then
+  python_cmd=python3
+fi
+
+"$python_cmd" -c '
+import socket
+import sys
+
+port = int(sys.argv[1])
+try:
+    with socket.create_connection(("127.0.0.1", port), timeout=2):
+        pass
+except OSError:
+    sys.exit(f"No live server is listening on 127.0.0.1:{port}. Start it with --host 127.0.0.1 --port {port}.")
+' "$live_port"
+
+tailscale serve status --json | "$python_cmd" -c '
 import json
 import sys
 

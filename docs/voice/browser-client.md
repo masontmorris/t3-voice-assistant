@@ -21,7 +21,9 @@ Phones require HTTPS for microphone access. On the server machine, run:
 bash voice/live/serve-tailscale.sh 8770 8446
 ```
 
-Tailscale Serve prints the HTTPS address. Open it on your phone while connected to the tailnet. Paste and save the secret there too. If Tailscale already uses the port, pick a free HTTPS port.
+Tailscale Serve prints the HTTPS address. Open it on your phone while connected to the tailnet. If Tailscale already uses the port, pick a free HTTPS port.
+
+Copy the secret from `$VOICE_HOME/live/secret` on the Desktop into an item in your password manager. On your phone, copy it from the password manager, paste it into the page, and select **Save**. You only need to do this once per browser and address. Keep the secret out of the URL.
 
 Select **Start** and grant microphone access. Speak when the status shows listening. To control when speech starts and stops, select **PTT** before starting the call, then hold **Hold to talk** while speaking. Select **Stop** to end the call.
 
