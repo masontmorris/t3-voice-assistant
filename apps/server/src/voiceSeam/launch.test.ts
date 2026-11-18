@@ -56,6 +56,8 @@ it.effect(
         title: "Fix the flaky ASR test",
         deletedAt: null,
       });
+      // The instruction seeds the title, and T3 is asked to generate a short one from it.
+      assert.isTrue(shell?.titleRegeneration != null || shell?.lastTitleRegeneration != null);
       assert.deepStrictEqual(second, {
         ...first,
         sequence: yield* threads.getThreadEventSequence(first.threadId),

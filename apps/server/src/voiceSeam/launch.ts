@@ -255,6 +255,8 @@ export const make = (sources: LaunchSources) => {
         threadId: ids.threadId,
         projectId: input.projectId,
         title: titleOf(input.instruction),
+        // A spoken instruction makes a long title, and the voice says a thread's title back.
+        generateTitle: true,
         modelSelection: policy.modelSelection,
         runtimeMode: policy.runtimeMode,
         interactionMode: policy.interactionMode,
