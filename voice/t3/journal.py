@@ -120,6 +120,8 @@ class Update:
     problems: tuple[str, ...] = ()
     tries: int = 0
     refused: tuple[str, ...] = ()
+    n: int = 0
+    superseded: bool = False
 
     def evidence(self) -> dict:
         return {"thread_id": self.thread_id, "sequences": list(self.sequences)}
@@ -148,20 +150,40 @@ class T3Journal:
         self.path = Path(path)
         self.tasks: dict[str, JournalTask] = {}
         self.pending_lines: list[Update] = []
+        self.newest: dict[str, int] = {}
         if self.path.exists():
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             self.tasks = {t["task_id"]: _task_from(t) for t in raw.get("tasks", [])}
             # Version 1 saved spoken text. It is never replayed as text: it becomes a legacy_update act to word again.
             self.pending_lines = [Update.from_json(u) if "acts" in u else legacy_update(u)
                                   for u in raw.get("pending_lines", [])]
+            self.newest = dict(raw.get("newest", {}))
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
         body = {"version": 2, "tasks": [asdict(t) for t in self.tasks.values()],
-                "pending_lines": [u.to_json() for u in self.pending_lines]}
+                "pending_lines": [u.to_json() for u in self.pending_lines], "newest": self.newest}
         tmp.write_text(json.dumps(body, indent=1) + "\n", encoding="utf-8")
         os.replace(tmp, self.path)
+
+    def stamp(self, update: Update) -> None:
+        """Number a thread's update in the order it was made, and record it as that thread's newest."""
+        if update.thread_id:
+            update.n = max(self.newest.values(), default=0) + 1
+            self.newest[update.thread_id] = update.n
+
+    def stale(self, update: Update) -> bool:
+        """A newer update about the same thread was made after this one."""
+        return bool(update.thread_id and update.n and self.newest.get(update.thread_id, 0) > update.n)
+
+    def supersede(self, newer: Update) -> None:
+        """Mark each saved line about `newer`'s thread that has been tried and is still waiting. A superseded line
+        stays in the journal as the record of it, and is never spoken."""
+        for update in self.pending_lines:
+            if (update is not newer and update.thread_id == newer.thread_id and not update.superseded
+                    and (update.tries or update.delivery_failures)):
+                update.superseded = True
 
     def replace_lines(self, old: list[Update], new: Update) -> None:
         """`new` stands where the first of `old` stood, when any of them is saved."""

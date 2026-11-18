@@ -257,8 +257,15 @@ class T3Tasks:
                 update.delivery_failures = min(update.delivery_failures + 1, MAX_IDLE_DELIVERY_FAILURES)
                 if id(update) not in saved:
                     pending.append(update)
-            self.follow.outbox[:0] = updates
+            self.follow.outbox[:0] = [u for u in updates if not self.follow.overtaken(u)]
             self.follow.journal.save()
+
+    def superseded(self, update: L.Update) -> bool:
+        """Whether a newer update about `update`'s thread has replaced it, so it must never be said."""
+        with self.lock:
+            if not update.superseded and self.follow.overtaken(update):
+                self.follow.journal.save()
+            return update.superseded
 
     def give_back(self, updates: list[L.Update]) -> None:
         """Updates a turn took and never spoke, for the next one to take."""
@@ -381,7 +388,7 @@ class T3Tasks:
             self.follow.acked.add(task.task_id)
             return L.Update(key, (L.about(task, ack),), STATUS_WORDS[task.status], row, task.link.thread_id)
         update = L.Update(key, tuple(a for u in mine for a in u.acts), STATUS_WORDS[task.status], mine[0].row,
-                          task.link.thread_id, tuple(s for u in mine for s in u.sequences))
+                          task.link.thread_id, tuple(s for u in mine for s in u.sequences), n=max(u.n for u in mine))
         self.follow.journal.replace_lines(mine, update)
         return update
 
@@ -886,6 +893,10 @@ class Script:
     def retry(self) -> None:
         waiting, self.waiting = self.waiting, []
         for label, update in waiting:
+            if self.t3.superseded(update):
+                print(json.dumps({"turn": label, "superseded": [a.to_json() for a in update.acts],
+                                  "evidence": update.evidence()}), flush=True)
+                continue
             self.speak(label, None, update, retry=True)
 
     def tool(self, label, tool, words):

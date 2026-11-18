@@ -221,7 +221,7 @@ class Follow:
     trail: list[tuple[str, str | None]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self.outbox = list(self.journal.pending_lines)
+        self.outbox = [u for u in self.journal.pending_lines if not u.superseded]
 
     def run(self, name: str, task: JournalTask | None, now: float, **context) -> None:
         row = ROWS[name]
@@ -240,17 +240,26 @@ class Follow:
         self.journal.remove_lines(updates)
 
     def give_back(self, updates: list[Update]) -> None:
-        """Lines taken but never heard go back to the front of the outbox, and of the journal's pending lines."""
-        self.outbox[:0] = updates
+        """Lines taken but never heard go back to the front of the outbox, and of the journal's pending lines. One a
+        newer line about its thread has overtaken is superseded instead, so it is never said after that line."""
         saved = set(map(id, self.journal.pending_lines))
         self.journal.pending_lines[:0] = [u for u in updates if id(u) not in saved]
+        self.outbox[:0] = [u for u in updates if not self.overtaken(u)]
         self.journal.save()
+
+    def overtaken(self, update: Update) -> bool:
+        if self.journal.stale(update):
+            update.superseded = True
+        return update.superseded
 
     def speak(self, task: JournalTask, said: Act, row: str | None = None, sequences=(), *,
               durable: bool = True) -> None:
         sequences = tuple(s for s in sequences if s is not None)
         task.link.evidence.extend(sequences)
         update = Update(task.task_id, (about(task, said),), task.status.value, row, task.link.thread_id, sequences)
+        self.journal.stamp(update)
+        self.journal.supersede(update)
+        self.outbox = [u for u in self.outbox if not u.superseded]
         self.outbox.append(update)
         if durable:
             self.journal.pending_lines.append(update)
