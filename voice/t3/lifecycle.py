@@ -543,7 +543,7 @@ class Follow:
         elif isinstance(event, T.ReplyEvent):
             if event.message_id not in link.replies:
                 if event.text.strip() and not quiet:
-                    self.speak(task, act(Say.REPLIED, reply=event.text), "reply", seq)
+                    self.speak(task, act(Say.REPLIED, status="running", reply=event.text), "reply", seq)
                 link.replies[event.message_id] = event.sequence
         elif isinstance(event, T.NeedsYouEvent):
             if link.requests.get(event.request_id) != "needs_you":

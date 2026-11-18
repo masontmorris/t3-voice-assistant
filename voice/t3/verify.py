@@ -138,12 +138,28 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")
-    for claim in sorted(forbidden_claims(acts)):
+    for claim in asked_claims(acts):
         out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(CLAIMS[claim], {'thread': subject})}?",
                        False))
     # Of three phrasings probed on the six fixture lines, this one kept the widest gap (measured, 2026-11-18).
     out.append(Ask("invents", "Does the line state something about a thread that `facts` does not support?", False))
     return out
+
+
+# A reply reports its own work ("I added clamp, the tests pass"), which d1.2 reads as the run ending on every smoke
+# retry (measured, 2026-11-18). Its run status rides in its facts, so the unsupported-claim question still refuses
+# a reply line that says the thread is done (PM 2 ruling, 2026-11-18).
+UNASKED: dict[Kind, frozenset[str]] = {Kind.REPLIED: frozenset({"finished"})}
+
+
+def asked_claims(acts: Iterable[Act]) -> list[str]:
+    """The forbidden status claims the decider is asked about: each act's own, less those it is never asked."""
+    acts = list(acts)
+    allowed = forbidden_claims(acts)
+    asked = set()
+    for a in acts:
+        asked |= forbidden_claims([a]) - UNASKED.get(a.kind, frozenset())
+    return sorted(asked & allowed)
 
 
 def request(acts: Iterable[Act], line: str) -> dict:

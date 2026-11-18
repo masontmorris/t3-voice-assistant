@@ -118,7 +118,7 @@ RULES: dict[Kind, Rule] = {
     Kind.NOTHING_RUNNING: Rule(("thread",), ("thread",), forbids=("stopped", "working")),
     Kind.STOP_UNCONFIRMED: Rule(("thread",), ("thread",), forbids=("stopped",)),
     Kind.RUN_UPDATE: Rule(("thread", "status"), ("thread",)),
-    Kind.REPLIED: Rule(("thread", "reply"), ("thread",), forbids=("finished", "stopped")),
+    Kind.REPLIED: Rule(("thread", "status", "reply"), ("thread",), forbids=("finished", "stopped")),
     Kind.NEEDS_YOU: Rule(("thread", "need", "prompt", "waiting_for", "after_end", "summary"), ("thread",), plain=True),
     Kind.NEED_RESOLVED: Rule(("thread", "status"), ("thread",)),
     Kind.DONE: Rule(("thread", "status", "summary"), ("thread",)),
