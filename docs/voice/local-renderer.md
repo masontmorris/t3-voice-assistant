@@ -15,7 +15,7 @@ All numbers come from one GPU run on 2026-11-18, `python -m voice.research.local
 
 Start the server with `llama-server -m $VOICE_HOME/gguf/LFM3-1.7B-Q4_K_M.gguf -ngl 99 -np 1 -c 8192 -fa on`. Nothing starts it for you yet.
 
-LFM3 reasons by default. With the chat template's `enable_thinking` set to false, it still opened `<think>` on render prompts and spent its whole 200-token budget there, returning an empty line (measured on a CPU smoke run). `LocalText` therefore bans the `<think>` token through `logit_bias`, which fixed it. The model can still write a literal `</think>`. One summary in the run did, and the slot check refused it as not plain speech (measured).
+LFM3 reasons by default. With the chat template's `enable_thinking` set to false, it still opened `<think>` on render prompts and spent its whole 200-token budget there, returning an empty line (measured on a CPU smoke run). `LocalText` therefore bans the `<think>` token through `logit_bias`, which fixed it. The model can still write a literal `</think>`. One summary in the run did. It was refused, but for its length and a missing thread slot, not for the tag (measured), so a tag check has since been added: any line containing a think tag is refused as not plain speech, for every renderer. `LocalText` also fails loudly if it cannot build the `<think>` ban.
 
 ## Results against the bar
 

@@ -150,7 +150,9 @@ class LocalText:
     def _think_ban(self) -> list:
         if self._ban is None:
             tokens = self._post("/tokenize", {"content": "<think>", "parse_special": True}).get("tokens") or []
-            self._ban = [[tokens[0], False]] if len(tokens) == 1 else []
+            if len(tokens) != 1:
+                raise RuntimeError(f"the local text model splits <think> into {len(tokens)} tokens, so it can't be banned")
+            self._ban = [[tokens[0], False]]
         return self._ban
 
     def complete(self, messages) -> dict:

@@ -120,6 +120,26 @@ class LocalTextTest(unittest.TestCase):
         self.assertEqual((sent["logit_bias"], sent["chat_template_kwargs"]),
                          ([[124901, False]], {"enable_thinking": False}))
 
+    def test_the_local_renderer_refuses_to_run_without_its_think_ban(self):
+        class OddTokenizer(LlamaServer):
+            def do_POST(self):
+                if self.path == "/tokenize":
+                    self.rfile.read(int(self.headers["Content-Length"]))
+                    data = json.dumps({"tokens": [1, 2]}).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                else:
+                    super().do_POST()
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), OddTokenizer)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        local = LocalText(f"http://127.0.0.1:{server.server_address[1]}")
+        with self.assertRaises(RuntimeError):
+            local.complete([{"role": "user", "content": "{}"}])
+
     def test_the_renderer_is_chosen_by_name(self):
         self.assertIsInstance(text_model("local"), LocalText)
         self.assertEqual(text_model("particle-1", cloud=lambda: "cloud"), "cloud")
