@@ -41,6 +41,7 @@ PAIR_ATTEMPTS = 3
 PAIR_RETRY_DELAY_S = 2
 
 STATE_FILE = "fork-env.json"
+SETTINGS_FILE = "userdata/settings.json"
 PID_FILE = "fork-env.pid"
 SEAM_CONFIG_FILE = "voice-seam.json"
 TOKEN_FILE = "t3-seam-token"
@@ -466,6 +467,27 @@ def ensure_seam_config(paths: EnvPaths, project_id: str) -> bool:
     return True
 
 
+def ensure_sandbox_model(paths: EnvPaths, project_id: str) -> bool:
+    """Give the sandbox Replay (dev) as its default model. True when it wrote it.
+
+    A voice launch takes the project's default model, so the sandbox's launches run the free
+    replay agent and never a paid one. A default model already set for the sandbox is kept.
+    Runs with the server stopped, like the rest of setup.
+    """
+    file = paths.home / SETTINGS_FILE
+    try:
+        settings = json.loads(file.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        settings = {}
+    sandbox = settings.setdefault("projectSettingsOverrides", {}).setdefault(project_id, {})
+    if sandbox.get("defaultModelSelection") is not None:
+        return False
+    sandbox["defaultModelSelection"] = {"instanceId": DEV_REPLAY_PROVIDER, "model": DEV_REPLAY_MODEL}
+    file.parent.mkdir(parents=True, exist_ok=True)
+    file.write_text(json.dumps(settings, indent=2) + "\n", encoding="utf-8")
+    return True
+
+
 def read_state(paths: EnvPaths) -> dict:
     """Saved setup state, or an empty dict when setup never ran."""
     try:
@@ -495,11 +517,13 @@ def setup_environment(repo: Path, paths: EnvPaths) -> dict:
     project_id, project_created = ensure_project(repo, paths.home, paths.sandbox, state.get("sandboxProjectId"))
     write_state(paths, {"port": FORK_PORT, "sandboxProjectId": project_id})
     seam_created = ensure_seam_config(paths, project_id)
+    model_set = ensure_sandbox_model(paths, project_id)
     return {
         "sandbox_created": sandbox_created,
         "project_created": project_created,
         "project_id": project_id,
         "seam_created": seam_created,
+        "model_set": model_set,
     }
 
 
@@ -680,7 +704,9 @@ def cmd_up(repo: Path, paths: EnvPaths) -> int:
         return 1
     made = setup_environment(repo, paths)
     print(f"fork_env: sandbox project {made['project_id']}")
-    if not made["sandbox_created"] and not made["project_created"] and not made["seam_created"]:
+    if made["model_set"]:
+        print(f"fork_env: sandbox default model is {DEV_REPLAY_PROVIDER}/{DEV_REPLAY_MODEL}")
+    if not any(made[key] for key in ("sandbox_created", "project_created", "seam_created", "model_set")):
         print("fork_env: setup already done, created nothing")
     proc = spawn_dev_server(repo, paths, FORK_PORT)
     assert proc.pid is not None

@@ -487,6 +487,33 @@ class SeamConfigTest(unittest.TestCase):
             self.assertEqual([p["projectId"] for p in doc["projects"]], ["proj_sandbox"])
             self.assertEqual(doc["workspace"], {"proj_sandbox": {"type": "root"}})
 
+    def test_the_sandbox_launches_on_replay_and_a_model_already_set_stays(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            settings_file = paths.home / "userdata" / "settings.json"
+            settings_file.parent.mkdir(parents=True)
+            settings_file.write_text(
+                json.dumps({"providerInstances": {"devReplay": {"driver": "acpRegistry"}}}),
+                encoding="utf-8",
+            )
+            self.assertTrue(fork_env.ensure_sandbox_model(paths, "proj_sandbox"))
+            self.assertFalse(fork_env.ensure_sandbox_model(paths, "proj_sandbox"))
+            doc = json.loads(settings_file.read_text(encoding="utf-8"))
+            self.assertEqual(doc["providerInstances"], {"devReplay": {"driver": "acpRegistry"}})
+            self.assertEqual(
+                doc["projectSettingsOverrides"],
+                {"proj_sandbox": {"defaultModelSelection": {"instanceId": "devReplay", "model": "showcase"}}},
+            )
+
+            chosen = {"instanceId": "codex", "model": "gpt-5.4"}
+            doc["projectSettingsOverrides"]["proj_sandbox"]["defaultModelSelection"] = chosen
+            settings_file.write_text(json.dumps(doc), encoding="utf-8")
+            self.assertFalse(fork_env.ensure_sandbox_model(paths, "proj_sandbox"))
+            kept = json.loads(settings_file.read_text(encoding="utf-8"))
+            self.assertEqual(
+                kept["projectSettingsOverrides"]["proj_sandbox"]["defaultModelSelection"], chosen
+            )
+
     def test_the_ceiling_has_the_keys_the_seam_schema_decodes(self):
         schema = json.loads((REPO / "voice" / "t3" / "seam.schema.json").read_text(encoding="utf-8"))
         config = schema["$defs"]["VoiceSeamConfig"]
