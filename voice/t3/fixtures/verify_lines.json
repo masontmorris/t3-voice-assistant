@@ -1446,6 +1446,86 @@
     "ms": 139.7
   },
   {
+    "case": "smoke done interrupted",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Add a Sum Helper",
+          "status": "interrupted",
+          "summary": "The thread has no reply yet and is interrupted, with nothing pending or waiting on."
+        }
+      }
+    ],
+    "line": "Add a Sum Helper completed, and the tests pass.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.996633424286436
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.02234655346653944
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.9804503565901109
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.011940372135846583
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.803961564808998
+      }
+    },
+    "ms": 186.8
+  },
+  {
+    "case": "smoke done interrupted",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Add a Sum Helper",
+          "status": "interrupted",
+          "summary": "The thread has no reply yet and is interrupted, with nothing pending or waiting on."
+        }
+      }
+    ],
+    "line": "Add a Sum Helper ended as interrupted, with no reply yet and nothing pending or waiting on.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9967827658397249
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9923930489484388
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.9904671900385612
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.010432010972272544
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.0244246246929162
+      }
+    },
+    "ms": 121.4
+  },
+  {
     "case": "pm replied finished work",
     "take": 1,
     "acts": [

@@ -63,8 +63,8 @@ class LineCheck(unittest.TestCase):
                 verdict = Decider(Recorded([row])).verify(acts_of(row), row["line"])
                 expected = row["should_pass"] and row["line"] not in REFUSED_RIGHT_LINES
                 self.assertEqual(verdict.passed, expected, verdict)
-        self.assertEqual(sum(not row["should_pass"] for row in FIXTURE), 25,
-                         "3 escapes, 17 old word-list claims, 2 beside smoke-run lines and 3 takes of a false done")
+        self.assertEqual(sum(not row["should_pass"] for row in FIXTURE), 26,
+                         "3 escapes, 17 old word-list claims, 3 beside smoke-run lines and 3 takes of a false done")
 
     def test_a_reply_is_never_asked_whether_its_run_ended(self):
         reply = act(Kind.REPLIED, thread="Alpha", status="running", reply="I added clamp. The tests pass.")

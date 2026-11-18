@@ -60,6 +60,12 @@ CASES += [
     ("smoke replied", act(Kind.REPLIED, thread=SMOKE, status="running",
                           reply="I added clamp next to sum. All 12 tests pass."),
      f"{SMOKE} has finished: it added clamp next to sum.", "It added clamp next to sum and the tests pass."),
+    # Refused twice in the fourth smoke run: an interrupted run has ended, but it did not finish.
+    ("smoke done interrupted", act(Kind.DONE, thread="Add a Sum Helper", status="interrupted",
+                                   summary="The thread has no reply yet and is interrupted, with nothing pending or "
+                                           "waiting on."),
+     "Add a Sum Helper completed, and the tests pass.",
+     "Add a Sum Helper ended as interrupted, with no reply yet and nothing pending or waiting on."),
     # The PM's two replied cases (2026-11-18), recorded TAKES times each, since one d1.2 answer can drift.
     ("pm replied finished work", act(Kind.REPLIED, thread=SMOKE, status="running",
                                      reply="I added clamp next to sum. All 12 tests pass."),
