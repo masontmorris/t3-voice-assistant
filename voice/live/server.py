@@ -7,6 +7,10 @@ One client at a time connects over WebSocket with the shared secret in the X-Voi
 once in $VOICE_HOME/live/secret, read in-process, and never printed. The server binds to this machine's Tailscale
 IPv4 address (`tailscale ip -4`) and refuses any address outside 100.64.0.0/10 other than loopback.
 
+The browser client at voice/live/web/ is served from the same port: GET / (and its scripts) answers the page, and a
+browser proves itself with `auth {secret}` as its first text frame, within AUTH_TIMEOUT_S of the handshake, since it
+cannot set the header. The secret never goes in a URL, a log or the page.
+
 Wire format. Binary frames are PCM16 mono: 16 kHz up from the client, LFM3's output rate down, 40 ms per frame
 down. Text frames are JSON control messages:
   client -> server  hello {mode: vad|ptt}, ping {t}, ptt {down}
@@ -91,6 +95,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import re
 import secrets
 import subprocess
 import threading
@@ -102,6 +107,7 @@ from http import HTTPStatus
 from pathlib import Path
 
 from websockets.asyncio.server import serve
+from websockets.exceptions import ConnectionClosed
 
 from voice.live import fallback
 from voice.live import eou_audio
@@ -121,6 +127,18 @@ PROMPT_FILE = LIVE_HOME / "prompt.txt"
 STOP_FILE = LIVE_HOME / "STOP"
 EVIDENCE = VOICE_HOME / "evidence" / "live"
 HEADER = "X-Voice-Secret"
+WEB_DIR = Path(__file__).resolve().parent / "web"
+WEB_FILES = {
+    "/": ("index.html", "text/html; charset=utf-8"),
+    "/style.css": ("style.css", "text/css; charset=utf-8"),
+    "/app.js": ("app.js", "text/javascript; charset=utf-8"),
+    "/resample.js": ("resample.js", "text/javascript; charset=utf-8"),
+    "/capture-worklet.js": ("capture-worklet.js", "text/javascript; charset=utf-8"),
+    "/playback-worklet.js": ("playback-worklet.js", "text/javascript; charset=utf-8"),
+}
+# A browser cannot set X-Voice-Secret on its WebSocket handshake, so the page sends `auth {secret}` as its first
+# text frame instead. The frame must arrive within this long after the socket opens, before any audio.
+AUTH_TIMEOUT_S = 5.0
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
@@ -171,11 +189,37 @@ def check_bind(host):
     return host
 
 
-def authorize(secret):
+def serve_page(connection, asset, hosts, web_dir):
+    name, content_type = asset
+    response = connection.respond(HTTPStatus.OK, (web_dir / name).read_text(encoding="utf-8"))
+    del response.headers["Content-Type"]
+    response.headers["Content-Type"] = content_type
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    connect_src = "'self'"
+    # Some browsers need explicit WebSocket sources even when the socket shares the page's host and port.
+    if len(hosts) == 1 and re.fullmatch(r"[A-Za-z0-9.-]+(?::[0-9]{1,5})?", hosts[0]):
+        connect_src += f" ws://{hosts[0]} wss://{hosts[0]}"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'none'; script-src 'self'; style-src 'self'; "
+        f"connect-src {connect_src}; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
+    return response
+
+
+def authorize(secret, web_dir=WEB_DIR):
     def check(connection, request):
-        if request.headers.get("Origin"):
-            return connection.respond(HTTPStatus.FORBIDDEN, "browser clients are refused\n")
-        if not hmac.compare_digest(request.headers.get(HEADER, "").encode(), secret.encode()):
+        if request.headers.get("Upgrade") is None and request.method == "GET":
+            asset = WEB_FILES.get(request.path.partition("?")[0])
+            if asset is not None:
+                return serve_page(connection, asset, request.headers.get_all("Host"), web_dir)
+            return connection.respond(HTTPStatus.NOT_FOUND, "not found\n")
+        header = request.headers.get(HEADER, "")
+        if request.headers.get("Origin") is not None:
+            if header and hmac.compare_digest(header.encode(), secret.encode()):
+                return connection.respond(HTTPStatus.FORBIDDEN, "header auth is not for browsers\n")
+            return None
+        if not hmac.compare_digest(header.encode(), secret.encode()):
             print(f"refused a connection from {connection.remote_address[0]}: bad or missing secret", flush=True)
             return connection.respond(HTTPStatus.UNAUTHORIZED, "bad or missing secret\n")
         return None
@@ -324,12 +368,12 @@ class Conversation:
     `voice_turn` is the turn that currently has that session: the turn before it has finished, so its events and the
     new turn's cannot interleave."""
 
-    def __init__(self, live, ws):
+    def __init__(self, live, ws, secret):
         self.live, self.ws = live, ws
+        self.secret = secret
         self.endpointer = Endpointer(live.settings)
         self.mode, self.ptt_down, self.turn = "vad", False, None
         self.outbox = asyncio.Queue()
-        self.sender = asyncio.create_task(self._send_loop())
         self.voice, self.voice_turn, self.session_turns, self.out_rate = None, None, 0, None
         self.persona = self.prompt_source = None
         self.ledger = ConversationLedger()
@@ -358,11 +402,37 @@ class Conversation:
             await self.ws.send(payload)
 
     async def run(self):
-        async for message in self.ws:
-            if isinstance(message, bytes):
-                self.on_audio(message)
-            else:
-                await self.on_control(json.loads(message))
+        sender = asyncio.create_task(self._send_loop())
+        try:
+            async for message in self.ws:
+                if isinstance(message, bytes):
+                    self.on_audio(message)
+                else:
+                    await self.on_control(json.loads(message))
+        finally:
+            try:
+                await self.close()
+            finally:
+                sender.cancel()
+                await asyncio.gather(sender, return_exceptions=True)
+
+    async def browser_auth(self):
+        """The page's first text frame carries the secret, since a browser cannot set the header. It must arrive
+        before any audio and within AUTH_TIMEOUT_S, and the secret is never logged."""
+        try:
+            first = await asyncio.wait_for(self.ws.recv(), AUTH_TIMEOUT_S)
+        except TimeoutError:
+            await self.ws.close(1008, "auth did not arrive in time")
+            return False
+        except ConnectionClosed:
+            return False
+        if not (isinstance(first, str) and first.startswith("auth ")
+                and hmac.compare_digest(first[5:].encode(), self.secret.encode())):
+            print(f"refused a browser connection from {self.ws.remote_address[0]}: bad or missing auth",
+                  flush=True)
+            await self.ws.close(1008, "bad or missing auth")
+            return False
+        return True
 
     def on_audio(self, pcm):
         if self.mode == "ptt":
@@ -680,12 +750,12 @@ class Conversation:
         self.voice_turn = None
         if self.voice is not None:
             await self.voice.close()
-        self.sender.cancel()
 
 
 class Live:
-    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None):
+    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, *, secret):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
+        self.secret = secret
         self.eou = eou
         # With an audio decider the endpointer also names the points of silence at which the turn may end.
         check_ms = eou.policy.check_ms if eou is not None else ()
@@ -723,16 +793,24 @@ class Live:
         for clip in (self.fallback, self.ask):
             clip.render(f"http://127.0.0.1:{self.args.lfm_port}")
 
+    def header_authed(self, ws):
+        """A Python client proves itself with the header before the handshake; the page proves itself later, with
+        the auth frame `browser_auth` waits for."""
+        header = ws.request.headers.get(HEADER, "") if ws.request is not None else ""
+        return bool(header) and hmac.compare_digest(header.encode(), self.secret.encode())
+
     async def handler(self, ws):
+        conversation = Conversation(self, ws, self.secret)
+        if not self.header_authed(ws) and not await conversation.browser_auth():
+            return
         if self.active is not None:
             await ws.close(1013, "another client is connected")
             return
-        conversation = self.active = Conversation(self, ws)
+        self.active = conversation
         print(f"client connected from {ws.remote_address[0]}", flush=True)
         try:
             await conversation.run()
         finally:
-            await conversation.close()
             self.active = None
             print("client disconnected", flush=True)
 
@@ -785,7 +863,8 @@ async def main_async(args):
                                     eou_audio.Policy(theta=getattr(args, "eou_theta", eou_audio.Policy.theta)))
             print(f"d1-Omni pid {eou_server.proc.pid} on port {eou_port} after {eou_server.startup_s:.1f} s: "
                   f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
-        live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock, eou=eou)
+        live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock,
+                    eou=eou, secret=secret)
         watcher = asyncio.create_task(watch_lag())
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)

@@ -25,6 +25,7 @@ The Desktop runs `python -m voice.live.server`. It starts llama-server with LFM3
 | `voice/live/server.py` | The WebSocket server, the shared secret, the bind check, and one `Conversation` per client that turns endpointer events into turns. It owns the call's one LFM3 voice session. |
 | `voice/live/endpoint.py` | The energy-and-silence endpointer. |
 | `voice/live/client.py` | The laptop client. It uses the microphone or WAV clips, plays the reply, and has a push-to-talk fallback. |
+| `voice/live/web/` | The browser client, served by the server on GET `/`. See [browser-client.md](browser-client.md). |
 | `voice/live/script.py` | Renders a scripted conversation to WAV clips with the running server's own TTS, for a `--wav` run. |
 | `voice/live/package.py` | Builds the laptop zip under `$VOICE_HOME/live/dist/`. |
 | `voice/live/SETUP-LAPTOP.md` | The laptop's install steps. It ships in the zip. |
