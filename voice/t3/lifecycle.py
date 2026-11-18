@@ -6,30 +6,25 @@ code or an end on its own. Every row ends in one of three ways: a watch from a c
 task status, or a spoken give-up that saves the task as LOST.
 
 Follow is single-threaded. Its caller passes the time into every call, so tests drive it with a
-fake clock and a fake seam. What the voice may say comes out as Update values, each with the
-sequences that are its evidence.
+fake clock and a fake seam. What the voice may say comes out as Update values: typed acts
+(voice/t3/acts.py), never sentences, each with the sequences that are its evidence.
 """
 
 from __future__ import annotations
 
-import re
 from collections import deque
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Callable
 
 from voice.t3 import types as T
+from voice.t3.acts import RULES, Act, act
+from voice.t3.acts import Kind as Say
 from voice.t3.journal import ENDED, JournalTask, Kind, Status, T3Journal, Update, ulid
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable
 
-L1 = "I lost track of that thread. It's still in the app."
-L2 = "I can't see that thread any more."
-LAUNCH_ACK = "I've asked T3 to start it."
-SLOT_LINE = "I'm following {n} threads already. I'll pick this one up when one of them finishes."
-DELETED_LINE = "That thread was deleted."
-UNREACHABLE_LINE = "I can't reach T3 right now."
-HELD_LINE = "It's still working. I'll pass that on when it finishes."
-DROPPED_LINE = "Okay, I won't pass that on."
+LOST = act(Say.LOST_TRACK)
+GONE = act(Say.THREAD_GONE)
 
 RETRY_WAITS_S = (1, 2, 4, 8, 16, 30, 30)
 MAX_FAILURES = 8
@@ -47,7 +42,7 @@ class Ends(StrEnum):
     SAVED = "the row for the saved state"
 
 
-class Act(StrEnum):
+class Do(StrEnum):
     WATCH_LAUNCHED = "save the launch sequence as the cursor, then watch"
     READ_LAUNCHED = "journal the link with no cursor, then read first and watch"
     FAIL_REFUSED = "fail with the refusal's spoken line"
@@ -76,55 +71,53 @@ class Act(StrEnum):
 @dataclass(frozen=True)
 class Row:
     when: str
-    act: Act
+    do: Do
     ends: Ends
-    line: str | dict | None = None
+    says: Act | dict | None = None
 
 
 ROWS: dict[str, Row] = {
-    "launch-fresh": Row("launch returns replayed: false", Act.WATCH_LAUNCHED, Ends.SUBSCRIBE),
-    "launch-replayed": Row("launch returns replayed: true", Act.READ_LAUNCHED, Ends.SUBSCRIBE),
-    "launch-refused": Row("launch answers any refusal except unavailable", Act.FAIL_REFUSED, Ends.TERMINAL),
-    "launch-unavailable": Row("launch answers unavailable, or the socket closes first", Act.RETRY_LAUNCH,
-                              Ends.GIVE_UP,
-                              "I asked T3 to start it, but I couldn't confirm that it started. Check the app."),
-    "tell": Row("send returns, fresh or replayed", Act.READ_SENT, Ends.SUBSCRIBE),
-    "tell-refused": Row("send answers any refusal except unavailable", Act.FAIL_REFUSED, Ends.TERMINAL),
-    "tell-unavailable": Row("send answers unavailable, or the socket closes first", Act.RETRY_SEND, Ends.GIVE_UP,
-                            "I asked T3 to pass that on, but I couldn't confirm that it arrived. Check the app."),
-    "tell-busy": Row("send answers thread_busy", Act.HOLD, Ends.SUBSCRIBE, HELD_LINE),
-    "held-release": Row("a done on a thread that holds follow-ups", Act.RELEASE, Ends.ANSWER),
-    "held-dropped": Row("Mason drops a held follow-up, or stops its thread", Act.DROP, Ends.TERMINAL, DROPPED_LINE),
-    "ask": Row("Twin B asks about a thread", Act.NO_WATCH, Ends.TERMINAL, UNREACHABLE_LINE),
-    "restart-unstarted": Row("on restart, a request id with no thread", Act.REISSUE, Ends.ANSWER),
-    "restart-live": Row("on restart, a started task that has not ended", Act.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
-    "restart-held": Row("on restart, a held follow-up", Act.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
-    "restart-ended": Row("on restart, a terminal or LOST task", Act.NOTHING, Ends.TERMINAL),
-    "crash-before-save": Row("crashed before saving a queued line", Act.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
-    "crash-after-save": Row("crashed after saving a queued line or taking it", Act.NOTHING, Ends.SAVED),
-    "slot-wait": Row("a task needs a watch while maxWatches are held", Act.QUEUE, Ends.SUBSCRIBE, SLOT_LINE),
-    "watch-retry": Row("watch answers unavailable or too_many_watches", Act.RETRY_WATCH, Ends.GIVE_UP, L1),
-    "watch-refused": Row("watch answers any other code", Act.GIVE_UP_NOW, Ends.GIVE_UP,
-                         {"project_not_allowed": L2, "not_found": L2, "gone": L2, "*": L1}),
-    "ended-unavailable": Row("watch_ended unavailable", Act.RETRY_WATCH, Ends.GIVE_UP, L1),
-    "ended-resync": Row("watch_ended resync, for a live task", Act.READ_THEN_WATCH, Ends.SUBSCRIBE),
-    "read-failed": Row("the read in launch-replayed, tell, or ended-resync fails", Act.RETRY_READ, Ends.GIVE_UP,
-                       {"not_found": L2, "*": L1}),
-    "ended-not-found": Row("watch_ended not_found or gone", Act.GIVE_UP_NOW, Ends.GIVE_UP, L2),
-    "gone-event": Row("a gone event, from a stored thread.deleted", Act.DELETED, Ends.TERMINAL, DELETED_LINE),
-    "done-event": Row("a done event for a live task", Act.DONE, Ends.TERMINAL),
-    "ended-after-terminal": Row("any end of a watch for a terminal or LOST task", Act.NOTHING, Ends.TERMINAL),
-    "close-1013": Row("the socket closes with 1013", Act.RECONNECT_NOW, Ends.SUBSCRIBE),
-    "close-other": Row("any other close or drop, or an upgrade that cannot connect", Act.RECONNECT_RETRY,
-                       Ends.GIVE_UP,
-                       "I've lost my connection to T3, so I've stopped following your threads. "
-                       "They're still in the app."),
-    "upgrade-401-or-403": Row("an upgrade answers 401 or 403, or the session is revoked", Act.GIVE_UP_ALL,
-                              Ends.GIVE_UP,
-                              "T3 no longer accepts my access, so I've stopped following your threads. "
-                              "They're still in the app."),
-    "upgrade-404": Row("an upgrade answers 404", Act.GIVE_UP_ALL, Ends.GIVE_UP,
-                       "The voice seam is off, so I've stopped following your threads. They're still in the app."),
+    "launch-fresh": Row("launch returns replayed: false", Do.WATCH_LAUNCHED, Ends.SUBSCRIBE),
+    "launch-replayed": Row("launch returns replayed: true", Do.READ_LAUNCHED, Ends.SUBSCRIBE),
+    "launch-refused": Row("launch answers any refusal except unavailable", Do.FAIL_REFUSED, Ends.TERMINAL),
+    "launch-unavailable": Row("launch answers unavailable, or the socket closes first", Do.RETRY_LAUNCH,
+                              Ends.GIVE_UP, act(Say.LAUNCH_UNCONFIRMED)),
+    "tell": Row("send returns, fresh or replayed", Do.READ_SENT, Ends.SUBSCRIBE),
+    "tell-refused": Row("send answers any refusal except unavailable", Do.FAIL_REFUSED, Ends.TERMINAL),
+    "tell-unavailable": Row("send answers unavailable, or the socket closes first", Do.RETRY_SEND, Ends.GIVE_UP,
+                            act(Say.TELL_UNCONFIRMED)),
+    "tell-busy": Row("send answers thread_busy", Do.HOLD, Ends.SUBSCRIBE, act(Say.HELD_FOLLOWUP)),
+    "held-release": Row("a done on a thread that holds follow-ups", Do.RELEASE, Ends.ANSWER),
+    "held-dropped": Row("Mason drops a held follow-up, or stops its thread", Do.DROP, Ends.TERMINAL,
+                        act(Say.DROPPED_FOLLOWUP)),
+    "ask": Row("Twin B asks about a thread", Do.NO_WATCH, Ends.TERMINAL, act(Say.UNREACHABLE)),
+    "restart-unstarted": Row("on restart, a request id with no thread", Do.REISSUE, Ends.ANSWER),
+    "restart-live": Row("on restart, a started task that has not ended", Do.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
+    "restart-held": Row("on restart, a held follow-up", Do.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
+    "restart-ended": Row("on restart, a terminal or LOST task", Do.NOTHING, Ends.TERMINAL),
+    "crash-before-save": Row("crashed before saving a queued line", Do.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
+    "crash-after-save": Row("crashed after saving a queued line or taking it", Do.NOTHING, Ends.SAVED),
+    "slot-wait": Row("a task needs a watch while maxWatches are held", Do.QUEUE, Ends.SUBSCRIBE,
+                     act(Say.WATCH_QUEUED)),
+    "watch-retry": Row("watch answers unavailable or too_many_watches", Do.RETRY_WATCH, Ends.GIVE_UP, LOST),
+    "watch-refused": Row("watch answers any other code", Do.GIVE_UP_NOW, Ends.GIVE_UP,
+                         {"project_not_allowed": GONE, "not_found": GONE, "gone": GONE, "*": LOST}),
+    "ended-unavailable": Row("watch_ended unavailable", Do.RETRY_WATCH, Ends.GIVE_UP, LOST),
+    "ended-resync": Row("watch_ended resync, for a live task", Do.READ_THEN_WATCH, Ends.SUBSCRIBE),
+    "read-failed": Row("the read in launch-replayed, tell, or ended-resync fails", Do.RETRY_READ, Ends.GIVE_UP,
+                       {"not_found": GONE, "*": LOST}),
+    "ended-not-found": Row("watch_ended not_found or gone", Do.GIVE_UP_NOW, Ends.GIVE_UP, GONE),
+    "gone-event": Row("a gone event, from a stored thread.deleted", Do.DELETED, Ends.TERMINAL,
+                      act(Say.THREAD_DELETED)),
+    "done-event": Row("a done event for a live task", Do.DONE, Ends.TERMINAL),
+    "ended-after-terminal": Row("any end of a watch for a terminal or LOST task", Do.NOTHING, Ends.TERMINAL),
+    "close-1013": Row("the socket closes with 1013", Do.RECONNECT_NOW, Ends.SUBSCRIBE),
+    "close-other": Row("any other close or drop, or an upgrade that cannot connect", Do.RECONNECT_RETRY,
+                       Ends.GIVE_UP, act(Say.SEAM_DOWN, reason="connection")),
+    "upgrade-401-or-403": Row("an upgrade answers 401 or 403, or the session is revoked", Do.GIVE_UP_ALL,
+                              Ends.GIVE_UP, act(Say.SEAM_DOWN, reason="access")),
+    "upgrade-404": Row("an upgrade answers 404", Do.GIVE_UP_ALL, Ends.GIVE_UP,
+                       act(Say.SEAM_DOWN, reason="seam_off")),
 }
 
 C = T.RefusalCode
@@ -165,79 +158,36 @@ SOCKET_END_ROWS: dict[str, str] = {
     "upgrade-404": "upgrade-404",
 }
 
-DONE_STATUS: dict[T.TerminalStatus, tuple[Status, str]] = {
-    T.TerminalStatus.COMPLETED: (Status.COMPLETED, "It finished."),
-    T.TerminalStatus.FAILED: (Status.FAILED, "It failed."),
-    T.TerminalStatus.INTERRUPTED: (Status.CANCELLED, "It was stopped."),
-    T.TerminalStatus.CANCELLED: (Status.CANCELLED, "It was cancelled."),
-    T.TerminalStatus.ROLLED_BACK: (Status.CANCELLED, "Its work was rolled back."),
+DONE_STATUS: dict[T.TerminalStatus, Status] = {
+    T.TerminalStatus.COMPLETED: Status.COMPLETED,
+    T.TerminalStatus.FAILED: Status.FAILED,
+    T.TerminalStatus.INTERRUPTED: Status.CANCELLED,
+    T.TerminalStatus.CANCELLED: Status.CANCELLED,
+    T.TerminalStatus.ROLLED_BACK: Status.CANCELLED,
 }
-RUN_LINES: dict[T.RunStatus, str] = {
-    T.RunStatus.RUNNING: "It's working on it.",
-    T.RunStatus.QUEUED: "It's queued behind other work.",
-}
-RESOLVED_LINES: dict[T.ResolvedStatus, str] = {
-    T.ResolvedStatus.RESOLVED: "That request was answered.",
-    T.ResolvedStatus.EXPIRED: "That request expired.",
-    T.ResolvedStatus.CANCELLED: "That request was cancelled.",
-}
-
-_LINK = re.compile(r"\[([^\]]*)\]\([^)]*\)")
-_MARKS = re.compile(r"[*_`]+")
-_LINE_START = re.compile(r"^\s*(?:#+|>+|[-*+]|\d+[.)])\s+")
-_TABLE = re.compile(r"^\s*\|.*\|\s*$|^\s*[-:| ]{3,}\s*$")
-_SPACE_BEFORE = re.compile(r"\s+([.,;:!?])")
-_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+SPOKEN_RUNS = frozenset({T.RunStatus.RUNNING, T.RunStatus.QUEUED})
 
 
-def _prose(text: str) -> str:
-    """Markdown as spoken prose: code blocks and tables dropped, each heading or list item its own sentence."""
-    out, fenced = [], False
-    for line in (text or "").splitlines():
-        if line.lstrip().startswith("```"):
-            fenced = not fenced
-            continue
-        if fenced or _TABLE.match(line) or not line.strip():
-            continue
-        line = _MARKS.sub("", _LINK.sub(lambda m: m.group(1), _LINE_START.sub("", line))).strip()
-        if line and line[-1] not in ".!?:":
-            line += "."
-        out.append(line)
-    return _SPACE_BEFORE.sub(lambda m: m.group(1), " ".join(" ".join(out).split()))
+def about(task: JournalTask | None, said: Act) -> Act:
+    """`said` with the task's thread title and project filled in, where its act has those slots."""
+    if task is None:
+        return said
+    slots = RULES[said.kind].slots
+    known = {"thread": task.title, "project": task.project_name}
+    return said.with_slots(**{name: value for name, value in known.items()
+                              if name in slots and value and name not in said.slots})
 
 
-def speakable(text: str, sentences: int = 2, limit: int = 240) -> str:
-    """The first sentences of a recorded text as prose, cut at a word under `limit`."""
-    kept = " ".join(_SENTENCE_END.split(_prose(text))[:sentences])
-    if len(kept) <= limit:
-        return kept
-    return kept[:limit].rsplit(" ", 1)[0].rstrip(",;:") + "..."
-
-
-def row_line(row: Row, code: Any = None) -> str | None:
-    if isinstance(row.line, dict):
+def row_act(row: Row, code: Any = None) -> Act | None:
+    if isinstance(row.says, dict):
         key = getattr(code, "value", code)
-        return row.line.get(key, row.line["*"])
-    return row.line
+        return row.says.get(key, row.says["*"])
+    return row.says
 
 
-def refusal_line(refusal: SeamRefused, verb: str = "start it") -> str:
-    """`refused` names T3's recorded reason and is never spoken as deleted. Other codes speak the server's text."""
-    if refusal.code is C.REFUSED:
-        return f"T3 refused to {verb}: {refusal.reason}" if refusal.reason else f"T3 refused to {verb}."
-    return refusal.message
-
-
-def done_line(event: T.DoneEvent, link_replies: dict[str, int]) -> tuple[Status, str]:
-    """The status and line for a done. Its text is spoken only when it has one and no reply already said it."""
-    status, line = DONE_STATUS[event.status]
-    result = event.result
-    said = result.message_id is not None and result.message_id in link_replies
-    has_record = result.message_id is not None or result.turn_item_id is not None
-    text = speakable(result.text, sentences=1 if status is Status.FAILED else 2)
-    if text and has_record and not said:
-        line = f"{line} It said: {text}"
-    return status, line
+def refused(refusal: SeamRefused, op: str) -> Act:
+    """T3's recorded reason when it has one, else the seam's own message, as the reason the voice words."""
+    return act(Say.REFUSED, op=op, code=refusal.code.value, reason=refusal.reason or refusal.message)
 
 
 @dataclass
@@ -271,30 +221,45 @@ class Follow:
     trail: list[tuple[str, str | None]] = field(default_factory=list)
 
     def __post_init__(self) -> None:
-        self.outbox = list(self.journal.pending_lines)
+        self.outbox = [u for u in self.journal.pending_lines if not u.superseded]
 
     def run(self, name: str, task: JournalTask | None, now: float, **context) -> None:
         row = ROWS[name]
         self.trail.append((name, task.task_id if task is not None else None))
-        ACTIONS[row.act](self, name, row, task, now, **context)
+        ACTIONS[row.do](self, name, row, task, now, **context)
 
     def take(self, task_id: str | None = None) -> list[Update]:
+        """Reserve the outbox's lines: they leave the outbox and stay in the journal until `ack`, so a crash before
+        they are heard finds them again."""
         taken = [u for u in self.outbox if task_id is None or u.task_id == task_id]
-        self.journal.remove_lines(taken)
         self.outbox = [u for u in self.outbox if task_id is not None and u.task_id != task_id]
         return taken
 
+    def ack(self, updates: list[Update]) -> None:
+        """The lines were heard whole: they leave the journal."""
+        self.journal.remove_lines(updates)
+
     def give_back(self, updates: list[Update]) -> None:
-        """Lines taken but never heard go back to the front of the outbox, and of the journal's pending lines."""
-        self.outbox[:0] = updates
-        self.journal.pending_lines[:0] = updates
+        """Lines taken but never heard go back to the front of the outbox, and of the journal's pending lines. One a
+        newer line about its thread has overtaken is superseded instead, so it is never said after that line."""
+        saved = set(map(id, self.journal.pending_lines))
+        self.journal.pending_lines[:0] = [u for u in updates if id(u) not in saved]
+        self.outbox[:0] = [u for u in updates if not self.overtaken(u)]
         self.journal.save()
 
-    def speak(self, task: JournalTask, line: str, row: str | None = None, sequences=(), *,
+    def overtaken(self, update: Update) -> bool:
+        if self.journal.stale(update):
+            update.superseded = True
+        return update.superseded
+
+    def speak(self, task: JournalTask, said: Act, row: str | None = None, sequences=(), *,
               durable: bool = True) -> None:
         sequences = tuple(s for s in sequences if s is not None)
         task.link.evidence.extend(sequences)
-        update = Update(task.task_id, line, task.status.value, row, task.link.thread_id, sequences)
+        update = Update(task.task_id, (about(task, said),), task.status.value, row, task.link.thread_id, sequences)
+        self.journal.stamp(update)
+        self.journal.supersede(update)
+        self.outbox = [u for u in self.outbox if not u.superseded]
         self.outbox.append(update)
         if durable:
             self.journal.pending_lines.append(update)
@@ -340,7 +305,7 @@ class Follow:
         self.budgets.pop(task.task_id, None)
         self.run("tell", task, now, result=result)
 
-    def stop(self, task: JournalTask, now: float) -> str:
+    def stop(self, task: JournalTask, now: float) -> Act:
         """Interrupt a stop task's thread once and speak the result. A retry reports the first saved result again."""
         stop = self.journal.ensure_stop(task)
         if stop["kind"] is None:
@@ -348,20 +313,20 @@ class Follow:
             try:
                 result = seam.interrupt(stop["request_id"], task.link.thread_id) if seam is not None else None
             except SeamRefused as refusal:
-                return self._stopped(task, Status.FAILED, refusal.message)
+                return self._stopped(task, Status.FAILED, refused(refusal, "stop"))
             except (SeamUnavailable, SeamConnectionEnded):
                 result = None
             if result is None:
-                return self._stopped(task, Status.FAILED, STOP_UNAVAILABLE)
+                return self._stopped(task, Status.FAILED, act(Say.STOP_UNCONFIRMED))
             stop["kind"] = INTERRUPT_KIND[type(result)]
             stop["sequence"] = getattr(result, "sequence", None)
-        return self._stopped(task, Status.COMPLETED, STOP_LINES[stop["kind"]], stop["sequence"])
+        return self._stopped(task, Status.COMPLETED, act(STOP_ACTS[stop["kind"]]), stop["sequence"])
 
-    def _stopped(self, task: JournalTask, status: Status, line: str, sequence: int | None = None) -> str:
+    def _stopped(self, task: JournalTask, status: Status, said: Act, sequence: int | None = None) -> Act:
         task.status = status
-        self.speak(task, line, "stop", (sequence,))
+        self.speak(task, said, "stop", (sequence,))
         self.journal.save()
-        return line
+        return about(task, said)
 
     def drop(self, task: JournalTask, now: float) -> None:
         """Mason took back a held follow-up."""
@@ -411,7 +376,7 @@ class Follow:
             if (task.kind is Kind.START and task.status is Status.UNSTARTED and task_id not in self.acked
                     and now >= began + ACK_AFTER_S):
                 self.acked.add(task_id)
-                self.speak(task, LAUNCH_ACK, "launch-unavailable", durable=False)
+                self.speak(task, act(Say.LAUNCH_PENDING), "launch-unavailable", durable=False)
         for task_id, until in list(self.windows.items()):
             if now >= until:
                 self._unwatch(self.journal.tasks[task_id], now)
@@ -477,9 +442,10 @@ class Follow:
             else:
                 self.run("held-release", task, now)
             return
+        task.title = state.title or task.title
         need, link = state.pending, task.link
         if need is not None and link.requests.get(need.request_id) != "needs_you":
-            self.speak(task, need_line(need.kind, need.prompt, task.ended), "read", (state.as_of_sequence,))
+            self.speak(task, need_act(need, task.ended), "read", (state.as_of_sequence,))
             link.requests[need.request_id] = "needs_you"
             link.pending = {"request_id": need.request_id, "kind": need.kind.value, "prompt": need.prompt}
         if not keep_cursor or link.cursor is None:
@@ -516,14 +482,14 @@ class Follow:
         budget.op = op
         if budget.failures >= MAX_FAILURES:
             del self.budgets[task.task_id]
-            self.give_up(task, row_line(ROWS[name], code), name)
+            self.give_up(task, row_act(ROWS[name], code), name)
         else:
             budget.due_at = now + RETRY_WAITS_S[budget.failures - 1]
 
-    def give_up(self, task: JournalTask, line: str | None, name: str) -> None:
+    def give_up(self, task: JournalTask, said: Act | None, name: str) -> None:
         task.status = Status.LOST
-        if line:
-            self.speak(task, line, name)
+        if said is not None:
+            self.speak(task, said, name)
         self.journal.save()
         self.budgets.pop(task.task_id, None)
         self._release_watch(task)
@@ -581,25 +547,23 @@ class Follow:
             pair = [event.run_id, event.status.value]
             if pair not in link.runs:
                 link.runs.append(pair)
-                line = RUN_LINES.get(event.status)
-                if line and not task.ended and not quiet:
-                    self.speak(task, line, "run", seq)
+                if event.status in SPOKEN_RUNS and not task.ended and not quiet:
+                    self.speak(task, act(Say.RUN_UPDATE, status=event.status.value), "run", seq)
         elif isinstance(event, T.ReplyEvent):
             if event.message_id not in link.replies:
-                text = speakable(event.text)
-                if text and not quiet:
-                    self.speak(task, f"It said: {text}", "reply", seq)
+                if event.text.strip() and not quiet:
+                    self.speak(task, act(Say.REPLIED, status="running", reply=event.text), "reply", seq)
                 link.replies[event.message_id] = event.sequence
         elif isinstance(event, T.NeedsYouEvent):
             if link.requests.get(event.request_id) != "needs_you":
-                self.speak(task, need_line(event.kind, event.prompt, task.ended), "needs_you", seq)
+                self.speak(task, need_act(event, task.ended), "needs_you", seq)
                 link.requests[event.request_id] = "needs_you"
                 link.pending = {"request_id": event.request_id, "kind": event.kind.value, "prompt": event.prompt}
         elif isinstance(event, T.ResolvedEvent):
             before = link.requests.get(event.request_id)
             if before != "resolved":
                 if before == "needs_you":
-                    self.speak(task, RESOLVED_LINES[event.status], "resolved", seq)
+                    self.speak(task, act(Say.NEED_RESOLVED, status=event.status.value), "resolved", seq)
                 link.requests[event.request_id] = "resolved"
                 if link.pending is not None and link.pending.get("request_id") == event.request_id:
                     link.pending = None
@@ -624,18 +588,31 @@ class Follow:
         self.run(name, None, now, end=end)
 
 
-STOP_UNAVAILABLE = "I couldn't reach T3 to stop it. You can stop it in the app."
-STOP_LINES = {"requested": "Stopping it.", "nothing_running": "It isn't running anything right now."}
+STOP_ACTS = {"requested": Say.STOPPING, "nothing_running": Say.NOTHING_RUNNING}
 INTERRUPT_KIND = {cls: kind for kind, cls in T.INTERRUPT_KINDS.items()}
 
 
-def need_line(kind: T.PendingKind, prompt: str, ended: bool) -> str:
-    if kind is T.PendingKind.IN_APP:
-        return "It also needs something from you in the app." if ended else prompt
-    return f"It also needs you: {prompt}" if ended else f"It needs you: {prompt}"
+# What a need asks of Mason, by what raised it. The prompt is only context for the voice's own words.
+NEEDS = {T.NeedSource.COMMAND: "command_approval", T.NeedSource.FILE_CHANGE: "file_change",
+         T.NeedSource.FILE_READ: "file_read", T.NeedSource.PERMISSION: "permission",
+         T.NeedSource.MCP_ELICITATION: "tool_input", T.NeedSource.USER_INPUT: "question",
+         T.NeedSource.LINK_REQUEST: "link", T.NeedSource.SECRET_REQUEST: "secret", T.NeedSource.CARD: "card"}
+CARDS = frozenset({T.NeedSource.LINK_REQUEST, T.NeedSource.SECRET_REQUEST, T.NeedSource.CARD})
 
 
-# Actions, one per Act. Each takes (follow, row name, row, task, now, **context).
+def need_of(kind: T.PendingKind, source: T.NeedSource) -> str:
+    """A request only the app can still act on is unanswerable, whatever raised it; a card asks in the app."""
+    if kind is T.PendingKind.IN_APP and source not in CARDS:
+        return "unanswerable"
+    return NEEDS.get(source, kind.value)
+
+
+def need_act(need: T.PendingNeed | T.NeedsYouEvent, ended: bool) -> Act:
+    return act(Say.NEEDS_YOU, need=need_of(need.kind, need.source), prompt=need.prompt, waiting_for=need.kind.value,
+               after_end=ended)
+
+
+# Actions, one per Do. Each takes (follow, row name, row, task, now, **context).
 
 
 def _watch_launched(f: Follow, name, row, task, now, result):
@@ -663,11 +640,8 @@ def _read_sent(f: Follow, name, row, task, now, result):
 def _started(f: Follow, name, task, sequence):
     task.status = Status.LIVE
     if not task.announced:
-        if task.kind is Kind.START:
-            where = f" in {task.project_name}" if task.project_name else ""
-            f.speak(task, f"Started a thread{where}.", name, (sequence,))
-        else:
-            f.speak(task, "I've passed that on.", name, (sequence,))
+        said = act(Say.LAUNCHED, request=task.instruction) if task.kind is Kind.START else act(Say.SENT_FOLLOWUP)
+        f.speak(task, said, name, (sequence,))
         task.announced = True
     f.journal.save()
 
@@ -677,7 +651,7 @@ def _fail_refused(f: Follow, name, row, task, now, refusal):
     if refusal.thread_id and task.link.thread_id is None:
         task.link.thread_id = refusal.thread_id
     f.budgets.pop(task.task_id, None)
-    f.speak(task, refusal_line(refusal, "start it" if task.kind is Kind.START else "pass that on"), name)
+    f.speak(task, refused(refusal, "start" if task.kind is Kind.START else "tell"), name)
     f.journal.save()
 
 
@@ -718,7 +692,7 @@ def _queue(f: Follow, name, row, task, now, **_):
         f.queue.append(task.task_id)
     if task.task_id not in f.queued_said:
         f.queued_said.add(task.task_id)
-        f.speak(task, SLOT_LINE.format(n=len(f.watching)), name, durable=False)
+        f.speak(task, row.says.with_slots(following=len(f.watching)), name, durable=False)
 
 
 def _retry_watch(f: Follow, name, row, task, now, code=None, **_):
@@ -726,7 +700,7 @@ def _retry_watch(f: Follow, name, row, task, now, code=None, **_):
 
 
 def _give_up_now(f: Follow, name, row, task, now, code=None, **_):
-    f.give_up(task, row_line(row, code), name)
+    f.give_up(task, row_act(row, code), name)
 
 
 def _read_then_watch(f: Follow, name, row, task, now, **_):
@@ -737,19 +711,18 @@ def _retry_read(f: Follow, name, row, task, now, code=None, **_):
     if code is C.UNAVAILABLE:
         f._retry(task, "read", name, now, code)
     else:
-        f.give_up(task, row_line(row, code), name)
+        f.give_up(task, row_act(row, code), name)
 
 
 def _deleted(f: Follow, name, row, task, now, event):
     task.status = Status.FAILED
-    f.speak(task, row.line, name, (event.sequence,))
+    f.speak(task, row.says, name, (event.sequence,))
     f.journal.save()
 
 
 def _done(f: Follow, name, row, task, now, event):
-    status, line = done_line(event, task.link.replies)
-    task.status = status
-    f.speak(task, line, name, (event.sequence, event.as_of_sequence))
+    task.status = DONE_STATUS[event.status]
+    f.speak(task, act(Say.DONE, status=event.status.value), name, (event.sequence, event.as_of_sequence))
     f.journal.save()
     f.windows[task.task_id] = now + DONE_WINDOW_S
     waiting = next((t for t in f.journal.by_thread(task.link.thread_id) if t.status is Status.LIVE), None)
@@ -766,7 +739,7 @@ def _hold(f: Follow, name, row, task, now, refusal=None):
     f.journal.save()
     f.read_first(task, now)
     if first and task.status is Status.HELD:
-        f.speak(task, row.line, name)
+        f.speak(task, row.says, name)
         f.journal.save()
 
 
@@ -783,7 +756,7 @@ def _release(f: Follow, name, row, task, now, **_):
 def _drop(f: Follow, name, row, task, now, **_):
     task.status = Status.CANCELLED
     f.budgets.pop(task.task_id, None)
-    f.speak(task, row.line, name)
+    f.speak(task, row.says, name)
     f.journal.save()
     f._release_watch(task)
     for other in f.journal.held(task.link.thread_id):
@@ -807,38 +780,38 @@ def _reconnect_retry(f: Follow, name, row, task, now, **_):
 
 
 def _give_up_all(f: Follow, name, row, task, now, **_):
-    if row.act is Act.GIVE_UP_ALL:
+    if row.do is Do.GIVE_UP_ALL:
         f.dead = name
     open_tasks = [t for t in f.journal.tasks.values() if not t.ended]
     for i, open_task in enumerate(open_tasks):
-        f.give_up(open_task, row.line if i == 0 else None, name)
+        f.give_up(open_task, row.says if i == 0 else None, name)
     f.queue.clear()
 
 
-ACTIONS: dict[Act, Callable] = {
-    Act.WATCH_LAUNCHED: _watch_launched,
-    Act.READ_LAUNCHED: _read_launched,
-    Act.FAIL_REFUSED: _fail_refused,
-    Act.RETRY_LAUNCH: _retry_launch,
-    Act.READ_SENT: _read_sent,
-    Act.RETRY_SEND: _retry_send,
-    Act.NO_WATCH: _no_watch,
-    Act.REISSUE: _reissue,
-    Act.WATCH_FROM_CURSOR: _watch_from_cursor,
-    Act.NOTHING: _nothing,
-    Act.QUEUE: _queue,
-    Act.RETRY_WATCH: _retry_watch,
-    Act.GIVE_UP_NOW: _give_up_now,
-    Act.READ_THEN_WATCH: _read_then_watch,
-    Act.RETRY_READ: _retry_read,
-    Act.DELETED: _deleted,
-    Act.DONE: _done,
-    Act.RECONNECT_NOW: _reconnect_now,
-    Act.RECONNECT_RETRY: _reconnect_retry,
-    Act.GIVE_UP_ALL: _give_up_all,
-    Act.HOLD: _hold,
-    Act.RELEASE: _release,
-    Act.DROP: _drop,
+ACTIONS: dict[Do, Callable] = {
+    Do.WATCH_LAUNCHED: _watch_launched,
+    Do.READ_LAUNCHED: _read_launched,
+    Do.FAIL_REFUSED: _fail_refused,
+    Do.RETRY_LAUNCH: _retry_launch,
+    Do.READ_SENT: _read_sent,
+    Do.RETRY_SEND: _retry_send,
+    Do.NO_WATCH: _no_watch,
+    Do.REISSUE: _reissue,
+    Do.WATCH_FROM_CURSOR: _watch_from_cursor,
+    Do.NOTHING: _nothing,
+    Do.QUEUE: _queue,
+    Do.RETRY_WATCH: _retry_watch,
+    Do.GIVE_UP_NOW: _give_up_now,
+    Do.READ_THEN_WATCH: _read_then_watch,
+    Do.RETRY_READ: _retry_read,
+    Do.DELETED: _deleted,
+    Do.DONE: _done,
+    Do.RECONNECT_NOW: _reconnect_now,
+    Do.RECONNECT_RETRY: _reconnect_retry,
+    Do.GIVE_UP_ALL: _give_up_all,
+    Do.HOLD: _hold,
+    Do.RELEASE: _release,
+    Do.DROP: _drop,
 }
 
 OPS: dict[str, Callable[[Follow, JournalTask, float], None]] = {

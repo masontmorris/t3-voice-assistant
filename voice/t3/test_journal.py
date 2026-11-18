@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,8 @@ from pathlib import Path
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
+from voice.t3.acts import Act
+from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal, ulid
 
 
@@ -31,7 +34,11 @@ class JournalCase(unittest.TestCase):
         return task
 
     def lines(self, follow: L.Follow) -> list[str]:
-        return [u.line for u in follow.take()]
+        """Each update the voice took and heard whole, as its act kinds, with a status slot after a colon."""
+        heard = follow.take()
+        follow.ack(heard)
+        return ["+".join(a.kind.value + (f":{a.slots['status']}" if "status" in a.slots else "") for a in u.acts)
+                for u in heard]
 
 
 class RequestIds(JournalCase):
@@ -81,7 +88,7 @@ class CursorRule(JournalCase):
         self.assertEqual(T3Journal(self.path).tasks[task.task_id].link.cursor, 10)
         self.seam.push(F.needs_you(20, "q2", "Merge it?"))
         follow.tick(1)
-        self.assertEqual(self.lines(follow)[-1], "It also needs you: Merge it?")
+        self.assertEqual(self.lines(follow)[-1], "needs_you")
         self.assertEqual(task.link.cursor, 20)
 
     def test_events_at_or_below_the_cursor_are_dropped(self):
@@ -89,29 +96,29 @@ class CursorRule(JournalCase):
         task = self.live(follow, cursor=30)
         self.seam.push(F.needs_you(29), F.reply(30), F.run_event(31))
         follow.tick(0)
-        self.assertEqual(self.lines(follow), ["It's working on it."])
+        self.assertEqual(self.lines(follow), ["run_update:running"])
         self.assertEqual(task.link.cursor, 31)
 
-    def test_a_done_after_its_reply_speaks_only_the_status(self):
+    def test_a_done_after_its_reply_carries_only_its_status(self):
         follow = self.follow()
         self.live(follow)
         self.seam.push(F.reply(12, message="m9", text="Done. I added clamp."), F.done(13, message="m9"))
         follow.tick(0)
-        self.assertEqual(self.lines(follow), ["It said: Done. I added clamp.", "It finished."])
+        self.assertEqual(self.lines(follow), ["replied:running", "done:completed"])
 
-    def test_a_done_with_empty_text_speaks_only_the_status(self):
+    def test_a_done_with_empty_text_carries_only_its_status(self):
         follow = self.follow()
         self.live(follow)
         self.seam.push(T.DoneEvent("t1", "r1", T.TerminalStatus.FAILED, T.RunResult("", None, None), 12, 13))
         follow.tick(0)
-        self.assertEqual(self.lines(follow), ["It failed."])
+        self.assertEqual(self.lines(follow), ["done:failed"])
 
     def test_an_applied_request_id_survives_a_restart(self):
         follow = self.follow()
         task = self.live(follow)
         self.seam.push(F.needs_you(11, "q1", "Run the tests?"))
         follow.tick(0)
-        self.assertEqual(self.lines(follow), ["It needs you: Run the tests?"])
+        self.assertEqual(self.lines(follow), ["needs_you"])
         restarted = self.follow()
         restarted.resume(1)
         self.seam.push(F.needs_you(15, "q1", "Run the tests?"))
@@ -128,14 +135,14 @@ class CursorRule(JournalCase):
         self.assertEqual(T3Journal(self.path).tasks[task.task_id].link.requests, {"q9": "resolved"})
         self.seam.push(F.needs_you(12, "q3"), F.resolved(13, "q3"))
         follow.tick(1)
-        self.assertEqual(self.lines(follow), ["It needs you: Run the tests?", "That request was answered."])
+        self.assertEqual(self.lines(follow), ["needs_you", "need_resolved:resolved"])
 
     def test_a_repeated_run_status_pair_is_spoken_once(self):
         follow = self.follow()
         self.live(follow)
         self.seam.push(F.run_event(11), F.run_event(12), F.run_event(13, run="r2"))
         follow.tick(0)
-        self.assertEqual(self.lines(follow), ["It's working on it.", "It's working on it."])
+        self.assertEqual(self.lines(follow), ["run_update:running", "run_update:running"])
 
     def test_a_duplicate_final_reply_is_spoken_once(self):
         follow = self.follow()
@@ -153,10 +160,10 @@ class Interrupt(JournalCase):
         self.seam.answer("interrupt", F.requested(sequence=77), T.NothingRunning())
         follow = self.follow()
         task = self.stop_task(follow)
-        self.assertEqual(follow.stop(task, 0), "Stopping it.")
-        self.assertEqual(follow.stop(task, 1), "Stopping it.")
+        self.assertEqual(follow.stop(task, 0), Act(S.STOPPING))
+        self.assertEqual(follow.stop(task, 1), Act(S.STOPPING))
         restarted = self.follow()
-        self.assertEqual(restarted.stop(restarted.journal.tasks[task.task_id], 2), "Stopping it.")
+        self.assertEqual(restarted.stop(restarted.journal.tasks[task.task_id], 2), Act(S.STOPPING))
         self.assertEqual(len(self.seam.ops("interrupt")), 1)
         self.assertEqual(restarted.journal.tasks[task.task_id].link.stop["sequence"], 77)
         self.assertEqual(restarted.journal.tasks[task.task_id].status, Status.COMPLETED)
@@ -169,29 +176,37 @@ class Interrupt(JournalCase):
         restarted = self.follow()
         restarted.resume(0)
         self.assertEqual([c[1] for c in self.seam.ops("interrupt")], [task.link.stop["request_id"]])
-        self.assertEqual(self.lines(restarted), ["It isn't running anything right now."])
+        self.assertEqual(self.lines(restarted), ["nothing_running"])
         self.assertEqual(self.seam.ops("send"), [])
 
     def test_an_unavailable_interrupt_retries_with_the_same_request_id(self):
         follow = self.follow()
         task = self.stop_task(follow)
-        self.assertEqual(follow.stop(task, 0), L.STOP_UNAVAILABLE)
+        self.assertEqual(follow.stop(task, 0).kind, S.STOP_UNCONFIRMED)
         restarted = self.follow()
-        self.assertEqual(restarted.stop(restarted.journal.tasks[task.task_id], 1), L.STOP_UNAVAILABLE)
+        self.assertEqual(restarted.stop(restarted.journal.tasks[task.task_id], 1).kind, S.STOP_UNCONFIRMED)
         ids = [call[1] for call in self.seam.ops("interrupt")]
         self.assertEqual(len(ids), 2)
         self.assertEqual(len(set(ids)), 1)
 
 
-class Speakable(unittest.TestCase):
-    def test_markdown_reads_as_prose(self):
-        replay_final = ("## Done\n\nI added `clamp` next to `sum` and the tests pass.\n\n- Reads the manifest first\n"
-                        "- Asks before it writes\n\n```ts\nclamp(12, 0, 10); // 10\n```\n\n| Step | Tool |\n"
-                        "| --- | --- |\n| Read | read 1 file |\n")
-        self.assertEqual(L.speakable(replay_final), "Done. I added clamp next to sum and the tests pass.")
-        self.assertEqual(L.speakable("See [the PR](https://example.invalid) now"), "See the PR now.")
-        self.assertEqual(L.speakable("One. Two. Three.", sentences=1), "One.")
-        self.assertTrue(L.speakable("word " * 100).endswith("..."))
+class PendingActs(JournalCase):
+    def test_pending_acts_round_trip_and_version_1_text_becomes_a_legacy_update(self):
+        follow = self.follow()
+        task = self.live(follow)
+        follow.speak(task, Act(S.NEEDS_YOU, {"prompt": "Merge it?", "waiting_for": "approval"}), "needs_you", (21,))
+        follow.journal.save()
+        reread = T3Journal(self.path)
+        self.assertEqual([(u.acts, u.sequences) for u in reread.pending_lines],
+                         [((Act(S.NEEDS_YOU, {"prompt": "Merge it?", "waiting_for": "approval"}),), (21,))])
+        raw = json.loads(self.path.read_text(encoding="utf-8"))
+        raw["pending_lines"] = [{"task_id": task.task_id, "line": "old text", "status": "live", "row": "reply",
+                                 "thread_id": "t1", "sequences": [5], "delivery_failures": 0}]
+        self.path.write_text(json.dumps(raw), encoding="utf-8")
+        upgraded, = T3Journal(self.path).pending_lines
+        self.assertEqual((upgraded.acts, upgraded.thread_id, upgraded.sequences, upgraded.row),
+                         ((Act(S.LEGACY_UPDATE, {"text": "old text"}),), "t1", (5,), "reply"),
+                         "an old line is news to word again, never dropped and never replayed as text")
 
 
 if __name__ == "__main__":

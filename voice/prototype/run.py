@@ -72,6 +72,7 @@ from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
 from voice.prototype.release import Release
+from voice.t3.speech import speakable
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
@@ -280,8 +281,8 @@ def task_note(entry):
     thing to answer. Measured on Mason's recorded turns: a bare status line was read aloud, and this wording was
     not. A task that is pending or needs clarification gets no note, so the model answers the person's own words,
     unless the task names what it is waiting for: then the note asks them for it, and the next turn's answer
-    completes the task (`MockTaskService.answer`). A T3 line gets no note: it is spoken word for word (`say_verbatim`)."""
-    if entry.get("spoken"):
+    completes the task (`MockTaskService.answer`). A T3 entry gets no note here: its acts are worded by `say_acts`."""
+    if entry.get("acts"):
         return None
     status, name = entry["status"], lookup_name(entry)
     if status == "running":
@@ -648,19 +649,58 @@ def tts_line(url):
     return lambda text, rate: line_pcm(line_wav(base, text), rate)
 
 
-async def say_verbatim(session, rate, since, lines, log, speak=None, render=None, *,
+def _verdict(rendered):
+    verdict = rendered.verdict
+    return None if verdict is None else {"passed": verdict.passed, "ms": verdict.ms, "failed": list(verdict.failed),
+                                         "error": verdict.error}
+
+
+async def say_acts(session, rate, since, entry, words, turns, log, speak=None, render=None, *,
+                   send_audio=None, record_delivery=None):
+    """Speak one T3 entry's acts. `words` is the T3 task service: `words.say(entry, turns)` has the voice's text model
+    word the acts off this loop, and a line that both the slot check and the decider pass comes back as a
+    RenderedLine, which goes out word for word (`say_verbatim`). Otherwise LFM3 words them from `words.note(entry)`;
+    its reply is held whole, never released while it streams, until `words.accept(entry, text)` passes it under the
+    same two checks, and then its own audio goes out through `say_verbatim`. If that fails too, nothing plays and
+    the entry is recorded unsent, so its acts wait for the next idle point or turn."""
+    rendered = await asyncio.to_thread(words.say, entry, turns)
+    log("t3_words", acts=entry.get("acts"), line=rendered.text, problems=rendered.problems, error=rendered.error,
+        decider=_verdict(rendered))
+    if rendered.line is not None:
+        reply, sent = await say_verbatim(session, rate, since, rendered.line, log, speak=speak, render=render,
+                                         send_audio=send_audio, record_delivery=record_delivery)
+        return {**reply, "worded_by": "text_model", "decider": _verdict(rendered)}, sent
+    item = await create_item(session, plain_text(words.note(entry)))
+    held = Release(lambda text, final: False, lambda text, pcm: None)
+    result, _ = await stream_reply(session, rate, since, held)
+    lfm3 = await asyncio.to_thread(words.accept, entry, result["text"])
+    log("t3_lfm3_words", text=result["text"], problems=lfm3.problems, error=lfm3.error, decider=_verdict(lfm3))
+    if lfm3.line is None:
+        if record_delivery is not None:
+            record_delivery("unsent")
+        return {**result, "text": "", "speech_s": 0.0, "delivery": "unsent", "worded_by": "lfm3",
+                "note_item": item, "problems": lfm3.problems, "decider": _verdict(lfm3)}, b""
+    reply, sent = await say_verbatim(session, rate, since, lfm3.line, log, speak=speak, pcm=bytes(held.pcm),
+                                     send_audio=send_audio, record_delivery=record_delivery)
+    return {**reply, "worded_by": "lfm3", "note_item": item, "problems": [], "decider": _verdict(lfm3)}, sent
+
+
+async def say_verbatim(session, rate, since, line, log, speak=None, render=None, *, pcm=None,
                        send_audio=None, record_delivery=None):
-    """Render T3's words and record how much audio reached the reply path."""
-    text = " ".join(lines)
-    try:
-        pcm = await asyncio.to_thread(render, text, rate) if render is not None else b""
-    except Exception as exc:
-        log("t3_voice_failed", error=repr(exc))
-        pcm = b""
+    """Speak one RenderedLine and record how much of its audio reached the reply path. `pcm` is LFM3's own audio
+    for a line it worded; otherwise `render` makes the audio in the server's voice. A plain string raises."""
+    text = speakable(line, "say_verbatim").text
+    own = pcm is not None
+    if not own:
+        try:
+            pcm = await asyncio.to_thread(render, text, rate) if render is not None else b""
+        except Exception as exc:
+            log("t3_voice_failed", error=repr(exc))
+            pcm = b""
     sent = b""
     if pcm:
         if send_audio is not None:
-            sent = await send_audio(text, pcm)
+            sent = await send_audio(line, pcm)
         elif speak is not None:
             speak(text, pcm, True)
             sent = pcm
@@ -669,9 +709,10 @@ async def say_verbatim(session, rate, since, lines, log, speak=None, render=None
         record_delivery(delivery)
     reply = fixed_reply(text, sent, rate, session.clock() - since)
     reply["delivery"] = delivery
-    if delivery == "sent":
+    if delivery == "sent" and not own:
+        # LFM3 already holds a line it worded itself; a line from the text model is new to it.
         reply["item"] = await create_item(session, plain_text(
-            f"{NOTE_OPEN}you just told them this, in T3's words: \"{text}\"]"))
+            f"{NOTE_OPEN}you just told them this about their T3 work: \"{text}\"]"))
     log("t3_delivery", text=text, delivery=delivery, audio_s=round(reply["speech_s"], 3))
     return reply, sent
 
@@ -896,8 +937,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `prior_replies` is what the assistant already said in this call, which a reply must not repeat word for word, and
     `established` is every place an earlier turn chose at the person's request, which this turn may name.
 
-    A T3 line in the snapshot or an update is spoken word for word through `t3_voice(text, rate)`, the server's TTS
-    by default (`say_verbatim`), and the voice model is asked only about the rest.
+    A T3 entry in the snapshot or an update carries acts, not words. `say_acts` has the task service's text model word
+    them and speaks the line word for word through `t3_voice(text, rate)`, the server's TTS by default, with LFM3 as
+    the fallback under the same slot check. The voice model is asked about the rest as before.
 
     `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
@@ -1041,8 +1083,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         async def say_t3(entries, kind, since):
             for index, entry in enumerate(entries):
                 delivery = None if record_delivery is None else lambda state: record_delivery(entry, state)
-                reply, pcm = await say_verbatim(voice, out_rate, since, (entry["spoken"],), log, speak, t3_voice,
-                                               send_audio=send_verbatim, record_delivery=delivery)
+                said = [r["text"] for r in replies if r.get("text") and r.get("delivery", "sent") == "sent"]
+                turns = [*context, {"user": adapter.text(), "assistant": said}]
+                reply, pcm = await say_acts(voice, out_rate, since, entry, service, turns, log, speak, t3_voice,
+                                            send_audio=send_verbatim, record_delivery=delivery)
                 replies.append({"kind": kind, "row": entry.get("row"), **reply})
                 log("reply", reply=kind, text=reply["text"])
                 if pcm:
@@ -1124,7 +1168,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if note is not None:
                 injection.append(await create_item(voice, plain_text(note)))
                 log("recall_note", note=note)
-            t3_entries = [entry for entry in answered["tasks"] if entry.get("spoken")] if noted else []
+            t3_entries = [entry for entry in answered["tasks"] if entry.get("acts")] if noted else []
             if noted:
                 asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
                 item = ASK_NOTE if asks else task_notes(answered["tasks"])
@@ -1209,7 +1253,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         task_updates = service.take_updates()
         updates = shown({"updates": task_updates}, snapshot_mode, adapter.text(), update=True) if task_updates else None
         if snapshot_mode == "note" and task_updates:
-            t3_news = [entry for entry in task_updates if entry.get("spoken")]
+            t3_news = [entry for entry in task_updates if entry.get("acts")]
             if t3_news:
                 log("task_updates", updates=task_updates)
                 await say_t3(t3_news, "t3_update", clock())

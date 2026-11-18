@@ -375,7 +375,12 @@ const REQUEST_KINDS: ReadonlyArray<{
     (kind) => ({
       case: `${kind} with its turn item`,
       events: [...askedBy(APPROVAL, true), askAs(APPROVAL, { kind, responseCapability: live })],
-      pending: { requestId: APPROVAL_ID, kind: "approval" as const, prompt: approvalPrompt },
+      pending: {
+        requestId: APPROVAL_ID,
+        kind: "approval" as const,
+        source: kind,
+        prompt: approvalPrompt,
+      },
     }),
   ),
   {
@@ -387,6 +392,7 @@ const REQUEST_KINDS: ReadonlyArray<{
     pending: {
       requestId: APPROVAL_ID,
       kind: "approval",
+      source: "command",
       prompt: "It wants your approval to run a command.",
     },
   },
@@ -404,6 +410,7 @@ const REQUEST_KINDS: ReadonlyArray<{
     pending: {
       requestId: QUESTION_ID,
       kind: "question" as const,
+      source: "user_input" as const,
       prompt: "Should this fixture prefer strict schemas or UI flexibility? And 1 more.",
     },
   })),
@@ -419,6 +426,7 @@ const REQUEST_KINDS: ReadonlyArray<{
     pending: {
       requestId: APPROVAL_ID,
       kind: "in_app",
+      source: "command",
       prompt:
         "It's stuck on a request that can't be answered any more. You can stop it in the app.",
     },
@@ -474,6 +482,7 @@ it.effect("lists and reads an approval hidden behind a newer request that asks n
     assert.deepStrictEqual(state.pending, {
       requestId: APPROVAL_ID,
       kind: "approval",
+      source: "command",
       prompt: approvalPrompt,
     });
   }).pipe(provideSeam),
@@ -503,6 +512,7 @@ const NEEDS_AFTER_RUN = [
           : [],
       )[0]!,
       kind: "in_app" as const,
+      source: "card" as const,
       prompt: "It needs something from you in the app.",
     }),
     reply: "Created the requested probe file.",
@@ -517,6 +527,7 @@ const NEEDS_AFTER_RUN = [
     pending: (events: ReadonlyArray<OrchestrationV2StoredEvent>) => ({
       requestId: requestOf(events).payload.id,
       kind: "question" as const,
+      source: "user_input" as const,
       prompt: "Which fixture turn should run next?",
     }),
     reply: null,

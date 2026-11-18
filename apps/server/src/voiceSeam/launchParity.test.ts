@@ -282,6 +282,8 @@ it.effect.each(CASES)("launches as t3_thread_launch does: $name", (input) =>
     assert.lengthOf(viaMcp, 1);
     assert.lengthOf(viaSeam, 1);
     assert.deepStrictEqual(policyOf(viaSeam[0]), policyOf(viaMcp[0]));
+    assert.strictEqual(viaSeam[0]?.generateTitle, true);
+    assert.strictEqual(viaSeam[0]?.title, "Fix the flaky test");
     assert.strictEqual(viaSeam[0]?.runtimeMode, input.runtimeMode);
     assert.strictEqual(launched.runtimeMode, input.runtimeMode);
   }),

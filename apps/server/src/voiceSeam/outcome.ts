@@ -57,7 +57,7 @@ const pendingJoin = (
   },
 ): PendingJoin => {
   const pick = shell.pendingRuntimeRequest;
-  if (pick?.userOnly === true) return { kind: "need", pending: cardNeed(pick.id) };
+  if (pick?.userOnly === true) return { kind: "need", pending: cardNeed(pick.id, "card") };
   const newest = records.runtimeRequests
     .filter((request) => request.status === "pending")
     .toSorted(

@@ -863,6 +863,7 @@ it.effect(
             sequence: asked.sequence,
             requestId: asked.event.type === "runtime-request.updated" ? asked.event.payload.id : "",
             kind: "approval",
+            source: asked.event.type === "runtime-request.updated" ? asked.event.payload.kind : "",
             prompt:
               prompt.type === "turn-item.updated" && prompt.payload.type === "approval_request"
                 ? prompt.payload.prompt!
@@ -952,6 +953,7 @@ it.effect.each([
                 sequence: card.sequence,
                 requestId: card.event.type === "turn-item.updated" ? card.event.payload.id : "",
                 kind: "in_app",
+                source: "link_request",
                 prompt: "It needs something from you in the app.",
               },
             ],

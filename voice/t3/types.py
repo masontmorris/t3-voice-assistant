@@ -85,6 +85,22 @@ class PendingKind(str, Enum):
     IN_APP = "in_app"
 
 
+class NeedSource(str, Enum):
+    """What raised a need: a runtime request kind, a link or secret card, or a card only the shell names."""
+
+    COMMAND = "command"
+    FILE_READ = "file-read"
+    FILE_CHANGE = "file-change"
+    MCP_ELICITATION = "mcp-elicitation"
+    PERMISSION = "permission"
+    DYNAMIC_TOOL_CALL = "dynamic_tool_call"
+    USER_INPUT = "user_input"
+    AUTH_REFRESH = "auth_refresh"
+    LINK_REQUEST = "link_request"
+    SECRET_REQUEST = "secret_request"
+    CARD = "card"
+
+
 class ResolvedStatus(str, Enum):
     """Statuses a resolved event carries."""
 
@@ -183,6 +199,7 @@ class PendingNeed:
     request_id: str
     kind: PendingKind
     prompt: str
+    source: NeedSource
 
 
 @dataclass(frozen=True)
@@ -285,6 +302,7 @@ class NeedsYouEvent:
     request_id: str
     kind: PendingKind
     prompt: str
+    source: NeedSource
 
 
 @dataclass(frozen=True)
@@ -479,6 +497,7 @@ def _decode_pending(raw: Any) -> PendingNeed | None:
         request_id=_need(raw, "requestId"),
         kind=PendingKind(_need(raw, "kind")),
         prompt=_need(raw, "prompt"),
+        source=NeedSource(_need(raw, "source")),
     )
 
 
@@ -532,6 +551,7 @@ def decode_event(obj: Any) -> VoiceEvent:
             request_id=_need(obj, "requestId"),
             kind=PendingKind(_need(obj, "kind")),
             prompt=_need(obj, "prompt"),
+            source=NeedSource(_need(obj, "source")),
         )
     if kind == "resolved":
         return ResolvedEvent(

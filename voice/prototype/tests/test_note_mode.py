@@ -5,6 +5,7 @@ earlier turns before every reply, and the model answered the last line of that l
 tests stand in for llama.cpp, so they pin what the turn sends and speaks, not what the model then says.
 """
 
+import socket
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,9 +16,24 @@ from voice.prototype.tasks import MockTaskService
 from voice.prototype.tests import isolate_decider_cache
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
 from voice.segmentation.tasks import Orchestrator
+from voice.t3 import fakes as F
+from voice.t3.acts import Act, act
+from voice.t3.acts import Kind as S
+from voice.t3.speech import Speech
+from voice.t3.test_verify import Failing
+from voice.t3.verify import Decider
+from voice.t3.speech import note as act_note
 from voice.tools.registry import ToolCall
 
 EARLIER = ("Could you check the weather in Raleigh today?", "Okay, and these are decent results.")
+
+
+CHECKED = Speech(None, lambda thread_id: None, F.Agree())
+
+
+def checked(line, acts=(act(S.CONFIRM_STOP, thread="clamp helper"),)):
+    """`line` as a RenderedLine, through the real slot check and a decider that agrees."""
+    return CHECKED.accept(acts, line, "text_model").line
 
 
 def texts(session):
@@ -320,23 +336,24 @@ class MayChooseTest(unittest.TestCase):
 
 class SayVerbatimTest(NoteTurn):
     """Integrated runs 2 and 3 (2026-11-18): handed a T3 line to word, LFM3 said "I've stopped the thread" for "Stop
-    the X thread?" and made up quotes from the thread. A T3 line is now spoken as it is."""
+    the X thread?" and made up quotes from the thread. A line the text model worded and the slot check passed is
+    spoken as it is."""
 
-    async def test_a_t3_line_is_spoken_word_for_word_and_the_model_is_not_asked(self):
+    async def test_a_worded_line_is_spoken_word_for_word_and_the_model_is_not_asked(self):
         spoken, rendered = [], []
 
         def render(text, rate):
             rendered.append((text, rate))
             return b"\x01\x00" * 480
 
-        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("Stop the clamp helper thread?",),
+        line = "Should I stop the clamp helper thread?"
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, checked(line),
                                                   lambda kind, **detail: None, heard_by(spoken), render)
-        self.assertEqual((spoken, rendered), (["Stop the clamp helper thread?"], [("Stop the clamp helper thread?",
-                                                                                   24_000)]))
-        self.assertEqual((reply["text"], len(pcm)), ("Stop the clamp helper thread?", 960))
+        self.assertEqual((spoken, rendered), ([line], [(line, 24_000)]))
+        self.assertEqual((reply["text"], len(pcm)), (line, 960))
         self.assertFalse([e for e in self.voice.sent if e.get("type") == "response.create"], "LFM3 words nothing")
-        self.assertEqual(texts(self.voice), [prototype.NOTE_OPEN + "you just told them this, in T3's words: "
-                                                                   '"Stop the clamp helper thread?"]'])
+        told = prototype.NOTE_OPEN + f'you just told them this about their T3 work: "{line}"]'
+        self.assertEqual(texts(self.voice), [told])
 
     async def test_a_failed_render_says_the_line_in_the_record_and_plays_nothing(self):
         spoken = []
@@ -344,36 +361,89 @@ class SayVerbatimTest(NoteTurn):
         def render(text, rate):
             raise OSError("no TTS")
 
-        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("It finished.",),
+        line = checked("Should I stop the clamp helper thread?")
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, line,
                                                   lambda kind, **detail: None, heard_by(spoken), render)
-        self.assertEqual((reply["text"], pcm, spoken), ("It finished.", b"", []))
+        self.assertEqual((reply["text"], pcm, spoken), (line.text, b"", []))
         self.assertEqual(texts(self.voice), [], "a failed render never enters the conversation as heard")
 
-    def test_a_t3_line_gets_no_note_for_the_model(self):
-        self.assertIsNone(prototype.task_note({"spoken": "Stop the clamp helper thread?", "status": "completed"}))
-        self.assertIsNone(prototype.task_notes([{"spoken": "It finished.", "status": "completed"}]))
+    async def test_a_plain_string_is_never_spoken(self):
+        spoken, rendered = [], []
+        for line in ("It finished.", ("It finished.",)):
+            with self.subTest(line=line), self.assertRaises(TypeError):
+                await prototype.say_verbatim(self.voice, 24_000, 0.0, line, lambda kind, **detail: None,
+                                             heard_by(spoken), lambda text, rate: rendered.append(text) or b"")
+        self.assertEqual((spoken, rendered, self.voice.sent), ([], [], []))
+
+    def test_a_t3_entry_gets_no_task_note(self):
+        acts = [act(S.CONFIRM_STOP, thread="clamp helper").to_json()]
+        self.assertIsNone(prototype.task_note({"acts": acts, "status": "completed"}))
+        self.assertIsNone(prototype.task_notes([{"acts": acts, "status": "completed"}]))
 
 
-class T3SnapshotService(MockTaskService):
-    """The task service with one T3 line in its snapshot, as T3TaskService gives it."""
+class Worded:
+    """The `words` side of a T3 task service: `lines` maps a task id to what its text model says, or to None when
+    the text model fails. The slot check and the LFM3 note are the real ones, and the decider agrees."""
+
+    lines: dict = {}
+    speech = CHECKED
+
+    def say(self, entry, turns=()):
+        line = self.lines.get(entry["task_id"])
+        if line is None:
+            return self.speech.render(())
+        return self._accepted(entry, self.speech.accept(self._acts(entry), line, "text_model"))
+
+    def note(self, entry):
+        return act_note(self._acts(entry))
+
+    def accept(self, entry, text):
+        return self._accepted(entry, self.speech.accept(self._acts(entry), text, "lfm3"))
+
+    @staticmethod
+    def _accepted(entry, rendered):
+        if rendered.line is not None:
+            entry["spoken"] = rendered.line.text
+        return rendered
+
+    @staticmethod
+    def _acts(entry):
+        return [Act.from_json(a) for a in entry["acts"]]
+
+
+STOP_ACTS = [act(S.CONFIRM_STOP, thread="clamp helper").to_json()]
+
+
+class T3SnapshotService(Worded, MockTaskService):
+    """The task service with one T3 confirm act in its snapshot, as T3TaskService gives it."""
+
+    lines = {"t3_1": "Should I stop the clamp helper thread?"}
+    delivered: list = []
 
     def snapshot(self, *args, **kwargs):
         snapshot = super().snapshot(*args, **kwargs)
         snapshot["tasks"].append({"task_id": "t3_1", "description": "a T3 thread", "status": "completed",
-                                  "spoken": "Stop the clamp helper thread?",
-                                  "evidence": {"thread_id": "t5", "sequences": [150]}})
+                                  "acts": STOP_ACTS, "evidence": {"thread_id": "t5", "sequences": [150]}})
         return snapshot
+
+    def record_delivery(self, entry, state):
+        type(self).delivered.append((entry["task_id"], state))
 
 
 class T3TurnTest(NoteTurn):
     async def test_note_mode_speaks_stop_needs_you_and_done_without_a_model_reply(self):
-        needs_you = "The thread is waiting for you: which file?"
-        done = "The other thread finished."
+        needs_you = "The clamp helper thread needs you: Which file?"
+        done = "The release notes thread finished, and it wrote the notes."
 
         class WithNews(T3SnapshotService):
+            lines = {**T3SnapshotService.lines, "n1": needs_you, "n2": done}
+
             def take_updates(self):
-                return [{"spoken": line, "status": status, "result_summary": line}
-                        for line, status in ((needs_you, "live"), (done, "completed"))]
+                return [{"type": "task_update", "task_id": "n1", "status": "live", "result_summary": None,
+                         "acts": [act(S.NEEDS_YOU, thread="clamp helper", prompt="Which file?").to_json()]},
+                        {"type": "task_update", "task_id": "n2", "status": "completed", "result_summary": None,
+                         "acts": [act(S.DONE, thread="release notes", status="completed",
+                                      summary="It wrote the notes.").to_json()]}]
 
             def update_entries(self, updates):
                 return updates
@@ -385,7 +455,7 @@ class T3TurnTest(NoteTurn):
             return bytes(960)
 
         await self.turn([], task_service=WithNews, t3_voice=render)
-        lines = ["Stop the clamp helper thread?", needs_you, done]
+        lines = ["Should I stop the clamp helper thread?", needs_you, done]
         self.assertEqual(rendered, lines)
         self.assertEqual(self.spoken, lines)
         self.assertEqual(self.voice.asked, 0)
@@ -395,6 +465,45 @@ class T3TurnTest(NoteTurn):
     async def test_a_turn_with_only_a_t3_line_speaks_it_and_asks_the_model_nothing(self):
         record = await self.turn(["I've stopped the clamp helper thread."], task_service=T3SnapshotService,
                                  t3_voice=lambda text, rate: bytes(960))
-        self.assertEqual(self.spoken, ["Stop the clamp helper thread?"])
-        self.assertEqual(self.voice.asked, 0, "the model never words a T3 line")
-        self.assertEqual([r["kind"] for r in record["replies"]], ["t3"])
+        self.assertEqual(self.spoken, ["Should I stop the clamp helper thread?"])
+        self.assertEqual(self.voice.asked, 0, "LFM3 words no T3 act the text model worded")
+        self.assertEqual([(r["kind"], r["worded_by"]) for r in record["replies"]], [("t3", "text_model")])
+
+    async def test_a_slot_failing_render_falls_back_to_lfm3_under_the_same_check(self):
+        class BadWording(T3SnapshotService):
+            lines = {"t3_1": "I've stopped the clamp helper thread."}
+
+        BadWording.delivered = []
+        record = await self.turn(["Do you want me to stop the clamp helper thread?"], task_service=BadWording,
+                                 t3_voice=lambda text, rate: bytes(960))
+        self.assertEqual(self.spoken, ["Do you want me to stop the clamp helper thread?"])
+        self.assertEqual(texts(self.voice)[0], act_note([Act.from_json(a) for a in STOP_ACTS]))
+        self.assertEqual([(r["kind"], r["worded_by"], r["delivery"]) for r in record["replies"]],
+                         [("t3", "lfm3", "sent")])
+        self.assertEqual(BadWording.delivered, [("t3_1", "sent")])
+
+    async def test_a_decider_timeout_goes_to_the_fallback_and_never_to_speech(self):
+        class TimedOut(T3SnapshotService):
+            speech = Speech(None, lambda thread_id: None, Decider(Failing(socket.timeout("timed out"))))
+
+        TimedOut.delivered = []
+        record = await self.turn(["Do you want me to stop the clamp helper thread?"], task_service=TimedOut,
+                                 t3_voice=lambda text, rate: bytes(960))
+        self.assertEqual(self.spoken, [], "neither the text model's line nor LFM3's is spoken unchecked")
+        self.assertEqual(texts(self.voice)[0], act_note([Act.from_json(a) for a in STOP_ACTS]), "LFM3 was asked")
+        self.assertEqual([(r["kind"], r["worded_by"], r["delivery"]) for r in record["replies"]],
+                         [("t3", "lfm3", "unsent")])
+        self.assertIn("TimeoutError", record["replies"][0]["decider"]["error"])
+        self.assertEqual(TimedOut.delivered, [("t3_1", "unsent")])
+
+    async def test_when_both_wordings_fail_nothing_is_said_and_the_act_stays_unsent(self):
+        class NoWording(T3SnapshotService):
+            lines = {}
+
+        NoWording.delivered = []
+        record = await self.turn(["I've stopped the clamp helper thread."], task_service=NoWording,
+                                 t3_voice=lambda text, rate: bytes(960))
+        self.assertEqual(self.spoken, [], "no stock line stands in for the act")
+        self.assertEqual([(r["kind"], r["worded_by"], r["delivery"], r["text"]) for r in record["replies"]],
+                         [("t3", "lfm3", "unsent", "")])
+        self.assertEqual(NoWording.delivered, [("t3_1", "unsent")])

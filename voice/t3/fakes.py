@@ -7,6 +7,7 @@ from typing import Any
 
 from voice.t3 import types as T
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable
+from voice.t3.verify import Verdict
 
 
 def hello(max_watches: int = 16, projects=(("p1", "Voice sandbox", ("sandbox", "voice sandbox")),)) -> T.Hello:
@@ -46,8 +47,9 @@ def state(thread="t1", as_of=120, pending=None, activity=T.ThreadActivity.WORKIN
     return T.ThreadState(thread, project, title, activity, None, pending, last_reply, as_of)
 
 
-def need(request_id="q1", prompt="Run the tests?", kind=T.PendingKind.APPROVAL) -> T.PendingNeed:
-    return T.PendingNeed(request_id, kind, prompt)
+def need(request_id="q1", prompt="Run the tests?", kind=T.PendingKind.APPROVAL,
+         source=T.NeedSource.COMMAND) -> T.PendingNeed:
+    return T.PendingNeed(request_id, kind, prompt, source)
 
 
 def run_event(seq, status=T.RunStatus.RUNNING, thread="t1", run="r1"):
@@ -58,8 +60,9 @@ def reply(seq, message="m1", text="I added the helper. The tests pass.", thread=
     return T.ReplyEvent(thread, "r1", message, text, seq)
 
 
-def needs_you(seq, request_id="q1", prompt="Run the tests?", thread="t1"):
-    return T.NeedsYouEvent(thread, seq, request_id, T.PendingKind.APPROVAL, prompt)
+def needs_you(seq, request_id="q1", prompt="Run the tests?", thread="t1", kind=T.PendingKind.APPROVAL,
+              source=T.NeedSource.COMMAND):
+    return T.NeedsYouEvent(thread, seq, request_id, kind, prompt, source)
 
 
 def resolved(seq, request_id="q1", thread="t1"):
@@ -161,3 +164,13 @@ class Connector:
         if isinstance(entry, FakeSeam):
             return entry
         raise SeamConnectionEnded(entry)
+
+
+class Agree:
+    """A decider that passes every line it is asked about, so a test sees only code's slot check."""
+
+    calls = 0
+
+    def verify(self, acts, line):
+        self.calls += 1
+        return Verdict(True)

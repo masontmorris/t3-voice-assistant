@@ -81,9 +81,9 @@ retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_
 
 With --t3 on, news from a T3 thread the voice started or sent to (it is working, its reply, it finished) is spoken
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
-speaking, and IDLE_GRACE_S since the last of them. Its lines are T3's own, spoken word for word in the server's
-voice (`say_verbatim`), as every T3 line is, on the reply path, so the client ducks them, a barge-in stops them, and
-the record names each line's evidence sequences. A burst within COALESCE_S is one turn, one line per update. A line
+speaking, and IDLE_GRACE_S since the last of them. Each update is typed acts, worded by the voice's text model and
+spoken word for word in the server's voice (`say_acts`), as every T3 line is, on the reply path, so the client ducks
+them, a barge-in stops them, and the record names each line's evidence sequences. A burst within COALESCE_S is one turn, one line per update. A line
 taken just before the person started talking, and not yet heard, goes back to wait for the next quiet moment.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
@@ -124,11 +124,11 @@ from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, clas
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
-                                 heard_prefix, interrupted_note, plain_text, run_clip, say_verbatim,
-                                 tts_line)
+                                 heard_prefix, interrupted_note, plain_text, run_clip, say_acts, tts_line)
 from voice.live.ledger import ConversationLedger
-from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, default_journal, default_model, \
-    default_origin, default_token_file
+from voice.t3.speech import speakable
+from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_decider, default_journal, \
+    default_model, default_origin, default_token_file
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -757,7 +757,9 @@ class Conversation:
             turn.speaking = False
             self.post({"type": "reply_end", "turn": turn.n}, turn)
 
-    async def speak_t3(self, turn, text, pcm):
+    async def speak_t3(self, turn, line, pcm):
+        """Send one T3 line's audio on the reply path. Only a RenderedLine is spoken; a plain string raises."""
+        text = speakable(line, "speak_t3").text
         if turn.muted or (self.sender is not None and self.sender.done()):
             return b""
         turn.speaking = turn.reply_started = True
@@ -822,7 +824,7 @@ class Conversation:
                                     prior_replies=tuple(self.ledger.replies()),
                                     established=tuple(self.ledger.established()),
                                     task_service=live.task_service, t3_voice=live.t3_voice,
-                                    send_verbatim=lambda text, pcm: self.speak_t3(turn, text, pcm))
+                                    send_verbatim=lambda line, pcm: self.speak_t3(turn, line, pcm))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -855,6 +857,8 @@ class Conversation:
         updates = live.t3.reserve_news(idle=True)
         entries = [live.t3.news_entry(update, f"conv_{turn.stem}") for update in updates]
         unsent = {id(update): update for update in updates}
+        of_entry = {id(entry): update for update, entry in zip(updates, entries)}
+        words = Words(live.t3, lambda entry: of_entry[id(entry)])
         record = {"clip": turn.name, "idle": True, "final_transcript": None,
                   "t3_updates": [asdict(update) for update in updates], "task_updates": entries, "timeline": timeline,
                   "replies": []}
@@ -871,13 +875,13 @@ class Conversation:
                 log("task_updates", updates=entries)
                 for update, entry in zip(updates, entries):
                     def delivered(state):
-                        if state != "unsent":
+                        if state == "sent":
                             live.t3.ack_news(unsent.pop(id(update)))
 
-                    reply, _ = await say_verbatim(
-                        self.voice, turn.out_rate, self.voice_clock(), (entry["spoken"],), log,
-                        render=live.t3_voice, send_audio=lambda text, pcm: self.speak_t3(turn, text, pcm),
-                        record_delivery=delivered)
+                    reply, _ = await say_acts(
+                        self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
+                        speak=lambda text, pcm, done: self.speak(turn, text, pcm, done), render=live.t3_voice,
+                        send_audio=lambda line, pcm: self.speak_t3(turn, line, pcm), record_delivery=delivered)
                     record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
                     log("reply", reply="t3_update", text=reply["text"])
                     if turn.muted:
@@ -1045,7 +1049,8 @@ async def main_async(args):
         t3 = poller = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
         if getattr(args, "t3", "off") == "on":
-            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model())
+            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
+                              default_decider())
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
             tools = T3Registry(tools)
