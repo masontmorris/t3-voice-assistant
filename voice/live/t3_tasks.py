@@ -579,8 +579,8 @@ class T3Tasks:
         acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences)
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
-        rendered = self.speech.render(acts, turns, update.problems)
-        update.problems = tuple(rendered.problems or ([rendered.error] if rendered.error else []))
+        rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries)
+        refuse(update, rendered)
         return rendered
 
     def say_entry(self, update: L.Update, entry: dict, turns=()) -> Rendered:
@@ -620,10 +620,19 @@ class Words:
     def accept(self, entry, text) -> Rendered:
         update = self.update_for(entry)
         rendered = self.t3.speech.accept(update.acts, text, "lfm3")
-        update.problems = tuple(rendered.problems or ([rendered.error] if rendered.error else []))
+        refuse(update, rendered)
         if rendered.line is not None:
             entry["spoken"] = rendered.line.text
         return rendered
+
+
+def refuse(update: L.Update, rendered: Rendered) -> None:
+    """Keep a failed wording's problems and the wording itself on the update, for the next attempt to avoid."""
+    update.problems = tuple(rendered.problems or ([rendered.error] if rendered.error else []))
+    if rendered.line is None:
+        update.tries += 1
+        if rendered.raw and rendered.raw not in update.refused:
+            update.refused += (rendered.raw,)
 
 
 def which_project(candidates, names: dict[str, str]) -> Act:
@@ -866,6 +875,7 @@ class Script:
             row["retried"] = True
         if rendered.line is None:
             row["waiting"] = rendered.problems or rendered.error
+            row["refused"] = rendered.raw
             self.waiting.append((label, update))
         else:
             self.turns.append({"assistant": rendered.line.text})

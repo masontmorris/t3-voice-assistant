@@ -318,12 +318,13 @@ class Speech:
             filled.append(a)
         return tuple(filled), read
 
-    def render(self, acts: Iterable[Act], turns: Iterable[dict] = (), problems: Iterable[str] = ()) -> Rendered:
+    def render(self, acts: Iterable[Act], turns: Iterable[dict] = (), problems: Iterable[str] = (),
+               refused: Iterable[str] = (), attempt: int = 0) -> Rendered:
         acts = tuple(acts)
         if self.lane is None:
             return Rendered(None, error="no text model")
         try:
-            record = self.lane.call(render_messages(acts, turns, problems), RENDER_TIMEOUT_S)
+            record = self.lane.call(render_messages(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
         except Exception as exc:
             return Rendered(None, error=repr(exc))
         return self.accept(acts, _clean(record.get("text", "")), "text_model", record.get("text"))
@@ -343,12 +344,19 @@ class Speech:
         return Rendered(RenderedLine(text, acts, worded_by, verdict, _MINT), [], raw, verdict=verdict)
 
 
-def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems: Iterable[str] = ()) -> list[dict]:
+def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems: Iterable[str] = (),
+                    refused: Iterable[str] = (), attempt: int = 0) -> list[dict]:
+    """The render request. A retry names the wordings refused so far and its attempt number, so it is never the
+    request a refusal came from, which the model's cache would answer with the same refused line."""
     body = {"turns": _turns(turns), "acts": [act_facts(a) for a in acts], "keep_exact": kept_exact(acts),
             "ask": any(a.kind in QUESTIONS for a in acts), "never_say": never_say(acts)}
-    problems = list(problems)
+    problems, refused = list(problems), list(refused)
     if problems:
         body["an earlier wording was refused because"] = problems
+    if refused:
+        body["refused wordings"] = refused
+    if attempt:
+        body["attempt"] = attempt + 1
     return [{"role": "system", "content": RENDER_SYSTEM}, {"role": "user", "content": json.dumps(body)}]
 
 

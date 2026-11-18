@@ -118,6 +118,8 @@ class Update:
     sequences: tuple[int, ...] = ()
     delivery_failures: int = 0
     problems: tuple[str, ...] = ()
+    tries: int = 0
+    refused: tuple[str, ...] = ()
 
     def evidence(self) -> dict:
         return {"thread_id": self.thread_id, "sequences": list(self.sequences)}
@@ -128,7 +130,8 @@ class Update:
     @classmethod
     def from_json(cls, raw: dict) -> Update:
         return cls(**{**raw, "acts": tuple(Act.from_json(a) for a in raw["acts"]),
-                      "sequences": tuple(raw["sequences"]), "problems": tuple(raw.get("problems", ()))})
+                      "sequences": tuple(raw["sequences"]), "problems": tuple(raw.get("problems", ())),
+                      "refused": tuple(raw.get("refused", ()))})
 
 
 def legacy_update(raw: dict) -> Update:
