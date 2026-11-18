@@ -19,7 +19,7 @@ from enum import StrEnum
 from typing import Any, Callable
 
 from voice.t3 import types as T
-from voice.t3.journal import JournalTask, Kind, Status, T3Journal
+from voice.t3.journal import JournalTask, Kind, Status, T3Journal, Update
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable
 
 L1 = "I lost track of that thread. It's still in the app."
@@ -90,8 +90,8 @@ ROWS: dict[str, Row] = {
     "restart-unstarted": Row("on restart, a request id with no thread", Act.REISSUE, Ends.ANSWER),
     "restart-live": Row("on restart, a started task that has not ended", Act.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
     "restart-ended": Row("on restart, a terminal or LOST task", Act.NOTHING, Ends.TERMINAL),
-    "crash-before-save": Row("crashed after speaking and before saving", Act.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
-    "crash-after-save": Row("crashed after saving what it spoke", Act.NOTHING, Ends.SAVED),
+    "crash-before-save": Row("crashed before saving a queued line", Act.WATCH_FROM_CURSOR, Ends.SUBSCRIBE),
+    "crash-after-save": Row("crashed after saving a queued line or taking it", Act.NOTHING, Ends.SAVED),
     "slot-wait": Row("a task needs a watch while maxWatches are held", Act.QUEUE, Ends.SUBSCRIBE, SLOT_LINE),
     "watch-retry": Row("watch answers unavailable or too_many_watches", Act.RETRY_WATCH, Ends.GIVE_UP, L1),
     "watch-refused": Row("watch answers any other code", Act.GIVE_UP_NOW, Ends.GIVE_UP,
@@ -231,21 +231,6 @@ def done_line(event: T.DoneEvent, link_replies: dict[str, int]) -> tuple[Status,
 
 
 @dataclass
-class Update:
-    """One thing the voice may say, with the stored or read sequences it comes from."""
-
-    task_id: str
-    line: str
-    status: str
-    row: str | None = None
-    thread_id: str | None = None
-    sequences: tuple[int, ...] = ()
-
-    def evidence(self) -> dict:
-        return {"thread_id": self.thread_id, "sequences": list(self.sequences)}
-
-
-@dataclass
 class Budget:
     failures: int = 0
     due_at: float | None = None
@@ -267,26 +252,35 @@ class Follow:
     windows: dict[str, float] = field(default_factory=dict)
     begun_at: dict[str, float] = field(default_factory=dict)
     acked: set = field(default_factory=set)
-    outbox: list[Update] = field(default_factory=list)
+    outbox: list[Update] = field(init=False)
     socket: Budget = field(default_factory=Budget)
     socket_opened_at: float | None = None
     after_1013: bool = False
     dead: str | None = None
     trail: list[tuple[str, str | None]] = field(default_factory=list)
 
+    def __post_init__(self) -> None:
+        self.outbox = list(self.journal.pending_lines)
+
     def run(self, name: str, task: JournalTask | None, now: float, **context) -> None:
         row = ROWS[name]
         self.trail.append((name, task.task_id if task is not None else None))
         ACTIONS[row.act](self, name, row, task, now, **context)
 
-    def take(self) -> list[Update]:
-        out, self.outbox = self.outbox, []
-        return out
+    def take(self, task_id: str | None = None) -> list[Update]:
+        taken = [u for u in self.outbox if task_id is None or u.task_id == task_id]
+        self.journal.take_lines(task_id)
+        self.outbox = [u for u in self.outbox if task_id is not None and u.task_id != task_id]
+        return taken
 
-    def speak(self, task: JournalTask, line: str, row: str | None = None, sequences=()) -> None:
+    def speak(self, task: JournalTask, line: str, row: str | None = None, sequences=(), *,
+              durable: bool = True) -> None:
         sequences = tuple(s for s in sequences if s is not None)
         task.link.evidence.extend(sequences)
-        self.outbox.append(Update(task.task_id, line, task.status.value, row, task.link.thread_id, sequences))
+        update = Update(task.task_id, line, task.status.value, row, task.link.thread_id, sequences)
+        self.outbox.append(update)
+        if durable:
+            self.journal.pending_lines.append(update)
 
     def resume(self, now: float) -> None:
         """After a voice-server restart: every journal task takes its restart row."""
@@ -383,7 +377,7 @@ class Follow:
             task = self.journal.tasks[task_id]
             if task.status is Status.UNSTARTED and task_id not in self.acked and now >= began + ACK_AFTER_S:
                 self.acked.add(task_id)
-                self.speak(task, LAUNCH_ACK, "launch-unavailable")
+                self.speak(task, LAUNCH_ACK, "launch-unavailable", durable=False)
         for task_id, until in list(self.windows.items()):
             if now >= until:
                 self._unwatch(self.journal.tasks[task_id], now)
@@ -648,7 +642,7 @@ def _queue(f: Follow, name, row, task, now, **_):
         f.queue.append(task.task_id)
     if task.task_id not in f.queued_said:
         f.queued_said.add(task.task_id)
-        f.speak(task, SLOT_LINE.format(n=len(f.watching)), name)
+        f.speak(task, SLOT_LINE.format(n=len(f.watching)), name, durable=False)
 
 
 def _retry_watch(f: Follow, name, row, task, now, code=None, **_):

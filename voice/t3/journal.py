@@ -2,7 +2,7 @@
 
 One JSON file holds every task the voice launched or sent to: its request id, minted and saved
 before the seam call, the thread it reached, the cursor, the applied request ids, the reply
-dedupe, and the first interrupt result. A restarted voice server reads it back and follows each
+dedupe, the first interrupt result, and pending spoken lines. A restarted voice server reads it back and follows each
 live thread from its own cursor. Every write replaces the file whole, so a crash leaves either
 the old record or the new one.
 """
@@ -100,22 +100,52 @@ def _task_from(raw: dict) -> JournalTask:
     )
 
 
+@dataclass
+class Update:
+    """One thing the voice may say, with the stored or read sequences it comes from."""
+
+    task_id: str
+    line: str
+    status: str
+    row: str | None = None
+    thread_id: str | None = None
+    sequences: tuple[int, ...] = ()
+
+    def evidence(self) -> dict:
+        return {"thread_id": self.thread_id, "sequences": list(self.sequences)}
+
+
 class T3Journal:
     """Tasks by id, loaded from `path` and saved whole after every change the caller makes."""
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
         self.tasks: dict[str, JournalTask] = {}
+        self.pending_lines: list[Update] = []
         if self.path.exists():
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             self.tasks = {t["task_id"]: _task_from(t) for t in raw.get("tasks", [])}
+            self.pending_lines = [Update(**{**u, "sequences": tuple(u["sequences"])})
+                                  for u in raw.get("pending_lines", [])]
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
-        body = {"version": 1, "tasks": [asdict(t) for t in self.tasks.values()]}
+        body = {"version": 1, "tasks": [asdict(t) for t in self.tasks.values()],
+                "pending_lines": [asdict(u) for u in self.pending_lines]}
         tmp.write_text(json.dumps(body, indent=1) + "\n", encoding="utf-8")
         os.replace(tmp, self.path)
+
+    def take_lines(self, task_id: str | None) -> None:
+        previous = self.pending_lines
+        remaining = [u for u in previous if task_id is not None and u.task_id != task_id]
+        if len(previous) != len(remaining):
+            self.pending_lines = remaining
+            try:
+                self.save()
+            except OSError:
+                self.pending_lines = previous
+                raise
 
     def begin(self, kind: Kind, instruction: str, project_id: str | None, project_name: str | None = None,
               thread_id: str | None = None) -> JournalTask:

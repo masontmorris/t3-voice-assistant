@@ -205,8 +205,7 @@ class T3Tasks:
         task = self.follow.journal.begin(Kind.START, question.instruction, project_id, name)
         self.keys[task.task_id] = question.key
         self.follow.launch(task, now)
-        mine = [u for u in self.follow.outbox if u.task_id == task.task_id]
-        self.follow.outbox = [u for u in self.follow.outbox if u.task_id != task.task_id]
+        mine = self.follow.take(task.task_id)
         if not mine:
             self.follow.acked.add(task.task_id)
             return L.Update(question.key, L.LAUNCH_ACK, STATUS_WORDS[task.status], "launch-unavailable",
