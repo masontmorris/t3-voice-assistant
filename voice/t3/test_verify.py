@@ -58,14 +58,35 @@ class LineCheck(unittest.TestCase):
                 self.assertTrue(rendered.verdict is not None and rendered.verdict.failed, rendered)
 
     def test_no_wrong_line_passes_and_the_right_lines_do(self):
-        decider = Decider(Recorded())
         for row in FIXTURE:
-            with self.subTest(row["line"]):
-                verdict = decider.verify(acts_of(row), row["line"])
+            with self.subTest(row["line"], take=row.get("take")):
+                verdict = Decider(Recorded([row])).verify(acts_of(row), row["line"])
                 expected = row["should_pass"] and row["line"] not in REFUSED_RIGHT_LINES
                 self.assertEqual(verdict.passed, expected, verdict)
-        self.assertEqual(sum(not row["should_pass"] for row in FIXTURE), 22,
-                         "3 escapes, 17 old word-list claims and 2 beside smoke-run lines")
+        self.assertEqual(sum(not row["should_pass"] for row in FIXTURE), 25,
+                         "3 escapes, 17 old word-list claims, 2 beside smoke-run lines and 3 takes of a false done")
+
+    def test_a_reply_is_never_asked_whether_its_run_ended(self):
+        reply = act(Kind.REPLIED, thread="Alpha", status="running", reply="I added clamp. The tests pass.")
+        self.assertEqual([a.name for a in asks([reply])], ["a1_about", "a1_means", "claims_stopped", "invents"])
+        for status_act in (act(Kind.THREAD_STATUS, thread="Alpha", status="working"),
+                           act(Kind.RUN_UPDATE, thread="Alpha", status="running")):
+            with self.subTest(status_act.kind.value):
+                self.assertIn("claims_finished", [a.name for a in asks([status_act])])
+        held = act(Kind.HELD_FOLLOWUP, thread="Alpha")
+        self.assertIn("claims_finished", [a.name for a in asks([reply, held])], "another act's own claim stays")
+
+    def test_a_reply_reporting_finished_work_passes_and_one_saying_done_is_refused(self):
+        """The PM's two cases, three recorded d1.2 answers each, since one answer can drift."""
+        for case, passes in (("pm replied finished work", True), ("pm replied says done", False)):
+            rows = [row for row in FIXTURE if row["case"] == case]
+            self.assertEqual(len(rows), 3, case)
+            for row in rows:
+                with self.subTest(case, take=row["take"]):
+                    verdict = Decider(Recorded([row])).verify(acts_of(row), row["line"])
+                    self.assertEqual(verdict.passed, passes, verdict)
+                    if not passes:
+                        self.assertIn("invents", verdict.failed, "refused by the unsupported-claim question")
 
     def test_the_questions_come_from_the_act(self):
         stop = asks([act(Kind.CONFIRM_STOP, thread="Alpha")])

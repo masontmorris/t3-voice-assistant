@@ -30,7 +30,8 @@
         "noul": 0.6010195533002328
       }
     },
-    "ms": 156.5
+    "ms": 156.5,
+    "take": 1
   },
   {
     "case": "a stop confirm",
@@ -63,7 +64,8 @@
         "noul": 0.1889626718886031
       }
     },
-    "ms": 109.6
+    "ms": 109.6,
+    "take": 1
   },
   {
     "case": "a working status",
@@ -101,7 +103,8 @@
         "noul": 0.9388561922925499
       }
     },
-    "ms": 100.6
+    "ms": 100.6,
+    "take": 1
   },
   {
     "case": "a working status",
@@ -139,7 +142,8 @@
         "noul": 0.16262021472961807
       }
     },
-    "ms": 109.9
+    "ms": 109.9,
+    "take": 1
   },
   {
     "case": "Alpha's run status",
@@ -177,7 +181,8 @@
         "noul": 0.9334159558070819
       }
     },
-    "ms": 104.3
+    "ms": 104.3,
+    "take": 1
   },
   {
     "case": "Alpha's run status",
@@ -215,7 +220,8 @@
         "noul": 0.08220435233723014
       }
     },
-    "ms": 103.9
+    "ms": 103.9,
+    "take": 1
   },
   {
     "case": "claim confirm_launch",
@@ -244,7 +250,8 @@
         "noul": 0.5566604458146516
       }
     },
-    "ms": 238.8
+    "ms": 238.8,
+    "take": 1
   },
   {
     "case": "claim confirm_launch",
@@ -273,7 +280,8 @@
         "noul": 0.47725376341457154
       }
     },
-    "ms": 144.7
+    "ms": 144.7,
+    "take": 1
   },
   {
     "case": "claim confirm_tell",
@@ -307,7 +315,8 @@
         "noul": 0.0665840452047681
       }
     },
-    "ms": 170.6
+    "ms": 170.6,
+    "take": 1
   },
   {
     "case": "claim confirm_tell",
@@ -341,7 +350,8 @@
         "noul": 0.06380992592142884
       }
     },
-    "ms": 105.9
+    "ms": 105.9,
+    "take": 1
   },
   {
     "case": "claim confirm_stop",
@@ -374,7 +384,8 @@
         "noul": 0.045213110504470015
       }
     },
-    "ms": 113.7
+    "ms": 113.7,
+    "take": 1
   },
   {
     "case": "claim confirm_stop",
@@ -407,7 +418,8 @@
         "noul": 0.13394957366828736
       }
     },
-    "ms": 137.1
+    "ms": 137.1,
+    "take": 1
   },
   {
     "case": "claim cancelled",
@@ -441,7 +453,8 @@
         "noul": 0.10530489769196884
       }
     },
-    "ms": 109.0
+    "ms": 109.0,
+    "take": 1
   },
   {
     "case": "claim cancelled",
@@ -475,7 +488,8 @@
         "noul": 0.8660504288499348
       }
     },
-    "ms": 102.1
+    "ms": 102.1,
+    "take": 1
   },
   {
     "case": "claim thread_status",
@@ -514,7 +528,8 @@
         "noul": 0.8494006581171676
       }
     },
-    "ms": 102.1
+    "ms": 102.1,
+    "take": 1
   },
   {
     "case": "claim thread_status",
@@ -553,7 +568,8 @@
         "noul": 0.03797193035576635
       }
     },
-    "ms": 169.0
+    "ms": 169.0,
+    "take": 1
   },
   {
     "case": "claim thread_status",
@@ -592,7 +608,8 @@
         "noul": 0.7488660126097637
       }
     },
-    "ms": 110.8
+    "ms": 110.8,
+    "take": 1
   },
   {
     "case": "claim tell_pending",
@@ -625,7 +642,8 @@
         "noul": 0.34584931951515174
       }
     },
-    "ms": 129.1
+    "ms": 129.1,
+    "take": 1
   },
   {
     "case": "claim tell_pending",
@@ -658,7 +676,8 @@
         "noul": 0.08934013698959735
       }
     },
-    "ms": 104.3
+    "ms": 104.3,
+    "take": 1
   },
   {
     "case": "claim held_followup",
@@ -695,7 +714,8 @@
         "noul": 0.9142950311500655
       }
     },
-    "ms": 145.1
+    "ms": 145.1,
+    "take": 1
   },
   {
     "case": "claim held_followup",
@@ -732,7 +752,8 @@
         "noul": 0.11419642571247227
       }
     },
-    "ms": 104.5
+    "ms": 104.5,
+    "take": 1
   },
   {
     "case": "claim dropped_followup",
@@ -765,7 +786,8 @@
         "noul": 0.694115356457275
       }
     },
-    "ms": 110.5
+    "ms": 110.5,
+    "take": 1
   },
   {
     "case": "claim dropped_followup",
@@ -798,7 +820,8 @@
         "noul": 0.05858212319961831
       }
     },
-    "ms": 132.1
+    "ms": 132.1,
+    "take": 1
   },
   {
     "case": "claim stopping",
@@ -835,7 +858,8 @@
         "noul": 0.06658405026401863
       }
     },
-    "ms": 109.3
+    "ms": 109.3,
+    "take": 1
   },
   {
     "case": "claim stopping",
@@ -872,7 +896,8 @@
         "noul": 0.04144146737802366
       }
     },
-    "ms": 146.6
+    "ms": 146.6,
+    "take": 1
   },
   {
     "case": "claim nothing_running",
@@ -909,7 +934,8 @@
         "noul": 0.8551318850185093
       }
     },
-    "ms": 114.0
+    "ms": 114.0,
+    "take": 1
   },
   {
     "case": "claim nothing_running",
@@ -946,7 +972,8 @@
         "noul": 0.06114381019969703
       }
     },
-    "ms": 116.1
+    "ms": 116.1,
+    "take": 1
   },
   {
     "case": "claim nothing_running",
@@ -983,7 +1010,8 @@
         "noul": 0.7402079338078271
       }
     },
-    "ms": 121.2
+    "ms": 121.2,
+    "take": 1
   },
   {
     "case": "claim stop_unconfirmed",
@@ -1016,7 +1044,8 @@
         "noul": 0.12875592824311177
       }
     },
-    "ms": 119.3
+    "ms": 119.3,
+    "take": 1
   },
   {
     "case": "claim stop_unconfirmed",
@@ -1049,7 +1078,8 @@
         "noul": 0.1188829168833168
       }
     },
-    "ms": 155.2
+    "ms": 155.2,
+    "take": 1
   },
   {
     "case": "claim run_update",
@@ -1087,7 +1117,8 @@
         "noul": 0.8858035742875278
       }
     },
-    "ms": 157.4
+    "ms": 157.4,
+    "take": 1
   },
   {
     "case": "claim run_update",
@@ -1125,15 +1156,18 @@
         "noul": 0.16891501347682647
       }
     },
-    "ms": 152.6
+    "ms": 152.6,
+    "take": 1
   },
   {
     "case": "claim replied",
+    "take": 1,
     "acts": [
       {
         "kind": "replied",
         "slots": {
           "thread": "Add a clamp helper",
+          "status": "running",
           "reply": "I added clamp."
         }
       }
@@ -1144,34 +1178,32 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9930504507295526
+        "noul": 0.9904671906534434
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.3989804466997672
-      },
-      "claims_finished": {
-        "type": "noul",
-        "noul": 0.8989077518133597
+        "noul": 0.5678644349724792
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.8660504326272678
+        "noul": 0.42100057917627215
       },
       "invents": {
         "type": "noul",
-        "noul": 0.8310849758574271
+        "noul": 0.8245975671688828
       }
     },
-    "ms": 126.8
+    "ms": 942.2
   },
   {
     "case": "claim replied",
+    "take": 1,
     "acts": [
       {
         "kind": "replied",
         "slots": {
           "thread": "Add a clamp helper",
+          "status": "running",
           "reply": "I added clamp."
         }
       }
@@ -1182,26 +1214,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.986936323869254
+        "noul": 0.9933576740821297
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.8989077537859754
-      },
-      "claims_finished": {
-        "type": "noul",
-        "noul": 0.40994538345739223
+        "noul": 0.9361900789414452
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.09311378879182561
+        "noul": 0.01366381353022342
       },
       "invents": {
         "type": "noul",
-        "noul": 0.15651581873753745
+        "noul": 0.031851770130397236
       }
     },
-    "ms": 96.7
+    "ms": 628.5
   },
   {
     "case": "claim done",
@@ -1235,7 +1263,8 @@
         "noul": 0.8989077597038222
       }
     },
-    "ms": 115.0
+    "ms": 115.0,
+    "take": 1
   },
   {
     "case": "claim done",
@@ -1269,7 +1298,8 @@
         "noul": 0.19603841979533446
       }
     },
-    "ms": 95.4
+    "ms": 95.4,
+    "take": 1
   },
   {
     "case": "claim refused",
@@ -1304,7 +1334,8 @@
         "noul": 0.9721008656027147
       }
     },
-    "ms": 133.0
+    "ms": 133.0,
+    "take": 1
   },
   {
     "case": "claim refused",
@@ -1339,15 +1370,18 @@
         "noul": 0.10967167734275816
       }
     },
-    "ms": 143.4
+    "ms": 143.4,
+    "take": 1
   },
   {
     "case": "smoke replied",
+    "take": 1,
     "acts": [
       {
         "kind": "replied",
         "slots": {
           "thread": "Add a Clamp Helper",
+          "status": "running",
           "reply": "I added clamp next to sum. All 12 tests pass."
         }
       }
@@ -1358,34 +1392,32 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9939322206862541
+        "noul": 0.9973169288785745
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.47725376341457154
-      },
-      "claims_finished": {
-        "type": "noul",
-        "noul": 0.982121264016355
+        "noul": 0.5113790087418442
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.8606807831099654
+        "noul": 0.703694640314064
       },
       "invents": {
         "type": "noul",
-        "noul": 0.29630535968593597
+        "noul": 0.8310849834758176
       }
     },
-    "ms": 103.8
+    "ms": 180.6
   },
   {
     "case": "smoke replied",
+    "take": 1,
     "acts": [
       {
         "kind": "replied",
         "slots": {
           "thread": "Add a Clamp Helper",
+          "status": "running",
           "reply": "I added clamp next to sum. All 12 tests pass."
         }
       }
@@ -1396,26 +1428,238 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.948511205076482
+        "noul": 0.9211656022941632
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9275290400980732
-      },
-      "claims_finished": {
-        "type": "noul",
-        "noul": 0.3773614028847115
+        "noul": 0.8811170899382451
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.022346552992291997
+        "noul": 0.0076069503755904965
       },
       "invents": {
         "type": "noul",
-        "noul": 0.11888291233560884
+        "noul": 0.11419642296768011
       }
     },
-    "ms": 149.5
+    "ms": 139.7
+  },
+  {
+    "case": "pm replied finished work",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp, and the tests pass.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9708393292744646
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.948511194475045
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.0074370306764847535
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.07247095698361951
+      }
+    },
+    "ms": 291.5
+  },
+  {
+    "case": "pm replied finished work",
+    "take": 2,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp, and the tests pass.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9585585352089054
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9177956402928488
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.007270878189205187
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1053049028049378
+      }
+    },
+    "ms": 225.3
+  },
+  {
+    "case": "pm replied finished work",
+    "take": 3,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp, and the tests pass.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9636565269296388
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8989077567448988
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.011415050351734294
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.10967167522315686
+      }
+    },
+    "ms": 364.3
+  },
+  {
+    "case": "pm replied says done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "Add a Clamp Helper is done: it added clamp, and the tests pass.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9961426701367343
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.4210005897590659
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.633273659131037
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.7313584477611503
+      }
+    },
+    "ms": 135.6
+  },
+  {
+    "case": "pm replied says done",
+    "take": 2,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "Add a Clamp Helper is done: it added clamp, and the tests pass.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9957765365027974
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.27767941409069796
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.48862099125815583
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8039615630983683
+      }
+    },
+    "ms": 247.9
+  },
+  {
+    "case": "pm replied says done",
+    "take": 3,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "Add a Clamp Helper is done: it added clamp, and the tests pass.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255030105182
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.32554981505210323
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.5340899513699621
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8858035742875278
+      }
+    },
+    "ms": 417.3
   },
   {
     "case": "smoke sent_followup",
@@ -1444,7 +1688,8 @@
         "noul": 0.7488660166921972
       }
     },
-    "ms": 106.6
+    "ms": 106.6,
+    "take": 1
   },
   {
     "case": "smoke sent_followup",
@@ -1473,6 +1718,7 @@
         "noul": 0.48862099125815583
       }
     },
-    "ms": 110.0
+    "ms": 110.0,
+    "take": 1
   }
 ]

@@ -104,7 +104,7 @@ class CursorRule(JournalCase):
         self.live(follow)
         self.seam.push(F.reply(12, message="m9", text="Done. I added clamp."), F.done(13, message="m9"))
         follow.tick(0)
-        self.assertEqual(self.lines(follow), ["replied", "done:completed"])
+        self.assertEqual(self.lines(follow), ["replied:running", "done:completed"])
 
     def test_a_done_with_empty_text_carries_only_its_status(self):
         follow = self.follow()
