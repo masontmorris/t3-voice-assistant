@@ -1,5 +1,5 @@
 import { assert, it } from "@effect/vitest";
-import { CommandId, MessageId, ThreadId } from "@t3tools/contracts";
+import { CommandId, MessageId, type RunId, ThreadId } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 import * as Ref from "effect/Ref";
@@ -8,6 +8,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as CommandReceiptStore from "../orchestration-v2/CommandReceiptStore.ts";
 import * as ThreadManagement from "../orchestration-v2/ThreadManagementService.ts";
 import {
+  BeforeInterrupt,
   caller,
   commandIdOf,
   layerTest,
@@ -17,6 +18,7 @@ import {
   Restores,
   seedReceipt,
 } from "./testWriteLayer.ts";
+import type { VoiceInterruptResult } from "./protocol.ts";
 import * as VoiceSeam from "./VoiceSeam.ts";
 
 const sendInput = (requestId: string, threadId: ThreadId, text = "Also add a test") => ({
@@ -51,6 +53,38 @@ const raiseToFullAccess = Effect.fn("test.raiseToFullAccess")(function* (threadI
     runtimeMode: "full-access",
   });
 });
+
+/** Mason stops the active run. `name` keeps each stop its own command. */
+const stopRun = Effect.fn("test.stopRun")(function* (threadId: ThreadId, name = "stop") {
+  const threads = yield* ThreadManagement.ThreadManagementService;
+  yield* threads.interruptThread({
+    projectId: PROJECT,
+    commandId: CommandId.make(`command:${name}:${threadId}`),
+    threadId,
+  });
+});
+
+/** Mason resumes the queue the stop held, so T3 starts the next queued run as a run end would. */
+const resumeQueue = Effect.fn("test.resumeQueue")(function* (threadId: ThreadId) {
+  const threads = yield* ThreadManagement.ThreadManagementService;
+  yield* threads.dispatch({
+    type: "queue.resume",
+    commandId: CommandId.make(`command:resume:${threadId}`),
+    threadId,
+  });
+});
+
+/** The run that carries a voice send's message, if T3 made one. */
+const voiceRunOf = Effect.fn("test.voiceRunOf")(function* (threadId: ThreadId, requestId: string) {
+  const messageId = MessageId.make(yield* commandIdOf("send", requestId));
+  return (yield* recordsOf(threadId)).runs.find((run) => run.userMessageId === messageId);
+});
+
+const codeOf = <A>(effect: Effect.Effect<A, VoiceSeam.VoiceSeamRefusal>) =>
+  effect.pipe(
+    Effect.result,
+    Effect.map((result) => (result._tag === "Failure" ? result.failure.code : "sent")),
+  );
 
 const receiptOf = Effect.fn("test.receiptOf")(function* (
   operation: "send" | "interrupt",
@@ -224,6 +258,140 @@ it.effect("refuses a send whose thread Mason raised above the ceiling after the 
     const records = yield* recordsOf(threadId);
     assert.isFalse(records.messages.some((message) => message.id === MessageId.make(commandId)));
     assert.isTrue(Option.isNone(yield* receiptOf("send", requestId)));
+  }).pipe(Effect.provide(layerTest)),
+);
+
+it.effect(
+  "never starts a voice follow-up above the ceiling after Mason raises its busy thread",
+  () =>
+    Effect.gen(function* () {
+      const seam = yield* VoiceSeam.VoiceSeam;
+      const running = yield* launchThread("01JD5Z7Q8M3N4P5R6S7T8V9X7A");
+      const requestId = "01JD5Z7Q8M3N4P5R6S7T8V9X7B";
+
+      const code = yield* codeOf(seam.send(caller(), sendInput(requestId, running.threadId)));
+      yield* raiseToFullAccess(running.threadId);
+      yield* stopRun(running.threadId);
+      yield* resumeQueue(running.threadId);
+
+      // A queued message would start here, in full-access.
+      assert.include(
+        [undefined, "cancelled"],
+        (yield* voiceRunOf(running.threadId, requestId))?.status,
+      );
+      assert.strictEqual(code, "thread_busy");
+      // Refused before T3 saw it, so a retry once the thread is idle can send.
+      assert.deepStrictEqual(yield* restored, []);
+      assert.isTrue(Option.isNone(yield* receiptOf("send", requestId)));
+    }).pipe(Effect.provide(layerTest)),
+);
+
+it.effect(
+  "cancels a voice follow-up that queued because the thread got busy after the preflight",
+  () =>
+    Effect.gen(function* () {
+      const seam = yield* VoiceSeam.VoiceSeam;
+      const threads = yield* ThreadManagement.ThreadManagementService;
+      const { threadId } = yield* launchThread("01JD5Z7Q8M3N4P5R6S7T8V9X8A");
+      yield* stopRun(threadId, "launch");
+      const requestId = "01JD5Z7Q8M3N4P5R6S7T8V9X8B";
+      // Mason's own message starts a turn after the preflight read the thread as idle.
+      yield* Ref.set(
+        (yield* Restores).during,
+        threads
+          .dispatch({
+            type: "message.dispatch",
+            commandId: CommandId.make("command:mason-sends"),
+            threadId,
+            messageId: MessageId.make("message:mason-sends"),
+            text: "Run the linter",
+            attachments: [],
+            dispatchMode: { type: "start_immediately" },
+            createdBy: "user",
+            creationSource: "web",
+          })
+          .pipe(Effect.orDie, Effect.asVoid),
+      );
+
+      const code = yield* codeOf(seam.send(caller(), sendInput(requestId, threadId)));
+      yield* Ref.set((yield* Restores).during, Effect.void);
+      const retry = yield* codeOf(seam.send(caller(), sendInput(requestId, threadId)));
+      yield* raiseToFullAccess(threadId);
+      yield* stopRun(threadId);
+      yield* resumeQueue(threadId);
+
+      assert.include([undefined, "cancelled"], (yield* voiceRunOf(threadId, requestId))?.status);
+      assert.deepStrictEqual([code, retry], ["thread_busy", "thread_busy"]);
+    }).pipe(Effect.provide(layerTest)),
+);
+
+it.effect("an interrupt that found nothing running never stops a later run on retry", () =>
+  Effect.gen(function* () {
+    const seam = yield* VoiceSeam.VoiceSeam;
+    const { threadId } = yield* launchThread("01JD5Z7Q8M3N4P5R6S7T8V9X9A");
+    yield* stopRun(threadId);
+    const stop = { requestId: "01JD5Z7Q8M3N4P5R6S7T8V9X9B", threadId };
+
+    const idle = yield* seam.interrupt(caller(), stop);
+    const next = yield* seam.send(caller(), sendInput("01JD5Z7Q8M3N4P5R6S7T8V9X9C", threadId));
+    const before = yield* recordsOf(threadId);
+    const retry = yield* seam.interrupt(caller(), stop);
+
+    assert.deepStrictEqual(
+      [idle, retry],
+      [{ kind: "nothing_running" }, { kind: "nothing_running" }],
+    );
+    assert.strictEqual(next.delivery, "started");
+    const after = yield* recordsOf(threadId);
+    assert.deepStrictEqual(
+      after.runs.find((run) => run.id === next.runId),
+      before.runs.find((run) => run.id === next.runId),
+    );
+    assert.isFalse(
+      after.turnItems.some(
+        (item) => item.type === "run_interrupt_request" && item.runId === next.runId,
+      ),
+    );
+  }).pipe(Effect.provide(layerTest)),
+);
+
+it.effect("two copies of one interrupt stop one run, and only one answers requested", () =>
+  Effect.gen(function* () {
+    const seam = yield* VoiceSeam.VoiceSeam;
+    const running = yield* launchThread("01JD5Z7Q8M3N4P5R6S7T8V9XAA");
+    const stop = { requestId: "01JD5Z7Q8M3N4P5R6S7T8V9XAB", threadId: running.threadId };
+    const copies = yield* Ref.make<ReadonlyArray<VoiceInterruptResult>>([]);
+    const nextRun = yield* Ref.make<RunId | null>(null);
+    // The second copy runs in full after the first passed its receipt check, then a new turn starts.
+    yield* Ref.set(
+      yield* BeforeInterrupt,
+      Effect.gen(function* () {
+        const second = yield* seam.interrupt(caller(), stop);
+        yield* Ref.update(copies, (all) => [...all, second]);
+        const next = yield* seam.send(
+          caller(),
+          sendInput("01JD5Z7Q8M3N4P5R6S7T8V9XAC", running.threadId),
+        );
+        yield* Ref.set(nextRun, next.runId);
+      }).pipe(Effect.orDie),
+    );
+
+    const first = yield* seam.interrupt(caller(), stop);
+    const answers = [...(yield* Ref.get(copies)), first];
+    const later = yield* Ref.get(nextRun);
+
+    assert.isNotNull(later);
+    assert.deepStrictEqual(
+      answers.filter((answer) => answer.kind === "requested").map((answer) => answer.runId),
+      [running.runId],
+    );
+    assert.deepInclude(answers, { kind: "nothing_running" });
+    const records = yield* recordsOf(running.threadId);
+    assert.isFalse(
+      records.turnItems.some(
+        (item) => item.type === "run_interrupt_request" && item.runId === later,
+      ),
+    );
   }).pipe(Effect.provide(layerTest)),
 );
 

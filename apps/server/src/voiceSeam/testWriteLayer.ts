@@ -113,6 +113,12 @@ export class Restores extends Context.Service<
   }
 >()("t3/voiceSeam/testWriteLayer/Restores") {}
 
+/** A step a test runs once, inside the next call the seam makes to interruptThread. */
+export class BeforeInterrupt extends Context.Service<
+  BeforeInterrupt,
+  Ref.Ref<Effect.Effect<void>>
+>()("t3/voiceSeam/testWriteLayer/BeforeInterrupt") {}
+
 const layerDatabase = Sqlite.layerMemory;
 const layerOrchestrator = ProviderReplayHarness.layerWithRegistry(
   { name: "voice-writes" },
@@ -173,6 +179,20 @@ const layerThreads = ThreadManagement.layerWithLegacyImporter.pipe(
     ),
   ),
 );
+const layerHookedThreads = Layer.effect(
+  ThreadManagement.ThreadManagementService,
+  Effect.gen(function* () {
+    const real = yield* ThreadManagement.ThreadManagementService;
+    const before = yield* BeforeInterrupt;
+    return {
+      ...real,
+      interruptThread: (input) =>
+        Effect.flatten(Ref.getAndSet(before, Effect.void)).pipe(
+          Effect.andThen(real.interruptThread(input)),
+        ),
+    } satisfies ThreadManagement.ThreadManagementService["Service"];
+  }),
+).pipe(Layer.provide(layerThreads));
 const layerProjects = Layer.mock(ProjectService.ProjectService)({
   getById: (id) => Effect.succeed(Option.fromNullishOr(PROJECTS.get(id))),
 });
@@ -229,7 +249,7 @@ export const layerTest = VoiceSeam.layer.pipe(
   Layer.provideMerge(layerCountedLaunches),
   Layer.provideMerge(
     Layer.mergeAll(
-      layerThreads,
+      layerHookedThreads,
       layerReceipts,
       layerExternal,
       OrchestrationEventStore.layer,
@@ -238,9 +258,10 @@ export const layerTest = VoiceSeam.layer.pipe(
     ),
   ),
   Layer.provideMerge(
-    Layer.merge(
+    Layer.mergeAll(
       Layer.effect(Launched, Ref.make<ReadonlyArray<ThreadLaunch.ThreadLaunchInput>>([])),
       layerRestores,
+      Layer.effect(BeforeInterrupt, Ref.make<Effect.Effect<void>>(Effect.void)),
     ),
   ),
   Layer.provideMerge(Layer.merge(layerDatabase, NodeServices.layer)),
