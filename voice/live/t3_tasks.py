@@ -72,7 +72,7 @@ _WORD = re.compile(r"[a-z']+")
 _QUESTION = re.compile(r"\?|\b(?:what|when|where|which|who|whom|whose|why|how)\b", re.IGNORECASE)
 _OTHER_PROJECT = re.compile(r"\b(?:in|for) (?:the )?other project(?:,? please)?[.! ]*$", re.IGNORECASE)
 YES = frozenset({"yes", "yeah", "yep", "yup", "sure", "ok", "okay", "affirmative", "correct", "right", "exactly"})
-YES_PHRASES = {("do", "it"), ("go", "ahead"), ("that", "one"), ("that's", "it"), ("that's", "right"),
+YES_PHRASES = {("do", "it"), ("please", "do"), ("go", "ahead"), ("that", "one"), ("that's", "it"), ("that's", "right"),
                ("that's", "the", "one")}
 # The words that carry out each op. "stop" refuses a launch or a follow-up, but it is the yes to "Stop the X thread?".
 OP_PHRASES = {START: {("start", "it")}, ASK: set(), TELL: {("send", "it"), ("tell", "it"), ("pass", "it", "on")},
@@ -312,15 +312,14 @@ class T3Tasks:
             names = {p["projectId"]: p["name"] for p in projects}
             hello_seq = (self.follow.seam.hello.latest_sequence,)
             pick = pick_project(instruction, projects)
-            if pick.kind == "one":
-                return self._confirm(Question(key, "confirm", instruction, (pick.project_id,)), names)
-            if pick.kind == "ask":
-                candidates = pick.candidates or tuple(names)
-                self.question = Question(key, "project", instruction, tuple(candidates))
-                return L.Update(key, (which_project(candidates, names),), "needs_clarification", "pick",
-                                sequences=hello_seq)
-            self.question = None
-            return L.Update(key, (act(Say.NO_PROJECT, available=list(names.values())),), "failed", "pick",
+            candidates = (pick.project_id,) if pick.kind == "one" else tuple(pick.candidates or names)
+            if not candidates:
+                self.question = None
+                return L.Update(key, (act(Say.NO_PROJECT),), "failed", "pick", sequences=hello_seq)
+            if len(candidates) == 1:
+                return self._confirm(Question(key, "confirm", instruction, candidates), names)
+            self.question = Question(key, "project", instruction, candidates)
+            return L.Update(key, (which_project(candidates, names),), "needs_clarification", "pick",
                             sequences=hello_seq)
 
     def _confirm(self, question: Question, names: dict[str, str]) -> L.Update:

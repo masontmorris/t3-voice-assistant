@@ -29,7 +29,7 @@ YES = 0.5
 MEANS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "whether to start a new coding thread in {project}",
     Kind.ASK_WHICH: "which one they mean of: {candidates}",
-    Kind.NO_PROJECT: "no project matches what they named, and which projects a thread can start in",
+    Kind.NO_PROJECT: "there is no project to start a thread in",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet",
     Kind.LAUNCHED: "a new coding thread started in {project}",
     Kind.LAUNCH_UNCONFIRMED: "T3 never confirmed that the thread started",

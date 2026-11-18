@@ -98,7 +98,7 @@ class Rule:
 RULES: dict[Kind, Rule] = {
     Kind.CONFIRM_LAUNCH: Rule(("project", "request"), ("project",), True, ("started",)),
     Kind.ASK_WHICH: Rule(("of", "candidates"), ("candidates",), True, ("started", "sent", "stopped")),
-    Kind.NO_PROJECT: Rule(("available",), ("available",)),
+    Kind.NO_PROJECT: Rule(()),
     Kind.LAUNCH_PENDING: Rule(("project",)),
     Kind.LAUNCHED: Rule(("project", "request"), ("project",)),
     Kind.LAUNCH_UNCONFIRMED: Rule(("project",)),

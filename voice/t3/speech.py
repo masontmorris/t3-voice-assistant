@@ -47,8 +47,7 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread for their request in this project. Nothing has "
                          "started yet.",
     Kind.ASK_WHICH: "Ask which of these they mean. Name every candidate.",
-    Kind.NO_PROJECT: "In one sentence, tell them you couldn't find a project matching what they named and name every "
-                     "project in `available` as somewhere you can start a thread.",
+    Kind.NO_PROJECT: "In one sentence, tell them there is no project to start a thread in.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
     Kind.LAUNCHED: "The thread started in this project.",
     Kind.LAUNCH_UNCONFIRMED: "T3 was asked to start the thread but never confirmed it. They can check the app.",
@@ -473,8 +472,7 @@ READER_EXAMPLES = {
                           "Should I start a new coding thread in Example Fleet Notes to make links easier to copy?"),
     Kind.ASK_WHICH: ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"]},
                      "Do you mean Example Lilac Post or Example Daily Routes?"),
-    Kind.NO_PROJECT: ({"available": ["Example Jog Log", "Example Comet Board"]},
-                      "I couldn't match that project, but I can start a thread in Example Jog Log or Example Comet Board."),
+    Kind.NO_PROJECT: ({}, "I don't see a project to start a thread in."),
     Kind.LAUNCH_PENDING: ({"project": "Example Forest Timer"},
                           "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
     Kind.LAUNCHED: ({"project": "Example Dune Tracker", "request": "show the tide table"},

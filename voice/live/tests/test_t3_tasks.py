@@ -138,6 +138,54 @@ class TwinA(unittest.TestCase):
         self.assertEqual(said(t3.answer("Please do.", 1)), [("launched", "Voice sandbox")])
         self.assertEqual(seam.ops("launch")[0][2:], ("p1", request))
 
+    UNLISTED = "Start a thread for a little project that makes game exports cleaner, with long pauses and hedging."
+
+    def test_an_unmatched_project_with_one_available_is_asked_as_a_yes_or_no(self):
+        """The 2026-11-18 call: the request said "project" but named none, and the voice only stated that nothing
+        matched, so the person's "please do" had nothing to answer."""
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        asked = t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertEqual(said(t3.answer("Please do.", 1)), [("launched", "Voice sandbox")])
+        self.assertEqual(seam.ops("launch")[0][2:], ("p1", self.UNLISTED))
+
+    def test_a_no_to_the_only_available_project_starts_nothing(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual(said(t3.answer("No, never mind.", 1)), [("cancelled", "start")])
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertIsNone(t3.question)
+
+    def test_an_unrelated_reply_to_the_only_available_project_asks_once_more_then_drops_it(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        t3.start("k1", self.UNLISTED, 0)
+        again = t3.answer("What's the weather like?", 1)
+        self.assertEqual((said(again), again.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
+        self.assertEqual(said(t3.answer("Hmm, I'm not sure.", 2)), [("cancelled", "start")])
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_an_unmatched_project_with_several_available_asks_which_and_the_answer_is_confirmed(self):
+        seam = F.FakeSeam(projects=TWO_PROJECTS)
+        t3 = tasks_over(self, seam)
+        asked = t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual((said(asked), asked.status),
+                         ([("ask_which", ["Voice sandbox", "Voice server"])], "needs_clarification"))
+        self.assertEqual(said(t3.answer("The voice server.", 1)), [("confirm_launch", "Voice server")])
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertEqual(said(t3.answer("Yes.", 2)), [("launched", "Voice server")])
+        self.assertEqual(seam.ops("launch")[0][2:], ("p2", self.UNLISTED))
+
+    def test_an_unmatched_project_with_none_available_says_so_and_waits_for_nothing(self):
+        t3 = tasks_over(self, F.FakeSeam(projects=()))
+        update = t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual(([a.kind.value for a in update.acts], update.status), (["no_project"], "failed"))
+        self.assertEqual(update.acts[0].slots, {})
+        self.assertIsNone(t3.question)
+
     def test_a_lone_match_is_asked_back_before_any_launch(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
@@ -923,6 +971,8 @@ class ReplyWords(unittest.TestCase):
             "sure, go ahead": "yes",
             "yes please": "yes",
             "please": "yes",
+            "please do": "yes",
+            "Please do?": None,
             "do it": "yes",
             "start it": "yes",
             "go ahead": "yes",
