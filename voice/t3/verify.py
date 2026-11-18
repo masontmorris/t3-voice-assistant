@@ -89,7 +89,7 @@ class Ask:
     want: bool
 
     def problem(self) -> str:
-        return f"the decider found the line {'does not' if self.want else 'does'} pass: {self.question}"
+        return f"a checker answered {'no' if self.want else 'yes'} to: {self.question}"
 
 
 @dataclass(frozen=True)

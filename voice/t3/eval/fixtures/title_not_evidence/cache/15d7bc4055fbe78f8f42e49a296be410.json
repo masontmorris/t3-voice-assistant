@@ -1,15 +1,15 @@
 {
-  "text": "The thread's last reply says there's no shell in this mode, so it will use the direct file tools.",
-  "ms": 625,
+  "text": "The last reply said there's no shell in this mode, so it would use the direct file tools.",
+  "ms": 413,
   "model": "particle-ai/particle-1:free",
   "usage": {
-    "prompt_tokens": 309,
-    "completion_tokens": 24,
-    "total_tokens": 333,
+    "prompt_tokens": 325,
+    "completion_tokens": 22,
+    "total_tokens": 347,
     "cost": 0,
     "is_byok": false,
     "prompt_tokens_details": {
-      "cached_tokens": 256,
+      "cached_tokens": 0,
       "cache_write_tokens": 0,
       "audio_tokens": 0,
       "video_tokens": 0
@@ -27,9 +27,9 @@
   },
   "tokens": {
     "reasoning_tokens": 0,
-    "content_tokens": 24,
-    "prompt_tokens": 309,
-    "completion_tokens": 24
+    "content_tokens": 22,
+    "prompt_tokens": 325,
+    "completion_tokens": 22
   },
   "finish_reason": "stop"
 }

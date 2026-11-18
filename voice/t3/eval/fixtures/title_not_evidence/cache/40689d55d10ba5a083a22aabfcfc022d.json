@@ -1,11 +1,11 @@
 {
-  "text": "Fix failing tests is finished. Its last reply says there's no shell in this mode, so it will use the direct file tools.",
-  "ms": 359,
+  "text": "The last reply said: Okay, on it.",
+  "ms": 1318,
   "model": "particle-ai/particle-1:free",
   "usage": {
-    "prompt_tokens": 518,
-    "completion_tokens": 28,
-    "total_tokens": 546,
+    "prompt_tokens": 319,
+    "completion_tokens": 11,
+    "total_tokens": 330,
     "cost": 0,
     "is_byok": false,
     "prompt_tokens_details": {
@@ -27,9 +27,9 @@
   },
   "tokens": {
     "reasoning_tokens": 0,
-    "content_tokens": 28,
-    "prompt_tokens": 518,
-    "completion_tokens": 28
+    "content_tokens": 11,
+    "prompt_tokens": 319,
+    "completion_tokens": 11
   },
   "finish_reason": "stop"
 }

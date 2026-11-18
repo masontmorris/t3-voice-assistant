@@ -103,8 +103,9 @@ SUMMARY_SYSTEM = (
     "only what the records say: no guesses, no advice, no file paths or code unless asked. Do not say whether the "
     "thread is running, finished, failed or stopped, because the assistant says that separately. The thread's name "
     "is only a name, not evidence of what was done: never say the thread did what its name says unless the last "
-    "reply says it. If the records do not answer the question, say what they do show. Only when last_reply is "
-    "null, say it has not replied yet, or what it is waiting on. Reply with the gist only."
+    "reply says it. If the records do not answer the question, say what they do show. When the run has ended, "
+    "say what its last reply said, not what it is doing now. When last_reply is null, say what it waits on, from "
+    "status and pending. Reply with the gist only."
 )
 TITLE_KEY = "name (only a name, not evidence of what was done)"
 
