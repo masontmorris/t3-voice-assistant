@@ -1,4 +1,5 @@
 import {
+  CommandId,
   MessageId,
   NonNegativeInt,
   OrchestrationV2RunStatus,
@@ -171,6 +172,21 @@ export const VoiceEvent = Schema.Union([
 
 const WatchStarted = Schema.Struct({ threadId: ThreadId });
 
+export const VoiceLaunchResult = Schema.Struct({
+  threadId: ThreadId,
+  /** The run the launch's first message started, which a watch can anchor on. */
+  runId: Schema.NullOr(RunId),
+  /** What the thread started with, after the clamp. */
+  runtimeMode: RuntimeMode,
+  /** The model's display name, for "started on Opus". */
+  model: Schema.String,
+  /** A fresh launch: its last accepted write. A replay: the thread's sequence now. */
+  sequence: Sequence,
+  /** True when the request id had already launched. Python reads before it watches. */
+  replayed: Schema.Boolean,
+}).annotate({ identifier: "VoiceLaunchResult" });
+export type VoiceLaunchResult = typeof VoiceLaunchResult.Type;
+
 /** Each op, its input, and the value an accepted request answers with. */
 export const REQUESTS = {
   list_threads: {
@@ -199,7 +215,7 @@ export const REQUESTS = {
       projectId: ProjectId,
       instruction: TrimmedNonEmptyString,
     }),
-    output: Schema.Never,
+    output: VoiceLaunchResult,
   },
   send: {
     input: Schema.Struct({
@@ -256,10 +272,16 @@ export const ResultErrorFrame = Schema.Struct({
     code: RefusalCode,
     /** Short text the voice may speak. Never built from a cause. */
     message: Schema.String,
+    /** For "refused" only: T3's recorded rejection, cut to 200 characters. */
+    reason: Schema.optionalKey(Schema.String),
+    /** For "refused" only: the command whose receipt was read. */
+    commandId: Schema.optionalKey(CommandId),
+    /** For "refused" after an accepted launch: the thread that exists although its first message was refused. */
+    threadId: Schema.optionalKey(ThreadId),
   }),
 });
 
-/** An accepted request's answer. Launch, send and interrupt never answer ok until units 5 and 6. */
+/** An accepted request's answer. Send and interrupt never answer ok until unit 6. */
 export const resultFrame = <Op extends WireOp>(op: Op) =>
   Schema.Struct({
     type: Schema.Literal("result"),

@@ -127,7 +127,13 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
         type: "result",
         id,
         ok: false,
-        error: { code: refusal.code, message: refusal.message },
+        error: {
+          code: refusal.code,
+          message: refusal.message,
+          ...(refusal.reason === undefined ? {} : { reason: refusal.reason }),
+          ...(refusal.commandId === undefined ? {} : { commandId: refusal.commandId }),
+          ...(refusal.threadId === undefined ? {} : { threadId: refusal.threadId }),
+        },
       }),
     );
 
@@ -147,8 +153,8 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
         : encodeEvent({ type: "event", event: item }),
     );
 
-  // Units 5 and 6 replace these. The operations check still answers first.
-  const notBuilt = (operation: "launch" | "send" | "interrupt") => () =>
+  // Unit 6 replaces these. The operations check still answers first.
+  const notBuilt = (operation: "send" | "interrupt") => () =>
     VoiceSeam.requireOperation(caller, operation).pipe(
       Effect.andThen(Effect.fail(VoiceSeam.VoiceSeamRefusal.notBuilt())),
     );
@@ -177,7 +183,7 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     }),
     unwatch: (request) =>
       stopWatch(request.threadId).pipe(Effect.as({ threadId: request.threadId })),
-    launch: notBuilt("launch"),
+    launch: (request) => seam.launch(caller, request),
     send: notBuilt("send"),
     interrupt: notBuilt("interrupt"),
   };

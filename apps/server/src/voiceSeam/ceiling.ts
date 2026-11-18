@@ -9,6 +9,8 @@ import * as Effect from "effect/Effect";
 import * as FileSystem from "effect/FileSystem";
 import * as Schema from "effect/Schema";
 
+import { runtimeModeRank } from "../mcp/delegatedTaskModes.ts";
+
 export const VOICE_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt"] as const;
 export const VoiceOperation = Schema.Literals(VOICE_OPERATIONS);
 export type VoiceOperation = typeof VoiceOperation.Type;
@@ -74,3 +76,29 @@ export const allowsOperation = (config: VoiceSeamConfig, operation: VoiceOperati
 
 export const allowsProject = (config: VoiceSeamConfig, projectId: ProjectId) =>
   config.projects.some((project) => project.projectId === projectId);
+
+/**
+ * The mode a voice launch starts at: the project's default, lowered to the ceiling, then stepped
+ * down to the broadest mode the provider offers. This is what `t3_thread_launch` picks for a
+ * caller whose limit is the ceiling and who asks for no mode.
+ */
+export const clampRuntimeMode = (input: {
+  readonly ceiling: RuntimeMode;
+  readonly requested: RuntimeMode;
+  readonly supported: ReadonlyArray<RuntimeMode> | undefined;
+}): RuntimeMode => {
+  const capped =
+    runtimeModeRank(input.requested) > runtimeModeRank(input.ceiling)
+      ? input.ceiling
+      : input.requested;
+  const { supported } = input;
+  if (supported === undefined || supported.length === 0 || supported.includes(capped)) {
+    return capped;
+  }
+  return (
+    supported
+      .filter((mode) => runtimeModeRank(mode) <= runtimeModeRank(capped))
+      .toSorted((left, right) => runtimeModeRank(right) - runtimeModeRank(left))[0] ??
+    "approval-required"
+  );
+};
