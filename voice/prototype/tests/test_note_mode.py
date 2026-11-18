@@ -317,66 +317,57 @@ class MayChooseTest(unittest.TestCase):
         self.assertFalse(prototype.may_choose("What's the weather in Boston?", []))
 
 
-RUN2 = "Start a thread that adds a hello function in the sandbox project"
-THREAD_SAID = ("It said: The project has a single math module. I will add a clamp helper beside sum.",
-               "It said: Done. I added clamp next to sum and the tests pass.", "It finished.")
-# Integrated run 2 (2026-11-18): each T3 line the voice was handed, what it said, and whether that was faithful, as a
-# person read them against the turn records.
-RECORDED = (
-    (("Start it in Voice sandbox?",), "I can't start a thread in the Sandbox project.", (), False),
-    (("Started a thread in Voice sandbox.", "It's working on it."),
-     "Start a thread in the Voice sandbox to add a hello function.", (), True),
-    (("It's working on it.",), "I've started the thread in the Voice sandbox to add the hello function.",
-     ("Started a thread in Voice sandbox.",), True),
-    (THREAD_SAID, "I added the clamp helper next to sum in the math module and the tests pass.", (), False),
-    ((f"Do you mean the {RUN2} thread?",), "The thread to add the hello function in the sandbox project is active "
-                                            "and complete.", (), False),
-    ((f"{RUN2} finished. Its last reply said: Done. I added clamp next to sum and the tests pass.",),
-     "The thread to add the hello function in the sandbox project is finished. It added the clamp helper next to sum "
-     "and the tests pass.", (), True),
-    ((f"Tell the {RUN2} thread to also add a test?",),
-     "I need to add a test to the thread that adds the hello function in the sandbox project.", (), False),
-    (("I've passed that on.", "It's working on it."),
-     "I've added a test to the thread that adds the hello function in the sandbox project.", (), False),
-    (("I've passed that on.", "It's working on it."),
-     "The thread to add the hello function in the sandbox project is working on it.", (), True),
-    ((f"Stop the {RUN2} thread?",), "I've stopped the thread that adds the hello function in the sandbox project.",
-     (), False),
-    (THREAD_SAID, "The project has a single math module. I added the clamp helper beside sum.", (), False),
-    (("It isn't running anything right now.",),
-     "The thread that adds the clamp helper beside sum in the math module is not running anything right now.", (),
-     True),
-)
+
+class SayVerbatimTest(NoteTurn):
+    """Integrated runs 2 and 3 (2026-11-18): handed a T3 line to word, LFM3 said "I've stopped the thread" for "Stop
+    the X thread?" and made up quotes from the thread. A T3 line is now spoken as it is."""
+
+    async def test_a_t3_line_is_spoken_word_for_word_and_the_model_is_not_asked(self):
+        spoken, rendered = [], []
+
+        def render(text, rate):
+            rendered.append((text, rate))
+            return b"\x01\x00" * 480
+
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("Stop the clamp helper thread?",),
+                                                  lambda kind, **detail: None, heard_by(spoken), render)
+        self.assertEqual((spoken, rendered), (["Stop the clamp helper thread?"], [("Stop the clamp helper thread?",
+                                                                                   24_000)]))
+        self.assertEqual((reply["text"], len(pcm)), ("Stop the clamp helper thread?", 960))
+        self.assertFalse([e for e in self.voice.sent if e.get("type") == "response.create"], "LFM3 words nothing")
+        self.assertEqual(texts(self.voice), [prototype.NOTE_OPEN + "you just told them this, in T3's words: "
+                                                                   '"Stop the clamp helper thread?"]'])
+
+    async def test_a_failed_render_says_the_line_in_the_record_and_plays_nothing(self):
+        spoken = []
+
+        def render(text, rate):
+            raise OSError("no TTS")
+
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("It finished.",),
+                                                  lambda kind, **detail: None, heard_by(spoken), render)
+        self.assertEqual((reply["text"], pcm, spoken), ("It finished.", b"", []))
+
+    def test_a_t3_line_gets_no_note_for_the_model(self):
+        self.assertIsNone(prototype.task_note({"spoken": "Stop the clamp helper thread?", "status": "completed"}))
+        self.assertIsNone(prototype.task_notes([{"spoken": "It finished.", "status": "completed"}]))
 
 
-class T3FaithfulTest(unittest.TestCase):
-    def test_each_recorded_reply_is_judged_as_the_person_who_read_it_did(self):
-        for lines, reply, known, faithful in RECORDED:
-            with self.subTest(reply=reply):
-                self.assertEqual(not prototype.unfaithful(reply, lines, True, known), faithful)
+class T3SnapshotService(MockTaskService):
+    """The task service with one T3 line in its snapshot, as T3TaskService gives it."""
 
-    def test_a_question_is_held_until_it_is_whole_and_must_ask(self):
-        line = ("Stop the clamp helper thread?",)
-        self.assertTrue(prototype.unfaithful("Stop the clamp", line, final=False), "no audio until it is whole")
-        self.assertEqual(prototype.unfaithful("Should I stop the clamp helper thread?", line), [])
-
-    def test_the_note_asks_a_t3_question_and_reports_a_t3_report(self):
-        asked = prototype.task_note({"spoken": "Stop the clamp helper thread?", "asks": True})
-        told = prototype.task_note({"spoken": "It said: Done. I added clamp.", "status": "completed"})
-        self.assertIn('ask them this question, in these words: "Stop the clamp helper thread?"', asked)
-        self.assertIn('"It said: Done. I added clamp."', told)
-        self.assertIn("the thread's own words, not yours", told)
+    def snapshot(self, *args, **kwargs):
+        snapshot = super().snapshot(*args, **kwargs)
+        snapshot["tasks"].append({"task_id": "t3_1", "description": "a T3 thread", "status": "completed",
+                                  "spoken": "Stop the clamp helper thread?",
+                                  "evidence": {"thread_id": "t5", "sequences": [150]}})
+        return snapshot
 
 
-class T3RetryTest(NoteTurn):
-    async def test_a_misreported_t3_line_is_not_spoken_and_is_asked_again_in_its_own_words(self):
-        line = ("Stop the clamp helper thread?",)
-        self.voice.script, spoken = ["I've stopped the clamp helper thread.", "Stop the clamp helper thread?"], []
-        await prototype.answer(
-            self.voice, 24_000, 0.0, ["Stop that thread."], lambda kind, **detail: None, speak=heard_by(spoken),
-            last_ask=True, t3_lines=line,
-            retry_item=lambda found, repeats=False: prototype.plain_text(prototype.retry_note(found, False, repeats,
-                                                                                               line)))
-        self.assertEqual(spoken, ["Stop the clamp helper thread?"], "the false 'I've stopped' never played")
-        note, = texts(self.voice)
-        self.assertIn('Say only this, in these words: "Stop the clamp helper thread?"', note)
+class T3TurnTest(NoteTurn):
+    async def test_a_turn_with_only_a_t3_line_speaks_it_and_asks_the_model_nothing(self):
+        record = await self.turn(["I've stopped the clamp helper thread."], task_service=T3SnapshotService,
+                                 t3_voice=lambda text, rate: bytes(960))
+        self.assertEqual(self.spoken, ["Stop the clamp helper thread?"])
+        self.assertEqual(self.voice.asked, 0, "the model never words a T3 line")
+        self.assertEqual([r["kind"] for r in record["replies"]], ["t3"])

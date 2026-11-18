@@ -65,6 +65,7 @@ from pathlib import Path
 import numpy as np
 
 from voice.live.facts import asks_to_choose, names_machinery, speaks_of_person, ungrounded
+from voice.live.fallback import pcm as line_pcm, wav as line_wav
 from voice.live.overlap import transcribe as overlap_transcribe
 from voice.live.recall import recall_note
 from voice.local_decider.client import decider as make_decider, default_decider
@@ -247,14 +248,11 @@ async def respond(session, rate, since, **response):
     return reply_summary(session, mark, since, rate)
 
 
-def retry_note(found, running, repeats=False, t3_lines=()):
+def retry_note(found, running, repeats=False):
     """The note a refused reply is answered with. A reply that stated values nothing gave it is told which, because
     asked again with a general note the model repeated the same sentence (measured: callfix3 replay fix1, turn 2). A
     reply that only said what the assistant already said is told that instead: naming no value would leave the model
-    with nothing to change. A reply that misreported T3 is given T3's lines again, to say as they are."""
-    if found.get("unfaithful") and t3_lines:
-        return (f"{NOTE_OPEN}your last reply was not spoken, because it did not say what T3 said. Say only this, in "
-                f"these words: \"{' '.join(t3_lines)}\"]")
+    with nothing to change."""
     if running:
         return STILL_RUNNING_NOTE
     values = [fact.split(" ", 1)[1] for fact in found.get("ungrounded", ())]
@@ -282,13 +280,9 @@ def task_note(entry):
     thing to answer. Measured on Mason's recorded turns: a bare status line was read aloud, and this wording was
     not. A task that is pending or needs clarification gets no note, so the model answers the person's own words,
     unless the task names what it is waiting for: then the note asks them for it, and the next turn's answer
-    completes the task (`MockTaskService.answer`)."""
-    if entry.get("spoken") and entry.get("asks"):
-        return (f"{NOTE_OPEN}ask them this question, in these words: \"{entry['spoken']}\" Ask only that, and wait "
-                "for their answer.]")
+    completes the task (`MockTaskService.answer`). A T3 line gets no note: it is spoken word for word (`say_verbatim`)."""
     if entry.get("spoken"):
-        return (f"{NOTE_OPEN}T3 reported this about their thread: \"{entry['spoken']}\" Tell them that in these "
-                "words. What follows \"It said\" is the thread's own words, not yours.]")
+        return None
     status, name = entry["status"], lookup_name(entry)
     if status == "running":
         return f"{NOTE_OPEN}{name} is running and has no answer yet. Tell them you're checking, in a few words.]"
@@ -387,53 +381,12 @@ STREAM_EVENTS = ("response.output_text.delta", "response.output_audio.delta", "r
 RESPONSE_KEYS = ("text", "passed", "heard", "releases", "screened_against")
 
 
-# Words that say work was done. A reply about a T3 thread may use one only when a T3 line it was given does.
-T3_CLAIMS = frozenset("added asked changed completed created deleted done finished fixed interrupted launched made "
-                      "passed removed sent started stopped told updated wrote written cancelled canceled".split())
-FIRST_PERSON = frozenset({"i", "i've", "ive", "i'll", "we", "we've"})
-QUOTED = re.compile(r"\b(?:it|its last reply) said:.*", re.IGNORECASE)
-CLAIM_WORD = re.compile(r"[a-z']+")
-
-
-def unfaithful(text, t3_lines, final=True, known=()):
-    """Why a reply misreports the T3 lines it was given, or []. The voice said "I've stopped the thread" when T3 had
-    only asked "Stop the X thread?", "I've added a test" for "I've passed that on.", and "I added the clamp helper"
-    for the thread's own "It said: ... I added clamp" (measured: integrated run 2, turns 8, 7 and 3).
-
-    A line that asks must be asked: the reply is held until it is whole and must ask too. A claim word must be in a
-    line, and one the reply makes as "I" must be in the voice's own words, outside what the thread said. `known` is
-    what T3 said earlier in the turn, which a claim may cite and which this reply need not ask again."""
-    if not t3_lines:
-        return []
-    words = CLAIM_WORD.findall((text or "").lower().replace("’", "'"))
-    every = (*t3_lines, *known)
-    given = set(CLAIM_WORD.findall(" ".join(every).lower()))
-    own = set(CLAIM_WORD.findall(" ".join(QUOTED.sub("", line) for line in every).lower()))
-    why = []
-    for i, word in enumerate(words):
-        if word not in T3_CLAIMS:
-            continue
-        if word not in given:
-            why.append(f"says {word}, which T3 did not")
-        elif FIRST_PERSON & set(words[max(0, i - 2):i]) and word not in own:
-            why.append(f"says I {word}, which the thread said")
-    if any(line.rstrip().endswith("?") for line in t3_lines):
-        if not final:
-            why.append("a question is held until it is whole")
-        elif "?" not in (text or ""):
-            why.append("does not ask what T3 asked")
-    return why
-
-
-def screened(text, sources, running=False, heard="", final=True, previous=(), choose=False, t3_lines=(),
-             t3_known=()):
-    """Why `text` may not be released, by screen: `refused`, `repeated` against `previous`, `restated` for a
-    continuation that opens with the words the person already heard, and `unfaithful` to the T3 lines it was given.
-    With `choose`, a place is the person's choice when it is the only objection. Mid-reply (`final` False), text that
-    could still turn into a repeat or into the heard opening is held."""
+def screened(text, sources, running=False, heard="", final=True, previous=(), choose=False):
+    """Why `text` may not be released, by screen: `refused`, `repeated` against `previous`, and `restated` for a
+    continuation that opens with the words the person already heard. With `choose`, a place is the person's choice
+    when it is the only objection. Mid-reply (`final` False), text that could still turn into a repeat or into the
+    heard opening is held."""
     found = refused(text, sources, running)
-    if t3_lines and (misreported := unfaithful(text, t3_lines, final, t3_known)):
-        found["unfaithful"] = misreported
     if choose and place_only(found):
         found["ungrounded"] = []
     if previous and (repeated(text, previous) if final else may_repeat(text, previous)):
@@ -560,8 +513,7 @@ def by_ear(url, rate):
 
 
 async def answer(session, rate, since, sources, log, fallback=None, running=False, retry_item=None, escalate=None,
-                 speak=None, previous=(), asked_to_choose=False, last_ask=False, transcribe=None, t3_lines=(),
-                 t3_known=(), **response):
+                 speak=None, previous=(), asked_to_choose=False, last_ask=False, transcribe=None, **response):
     """A reply that states only facts the call gave it, never names the machinery, and is not one it already said,
     released to `speak` while it is generated.
 
@@ -580,9 +532,6 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     weather for."). A reply whose only ungrounded value is the place it chose is then spoken, and the place comes back
     on `established` so the call's later turns may name it: measured on the 2026-11-16 call, turns 25, 27 and 28, the
     screen refused the chosen city on every turn and two of them went silent.
-
-    `t3_lines` are the T3 lines the reply was handed, and `t3_known` what T3 said earlier in the turn. A reply that
-    misreports them is refused (`unfaithful`).
 
     `previous` is what the assistant has already said in this call. A reply that repeats one of those lines word for
     word, or that opens with the line just said, is asked again with `REPEAT_NOTE`; while its start could still be
@@ -607,8 +556,7 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     spoken = Spoken(speak, session.clock)
 
     def check(text, heard="", final=True, repeats=True):
-        return screened(text, sources, running, heard, final, previous if repeats else (), asked_to_choose,
-                        t3_lines, t3_known)
+        return screened(text, sources, running, heard, final, previous if repeats else (), asked_to_choose)
 
     async def ask(heard="", repeats=True):
         gate = Release(lambda text, final: not any(check(text, heard, final, repeats).values()), spoken.add)
@@ -683,22 +631,46 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
     return done(retry, responses, blocked=blocked, fallback=True)
 
 
-async def speak_note(session, rate, since, note, sources, log, speak=None, transcribe=None, previous=(), t3_lines=(),
-                     t3_known=(), **response):
-    """`note` goes in the session and the reply it asks for is spoken, screened against `sources` and the note itself,
-    and against the T3 lines the note carries. A task update takes this path at the end of a turn, and the live
-    server's thread news takes it between turns. Returns the item's answer, the reply, and its audio."""
+async def speak_note(session, rate, since, note, sources, log, speak=None, transcribe=None, previous=(), **response):
+    """`note` goes in the session and the reply it asks for is spoken, screened against `sources` and the note itself.
+    A task update takes this path at the end of a turn. Returns the item's answer, the reply, and its audio."""
     item = await create_item(session, plain_text(note))
     reply, pcm = await answer(
         session, rate, since, [*sources, note], log, speak=speak, transcribe=transcribe, previous=previous,
-        last_ask=True, t3_lines=t3_lines, t3_known=t3_known,
-        retry_item=lambda found, repeats=False: plain_text(retry_note(found, False, repeats, t3_lines)), **response)
+        last_ask=True, retry_item=lambda found, repeats=False: plain_text(retry_note(found, False, repeats)),
+        **response)
     return item, reply, pcm
 
 
 def t3_lines_of(entries):
-    """The T3 lines in a turn's snapshot tasks or task updates, which its reply must report faithfully."""
+    """The T3 lines in a turn's snapshot tasks or task updates."""
     return tuple(entry["spoken"] for entry in entries or () if entry.get("spoken"))
+
+
+def tts_line(url):
+    """`render(text, rate)` for `say_verbatim`: the line through the running llama-server's TTS, cached by its text."""
+    base = url.replace("ws://", "http://").split("/v1/")[0]
+    return lambda text, rate: line_pcm(line_wav(base, text), rate)
+
+
+async def say_verbatim(session, rate, since, lines, log, speak=None, render=None):
+    """T3's own lines, spoken word for word in the server's TTS voice. LFM3 does not word them: handed one to say, it
+    turned "Stop the X thread?" into "I've stopped the thread", "I've passed that on." into "I've added a test", and
+    then made up quotes from the thread (measured: integrated runs 2 and 3, 2026-11-18). The session gets a note of
+    what was said, so later turns hear it as said. Returns the reply and its audio; no audio when the TTS fails."""
+    text = " ".join(lines)
+    try:
+        pcm = await asyncio.to_thread(render, text, rate) if render is not None else b""
+    except Exception as exc:
+        log("t3_voice_failed", error=repr(exc))
+        pcm = b""
+    if speak is not None and pcm:
+        speak(text, pcm, True)
+    reply = fixed_reply(text, pcm, rate, session.clock() - since)
+    reply["item"] = await create_item(session, plain_text(f"{NOTE_OPEN}you just told them this, in T3's words: "
+                                                          f"\"{text}\"]"))
+    log("t3_said", text=text, audio_s=round(reply["speech_s"], 3))
+    return reply, pcm
 
 
 def fixed_reply(line, pcm, rate, after_s):
@@ -879,7 +851,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
                    recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=(),
-                   task_service=None):
+                   task_service=None, t3_voice=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -919,6 +891,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     `prior_replies` is what the assistant already said in this call, which a reply must not repeat word for word, and
     `established` is every place an earlier turn chose at the person's request, which this turn may name.
 
+    A T3 line in the snapshot or an update is spoken word for word through `t3_voice(text, rate)`, the server's TTS
+    by default (`say_verbatim`), and the voice model is asked only about the rest.
+
     `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
     the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
@@ -929,6 +904,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     they said (`MockTaskService.answer`), and the decider is asked nothing: the turn answers the assistant's own
     question, so it is not a new decision."""
     t0 = time.perf_counter()
+    t3_voice = t3_voice or tts_line(url)
 
     def clock():
         return time.perf_counter() - t0
@@ -1132,6 +1108,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if note is not None:
                 injection.append(await create_item(voice, plain_text(note)))
                 log("recall_note", note=note)
+            t3_said = t3_lines_of(answered["tasks"]) if noted else ()
             if noted:
                 asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
                 item = ASK_NOTE if asks else task_notes(answered["tasks"])
@@ -1153,14 +1130,21 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     log("service", **event)
                 return STILL_RUNNING_NOTE if events else None
 
-            if noted:
+            if t3_said:
+                t3_reply, t3_pcm = await say_verbatim(voice, out_rate, audio_end, t3_said, log, speak, t3_voice)
+                replies.append({"kind": "t3", **t3_reply})
+                log("reply", reply="t3", text=t3_reply["text"])
+                if t3_pcm:
+                    write_pcm16(out / f"{stem}_t3.wav", t3_pcm, out_rate)
+            if t3_said and item is None:
+                reply = None
+            elif noted:
                 running = is_running(answered)
-                t3_said = t3_lines_of(answered["tasks"])
                 reply, reply_pcm = await answer(
                     voice, out_rate, audio_end, sources, log, running=running, escalate=look_up, speak=speak,
                     transcribe=hear,
-                    previous=prior_replies, asked_to_choose=choosing, last_ask=True, t3_lines=t3_said,
-                    retry_item=lambda found, repeats=False: plain_text(retry_note(found, running, repeats, t3_said)))
+                    previous=prior_replies, asked_to_choose=choosing, last_ask=True,
+                    retry_item=lambda found, repeats=False: plain_text(retry_note(found, running, repeats)))
             elif service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
                 if speak is not None and reply_pcm:
@@ -1170,12 +1154,13 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                                                 running=is_running(answered), speak=speak, transcribe=hear,
                                                 previous=prior_replies,
                                                 asked_to_choose=choosing)
-            picked.extend(reply.get("established", ()))
-            given.extend(reply.get("established", ()))
-            replies.append({"kind": "snapshot", **reply})
-            log("reply", reply="snapshot", text=reply["text"])
-            if reply_pcm:
-                write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+            if reply is not None:
+                picked.extend(reply.get("established", ()))
+                given.extend(reply.get("established", ()))
+                replies.append({"kind": "snapshot", **reply})
+                log("reply", reply="snapshot", text=reply["text"])
+                if reply_pcm:
+                    write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
         elif (item := shown(snapshot, snapshot_mode, adapter.text())) is None:
             pass
         elif inject == "a":
@@ -1212,6 +1197,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 log("service", task_id=task_id, event=service.executions[task_id].state.value)
         task_updates = service.take_updates()
         updates = shown({"updates": task_updates}, snapshot_mode, adapter.text(), update=True) if task_updates else None
+        t3_news = t3_lines_of(task_updates) if snapshot_mode == "note" else ()
+        if t3_news:
+            log("task_updates", updates=task_updates)
+            news_reply, news_pcm = await say_verbatim(voice, out_rate, clock(), t3_news, log, speak, t3_voice)
+            replies.append({"kind": "t3_update", **news_reply})
+            log("reply", reply="t3_update", text=news_reply["text"])
+            if news_pcm:
+                write_pcm16(out / f"{stem}_t3_update.wav", news_pcm, out_rate)
         if snapshot_mode == "note" and task_updates:
             updates = task_notes(service.update_entries(task_updates))
         if updates is not None:
@@ -1221,8 +1214,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if snapshot_mode == "note":
                 injection_update, update_reply, update_pcm = await speak_note(
                     voice, out_rate, boundary, updates, [adapter.text(), *prior_utterances, *given], log,
-                    speak=speak, transcribe=hear, previous=said, t3_lines=t3_lines_of(task_updates),
-                    t3_known=t3_lines_of((answered or {}).get("tasks")), **extra)
+                    speak=speak, transcribe=hear, previous=said, **extra)
             else:
                 injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
                 update_reply, update_pcm = await answer(voice, out_rate, boundary,
@@ -1249,7 +1241,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     final_t = next(e["t"] for e in timeline if e["kind"] == "transcript_update" and e["is_final"])
     snapshot_t = next(e["t"] for e in timeline if e["kind"] == "snapshot")
     first_audio = next((r["first_audio_after_s"] for r in replies
-                        if r["kind"] != "update" and r["first_audio_after_s"] is not None), None)
+                        if r["kind"] not in ("update", "t3_update") and r["first_audio_after_s"] is not None), None)
     return {
         "clip": source.name, "eou": eou, "inject": inject, "segmenter": segmenter_name, "status_only": status_only,
         "delay_s": delay_s, "audio_s": audio_s,

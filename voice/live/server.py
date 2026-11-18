@@ -81,10 +81,10 @@ retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_
 
 With --t3 on, news from a T3 thread the voice started or sent to (it is working, its reply, it finished) is spoken
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
-speaking, and IDLE_GRACE_S since the last of them. The turn takes the path a turn's own task update takes
-(`speak_note`), so the client ducks it, a barge-in stops it, and its record names each line's evidence sequences. A
-burst within COALESCE_S is one turn with one note per update. A line taken just before the person started talking,
-and not yet heard, goes back to wait for the next quiet moment.
+speaking, and IDLE_GRACE_S since the last of them. Its lines are T3's own, spoken word for word in the server's
+voice (`say_verbatim`), as every T3 line is, on the reply path, so the client ducks them, a barge-in stops them, and
+the record names each line's evidence sequences. A burst within COALESCE_S is one turn, one line per update. A line
+taken just before the person started talking, and not yet heard, goes back to wait for the next quiet moment.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
@@ -124,8 +124,8 @@ from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, clas
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
-                                 heard_prefix, interrupted_note, plain_text, run_clip, speak_note, t3_lines_of,
-                                 task_notes)
+                                 heard_prefix, interrupted_note, plain_text, run_clip, say_verbatim, t3_lines_of,
+                                 tts_line)
 from voice.live.ledger import ConversationLedger
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, default_journal, default_model, \
     default_origin, default_token_file, update_entry
@@ -779,7 +779,7 @@ class Conversation:
                                     prior_results=tuple(self.ledger.results()),
                                     prior_replies=tuple(self.ledger.replies()),
                                     established=tuple(self.ledger.established()),
-                                    task_service=live.task_service)
+                                    task_service=live.task_service, t3_voice=live.t3_voice)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -807,8 +807,8 @@ class Conversation:
         print(f"{turn.name} {json.dumps(done['metrics'])}", flush=True)
 
     async def run_idle(self, turn, prior):
-        """Speaks `turn.updates` through `speak_note`, the path a turn's own task update takes. A turn muted before any
-        of its audio went out gives its updates back, so the news waits for the next quiet moment."""
+        """Speaks `turn.updates` word for word, as a turn's own T3 lines are. A turn muted before any of its audio went
+        out gives its updates back, so the news waits for the next quiet moment."""
         live, timeline = self.live, []
         entries = [update_entry(u, f"conv_{turn.stem}") for u in turn.updates]
         record = {"clip": turn.name, "idle": True, "final_transcript": None,
@@ -826,17 +826,12 @@ class Conversation:
                     await self.open_voice()
                 self.voice_turn, self.session_turns = turn, self.session_turns + 1
                 turn.out_rate, self.started = self.out_rate, time.perf_counter()
-                note = task_notes(entries)
                 log("task_updates", updates=entries)
-                said = [t["user"] for t in self.ledger.conversation() if "user" in t]
-                item, reply, _ = await speak_note(
-                    self.voice, turn.out_rate, self.voice_clock(), note, [*said, *self.ledger.established()], log,
-                    speak=lambda text, pcm, done: self.speak(turn, text, pcm, done),
-                    transcribe=by_ear(live.url, turn.out_rate), previous=tuple(self.ledger.replies()),
-                    t3_lines=t3_lines_of(entries))
-                record["injection"] = [item]
-                record["replies"].append({"kind": "update", **reply})
-                log("reply", reply="update", text=reply["text"])
+                reply, _ = await say_verbatim(
+                    self.voice, turn.out_rate, self.voice_clock(), t3_lines_of(entries), log,
+                    lambda text, pcm, done: self.speak(turn, text, pcm, done), live.t3_voice)
+                record["replies"].append({"kind": "t3_update", **reply})
+                log("reply", reply="t3_update", text=reply["text"])
         except asyncio.CancelledError:
             turn.cancelled = turn.cancelled or "cancelled"
             record["cancelled"] = turn.cancelled
@@ -884,6 +879,7 @@ class Live:
     def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, *, secret):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
         self.task_service = self.t3 = None
+        self.t3_voice = tts_line(url)
         self.news = asyncio.Event()
         self.secret = secret
         self.eou = eou

@@ -511,7 +511,7 @@ class Service(unittest.TestCase):
         self.assertEqual(updates[0]["evidence"], {"thread_id": "t1", "sequences": [160, 161]})
         self.assertEqual(updates[0]["task_id"], "conv_turn_001:task_1")
         self.assertEqual(turn3.update_entries(updates), updates)
-        self.assertIn("It finished. It said: I added clamp.", task_note(updates[0]))
+        self.assertIsNone(task_note(updates[0]), "a T3 line is said word for word, never handed to LFM3 to word")
 
     def test_news_a_turn_never_spoke_is_taken_again_even_after_a_restart(self):
         tmp = tempfile.TemporaryDirectory()

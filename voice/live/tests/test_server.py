@@ -657,18 +657,16 @@ NOTES = []
 
 
 def idle_speaker(gate=None, seconds=2.0):
-    """`speak_note` for the idle turn: it records the note and speaks one reply, after `gate` when given."""
-    async def speak_note(session, rate, since, note, sources, log, speak=None, transcribe=None, previous=(),
-                         t3_lines=(), t3_known=()):
-        NOTES.append(note)
+    """`say_verbatim` for the idle turn: it records the lines and speaks them, after `gate` when given."""
+    async def say_verbatim(session, rate, since, lines, log, speak=None, render=None):
+        NOTES.append(" ".join(lines))
         if gate is not None:
             gate[0].set()
             await gate[1].wait()
-        text = "It finished."
-        speak(text, b"\x01\x00" * int(OUT_RATE * seconds), False)
-        speak(text, b"", True)
-        return {"accepted": True}, {"text": text}, b""
-    return speak_note
+        text = " ".join(lines)
+        speak(text, b"\x01\x00" * int(OUT_RATE * seconds), True)
+        return {"text": text}, b""
+    return say_verbatim
 
 
 class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
@@ -680,7 +678,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
     def news(self, speaker, *updates):
         NOTES.clear()
         self.live.t3 = FakeT3(*updates)
-        for name, value in (("IDLE_GRACE_S", 0.05), ("COALESCE_S", 0.05), ("speak_note", speaker)):
+        for name, value in (("IDLE_GRACE_S", 0.05), ("COALESCE_S", 0.05), ("say_verbatim", speaker)):
             patch = mock.patch.object(server, name, value)
             patch.start()
             self.addCleanup(patch.stop)
@@ -700,12 +698,12 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((start["turn"], done["turn"], done["idle"], done["rows"]), (1, 1, True, ["done-event"]))
         self.assertIn("reply_end", log)
         self.assertEqual(sum(self.frames), OUT_RATE * 2 * 2, "the whole line went out")
-        self.assertIn("Add a hello function finished.", NOTES[0], "one note line per update")
+        self.assertEqual(NOTES, ["Add a hello function finished."], "T3's own line, word for word")
         record = self.record(1)
         self.assertTrue(record["idle"])
         self.assertEqual(record["t3_updates"][0]["sequences"], [750, 751], "the record keeps the line's evidence")
         self.assertEqual(record["task_updates"][0]["evidence"], {"thread_id": "thread-1", "sequences": [750, 751]})
-        self.assertEqual(record["replies"][0]["text"], "It finished.")
+        self.assertEqual(record["replies"][0]["text"], "Add a hello function finished.")
         self.assertEqual((t3.outbox, t3.given), ([], []))
         await ws.close()
 
@@ -741,7 +739,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         await self.send(ws, noise(900, seed=1))
         while not (done := await self.until(ws, "turn_done", log)).get("idle"):
             pass
-        self.assertEqual((done["turn"], done["given_back"], done["replies"]), (3, False, ["It finished."]),
+        self.assertEqual((done["turn"], done["given_back"], done["replies"]), (3, False, [DONE.line]),
                          "the line waits for the next quiet moment and is said then")
         self.assertTrue(self.record(1)["given_back"])
         await ws.close()

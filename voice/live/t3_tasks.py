@@ -629,7 +629,6 @@ class T3TaskService(MockTaskService):
             if update is not None:
                 entry["spoken"] = update.line
                 entry["evidence"] = update.evidence()
-                entry["asks"] = update.status == "needs_clarification"
         return snapshot
 
     def take_updates(self):
