@@ -120,14 +120,25 @@ class SchemaCoverageTest(unittest.TestCase):
             "watch": T.WatchStarted,
             "unwatch": T.WatchStarted,
             "launch": T.LaunchResult,
+            "send": T.SendResult,
         }
-        self.assertEqual(models.keys(), T.RESULT_DECODERS.keys())
+        self.assertEqual(set(T.RESULT_DECODERS), set(T.WIRE_OPS))
         for op, node in zip(T.WIRE_OPS, ok_values, strict=True):
             with self.subTest(result=op):
-                if op in models:
-                    self.assert_model_fields(node, models[op])
+                if op == "interrupt":
+                    branches = resolve(node)["anyOf"]
+                    by_kind = {b["properties"]["kind"]["enum"][0]: b for b in branches}
+                    self.assertEqual(by_kind.keys(), T.INTERRUPT_KINDS.keys())
+                    for kind, branch in by_kind.items():
+                        self.assert_model_fields(
+                            branch, T.INTERRUPT_KINDS[kind], envelope=("kind",)
+                        )
                 else:
-                    self.assertEqual(node, {"not": {}})
+                    self.assert_model_fields(node, models[op])
+
+    def test_send_delivery_matches(self):
+        delivery = DEFS["VoiceSendResult"]["properties"]["delivery"]
+        self.assertEqual(set(delivery["enum"]), members(T.Delivery))
 
     def test_client_frames_match(self):
         ops = []
