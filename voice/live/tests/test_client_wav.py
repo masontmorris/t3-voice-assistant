@@ -10,6 +10,7 @@ import tempfile
 import unittest
 import wave
 from pathlib import Path
+from types import SimpleNamespace
 
 import numpy as np
 
@@ -73,3 +74,43 @@ class WavFramesTest(unittest.IsolatedAsyncioTestCase):
                            np.frombuffer(carried + new + last, dtype="<i2").astype(int))
         self.assertEqual(len(heard), len(expected))
         self.assertLessEqual(int(np.max(np.abs(heard - expected))), 1)
+
+
+class UntilStepTest(unittest.IsolatedAsyncioTestCase):
+    """An `@until:<row>` step in --wav holds the next clip until the server says a T3 line with that row."""
+
+    def client(self, steps):
+        run = client.Client.__new__(client.Client)
+        run.args = SimpleNamespace(wav=[Path(s) for s in steps], until_timeout_s=60.0)
+        run.plan = client.deque(str(s) for s in steps[1:])
+        run.clips_left = sum(not client.until_row(s) for s in run.plan)
+        run.waiting_for, run.rows_seen = None, set()
+        run.next_clip, run.finished, run.drained = asyncio.Event(), asyncio.Event(), asyncio.Event()
+        run.player = SimpleNamespace(idle=lambda: True)
+        run.log = lambda *a, **k: None
+        return run
+
+    async def test_the_next_clip_waits_for_the_row_and_a_row_already_said_does_not_wait(self):
+        run = self.client(["start.wav", "yes.wav", "@until:done-event", "ask.wav"])
+        run.advance()
+        await asyncio.sleep(0)
+        self.assertTrue(run.next_clip.is_set(), "yes.wav goes straight after the first turn")
+        run.next_clip.clear()
+        run.saw_rows(["progress"])
+        run.advance()
+        await asyncio.sleep(0)
+        self.assertFalse(run.next_clip.is_set())
+        self.assertEqual(run.waiting_for, "done-event")
+        run.saw_rows(["done-event"])
+        await asyncio.sleep(0)
+        self.assertTrue(run.next_clip.is_set(), "ask.wav goes once the thread's done line was said")
+
+        early = self.client(["start.wav", "@until:done-event", "ask.wav"])
+        early.saw_rows(["done-event"])
+        early.advance()
+        await asyncio.sleep(0)
+        self.assertTrue(early.next_clip.is_set(), "a done line said before the step was reached counts")
+
+    def test_only_clips_reach_the_microphone_stream(self):
+        self.assertEqual(client.until_row("@until:done-event"), "done-event")
+        self.assertIsNone(client.until_row("clip.wav"))

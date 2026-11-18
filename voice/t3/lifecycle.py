@@ -284,6 +284,12 @@ class Follow:
         self.outbox = [u for u in self.outbox if task_id is not None and u.task_id != task_id]
         return taken
 
+    def give_back(self, updates: list[Update]) -> None:
+        """Lines taken but never heard go back to the front of the outbox, and of the journal's pending lines."""
+        self.outbox[:0] = updates
+        self.journal.pending_lines[:0] = updates
+        self.journal.save()
+
     def speak(self, task: JournalTask, line: str, row: str | None = None, sequences=(), *,
               durable: bool = True) -> None:
         sequences = tuple(s for s in sequences if s is not None)

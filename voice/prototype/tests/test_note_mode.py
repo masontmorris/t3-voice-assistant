@@ -315,3 +315,68 @@ class MayChooseTest(unittest.TestCase):
 
     def test_no_pick_request_is_no_choice(self):
         self.assertFalse(prototype.may_choose("What's the weather in Boston?", []))
+
+
+RUN2 = "Start a thread that adds a hello function in the sandbox project"
+THREAD_SAID = ("It said: The project has a single math module. I will add a clamp helper beside sum.",
+               "It said: Done. I added clamp next to sum and the tests pass.", "It finished.")
+# Integrated run 2 (2026-11-18): each T3 line the voice was handed, what it said, and whether that was faithful, as a
+# person read them against the turn records.
+RECORDED = (
+    (("Start it in Voice sandbox?",), "I can't start a thread in the Sandbox project.", (), False),
+    (("Started a thread in Voice sandbox.", "It's working on it."),
+     "Start a thread in the Voice sandbox to add a hello function.", (), True),
+    (("It's working on it.",), "I've started the thread in the Voice sandbox to add the hello function.",
+     ("Started a thread in Voice sandbox.",), True),
+    (THREAD_SAID, "I added the clamp helper next to sum in the math module and the tests pass.", (), False),
+    ((f"Do you mean the {RUN2} thread?",), "The thread to add the hello function in the sandbox project is active "
+                                            "and complete.", (), False),
+    ((f"{RUN2} finished. Its last reply said: Done. I added clamp next to sum and the tests pass.",),
+     "The thread to add the hello function in the sandbox project is finished. It added the clamp helper next to sum "
+     "and the tests pass.", (), True),
+    ((f"Tell the {RUN2} thread to also add a test?",),
+     "I need to add a test to the thread that adds the hello function in the sandbox project.", (), False),
+    (("I've passed that on.", "It's working on it."),
+     "I've added a test to the thread that adds the hello function in the sandbox project.", (), False),
+    (("I've passed that on.", "It's working on it."),
+     "The thread to add the hello function in the sandbox project is working on it.", (), True),
+    ((f"Stop the {RUN2} thread?",), "I've stopped the thread that adds the hello function in the sandbox project.",
+     (), False),
+    (THREAD_SAID, "The project has a single math module. I added the clamp helper beside sum.", (), False),
+    (("It isn't running anything right now.",),
+     "The thread that adds the clamp helper beside sum in the math module is not running anything right now.", (),
+     True),
+)
+
+
+class T3FaithfulTest(unittest.TestCase):
+    def test_each_recorded_reply_is_judged_as_the_person_who_read_it_did(self):
+        for lines, reply, known, faithful in RECORDED:
+            with self.subTest(reply=reply):
+                self.assertEqual(not prototype.unfaithful(reply, lines, True, known), faithful)
+
+    def test_a_question_is_held_until_it_is_whole_and_must_ask(self):
+        line = ("Stop the clamp helper thread?",)
+        self.assertTrue(prototype.unfaithful("Stop the clamp", line, final=False), "no audio until it is whole")
+        self.assertEqual(prototype.unfaithful("Should I stop the clamp helper thread?", line), [])
+
+    def test_the_note_asks_a_t3_question_and_reports_a_t3_report(self):
+        asked = prototype.task_note({"spoken": "Stop the clamp helper thread?", "asks": True})
+        told = prototype.task_note({"spoken": "It said: Done. I added clamp.", "status": "completed"})
+        self.assertIn('ask them this question, in these words: "Stop the clamp helper thread?"', asked)
+        self.assertIn('"It said: Done. I added clamp."', told)
+        self.assertIn("the thread's own words, not yours", told)
+
+
+class T3RetryTest(NoteTurn):
+    async def test_a_misreported_t3_line_is_not_spoken_and_is_asked_again_in_its_own_words(self):
+        line = ("Stop the clamp helper thread?",)
+        self.voice.script, spoken = ["I've stopped the clamp helper thread.", "Stop the clamp helper thread?"], []
+        await prototype.answer(
+            self.voice, 24_000, 0.0, ["Stop that thread."], lambda kind, **detail: None, speak=heard_by(spoken),
+            last_ask=True, t3_lines=line,
+            retry_item=lambda found, repeats=False: prototype.plain_text(prototype.retry_note(found, False, repeats,
+                                                                                               line)))
+        self.assertEqual(spoken, ["Stop the clamp helper thread?"], "the false 'I've stopped' never played")
+        note, = texts(self.voice)
+        self.assertIn('Say only this, in these words: "Stop the clamp helper thread?"', note)

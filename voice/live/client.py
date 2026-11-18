@@ -31,6 +31,7 @@ import sys
 import threading
 import time
 import wave
+from collections import deque
 from pathlib import Path
 
 import numpy as np
@@ -54,6 +55,11 @@ FRAME_MS = 20
 FRAME_SAMPLES = RATE * FRAME_MS // 1000
 DUCK_GAIN = 0.35
 LOG_DIR = Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "live-client"
+
+
+def until_row(step):
+    """The lifecycle row an `@until:<row>` step of --wav waits for, or None for a clip."""
+    return step[len("@until:"):] if step.startswith("@until:") else None
 
 
 def read_wav_16k(path):
@@ -278,7 +284,9 @@ class Client:
             print(f"echo cancellation on: {self.echo.tail_ms} ms echo path", flush=True)
         self.player = Player(output, args.prebuffer_ms, recorder=self.recorder, canceller=self.echo)
         self.rtts, self.done_turns, self.latest_turn, self.barged_turn = [], 0, None, None
-        self.clips_left = max(0, len(args.wav or []) - 1)
+        self.plan = deque(str(step) for step in (args.wav or [])[1:])
+        self.clips_left = sum(not until_row(step) for step in self.plan)
+        self.waiting_for, self.rows_seen = None, set()
         self.next_clip = asyncio.Event()
         self.turn_end_rx, self.trailing_s, self.reply_first = None, 0.0, None
         self.reply_audio, self.reply_turn, self.reply_t0 = bytearray(), None, None
@@ -332,9 +340,30 @@ class Client:
         then()
 
     def advance(self):
-        """The previous clip is settled: the next clip, or the end of the run, once the reply has played."""
+        """The previous clip is settled: the next clip, or the end of the run, once the reply has played. An
+        `@until:<row>` step first waits for the server to say a T3 line with that lifecycle row."""
+        while self.plan and until_row(self.plan[0]):
+            row = until_row(self.plan.popleft())
+            if row not in self.rows_seen:
+                self.waiting_for = row
+                print(f"waiting for a T3 {row} line", flush=True)
+                asyncio.get_running_loop().call_later(getattr(self.args, "until_timeout_s", 300.0), self.give_up, row)
+                return
         then = self.send_next_clip if self.clips_left else self.finished.set
         asyncio.get_running_loop().create_task(self.after_playback(then))
+
+    def saw_rows(self, rows):
+        self.rows_seen.update(rows)
+        if self.waiting_for is not None and self.waiting_for in self.rows_seen:
+            self.waiting_for = None
+            self.advance()
+
+    def give_up(self, row):
+        if self.waiting_for == row:
+            print(f"no T3 {row} line in time, going on", flush=True)
+            self.log("until_timeout", row=row)
+            self.waiting_for = None
+            self.advance()
 
     def save_reply(self):
         if self.reply_turn is None or not self.reply_audio:
@@ -399,6 +428,12 @@ class Client:
             self.reply_audio.clear()
             print(f"[turn {message['turn']}] interrupted", flush=True)
             self.log("barge_in", **message)
+        elif kind == "turn_done" and message.get("idle"):
+            for text in message.get("replies") or []:
+                print(f"[turn {message['turn']}] thread news: {text!r}", flush=True)
+            self.log("turn_done", **message, rtt_median_s=self.rtt_median())
+            if self.args.wav:
+                self.saw_rows(message.get("rows") or [])
         elif kind == "turn_done":
             self.done_turns += 1
             if (message.get("cancelled") or message["metrics"].get("cancelled")) == "continued":
@@ -411,10 +446,14 @@ class Client:
             settled = message["turn"] == self.latest_turn and not message["metrics"].get("cancelled")
             if self.args.wav and settled and (self.args.barge_in_ms is None or not self.clips_left):
                 self.advance()
+            if self.args.wav:
+                self.saw_rows(message.get("rows") or [])
 
     def send_next_clip(self):
         if self.clips_left:
             self.clips_left -= 1
+            del self.plan[next(i for i, step in enumerate(self.plan) if not until_row(step))]
+            self.rows_seen.clear()
             self.next_clip.set()
 
     def rtt_median(self):
@@ -457,7 +496,7 @@ class Client:
             self.player.open(self.args.output_rate)
             ws = await self.connect(secret)
             if self.args.wav:
-                source = wav_frames(self.args.wav, frames, self.next_clip)
+                source = wav_frames([p for p in self.args.wav if not until_row(str(p))], frames, self.next_clip)
             else:
                 raw = self.echo is not None or getattr(self.args, "raw_mic", False)
                 source = mic_frames(device(self.args.input), frames, raw=raw)
@@ -505,7 +544,10 @@ def main():
     parser.add_argument("--ptt", action="store_true", help="push-to-talk with Enter instead of silence detection")
     parser.add_argument("--wav", type=Path, nargs="+",
                         help="send these clips in place of the microphone, each after the previous turn is done, "
-                             "and exit after the last")
+                             "and exit after the last. A step @until:<row>, such as @until:done-event, waits for the "
+                             "server to say a T3 line with that lifecycle row before the next clip")
+    parser.add_argument("--until-timeout-s", type=float, default=300.0,
+                        help="how long an @until step waits before going on (default 300)")
     parser.add_argument("--barge-in-ms", type=int,
                         help="with --wav, send the next clip this long after a reply starts, to test barge-in")
     parser.add_argument("--prebuffer-ms", type=int, default=80, help="reply audio to queue before playback starts")

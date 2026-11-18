@@ -14,6 +14,7 @@ from websockets.asyncio.server import serve
 from voice.live import server
 from voice.live.tests.test_endpoint import noise, tone
 from voice.prototype.run import run_clip
+from voice.t3.journal import Update
 
 SECRET = "s" * 64
 OUT_RATE = 24_000
@@ -630,6 +631,143 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
             await second.recv()
         self.assertEqual(second.close_code, 1013)
         await first.close()
+
+
+class FakeT3:
+    """T3Tasks as the idle loop sees it: an outbox of lifecycle updates, and the lines a turn gave back."""
+
+    def __init__(self, *updates):
+        self.outbox, self.given = list(updates), []
+
+    def has_news(self):
+        return bool(self.outbox)
+
+    def take(self):
+        out, self.outbox = self.outbox, []
+        return out
+
+    def give_back(self, updates):
+        self.given.extend(updates)
+        self.outbox[:0] = updates
+
+
+DONE = Update("conv_turn_001:task_1", "Add a hello function finished.", "completed", "done-event", "thread-1",
+              (750, 751))
+NOTES = []
+
+
+def idle_speaker(gate=None, seconds=2.0):
+    """`speak_note` for the idle turn: it records the note and speaks one reply, after `gate` when given."""
+    async def speak_note(session, rate, since, note, sources, log, speak=None, transcribe=None, previous=(),
+                         t3_lines=(), t3_known=()):
+        NOTES.append(note)
+        if gate is not None:
+            gate[0].set()
+            await gate[1].wait()
+        text = "It finished."
+        speak(text, b"\x01\x00" * int(OUT_RATE * seconds), False)
+        speak(text, b"", True)
+        return {"accepted": True}, {"text": text}, b""
+    return speak_note
+
+
+class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
+    """T3 news while the person is silent goes out as its own turn, on the reply's own path."""
+
+    asyncSetUp, asyncTearDown = LiveServerTest.asyncSetUp, LiveServerTest.asyncTearDown
+    connect, send, until, heard = LiveServerTest.connect, LiveServerTest.send, LiveServerTest.until, LiveServerTest.heard
+
+    def news(self, speaker, *updates):
+        NOTES.clear()
+        self.live.t3 = FakeT3(*updates)
+        for name, value in (("IDLE_GRACE_S", 0.05), ("COALESCE_S", 0.05), ("speak_note", speaker)):
+            patch = mock.patch.object(server, name, value)
+            patch.start()
+            self.addCleanup(patch.stop)
+        return self.live.t3
+
+    def record(self, n):
+        return json.loads((Path(self.tmp.name) / f"turn_{n:03d}.json").read_text())
+
+    async def test_news_while_the_call_is_silent_is_spoken_as_its_own_turn(self):
+        t3 = self.news(idle_speaker(), DONE)
+        ws = await self.connect()
+        log = []
+        self.live.news.set()
+        start = await self.until(ws, "reply_start", log)
+        done = await self.until(ws, "turn_done", log)
+        self.assertNotIn("turn_start", log, "the person did not start this turn")
+        self.assertEqual((start["turn"], done["turn"], done["idle"], done["rows"]), (1, 1, True, ["done-event"]))
+        self.assertIn("reply_end", log)
+        self.assertEqual(sum(self.frames), OUT_RATE * 2 * 2, "the whole line went out")
+        self.assertIn("Add a hello function finished.", NOTES[0], "one note line per update")
+        record = self.record(1)
+        self.assertTrue(record["idle"])
+        self.assertEqual(record["t3_updates"][0]["sequences"], [750, 751], "the record keeps the line's evidence")
+        self.assertEqual(record["task_updates"][0]["evidence"], {"thread_id": "thread-1", "sequences": [750, 751]})
+        self.assertEqual(record["replies"][0]["text"], "It finished.")
+        self.assertEqual((t3.outbox, t3.given), ([], []))
+        await ws.close()
+
+    async def test_news_waits_while_the_person_talks_and_after_the_reply(self):
+        self.news(idle_speaker(), DONE)
+        ws = await self.connect()
+        log = []
+        await self.send(ws, noise(500) + tone(600))
+        await self.until(ws, "turn_start", log)
+        self.live.news.set()
+        await self.send(ws, noise(900, seed=1))
+        first = await self.until(ws, "turn_done", log)
+        self.assertEqual((first["turn"], first.get("idle")), (1, None), "the person's turn goes first")
+        second = await self.until(ws, "turn_done", log)
+        self.assertEqual((second["turn"], second["idle"]), (2, True))
+        self.assertEqual(log.count("reply_start"), 2, "the person's reply, then the news")
+        await ws.close()
+
+    async def test_speech_before_the_line_is_heard_gives_it_back_for_later(self):
+        gate = (asyncio.Event(), asyncio.Event())
+        t3 = self.news(idle_speaker(gate), DONE)
+        ws = await self.connect()
+        self.live.news.set()
+        await asyncio.wait_for(gate[0].wait(), 5)
+        log = []
+        await self.send(ws, noise(300) + tone(600))
+        await self.until(ws, "turn_start", log)
+        gate[1].set()
+        idle = await self.until(ws, "turn_done", log)
+        self.assertEqual((idle["turn"], idle["idle"], idle["given_back"]), (1, True, True))
+        self.assertNotIn("audio", log, "a line the person talked before is never played over them")
+        self.assertEqual(t3.given, [DONE])
+        await self.send(ws, noise(900, seed=1))
+        while not (done := await self.until(ws, "turn_done", log)).get("idle"):
+            pass
+        self.assertEqual((done["turn"], done["given_back"], done["replies"]), (3, False, ["It finished."]),
+                         "the line waits for the next quiet moment and is said then")
+        self.assertTrue(self.record(1)["given_back"])
+        await ws.close()
+
+    async def test_talking_over_an_idle_line_barges_in(self):
+        self.heard("unused")
+        self.news(idle_speaker(), DONE)
+        ws = await self.connect()
+        log = []
+        await self.send(ws, noise(500))
+        self.live.news.set()
+        await self.until(ws, "reply_start", log)
+        await self.send(ws, tone(800))
+        barge = await self.until(ws, "barge_in", log)
+        self.assertEqual(barge["turn"], 1, "the idle line is the reply that stops")
+        self.assertIn("duck", log)
+        started = await self.until(ws, "turn_start", log)
+        self.assertEqual(started["turn"], 2)
+        await self.send(ws, noise(900, seed=2))
+        while (done := await self.until(ws, "turn_done", log))["turn"] != 2:
+            pass
+        record = self.record(2)
+        self.assertEqual(record["live"]["overlap"]["verdict"], "barge_in")
+        self.assertIsNotNone(record["live"]["barge_in"], "the barge-in records what was heard of the idle line")
+        self.assertFalse(self.record(1).get("given_back"), "part of it was heard, so it is not said again")
+        await ws.close()
 
 
 class SpeakTest(unittest.IsolatedAsyncioTestCase):

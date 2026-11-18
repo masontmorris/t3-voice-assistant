@@ -11,14 +11,16 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (ASK, START, STOP, T3_WAITING, TELL, T3Registry, T3TaskService, T3Tasks, reply_kind,
-                                 speak_state, tell_parts)
+from voice.live.t3_tasks import (ASK, START, STOP, T3_TOOLS, T3_WAITING, TELL, T3Registry, T3TaskService, T3Tasks,
+                                 reply_kind, speak_state, tell_parts, transcript_rows)
 from voice.prototype.run import task_note
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.pick.pick import question_for
+from voice.segmentation.gate import PLAN_A
+from voice.tools import registry as tool_registry
 
 TWO_PROJECTS = (("p1", "Voice sandbox", ("sandbox", "voice sandbox")),
                 ("p2", "Voice server", ("voice server", "the server")))
@@ -511,6 +513,23 @@ class Service(unittest.TestCase):
         self.assertEqual(turn3.update_entries(updates), updates)
         self.assertIn("It finished. It said: I added clamp.", task_note(updates[0]))
 
+    def test_news_a_turn_never_spoke_is_taken_again_even_after_a_restart(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "journal.json"
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, path=path)
+        t3.start("a1", "Add a clamp helper in the sandbox project", 0)
+        t3.answer("yes", 1)
+        seam.push(F.done(160))
+        t3.poll(2)
+        taken = t3.take()
+        self.assertTrue(taken and not t3.has_news())
+        t3.give_back(taken)
+        self.assertTrue(t3.has_news())
+        restarted = tasks_over(self, F.FakeSeam(), path=path)
+        self.assertEqual([(u.line, u.sequences) for u in restarted.take()], [(u.line, u.sequences) for u in taken])
+
     def test_a_held_follow_up_keeps_the_answer_path_open(self):
         t3 = held_follow_up(self, busy_seam())
         turn = self.service(t3, [])
@@ -524,6 +543,28 @@ class Service(unittest.TestCase):
         self.assertEqual(list(registry.choices()),
                          ["weather", "agent", "t3_start", "t3_ask", "t3_tell", "t3_stop", "none"])
         self.assertEqual(registry.tool_threshold, 0.6)
+        self.assertEqual(set(T3_TOOLS), tool_registry.T3_TOOLS, "the gate and the kind hint name these tools")
+        self.assertEqual(PLAN_A.confirmed_tools, tool_registry.T3_TOOLS)
+
+    def test_the_transcript_names_each_spoken_line_its_evidence_and_its_record(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        records = Path(tmp.name)
+        start = {"clip": "turn_001", "final_transcript": "Start a thread in the sandbox.",
+                 "snapshot_after_tools": {"tasks": [{"task_id": "task_1", "spoken": "Start it in Voice sandbox?",
+                                                     "evidence": {"thread_id": None, "sequences": [681]}}]},
+                 "replies": [{"text": "Should I start it in Voice sandbox?"}]}
+        news = {"clip": "turn_002", "idle": True, "final_transcript": None,
+                "task_updates": [{"spoken": "It finished.", "row": "done-event",
+                                  "evidence": {"thread_id": "t1", "sequences": [750, 751]}}],
+                "replies": [{"text": "It finished."}]}
+        for record in (start, news):
+            (records / f"{record['clip']}.json").write_text(json.dumps(record), encoding="utf-8")
+        rows = transcript_rows(records)
+        self.assertEqual([r["record"] for r in rows], ["turn_001.json", "turn_002.json"])
+        self.assertEqual(rows[0]["t3"], [{"line": "Start it in Voice sandbox?", "thread_id": None, "sequences": [681]}])
+        self.assertEqual((rows[1]["idle"], rows[1]["t3"][0]["sequences"], rows[1]["said"]),
+                         (True, [750, 751], ["It finished."]))
 
 
 class Words(unittest.TestCase):

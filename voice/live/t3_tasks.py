@@ -260,6 +260,15 @@ class T3Tasks:
             update.task_id = self.keys.get(update.task_id, update.task_id)
         return out
 
+    def has_news(self) -> bool:
+        with self.lock:
+            return bool(self.follow.outbox)
+
+    def give_back(self, updates: list[L.Update]) -> None:
+        """Updates a turn took and never spoke, for the next one to take."""
+        with self.lock:
+            self.follow.give_back(updates)
+
     def holding(self) -> bool:
         return bool(self.follow.journal.held())
 
@@ -541,6 +550,13 @@ def _sentence(text: str | None) -> str:
     return text[:1].upper() + text[1:]
 
 
+def update_entry(update: L.Update, conversation_id: str) -> dict:
+    """One lifecycle update as the task update `task_note` speaks: its line, and the sequences it came from."""
+    return {"type": "task_update", "conversation_id": conversation_id, "task_id": update.task_id,
+            "description": "a T3 thread", "status": update.status, "result_summary": update.line,
+            "spoken": update.line, "row": update.row, "evidence": update.evidence()}
+
+
 T3_WAITING = {"t3": True}
 
 
@@ -613,15 +629,11 @@ class T3TaskService(MockTaskService):
             if update is not None:
                 entry["spoken"] = update.line
                 entry["evidence"] = update.evidence()
+                entry["asks"] = update.status == "needs_clarification"
         return snapshot
 
     def take_updates(self):
-        updates = super().take_updates()
-        for update in self.t3.take():
-            updates.append({"type": "task_update", "conversation_id": self.conversation_id,
-                            "task_id": update.task_id, "description": "a T3 thread", "status": update.status,
-                            "result_summary": update.line, "spoken": update.line, "evidence": update.evidence()})
-        return updates
+        return [*super().take_updates(), *(update_entry(u, self.conversation_id) for u in self.t3.take())]
 
     def update_entries(self, updates):
         mine = [u for u in updates if "spoken" in u]
@@ -648,10 +660,11 @@ def default_model() -> LiveClient | None:
 
 
 class Poller:
-    """Keeps the lifecycle current between turns on its own thread: it waits on seam events, not a timer."""
+    """Keeps the lifecycle current between turns on its own thread: it waits on seam events, not a timer. `notify`
+    is called on this thread after a poll that leaves news to speak."""
 
-    def __init__(self, t3: T3Tasks, wait_s: float = 0.5):
-        self.t3, self.wait_s = t3, wait_s
+    def __init__(self, t3: T3Tasks, wait_s: float = 0.5, notify=None):
+        self.t3, self.wait_s, self.notify = t3, wait_s, notify
         self.stopped = threading.Event()
         self.thread = threading.Thread(target=self._run, name="t3-follow", daemon=True)
 
@@ -665,6 +678,8 @@ class Poller:
             if waited is None:
                 self.stopped.wait(self.wait_s)
             self.t3.poll(time.monotonic(), waited)
+            if self.notify is not None and self.t3.has_news():
+                self.notify()
 
     def stop(self) -> None:
         self.stopped.set()
@@ -763,9 +778,38 @@ def smoke(args) -> int:
     return 0 if ok else 1
 
 
+def transcript_rows(records: Path) -> list[dict]:
+    """Every spoken line of a live call's records, oldest turn first, with the T3 lines it was asked to say and the
+    evidence each carries: the stored event sequences, or a read's `asOfSequence`."""
+    rows = []
+    for path in sorted(records.glob("turn_*.json")):
+        record = json.loads(path.read_text(encoding="utf-8"))
+        tasks = (record.get("snapshot_after_tools") or {}).get("tasks") or []
+        t3 = [{"line": t["spoken"], **t["evidence"]} for t in tasks if t.get("spoken")]
+        t3 += [{"line": u["spoken"], "row": u.get("row"), **u["evidence"]}
+               for u in record.get("task_updates") or () if u.get("spoken")]
+        rows.append({"record": path.name, "idle": bool(record.get("idle")), "heard": record.get("final_transcript"),
+                     "t3": t3, "said": [r.get("text") for r in record.get("replies") or () if r.get("text")],
+                     "given_back": bool(record.get("given_back"))})
+    return rows
+
+
+def transcript(args) -> int:
+    print("| record | heard | T3 line (thread, sequences) | voice said |")
+    print("| --- | --- | --- | --- |")
+    for row in transcript_rows(args.records):
+        heard = "(quiet: thread news)" if row["idle"] else row["heard"] or ""
+        lines = "<br>".join(f"{t['line']} ({(t.get('thread_id') or '-')[:8]}, {t['sequences']})" for t in row["t3"])
+        said = "<br>".join(row["said"]) or ("(given back, nothing heard)" if row["given_back"] else "")
+        print(f"| {row['record']} | {heard} | {lines} | {said} |")
+    return 0
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="command", required=True)
+    lines = sub.add_parser("transcript", help="a live call's spoken lines with their T3 evidence, from its records")
+    lines.add_argument("records", type=Path, help="the live server's --out directory")
     run = sub.add_parser("drive", help="launch, watch to done, then ask about a thread")
     run.add_argument("instruction")
     run.add_argument("--ask", help="a Twin B question to ask after the thread is done")
@@ -780,7 +824,7 @@ def main(argv=None) -> int:
         command.add_argument("--journal", type=Path, default=default_journal())
         command.add_argument("--timeout-s", type=float, default=180.0)
     args = parser.parse_args(argv)
-    return drive(args) if args.command == "drive" else smoke(args)
+    return {"drive": drive, "smoke": smoke, "transcript": transcript}[args.command](args)
 
 
 if __name__ == "__main__":
