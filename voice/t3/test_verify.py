@@ -30,7 +30,8 @@ class Recorded:
     def call(self, route, body, label=""):
         self.bodies.append(body)
         row = self.rows[body["state"]["line"]]
-        assert set(body["questions"]) == set(row["answers"]), "the questions changed: re-run record_verify"
+        asked = {name: question["instructions"] for name, question in body["questions"].items()}
+        assert asked == row["asked"], "the questions changed: re-run record_verify"
         return {"status": row["status"], "response": {"answers": row["answers"]}}
 
 
@@ -75,6 +76,15 @@ class LineCheck(unittest.TestCase):
                 self.assertIn("claims_finished", [a.name for a in asks([status_act])])
         held = act(Kind.HELD_FOLLOWUP, thread="Alpha")
         self.assertIn("claims_finished", [a.name for a in asks([reply, held])], "another act's own claim stays")
+
+    def test_finished_means_the_run_ended_while_it_runs_and_success_once_it_ended(self):
+        def finished(said):
+            return next(a.question for a in asks([said]) if a.name == "claims_finished")
+
+        self.assertIn("the run of Alpha has already ended", finished(act(Kind.THREAD_STATUS, thread="Alpha",
+                                                                         status="working")))
+        self.assertIn("Alpha completed its work successfully", finished(act(Kind.DONE, thread="Alpha",
+                                                                            status="interrupted")))
 
     def test_a_reply_reporting_finished_work_passes_and_one_saying_done_is_refused(self):
         """The PM's two cases, three recorded d1.2 answers each, since one answer can drift."""

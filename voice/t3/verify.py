@@ -74,11 +74,14 @@ NEED = {"command_approval": "approval to run a command", "file_change": "approva
         "secret": "something only the app can take", "card": "something only the app can take",
         "unanswerable": "a request no one can answer any more", "approval": "an approval",
         "in_app": "something only the app can take"}
-# "finished" asks about the run, not the work: "it added clamp and the tests pass" is a reply, not a run's end, and
-# "has already finished" refused that reply line on every smoke retry (measured, 2026-11-18).
+# "finished" means the run ended while it runs, and a successful end once it ended otherwise. One wording for both
+# refused right lines either way: an interrupted run "has ended", and a working thread's summary reads as completed
+# work (measured on the fixture, 2026-11-18). A reply is never asked it (UNASKED).
 CLAIMS = {"finished": "the run of {thread} has already ended", "stopped": "{thread} has already stopped or was cancelled",
           "started": "the thread has already started", "sent": "the message has already been sent",
           "working": "{thread} is still working or running"}
+CLAIMS_ONCE_ENDED = {"finished": "{thread} completed its work successfully"}
+ENDED_UNFINISHED = frozenset({"interrupted", "cancelled"})
 OPS = {"start": "start the thread", "ask": "look the thread up", "tell": "send the message", "stop": "stop the thread"}
 
 
@@ -138,9 +141,8 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")
-    for claim in asked_claims(acts):
-        out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(CLAIMS[claim], {'thread': subject})}?",
-                       False))
+    for claim, wording in asked_claims(acts).items():
+        out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(wording, {'thread': subject})}?", False))
     # Of three phrasings probed on the six fixture lines, this one kept the widest gap (measured, 2026-11-18).
     out.append(Ask("invents", "Does the line state something about a thread that `facts` does not support?", False))
     return out
@@ -152,14 +154,18 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
 UNASKED: dict[Kind, frozenset[str]] = {Kind.REPLIED: frozenset({"finished"})}
 
 
-def asked_claims(acts: Iterable[Act]) -> list[str]:
-    """The forbidden status claims the decider is asked about: each act's own, less those it is never asked."""
+def asked_claims(acts: Iterable[Act]) -> dict[str, str]:
+    """The forbidden status claims the decider is asked about, each with its wording: each act's own, less those it
+    is never asked, worded for the first act that asks it."""
     acts = list(acts)
     allowed = forbidden_claims(acts)
-    asked = set()
+    asked: dict[str, str] = {}
     for a in acts:
-        asked |= forbidden_claims([a]) - UNASKED.get(a.kind, frozenset())
-    return sorted(asked & allowed)
+        ended = str(a.slots.get("status")) in ENDED_UNFINISHED
+        for claim in sorted(forbidden_claims([a]) - UNASKED.get(a.kind, frozenset())):
+            if claim in allowed and claim not in asked:
+                asked[claim] = (CLAIMS_ONCE_ENDED if ended else {}).get(claim, CLAIMS[claim])
+    return dict(sorted(asked.items()))
 
 
 def request(acts: Iterable[Act], line: str) -> dict:

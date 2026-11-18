@@ -92,16 +92,17 @@ def main() -> int:
             if line is None:
                 continue
             body = request([said], line)
+            asked = {name: question["instructions"] for name, question in body["questions"].items()}
             takes = TAKES if name.startswith("pm ") else 1
             old = [row for row in kept if row["line"] == line and row["acts"] == [said.to_json()]
-                   and set(row["answers"] or ()) == set(body["questions"])]
+                   and row.get("asked") == asked]
             for take in range(takes):
                 if take < len(old):
                     out.append({**old[take], "case": name, "take": take + 1})
                     continue
                 record = client.call("decisions", body, label="t3_line_fixture", fresh=True, cache_record=False)
                 out.append({"case": name, "take": take + 1, "acts": [said.to_json()], "line": line,
-                            "should_pass": should_pass, "status": record["status"],
+                            "should_pass": should_pass, "asked": asked, "status": record["status"],
                             "answers": (record.get("response") or {}).get("answers"),
                             "ms": round(record["timing"]["ms"], 1)})
                 print(json.dumps(out[-1]), flush=True)
