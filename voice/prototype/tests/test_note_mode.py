@@ -5,10 +5,12 @@ earlier turns before every reply, and the model answered the last line of that l
 tests stand in for llama.cpp, so they pin what the turn sends and speaks, not what the model then says.
 """
 
+import base64
 import socket
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from voice.live.facts import ungrounded
 from voice.prototype import run as prototype
@@ -19,10 +21,9 @@ from voice.segmentation.tasks import Orchestrator
 from voice.t3 import fakes as F
 from voice.t3.acts import Act, act
 from voice.t3.acts import Kind as S
-from voice.t3.speech import Speech
+from voice.t3.speech import Lane, Speech, fallback_prompt
 from voice.t3.test_verify import Failing
 from voice.t3.verify import Decider
-from voice.t3.speech import note as act_note
 from voice.tools.registry import ToolCall
 
 EARLIER = ("Could you check the weather in Raleigh today?", "Okay, and these are decent results.")
@@ -86,9 +87,15 @@ class NoteTurn(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(isolate_decider_cache(Path(self.tmp.name) / "decider-cache", 20))
         self.original_open = prototype.Session.open
         self.addCleanup(setattr, FakeSession, "transcript", FakeSession.transcript)
+        self.fallback_sessions = []
 
         async def open_session(url, name, clock, on_event=None):
-            return await (Scripted if name == "voice" else FakeSession).open(url, name, clock, on_event)
+            session = await (Scripted if name in ("voice", "t3-fallback") else FakeSession).open(
+                url, name, clock, on_event)
+            if name == "t3-fallback":
+                session.script = self.fallback_script
+                self.fallback_sessions.append(session)
+            return session
 
         prototype.Session.open = open_session
         self.addCleanup(setattr, prototype.Session, "open", self.original_open)
@@ -96,6 +103,7 @@ class NoteTurn(unittest.IsolatedAsyncioTestCase):
         self.spoken = []
 
     async def turn(self, script, **more):
+        self.fallback_script = script.copy()
         self.voice.script, self.voice.asked = script, 0
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
@@ -383,7 +391,7 @@ class SayVerbatimTest(NoteTurn):
 
 class Worded:
     """The `words` side of a T3 task service: `lines` maps a task id to what its text model says, or to None when
-    the text model fails. The slot check and the LFM3 note are the real ones, and the decider agrees."""
+    the text model fails. The slot check and the LFM3 prompt are the real ones, and the decider agrees."""
 
     lines: dict = {}
     speech = CHECKED
@@ -391,11 +399,11 @@ class Worded:
     def say(self, entry, turns=()):
         line = self.lines.get(entry["task_id"])
         if line is None:
-            return self.speech.render(())
+            return self.speech.render(self._acts(entry), turns)
         return self._accepted(entry, self.speech.accept(self._acts(entry), line, "text_model"))
 
-    def note(self, entry):
-        return act_note(self._acts(entry))
+    def fallback_prompt(self, entry):
+        return fallback_prompt(self._acts(entry))
 
     def accept(self, entry, text):
         return self._accepted(entry, self.speech.accept(self._acts(entry), text, "lfm3"))
@@ -431,16 +439,66 @@ class T3SnapshotService(Worded, MockTaskService):
 
 
 class T3TurnTest(NoteTurn):
+    async def test_a_fallback_echo_cannot_reach_playback_or_read_the_call(self):
+        class RateLimited:
+            model = "fake/text:free"
+
+            def complete(self, messages):
+                raise OSError("HTTP 429")
+
+        class NoWording(Worded):
+            speech = Speech(Lane(RateLimited()), lambda thread_id: None, F.Agree())
+
+        class Echo(FakeSession):
+            async def send(self, **event):
+                if event["type"] != "response.create":
+                    await super().send(**event)
+                    return
+                self.sent.append(event)
+                await self.push({"type": "response.output_text.delta", "delta": texts(self)[-1]})
+                if self.configs[-1].get("output_modalities") != ["text"]:
+                    await self.push({"type": "response.output_audio.delta",
+                                     "delta": base64.b64encode(bytes(960)).decode()})
+                await self.push({"type": "response.done", "response": {"status": "completed", "output": []}})
+
+        voice = await Echo.open("ws://unused", "voice", lambda: CLOCK)
+        await prototype.update_session(voice, {"instructions": "The call", "output_modalities": ["text", "audio"]})
+        user = "Stop the clamp helper thread."
+        await prototype.create_item(voice, prototype.plain_text(user))
+        spoken, fallback_sessions = [], []
+
+        async def open_fallback(url, name, clock):
+            fallback = await Echo.open(url, name, clock)
+            fallback_sessions.append(fallback)
+            return fallback
+
+        rendered = []
+        with patch.object(prototype.Session, "open", open_fallback):
+            reply, pcm = await prototype.say_acts(
+                voice, 24_000, CLOCK,
+                {"task_id": "echo", "acts": [act(S.RUN_UPDATE, thread="clamp helper", status="running").to_json()]},
+                NoWording(), [{"user": user}], lambda *args, **kwargs: None, heard_by(spoken),
+                lambda text, rate: rendered.append(text) or bytes(960), fallback_url="ws://unused")
+        self.assertEqual((spoken, pcm, reply["delivery"]), ([], b"", "unsent"))
+        self.assertEqual(rendered, [], "an echo cannot reach TTS")
+        self.assertIn("not plain speech", reply["problems"])
+        self.assertEqual(texts(voice), [user])
+        fallback, = fallback_sessions
+        self.assertEqual(fallback.configs[-1]["output_modalities"], ["text"])
+        self.assertNotIn(user, str(fallback.sent))
+        self.assertNotIn("The thread's run is now", texts(fallback)[0])
+        self.assertTrue(fallback.closed)
+
     async def test_note_mode_speaks_stop_needs_you_and_done_without_a_model_reply(self):
-        needs_you = "The clamp helper thread needs you: Which file?"
-        done = "The release notes thread finished, and it wrote the notes."
+        needs_you = "The clamp helper thread needs you to tell it which file to use."
+        done = "The release notes thread finished, and it says it wrote the notes."
 
         class WithNews(T3SnapshotService):
             lines = {**T3SnapshotService.lines, "n1": needs_you, "n2": done}
 
             def take_updates(self):
                 return [{"type": "task_update", "task_id": "n1", "status": "live", "result_summary": None,
-                         "acts": [act(S.NEEDS_YOU, thread="clamp helper", prompt="Which file?").to_json()]},
+                         "acts": [act(S.NEEDS_YOU, thread="clamp helper", need="question", prompt="Which file?").to_json()]},
                         {"type": "task_update", "task_id": "n2", "status": "completed", "result_summary": None,
                          "acts": [act(S.DONE, thread="release notes", status="completed",
                                       summary="It wrote the notes.").to_json()]}]
@@ -477,7 +535,9 @@ class T3TurnTest(NoteTurn):
         record = await self.turn(["Do you want me to stop the clamp helper thread?"], task_service=BadWording,
                                  t3_voice=lambda text, rate: bytes(960))
         self.assertEqual(self.spoken, ["Do you want me to stop the clamp helper thread?"])
-        self.assertEqual(texts(self.voice)[0], act_note([Act.from_json(a) for a in STOP_ACTS]))
+        fallback, = self.fallback_sessions
+        self.assertEqual((fallback.asked, self.voice.asked), (1, 0))
+        self.assertIn(self.spoken[0], texts(self.voice)[0])
         self.assertEqual([(r["kind"], r["worded_by"], r["delivery"]) for r in record["replies"]],
                          [("t3", "lfm3", "sent")])
         self.assertEqual(BadWording.delivered, [("t3_1", "sent")])
@@ -490,7 +550,8 @@ class T3TurnTest(NoteTurn):
         record = await self.turn(["Do you want me to stop the clamp helper thread?"], task_service=TimedOut,
                                  t3_voice=lambda text, rate: bytes(960))
         self.assertEqual(self.spoken, [], "neither the text model's line nor LFM3's is spoken unchecked")
-        self.assertEqual(texts(self.voice)[0], act_note([Act.from_json(a) for a in STOP_ACTS]), "LFM3 was asked")
+        fallback, = self.fallback_sessions
+        self.assertEqual((fallback.asked, texts(self.voice)), (1, []))
         self.assertEqual([(r["kind"], r["worded_by"], r["delivery"]) for r in record["replies"]],
                          [("t3", "lfm3", "unsent")])
         self.assertIn("TimeoutError", record["replies"][0]["decider"]["error"])

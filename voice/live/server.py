@@ -881,6 +881,7 @@ class Conversation:
                     reply, _ = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
                         speak=lambda text, pcm, done: self.speak(turn, text, pcm, done), render=live.t3_voice,
+                        fallback_url=live.url,
                         send_audio=lambda line, pcm: self.speak_t3(turn, line, pcm), record_delivery=delivered)
                     record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
                     log("reply", reply="t3_update", text=reply["text"])

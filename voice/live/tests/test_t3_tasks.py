@@ -641,7 +641,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         by_id = {t["task_id"]: t for t in snapshot["tasks"]}
         self.assertEqual(by_id["task_1"]["acts"], [act(S.CONFIRM_LAUNCH, project="Voice sandbox",
                                                        request="Add a clamp helper in the sandbox project").to_json()])
-        self.assertEqual(by_id["task_1"]["evidence"], {"thread_id": None, "sequences": [1]})
+        self.assertEqual(by_id["task_1"]["evidence"], {"thread_id": None, "project_id": "p1", "sequences": [1]})
         self.assertEqual(by_id["task_2"]["status"], "running")
         self.assertNotIn("acts", by_id["task_2"])
         self.assertEqual(by_id["task_3"]["acts"], [act(S.CONFIRM_STOP, thread="Upgrade the toolchain").to_json()])
@@ -689,7 +689,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
             spoken.append(text)
 
         await say_acts(voice, 24_000, 0, entry, first, [], lambda *args, **kwargs: None, speak, broken_tts,
-                       record_delivery=lambda state: first.record_delivery(entry, state))
+                       fallback_url="ws://unused", record_delivery=lambda state: first.record_delivery(entry, state))
         line = entry["spoken"]
         self.assertEqual((spoken, voice.sent), ([], []))
         first.close()
@@ -701,12 +701,42 @@ class Service(unittest.IsolatedAsyncioTestCase):
         entry = retry.snapshot("utt_1", "yes")["tasks"][0]
         self.assertEqual(entry["acts"], [act(S.CONFIRM_STOP, thread="Add a clamp helper").to_json()])
         await say_acts(voice, 24_000, 0, entry, retry, [], lambda *args, **kwargs: None, speak,
-                       lambda text, rate: bytes(960),
+                       lambda text, rate: bytes(960), fallback_url="ws://unused",
                        record_delivery=lambda state: retry.record_delivery(entry, state))
         self.assertEqual(spoken, [line])
         third = self.service(t3, [])
         third.answer(third.open_question(), "yes", 2)
         self.assertEqual(len(seam.ops("interrupt")), 1)
+
+    def test_a_new_status_request_replaces_an_unspoken_stop_confirmation(self):
+        question = "How's the clamp helper thread going?"
+        for dispatch_before_final in (False, True):
+            with self.subTest(dispatch_before_final=dispatch_before_final):
+                seam = busy_seam()
+                t3 = tasks_over(self, seam)
+                first = self.service(t3, [self.record("task_1", "Stop the toolchain thread.", STOP)])
+                first.sync(0)
+                first.close()
+
+                records = [self.record("task_2", question, ASK)] if dispatch_before_final else []
+                turn = self.service(t3, records)
+                waiting = turn.open_question()
+                if dispatch_before_final:
+                    turn.sync(1)
+                self.assertEqual(turn.answer(waiting, question, 1), [])
+                if not dispatch_before_final:
+                    records.append(self.record("task_2", question, ASK))
+                    turn.segmenter.dispatch_log.append({"task_id": "task_2", "instruction": question})
+                    turn.sync(1)
+                entry, = turn.snapshot("utt_2", question)["tasks"]
+                self.assertEqual([a["kind"] for a in entry["acts"]], ["confirm_thread"])
+                turn.record_delivery(entry, "sent")
+                answer = self.service(t3, [])
+                answer.answer(answer.open_question(), "yes", 2)
+                status, = answer.snapshot("utt_3", "yes")["tasks"]
+                self.assertEqual([a["kind"] for a in status["acts"]], ["thread_status"])
+                self.assertEqual(status["evidence"]["thread_id"], "t5")
+                self.assertEqual(seam.ops("interrupt"), [])
 
     def test_news_a_turn_never_spoke_is_taken_again_even_after_a_restart(self):
         tmp = tempfile.TemporaryDirectory()

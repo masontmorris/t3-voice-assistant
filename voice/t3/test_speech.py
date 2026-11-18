@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from voice.t3 import fakes as F
 from voice.t3 import types as T
 from voice.t3.acts import Kind, act
-from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, LocalText, Speech, note, text_model
+from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, LocalText, Speech, fallback_prompt, text_model
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -221,6 +221,8 @@ class SummaryTest(unittest.TestCase):
         self.assertNotIn("thread", records, "the title is not offered as a record of the work")
         self.assertEqual(records["name (only a name, not evidence of what was done)"], "Fix failing tests")
         self.assertIn("The thread's name is only a name, not evidence of what was done", SUMMARY_SYSTEM)
+        self.assertIn("Attribute claims from the last reply to the thread", SUMMARY_SYSTEM)
+        self.assertIn("never say the thread did what its name says unless the last reply says it", SUMMARY_SYSTEM)
 
     def test_a_thread_with_no_reply_is_summarised_from_its_status_and_need(self):
         text = Text()
@@ -264,11 +266,16 @@ class RenderTest(unittest.TestCase):
         self.assertIn("that the thread stopped or was cancelled", body["never_say"])
         self.assertEqual(body["an earlier wording was refused because"], ["not a question"])
 
-    def test_the_lfm3_note_names_the_exact_words_and_the_question(self):
-        text = note((act(Kind.CONFIRM_TELL, thread="Add a clamp helper", message="also add a test"),))
-        self.assertIn('"Add a clamp helper", "also add a test"', text)
-        self.assertIn("End with a question.", text)
-        self.assertIn("Do not say that the message was sent or passed on.", text)
+    def test_the_lfm3_prompt_keeps_directions_separate_from_the_named_facts(self):
+        instructions, payload = fallback_prompt(
+            (act(Kind.CONFIRM_TELL, thread="Add a clamp helper", message="also add a test"),))
+        self.assertIn("Ask only a question the acts call for.", instructions)
+        self.assertNotIn("also add a test", instructions)
+        facts = json.loads(payload)
+        self.assertEqual(facts["keep_exact"], ["Add a clamp helper", "also add a test"])
+        self.assertTrue(facts["ask"])
+        self.assertIn("that the message was sent or passed on", instructions)
+        self.assertNotIn("never_say", facts)
 
 
 if __name__ == "__main__":

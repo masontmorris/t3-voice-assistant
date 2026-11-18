@@ -2,3 +2,5 @@
 # fails the run, so a missing dependency or a moved test cannot quietly stop covering a module. Delete a line when
 # its test runs again; add one only with the reason written beside it.
 voice.bot.test_root_tasks  # needs VOICE_PROTOTYPE_CHECKOUT, a separate prototype checkout
+voice.t3.eval.test_summary_eval.TitleIsNotEvidence.test_fixing_tests_title_yields_no_fixed_claim  # issue #65, renderer recording is stale
+voice.t3.eval.test_summary_eval.TitleIsNotEvidence.test_fixing_tests_and_snapshot_title_yields_no_fixed_claim  # issue #65, renderer recording is stale

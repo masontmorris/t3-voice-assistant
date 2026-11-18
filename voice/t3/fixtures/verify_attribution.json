@@ -1,0 +1,2439 @@
+[
+  {
+    "case": "historical bare status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "working",
+          "summary": "It added the helper."
+        }
+      }
+    ],
+    "line": "Add a clamp helper is still working, and it has added the helper.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a clamp helper\"?",
+      "a1_means": "Does the line tell them that Add a clamp helper is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Add a clamp helper has already ended?",
+      "claims_stopped": "Does the line say that Add a clamp helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9976048615651483
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.006348598023945715
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.31563471840083795
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.991289567462081
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.009112433747615311
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.01043201147647587
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.05148879227315897
+      }
+    },
+    "ms": 163.0
+  },
+  {
+    "case": "historical bare reply",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp next to sum and the tests pass.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a Clamp Helper\"?",
+      "a1_means": "Does the line tell them that Add a Clamp Helper posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Add a Clamp Helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9708393217462754
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.020441570648879987
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.6541506804848483
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8762651258347367
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.009972382391305696
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1010922452277168
+      }
+    },
+    "ms": 188.0
+  },
+  {
+    "case": "pm replied finished work",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp, and the tests pass.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a Clamp Helper\"?",
+      "a1_means": "Does the line tell them that Add a Clamp Helper posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Add a Clamp Helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.8551318863630855
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.024424630317981262
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.6226385971152885
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8179155635125915
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.007958432794482958
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.0931137777934757
+      }
+    },
+    "ms": 152.0
+  },
+  {
+    "case": "pm replied finished work",
+    "take": 2,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp, and the tests pass.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a Clamp Helper\"?",
+      "a1_means": "Does the line tell them that Add a Clamp Helper posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Add a Clamp Helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9211655936240316
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.018695884537644675
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.5
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8373797793583535
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.011415053107573707
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.15059934188283244
+      }
+    },
+    "ms": 131.1
+  },
+  {
+    "case": "pm replied finished work",
+    "take": 3,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "status": "running",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp, and the tests pass.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a Clamp Helper\"?",
+      "a1_means": "Does the line tell them that Add a Clamp Helper posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Add a Clamp Helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9766369560657919
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.024424628442959447
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.5340899513699621
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8373797897044032
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.010432010804204769
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.07883440637596839
+      }
+    },
+    "ms": 210.1
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "The clamp helper",
+          "status": "running",
+          "reply": "I added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper added clamp.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that The clamp helper posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that The clamp helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9900276172336402
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.03328592024366978
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.5566604458146516
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.849400662282373
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.017878733029627194
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1339495698909543
+      }
+    },
+    "ms": 169.9
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "The clamp helper",
+          "status": "running",
+          "reply": "I added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper says it added clamp.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that The clamp helper posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that The clamp helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9744668217498953
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.014946799560123082
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.09311378512570884
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9744668149985314
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.010912590397864895
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.09702984443340325
+      }
+    },
+    "ms": 164.1
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "The clamp helper",
+          "status": "working",
+          "summary": "It says it added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper is still working, and it added clamp.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that The clamp helper is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of The clamp helper has already ended?",
+      "claims_stopped": "Does the line say that The clamp helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9957765370163236
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.004838522234285942
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.22633107492934473
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9850531981826465
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.015632079776072644
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.006642326866771972
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.037971929661912526
+      }
+    },
+    "ms": 179.2
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "The clamp helper",
+          "status": "working",
+          "summary": "It says it added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper is still working, and it says it added clamp.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that The clamp helper is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of The clamp helper has already ended?",
+      "claims_stopped": "Does the line say that The clamp helper has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9961426701784394
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.002683071371923426
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.09311378420917968
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9933576727930555
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.008326018952337342
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.0034438172083842713
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.029160670725535395
+      }
+    },
+    "ms": 195.9
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "The clamp helper",
+          "status": "finished",
+          "summary": "It says it added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper is finished, and it added clamp.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that the run of The clamp helper ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that The clamp helper is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9963137004718404
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.01954964023730029
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.19603842492722354
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9961426694850941
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.004419305181161427
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.022346547301323554
+      }
+    },
+    "ms": 186.2
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "The clamp helper",
+          "status": "finished",
+          "summary": "It says it added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper is finished, and it says it added clamp.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that the run of The clamp helper ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that The clamp helper is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9948213035730851
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.004838521300103245
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.05858211960809822
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9942006902774201
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.009112432547081672
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.030477466540407012
+      }
+    },
+    "ms": 112.4
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "The clamp helper",
+          "need": "command_approval",
+          "summary": "It says it added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper needs your approval to run a command. It added clamp.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that The clamp helper is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9927291209294421
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.03967034957766787
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.1565158087072652
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9951614782360719
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.034782323134984236
+      }
+    },
+    "ms": 254.9
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "The clamp helper",
+          "need": "command_approval",
+          "summary": "It says it added clamp."
+        }
+      }
+    ],
+    "line": "The clamp helper needs your approval to run a command. It says it added clamp.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"The clamp helper\"?",
+      "a1_means": "Does the line tell them that The clamp helper is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9942006902852425
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.023363048639599218
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.07883439928222437
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9963137008704671
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.036343464802609714
+      }
+    },
+    "ms": 167.6
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Parser cleanup",
+          "status": "running",
+          "reply": "I removed the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup removed the unused parser.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that Parser cleanup posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Parser cleanup has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.992041567998162
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.019549642525724862
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.5900546060409535
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.765598290944021
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.011940371367544932
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.19603841979533446
+      }
+    },
+    "ms": 128.2
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Parser cleanup",
+          "status": "running",
+          "reply": "I removed the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup reports removing the unused parser.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that Parser cleanup posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Parser cleanup has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9959637366033709
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.02789913263111401
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.28690204796209484
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8946951043532186
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.013063673157074929
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1237348682812025
+      }
+    },
+    "ms": 197.8
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Parser cleanup",
+          "status": "working",
+          "summary": "It reports removing the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup is still working, and it removed the unused parser.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that Parser cleanup is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Parser cleanup has already ended?",
+      "claims_stopped": "Does the line say that Parser cleanup has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9966334245868754
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.006348598212234343
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.25979207036652546
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9904671900129411
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.013063673996699655
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.006642325559794102
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.02442462598603449
+      }
+    },
+    "ms": 125.1
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Parser cleanup",
+          "status": "working",
+          "summary": "It reports removing the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup is still working, and it reports removing the unused parser.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that Parser cleanup is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Parser cleanup has already ended?",
+      "claims_stopped": "Does the line say that Parser cleanup has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969944860241442
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.011940369254715647
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.11888291233560884
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9885849488215139
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.006642327565020524
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.01366381404219336
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.061143806772857565
+      }
+    },
+    "ms": 164.0
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Parser cleanup",
+          "status": "finished",
+          "summary": "It reports removing the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup is finished, and it removed the unused parser.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that the run of Parser cleanup ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Parser cleanup is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.997549854045853
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0079584340477189
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.29630535968593597
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9942006911300613
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.012489558969892706
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.02044157374586439
+      }
+    },
+    "ms": 162.6
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Parser cleanup",
+          "status": "finished",
+          "summary": "It reports removing the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup is finished, and it reports removing the unused parser.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that the run of Parser cleanup ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Parser cleanup is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9975498528686684
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0052972935258906225
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.15059934327123428
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9951614775174698
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.006794213428813677
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.0332859239108094
+      }
+    },
+    "ms": 191.3
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Parser cleanup",
+          "need": "command_approval",
+          "summary": "It reports removing the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup needs your approval to run a command. It removed the unused parser.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that Parser cleanup is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9974360285046306
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0472195292561997
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.25979205366911523
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9966334239996525
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.025533181895841087
+      }
+    },
+    "ms": 206.4
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Parser cleanup",
+          "need": "command_approval",
+          "summary": "It reports removing the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup needs your approval to run a command. It reports removing the unused parser.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that Parser cleanup is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9980915152624454
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.022346552340201786
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.09311378695876718
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9971923135879109
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.029160670034171172
+      }
+    },
+    "ms": 110.0
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Cache tests",
+          "status": "running",
+          "reply": "I fixed the flaky test."
+        }
+      }
+    ],
+    "line": "Cache tests fixed the flaky test.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that Cache tests posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Cache tests has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9939322205880663
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.013063674451496404
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.633273659131037
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.7573301533859735
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.010199635101254302
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1820844332545195
+      }
+    },
+    "ms": 143.1
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Cache tests",
+          "status": "running",
+          "reply": "I fixed the flaky test."
+        }
+      }
+    ],
+    "line": "Cache tests says the flaky test is fixed.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that Cache tests posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Cache tests has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9967089395577556
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.027899135427551854
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.2963053506335461
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.92752904082765
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.00795843185187827
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.11888290892482793
+      }
+    },
+    "ms": 151.7
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Cache tests",
+          "status": "working",
+          "summary": "It says the flaky test is fixed."
+        }
+      }
+    ],
+    "line": "Cache tests is still working, and it fixed the flaky test.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that Cache tests is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Cache tests has already ended?",
+      "claims_stopped": "Does the line say that Cache tests has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9976048609978432
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0046241875442127
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.3156347137118163
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9923930501569922
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.04328809217660968
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.013063673297012383
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.029160672645991627
+      }
+    },
+    "ms": 145.3
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Cache tests",
+          "status": "working",
+          "summary": "It says the flaky test is fixed."
+        }
+      }
+    ],
+    "line": "Cache tests is still working, and it says the flaky test is fixed.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that Cache tests is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Cache tests has already ended?",
+      "claims_stopped": "Does the line say that Cache tests has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9961426700428981
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0072708777583217294
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.10530489973715643
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.993357673312266
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.012489559237623498
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.005799310231035861
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.03478232741653659
+      }
+    },
+    "ms": 129.9
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Cache tests",
+          "status": "finished",
+          "summary": "It says the flaky test is fixed."
+        }
+      }
+    ],
+    "line": "Cache tests is finished, and it fixed the flaky test.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that the run of Cache tests ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Cache tests is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.998002803272397
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0046241877877562666
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.27767942279859303
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9936514008035294
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.01563207802242231
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.022346547242042637
+      }
+    },
+    "ms": 152.3
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Cache tests",
+          "status": "finished",
+          "summary": "It says the flaky test is fixed."
+        }
+      }
+    ],
+    "line": "Cache tests is finished, and it says the flaky test is fixed.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that the run of Cache tests ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Cache tests is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9982573140315989
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.004624188193662241
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.06380992559723726
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9949372608026997
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.010912588054866511
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.016348260374702633
+      }
+    },
+    "ms": 159.0
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Cache tests",
+          "need": "command_approval",
+          "summary": "It says the flaky test is fixed."
+        }
+      }
+    ],
+    "line": "Cache tests needs your approval to run a command. It fixed the flaky test.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that Cache tests is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9981762941004546
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.031851770381421785
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.28690206128545004
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9955806941383436
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.0278991396957996
+      }
+    },
+    "ms": 158.7
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Cache tests",
+          "need": "command_approval",
+          "summary": "It says the flaky test is fixed."
+        }
+      }
+    ],
+    "line": "Cache tests needs your approval to run a command. It says the flaky test is fixed.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Cache tests\"?",
+      "a1_means": "Does the line tell them that Cache tests is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9970619257043649
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.029160676025994894
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.0585821193088049
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9957765375869082
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.009532809192836257
+      }
+    },
+    "ms": 203.5
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Queue metrics",
+          "status": "running",
+          "reply": "I found a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics found a duplicate counter.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that Queue metrics posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Queue metrics has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9967827661573361
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.011415050106770814
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.4321355756813121
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8551318836739331
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.006206610942401593
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.10530490280493784
+      }
+    },
+    "ms": 168.5
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Queue metrics",
+          "status": "running",
+          "reply": "I found a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics reported finding a duplicate counter.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that Queue metrics posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Queue metrics has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9973771522822255
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0069495493266257926
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.28690204796209484
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9603296562112031
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.0056695375610274846
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1393192325076208
+      }
+    },
+    "ms": 147.5
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Queue metrics",
+          "status": "working",
+          "summary": "It reported finding a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics is still working, and it found a duplicate counter.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that Queue metrics is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Queue metrics has already ended?",
+      "claims_stopped": "Does the line say that Queue metrics has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255039586332
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.005297292925386314
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.20331273676325648
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9900276202340719
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.01494680237666731
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.009532808014312562
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.04328809195185998
+      }
+    },
+    "ms": 175.1
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Queue metrics",
+          "status": "working",
+          "summary": "It reported finding a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics is still working, and it reported finding a duplicate counter.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that Queue metrics is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Queue metrics has already ended?",
+      "claims_stopped": "Does the line say that Queue metrics has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9972553264935502
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.00245014605362736
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.09702984918815948
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9939322209726349
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.014946799580098575
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.0087104323739138
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.039670342341579054
+      }
+    },
+    "ms": 132.5
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Queue metrics",
+          "status": "finished",
+          "summary": "It reported finding a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics is finished, and it found a duplicate counter.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that the run of Queue metrics ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Queue metrics is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9975498536346674
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.005542652751698255
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.34584930969305466
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9920415659844154
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.007958433951316134
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.029160678484179314
+      }
+    },
+    "ms": 145.6
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Queue metrics",
+          "status": "finished",
+          "summary": "It reported finding a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics is finished, and it reported finding a duplicate counter.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that the run of Queue metrics ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Queue metrics is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255026279454
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0042234636341429025
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.0893401255100266
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9936514007179437
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.006493812205924457
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.016348258520226124
+      }
+    },
+    "ms": 169.7
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Queue metrics",
+          "need": "command_approval",
+          "summary": "It reported finding a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics needs your approval to run a command. It found a duplicate counter.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that Queue metrics is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255025697277
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0452131127300539
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.1565158158717453
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9933576740463221
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.04931036866806768
+      }
+    },
+    "ms": 139.0
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Queue metrics",
+          "need": "command_approval",
+          "summary": "It reported finding a duplicate counter."
+        }
+      }
+    ],
+    "line": "Queue metrics needs your approval to run a command. It reported finding a duplicate counter.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Queue metrics\"?",
+      "a1_means": "Does the line tell them that Queue metrics is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9970619259428305
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.023363050156468956
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.10967167522315686
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9927291224962911
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.04144146047954663
+      }
+    },
+    "ms": 162.8
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Export check",
+          "status": "running",
+          "reply": "I confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check confirmed the export works.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that Export check posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Export check has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9965561827450536
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.009972381989462148
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.25979206201782024
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9244087837342249
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.0055426515813701
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.05612134196456039
+      }
+    },
+    "ms": 126.0
+  },
+  {
+    "case": "attribution replied",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Export check",
+          "status": "running",
+          "reply": "I confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check says it confirmed the export works.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that Export check posted a reply about its work?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_stopped": "Does the line say that Export check has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9978619606048951
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.02442462724682489
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.11888291006175487
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9462419800576312
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.016348255923959353
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.07559122119556362
+      }
+    },
+    "ms": 227.6
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Export check",
+          "status": "working",
+          "summary": "It says it confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check is still working, and it confirmed the export works.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that Export check is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Export check has already ended?",
+      "claims_stopped": "Does the line say that Export check has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9962291506661922
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.006348597707278487
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.08570496204597303
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9904671906022031
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.01634825544397732
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.004419306172057534
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.04144145703030853
+      }
+    },
+    "ms": 201.1
+  },
+  {
+    "case": "attribution thread_status",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Export check",
+          "status": "working",
+          "summary": "It says it confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check is still working, and it says it confirmed the export works.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that Export check is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_finished": "Does the line say that the run of Export check has already ended?",
+      "claims_stopped": "Does the line say that Export check has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9974935852811915
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.011940370951381557
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.07559122081634914
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9904671903716222
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.021373313705307023
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.006067779199193609
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.0452131127300539
+      }
+    },
+    "ms": 107.5
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Export check",
+          "status": "finished",
+          "summary": "It says it confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check is finished, and it confirmed the export works.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that the run of Export check ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Export check is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9966334242818837
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.009972379899875932
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.16262020586157577
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9936514012485755
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.010432010636137003
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.029160673875083677
+      }
+    },
+    "ms": 187.1
+  },
+  {
+    "case": "attribution done",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Export check",
+          "status": "finished",
+          "summary": "It says it confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check is finished, and it says it confirmed the export works.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that the run of Export check ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "claims_working": "Does the line say that Export check is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9967827663009134
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.007270877807285763
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.03634347173991843
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9961426702774885
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.009112435315659492
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.021373310356729062
+      }
+    },
+    "ms": 124.9
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Export check",
+          "need": "command_approval",
+          "summary": "It says it confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check needs your approval to run a command. It confirmed the export works.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that Export check is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9975498529383048
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.03634346527776781
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.1960384197953345
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9939322198189289
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.03478232340827479
+      }
+    },
+    "ms": 185.9
+  },
+  {
+    "case": "attribution needs_you",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "needs_you",
+        "slots": {
+          "thread": "Export check",
+          "need": "command_approval",
+          "summary": "It says it confirmed the export works."
+        }
+      }
+    ],
+    "line": "Export check needs your approval to run a command. It says it confirmed the export works.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Export check\"?",
+      "a1_means": "Does the line tell them that Export check is waiting on them for approval to run a command?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9975498537540438
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.039670342341579054
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.07883439809993374
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.99743602778294
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.02916067917554373
+      }
+    },
+    "ms": 151.7
+  },
+  {
+    "case": "attribution legacy_update",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "legacy_update",
+        "slots": {
+          "thread": "Parser cleanup",
+          "text": "Parser cleanup removed the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup removed the unused parser.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that the same news as this older line: Parser cleanup removed the unused parser.?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9804503587745164
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.013063676882910054
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.6541506804848484
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9708393218999121
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.09311378466744424
+      }
+    },
+    "ms": 122.8
+  },
+  {
+    "case": "attribution legacy_update",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "legacy_update",
+        "slots": {
+          "thread": "Parser cleanup",
+          "text": "Parser cleanup removed the unused parser."
+        }
+      }
+    ],
+    "line": "Parser cleanup says it removed the unused parser.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Parser cleanup\"?",
+      "a1_means": "Does the line tell them that the same news as this older line: Parser cleanup removed the unused parser.?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_claims_verified": "Does the spoken line claim work or results without an attribution like 'it says', 'it reported', or 'according to the thread'? Ignore the thread's run status and any request for the person to act.",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9916739818766113
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.030477467983614625
+      },
+      "a1_claims_verified": {
+        "type": "noul",
+        "noul": 0.04521310909883817
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9388561907348955
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.08570496672369651
+      }
+    },
+    "ms": 165.8
+  }
+]

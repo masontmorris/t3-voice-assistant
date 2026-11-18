@@ -764,7 +764,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
             for entry in entries:
                 reply, _ = await server.say_acts(
                     voice, OUT_RATE, 0, entry, service, [], lambda *args, **kwargs: None,
-                    render=self.live.t3_voice, send_audio=send_verbatim,
+                    render=self.live.t3_voice, fallback_url=self.live.url, send_audio=send_verbatim,
                     record_delivery=lambda state: service.record_delivery(entry, state))
                 replies.append({"row": entry["row"], **reply})
             service.close()

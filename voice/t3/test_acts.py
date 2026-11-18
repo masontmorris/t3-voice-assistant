@@ -59,7 +59,8 @@ CASES = {
     Kind.RUN_UPDATE: ({"thread": T, "status": "running"}, f"{T} is on it now.",
                       {}),
     Kind.REPLIED: ({"thread": T, "reply": "I added clamp."}, f"{T} says it added clamp.",
-                   {}),
+                   {f"{T} says it added clamp. What's next?": "unrequested question",
+                    f"Anything else? {T} says it added clamp.": "unrequested question"}),
     Kind.NEEDS_YOU: ({"thread": T, "need": "command_approval", "prompt": COMMAND},
                      f"{T} needs your approval to run pytest and git status.",
                      {f"{T} wants to run {COMMAND}": "reads code",
@@ -104,6 +105,8 @@ class SlotRules(unittest.TestCase):
     def test_names_survive_case_punctuation_and_person(self):
         acts = [act(Kind.CONFIRM_TELL, thread="Fix: the *flaky* test", message="check my PR")]
         self.assertEqual(check("Should I tell fix the flaky test to check your PR?", acts), [])
+        status = act(Kind.DONE, thread="Fix the parser?", status="finished")
+        self.assertEqual(check("Fix the Parser? is finished.", [status]), [])
         self.assertEqual(normalise("It's done, isn't it?"), "it s done is not it")
 
     def test_a_status_another_act_states_is_not_forbidden(self):

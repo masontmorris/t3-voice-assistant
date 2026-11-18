@@ -122,9 +122,13 @@ class Update:
     refused: tuple[str, ...] = ()
     n: int = 0
     superseded: bool = False
+    project_id: str | None = None
 
     def evidence(self) -> dict:
-        return {"thread_id": self.thread_id, "sequences": list(self.sequences)}
+        evidence = {"thread_id": self.thread_id, "sequences": list(self.sequences)}
+        if self.project_id is not None:
+            evidence["project_id"] = self.project_id
+        return evidence
 
     def to_json(self) -> dict:
         return {**asdict(self), "acts": [a.to_json() for a in self.acts]}
