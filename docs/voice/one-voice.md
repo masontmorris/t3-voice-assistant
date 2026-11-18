@@ -17,7 +17,7 @@ All rows are measured. The tests used the local LFM3-Audio GGUF, ten synthetic s
 
 The WER and mismatch counts come from LFM3 live ASR. The recognizer sometimes merges words or picks homophones, including “VoiceSandbox” and “ad” for “Add.” Neither the speaker score nor the ASR transcript establishes what a person hears. The T3 line “all 42 tests pass” came back as “all four due tests pass” in run 2. Its spoken exactness remains unresolved.
 
-The call timer starts at the end of paced input and stops at the first decoded PCM. It excludes the application's endpointer, reply screening, and playback. The T3 timer starts at the synthesis request. For run 3 it stops when the gate would release the clip. The cases alternate order within each run. Each configuration has one run, so the ranges show variation across prompts, and the data gives no estimate of run-to-run noise.
+The call timer starts at the end of paced input and stops at the first decoded PCM. It excludes the application's endpointer, reply screening, and playback. The T3 timer starts at the synthesis request. For run 3 it stops when the gate would release the clip. Runs 1 and 2 rotate the starting mode across requests. Each configuration has one run, so the ranges show variation across prompts, and the data gives no estimate of run-to-run noise.
 
 ## Why each route stopped
 
