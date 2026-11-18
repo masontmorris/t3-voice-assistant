@@ -229,6 +229,55 @@ def _cmdline_is_ours(cmdline: str | None, home: Path) -> bool:
     return "--home-dir" in shown and home_text in shown
 
 
+def servers_on_home(paths: EnvPaths) -> list[int] | None:
+    """Pids of live processes started with --home-dir on this home. None when the scan cannot run."""
+    try:
+        if os.name == "nt":
+            probe = (
+                "Get-CimInstance Win32_Process | Where-Object { $_.CommandLine -and "
+                "$_.CommandLine.Contains('--home-dir') } | ForEach-Object { "
+                "@{pid=$_.ProcessId; cmdline=$_.CommandLine} } | ConvertTo-Json -Compress"
+            )
+            done = subprocess.run(
+                ["powershell", "-NoProfile", "-NonInteractive", "-Command", probe],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if done.returncode != 0:
+                return None
+            text = (done.stdout or "").strip()
+            if not text:
+                return []
+            doc = json.loads(text)
+            rows = doc if isinstance(doc, list) else [doc]
+            found = [(int(row["pid"]), row.get("cmdline")) for row in rows if isinstance(row, dict)]
+        else:
+            done = subprocess.run(
+                ["ps", "-eo", "pid=,args="], capture_output=True, text=True, timeout=30
+            )
+            if done.returncode != 0:
+                return None
+            found = []
+            for line in (done.stdout or "").splitlines():
+                head, _, rest = line.strip().partition(" ")
+                if head.isdigit():
+                    found.append((int(head), rest))
+    except (OSError, ValueError, KeyError, subprocess.SubprocessError):
+        return None
+    return [pid for pid, cmdline in found if pid != os.getpid() and _cmdline_is_ours(cmdline, paths.home)]
+
+
+def foreign_server_refusal(paths: EnvPaths) -> str | None:
+    """Refusal when some server already uses this home, or when that cannot be checked."""
+    pids = servers_on_home(paths)
+    if pids is None:
+        return "fork_env: cannot check for other servers on this home, refusing"
+    if pids:
+        return f"fork_env: another server uses this home (pid {pids[0]}), stop it first"
+    return None
+
+
 def server_identity_ok(paths: EnvPaths, pid: int) -> bool:
     """True when pid is the server this tool recorded for this home."""
     try:
@@ -682,11 +731,15 @@ def write_secret_file(path: Path, text: str) -> bool:
 
 def validate_home(home: Path) -> str | None:
     """Refusal reason when this home would touch the daily install, else None."""
-    text = os.path.abspath(str(home))
-    protected = [os.path.abspath(str(Path.home() / ".t3"))]
+    def canonical(path: str) -> str:
+        # Windows paths ignore case and may pass through junctions, so compare resolved, case-folded forms.
+        return os.path.normcase(os.path.realpath(os.path.abspath(path)))
+
+    text = canonical(str(home))
+    protected = [canonical(str(Path.home() / ".t3"))]
     ambient = os.environ.get("T3CODE_HOME")
     if ambient:
-        protected.append(os.path.abspath(ambient))
+        protected.append(canonical(ambient))
     for guard in protected:
         if text == guard or text.startswith(guard + os.sep):
             return f"fork_env: refusing --home under Mason's daily install ({guard})"
@@ -701,6 +754,10 @@ def cmd_up(repo: Path, paths: EnvPaths) -> int:
         return 0
     if port_open(FORK_PORT):
         print(f"fork_env: port {FORK_PORT} is taken, down that server first", file=sys.stderr)
+        return 1
+    refusal = foreign_server_refusal(paths)
+    if refusal:
+        print(refusal, file=sys.stderr)
         return 1
     made = setup_environment(repo, paths)
     print(f"fork_env: sandbox project {made['project_id']}")
@@ -778,6 +835,10 @@ def cmd_token(repo: Path, paths: EnvPaths) -> int:
     """Mint the voice session. Refuses while the environment is up."""
     if environment_up(paths) is not None:
         print("fork_env: token refuses while the environment is up, run down first", file=sys.stderr)
+        return 1
+    refusal = foreign_server_refusal(paths)
+    if refusal:
+        print(refusal, file=sys.stderr)
         return 1
     done = run_node_cli(
         repo,
