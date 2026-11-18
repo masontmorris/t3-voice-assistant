@@ -27,6 +27,7 @@ import os
 import re
 import threading
 import time
+from concurrent.futures import Future
 from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
@@ -45,6 +46,7 @@ from voice.t3.pick.project import pick_project, question_for_projects
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
+PICK_TIMEOUT_S = 5.0
 T3_TOOLS = {
     START: "Start a new T3 coding thread that does the work the speaker asks for, in a project they name. "
            "Use it when they ask to start, open, or kick off a thread or a coding task.",
@@ -184,6 +186,34 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="minutes")
 
 
+@dataclass(frozen=True)
+class _TimedPickClient:
+    client: LiveClient
+    in_flight: threading.Lock
+
+    def complete(self, messages):
+        if not self.in_flight.acquire(blocking=False):
+            raise TimeoutError("the previous picker call is still running")
+        result = Future()
+
+        def request():
+            try:
+                result.set_result(self.client.complete(messages))
+            except BaseException as error:
+                result.set_exception(error)
+            finally:
+                self.in_flight.release()
+
+        # A timed-out HTTP call can outlive the turn and must keep its slot until it exits.
+        worker = threading.Thread(target=request, name="t3-thread-pick", daemon=True)
+        try:
+            worker.start()
+        except RuntimeError:
+            self.in_flight.release()
+            raise
+        return result.result(timeout=PICK_TIMEOUT_S)
+
+
 @dataclass
 class T3Tasks:
     """`model` is the Twin B model arm, asked only when the prefilter misses. None keeps the prefilter alone."""
@@ -195,6 +225,7 @@ class T3Tasks:
     recent: str | None = None
     just_held: bool = False
     lock: threading.RLock = field(default_factory=threading.RLock)
+    _pick_in_flight: threading.Lock = field(default_factory=threading.Lock, init=False)
 
     @classmethod
     def open(cls, origin: str, token_file: str | Path, journal_path: str | Path,
@@ -361,8 +392,12 @@ class T3Tasks:
                     return self._ask_back(replace(base, candidates=(recent,)), evidence)
                 newest = tuple(t.thread_id for t in listing.threads[:3])
                 return self._which(replace(base, kind="thread", candidates=newest), evidence)
-            pick, _ = pick_thread(reference, self._threads(listing), self.project_names(), _now_iso(),
-                                  client=self.model)
+            threads, projects = self._threads(listing), self.project_names()
+            client = _TimedPickClient(self.model, self._pick_in_flight) if self.model is not None else None
+
+        pick, _ = pick_thread(reference, threads, projects, _now_iso(), client=client)
+
+        with self.lock:
             if pick.kind == "none":
                 line = (f"I don't see it among your {len(listing.threads)} most recent threads." if listing.truncated
                         else "I don't see an active thread like that.")

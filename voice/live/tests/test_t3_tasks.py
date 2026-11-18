@@ -56,10 +56,12 @@ class FakeModel:
 class BlockingModel(FakeModel):
     def __init__(self):
         super().__init__("t5")
+        self.started = 0
         self.entered = threading.Event()
         self.release = threading.Event()
 
     def complete(self, messages):
+        self.started += 1
         self.entered.set()
         self.release.wait()
         return super().complete(messages)
@@ -268,7 +270,7 @@ class ModelArm(unittest.TestCase):
     def test_a_blocked_model_times_out_and_asks_with_the_prefilter_s_candidates(self):
         seam, model = self.seam(), BlockingModel()
         t3 = tasks_over(self, seam, model)
-        with patch("voice.live.t3_tasks.PICK_TIMEOUT_S", 0.05, create=True), ThreadPoolExecutor() as workers:
+        with patch("voice.live.t3_tasks.PICK_TIMEOUT_S", 0.05), ThreadPoolExecutor() as workers:
             pick = workers.submit(t3.about, "k3", ASK, self.MISS, 0)
             try:
                 self.assertTrue(model.entered.wait(2))
@@ -276,6 +278,8 @@ class ModelArm(unittest.TestCase):
                 self.assertEqual(asked.line, question_for([title for _, title in THREADS[:3]]))
                 self.assertEqual(t3.question.candidates, ("t5", "t6", "t7"))
                 self.assertEqual(seam.ops("read"), [])
+                self.assertEqual(t3.about("k4", ASK, self.MISS, 1).line, asked.line)
+                self.assertEqual(model.started, 1)
             finally:
                 model.release.set()
 
