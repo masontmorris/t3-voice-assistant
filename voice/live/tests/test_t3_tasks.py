@@ -1,4 +1,4 @@
-"""The T3 task service: nothing launches, reads, sends or stops before a yes, and every line carries its evidence."""
+"""The T3 task service confirms writes, resolves reads, and attaches evidence to thread updates."""
 
 from __future__ import annotations
 

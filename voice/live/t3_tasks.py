@@ -372,7 +372,7 @@ class T3Tasks:
         return self._spoken(question.key, task, L.LAUNCH_ACK, "launch-unavailable")
 
     def about(self, key: str, op: str, instruction: str, now: float) -> L.Update:
-        """Twin B for `op` (ask, tell or stop): list, pick, and ask back. Nothing reads, sends or stops until a yes."""
+        """List threads, pick a target, and ask the speaker to confirm or choose it."""
         with self.lock:
             down = self._down(key, now)
             if down is not None:
@@ -484,15 +484,15 @@ class T3Tasks:
             return listing
         threads = self._threads(listing, among=question.candidates)
         pick = prefilter_pick(text, threads, self.project_names())
-        if pick.kind != "one":
-            return None
-        if question.op == ASK:
-            self.recent = pick.thread_id
-            return self._read(question.key, pick.thread_id)
-        question = replace(question, kind="thread_confirm", candidates=(pick.thread_id,), reasked=False,
-                           titles={t["threadId"]: t["title"] for t in threads},
+        evidence = (listing.as_of_sequence,)
+        question = replace(question, titles={t["threadId"]: t["title"] for t in threads},
                            projects={t["threadId"]: t["projectId"] for t in threads})
-        return self._ask_back(question, (listing.as_of_sequence,))
+        if pick.kind != "one":
+            return self._which(replace(question, candidates=tuple(question.titles)), evidence)
+        if question.op == ASK:
+            return self._act(question, pick.thread_id, now)
+        return self._ask_back(replace(question, kind="thread_confirm", candidates=(pick.thread_id,), reasked=False),
+                              evidence)
 
     def _act(self, question: Question, thread: str, now: float) -> L.Update:
         self.recent = thread
