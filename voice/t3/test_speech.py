@@ -6,11 +6,12 @@ from __future__ import annotations
 import json
 import threading
 import unittest
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from voice.t3 import fakes as F
 from voice.t3 import types as T
 from voice.t3.acts import Kind, act
-from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, Speech, fallback_prompt
+from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, LocalText, Speech, fallback_prompt, text_model
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -82,6 +83,68 @@ class LaneTest(unittest.TestCase):
         running.result(timeout=2)
         lane.pool.shutdown(wait=True)
         self.assertEqual(text.summaries, 1, "the timed-out request never reached the model")
+
+
+class LlamaServer(BaseHTTPRequestHandler):
+    """llama-server's tokenize and chat routes, recording each chat body."""
+
+    bodies: list = []
+
+    def do_POST(self):
+        body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        if self.path == "/tokenize":
+            reply = {"tokens": [124901] if body["content"] == "<think>" else [1, 2]}
+        else:
+            self.bodies.append(body)
+            reply = {"choices": [{"message": {"content": "Should I stop it?"}, "finish_reason": "stop"}],
+                     "usage": {"prompt_tokens": 300, "completion_tokens": 6}}
+        data = json.dumps(reply).encode()
+        self.send_response(200)
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
+    def log_message(self, *args):
+        pass
+
+
+class LocalTextTest(unittest.TestCase):
+    def test_the_local_renderer_bans_thinking_and_passes_the_lane(self):
+        server = ThreadingHTTPServer(("127.0.0.1", 0), LlamaServer)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        local = LocalText(f"http://127.0.0.1:{server.server_address[1]}")
+        record = Lane(local).call([{"role": "user", "content": "{}"}], timeout=5)
+        self.assertEqual(record["text"], "Should I stop it?")
+        sent = LlamaServer.bodies[-1]
+        self.assertEqual((sent["logit_bias"], sent["chat_template_kwargs"]),
+                         ([[124901, False]], {"enable_thinking": False}))
+
+    def test_the_local_renderer_refuses_to_run_without_its_think_ban(self):
+        class OddTokenizer(LlamaServer):
+            def do_POST(self):
+                if self.path == "/tokenize":
+                    self.rfile.read(int(self.headers["Content-Length"]))
+                    data = json.dumps({"tokens": [1, 2]}).encode()
+                    self.send_response(200)
+                    self.send_header("Content-Length", str(len(data)))
+                    self.end_headers()
+                    self.wfile.write(data)
+                else:
+                    super().do_POST()
+
+        server = ThreadingHTTPServer(("127.0.0.1", 0), OddTokenizer)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        local = LocalText(f"http://127.0.0.1:{server.server_address[1]}")
+        with self.assertRaises(RuntimeError):
+            local.complete([{"role": "user", "content": "{}"}])
+
+    def test_the_renderer_is_chosen_by_name(self):
+        self.assertIsInstance(text_model("local"), LocalText)
+        self.assertEqual(text_model("particle-1", cloud=lambda: "cloud"), "cloud")
+        with self.assertRaises(ValueError):
+            text_model("particle-2")
 
 
 class SummaryTest(unittest.TestCase):

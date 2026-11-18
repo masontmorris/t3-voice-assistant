@@ -1,8 +1,8 @@
 """The unit 11 eval: thread summaries for "how's that thread going?", and the slot-check pass rate of rendered acts.
 
     python -m voice.t3.eval.summary_eval freeze --db <read-only copy of statev2.sqlite> --out <dir>
-    python -m voice.t3.eval.summary_eval run --dir <dir>
-    python -m voice.t3.eval.summary_eval acts --dir <dir>
+    python -m voice.t3.eval.summary_eval run --dir <dir> [--renderer particle-1|local]
+    python -m voice.t3.eval.summary_eval acts --dir <dir> [--renderer particle-1|local]
 
 `freeze` builds thread states from a copy of a T3 database, the way the voice seam's read gives them: title,
 activity, latest run, pending need, and the last reply cut at the seam's 1,200 characters (outcome.ts). A state can
@@ -11,8 +11,9 @@ be frozen as of a moment inside a run, so working, waiting and queued threads ar
 
 `run` writes, for each state, the summary and the line the voice would say for its `thread_status` act, to
 `summaries.json`, before any scoring. `acts` renders `acts.json`'s acts, built from the frozen states, and writes
-each line with its slot-check and decider results to `rendered.json`. Both use the voice's own free text model and
-the hosted decider, and save every output. The frozen data names real threads, so it stays under VOICE_HOME and
+each line with its slot-check and decider results to `rendered.json`. Both use the voice's own text model, chosen by
+`--renderer` as the voice chooses it, and the hosted decider, and save every output. A local renderer's per-call
+latency goes to `ledger-<command>.json`. The frozen data names real threads, so it stays under VOICE_HOME and
 never enters the repo.
 """
 
@@ -30,7 +31,7 @@ from voice.t3 import types as T
 from voice.t3.acts import Act, Kind, act, check
 from voice.t3.pick.model import LiveClient
 from voice.t3 import speech
-from voice.t3.speech import Lane, Speech
+from voice.t3.speech import RENDERERS, Lane, LocalText, Speech
 from voice.t3.verify import Decider
 from voice.liquid_decider.client import LiquidClient
 
@@ -186,12 +187,20 @@ def thread_state(raw: dict) -> T.ThreadState:
         1)
 
 
-def client(args) -> LiveClient:
-    """The live client, with retries and long waits: the eval scores wording, and a 429 is not a bad line."""
+def client(args) -> LiveClient | LocalText:
+    """The live client, with retries and long waits: the eval scores wording, and a 429 is not a bad line. The local
+    renderer keeps the live timeouts, since a slow local line is a bad line."""
+    if args.renderer == "local":
+        return LocalText()
     model = LiveClient(cache_dir=args.dir / "cache", timeout_s=20.0, max_attempts=3)
     model.cooldown_s = 0.0
     speech.RENDER_TIMEOUT_S = speech.SUMMARY_TIMEOUT_S = 150.0
     return model
+
+
+def save_ledger(args, model, command: str) -> None:
+    if isinstance(model, LocalText):
+        (args.dir / f"ledger-{command}.json").write_text(json.dumps(model.ledger, indent=1), encoding="utf-8")
 
 
 def decider(args) -> Decider:
@@ -230,6 +239,7 @@ def run(args) -> int:
                     "render_s": round(time.perf_counter() - started - summary_s, 2)})
         print(json.dumps(out[-1])[:300], flush=True)
     (args.dir / "summaries.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    save_ledger(args, model, "run")
     print(json.dumps({"http_calls": model.calls, "lane_requests": lane.calls}))
     return 0
 
@@ -250,6 +260,7 @@ def acts_run(args) -> int:
         print(json.dumps({"kinds": [a["kind"] for a in item["acts"]], "line": rendered.text,
                           "problems": rendered.problems})[:300], flush=True)
     (args.dir / "rendered.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
+    save_ledger(args, model, "acts")
     passed = sum(1 for r in out if r["line"] is not None)
     print(json.dumps({"passed": passed, "of": len(out), "http_calls": model.calls, "lane_requests": lane.calls}))
     return 0
@@ -265,6 +276,7 @@ def main(argv=None) -> int:
                        ("acts", "render the planned acts and check each line")):
         command = sub.add_parser(name, help=text)
         command.add_argument("--dir", type=Path, required=True)
+        command.add_argument("--renderer", choices=RENDERERS, default="particle-1")
     args = parser.parse_args(argv)
     return {"freeze": freeze, "run": run, "acts": acts_run}[args.command](args)
 
