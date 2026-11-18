@@ -1,53 +1,36 @@
-# Browser client: talk from any browser on the tailnet
+# Talk to the voice assistant from a browser
 
-Mason opens a page, taps Start, speaks, and hears the reply. No install, no laptop client. The page replaces the laptop client for development testing.
+Use the browser client to talk to the live server from a computer or phone on your tailnet.
 
-## Start it
+## Start the live server
 
-Start the live server as in the [live demo runbook](live-demo.md#runbook). It serves the page on the same port as the socket.
-
-On the Desktop, open `http://127.0.0.1:8770/`. Paste the secret from `$VOICE_HOME/live/secret` once and press Save. The page keeps it in `localStorage`. Press Start, talk, press Stop when done.
-
-## Open it on a phone
-
-Phones grant the microphone only on a secure origin, so the page must come over HTTPS. `tailscale serve` wraps the loopback server in tailnet HTTPS:
+Set up the model and environment as described in the [live demo runbook](live-demo.md#runbook). From Git Bash on the machine that runs the model, start the server on loopback.
 
 ```bash
-voice/live/serve-tailscale.sh 8770 8446
+python ~/.gpu/gpu_lease.py run --holder voice-live --purpose "browser voice call" --max-minutes 30 -- \
+  "$VOICE_HOME/venv-lfm3/Scripts/python" -m voice.live.server --host 127.0.0.1 --max-minutes 25
 ```
 
-Then open `https://<desktop-tailnet-name>:8446/` on the phone. It asks for the secret once, same as above. Nothing is public: serve stays inside the tailnet, and funnel is never used.
+On that machine, open `http://127.0.0.1:8770/`. Paste the secret from `$VOICE_HOME/live/secret` and select **Save**. The browser stores the secret for this origin.
 
-Turn serving off with the line the script prints:
+## Open the page on your phone
+
+Phones require HTTPS for microphone access. On the server machine, run:
+
+```bash
+bash voice/live/serve-tailscale.sh 8770 8446
+```
+
+Tailscale Serve prints the HTTPS address. Open it on your phone while connected to the tailnet. Paste and save the secret there too. If Tailscale already uses the port, pick a free HTTPS port.
+
+Select **Start** and grant microphone access. Speak when the status shows listening. To control when speech starts and stops, select **PTT** before starting the call, then hold **Hold to talk** while speaking. Select **Stop** to end the call.
+
+Wear headphones to keep the reply out of the mic. The browser requests echo cancellation, noise suppression, and automatic gain control. Echo cancellation through a phone speaker still needs a hardware check. The server saves the same turn records as it does for the Python client.
+
+## Turn off tailnet access
+
+Run the undo command printed by the script. For port 8446, use:
 
 ```bash
 tailscale serve --https=8446 off
-```
-
-That removes only this mount. Other serve mounts on the machine are untouched. `tailscale serve reset` would remove those too, so the script never calls it.
-
-## Echo
-
-Headphones are still the safe default. The page asks for echo cancellation, noise suppression and gain control, but a phone on speakers has not been tried at this head. If the reply comes back through the mic, the server hears its own voice as speech and the reply interrupts itself. Use headphones until a speaker run says otherwise.
-
-## What the page does
-
-- First frame after the socket opens is `auth {secret}`. It must arrive before any audio and within 5 s, or the server closes the socket. The secret never goes in a URL, a log or the page source.
-- Audio up is 16 kHz mono PCM16, the same frames the Python client sends. Audio down plays at the `reply_start` rate through a jitter buffer.
-- Talking over a reply ducks it. The server either stops it, and the page drops what it buffered, or finds a backchannel and turns the reply back up.
-- Start and Stop buttons. AudioContext needs the tap, which iOS requires. A VAD or push-to-talk toggle. In push-to-talk, hold the talk button. A status line shows connected, listening, thinking or speaking, plus ping round trip. A level meter moves only while microphone audio flows.
-- The browser records nothing. The server keeps recording turns as it does for the Python client.
-
-## Checks
-
-Python tests for the new server paths live beside the live tests:
-
-```bash
-python -m unittest voice.live.tests.test_browser
-```
-
-The resampler the page shares has its own JS tests, run with Node's built-in runner and no dependencies:
-
-```bash
-node --test voice/live/web/resample.test.js
 ```

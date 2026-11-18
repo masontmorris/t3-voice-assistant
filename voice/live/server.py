@@ -191,6 +191,7 @@ def serve_page(connection, request, web_dir=WEB_DIR):
     """The browser client, served from the live server's own port. Exact paths only, so no traversal is possible."""
     name, content_type = WEB_FILES[request.path]
     response = connection.respond(HTTPStatus.OK, (web_dir / name).read_text(encoding="utf-8"))
+    del response.headers["Content-Type"]
     response.headers["Content-Type"] = content_type
     response.headers["Cache-Control"] = "no-store"
     return response

@@ -143,7 +143,8 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
                                max_turn_s=30.0, prompt=Path(self.tmp.name) / "prompt.txt", delay=4.0,
                                segmenter="hybrid", snapshot="reply",
                                recall="note")
-        self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name))
+        self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name),
+                                secret=SECRET)
         self.patch = mock.patch.object(server, "run_clip", fake_run_clip)
         self.patch.start()
         self.addCleanup(self.patch.stop)

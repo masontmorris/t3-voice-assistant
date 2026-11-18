@@ -48,7 +48,7 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
         self.tmp.cleanup()
 
     def get(self, path):
-        with urllib.request.urlopen(self.http + path) as response:
+        with urllib.request.urlopen(self.http + path, timeout=5) as response:
             return response.status, response.headers.get_content_type(), response.read().decode("utf-8")
 
     async def browser(self):
@@ -65,23 +65,23 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
             if log[-1] == kind:
                 return json.loads(message)
 
-    def test_get_root_serves_the_page(self):
-        status, content_type, body = self.get("/")
+    async def test_get_root_serves_the_page(self):
+        status, content_type, body = await asyncio.to_thread(self.get, "/")
         self.assertEqual(status, 200)
         self.assertEqual(content_type, "text/html")
         self.assertIn("<title>Voice call</title>", body)
         self.assertIn('src="app.js"', body)
         self.assertNotIn(test_server.SECRET, body, "the page carries no secret")
 
-    def test_get_script_paths_serve_javascript(self):
+    async def test_get_script_paths_serve_javascript(self):
         for path in ("/app.js", "/resample.js", "/capture-worklet.js", "/playback-worklet.js"):
-            status, content_type, body = self.get(path)
+            status, content_type, body = await asyncio.to_thread(self.get, path)
             self.assertEqual((status, content_type), (200, "text/javascript"), path)
             self.assertTrue(body.strip(), path)
 
-    def test_get_unknown_path_is_not_found(self):
+    async def test_get_unknown_path_is_not_found(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:
-            self.get("/nope")
+            await asyncio.to_thread(self.get, "/nope")
         self.assertEqual(caught.exception.code, 404)
 
     async def test_a_good_auth_frame_is_accepted(self):
@@ -92,7 +92,7 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
         log = []
         await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
         done = await self.until(ws, "turn_done", log)
-        self.assertEqual(done["final_transcript"], "words in turn_001")
+        self.assertEqual(done["transcript"], "words in turn_001")
         await ws.close()
 
     async def test_a_bad_auth_frame_closes_the_socket(self):

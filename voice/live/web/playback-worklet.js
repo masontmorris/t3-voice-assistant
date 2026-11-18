@@ -28,7 +28,6 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.ended = !!message.end;
       if (!this.playing && (this.ended || this.queued >= this.prebuffer)) {
         this.playing = true;
-        this.port.postMessage({ type: "started", queued: this.queued });
       }
     } else if (message.type === "duck") {
       this.gain = 0.35;
@@ -40,6 +39,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.queued = 0;
       this.playing = false;
       this.ended = false;
+      this.played = 0;
       this.gain = 1;
     }
   }
@@ -55,8 +55,9 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       if (this.queue.length === 0) {
         if (this.ended) {
           this.playing = false;
-          this.port.postMessage({ type: "drained" });
-          break;
+          this.ended = false;
+          if (this.played) this.port.postMessage({ type: "drained", frames: this.played });
+          this.played = 0;
         }
         break;
       }

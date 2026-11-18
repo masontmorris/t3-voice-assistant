@@ -20,7 +20,7 @@ const els = {
   log: document.getElementById("log"),
 };
 
-// Small hook for scripted runs: window.voiceDebug.events holds every control message and state change.
+// Scripted browser checks read recent protocol and playback events.
 window.voiceDebug = { events: [] };
 
 const state = {
@@ -38,12 +38,12 @@ const state = {
   pingTimer: 0,
   rtts: [],
   status: "idle",
-  heard: [],
-  said: [],
 };
 
 function note(kind, detail) {
-  window.voiceDebug.events.push({ at: Date.now(), kind, ...detail });
+  const events = window.voiceDebug.events;
+  events.push({ kind, ...detail });
+  if (events.length > 100) events.shift();
   if (kind === "control") {
     const line = document.createElement("div");
     line.textContent = detail.text;
@@ -80,6 +80,8 @@ async function start() {
     els.secret.focus();
     return;
   }
+  state.running = true;
+  els.start.disabled = true;
   note("start", { mode: state.mode });
   // Both halves start inside the tap's gesture task: iOS drops microphone and audio requests made after
   // an await.
@@ -99,14 +101,15 @@ async function start() {
   state.playback.port.postMessage({ type: "config", deviceRate });
   state.capture.port.onmessage = (event) => onMic(event.data, deviceRate);
   state.playback.port.onmessage = (event) => {
-    if (event.data.type === "drained") note("playback", { drained: true });
-    else note("playback", { [event.data.type]: true });
+    const { type, frames } = event.data;
+    if (type === "drained") {
+      note("drained", { frames });
+      if (state.status === "speaking") setStatus("listening");
+    }
   };
   state.micSource.connect(state.capture);
   state.playback.connect(state.context.destination);
   state.replyRate = 0;
-  state.heard = [];
-  state.said = [];
 
   const ws = new WebSocket(wsUrl());
   state.ws = ws;
@@ -122,24 +125,14 @@ async function start() {
   };
   ws.onmessage = (event) => {
     if (typeof event.data === "string") onControl(JSON.parse(event.data));
-    else {
-      note("wire", { bytes: event.data.byteLength });
-      try {
-        onReply(event.data, deviceRate);
-      } catch (error) {
-        note("onreply-err", { message: String((error && error.stack) || error).slice(0, 300) });
-      }
-    }
+    else onReply(event.data, deviceRate);
   };
   ws.onclose = (event) => {
     note("close", { code: event.code, reason: event.reason });
     if (state.running) void stop(`closed ${event.code}`);
   };
   ws.onerror = () => note("error", {});
-  state.running = true;
-  els.start.disabled = true;
   els.stop.disabled = false;
-  els.talk.hidden = state.mode !== "ptt";
   note("mic", { deviceRate });
 }
 
@@ -150,17 +143,12 @@ function onMic(message, deviceRate) {
   els.meter.style.width = `${Math.max(0, Math.min(100, ((db + 60) / 60) * 100))}%`;
 }
 
-let feedNoted = false;
 function onReply(data, deviceRate) {
   if (state.replyRate <= 0) return;
   state.playback.port.postMessage({
     type: "feed",
     pcm: replyToDeviceFloat(new Uint8Array(data), state.replyRate, deviceRate),
   });
-  if (!feedNoted) {
-    feedNoted = true;
-    note("feed", { bytes: data.byteLength });
-  }
 }
 
 function onControl(message) {
@@ -173,6 +161,7 @@ function onControl(message) {
     els.rtt.textContent = `${Math.round(median)} ms`;
     note("rtt", { median_ms: Math.round(median) });
   } else if (message.type === "ready") {
+    els.talk.hidden = state.mode !== "ptt";
     setStatus("listening");
   } else if (message.type === "turn_start") {
     setStatus("listening");
@@ -194,15 +183,13 @@ function onControl(message) {
     state.playback.port.postMessage({ type: "flush" });
     setStatus("listening");
   } else if (message.type === "turn_done") {
-    if (message.transcript) state.heard.push(message.transcript);
-    for (const reply of message.replies || []) state.said.push(reply);
-    setStatus(message.cancelled ? "continued" : "listening");
-    note("turn_done", { turn: message.turn, transcript: message.transcript || null });
+    if (state.status !== "speaking") setStatus("listening");
+    note("turn_done", { turn: message.turn });
   }
 }
 
 function describeControl(message) {
-  if (message.type === "turn_done") return `turn ${message.turn} done: ${message.transcript || "(no transcript)"}`;
+  if (message.type === "turn_done") return `turn ${message.turn} done`;
   if (message.type === "reply_start") return `reply at ${message.rate} Hz`;
   if (message.type === "ready") return `connected, ${message.mode} mode`;
   return message.type;
@@ -219,6 +206,8 @@ function setPtt(down) {
 async function stop(why) {
   // Runs for a failed start too, so a start that throws still releases the microphone and says why.
   state.running = false;
+  state.pttDown = false;
+  els.talk.classList.remove("down");
   note("stop", { why: why || "button" });
   if (state.pingTimer) window.clearInterval(state.pingTimer);
   state.pingTimer = 0;

@@ -96,7 +96,8 @@ class AudioEndTest(unittest.IsolatedAsyncioTestCase):
         self.addCleanup(self.tmp.cleanup)
         args = SimpleNamespace(**ARGS, eou="audio", prompt=Path(self.tmp.name) / "prompt.txt")
         self.eou = FakeEou()
-        self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name), eou=self.eou)
+        self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name),
+                                eou=self.eou, secret=SECRET)
         patch = mock.patch.object(server, "run_clip", fake_run_clip)
         patch.start()
         self.addCleanup(patch.stop)
