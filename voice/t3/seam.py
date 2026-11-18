@@ -102,6 +102,7 @@ class T3Seam:
             seam.close()
             raise SeamConnectionEnded(T.UNREACHABLE) from None
         if kind != "ready":
+            seam.close()
             raise SeamConnectionEnded(payload)
         seam._hello = payload
         return seam
@@ -179,10 +180,13 @@ class T3Seam:
     def close(self) -> None:
         """Close the socket and join the background thread. Idempotent."""
         loop, ws = self._loop, self._ws
-        if loop is not None:
+        if loop is not None and ws is not None:
+            def close_if_open() -> None:
+                if self._end is None:
+                    asyncio.create_task(ws.close())
+
             with contextlib.suppress(RuntimeError):
-                if ws is not None:
-                    loop.call_soon_threadsafe(lambda: asyncio.ensure_future(ws.close()))
+                loop.call_soon_threadsafe(close_if_open)
         thread, self._thread = self._thread, None
         if thread is not None and thread.is_alive():
             thread.join(timeout=10.0)
