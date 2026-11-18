@@ -146,12 +146,33 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(filled[0].slots["summary"], "For How's the clamp thread going?: it added clamp.")
         self.assertEqual(text.summaries, 2)
 
-    def test_no_reply_or_no_read_means_no_summary(self):
+    def test_the_title_is_a_name_and_never_evidence(self):
         text = Text()
-        empty = F.state(thread="t5", title="Add a clamp helper", as_of=9)
-        speech = Speech(Lane(text), Reads(empty))
-        filled, _ = speech.fill((act(Kind.NEEDS_YOU, prompt="Run it?"),), "t5")
-        self.assertEqual((filled[0].slots, text.summaries), ({"prompt": "Run it?", "thread": "Add a clamp helper"}, 0))
+        speech = Speech(Lane(text), Reads())
+        unrelated = T.LastReply("I renamed the logger and moved its config.", "m1", None, "r1", "2026-11-18T10:00:00Z")
+        speech.remember(F.state(thread="t5", title="Fix failing tests", as_of=3, activity=T.ThreadActivity.FINISHED,
+                                last_reply=unrelated))
+        speech.fill((act(Kind.THREAD_STATUS, thread="Fix failing tests", status="finished",
+                         asked="Did it fix the tests?"),), "t5", (3,))
+        records = text.bodies[0]["records"]
+        self.assertNotIn("thread", records, "the title is not offered as a record of the work")
+        self.assertEqual(records["name (only a name, not evidence of what was done)"], "Fix failing tests")
+        self.assertIn("The thread's name is only a name, not evidence of what was done", SUMMARY_SYSTEM)
+
+    def test_a_thread_with_no_reply_is_summarised_from_its_status_and_need(self):
+        text = Text()
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=9, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need(prompt="Run pytest?"))
+        speech = Speech(Lane(text), Reads(waiting))
+        filled, _ = speech.fill((act(Kind.NEEDS_YOU, prompt="Run pytest?"),), "t5")
+        self.assertEqual(text.summaries, 1, "no reply is no reason to skip the answer")
+        self.assertEqual(text.bodies[0]["records"]["last_reply"], None)
+        self.assertEqual((text.bodies[0]["records"]["status"], text.bodies[0]["records"]["pending"]),
+                         ("waiting_on_you", "Run pytest?"))
+        self.assertIn("summary", filled[0].slots)
+
+    def test_no_read_means_no_summary(self):
+        text = Text()
         unread = Speech(Lane(text), lambda thread_id: None)
         self.assertEqual(unread.fill((act(Kind.DONE, status="failed"),), "t5"),
                          ((act(Kind.DONE, status="failed"),), ()))
