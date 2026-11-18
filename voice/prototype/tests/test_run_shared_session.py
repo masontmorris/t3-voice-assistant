@@ -525,14 +525,21 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
         self.spoken = []
         self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
 
-    async def turn(self, script):
+    async def turn(self, script, fallback_pcm=b"\x01\x00" * 480):
         self.voice.script = script
         self.voice.asked = 0
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.05, Path(self.tmp.name), {}, "hybrid", None, "gated",
-            voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480,
+            voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=fallback_pcm,
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
             speak=heard_by(self.spoken, with_bytes=True))
+
+    async def test_blocked_replies_without_fallback_audio_are_not_recorded_as_spoken(self):
+        record = await self.turn(["Sunday will be sunny.", "Monday will be sunny.",
+                                  "Tuesday will be sunny.", "Wednesday will be sunny."], fallback_pcm=b"")
+        self.assertEqual(self.spoken, [])
+        self.assertTrue(record["replies"])
+        self.assertTrue(all(not reply["text"] and reply["speech_s"] == 0 for reply in record["replies"]))
 
     async def test_a_reply_and_an_update_that_both_fail_say_one_line(self):
         record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",

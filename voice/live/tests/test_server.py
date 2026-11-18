@@ -4,6 +4,7 @@ import contextlib
 import inspect
 import json
 import tempfile
+import threading
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -209,6 +210,17 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
                 self.frames.append(len(message))
             if log[-1] == kind:
                 return json.loads(message)
+
+    async def test_t3_off_preserves_the_persona_for_each_snapshot_mode(self):
+        for mode, expected in (("note", server.NOTE_PERSONA), ("reply", server.PERSONA + server.CALL_RULES)):
+            with self.subTest(mode=mode):
+                self.live.args.snapshot = mode
+                self.live.args.t3 = "off"
+                conversation = server.Conversation(self.live, None, SECRET)
+                await conversation.open_voice()
+                self.assertEqual(conversation.persona, expected)
+                self.assertEqual(conversation.voice.sent, [])
+                await conversation.voice.close()
 
     async def test_a_missing_or_wrong_secret_is_refused(self):
         for headers in ({}, {server.HEADER: "wrong"}, {server.HEADER: SECRET, "Origin": "http://example.com"}):
@@ -789,6 +801,42 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(T3Journal(t3.follow.journal.path).pending_lines)
         await ws.close()
 
+    async def test_the_person_finishes_a_turn_while_an_idle_draft_is_pending(self):
+        t3 = self.news(DONE)
+        began, release = asyncio.Event(), threading.Event()
+        loop = asyncio.get_running_loop()
+
+        def draft(update, entry, turns):
+            loop.call_soon_threadsafe(began.set)
+            release.wait()
+            return t3.say(update, turns)
+
+        async with await self.connect() as ws:
+            with mock.patch.object(t3, "say_entry", draft):
+                try:
+                    await asyncio.wait_for(began.wait(), 5)
+                    await self.send(ws, noise(300) + tone(600) + noise(900, seed=1))
+                    idle = await self.until(ws, "turn_done", [])
+                    self.assertEqual((idle["idle"], idle["given_back"], idle["replies"]), (True, True, []))
+                    spoken = await self.until(ws, "turn_done", [])
+                    self.assertEqual((spoken["turn"], spoken["replies"]), (2, ["reply to turn_002"]))
+                    self.assertFalse(release.is_set())
+                    self.assertFalse(any(e["type"] == "conversation.item.create" for e in VOICES[-1].sent))
+                    self.assertEqual([u.acts for u in T3Journal(t3.follow.journal.path).pending_lines], [DONE.acts])
+                finally:
+                    release.set()
+
+    async def test_pending_news_reloads_and_plays_after_restart(self):
+        first = self.news(DONE)
+        update, = first.reserve_news(idle=True)
+        self.assertEqual(update.acts, DONE.acts)
+        self.live.t3 = restarted = News(first.follow.journal.path)
+        async with await self.connect() as ws:
+            done = await self.until(ws, "turn_done", [])
+            self.assertEqual(done["replies"], [DONE_LINE])
+            self.assertEqual(self.frames, [960])
+        self.assertEqual(T3Journal(restarted.follow.journal.path).pending_lines, [])
+
     async def test_news_waits_while_the_person_talks_and_after_the_reply(self):
         self.news(DONE, audio=bytes(OUT_RATE * 2 * 2))
         ws = await self.connect()
@@ -816,7 +864,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         gate[1].set()
         idle = await self.until(ws, "turn_done", log)
         self.assertEqual((idle["turn"], idle["idle"], idle["given_back"]), (1, True, True))
-        self.assertEqual(idle["cancelled"], "superseded", "muted and left to finish, never cancelled mid-session")
+        self.assertEqual(idle["cancelled"], "superseded", "the shared response is drained before the next turn")
         self.assertNotIn("audio", log, "a line the person talked before is never played over them")
         self.assertIn(prototype_run.T3_DISCARD, str(self.live.active.voice.sent))
         self.assertEqual(t3.given, [DONE.acts])
@@ -1063,10 +1111,11 @@ class DefaultsTest(unittest.TestCase):
         from voice.t3.realtime_writer import RealtimeWriter
 
         with mock.patch.dict("os.environ", {"VOICE_RENDERER": "", "VOICE_PAID_TEXT_MODEL": ""}):
-            self.assertIsInstance(server.default_model("ws://unused"), RealtimeWriter)
+            self.assertIsInstance(server.live_writer("ws://unused"), RealtimeWriter)
             with mock.patch.dict("os.environ", {"VOICE_PAID_TEXT_MODEL": "paid/model", "VOICE_ENV_FILE": "unused"}), \
                     mock.patch.object(t3_tasks, "LiveClient") as cloud:
-                self.assertIs(server.default_model("ws://unused"), cloud.return_value)
+                self.assertIsNone(server.live_writer("ws://unused"))
+                self.assertIs(server.default_model(), cloud.return_value)
 
     def test_live_speech_has_no_tts_mode_dependency(self):
         from voice.t3 import realtime_writer
@@ -1074,7 +1123,7 @@ class DefaultsTest(unittest.TestCase):
         for module in (server, prototype_run, realtime_writer):
             with self.subTest(module=module.__name__):
                 source = inspect.getsource(module)
-                for tts in ("/v1/audio/speech", "from voice.live import script", "voice.live.fallback", "tts_line"):
+                for tts in ("/v1/audio/speech", "/tts", "from voice.live import script", "voice.live.fallback", "tts_line"):
                     self.assertNotIn(tts, source)
 
     def test_t3_can_start_with_any_snapshot_mode(self):

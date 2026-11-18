@@ -72,7 +72,7 @@ from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
 from voice.prototype.release import Release
-from voice.t3.speech import Rendered, speakable
+from voice.t3.speech import RELAY_EXAMPLES, Rendered, speakable
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
@@ -624,7 +624,7 @@ async def answer(session, rate, since, sources, log, fallback=None, running=Fals
         spoken.stopped(fresh["heard"])
     blocked = {"reply": retry["text"], **again, "heard": retry["heard"]}
     log("fact_check", **blocked, blocked=True)
-    if spoken.pcm or fallback is None or fallback.spoken:
+    if spoken.pcm or fallback is None or not fallback.pcm or fallback.spoken:
         return done(retry, responses, blocked=blocked)
     fallback.spoken = True
     log("fallback", text=fallback.line, blocked=blocked)
@@ -645,20 +645,14 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, trans
 
 T3_DRAFT_NOTE = "Private note for you (not said by the person): Draft of what to tell them now: "
 T3_RELAY = (
-    '\n\nThe privacy rule about notes applies to lookups only. Sometimes a note arrives from a colleague about their '
+    '\n\nSometimes a private note arrives from a colleague about their '
     'coding threads. A thread is a workspace conversation with a coding agent, separate from this call. '
     'The note holds a draft of what to tell them now. They have not heard it yet. Say the draft to them '
     'now exactly as written, word for word, as "I" to "you". If a note says a reply did not play, '
     'set that draft and reply aside. Do not repeat the news unless a new draft arrives.'
     '\n\nHere are examples of a note and a good reply to it. The threads, projects and numbers in them are only examples.'
 )
-T3_RELAY_EXAMPLES = (
-    "Should I stop the Prune Dead Imports coding thread?",
-    "A coding thread has started in Mango Ledger to export balances as a spreadsheet. It has not finished.",
-    "Rewrite Cart Pricing has finished. The thread reports that it changed 53 files and all 82 tests passed.",
-    "Bundle Font Files is still working, and its run has been going for 57 minutes.",
-)
-T3_RELAY += "".join(f"\n\nNote: Draft of what to tell them now: {line}\nReply: {line}" for line in T3_RELAY_EXAMPLES)
+T3_RELAY += "".join(f"\n\nNote: Draft of what to tell them now: {line}\nReply: {line}" for line in RELAY_EXAMPLES)
 T3_DISCARD = "[Private note: the preceding T3 draft and reply did not play. Set them aside.]"
 
 
@@ -668,7 +662,7 @@ def _verdict(rendered):
                                          "error": verdict.error}
 
 
-async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio, record_delivery=None):
+async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio, record_delivery=None, is_muted=lambda: False):
     """Check the draft before handing it to the call and check the full reply before releasing its PCM."""
     started = session.clock()
     draft = await asyncio.to_thread(words.say, entry, turns)
@@ -678,11 +672,11 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     delivery, sent, first_sent = "unsent", b"", None
     reply = fixed_reply("", b"", rate, 0)
     spoken = None
-    if draft.line is not None:
+    if draft.line is not None and not is_muted():
         reply, pcm = await relay_draft(session, rate, since, draft.line)
         try:
             if reply["status"] == "completed" and not reply["function_calls"] and pcm:
-                spoken = await asyncio.to_thread(words.accept, entry, reply["text"])
+                spoken = await asyncio.to_thread(words.accept, entry, reply["text"], draft.line)
                 if spoken.line is not None:
                     sent, first_sent = await send_audio(spoken.line, pcm)
                     delivery = "sent" if len(sent) == len(pcm) else "partial" if sent else "unsent"
@@ -912,7 +906,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
                    recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=(),
-                   task_service=None, send_checked=None):
+                   task_service=None, send_checked=None, is_muted=lambda: False):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -954,8 +948,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
     T3 entries go through the draft and call-reply checks. The ordinary snapshot excludes those entries.
 
-    `fallback_pcm` is the audio for `FALLBACK_LINE`, rendered by
-    the caller; without it a turn that loses both replies still says the line in its record and plays nothing.
+    `fallback_pcm` is optional prerecorded audio for prototype callers. Without it, a blocked reply stays silent.
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
     audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply.
 
@@ -1100,7 +1093,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 said = [r["text"] for r in replies if r.get("text") and r.get("delivery", "sent") == "sent"]
                 turns = [*context, {"user": adapter.text(), "assistant": said}]
                 reply, pcm = await say_acts(voice, out_rate, since, entry, service, turns, log,
-                                            send_audio=send_checked, record_delivery=delivery)
+                                            send_audio=send_checked, record_delivery=delivery, is_muted=is_muted)
                 replies.append({"kind": kind, "row": entry.get("row"), **reply})
                 log("reply", reply=kind, text=reply["text"])
                 if pcm:

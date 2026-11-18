@@ -344,7 +344,7 @@ class T3SnapshotService(MockTaskService):
     def say(self, entry, turns=()):
         return CHECKED.accept((STOP,), self.draft, "text_model")
 
-    def accept(self, entry, text):
+    def accept(self, entry, text, draft):
         return CHECKED.accept((STOP,), text, "call")
 
     def refuse(self, entry, rendered):
@@ -391,9 +391,9 @@ class T3TurnTest(NoteTurn):
                 await super().push(event)
 
         class CheckedTwice(T3SnapshotService):
-            def accept(inner, entry, text):
+            def accept(inner, entry, text, draft):
                 self.assertEqual(self.spoken, [])
-                return super().accept(entry, text)
+                return super().accept(entry, text, draft)
 
         self.voice = await Held.open("ws://unused", "voice", lambda: CLOCK)
         task = asyncio.create_task(self.turn([DRAFT], task_service=CheckedTwice, send_checked=self.send_checked))
@@ -406,7 +406,7 @@ class T3TurnTest(NoteTurn):
 
     async def test_a_call_reply_rejected_by_the_decider_releases_no_audio(self):
         class Refused(T3SnapshotService):
-            def accept(self, entry, text):
+            def accept(self, entry, text, draft):
                 return Speech(None, lambda _: None, Decider(Failing(socket.timeout("timed out")))).accept(
                     (STOP,), text, "call")
 

@@ -220,6 +220,29 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
     return problems
 
 
+def check_names(line: str, acts: tuple[Act, ...], known_names: Iterable[str]) -> list[str]:
+    """Match known titles on token boundaries, giving longer explicit titles precedence."""
+    slots = [normalise(value) for act in acts for slot in act.slots.values() for value in _named_values(slot)]
+    explicit = {normalise(value) for act in acts for key in ("thread", "project", "available", "candidates")
+                if key in act.slots for value in _named_values(act.slots[key])}
+    candidates = {normalise(name): name for name in known_names if name}
+    for name in explicit:
+        candidates.setdefault(name, name)
+    text = f" {normalise(line)} "
+    problems = []
+    for key in sorted(candidates, key=lambda name: (-len(name), name)):
+        if not key:
+            continue
+        pattern = f" {key} "
+        if pattern not in text:
+            continue
+        if key not in explicit and not any(pattern in f" {slot} " for slot in slots if slot not in explicit):
+            problems.append(f"unlisted title: {candidates[key]}")
+        while pattern in text:
+            text = text.replace(pattern, " " + "_" * len(key) + " ")
+    return problems
+
+
 def forbidden_claims(acts: Iterable[Act]) -> set[str]:
     """The status claims a line for `acts` may not make: each act's own, less any another act in it states."""
     claimed, forbidden = set(), set()

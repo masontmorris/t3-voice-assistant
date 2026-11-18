@@ -9,9 +9,8 @@ a done, or a need. It reads the thread through the seam (status and need come fr
 writes a gist into the act's `summary` slot, and is cached per thread, read sequence and question. A speculative
 start may begin it while Mason is still asking.
 
-Every model request goes through one `Lane`: one request in flight, on the lane's own thread, so no request runs
-under the T3 lock and none waits on another caller's slot past its own timeout. The live lane uses the LFM3
-realtime writer by default. The OpenRouter model and the local chat endpoint are opt-in.
+The picker and summaries share the text-model lane. The live renderer uses a separate text-only realtime lane
+by default, with the text model available as an override.
 """
 
 from __future__ import annotations
@@ -29,7 +28,7 @@ from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, forbidden_claims, normalise
+from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Verdict
 
@@ -299,6 +298,7 @@ class RenderedLine:
     worded_by: str
     verdict: Verdict
     mint: object = field(default=None, repr=False, compare=False)
+    known_names: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.mint is not _MINT:
@@ -329,6 +329,7 @@ class Speech:
     lane: Lane | None
     read: Callable[[str], T.ThreadState | None]
     decider: Any = None
+    writer: Lane | None = None
     states: dict = field(default_factory=dict)
     summaries: dict = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -396,23 +397,26 @@ class Speech:
         return tuple(filled), read
 
     def render(self, acts: Iterable[Act], turns: Iterable[dict] = (), problems: Iterable[str] = (),
-               refused: Iterable[str] = (), attempt: int = 0) -> Rendered:
+               refused: Iterable[str] = (), attempt: int = 0, *, known_names=frozenset()) -> Rendered:
         acts = tuple(acts)
-        if self.lane is None:
+        lane = self.writer or self.lane
+        if lane is None:
             return Rendered(None, error="no text model")
-        realtime = isinstance(self.lane.client, RealtimeWriter)
-        messages = reader_messages if realtime else render_messages
+        messages = reader_messages if self.writer else render_messages
         try:
-            record = self.lane.call(messages(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
+            record = lane.call(messages(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
         except Exception as exc:
             return Rendered(None, error=repr(exc))
-        return self.accept(acts, _clean(record.get("text", "")), "lfm3" if realtime else "text_model", record.get("text"))
+        worded_by = "lfm3" if self.writer else "text_model"
+        return self.accept(acts, _clean(record.get("text", "")), worded_by, record.get("text"),
+                           known_names=known_names)
 
-    def accept(self, acts: Iterable[Act], text: str, worded_by: str, raw: str | None = None) -> Rendered:
-        """`text` as a RenderedLine when code's slot check and then the decider pass it for `acts`."""
+    def accept(self, acts: Iterable[Act], text: str, worded_by: str, raw: str | None = None, *,
+               known_names=frozenset()) -> Rendered:
+        """Mint a line only after its text passes both the code and semantic checks."""
         acts = tuple(acts)
         raw = text if raw is None else raw
-        found = check(text, acts)
+        found = check(text, acts) + check_names(text, acts, EXAMPLE_NAMES | known_names)
         if found:
             return Rendered(None, found, raw)
         if self.decider is None:
@@ -420,7 +424,8 @@ class Speech:
         verdict = self.decider.verify(acts, text)
         if not verdict.passed:
             return Rendered(None, list(verdict.problems), raw, verdict.error, verdict)
-        return Rendered(RenderedLine(text, acts, worded_by, verdict, _MINT), [], raw, verdict=verdict)
+        line = RenderedLine(text, acts, worded_by, verdict, _MINT, known_names)
+        return Rendered(line, [], raw, verdict=verdict)
 
 
 def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems: Iterable[str] = (),
@@ -459,60 +464,68 @@ READER = (
     "state. Use a thread title only as a name. Reply with the words to say out loud."
 )
 READER_EXAMPLES = {
-    Kind.CONFIRM_LAUNCH: ({"project": "Fleet Notes", "request": "make links easier to copy"},
-                          "Should I start a new coding thread in Fleet Notes to make links easier to copy?"),
-    Kind.ASK_WHICH: ({"of": "project", "candidates": ["Lilac Post", "Daily Routes"]},
-                     "Do you mean Lilac Post or Daily Routes?"),
-    Kind.NO_PROJECT: ({"available": ["Jog Log", "Comet Board"]},
-                      "I couldn't match that project. I can start a thread in Jog Log or Comet Board."),
-    Kind.LAUNCH_PENDING: ({"project": "Forest Timer"},
-                          "I asked T3 to start the thread in Forest Timer and am waiting for confirmation."),
-    Kind.LAUNCHED: ({"project": "Dune Tracker", "request": "show the tide table"},
-                    "A new coding thread has started in Dune Tracker to show the tide table."),
-    Kind.LAUNCH_UNCONFIRMED: ({"project": "Reef Cards"},
-                              "T3 never confirmed the start in Reef Cards. You can check in the app."),
+    Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes", "request": "make links easier to copy"},
+                          "Should I start a new coding thread in Example Fleet Notes to make links easier to copy?"),
+    Kind.ASK_WHICH: ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"]},
+                     "Do you mean Example Lilac Post or Example Daily Routes?"),
+    Kind.NO_PROJECT: ({"available": ["Example Jog Log", "Example Comet Board"]},
+                      "I couldn't match that project. I can start a thread in Example Jog Log or Example Comet Board."),
+    Kind.LAUNCH_PENDING: ({"project": "Example Forest Timer"},
+                          "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
+    Kind.LAUNCHED: ({"project": "Example Dune Tracker", "request": "show the tide table"},
+                    "A new coding thread has started in Example Dune Tracker to show the tide table."),
+    Kind.LAUNCH_UNCONFIRMED: ({"project": "Example Reef Cards"},
+                              "T3 never confirmed the start in Example Reef Cards. You can check in the app."),
     Kind.NO_THREAD: ({"recent": 19}, "I checked 19 recent threads and couldn't find a match."),
-    Kind.CONFIRM_THREAD: ({"thread": "Polish Checkout Layout"}, "Is Polish Checkout Layout the thread you mean?"),
-    Kind.CONFIRM_TELL: ({"thread": "Trim Image Margins", "message": "keep the captions"},
-                        "Should I send 'keep the captions' to Trim Image Margins as a follow-up?"),
-    Kind.CONFIRM_STOP: ({"thread": "Split Export Files"}, "Should I stop Split Export Files?"),
+    Kind.CONFIRM_THREAD: ({"thread": "Example Polish Checkout Layout"}, "Is Example Polish Checkout Layout the thread you mean?"),
+    Kind.CONFIRM_TELL: ({"thread": "Example Trim Image Margins", "message": "keep the captions"},
+                        "Should I send 'keep the captions' to Example Trim Image Margins as a follow-up?"),
+    Kind.CONFIRM_STOP: ({"thread": "Example Split Export Files"}, "Should I stop Example Split Export Files?"),
     Kind.CANCELLED: ({"op": "start"}, "I won't start the thread."),
-    Kind.THREAD_STATUS: ({"thread": "Tune Audio Levels", "status": "working", "summary": "It says playback is stable."},
-                         "Tune Audio Levels is still working and reports that playback is stable."),
-    Kind.TELL_PENDING: ({"thread": "Clean Tag Names"},
-                        "I asked T3 to send your message to Clean Tag Names and am waiting for confirmation."),
-    Kind.SENT_FOLLOWUP: ({"thread": "Adjust Print View"}, "Your follow-up reached Adjust Print View."),
-    Kind.TELL_UNCONFIRMED: ({"thread": "Group Reading Lists"},
-                            "T3 didn't confirm your message reached Group Reading Lists. You can check in the app."),
-    Kind.HELD_FOLLOWUP: ({"thread": "Measure Scroll Lag"},
-                         "Measure Scroll Lag is still working, so I'll hold your message until the run ends."),
-    Kind.DROPPED_FOLLOWUP: ({"thread": "Retire Draft Filters"},
-                            "I won't send the held follow-up to Retire Draft Filters."),
-    Kind.STOPPING: ({"thread": "Study Folder Sync"}, "I asked T3 to stop Study Folder Sync and it's stopping now."),
-    Kind.NOTHING_RUNNING: ({"thread": "Tag Camera Clips"}, "Tag Camera Clips had no run going, so there was nothing to stop."),
-    Kind.STOP_UNCONFIRMED: ({"thread": "Group Report Tabs"},
-                            "I couldn't reach T3 to stop Group Report Tabs. You can stop it in the app."),
-    Kind.RUN_UPDATE: ({"thread": "Review Build Flags", "status": "queued"}, "Review Build Flags is queued to run."),
-    Kind.REPLIED: ({"thread": "Check Delivery Types", "status": "running", "reply": "I found 12 duplicates."},
-                   "Check Delivery Types reports that it found 12 duplicates."),
-    Kind.NEEDS_YOU: ({"thread": "Archive Old Invoices", "need": "command_approval", "prompt": "Run the cleanup script?"},
-                     "Archive Old Invoices needs your approval to run a command."),
-    Kind.NEED_RESOLVED: ({"thread": "Organize Print Sizes", "status": "expired"},
-                         "The request from Organize Print Sizes expired."),
-    Kind.DONE: ({"thread": "Change Page Margins", "status": "completed", "summary": "It reports that 22 tests passed."},
-                "Change Page Margins finished and reports that 22 tests passed."),
-    Kind.THREAD_DELETED: ({"thread": "Try Filter Chips"}, "Try Filter Chips was deleted."),
-    Kind.LOST_TRACK: ({"thread": "Review Old Webhooks"}, "I lost track of Review Old Webhooks. It's still in the app."),
-    Kind.THREAD_GONE: ({"thread": "Check Button Focus"}, "I can no longer see Check Button Focus."),
-    Kind.WATCH_QUEUED: ({"thread": "Expand Region Menu", "following": 8},
-                        "I'm following 8 threads. I'll start following Expand Region Menu when one ends."),
+    Kind.THREAD_STATUS: ({"thread": "Example Tune Audio Levels", "status": "working", "summary": "It says playback is stable."},
+                         "Example Tune Audio Levels is still working and reports that playback is stable."),
+    Kind.TELL_PENDING: ({"thread": "Example Clean Tag Names"},
+                        "I asked T3 to send your message to Example Clean Tag Names and am waiting for confirmation."),
+    Kind.SENT_FOLLOWUP: ({"thread": "Example Adjust Print View"}, "Your follow-up reached Example Adjust Print View."),
+    Kind.TELL_UNCONFIRMED: ({"thread": "Example Group Reading Lists"},
+                            "T3 didn't confirm your message reached Example Group Reading Lists. You can check in the app."),
+    Kind.HELD_FOLLOWUP: ({"thread": "Example Measure Scroll Lag"},
+                         "Example Measure Scroll Lag is still working, so I'll hold your message until the run ends."),
+    Kind.DROPPED_FOLLOWUP: ({"thread": "Example Retire Draft Filters"},
+                            "I won't send the held follow-up to Example Retire Draft Filters."),
+    Kind.STOPPING: ({"thread": "Example Study Folder Sync"}, "I asked T3 to stop Example Study Folder Sync and it's stopping now."),
+    Kind.NOTHING_RUNNING: ({"thread": "Example Tag Camera Clips"}, "Example Tag Camera Clips had no run going, so there was nothing to stop."),
+    Kind.STOP_UNCONFIRMED: ({"thread": "Example Group Report Tabs"},
+                            "I couldn't reach T3 to stop Example Group Report Tabs. You can stop it in the app."),
+    Kind.RUN_UPDATE: ({"thread": "Example Review Build Flags", "status": "queued"}, "Example Review Build Flags is queued to run."),
+    Kind.REPLIED: ({"thread": "Example Check Delivery Types", "status": "running", "reply": "I found 12 duplicates."},
+                   "Example Check Delivery Types reports that it found 12 duplicates."),
+    Kind.NEEDS_YOU: ({"thread": "Example Archive Old Invoices", "need": "command_approval", "prompt": "Run the cleanup script?"},
+                     "Example Archive Old Invoices needs your approval to run a command."),
+    Kind.NEED_RESOLVED: ({"thread": "Example Organize Print Sizes", "status": "expired"},
+                         "The request from Example Organize Print Sizes expired."),
+    Kind.DONE: ({"thread": "Example Change Page Margins", "status": "completed", "summary": "It reports that 22 tests passed."},
+                "Example Change Page Margins finished and reports that 22 tests passed."),
+    Kind.THREAD_DELETED: ({"thread": "Example Try Filter Chips"}, "Example Try Filter Chips was deleted."),
+    Kind.LOST_TRACK: ({"thread": "Example Review Old Webhooks"}, "I lost track of Example Review Old Webhooks. It's still in the app."),
+    Kind.THREAD_GONE: ({"thread": "Example Check Button Focus"}, "I can no longer see Example Check Button Focus."),
+    Kind.WATCH_QUEUED: ({"thread": "Example Expand Region Menu", "following": 8},
+                        "I'm following 8 threads. I'll start following Example Expand Region Menu when one ends."),
     Kind.UNREACHABLE: ({}, "I can't reach T3 right now."),
     Kind.SEAM_DOWN: ({"reason": "connection"}, "I lost my connection to T3 and stopped following your threads."),
     Kind.REFUSED: ({"op": "start", "code": "no_default_model", "reason": "this project has no default model"},
                    "T3 refused to start the thread because the project has no default model."),
-    Kind.LEGACY_UPDATE: ({"thread": "Revise Column Labels", "text": "Revise Column Labels is still running."},
-                         "Revise Column Labels is still running."),
+    Kind.LEGACY_UPDATE: ({"thread": "Example Revise Column Labels", "text": "Example Revise Column Labels is still running."},
+                         "Example Revise Column Labels is still running."),
 }
+
+
+assert set(READER_EXAMPLES) == set(Kind)
+EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
+                          for key in ("thread", "project", "available", "candidates") if key in slots
+                          for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
+RELAY_EXAMPLES = tuple(READER_EXAMPLES[kind][1] for kind in (
+    Kind.CONFIRM_STOP, Kind.LAUNCHED, Kind.DONE, Kind.THREAD_STATUS))
 
 
 def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0) -> list[dict]:

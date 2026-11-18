@@ -107,7 +107,7 @@ import subprocess
 import threading
 import time
 from contextlib import nullcontext
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from datetime import datetime
 from functools import partial
 from http import HTTPStatus
@@ -126,7 +126,7 @@ from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, T3_RELAY, 
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
-    default_model, default_origin, default_token_file
+    default_model, default_origin, default_token_file, live_writer
 from voice.t3.verify import default_decider as default_speech_decider
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
@@ -672,7 +672,7 @@ class Conversation:
                     prior.mute("barge_in" if barge_in else "superseded")
             elif prior.idle:
                 if not prior.task.done():
-                    prior.mute("superseded")
+                    prior.cancel("superseded")
             elif not prior.task.done():
                 prior.cancel("continued")
                 carry = bytes(prior.pcm)
@@ -831,7 +831,8 @@ class Conversation:
                                     prior_replies=tuple(self.ledger.replies()),
                                     established=tuple(self.ledger.established()),
                                     task_service=live.task_service,
-                                    send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm))
+                                    send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm),
+                                    is_muted=lambda: turn.muted)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -850,7 +851,7 @@ class Conversation:
         self.write_record(turn, record)
         if turn.barge_in is not None and not turn.barge_in.heard.done():
             turn.barge_in.heard.add_done_callback(lambda _: self.write_record(turn, record))
-        replies = [r for r in record.get("replies", []) if r.get("delivery", "sent") == "sent"]
+        replies = [r for r in record.get("replies", []) if r.get("text") and r.get("delivery", "sent") == "sent"]
         done = {"type": "turn_done", "turn": turn.n, "transcript": record.get("final_transcript"),
                 "replies": [r.get("text") for r in replies], "error": record.get("error"),
                 "cancelled": turn.cancelled,
@@ -864,8 +865,6 @@ class Conversation:
         updates = live.t3.reserve_news(idle=True)
         entries = [live.t3.news_entry(update, f"conv_{turn.stem}") for update in updates]
         unsent = {id(update): update for update in updates}
-        of_entry = {id(entry): update for update, entry in zip(updates, entries)}
-        words = Words(live.t3, lambda entry: of_entry[id(entry)])
         record = {"clip": turn.name, "idle": True, "final_transcript": None,
                   "t3_updates": [asdict(update) for update in updates], "task_updates": entries, "timeline": timeline,
                   "replies": []}
@@ -881,13 +880,19 @@ class Conversation:
                 turn.out_rate, self.started = self.out_rate, time.perf_counter()
                 log("task_updates", updates=entries)
                 for update, entry in zip(updates, entries):
+                    draft_update = replace(update)
+                    words = Words(live.t3, lambda _: draft_update)
+
                     def delivered(state):
                         if state == "sent":
                             live.t3.ack_news(unsent.pop(id(update)))
 
                     reply, _ = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
-                        send_audio=lambda line, pcm: self.speak_t3(turn, line, pcm), record_delivery=delivered)
+                        send_audio=lambda line, pcm: self.speak_t3(turn, line, pcm), record_delivery=delivered,
+                        is_muted=lambda: turn.muted)
+                    update.acts, update.sequences = draft_update.acts, draft_update.sequences
+                    update.problems, update.refused, update.tries = draft_update.problems, draft_update.refused, draft_update.tries
                     record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
                     log("reply", reply="t3_update", text=reply["text"])
                     if turn.muted:
@@ -1049,8 +1054,8 @@ async def main_async(args):
         t3 = poller = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
         if getattr(args, "t3", "off") == "on":
-            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(url),
-                              default_speech_decider())
+            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
+                              default_speech_decider(), writer=live_writer(url))
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
             tools = T3Registry(tools)

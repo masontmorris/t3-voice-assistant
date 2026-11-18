@@ -171,13 +171,11 @@ MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting
 
 @dataclass
 class T3Tasks:
-    """`model` is the voice's text model (speech.text_model): the Twin B model arm, asked only when the prefilter
-    misses, and the voice's words for every act and summary. One `Lane` carries all of it, one request at a time. None
-    keeps the prefilter alone, and then no act can be worded by the text model. `decider` checks every worded line
-    against its acts (voice/t3/verify.py); with none, no line passes and every act waits."""
+    """The picker and summarizer share `model`. A live `writer` overrides the text model only for drafting acts.
+    The decider checks both model outputs before the voice can send audio."""
 
     follow: L.Follow
-    model: LiveClient | LocalText | RealtimeWriter | None = None
+    model: LiveClient | LocalText | None = None
     decider: Decider | None = None
     question: Question | None = None
     keys: dict[str, str] = field(default_factory=dict)
@@ -186,17 +184,19 @@ class T3Tasks:
     lock: threading.RLock = field(default_factory=threading.RLock)
     unasked: L.Update | None = field(default=None, init=False)
     lane: Lane | None = field(default=None, init=False)
+    writer: RealtimeWriter | None = field(default=None, kw_only=True)
     speech: Speech = field(init=False)
 
     def __post_init__(self) -> None:
         self.lane = Lane(self.model) if self.model is not None else None
-        self.speech = Speech(self.lane, self._read_quiet, self.decider)
+        self.speech = Speech(self.lane, self._read_quiet, self.decider, Lane(self.writer) if self.writer else None)
 
     @classmethod
     def open(cls, origin: str, token_file: str | Path, journal_path: str | Path,
-             model: LiveClient | LocalText | RealtimeWriter | None = None, decider: Decider | None = None) -> T3Tasks:
+             model: LiveClient | LocalText | None = None, decider: Decider | None = None, *,
+             writer: RealtimeWriter | None = None) -> T3Tasks:
         follow = L.Follow(T3Journal(journal_path), lambda: T3Seam.connect(origin, token_file))
-        return cls(follow, model, decider)
+        return cls(follow, model, decider, writer=writer)
 
     def resume(self, now: float) -> None:
         with self.lock:
@@ -585,6 +585,20 @@ class T3Tasks:
 
         threading.Thread(target=run, name="t3-prefetch", daemon=True).start()
 
+    def known_names(self) -> frozenset[str]:
+        seam = self.follow.seam
+        projects = {p.name for p in seam.hello.projects} if seam is not None else set()
+        with self.lock:
+            threads = {task.title for task in self.follow.journal.tasks.values() if task.title}
+        if seam is not None:
+            try:
+                listing = seam.list_threads()
+                if listing is not None:
+                    threads.update(thread.title for thread in listing.threads)
+            except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
+                pass
+        return frozenset(projects | threads)
+
     def say(self, update: L.Update, turns=()) -> Rendered:
         """The text model's words for `update`'s acts, fitted to `turns`, off the T3 lock. A summarised act gets its
         thread's summary first, and the read it came from joins the update's evidence. A line that fails the slot
@@ -592,7 +606,7 @@ class T3Tasks:
         acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences)
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
-        rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries)
+        rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names())
         refuse(update, rendered)
         return rendered
 
@@ -623,8 +637,8 @@ class Words:
     def say(self, entry, turns=()) -> Rendered:
         return self.t3.say_entry(self.update_for(entry), entry, turns)
 
-    def accept(self, entry, text) -> Rendered:
-        return self.t3.speech.accept(self.update_for(entry).acts, text, "call")
+    def accept(self, entry, text, draft) -> Rendered:
+        return self.t3.speech.accept(draft.acts, text, "call", known_names=draft.known_names)
 
     def refuse(self, entry, rendered) -> None:
         refuse(self.update_for(entry), rendered)
@@ -728,8 +742,8 @@ class T3TaskService(MockTaskService):
     def say(self, entry, turns=()) -> Rendered:
         return Words(self.t3, self.update_for).say(entry, turns)
 
-    def accept(self, entry, text) -> Rendered:
-        return Words(self.t3, self.update_for).accept(entry, text)
+    def accept(self, entry, text, draft) -> Rendered:
+        return Words(self.t3, self.update_for).accept(entry, text, draft)
 
     def refuse(self, entry, rendered) -> None:
         Words(self.t3, self.update_for).refuse(entry, rendered)
@@ -814,11 +828,13 @@ def default_journal() -> Path:
     return Path(os.environ.get("VOICE_T3_JOURNAL", default_voice_home() / "state" / "t3-journal.json"))
 
 
-def default_model(realtime_url: str | None = None) -> LiveClient | LocalText | RealtimeWriter | None:
-    """Use the live realtime server unless VOICE_RENDERER selects another model."""
-    if realtime_url is not None and not (os.environ.get("VOICE_RENDERER") or os.environ.get("VOICE_PAID_TEXT_MODEL")):
-        return RealtimeWriter(realtime_url)
+def live_writer(url: str) -> RealtimeWriter | None:
+    if os.environ.get("VOICE_RENDERER") or os.environ.get("VOICE_PAID_TEXT_MODEL"):
+        return None
+    return RealtimeWriter(url)
 
+
+def default_model() -> LiveClient | LocalText | None:
     def cloud() -> LiveClient | None:
         if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE")):
             return None
@@ -842,9 +858,10 @@ class Poller:
 
     def _run(self) -> None:
         while not self.stopped.is_set():
+            deadline = time.monotonic() + self.wait_s
             waited = self.t3.wait(self.wait_s)
-            if waited is None:
-                self.stopped.wait(self.wait_s)
+            if waited is None or waited[1] is None:
+                self.stopped.wait(max(0.0, deadline - time.monotonic()))
             self.t3.poll(time.monotonic(), waited)
             if self.notify is not None and self.t3.has_news(idle=True):
                 self.notify()

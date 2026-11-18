@@ -276,6 +276,22 @@ class RenderTest(unittest.TestCase):
                 self.assertEqual(json.loads(user["content"]), {"kind": "confirm_thread", "thread": title})
 
 
+    def test_known_and_example_titles_are_rejected_at_both_checks(self):
+        acts = (act(Kind.CONFIRM_THREAD, thread="Current Thread Notes"),)
+        titles = frozenset({"Current Thread", "Archived Project"})
+        legitimate = "Is Current Thread Notes the thread you mean?"
+        speech = Speech(Lane(Text(legitimate)), Reads(), F.Agree())
+        draft = speech.render(acts, known_names=titles).line
+        self.assertIsNotNone(draft)
+        for title in ("Current Thread", "Archived Project", "Example Polish Checkout Layout"):
+            with self.subTest(title=title):
+                text = f"Is Current Thread Notes or {title} the thread you mean?"
+                wrong = Speech(Lane(Text(text)), Reads(), F.Agree()).render(acts, known_names=titles)
+                self.assertEqual(wrong.problems, [f"unlisted title: {title}"])
+                call = speech.accept(draft.acts, text, "call", known_names=draft.known_names)
+                self.assertEqual(call.problems, wrong.problems)
+
+
 class RealtimeWriterTest(unittest.TestCase):
     def test_complete_uses_a_fresh_text_only_session(self):
         from unittest.mock import patch
