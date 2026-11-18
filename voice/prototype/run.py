@@ -81,7 +81,7 @@ from voice.segmentation.gate import PLAN_A
 from voice.segmentation.intent import utterance_intent
 from voice.prototype.stagger import StaggeredAsr, StaggeredTranscript
 from voice.prototype.transcript import TranscriptAdapter
-from voice.tools.registry import ToolCall, open_registry
+from voice.tools.registry import T3_TOOLS, ToolCall, open_registry
 
 EVIDENCE = VOICE_HOME / "evidence" / "prototype"
 PERSONA = (
@@ -806,18 +806,18 @@ class WavInput:
         return max(voice_end, asr_end)
 
 
-def decider_arguments(decider=None):
+def decider_arguments(decider=None, *, t3_enabled=False):
     """Whether the decider reads the tool's place and day in the same request. On by default; VOICE_DECIDER_ARGS=off
     turns it off. Measured at least as accurate as the word rules on both surfaces: 9 of 10 labeled eval items against
     their 8, and on the real turns it read the place the word rules cannot ("what about San Diego?" has no preposition
     for them), which turned that turn's Portland forecast into a San Diego one.
 
-    A decider that cannot answer those questions says so with `text_questions = False`, as the free cloud decider
-    does, and then the default is off. VOICE_DECIDER_ARGS still decides when it is set."""
+    On T3 calls, skip the questions for the free cloud decider, which declares text_questions = False.
+    VOICE_DECIDER_ARGS still decides when set."""
     setting = os.environ.get("VOICE_DECIDER_ARGS")
     if setting is not None:
         return setting.lower() != "off"
-    return getattr(decider, "text_questions", True) is not False
+    return not t3_enabled or getattr(decider, "text_questions", True) is not False
 
 
 def segmenter_for(name, decider, label, tools):
@@ -825,7 +825,9 @@ def segmenter_for(name, decider, label, tools):
     the decider's own tool answer; a run with no registry asks nothing about tools."""
     if name != "hybrid" or tools is None:
         return SEGMENTERS[name](decider, label)
-    return SEGMENTERS[name](decider, label, tools=tools.choices(), arguments=decider_arguments(decider))
+    choices = tools.choices()
+    return SEGMENTERS[name](decider, label, tools=choices,
+                            arguments=decider_arguments(decider, t3_enabled=bool(T3_TOOLS & choices.keys())))
 
 
 def close_with_decider(segmenter, update):
