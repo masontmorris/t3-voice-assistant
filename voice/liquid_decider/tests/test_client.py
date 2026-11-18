@@ -145,6 +145,12 @@ class Ledger(LiquidCase):
         self.assertIsNot(first, second)
         self.assertEqual(liquid.cached("decisions", body())["timing"], first["timing"])
 
+    def test_an_uncached_call_keeps_spend_in_the_ledger(self):
+        record = self.client.call("decisions", body(), label="u:r1", fresh=True, cache_record=False)
+        self.assertEqual(record["status"], 200)
+        self.assertIsNone(liquid.cached("decisions", body()))
+        self.assertEqual(len(self.ledger()), 1)
+
 
 class Spending(LiquidCase):
     def test_a_call_that_would_start_past_the_day_limit_is_refused(self):
