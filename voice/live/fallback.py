@@ -6,10 +6,10 @@ to answer the fact check.", which names the machinery and says nothing useful. I
 because a third answer can be just as wrong. So the line is fixed text, rendered before any turn starts, and a turn
 plays it at most once.
 
-The clip is the running llama-server's own TTS (`voice/live/script.py`), so it is the assistant's voice and not a
-second voice, and it is kept under `$VOICE_HOME/live/` so later processes pay nothing. Rendering is the only part
-that needs the server; `pcm` is pure code. When rendering fails the turn speaks nothing rather than a line in another
-voice, and the record says so.
+The clip is the running llama-server's own TTS (`voice/live/script.py`), the same `female` speaker T3 lines use,
+which is not the call's chat voice (docs/voice/t3-same-voice.md). It is kept under `$VOICE_HOME/live/` so later
+processes pay nothing. Rendering is the only part that needs the server; `pcm` is pure code. When rendering fails the
+turn speaks nothing, and the record says so.
 """
 
 import hashlib

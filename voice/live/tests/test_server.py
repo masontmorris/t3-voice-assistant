@@ -19,6 +19,7 @@ from voice.live.tests.test_endpoint import noise, tone
 from voice.live.tests.test_t3_tasks import FakeText, worded
 from voice.prototype import run as prototype_run
 from voice.prototype.run import run_clip
+from voice.prototype.tests.test_run_shared_session import streamed
 from voice.t3 import fakes as F
 from voice.t3.acts import act
 from voice.t3.acts import Kind as S
@@ -678,7 +679,7 @@ def idle_speaker(gate=None, seconds=2.0):
         if gate is not None:
             gate[0].set()
             await gate[1].wait()
-        kwargs["render"] = lambda text, rate: b"\x01\x00" * int(OUT_RATE * seconds)
+        kwargs["render"] = streamed(lambda text, rate: b"\x01\x00" * int(OUT_RATE * seconds))
         return await original(session, rate, since, line, log, **kwargs)
 
     return say_verbatim
@@ -726,7 +727,8 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_failed_idle_render_is_retried_once_without_a_false_told_note(self):
         t3 = self.news(prototype_run.say_verbatim, DONE)
-        self.live.t3_voice = mock.Mock(side_effect=[OSError("TTS down"), bytes(960)])
+        tts = mock.Mock(side_effect=[OSError("TTS down"), bytes(960)])
+        self.live.t3_voice = streamed(tts)
         ws = await self.connect()
         log = []
         first = await self.until(ws, "turn_done", log)
@@ -740,12 +742,12 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(len(notes), 1)
         self.assertIn(DONE_LINE, notes[0])
         self.assertFalse(t3.has_news())
-        self.assertEqual(self.live.t3_voice.call_count, 2)
+        self.assertEqual(tts.call_count, 2)
         await ws.close()
 
     async def test_two_idle_failures_hold_news_for_the_next_person_turn(self):
         t3 = self.news(prototype_run.say_verbatim, DONE)
-        self.live.t3_voice = mock.Mock(side_effect=OSError("TTS down"))
+        self.live.t3_voice = streamed(mock.Mock(side_effect=OSError("TTS down")))
         ws = await self.connect()
         for _ in range(2):
             done = await self.until(ws, "turn_done", [])
@@ -754,7 +756,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(t3.reserve_news(idle=True), [])
         reopened = T3Journal(t3.follow.journal.path)
         self.assertEqual([(line.acts, line.delivery_failures) for line in reopened.pending_lines], [(DONE.acts, 2)])
-        self.live.t3_voice = mock.Mock(return_value=bytes(960))
+        self.live.t3_voice = streamed(lambda text, rate: bytes(960))
 
         async def user_turn(source, *args, voice, send_verbatim, **kwargs):
             await source.stream(FakeSession(), FakeSession())
@@ -928,7 +930,7 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
             line = Speech(None, lambda thread_id: None, F.Agree()).accept(DONE.acts, DONE_LINE, "text_model").line
             reply, pcm = await prototype_run.say_verbatim(
                 voice, OUT_RATE, 0, line, lambda *args, **kwargs: None,
-                render=lambda text, rate: bytes(9600),
+                render=streamed(lambda text, rate: bytes(9600)),
                 send_audio=lambda line, audio: conversation.speak_t3(turn, line, audio))
             self.assertEqual(len(frames), 1)
             self.assertEqual(pcm, frames[0])
