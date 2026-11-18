@@ -1209,72 +1209,6 @@
             }
           ]
         },
-        "recent": {
-          "type": "array",
-          "items": {
-            "anyOf": [
-              {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "type": "string",
-                    "enum": ["tool"]
-                  },
-                  "name": {
-                    "type": "string",
-                    "maxLength": 64
-                  },
-                  "outcome": {
-                    "type": "string",
-                    "enum": ["ok", "failed", "running"]
-                  }
-                },
-                "required": ["kind", "name", "outcome"],
-                "additionalProperties": true
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "type": "string",
-                    "enum": ["files"]
-                  },
-                  "paths": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 256
-                    },
-                    "maxItems": 12
-                  },
-                  "count": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 9007199254740991
-                  }
-                },
-                "required": ["kind", "paths", "count"],
-                "additionalProperties": true
-              },
-              {
-                "type": "object",
-                "properties": {
-                  "kind": {
-                    "type": "string",
-                    "enum": ["error"]
-                  },
-                  "message": {
-                    "type": "string",
-                    "maxLength": 240
-                  }
-                },
-                "required": ["kind", "message"],
-                "additionalProperties": true
-              }
-            ]
-          },
-          "maxItems": 12
-        },
         "asOfSequence": {
           "type": "integer",
           "minimum": 0,
@@ -1289,7 +1223,6 @@
         "run",
         "pending",
         "lastReply",
-        "recent",
         "asOfSequence"
       ],
       "additionalProperties": true

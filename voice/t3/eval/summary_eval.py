@@ -184,7 +184,7 @@ def thread_state(raw: dict) -> T.ThreadState:
                                                               else "user_input")))
         if pending else None,
         T.LastReply(reply, "m", None, raw["run"]["run_id"], raw.get("as_of") or "") if reply else None,
-        1, recent=tuple(T.decode_recent_record(item) for item in raw.get("recent", ())))
+        1)
 
 
 def client(args) -> LiveClient | LocalText:
