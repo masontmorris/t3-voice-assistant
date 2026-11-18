@@ -23,7 +23,7 @@ import type * as ThreadManagementService from "../orchestration-v2/ThreadManagem
 import type * as ProjectService from "../project/ProjectService.ts";
 import type * as ProviderRegistry from "../provider/ProviderRegistry.ts";
 import type * as ServerSettings from "../serverSettings.ts";
-import { clampRuntimeMode, type VoiceSeamConfig } from "./ceiling.ts";
+import { CEILING_INTERACTION_MODE, clampRuntimeMode, type VoiceSeamConfig } from "./ceiling.ts";
 import type { RequestInput, VoiceLaunchResult } from "./protocol.ts";
 import { VoiceSeamRefusal } from "./refusal.ts";
 
@@ -36,9 +36,6 @@ interface LaunchPolicy {
   readonly interactionMode: ProviderInteractionMode;
   readonly workspaceStrategy: ThreadLaunch.ThreadLaunchWorkspaceStrategy;
 }
-
-/** The ceiling's interaction mode, which a voice launch always gets. */
-const INTERACTION_MODE: ProviderInteractionMode = "default";
 
 /** As `t3 thread` titles a thread from its message. */
 const TITLE_MAX_CHARS = 80;
@@ -168,7 +165,7 @@ export const make = (sources: LaunchSources) => {
         supported: providers.find((provider) => provider.instanceId === modelSelection.instanceId)
           ?.supportedRuntimeModes,
       }),
-      interactionMode: INTERACTION_MODE,
+      interactionMode: CEILING_INTERACTION_MODE,
       workspaceStrategy,
     } satisfies LaunchPolicy;
   });

@@ -43,12 +43,15 @@ import {
   type PendingJoin,
 } from "./outcome.ts";
 import * as Launch from "./launch.ts";
+import * as Send from "./send.ts";
 import {
   LIST_LIMIT,
   type RequestInput,
   type ThreadActivity as ThreadActivitySchema,
   type VoiceHello,
+  type VoiceInterruptResult,
   type VoiceLaunchResult,
+  type VoiceSendResult,
   type VoiceThreadList,
   type VoiceThreadState,
 } from "./protocol.ts";
@@ -86,6 +89,19 @@ export class VoiceSeam extends Context.Service<
       caller: VoiceCaller,
       input: RequestInput<"launch">,
     ) => Effect.Effect<VoiceLaunchResult, VoiceSeamRefusal>;
+    /**
+     * Queues a message behind the thread's active run when T3's queue holds the ceiling, and
+     * otherwise refuses while the thread is busy. A retry replays it.
+     */
+    readonly send: (
+      caller: VoiceCaller,
+      input: RequestInput<"send">,
+    ) => Effect.Effect<VoiceSendResult, VoiceSeamRefusal>;
+    /** Interrupts the thread's active run at any mode. A retry interrupts nothing. */
+    readonly interrupt: (
+      caller: VoiceCaller,
+      input: RequestInput<"interrupt">,
+    ) => Effect.Effect<VoiceInterruptResult, VoiceSeamRefusal>;
     /** Checks the thread now, then replays after `afterSequence` and follows live. */
     readonly watch: (
       caller: VoiceCaller,
@@ -94,7 +110,7 @@ export class VoiceSeam extends Context.Service<
   }
 >()("t3/voiceSeam/VoiceSeam") {}
 
-export const requireOperation = (caller: VoiceCaller, operation: VoiceOperation) =>
+const requireOperation = (caller: VoiceCaller, operation: VoiceOperation) =>
   allowsOperation(caller.config, operation)
     ? Effect.void
     : Effect.fail(VoiceSeamRefusal.operationNotAllowed());
@@ -166,13 +182,22 @@ const make = Effect.gen(function* () {
   const threads = yield* ThreadManagementService.ThreadManagementService;
   const eventStore = yield* OrchestrationEventStore.OrchestrationEventStore;
   const projects = yield* ProjectStore.ProjectStoreV2;
+  const digest = yield* Digest.Digest;
+  const receipts = yield* CommandReceiptStore.CommandReceiptStoreV2;
+  const settings = yield* ServerSettings.ServerSettingsService;
+  const writes = Send.make({
+    digest,
+    threads,
+    receipts,
+    managedMaxRuntimeMode: settings.managedPolicy?.limits?.maxRuntimeMode,
+  });
   const launchThread = Launch.make({
-    digest: yield* Digest.Digest,
+    digest,
     threads,
     launches: yield* ThreadLaunch.ThreadLaunchService,
-    receipts: yield* CommandReceiptStore.CommandReceiptStoreV2,
+    receipts,
     projects: yield* ProjectService.ProjectService,
-    settings: yield* ServerSettings.ServerSettingsService,
+    settings,
     providers: yield* ProviderRegistry.ProviderRegistry,
   });
 
@@ -282,6 +307,7 @@ const make = Effect.gen(function* () {
     if (shell === null || !isVisible(caller.config)(shell)) {
       return yield* VoiceSeamRefusal.notFound();
     }
+    return shell;
   });
 
   const readThread = Effect.fn("VoiceSeam.readThread")(function* (
@@ -353,6 +379,26 @@ const make = Effect.gen(function* () {
     return yield* launchThread(caller.config, input);
   });
 
+  const send = Effect.fn("VoiceSeam.send")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"send">,
+  ) {
+    yield* requireOperation(caller, "send");
+    const shell = yield* requireVisible(caller, input.threadId);
+    return yield* writes.send(caller.config, shell, input);
+  });
+
+  // No ceiling check: interrupting starts no work, and the voice must be able to stop a thread
+  // Mason raised above it.
+  const interrupt = Effect.fn("VoiceSeam.interrupt")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"interrupt">,
+  ) {
+    yield* requireOperation(caller, "interrupt");
+    const shell = yield* requireVisible(caller, input.threadId);
+    return yield* writes.interrupt(shell, input);
+  });
+
   const watch = Effect.fn("VoiceSeam.watch")(function* (
     caller: VoiceCaller,
     input: Watch.WatchInput,
@@ -365,7 +411,7 @@ const make = Effect.gen(function* () {
     );
   });
 
-  return VoiceSeam.of({ hello, listThreads, readThread, launch, watch });
+  return VoiceSeam.of({ hello, listThreads, readThread, launch, send, interrupt, watch });
 });
 
 /** The seam reads receipts through its own store, which the route's context does not carry. */

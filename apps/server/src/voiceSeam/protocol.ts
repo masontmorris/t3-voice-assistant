@@ -27,6 +27,7 @@ export const RefusalCode = Schema.Literals([
   "operation_not_allowed",
   "project_not_allowed",
   "above_ceiling",
+  "thread_busy",
   "not_found",
   "gone",
   "refused",
@@ -187,6 +188,33 @@ export const VoiceLaunchResult = Schema.Struct({
 }).annotate({ identifier: "VoiceLaunchResult" });
 export type VoiceLaunchResult = typeof VoiceLaunchResult.Type;
 
+export const VoiceSendResult = Schema.Struct({
+  threadId: ThreadId,
+  /** Fixed by the request id, so a retry names the same message. */
+  messageId: MessageId,
+  /** The run the message started or queued, which a watch can anchor on. */
+  runId: RunId,
+  /** A voice send never steers: it starts a turn on an idle thread or queues behind the active one. */
+  delivery: Schema.Literals(["started", "queued"]),
+  /** A fresh send: its accepted write. A replay: the thread's sequence now. */
+  sequence: Sequence,
+  /** True when the request id had already sent. */
+  replayed: Schema.Boolean,
+}).annotate({ identifier: "VoiceSendResult" });
+export type VoiceSendResult = typeof VoiceSendResult.Type;
+
+export const VoiceInterruptResult = Schema.Union([
+  Schema.Struct({
+    kind: Schema.Literal("requested"),
+    runId: RunId,
+    /** The interrupt's accepted write. */
+    sequence: Sequence,
+  }),
+  /** No run was active, or this request id already interrupted one. */
+  Schema.Struct({ kind: Schema.Literal("nothing_running") }),
+]).annotate({ identifier: "VoiceInterruptResult" });
+export type VoiceInterruptResult = typeof VoiceInterruptResult.Type;
+
 /** Each op, its input, and the value an accepted request answers with. */
 export const REQUESTS = {
   list_threads: {
@@ -223,11 +251,11 @@ export const REQUESTS = {
       threadId: ThreadId,
       text: TrimmedNonEmptyString,
     }),
-    output: Schema.Never,
+    output: VoiceSendResult,
   },
   interrupt: {
     input: Schema.Struct({ requestId: VoiceRequestId, threadId: ThreadId }),
-    output: Schema.Never,
+    output: VoiceInterruptResult,
   },
 } as const;
 
@@ -281,7 +309,7 @@ export const ResultErrorFrame = Schema.Struct({
   }),
 });
 
-/** An accepted request's answer. Send and interrupt never answer ok until unit 6. */
+/** An accepted request's answer. */
 export const resultFrame = <Op extends WireOp>(op: Op) =>
   Schema.Struct({
     type: Schema.Literal("result"),

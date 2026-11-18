@@ -1,7 +1,9 @@
 import {
+  isRuntimeModeAbove,
   OrchestrationV2ThreadLaunchWorkspaceStrategy,
   PositiveInt,
   ProjectId,
+  type ProviderInteractionMode,
   RuntimeMode,
   TrimmedNonEmptyString,
 } from "@t3tools/contracts";
@@ -10,6 +12,10 @@ import * as FileSystem from "effect/FileSystem";
 import * as Schema from "effect/Schema";
 
 import { runtimeModeRank } from "../mcp/delegatedTaskModes.ts";
+import {
+  type DispatchModes,
+  exceededDispatchModeLimit,
+} from "../orchestration-v2/DispatchModeLimit.ts";
 
 export const VOICE_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt"] as const;
 export const VoiceOperation = Schema.Literals(VOICE_OPERATIONS);
@@ -70,6 +76,29 @@ export const readConfig = Effect.fn("VoiceSeam.readConfig")(function* (
     }),
   );
 });
+
+/** The one interaction mode the ceiling allows. A voice launch starts in it. */
+export const CEILING_INTERACTION_MODE: ProviderInteractionMode = "default";
+
+/** The ceiling as T3's per-command mode limit, which the orchestrator rechecks under its lock. */
+export const dispatchModeLimit = (config: VoiceSeamConfig): DispatchModes => ({
+  runtimeMode: config.maxRuntimeMode,
+  interactionMode: CEILING_INTERACTION_MODE,
+});
+
+/** A thread whose modes are above the ceiling, so a voice command would run work in them. */
+export const isAboveCeiling = (config: VoiceSeamConfig, modes: DispatchModes) =>
+  exceededDispatchModeLimit(dispatchModeLimit(config), modes) !== undefined;
+
+/**
+ * Whether a message queued now still starts at or below the ceiling. T3 starts a queued run in the
+ * thread's mode at that time and holds it only above its managed ceiling, so Mason can raise the
+ * thread meanwhile. With no managed ceiling, any mode can start.
+ */
+export const queueHoldsCeiling = (
+  config: VoiceSeamConfig,
+  managedMaxRuntimeMode: RuntimeMode | undefined,
+) => !isRuntimeModeAbove(managedMaxRuntimeMode ?? "full-access", config.maxRuntimeMode);
 
 export const allowsOperation = (config: VoiceSeamConfig, operation: VoiceOperation) =>
   config.operations.includes(operation);

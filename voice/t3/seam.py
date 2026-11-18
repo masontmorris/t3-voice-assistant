@@ -157,15 +157,15 @@ class T3Seam:
             {"requestId": request_id, "projectId": project_id, "instruction": instruction},
         )
 
-    def send(self, request_id: str, thread_id: str, text: str) -> None:
-        """Surface the server's unavailable until the send unit lands."""
-        self._call(
+    def send(self, request_id: str, thread_id: str, text: str) -> T.SendResult:
+        """Queue a message behind the thread's active run, or answer for the one this request id sent."""
+        return self._call(
             "send", {"requestId": request_id, "threadId": thread_id, "text": text}
         )
 
-    def interrupt(self, request_id: str, thread_id: str) -> None:
-        """Surface the server's unavailable until the interrupt unit lands."""
-        self._call("interrupt", {"requestId": request_id, "threadId": thread_id})
+    def interrupt(self, request_id: str, thread_id: str) -> T.InterruptResult:
+        """Interrupt the thread's active run. A retry with the same request id answers NothingRunning."""
+        return self._call("interrupt", {"requestId": request_id, "threadId": thread_id})
 
     def drain(self, timeout: float | None = None) -> Iterator[T.DrainItem]:
         """Yield events, then the socket's end, then stop.

@@ -682,6 +682,7 @@ it.live("sends hello first, answers each op, and starts a watch's events after i
         projectId: PROJECT,
         instruction: "Fix the flaky test",
       });
+      const interrupt = yield* answer("interrupt", { requestId: ULID, threadId: PLAIN_THREAD });
       client.request("watch", { threadId: PLAIN_THREAD, afterSequence: 0 });
       const watched: Array<Frame> = [];
       while (watched.at(-1)?.type !== "event" || !isDone(watched.at(-1)!)) {
@@ -712,9 +713,16 @@ it.live("sends hello first, answers each op, and starts a watch's events after i
           commandId: launchCommand,
         },
       });
-      assert.deepStrictEqual(watched[0], {
+      // The finished thread has nothing to stop, and the answer travels as the union's branch.
+      assert.deepStrictEqual(interrupt, {
         type: "result",
         id: 6,
+        ok: true,
+        value: { kind: "nothing_running" },
+      });
+      assert.deepStrictEqual(watched[0], {
+        type: "result",
+        id: 7,
         ok: true,
         value: { threadId: PLAIN_THREAD },
       });
@@ -722,7 +730,7 @@ it.live("sends hello first, answers each op, and starts a watch's events after i
       assert.deepInclude(watched.at(-1)!.event, { type: "done", status: "completed" });
       assert.deepStrictEqual(unwatched, {
         type: "result",
-        id: 7,
+        id: 8,
         ok: true,
         value: { threadId: PLAIN_THREAD },
       });

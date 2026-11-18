@@ -388,6 +388,58 @@ class SeamClientTest(unittest.TestCase):
             ),
         )
 
+    def test_send_and_interrupt_return_their_results(self):
+        sent = {
+            "threadId": THREAD,
+            "messageId": "voice:send:ef56",
+            "runId": "run_2",
+            "delivery": "queued",
+            "sequence": 90,
+            "replayed": False,
+        }
+        stopped = {"kind": "requested", "runId": "run_1", "sequence": 91}
+        above = "That thread runs in a mode I'm not allowed to use."
+
+        async def handler(ws):
+            await ws.send(json.dumps(HELLO))
+            async for message in ws:
+                req = json.loads(message)
+                last = req["input"]["requestId"][-1]
+                if req["op"] == "send":
+                    reply = (
+                        result_err(req["id"], "above_ceiling", above)
+                        if last == "B"
+                        else result_ok(req["id"], sent)
+                    )
+                else:
+                    value = stopped if last == "A" else {"kind": "nothing_running"}
+                    reply = result_ok(req["id"], value)
+                await ws.send(json.dumps(reply))
+
+        server = self.start_server(handler)
+        seam = self.connect(server.port)
+        self.assertEqual(
+            seam.send("01JD3Z8Q4W5X6Y7Z8A9B0C1D2A", THREAD, "also add a test"),
+            T.SendResult(
+                thread_id=THREAD,
+                message_id="voice:send:ef56",
+                run_id="run_2",
+                delivery=T.Delivery.QUEUED,
+                sequence=90,
+                replayed=False,
+            ),
+        )
+        with self.assertRaises(S.SeamRefused) as caught:
+            seam.send("01JD3Z8Q4W5X6Y7Z8A9B0C1D2B", THREAD, "also add a test")
+        self.assertEqual(caught.exception.code, T.RefusalCode.ABOVE_CEILING)
+        self.assertEqual(
+            seam.interrupt("01JD3Z8Q4W5X6Y7Z8A9B0C1D2A", THREAD),
+            T.InterruptRequested(run_id="run_1", sequence=91),
+        )
+        self.assertEqual(
+            seam.interrupt("01JD3Z8Q4W5X6Y7Z8A9B0C1D2C", THREAD), T.NothingRunning()
+        )
+
     def test_malformed_result_fails_its_caller_and_closes_1007(self):
         for reply in (
             result_ok(1, {"threads": [], "asOfSequence": 78, "truncated": False}),

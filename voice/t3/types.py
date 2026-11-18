@@ -18,6 +18,7 @@ class RefusalCode(str, Enum):
     OPERATION_NOT_ALLOWED = "operation_not_allowed"
     PROJECT_NOT_ALLOWED = "project_not_allowed"
     ABOVE_CEILING = "above_ceiling"
+    THREAD_BUSY = "thread_busy"
     NOT_FOUND = "not_found"
     GONE = "gone"
     REFUSED = "refused"
@@ -99,6 +100,13 @@ class RuntimeMode(str, Enum):
     AUTO_ACCEPT_EDITS = "auto-accept-edits"
     AUTO = "auto"
     FULL_ACCESS = "full-access"
+
+
+class Delivery(str, Enum):
+    """How a send reached its thread. A voice send never steers."""
+
+    STARTED = "started"
+    QUEUED = "queued"
 
 
 class Operation(str, Enum):
@@ -220,6 +228,37 @@ class LaunchResult:
     model: str
     sequence: int
     replayed: bool
+
+
+@dataclass(frozen=True)
+class SendResult:
+    """A send, fresh or replayed. Read the thread before watching it either way."""
+
+    thread_id: str
+    message_id: str
+    run_id: str
+    delivery: Delivery
+    sequence: int
+    replayed: bool
+
+
+@dataclass(frozen=True)
+class InterruptRequested:
+    run_id: str
+    sequence: int
+
+
+@dataclass(frozen=True)
+class NothingRunning:
+    """No run was active, or this request id already interrupted one. Report the first result."""
+
+
+InterruptResult = Union[InterruptRequested, NothingRunning]
+
+INTERRUPT_KINDS: dict[str, type] = {
+    "requested": InterruptRequested,
+    "nothing_running": NothingRunning,
+}
 
 
 @dataclass(frozen=True)
@@ -538,14 +577,38 @@ def decode_launch_result(value: Any) -> LaunchResult:
     )
 
 
+def decode_send_result(value: Any) -> SendResult:
+    return SendResult(
+        thread_id=_need(value, "threadId"),
+        message_id=_need(value, "messageId"),
+        run_id=_need(value, "runId"),
+        delivery=Delivery(_need(value, "delivery")),
+        sequence=_need(value, "sequence"),
+        replayed=_need(value, "replayed"),
+    )
+
+
+def decode_interrupt_result(value: Any) -> InterruptResult:
+    kind = _need(value, "kind")
+    if kind == "requested":
+        return InterruptRequested(run_id=_need(value, "runId"), sequence=_need(value, "sequence"))
+    if kind == "nothing_running":
+        return NothingRunning()
+    raise ValueError(f"unknown interrupt result kind: {kind!r}")
+
+
 RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
     "list_threads": decode_thread_list,
     "read_thread": decode_thread_state,
     "watch": lambda value: WatchStarted(thread_id=_need(value, "threadId")),
     "unwatch": lambda value: WatchStarted(thread_id=_need(value, "threadId")),
     "launch": decode_launch_result,
+    "send": decode_send_result,
+    "interrupt": decode_interrupt_result,
 }
 
-ResultValue = Union[ThreadList, ThreadState, WatchStarted, LaunchResult]
+ResultValue = Union[
+    ThreadList, ThreadState, WatchStarted, LaunchResult, SendResult, InterruptRequested, NothingRunning
+]
 
 DrainItem = Union[VoiceEvent, WatchEnded, SocketEnd]
