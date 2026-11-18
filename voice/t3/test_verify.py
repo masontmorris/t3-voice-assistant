@@ -64,7 +64,8 @@ class LineCheck(unittest.TestCase):
                 verdict = decider.verify(acts_of(row), row["line"])
                 expected = row["should_pass"] and row["line"] not in REFUSED_RIGHT_LINES
                 self.assertEqual(verdict.passed, expected, verdict)
-        self.assertEqual(sum(not row["should_pass"] for row in FIXTURE), 20, "3 escapes and 17 old word-list claims")
+        self.assertEqual(sum(not row["should_pass"] for row in FIXTURE), 22,
+                         "3 escapes, 17 old word-list claims and 2 beside smoke-run lines")
 
     def test_the_questions_come_from_the_act(self):
         stop = asks([act(Kind.CONFIRM_STOP, thread="Alpha")])

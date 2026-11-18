@@ -15,22 +15,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9965561827729909
+        "noul": 0.9969255032849725
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.6332736692136482
+        "noul": 0.48862099125815583
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.4210005791762722
+        "noul": 0.47725376341457154
       },
       "invents": {
         "type": "noul",
-        "noul": 0.6744501944803971
+        "noul": 0.6010195533002328
       }
     },
-    "ms": 203.0
+    "ms": 156.5
   },
   {
     "case": "a stop confirm",
@@ -48,22 +48,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9977626017672718
+        "noul": 0.9967827657179015
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9836517429415376
+        "noul": 0.9850531995409799
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.04521311518990986
+        "noul": 0.0585821193088049
       },
       "invents": {
         "type": "noul",
-        "noul": 0.17540243283111728
+        "noul": 0.1889626718886031
       }
     },
-    "ms": 106.2
+    "ms": 109.6
   },
   {
     "case": "a working status",
@@ -82,15 +82,15 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9969944853574219
+        "noul": 0.997711209355005
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.025533179870432
+        "noul": 0.03634347173991843
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.3881158821967641
+        "noul": 0.9029701565175481
       },
       "claims_stopped": {
         "type": "noul",
@@ -98,10 +98,10 @@
       },
       "invents": {
         "type": "noul",
-        "noul": 0.9776534524022719
+        "noul": 0.9388561922925499
       }
     },
-    "ms": 104.3
+    "ms": 100.6
   },
   {
     "case": "a working status",
@@ -120,26 +120,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9949372604883387
+        "noul": 0.9961426699907668
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9936514010602869
+        "noul": 0.9885849497707475
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.0050627403590691854
+        "noul": 0.017096675742621113
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.009112435340160185
+        "noul": 0.016348255400342588
       },
       "invents": {
         "type": "noul",
-        "noul": 0.12875593433085877
+        "noul": 0.16262021472961807
       }
     },
-    "ms": 127.1
+    "ms": 109.9
   },
   {
     "case": "Alpha's run status",
@@ -158,26 +158,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9106598718408419
+        "noul": 0.9275290422868037
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.0755912155073463
+        "noul": 0.06946982478228014
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.026690678194941194
+        "noul": 0.03634347288029805
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.08934012815915822
+        "noul": 0.06946982513309355
       },
       "invents": {
         "type": "noul",
-        "noul": 0.9733093274442907
+        "noul": 0.9334159558070819
       }
     },
-    "ms": 290.6
+    "ms": 104.3
   },
   {
     "case": "Alpha's run status",
@@ -196,26 +196,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9963137013089561
+        "noul": 0.9963137003323213
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9885849462800174
+        "noul": 0.9804503606468636
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.005297293804696217
+        "noul": 0.0057993099337847265
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.010432009571707868
+        "noul": 0.008326017384056507
       },
       "invents": {
         "type": "noul",
-        "noul": 0.0585821193088049
+        "noul": 0.08220435233723014
       }
     },
-    "ms": 153.5
+    "ms": 103.9
   },
   {
     "case": "claim confirm_launch",
@@ -233,18 +233,18 @@
     "answers": {
       "a1_means": {
         "type": "noul",
-        "noul": 0.7036946493664539
+        "noul": 0.7966872773011674
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.969522533860484
+        "noul": 0.9620280773757468
       },
       "invents": {
         "type": "noul",
-        "noul": 0.5340899513699621
+        "noul": 0.5566604458146516
       }
     },
-    "ms": 104.0
+    "ms": 238.8
   },
   {
     "case": "claim confirm_launch",
@@ -262,18 +262,18 @@
     "answers": {
       "a1_means": {
         "type": "noul",
-        "noul": 0.9506896252261996
+        "noul": 0.9388561922925499
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.05858212050597821
+        "noul": 0.082204362573232
       },
       "invents": {
         "type": "noul",
-        "noul": 0.4321355756813121
+        "noul": 0.47725376341457154
       }
     },
-    "ms": 260.8
+    "ms": 144.7
   },
   {
     "case": "claim confirm_tell",
@@ -292,22 +292,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9721008679576097
+        "noul": 0.9912895675557982
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.7130979564790234
+        "noul": 0.7488660126097637
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.927529034991035
+        "noul": 0.9506896361656368
       },
       "invents": {
         "type": "noul",
-        "noul": 0.06658404756575166
+        "noul": 0.0665840452047681
       }
     },
-    "ms": 146.6
+    "ms": 170.6
   },
   {
     "case": "claim confirm_tell",
@@ -326,22 +326,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9944573477007289
+        "noul": 0.9920415663486035
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9927291208315142
+        "noul": 0.9875104412978382
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.019549644294053117
+        "noul": 0.02044157130087666
       },
       "invents": {
         "type": "noul",
-        "noul": 0.049310373247367166
+        "noul": 0.06380992592142884
       }
     },
-    "ms": 159.1
+    "ms": 105.9
   },
   {
     "case": "claim confirm_stop",
@@ -359,22 +359,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9955806941980363
+        "noul": 0.995963735747098
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9029701498608893
+        "noul": 0.8712440754095362
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.7402079379821797
+        "noul": 0.7655983026307367
       },
       "invents": {
         "type": "noul",
-        "noul": 0.15059934465963615
+        "noul": 0.045213110504470015
       }
     },
-    "ms": 106.9
+    "ms": 113.7
   },
   {
     "case": "claim confirm_stop",
@@ -392,22 +392,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.995375812056126
+        "noul": 0.9964771754458613
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9829033258076973
+        "noul": 0.9843679177187122
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.02137331132157351
+        "noul": 0.026690673401594
       },
       "invents": {
         "type": "noul",
-        "noul": 0.18208444941896532
+        "noul": 0.13394957366828736
       }
     },
-    "ms": 92.6
+    "ms": 137.1
   },
   {
     "case": "claim cancelled",
@@ -426,22 +426,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9974935847791794
+        "noul": 0.9973771516398326
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.18208444295318685
+        "noul": 0.06946982443146674
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.7736689288717513
+        "noul": 0.8179155635125915
       },
       "invents": {
         "type": "noul",
-        "noul": 0.22633105972496076
+        "noul": 0.10530489769196884
       }
     },
-    "ms": 105.6
+    "ms": 109.0
   },
   {
     "case": "claim cancelled",
@@ -460,22 +460,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9970619263164266
+        "noul": 0.9973169277749314
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9211656015059694
+        "noul": 0.9438786672345044
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.05612133449032019
+        "noul": 0.17540244695973575
       },
       "invents": {
         "type": "noul",
-        "noul": 0.9106598647764906
+        "noul": 0.8660504288499348
       }
     },
-    "ms": 97.4
+    "ms": 102.1
   },
   {
     "case": "claim thread_status",
@@ -495,26 +495,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9966334241498723
+        "noul": 0.9972553267237888
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.029160671340081372
+        "noul": 0.03328592024366977
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.9029701536646942
+        "noul": 0.9527804696451069
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.31563471840083795
+        "noul": 0.7488660166921972
       },
       "invents": {
         "type": "noul",
-        "noul": 0.7966872562045313
+        "noul": 0.8494006581171676
       }
     },
-    "ms": 96.3
+    "ms": 102.1
   },
   {
     "case": "claim thread_status",
@@ -534,26 +534,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9953758124308085
+        "noul": 0.9951614776873211
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9920415679767391
+        "noul": 0.9923930491123105
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.033285920418295464
+        "noul": 0.013663813018253512
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.011415051392829098
+        "noul": 0.011415052495164892
       },
       "invents": {
         "type": "noul",
-        "noul": 0.06658404722846828
+        "noul": 0.03797193035576635
       }
     },
-    "ms": 202.5
+    "ms": 169.0
   },
   {
     "case": "claim thread_status",
@@ -573,26 +573,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9966334245777713
+        "noul": 0.9970619263045032
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.02137331438637379
+        "noul": 0.027899131748028428
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.11419642241872174
+        "noul": 0.9414178782968484
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.9766369554466615
+        "noul": 0.9766369551990095
       },
       "invents": {
         "type": "noul",
-        "noul": 0.5227462365854285
+        "noul": 0.7488660126097637
       }
     },
-    "ms": 114.5
+    "ms": 110.8
   },
   {
     "case": "claim tell_pending",
@@ -610,22 +610,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9942006912082851
+        "noul": 0.9895679889997163
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.2686415650336715
+        "noul": 0.31563471840083795
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.71309793871455
+        "noul": 0.6437804827358289
       },
       "invents": {
         "type": "noul",
-        "noul": 0.7655982987351649
+        "noul": 0.34584931951515174
       }
     },
-    "ms": 129.5
+    "ms": 129.1
   },
   {
     "case": "claim tell_pending",
@@ -643,22 +643,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.991289565330012
+        "noul": 0.9900276179837483
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.8989077478681282
+        "noul": 0.8434841841282547
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.22633108633263316
+        "noul": 0.30588463893380863
       },
       "invents": {
         "type": "noul",
-        "noul": 0.08570496034498276
+        "noul": 0.08934013698959735
       }
     },
-    "ms": 129.1
+    "ms": 104.3
   },
   {
     "case": "claim held_followup",
@@ -676,26 +676,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9969255030936861
+        "noul": 0.9969255030770525
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.11888292143102495
+        "noul": 0.04521311003592605
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.9527804767255754
+        "noul": 0.9667140743429335
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.958558538226989
+        "noul": 0.954786888792714
       },
       "invents": {
         "type": "noul",
-        "noul": 0.6541506804848483
+        "noul": 0.9142950311500655
       }
     },
-    "ms": 322.8
+    "ms": 145.1
   },
   {
     "case": "claim held_followup",
@@ -713,26 +713,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.993357673312266
+        "noul": 0.9916739822574793
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9914839237902359
+        "noul": 0.99320578719374
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.01366381513927185
+        "noul": 0.01709667893445353
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.02137330905135136
+        "noul": 0.01954964320185035
       },
       "invents": {
         "type": "noul",
-        "noul": 0.1339495711500653
+        "noul": 0.11419642571247227
       }
     },
-    "ms": 99.4
+    "ms": 104.5
   },
   {
     "case": "claim dropped_followup",
@@ -750,22 +750,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9869363268079407
+        "noul": 0.9920415677839335
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.07559122005792013
+        "noul": 0.03478232267949998
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.8494006525635601
+        "noul": 0.9029701498608892
       },
       "invents": {
         "type": "noul",
-        "noul": 0.9334159514223983
+        "noul": 0.694115356457275
       }
     },
-    "ms": 160.7
+    "ms": 110.5
   },
   {
     "case": "claim dropped_followup",
@@ -783,22 +783,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9916739820558431
+        "noul": 0.9912895668529184
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.8310849910942075
+        "noul": 0.9547868836387301
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.01787873169555481
+        "noul": 0.02137331393232928
       },
       "invents": {
         "type": "noul",
-        "noul": 0.1960384403228914
+        "noul": 0.05858212319961831
       }
     },
-    "ms": 102.2
+    "ms": 132.1
   },
   {
     "case": "claim stopping",
@@ -816,26 +816,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9963137011843853
+        "noul": 0.996142669823947
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9829033235278173
+        "noul": 0.9305301748669065
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.7223205859093019
+        "noul": 0.8989077577312067
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.9506896328583654
+        "noul": 0.9506896318407434
       },
       "invents": {
         "type": "noul",
-        "noul": 0.034782319582207157
+        "noul": 0.06658405026401863
       }
     },
-    "ms": 163.9
+    "ms": 109.3
   },
   {
     "case": "claim stopping",
@@ -853,26 +853,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9970619266304062
+        "noul": 0.9974360274082158
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9916739816301671
+        "noul": 0.9939322207189832
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.014291126436921361
+        "noul": 0.029160675795540106
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.32554981505210323
+        "noul": 0.26864155650379024
       },
       "invents": {
         "type": "noul",
-        "noul": 0.022346553644382223
+        "noul": 0.04144146737802366
       }
     },
-    "ms": 107.9
+    "ms": 146.6
   },
   {
     "case": "claim nothing_running",
@@ -890,26 +890,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.998579664815359
+        "noul": 0.9982172637937546
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.04328807801738011
+        "noul": 0.09702984062959837
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.5453985179817601
+        "noul": 0.40994538345739223
       },
       "claims_working": {
         "type": "noul",
-        "noul": 0.08220435970715136
+        "noul": 0.09311378512570881
       },
       "invents": {
         "type": "noul",
-        "noul": 0.6643763804137924
+        "noul": 0.8551318850185093
       }
     },
-    "ms": 105.8
+    "ms": 114.0
   },
   {
     "case": "claim nothing_running",
@@ -927,26 +927,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9963137004020808
+        "noul": 0.9964771750457996
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.5340899513699621
+        "noul": 0.9068862148742912
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.16262020881758982
+        "noul": 0.16262019847154083
       },
       "claims_working": {
         "type": "noul",
-        "noul": 0.022346546234267132
+        "noul": 0.014946800618824044
       },
       "invents": {
         "type": "noul",
-        "noul": 0.0755912170242042
+        "noul": 0.06114381019969703
       }
     },
-    "ms": 158.6
+    "ms": 116.1
   },
   {
     "case": "claim nothing_running",
@@ -964,26 +964,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9977112095161079
+        "noul": 0.9972553257954071
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.03478232049317561
+        "noul": 0.039670346476486804
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.10109224720033248
+        "noul": 0.06658404048280124
       },
       "claims_working": {
         "type": "noul",
-        "noul": 0.8551318863630855
+        "noul": 0.9620280757897957
       },
       "invents": {
         "type": "noul",
-        "noul": 0.8989077508270519
+        "noul": 0.7402079338078271
       }
     },
-    "ms": 184.8
+    "ms": 121.2
   },
   {
     "case": "claim stop_unconfirmed",
@@ -1001,22 +1001,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9942006898158985
+        "noul": 0.9963137004120466
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.008710434787134567
+        "noul": 0.008326019714073854
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.876265128188361
+        "noul": 0.9106598656595345
       },
       "invents": {
         "type": "noul",
-        "noul": 0.10967167946235949
+        "noul": 0.12875592824311177
       }
     },
-    "ms": 183.5
+    "ms": 119.3
   },
   {
     "case": "claim stop_unconfirmed",
@@ -1034,22 +1034,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9957765369935002
+        "noul": 0.9939322213899329
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9936514027377673
+        "noul": 0.9885849498932293
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.05148880154941593
+        "noul": 0.023363045791599178
       },
       "invents": {
         "type": "noul",
-        "noul": 0.1096716678045525
+        "noul": 0.1188829168833168
       }
     },
-    "ms": 164.3
+    "ms": 155.2
   },
   {
     "case": "claim run_update",
@@ -1068,26 +1068,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9974935857323239
+        "noul": 0.9969255033057647
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.07559122460849425
+        "noul": 0.06380992559723724
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.8660504275908236
+        "noul": 0.9438786609101476
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.43213557568131217
+        "noul": 0.8494006553403639
       },
       "invents": {
         "type": "noul",
-        "noul": 0.590054627044262
+        "noul": 0.8858035742875278
       }
     },
-    "ms": 101.2
+    "ms": 157.4
   },
   {
     "case": "claim run_update",
@@ -1106,26 +1106,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9971923124521463
+        "noul": 0.9955806937443729
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9361900786172538
+        "noul": 0.9506896336215819
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.014291123570131426
+        "noul": 0.013063673471934205
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.010432010748182187
+        "noul": 0.018695886080875433
       },
       "invents": {
         "type": "noul",
-        "noul": 0.05858212260103159
+        "noul": 0.16891501347682647
       }
     },
-    "ms": 94.4
+    "ms": 152.6
   },
   {
     "case": "claim replied",
@@ -1144,26 +1144,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9923930478013372
+        "noul": 0.9930504507295526
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.34584931951515174
+        "noul": 0.3989804466997672
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.8039615665196277
+        "noul": 0.8989077518133597
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.664376361052417
+        "noul": 0.8660504326272678
       },
       "invents": {
         "type": "noul",
-        "noul": 0.866050414999713
+        "noul": 0.8310849758574271
       }
     },
-    "ms": 102.8
+    "ms": 126.8
   },
   {
     "case": "claim replied",
@@ -1182,26 +1182,26 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9895679907084051
+        "noul": 0.986936323869254
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.8989077587175145
+        "noul": 0.8989077537859754
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.47725376341457154
+        "noul": 0.40994538345739223
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.027899136457818503
+        "noul": 0.09311378879182561
       },
       "invents": {
         "type": "noul",
-        "noul": 0.1689150241425728
+        "noul": 0.15651581873753745
       }
     },
-    "ms": 338.3
+    "ms": 96.7
   },
   {
     "case": "claim done",
@@ -1220,22 +1220,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9968549411469412
+        "noul": 0.9969255034097245
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.1505993391060288
+        "noul": 0.11419642351663854
       },
       "claims_working": {
         "type": "noul",
-        "noul": 0.9438786522860235
+        "noul": 0.9527804774580375
       },
       "invents": {
         "type": "noul",
-        "noul": 0.5900546060409535
+        "noul": 0.8989077597038222
       }
     },
-    "ms": 236.8
+    "ms": 115.0
   },
   {
     "case": "claim done",
@@ -1254,22 +1254,22 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9949372610077176
+        "noul": 0.9960542133000806
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9567119141163817
+        "noul": 0.9527804840501968
       },
       "claims_working": {
         "type": "noul",
-        "noul": 0.05375802353107877
+        "noul": 0.047219525227657266
       },
       "invents": {
         "type": "noul",
-        "noul": 0.13931923120615522
+        "noul": 0.19603841979533446
       }
     },
-    "ms": 104.1
+    "ms": 95.4
   },
   {
     "case": "claim refused",
@@ -1289,22 +1289,22 @@
     "answers": {
       "a1_means": {
         "type": "noul",
-        "noul": 0.013663813859346946
+        "noul": 0.017878731981427465
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.48862099125815583
+        "noul": 0.43213555437372964
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.9106598744899734
+        "noul": 0.8373797897044032
       },
       "invents": {
         "type": "noul",
-        "noul": 0.9708393206708197
+        "noul": 0.9721008656027147
       }
     },
-    "ms": 164.4
+    "ms": 133.0
   },
   {
     "case": "claim refused",
@@ -1324,21 +1324,155 @@
     "answers": {
       "a1_means": {
         "type": "noul",
-        "noul": 0.9850531973836267
+        "noul": 0.9836517431160765
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.03047746501702129
+        "noul": 0.03185177230594343
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.02669067354257479
+        "noul": 0.034782323590468504
       },
       "invents": {
         "type": "noul",
-        "noul": 0.11888291119868184
+        "noul": 0.10967167734275816
       }
     },
-    "ms": 101.2
+    "ms": 143.4
+  },
+  {
+    "case": "smoke replied",
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "Add a Clamp Helper has finished: it added clamp next to sum.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9939322206862541
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.47725376341457154
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.982121264016355
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.8606807831099654
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.29630535968593597
+      }
+    },
+    "ms": 103.8
+  },
+  {
+    "case": "smoke replied",
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a Clamp Helper",
+          "reply": "I added clamp next to sum. All 12 tests pass."
+        }
+      }
+    ],
+    "line": "It added clamp next to sum and the tests pass.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.948511205076482
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9275290400980732
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.3773614028847115
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.022346552992291997
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.11888291233560884
+      }
+    },
+    "ms": 149.5
+  },
+  {
+    "case": "smoke sent_followup",
+    "acts": [
+      {
+        "kind": "sent_followup",
+        "slots": {
+          "thread": "Add a Clamp Helper"
+        }
+      }
+    ],
+    "line": "Your message is still waiting for Add a Clamp Helper.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9863361872011622
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.24266986257173667
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.7488660166921972
+      }
+    },
+    "ms": 106.6
+  },
+  {
+    "case": "smoke sent_followup",
+    "acts": [
+      {
+        "kind": "sent_followup",
+        "slots": {
+          "thread": "Add a Clamp Helper"
+        }
+      }
+    ],
+    "line": "Your message reached Add a Clamp Helper.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9947027072390375
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9695225320965637
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.48862099125815583
+      }
+    },
+    "ms": 110.0
   }
 ]

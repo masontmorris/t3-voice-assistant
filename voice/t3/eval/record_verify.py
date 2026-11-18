@@ -53,6 +53,14 @@ CLAIMS = [
      "T3 wouldn't start it because the model is off."),
 ]
 CASES += [(f"claim {said.kind.value}", said, wrong, right) for said, wrong, right in CLAIMS]
+SMOKE = "Add a Clamp Helper"
+# Right lines the decider refused in the Replay smoke run (2026-11-18), each beside a wrong line for its act.
+CASES += [
+    ("smoke replied", act(Kind.REPLIED, thread=SMOKE, reply="I added clamp next to sum. All 12 tests pass."),
+     f"{SMOKE} has finished: it added clamp next to sum.", "It added clamp next to sum and the tests pass."),
+    ("smoke sent_followup", act(Kind.SENT_FOLLOWUP, thread=SMOKE), f"Your message is still waiting for {SMOKE}.",
+     f"Your message reached {SMOKE}."),
+]
 
 
 def main() -> int:

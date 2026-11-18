@@ -74,7 +74,9 @@ NEED = {"command_approval": "approval to run a command", "file_change": "approva
         "secret": "something only the app can take", "card": "something only the app can take",
         "unanswerable": "a request no one can answer any more", "approval": "an approval",
         "in_app": "something only the app can take"}
-CLAIMS = {"finished": "{thread} has already finished", "stopped": "{thread} has already stopped or was cancelled",
+# "finished" asks about the run, not the work: "it added clamp and the tests pass" is a reply, not a run's end, and
+# "has already finished" refused that reply line on every smoke retry (measured, 2026-11-18).
+CLAIMS = {"finished": "the run of {thread} has already ended", "stopped": "{thread} has already stopped or was cancelled",
           "started": "the thread has already started", "sent": "the message has already been sent",
           "working": "{thread} is still working or running"}
 OPS = {"start": "start the thread", "ask": "look the thread up", "tell": "send the message", "stop": "stop the thread"}
