@@ -60,5 +60,5 @@ The 3 `t3_stop` picks on `none` are "Stop, I was talking to someone else.", at 0
 - Single-utterance turns. "Tell it ..." and "Stop that thread." carry no earlier turn. The voice resolves "it" from its own journal (`T3Tasks._recent`).
 - The place and day questions. The free decider refuses their `text` type with a 400, so they are off for it (`decider_arguments`).
 - The billed Liquid decider, live mode's default.
-- The voice. Whether LFM3 speaks the T3 line it is handed is the integrated pass's question.
+- The voice. T3 lines are spoken word for word in the server's TTS voice, because LFM3 reworded them into claims no record makes in the integrated pass's runs 2 and 3. The seam unit 10 PR has those runs.
 - The time misfile. "What time is it in Tokyo?" and "What time is it in New York?" are still answered as chitchat, before and after, which is out of scope here.
