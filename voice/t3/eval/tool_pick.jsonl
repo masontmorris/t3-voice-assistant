@@ -1,0 +1,33 @@
+{"id": "s01", "tool": "t3_start", "utterance": "Start a thread that fixes the flaky login test in the web project.", "source": "brief: Twin A phrasing"}
+{"id": "s02", "tool": "t3_start", "utterance": "Kick off a coding task in the sandbox project to add a clamp helper.", "source": "t3_start line: kick off"}
+{"id": "s03", "tool": "t3_start", "utterance": "Can you open a new thread to upgrade the toolchain in the voice server?", "source": "t3_start line: open, asked as a question"}
+{"id": "s04", "tool": "t3_start", "utterance": "Spin up a thread in the sandbox that writes the release notes.", "source": "t3_start: a verb the line does not name"}
+{"id": "s05", "tool": "t3_start", "utterance": "Start a new task in the docs project to fix the broken links.", "source": "t3_start line: coding task"}
+{"id": "a01", "tool": "t3_ask", "utterance": "How's the PR thread going?", "source": "brief: Twin B phrasing"}
+{"id": "a02", "tool": "t3_ask", "utterance": "What's the status of the clamp helper thread?", "source": "t3_ask line: state"}
+{"id": "a03", "tool": "t3_ask", "utterance": "Did the login test thread finish yet?", "source": "t3_ask line: result"}
+{"id": "a04", "tool": "t3_ask", "utterance": "How is the toolchain upgrade coming along?", "source": "t3_ask with no word thread"}
+{"id": "a05", "tool": "t3_ask", "utterance": "Is the release notes thread still working?", "source": "t3_ask: a state word the stop line is near"}
+{"id": "t01", "tool": "t3_tell", "utterance": "Tell it to also add a test.", "source": "brief: follow-up phrasing"}
+{"id": "t02", "tool": "t3_tell", "utterance": "Tell the clamp helper thread to use integers only.", "source": "t3_tell line: tell"}
+{"id": "t03", "tool": "t3_tell", "utterance": "Ask the PR thread to rebase on main.", "source": "t3_tell line: ask a thread to, near t3_ask"}
+{"id": "t04", "tool": "t3_tell", "utterance": "Let the login test thread know the staging server is back up.", "source": "t3_tell: a message, not work"}
+{"id": "t05", "tool": "t3_tell", "utterance": "Remind the release notes thread to mention the new shortcut.", "source": "t3_tell line: remind"}
+{"id": "p01", "tool": "t3_stop", "utterance": "Stop that thread.", "source": "brief: stop phrasing"}
+{"id": "p02", "tool": "t3_stop", "utterance": "Stop the toolchain thread.", "source": "t3_stop line: stop"}
+{"id": "p03", "tool": "t3_stop", "utterance": "Interrupt the clamp helper thread, it's going the wrong way.", "source": "t3_stop line: interrupt, with a reason"}
+{"id": "p04", "tool": "t3_stop", "utterance": "Halt the release notes thread.", "source": "t3_stop line: halt"}
+{"id": "p05", "tool": "t3_stop", "utterance": "Can you stop the PR thread?", "source": "t3_stop asked as a question"}
+{"id": "w01", "tool": "weather", "utterance": "What's the weather in Lisbon tomorrow?", "source": "weather control"}
+{"id": "w02", "tool": "weather", "utterance": "Will it rain in Seattle this weekend?", "source": "weather control"}
+{"id": "w03", "tool": "weather", "utterance": "How hot is it going to be in Phoenix on Friday?", "source": "weather control"}
+{"id": "w04", "tool": "weather", "utterance": "Do I need an umbrella in London today?", "source": "weather control: depends on a forecast"}
+{"id": "w05", "tool": "weather", "utterance": "What's the forecast for Chicago?", "source": "weather control"}
+{"id": "m01", "tool": "time", "utterance": "What time is it in Tokyo?", "source": "time control"}
+{"id": "m02", "tool": "time", "utterance": "What's the time in Sydney right now?", "source": "time control"}
+{"id": "m03", "tool": "time", "utterance": "Is it morning in Berlin yet?", "source": "time control: indirect"}
+{"id": "m04", "tool": "time", "utterance": "What time is it in New York?", "source": "time control"}
+{"id": "m05", "tool": "time", "utterance": "Tell me the current time in Paris.", "source": "time control: starts with tell, near t3_tell"}
+{"id": "c01", "tool": "none", "utterance": "Thanks, that's great.", "source": "control: conversation"}
+{"id": "c02", "tool": "agent", "utterance": "Who won the World Series last year?", "source": "control: general lookup"}
+{"id": "c03", "tool": "none", "utterance": "Stop, I was talking to someone else.", "source": "control: stop that is not about a thread"}
