@@ -734,6 +734,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         gate[1].set()
         idle = await self.until(ws, "turn_done", log)
         self.assertEqual((idle["turn"], idle["idle"], idle["given_back"]), (1, True, True))
+        self.assertEqual(idle["cancelled"], "superseded", "muted and left to finish, never cancelled mid-session")
         self.assertNotIn("audio", log, "a line the person talked before is never played over them")
         self.assertEqual(t3.given, [DONE])
         await self.send(ws, noise(900, seed=1))
