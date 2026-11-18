@@ -21,6 +21,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest import mock
 
+from voice.t3 import fakes as F
 from voice.t3.eval import summary_eval
 from voice.t3.pick.model import ModelClient
 
@@ -43,7 +44,8 @@ class TitleIsNotEvidence(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             run_dir = Path(tmp) / "run"
             shutil.copytree(FIXTURE, run_dir)
-            with mock.patch.object(summary_eval, "client", lambda args: Replay(cache_dir=args.dir / "cache")):
+            with mock.patch.object(summary_eval, "client", lambda args: Replay(cache_dir=args.dir / "cache")), \
+                    mock.patch.object(summary_eval, "decider", lambda args: F.Agree()):
                 summary_eval.run(SimpleNamespace(dir=run_dir))
             results = json.loads((run_dir / "summaries.json").read_text(encoding="utf-8"))
         self.assertEqual(len(results), 2)

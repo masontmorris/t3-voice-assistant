@@ -19,8 +19,10 @@ from voice.live.tests.test_endpoint import noise, tone
 from voice.live.tests.test_t3_tasks import FakeText, worded
 from voice.prototype import run as prototype_run
 from voice.prototype.run import run_clip
+from voice.t3 import fakes as F
 from voice.t3.acts import act
 from voice.t3.acts import Kind as S
+from voice.t3.speech import Speech
 from voice.t3.journal import T3Journal, Update
 from voice.t3.lifecycle import Follow
 
@@ -671,13 +673,13 @@ NOTES = []
 def idle_speaker(gate=None, seconds=2.0):
     original = prototype_run.say_verbatim
 
-    async def say_verbatim(session, rate, since, lines, log, **kwargs):
-        NOTES.extend(lines)
+    async def say_verbatim(session, rate, since, line, log, **kwargs):
+        NOTES.append(line.text)
         if gate is not None:
             gate[0].set()
             await gate[1].wait()
         kwargs["render"] = lambda text, rate: b"\x01\x00" * int(OUT_RATE * seconds)
-        return await original(session, rate, since, lines, log, **kwargs)
+        return await original(session, rate, since, line, log, **kwargs)
 
     return say_verbatim
 
@@ -923,10 +925,11 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         conversation.ws.send = send
         sender = asyncio.create_task(conversation._send_loop())
         try:
+            line = Speech(None, lambda thread_id: None, F.Agree()).accept(DONE.acts, DONE_LINE, "text_model").line
             reply, pcm = await prototype_run.say_verbatim(
-                voice, OUT_RATE, 0, [DONE_LINE], lambda *args, **kwargs: None,
+                voice, OUT_RATE, 0, line, lambda *args, **kwargs: None,
                 render=lambda text, rate: bytes(9600),
-                send_audio=lambda text, audio: conversation.speak_t3(turn, text, audio))
+                send_audio=lambda line, audio: conversation.speak_t3(turn, line, audio))
             self.assertEqual(len(frames), 1)
             self.assertEqual(pcm, frames[0])
             self.assertEqual(reply["delivery"], "partial")
@@ -934,6 +937,15 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         finally:
             sender.cancel()
             await asyncio.gather(sender, return_exceptions=True)
+
+    async def test_a_plain_string_never_reaches_the_t3_reply_path(self):
+        conversation = await self.conversation()
+        turn = server.MicTurn(1, b"")
+        turn.out_rate = OUT_RATE
+        with self.assertRaises(TypeError):
+            await conversation.speak_t3(turn, DONE_LINE, b"\x01\x00" * OUT_RATE)
+        self.assertTrue(conversation.outbox.empty())
+        self.assertFalse(turn.reply_started)
 
     async def test_a_delta_on_the_session_alone_sends_no_audio(self):
         """The voice session is not the transport any more: only a checked reply reaches the client."""

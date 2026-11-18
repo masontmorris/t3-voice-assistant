@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from voice.t3.acts import RULES, Kind, act, check, normalise
+from voice.t3.acts import RULES, Kind, act, check, forbidden_claims, normalise
 
 T = "Add a clamp helper"
 COMMAND = "cd ~/src/app && python -m pytest -q tests/test_parser.py 2>&1 | tail -40 && git status --short"
@@ -14,8 +14,7 @@ CUT = ("Should I delete the generated fixtures under the snapshots folder and re
 CASES = {
     Kind.CONFIRM_LAUNCH: ({"project": "Voice sandbox"}, "Should I start that in Voice sandbox?",
                           {"I've started it in Voice sandbox.": "not a question",
-                           "Should I start it in the server?": "project missing",
-                           "It started in Voice sandbox, want more?": "claims started"}),
+                           "Should I start it in the server?": "project missing"}),
     Kind.ASK_WHICH: ({"of": "thread", "candidates": [T, "Fix the flaky ASR test"]},
                      f"Do you mean {T} or Fix the flaky ASR test?",
                      {f"Do you mean {T}?": "candidates missing: Fix the flaky ASR test",
@@ -34,34 +33,32 @@ CASES = {
                           {"Is that the clamp thread?": "thread missing", f"It's the {T} thread.": "not a question"}),
     Kind.CONFIRM_TELL: ({"thread": T, "message": "also add a test"},
                         f"Should I tell {T} to also add a test?",
-                        {f"Should I tell {T} to add tests?": "message missing",
-                         f"I sent {T} the note to also add a test, okay?": "claims sent"}),
+                        {f"Should I tell {T} to add tests?": "message missing"}),
     Kind.CONFIRM_STOP: ({"thread": T}, f"Want me to stop {T}?",
-                        {f"I've stopped {T}, right?": "claims stopped", f"Stop {T}.": "not a question"}),
+                        {f"Stop {T}.": "not a question"}),
     Kind.CANCELLED: ({"op": "stop", "thread": T}, f"Okay, I'll leave {T} running.",
-                     {f"Okay, {T} is stopped.": "claims stopped"}),
+                     {}),
     Kind.THREAD_STATUS: ({"thread": T, "status": "working", "summary": "It added the helper."},
                          f"{T} is still working, and it has added the helper.",
-                         {f"{T} has finished.": "claims finished", f"{T} was stopped.": "claims stopped",
-                          "It is still working.": "thread missing"}),
+                         {"It is still working.": "thread missing"}),
     Kind.TELL_PENDING: ({"thread": T}, f"I've asked T3 to pass that to {T}.",
-                        {f"I passed that on to {T}.": "claims sent"}),
+                        {}),
     Kind.SENT_FOLLOWUP: ({"thread": T}, f"{T} has your message.", {"It has your message.": "thread missing"}),
     Kind.TELL_UNCONFIRMED: ({"thread": T}, f"T3 never confirmed that {T} got it.",
                             {"T3 never confirmed it.": "thread missing"}),
     Kind.HELD_FOLLOWUP: ({"thread": T}, f"{T} is busy, so I'll hold that until its run ends.",
-                         {f"{T} has finished, so I sent it.": "claims finished"}),
+                         {}),
     Kind.DROPPED_FOLLOWUP: ({"thread": T}, f"Okay, I won't give that to {T}.",
-                            {f"I've passed that on to {T}.": "claims sent"}),
-    Kind.STOPPING: ({"thread": T}, f"I'm stopping {T} now.", {f"{T} has stopped.": "claims stopped"}),
+                            {}),
+    Kind.STOPPING: ({"thread": T}, f"I'm stopping {T} now.", {}),
     Kind.NOTHING_RUNNING: ({"thread": T}, f"{T} isn't doing anything right now.",
-                           {f"I stopped {T}.": "claims stopped", f"{T} is still running.": "claims working"}),
+                           {}),
     Kind.STOP_UNCONFIRMED: ({"thread": T}, f"I couldn't reach T3 to stop {T}, so use the app.",
-                            {f"{T} was stopped.": "claims stopped"}),
+                            {}),
     Kind.RUN_UPDATE: ({"thread": T, "status": "running"}, f"{T} is on it now.",
-                      {f"{T} is done.": "claims finished"}),
+                      {}),
     Kind.REPLIED: ({"thread": T, "reply": "I added clamp."}, f"{T} says it added clamp.",
-                   {f"{T} finished adding clamp.": "claims finished"}),
+                   {}),
     Kind.NEEDS_YOU: ({"thread": T, "need": "command_approval", "prompt": COMMAND},
                      f"{T} needs your approval to run pytest and git status.",
                      {f"{T} wants to run {COMMAND}": "reads code",
@@ -71,7 +68,7 @@ CASES = {
     Kind.NEED_RESOLVED: ({"thread": T, "status": "resolved"}, f"The request from {T} was answered.",
                          {"That request was answered.": "thread missing"}),
     Kind.DONE: ({"thread": T, "status": "failed"}, f"{T} failed partway through.",
-                {f"{T} is still working.": "claims working"}),
+                {}),
     Kind.THREAD_DELETED: ({"thread": T}, f"{T} was deleted.", {"That thread was deleted.": "thread missing"}),
     Kind.LOST_TRACK: ({"thread": T}, f"I lost track of {T}, but it's still in the app.",
                       {"I lost track of it.": "thread missing"}),
@@ -85,7 +82,7 @@ CASES = {
                          {"See `the app`.": "not plain speech"}),
     Kind.REFUSED: ({"op": "start", "code": "refused", "reason": "Model is off."},
                    "T3 wouldn't start it because the model is off.",
-                   {"T3 started it.": "claims started"}),
+                   {}),
 }
 
 
@@ -108,11 +105,15 @@ class SlotRules(unittest.TestCase):
         self.assertEqual(check("Should I tell fix the flaky test to check your PR?", acts), [])
         self.assertEqual(normalise("It's done, isn't it?"), "it s done is not it")
 
-    def test_a_status_another_act_states_is_not_refused(self):
-        acts = [act(Kind.DONE, thread=T, status="completed"), act(Kind.SENT_FOLLOWUP, thread=T)]
-        self.assertEqual(check(f"{T} finished, and I sent it your follow-up.", acts), [])
+    def test_a_status_another_act_states_is_not_forbidden(self):
+        done_and_sent = [act(Kind.DONE, thread=T, status="completed"), act(Kind.SENT_FOLLOWUP, thread=T)]
+        self.assertEqual(forbidden_claims(done_and_sent), {"working"})
         running = [act(Kind.RUN_UPDATE, thread=T, status="running"), act(Kind.HELD_FOLLOWUP, thread=T)]
-        self.assertIn("claims finished", check(f"{T} is done, and I'm holding your message.", running))
+        self.assertEqual(forbidden_claims(running), {"finished", "sent", "stopped"})
+
+    def test_meaning_is_left_to_the_decider(self):
+        self.assertEqual(check(f"I've stopped {T}, right?", [act(Kind.CONFIRM_STOP, thread=T)]), [],
+                         "a status claim is the decider's question (voice/t3/test_verify.py), not a word list's")
 
     def test_a_slot_no_rule_names_is_refused_at_build_time(self):
         with self.assertRaises(ValueError):

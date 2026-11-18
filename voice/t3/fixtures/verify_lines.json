@@ -1,0 +1,1344 @@
+[
+  {
+    "case": "a stop confirm",
+    "acts": [
+      {
+        "kind": "confirm_stop",
+        "slots": {
+          "thread": "Alpha"
+        }
+      }
+    ],
+    "line": "Alpha is complete?",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9965561827729909
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.6332736692136482
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.4210005791762722
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.6744501944803971
+      }
+    },
+    "ms": 203.0
+  },
+  {
+    "case": "a stop confirm",
+    "acts": [
+      {
+        "kind": "confirm_stop",
+        "slots": {
+          "thread": "Alpha"
+        }
+      }
+    ],
+    "line": "Want me to stop Alpha?",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9977626017672718
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9836517429415376
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.04521311518990986
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.17540243283111728
+      }
+    },
+    "ms": 106.2
+  },
+  {
+    "case": "a working status",
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Alpha",
+          "status": "working"
+        }
+      }
+    ],
+    "line": "Alpha has failed.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969944853574219
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.025533179870432
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.3881158821967641
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.6643763707331047
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.9776534524022719
+      }
+    },
+    "ms": 104.3
+  },
+  {
+    "case": "a working status",
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Alpha",
+          "status": "working"
+        }
+      }
+    ],
+    "line": "Alpha is still working on it.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9949372604883387
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9936514010602869
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.0050627403590691854
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.009112435340160185
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.12875593433085877
+      }
+    },
+    "ms": 127.1
+  },
+  {
+    "case": "Alpha's run status",
+    "acts": [
+      {
+        "kind": "run_update",
+        "slots": {
+          "thread": "Alpha",
+          "status": "running"
+        }
+      }
+    ],
+    "line": "Beta is running. Alpha is unrelated.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9106598718408419
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.0755912155073463
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.026690678194941194
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.08934012815915822
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.9733093274442907
+      }
+    },
+    "ms": 290.6
+  },
+  {
+    "case": "Alpha's run status",
+    "acts": [
+      {
+        "kind": "run_update",
+        "slots": {
+          "thread": "Alpha",
+          "status": "running"
+        }
+      }
+    ],
+    "line": "Alpha is running now.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9963137013089561
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9885849462800174
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.005297293804696217
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.010432009571707868
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.0585821193088049
+      }
+    },
+    "ms": 153.5
+  },
+  {
+    "case": "claim confirm_launch",
+    "acts": [
+      {
+        "kind": "confirm_launch",
+        "slots": {
+          "project": "Voice sandbox"
+        }
+      }
+    ],
+    "line": "It started in Voice sandbox, want more?",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.7036946493664539
+      },
+      "claims_started": {
+        "type": "noul",
+        "noul": 0.969522533860484
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.5340899513699621
+      }
+    },
+    "ms": 104.0
+  },
+  {
+    "case": "claim confirm_launch",
+    "acts": [
+      {
+        "kind": "confirm_launch",
+        "slots": {
+          "project": "Voice sandbox"
+        }
+      }
+    ],
+    "line": "Should I start that in Voice sandbox?",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9506896252261996
+      },
+      "claims_started": {
+        "type": "noul",
+        "noul": 0.05858212050597821
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.4321355756813121
+      }
+    },
+    "ms": 260.8
+  },
+  {
+    "case": "claim confirm_tell",
+    "acts": [
+      {
+        "kind": "confirm_tell",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "message": "also add a test"
+        }
+      }
+    ],
+    "line": "I sent Add a clamp helper the note to also add a test, okay?",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9721008679576097
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.7130979564790234
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.927529034991035
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.06658404756575166
+      }
+    },
+    "ms": 146.6
+  },
+  {
+    "case": "claim confirm_tell",
+    "acts": [
+      {
+        "kind": "confirm_tell",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "message": "also add a test"
+        }
+      }
+    ],
+    "line": "Should I tell Add a clamp helper to also add a test?",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9944573477007289
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9927291208315142
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.019549644294053117
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.049310373247367166
+      }
+    },
+    "ms": 159.1
+  },
+  {
+    "case": "claim confirm_stop",
+    "acts": [
+      {
+        "kind": "confirm_stop",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "I've stopped Add a clamp helper, right?",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9955806941980363
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9029701498608893
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.7402079379821797
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.15059934465963615
+      }
+    },
+    "ms": 106.9
+  },
+  {
+    "case": "claim confirm_stop",
+    "acts": [
+      {
+        "kind": "confirm_stop",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Want me to stop Add a clamp helper?",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.995375812056126
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9829033258076973
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.02137331132157351
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.18208444941896532
+      }
+    },
+    "ms": 92.6
+  },
+  {
+    "case": "claim cancelled",
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "stop",
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Okay, Add a clamp helper is stopped.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9974935847791794
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.18208444295318685
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.7736689288717513
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.22633105972496076
+      }
+    },
+    "ms": 105.6
+  },
+  {
+    "case": "claim cancelled",
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "stop",
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Okay, I'll leave Add a clamp helper running.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9970619263164266
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9211656015059694
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.05612133449032019
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.9106598647764906
+      }
+    },
+    "ms": 97.4
+  },
+  {
+    "case": "claim thread_status",
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "working",
+          "summary": "It added the helper."
+        }
+      }
+    ],
+    "line": "Add a clamp helper has finished.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9966334241498723
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.029160671340081372
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.9029701536646942
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.31563471840083795
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.7966872562045313
+      }
+    },
+    "ms": 96.3
+  },
+  {
+    "case": "claim thread_status",
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "working",
+          "summary": "It added the helper."
+        }
+      }
+    ],
+    "line": "Add a clamp helper is still working, and it has added the helper.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9953758124308085
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9920415679767391
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.033285920418295464
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.011415051392829098
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.06658404722846828
+      }
+    },
+    "ms": 202.5
+  },
+  {
+    "case": "claim thread_status",
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "working",
+          "summary": "It added the helper."
+        }
+      }
+    ],
+    "line": "Add a clamp helper was stopped.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9966334245777713
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.02137331438637379
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.11419642241872174
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.9766369554466615
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.5227462365854285
+      }
+    },
+    "ms": 114.5
+  },
+  {
+    "case": "claim tell_pending",
+    "acts": [
+      {
+        "kind": "tell_pending",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "I passed that on to Add a clamp helper.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9942006912082851
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.2686415650336715
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.71309793871455
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.7655982987351649
+      }
+    },
+    "ms": 129.5
+  },
+  {
+    "case": "claim tell_pending",
+    "acts": [
+      {
+        "kind": "tell_pending",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "I've asked T3 to pass that to Add a clamp helper.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.991289565330012
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8989077478681282
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.22633108633263316
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.08570496034498276
+      }
+    },
+    "ms": 129.1
+  },
+  {
+    "case": "claim held_followup",
+    "acts": [
+      {
+        "kind": "held_followup",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Add a clamp helper has finished, so I sent it.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255030936861
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.11888292143102495
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.9527804767255754
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.958558538226989
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.6541506804848483
+      }
+    },
+    "ms": 322.8
+  },
+  {
+    "case": "claim held_followup",
+    "acts": [
+      {
+        "kind": "held_followup",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Add a clamp helper is busy, so I'll hold that until its run ends.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.993357673312266
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9914839237902359
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.01366381513927185
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.02137330905135136
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1339495711500653
+      }
+    },
+    "ms": 99.4
+  },
+  {
+    "case": "claim dropped_followup",
+    "acts": [
+      {
+        "kind": "dropped_followup",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "I've passed that on to Add a clamp helper.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9869363268079407
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.07559122005792013
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.8494006525635601
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.9334159514223983
+      }
+    },
+    "ms": 160.7
+  },
+  {
+    "case": "claim dropped_followup",
+    "acts": [
+      {
+        "kind": "dropped_followup",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Okay, I won't give that to Add a clamp helper.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9916739820558431
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8310849910942075
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.01787873169555481
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1960384403228914
+      }
+    },
+    "ms": 102.2
+  },
+  {
+    "case": "claim stopping",
+    "acts": [
+      {
+        "kind": "stopping",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Add a clamp helper has stopped.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9963137011843853
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9829033235278173
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.7223205859093019
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.9506896328583654
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.034782319582207157
+      }
+    },
+    "ms": 163.9
+  },
+  {
+    "case": "claim stopping",
+    "acts": [
+      {
+        "kind": "stopping",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "I'm stopping Add a clamp helper now.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9970619266304062
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9916739816301671
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.014291126436921361
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.32554981505210323
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.022346553644382223
+      }
+    },
+    "ms": 107.9
+  },
+  {
+    "case": "claim nothing_running",
+    "acts": [
+      {
+        "kind": "nothing_running",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "I stopped Add a clamp helper.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.998579664815359
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.04328807801738011
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.5453985179817601
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.08220435970715136
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.6643763804137924
+      }
+    },
+    "ms": 105.8
+  },
+  {
+    "case": "claim nothing_running",
+    "acts": [
+      {
+        "kind": "nothing_running",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Add a clamp helper isn't doing anything right now.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9963137004020808
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.5340899513699621
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.16262020881758982
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.022346546234267132
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.0755912170242042
+      }
+    },
+    "ms": 158.6
+  },
+  {
+    "case": "claim nothing_running",
+    "acts": [
+      {
+        "kind": "nothing_running",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Add a clamp helper is still running.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9977112095161079
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.03478232049317561
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.10109224720033248
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.8551318863630855
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8989077508270519
+      }
+    },
+    "ms": 184.8
+  },
+  {
+    "case": "claim stop_unconfirmed",
+    "acts": [
+      {
+        "kind": "stop_unconfirmed",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "Add a clamp helper was stopped.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9942006898158985
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.008710434787134567
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.876265128188361
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.10967167946235949
+      }
+    },
+    "ms": 183.5
+  },
+  {
+    "case": "claim stop_unconfirmed",
+    "acts": [
+      {
+        "kind": "stop_unconfirmed",
+        "slots": {
+          "thread": "Add a clamp helper"
+        }
+      }
+    ],
+    "line": "I couldn't reach T3 to stop Add a clamp helper, so use the app.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9957765369935002
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9936514027377673
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.05148880154941593
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1096716678045525
+      }
+    },
+    "ms": 164.3
+  },
+  {
+    "case": "claim run_update",
+    "acts": [
+      {
+        "kind": "run_update",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "running"
+        }
+      }
+    ],
+    "line": "Add a clamp helper is done.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9974935857323239
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.07559122460849425
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.8660504275908236
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.43213557568131217
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.590054627044262
+      }
+    },
+    "ms": 101.2
+  },
+  {
+    "case": "claim run_update",
+    "acts": [
+      {
+        "kind": "run_update",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "running"
+        }
+      }
+    ],
+    "line": "Add a clamp helper is on it now.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9971923124521463
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9361900786172538
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.014291123570131426
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.010432010748182187
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.05858212260103159
+      }
+    },
+    "ms": 94.4
+  },
+  {
+    "case": "claim replied",
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "reply": "I added clamp."
+        }
+      }
+    ],
+    "line": "Add a clamp helper finished adding clamp.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9923930478013372
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.34584931951515174
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.8039615665196277
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.664376361052417
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.866050414999713
+      }
+    },
+    "ms": 102.8
+  },
+  {
+    "case": "claim replied",
+    "acts": [
+      {
+        "kind": "replied",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "reply": "I added clamp."
+        }
+      }
+    ],
+    "line": "Add a clamp helper says it added clamp.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9895679907084051
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8989077587175145
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.47725376341457154
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.027899136457818503
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.1689150241425728
+      }
+    },
+    "ms": 338.3
+  },
+  {
+    "case": "claim done",
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "failed"
+        }
+      }
+    ],
+    "line": "Add a clamp helper is still working.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9968549411469412
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.1505993391060288
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.9438786522860235
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.5900546060409535
+      }
+    },
+    "ms": 236.8
+  },
+  {
+    "case": "claim done",
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "failed"
+        }
+      }
+    ],
+    "line": "Add a clamp helper failed partway through.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9949372610077176
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9567119141163817
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.05375802353107877
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.13931923120615522
+      }
+    },
+    "ms": 104.1
+  },
+  {
+    "case": "claim refused",
+    "acts": [
+      {
+        "kind": "refused",
+        "slots": {
+          "op": "start",
+          "code": "refused",
+          "reason": "Model is off."
+        }
+      }
+    ],
+    "line": "T3 started it.",
+    "should_pass": false,
+    "status": 200,
+    "answers": {
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.013663813859346946
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.48862099125815583
+      },
+      "claims_started": {
+        "type": "noul",
+        "noul": 0.9106598744899734
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.9708393206708197
+      }
+    },
+    "ms": 164.4
+  },
+  {
+    "case": "claim refused",
+    "acts": [
+      {
+        "kind": "refused",
+        "slots": {
+          "op": "start",
+          "code": "refused",
+          "reason": "Model is off."
+        }
+      }
+    ],
+    "line": "T3 wouldn't start it because the model is off.",
+    "should_pass": true,
+    "status": 200,
+    "answers": {
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9850531973836267
+      },
+      "claims_sent": {
+        "type": "noul",
+        "noul": 0.03047746501702129
+      },
+      "claims_started": {
+        "type": "noul",
+        "noul": 0.02669067354257479
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.11888291119868184
+      }
+    },
+    "ms": 101.2
+  }
+]

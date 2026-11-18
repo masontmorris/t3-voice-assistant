@@ -87,7 +87,7 @@ class LaneTest(unittest.TestCase):
 class SummaryTest(unittest.TestCase):
     def test_the_summary_is_cached_per_thread_and_sequence(self):
         text, reads = Text(), Reads(finished(140), finished(140), finished(141))
-        speech = Speech(Lane(text), reads)
+        speech = Speech(Lane(text), reads, F.Agree())
         done = (act(Kind.DONE, status="completed"),)
         first, evidence = speech.fill(done, "t5")
         self.assertEqual(first[0].slots, {"status": "completed", "thread": "Add a clamp helper",
@@ -100,7 +100,7 @@ class SummaryTest(unittest.TestCase):
 
     def test_a_read_answer_uses_the_read_it_came_from_and_its_question(self):
         text, reads = Text(), Reads()
-        speech = Speech(Lane(text), reads)
+        speech = Speech(Lane(text), reads, F.Agree())
         speech.remember(finished(140))
         asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
                      asked="Did the tests pass?"),)
@@ -113,7 +113,7 @@ class SummaryTest(unittest.TestCase):
     def test_a_speculative_start_is_the_summary_the_answer_uses(self):
         gate = threading.Event()
         text, reads = Text(gate=gate), Reads(finished(140))
-        speech = Speech(Lane(text), reads)
+        speech = Speech(Lane(text), reads, F.Agree())
         speech.prefetch("t5", "How's the clamp thread going?")
         self.assertTrue(text.started.wait(2), "the summary started before anyone asked for it")
         gate.set()
@@ -125,7 +125,7 @@ class SummaryTest(unittest.TestCase):
 
     def test_two_questions_at_one_sequence_get_two_answers(self):
         text = Text(echo=True)
-        speech = Speech(Lane(text), Reads())
+        speech = Speech(Lane(text), Reads(), F.Agree())
         speech.remember(finished(140))
         gists = []
         for question in ("Did the tests pass?", "What did it change?", "did the tests pass"):
@@ -138,7 +138,7 @@ class SummaryTest(unittest.TestCase):
 
     def test_a_partial_question_never_serves_a_different_final_one(self):
         text, reads = Text(echo=True), Reads(finished(140))
-        speech = Speech(Lane(text), reads)
+        speech = Speech(Lane(text), reads, F.Agree())
         speech.prefetch("t5", "How's the clamp")
         asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
                      asked="How's the clamp thread going?"),)
@@ -148,7 +148,7 @@ class SummaryTest(unittest.TestCase):
 
     def test_the_title_is_a_name_and_never_evidence(self):
         text = Text()
-        speech = Speech(Lane(text), Reads())
+        speech = Speech(Lane(text), Reads(), F.Agree())
         unrelated = T.LastReply("I renamed the logger and moved its config.", "m1", None, "r1", "2026-11-18T10:00:00Z")
         speech.remember(F.state(thread="t5", title="Fix failing tests", as_of=3, activity=T.ThreadActivity.FINISHED,
                                 last_reply=unrelated))
@@ -163,7 +163,7 @@ class SummaryTest(unittest.TestCase):
         text = Text()
         waiting = F.state(thread="t5", title="Add a clamp helper", as_of=9, activity=T.ThreadActivity.WAITING_ON_YOU,
                           pending=F.need(prompt="Run pytest?"))
-        speech = Speech(Lane(text), Reads(waiting))
+        speech = Speech(Lane(text), Reads(waiting), F.Agree())
         filled, _ = speech.fill((act(Kind.NEEDS_YOU, prompt="Run pytest?"),), "t5")
         self.assertEqual(text.summaries, 1, "no reply is no reason to skip the answer")
         self.assertEqual(text.bodies[0]["records"]["last_reply"], None)
@@ -181,17 +181,20 @@ class SummaryTest(unittest.TestCase):
 class RenderTest(unittest.TestCase):
     def test_a_line_that_fails_the_check_is_not_returned(self):
         acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
-        good = Speech(Lane(Text("Should I stop Add a clamp helper?")), Reads()).render(acts)
-        self.assertEqual((good.line, good.problems), ("Should I stop Add a clamp helper?", []))
-        bad = Speech(Lane(Text("I've stopped Add a clamp helper.")), Reads()).render(acts)
+        good = Speech(Lane(Text("Should I stop Add a clamp helper?")), Reads(), F.Agree()).render(acts)
+        self.assertEqual((good.text, good.line.acts, good.line.worded_by, good.problems),
+                         ("Should I stop Add a clamp helper?", acts, "text_model", []))
+        bad = Speech(Lane(Text("I've stopped Add a clamp helper.")), Reads(), F.Agree()).render(acts)
         self.assertIsNone(bad.line)
-        self.assertEqual(bad.problems, ["not a question", "claims stopped"])
-        self.assertIsNone(Speech(None, Reads()).render(acts).line, "no model, no line")
+        self.assertEqual(bad.problems, ["not a question"])
+        self.assertIsNone(Speech(None, Reads(), F.Agree()).render(acts).line, "no model, no line")
+        unchecked = Speech(Lane(Text("Should I stop Add a clamp helper?")), Reads()).render(acts)
+        self.assertEqual((unchecked.line, unchecked.error), (None, "no decider to check the line"))
 
     def test_the_prompt_carries_the_facts_the_turns_and_the_last_refusal(self):
         text = Text("Should I stop Add a clamp helper?")
         acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
-        Speech(Lane(text), Reads()).render(acts, [{"user": "Stop the clamp thread."}], ["not a question"])
+        Speech(Lane(text), Reads(), F.Agree()).render(acts, [{"user": "Stop the clamp thread."}], ["not a question"])
         body = text.bodies[0]
         self.assertEqual((body["keep_exact"], body["ask"], body["turns"]),
                          (["Add a clamp helper"], True, [{"person": "Stop the clamp thread."}]))

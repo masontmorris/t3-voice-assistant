@@ -5,6 +5,7 @@ earlier turns before every reply, and the model answered the last line of that l
 tests stand in for llama.cpp, so they pin what the turn sends and speaks, not what the model then says.
 """
 
+import socket
 import tempfile
 import unittest
 from pathlib import Path
@@ -15,13 +16,24 @@ from voice.prototype.tasks import MockTaskService
 from voice.prototype.tests import isolate_decider_cache
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession, Scripted, Source, heard_by
 from voice.segmentation.tasks import Orchestrator
-from voice.t3.acts import Act, act, check
+from voice.t3 import fakes as F
+from voice.t3.acts import Act, act
 from voice.t3.acts import Kind as S
-from voice.t3.speech import Rendered
+from voice.t3.speech import Speech
+from voice.t3.test_verify import Failing
+from voice.t3.verify import Decider
 from voice.t3.speech import note as act_note
 from voice.tools.registry import ToolCall
 
 EARLIER = ("Could you check the weather in Raleigh today?", "Okay, and these are decent results.")
+
+
+CHECKED = Speech(None, lambda thread_id: None, F.Agree())
+
+
+def checked(line, acts=(act(S.CONFIRM_STOP, thread="clamp helper"),)):
+    """`line` as a RenderedLine, through the real slot check and a decider that agrees."""
+    return CHECKED.accept(acts, line, "text_model").line
 
 
 def texts(session):
@@ -335,7 +347,7 @@ class SayVerbatimTest(NoteTurn):
             return b"\x01\x00" * 480
 
         line = "Should I stop the clamp helper thread?"
-        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, (line,),
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, checked(line),
                                                   lambda kind, **detail: None, heard_by(spoken), render)
         self.assertEqual((spoken, rendered), ([line], [(line, 24_000)]))
         self.assertEqual((reply["text"], len(pcm)), (line, 960))
@@ -349,10 +361,19 @@ class SayVerbatimTest(NoteTurn):
         def render(text, rate):
             raise OSError("no TTS")
 
-        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, ("It finished.",),
+        line = checked("Should I stop the clamp helper thread?")
+        reply, pcm = await prototype.say_verbatim(self.voice, 24_000, 0.0, line,
                                                   lambda kind, **detail: None, heard_by(spoken), render)
-        self.assertEqual((reply["text"], pcm, spoken), ("It finished.", b"", []))
+        self.assertEqual((reply["text"], pcm, spoken), (line.text, b"", []))
         self.assertEqual(texts(self.voice), [], "a failed render never enters the conversation as heard")
+
+    async def test_a_plain_string_is_never_spoken(self):
+        spoken, rendered = [], []
+        for line in ("It finished.", ("It finished.",)):
+            with self.subTest(line=line), self.assertRaises(TypeError):
+                await prototype.say_verbatim(self.voice, 24_000, 0.0, line, lambda kind, **detail: None,
+                                             heard_by(spoken), lambda text, rate: rendered.append(text) or b"")
+        self.assertEqual((spoken, rendered, self.voice.sent), ([], [], []))
 
     def test_a_t3_entry_gets_no_task_note(self):
         acts = [act(S.CONFIRM_STOP, thread="clamp helper").to_json()]
@@ -362,25 +383,28 @@ class SayVerbatimTest(NoteTurn):
 
 class Worded:
     """The `words` side of a T3 task service: `lines` maps a task id to what its text model says, or to None when
-    the text model fails, and the slot check and the LFM3 note are the real ones."""
+    the text model fails. The slot check and the LFM3 note are the real ones, and the decider agrees."""
 
     lines: dict = {}
+    speech = CHECKED
 
     def say(self, entry, turns=()):
         line = self.lines.get(entry["task_id"])
         if line is None:
-            return Rendered(None, error="the text model failed")
-        found = check(line, self._acts(entry))
-        if found:
-            return Rendered(None, found, line)
-        entry["spoken"] = line
-        return Rendered(line)
+            return self.speech.render(())
+        return self._accepted(entry, self.speech.accept(self._acts(entry), line, "text_model"))
 
     def note(self, entry):
         return act_note(self._acts(entry))
 
-    def check(self, entry, text):
-        return check(text, self._acts(entry))
+    def accept(self, entry, text):
+        return self._accepted(entry, self.speech.accept(self._acts(entry), text, "lfm3"))
+
+    @staticmethod
+    def _accepted(entry, rendered):
+        if rendered.line is not None:
+            entry["spoken"] = rendered.line.text
+        return rendered
 
     @staticmethod
     def _acts(entry):
@@ -457,6 +481,20 @@ class T3TurnTest(NoteTurn):
         self.assertEqual([(r["kind"], r["worded_by"], r["delivery"]) for r in record["replies"]],
                          [("t3", "lfm3", "sent")])
         self.assertEqual(BadWording.delivered, [("t3_1", "sent")])
+
+    async def test_a_decider_timeout_goes_to_the_fallback_and_never_to_speech(self):
+        class TimedOut(T3SnapshotService):
+            speech = Speech(None, lambda thread_id: None, Decider(Failing(socket.timeout("timed out"))))
+
+        TimedOut.delivered = []
+        record = await self.turn(["Do you want me to stop the clamp helper thread?"], task_service=TimedOut,
+                                 t3_voice=lambda text, rate: bytes(960))
+        self.assertEqual(self.spoken, [], "neither the text model's line nor LFM3's is spoken unchecked")
+        self.assertEqual(texts(self.voice)[0], act_note([Act.from_json(a) for a in STOP_ACTS]), "LFM3 was asked")
+        self.assertEqual([(r["kind"], r["worded_by"], r["delivery"]) for r in record["replies"]],
+                         [("t3", "lfm3", "unsent")])
+        self.assertIn("TimeoutError", record["replies"][0]["decider"]["error"])
+        self.assertEqual(TimedOut.delivered, [("t3_1", "unsent")])
 
     async def test_when_both_wordings_fail_nothing_is_said_and_the_act_stays_unsent(self):
         class NoWording(T3SnapshotService):

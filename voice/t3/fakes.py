@@ -7,6 +7,7 @@ from typing import Any
 
 from voice.t3 import types as T
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable
+from voice.t3.verify import Verdict
 
 
 def hello(max_watches: int = 16, projects=(("p1", "Voice sandbox", ("sandbox", "voice sandbox")),)) -> T.Hello:
@@ -163,3 +164,13 @@ class Connector:
         if isinstance(entry, FakeSeam):
             return entry
         raise SeamConnectionEnded(entry)
+
+
+class Agree:
+    """A decider that passes every line it is asked about, so a test sees only code's slot check."""
+
+    calls = 0
+
+    def verify(self, acts, line):
+        self.calls += 1
+        return Verdict(True)

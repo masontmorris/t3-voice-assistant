@@ -38,7 +38,7 @@ def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path
         tmp = tempfile.TemporaryDirectory()
         test.addCleanup(tmp.cleanup)
         path = Path(tmp.name) / "journal.json"
-    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model)
+    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model, F.Agree())
 
 
 def said(update) -> list[tuple]:
@@ -75,7 +75,7 @@ class FakeText:
 
 def worded(t3: T3Tasks, text: FakeText) -> T3Tasks:
     t3.lane = Lane(text)
-    t3.speech = Speech(t3.lane, t3._read_quiet)
+    t3.speech = Speech(t3.lane, t3._read_quiet, F.Agree())
     return t3
 
 
