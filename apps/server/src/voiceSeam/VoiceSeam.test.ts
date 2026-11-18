@@ -11,6 +11,7 @@ import {
   RuntimeRequestId,
   ThreadId,
 } from "@t3tools/contracts";
+import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -64,8 +65,28 @@ const refusalOf = (threadId: ThreadId) =>
     Effect.map((refusal) => refusal.code),
   );
 
+/** Records each thread the legacy transcript import runs for. */
+class Migrations extends Context.Service<Migrations, Ref.Ref<ReadonlyArray<ThreadId>>>()(
+  "t3/voiceSeam/VoiceSeam.test/Migrations",
+) {}
+
+const recordMigrations = Layer.effect(
+  ThreadManagementService.ThreadManagementService,
+  Effect.gen(function* () {
+    const real = yield* ThreadManagementService.ThreadManagementService;
+    const migrated = yield* Migrations;
+    return {
+      ...real,
+      ensureLegacyTranscript: (threadId) =>
+        Ref.update(migrated, (ids) => [...ids, threadId]).pipe(
+          Effect.andThen(real.ensureLegacyTranscript(threadId)),
+        ),
+    };
+  }),
+);
+
 it.effect(
-  "lists only listed, undelegated threads in allowed projects, and reads the rest as not_found",
+  "lists only listed, undelegated threads in allowed projects, and reads the rest as not_found without migrating them",
   () =>
     Effect.gen(function* () {
       const parent = ThreadId.make("parent");
@@ -111,13 +132,23 @@ it.effect(
         ),
         ["not_found", "not_found", "not_found", "not_found", "not_found"],
       );
+      assert.deepStrictEqual(yield* Ref.get(yield* Migrations), []);
       assert.deepInclude(yield* readThread(parent), {
         activity: "idle",
         run: null,
         pending: null,
         lastReply: null,
       });
-    }).pipe(provideSeam),
+      assert.deepStrictEqual(yield* Ref.get(yield* Migrations), [parent]);
+    }).pipe(
+      Effect.provide(
+        VoiceSeam.layer.pipe(
+          Layer.provide(recordMigrations),
+          Layer.provideMerge(seamLayer),
+          Layer.provideMerge(Layer.effect(Migrations, Ref.make<ReadonlyArray<ThreadId>>([]))),
+        ),
+      ),
+    ),
 );
 
 it.effect("answers only the operations and projects the caller's ceiling allows", () =>

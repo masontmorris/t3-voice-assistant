@@ -1,3 +1,4 @@
+import * as NodeHttpServerRequest from "@effect/platform-node/NodeHttpServerRequest";
 import { AuthOrchestrationReadScope, type ThreadId } from "@t3tools/contracts";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
@@ -38,6 +39,8 @@ export const VOICE_SEAM_PATH = "/voice-seam";
 const VOICE_SUBJECT = "voice";
 const MAX_IN_FLIGHT = 4;
 const OUTBOUND_CAPACITY = 256;
+/** Bytes `ws` may hold for one client before the seam gives up on it. */
+const MAX_BUFFERED_BYTES = 1024 * 1024;
 
 type Handlers = {
   readonly [Op in WireOp]: (
@@ -71,6 +74,24 @@ const CODECS: { readonly [Op in WireOp]: ReturnType<typeof codec<Op>> } = {
 };
 
 const close = (code: number, reason: string) => new Socket.CloseEvent(code, reason);
+const revoked = close(1008, "The voice session was revoked.");
+const stoppedReading = close(1013, "The voice seam client stopped reading.");
+
+/**
+ * Reads how many bytes `ws` holds for this connection: its send queue and the TCP socket's buffer.
+ * Effect's socket keeps the `ws` instance private, and `ws` sets it on the TCP socket under a
+ * symbol it does not export, so this finds it by the symbol's description.
+ */
+const bufferedBytesOf = (transport: object): (() => number) | undefined => {
+  const key = Object.getOwnPropertySymbols(transport).find(
+    (symbol) => symbol.description === "websocket",
+  );
+  const webSocket: unknown = key === undefined ? undefined : Reflect.get(transport, key);
+  if (typeof webSocket !== "object" || webSocket === null || !("bufferedAmount" in webSocket)) {
+    return undefined;
+  }
+  return () => Number(webSocket.bufferedAmount);
+};
 
 /**
  * One socket serves one authenticated voice caller under the ceiling read when it opened.
@@ -78,24 +99,27 @@ const close = (code: number, reason: string) => new Socket.CloseEvent(code, reas
  */
 const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
   readonly socket: Socket.Socket;
+  /** The upgraded request's TCP socket, where `ws` keeps its WebSocket. */
+  readonly transport: object;
   readonly seam: VoiceSeam.VoiceSeam["Service"];
   readonly caller: VoiceSeam.VoiceCaller;
   /** Completes when the caller's session is revoked or expires. */
   readonly invalidated: Effect.Effect<void, SessionStore.SessionCredentialVerificationError>;
+  /** Whether the session is still unrevoked and unexpired, read once the watcher is up. */
+  readonly stillActive: Effect.Effect<boolean, SessionStore.SessionCredentialInternalError>;
 }) {
   const { seam, caller } = input;
   const scope = yield* Scope.Scope;
   const writer = yield* input.socket.writer;
   const outbound = yield* Queue.bounded<string>(OUTBOUND_CAPACITY);
-  const ending = yield* Deferred.make<Socket.CloseEvent>();
+  /** The close frame to send, or null once the client has closed. */
+  const ending = yield* Deferred.make<Socket.CloseEvent | null>();
   const endWith = (event: Socket.CloseEvent) => Deferred.succeed(ending, event).pipe(Effect.asVoid);
-  // Frames waiting for the writer. A full queue closes with 1013, and the client re-watches from
-  // its cursors. The writer hands frames to `ws` without waiting, so `ws` buffers a slow reader.
+  // Frames waiting for the writer. A full queue, or more than MAX_BUFFERED_BYTES in `ws`, closes
+  // with 1013, and the client re-watches from its cursors.
   const send = (frame: string) =>
     Effect.suspend(() =>
-      Queue.offerUnsafe(outbound, frame)
-        ? Effect.void
-        : endWith(close(1013, "The voice seam client stopped reading.")),
+      Queue.offerUnsafe(outbound, frame) ? Effect.void : endWith(stoppedReading),
     );
   const refuse = (id: number, refusal: VoiceSeam.VoiceSeamRefusal) =>
     send(
@@ -108,6 +132,9 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     );
 
   const watches = new Map<ThreadId, Fiber.Fiber<void>>();
+  // Admission, replacement and unwatch wait on a stopping fiber between reading and writing
+  // `watches`, so each runs alone, through its result frame.
+  const watchLock = yield* Semaphore.make(1);
   const stopWatch = Effect.fn("VoiceSeam.route.stopWatch")(function* (threadId: ThreadId) {
     const fiber = watches.get(threadId);
     watches.delete(threadId);
@@ -194,33 +221,37 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     }
     const { id, op, input: raw } = envelope.value;
     if (!isWireOp(op)) return yield* refuse(id, VoiceSeam.VoiceSeamRefusal.invalidRequest());
-    return yield* dispatch(op, id, raw);
+    const request = dispatch(op, id, raw);
+    return yield* op === "watch" || op === "unwatch" ? watchLock.withPermit(request) : request;
   });
 
-  const hello = yield* seam.hello(caller).pipe(Effect.result);
-  if (hello._tag === "Failure") {
-    yield* Effect.logWarning("voice seam hello failed", { cause: hello.failure.cause });
+  const permits = yield* Semaphore.make(MAX_IN_FLIGHT);
+  const reader = yield* input.socket.reader;
+  const bufferedBytes = bufferedBytesOf(input.transport);
+  if (bufferedBytes === undefined) {
+    yield* Effect.logWarning("voice seam could not find its WebSocket's send buffer");
     return yield* writer.write(close(1011, "The voice seam could not start.")).pipe(Effect.ignore);
   }
-  yield* send(encodeHello(hello.success));
-
-  yield* Effect.forever(Queue.take(outbound).pipe(Effect.flatMap(writer.write))).pipe(
-    Effect.ignore,
-    Effect.forkIn(scope),
-  );
+  // Effect's writer hands each frame to `ws` without waiting, so the bound is checked here.
+  const writeLoop = Effect.gen(function* () {
+    while (true) {
+      const frame = yield* Queue.take(outbound);
+      if (bufferedBytes() > MAX_BUFFERED_BYTES) return yield* endWith(stoppedReading);
+      yield* writer.write(frame);
+    }
+  });
+  yield* writeLoop.pipe(Effect.ignore, Effect.forkIn(scope));
   yield* input.invalidated.pipe(
     Effect.matchEffect({
       onFailure: (cause) =>
         Effect.logWarning("voice seam could not watch its session", { cause }).pipe(
           Effect.andThen(endWith(close(1011, "The voice seam lost its session check."))),
         ),
-      onSuccess: () => endWith(close(1008, "The voice session was revoked.")),
+      onSuccess: () => endWith(revoked),
     }),
     Effect.forkIn(scope),
   );
 
-  const permits = yield* Semaphore.make(MAX_IN_FLIGHT);
-  const reader = yield* input.socket.reader;
   const readLoop = Effect.forever(
     reader.pull.pipe(
       Effect.flatMap((frames) =>
@@ -239,11 +270,29 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
       ),
     ),
   );
-  // A pull fails once the client closes the socket, which ends this socket's watches with it.
-  const ended = yield* Effect.raceFirst(
-    readLoop.pipe(Effect.ignore, Effect.as(null)),
-    Deferred.await(ending),
+  const serve = Effect.gen(function* () {
+    // A revocation before the watcher subscribed is caught here, before any service call.
+    const active = yield* input.stillActive.pipe(Effect.result);
+    if (active._tag === "Failure") {
+      yield* Effect.logWarning("voice seam could not check its session", { cause: active.failure });
+      return yield* endWith(close(1011, "The voice seam lost its session check."));
+    }
+    if (!active.success) return yield* endWith(revoked);
+    const hello = yield* seam.hello(caller).pipe(Effect.result);
+    if (hello._tag === "Failure") {
+      yield* Effect.logWarning("voice seam hello failed", { cause: hello.failure.cause });
+      return yield* endWith(close(1011, "The voice seam could not start."));
+    }
+    yield* send(encodeHello(hello.success));
+    // A pull fails once the client closes the socket, which ends this socket's watches with it.
+    return yield* readLoop;
+  });
+  yield* serve.pipe(
+    Effect.ignore,
+    Effect.andThen(Deferred.succeed(ending, null)),
+    Effect.forkIn(scope),
   );
+  const ended = yield* Deferred.await(ending);
   if (ended !== null) yield* writer.write(ended).pipe(Effect.ignore);
 });
 
@@ -286,14 +335,19 @@ export const layer = Layer.unwrap(
           config: read.config,
         };
         const socket = yield* request.upgrade;
+        const transport = NodeHttpServerRequest.toIncomingMessage(request).socket;
         yield* Effect.acquireUseRelease(
           sessions.markConnected(sessionId),
           () =>
             runSocket({
               socket,
+              transport,
               seam,
               caller,
               invalidated: sessions.awaitInvalidation(sessionId, proofKeyThumbprint),
+              stillActive: sessions
+                .listActive()
+                .pipe(Effect.map((active) => active.some((row) => row.sessionId === sessionId))),
             }).pipe(Effect.scoped),
           () => sessions.markDisconnected(sessionId),
         );
