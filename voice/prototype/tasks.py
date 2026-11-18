@@ -296,6 +296,11 @@ class MockTaskService:
         if self._pool is not None:
             self._pool.shutdown(wait=False, cancel_futures=True)
 
+    def open_question(self):
+        """A question this service asked in an earlier turn and holds itself, which this turn's words may answer.
+        None here: the mock's questions travel in the carried tasks instead."""
+        return None
+
     def next_due(self):
         due = [e.due_at for e in self.executions.values() if e.state == Run.RUNNING]
         return min(due) if due else None
