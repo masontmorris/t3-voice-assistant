@@ -53,13 +53,31 @@ class TwinA(unittest.TestCase):
         self.assertEqual(seam.ops("launch"), [])
         self.assertIsNone(t3.question)
 
-    def test_an_unrelated_reply_drops_the_question(self):
+    def test_an_unclear_reply_reasks_once_then_drops_the_request(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
         t3.start("k1", "Add a clamp helper in the sandbox project", 0)
-        self.assertIsNone(t3.answer("What's the weather in Lisbon?", 1))
-        self.assertIsNone(t3.answer("yes", 2))
+
+        again = t3.answer("What do you mean?", 1)
+        self.assertEqual((again.line, again.status), ("Start it in Voice sandbox?", "needs_clarification"))
         self.assertEqual(seam.ops("launch"), [])
+        dropped = t3.answer("I'm thinking about it.", 2)
+        self.assertEqual((dropped.line, dropped.status), ("Okay, I won't start it.", "cancelled"))
+        self.assertIsNone(t3.answer("yes", 3))
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_a_confirmation_can_be_retargeted_but_still_needs_a_yes(self):
+        for reply in ("start it in the other project", "yes, start it in the voice server"):
+            with self.subTest(reply=reply):
+                seam = F.FakeSeam(projects=TWO_PROJECTS)
+                t3 = tasks_over(self, seam)
+                t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+
+                again = t3.answer(reply, 1)
+                self.assertEqual((again.line, again.status), ("Start it in Voice server?", "needs_clarification"))
+                self.assertEqual(seam.ops("launch"), [])
+                self.assertEqual(t3.answer("yes please", 2).line, "Started a thread in Voice server.")
+                self.assertEqual(seam.ops("launch")[0][2], "p2")
 
     def test_a_project_named_in_the_answer_is_still_confirmed(self):
         seam = F.FakeSeam(projects=TWO_PROJECTS)
@@ -184,10 +202,36 @@ class Service(unittest.TestCase):
 
 class Replies(unittest.TestCase):
     def test_reply_kind(self):
-        cases = {"Yes, start it.": "yes", "yeah": "yes", "No, don't.": "no", "Not yet, wait.": "no",
-                 "What's the weather?": None}
+        cases = {
+            "Yes, start it.": "yes",
+            "yeah": "yes",
+            "yep!": "yes",
+            "sure, go ahead": "yes",
+            "yes please": "yes",
+            "please": "yes",
+            "do it": "yes",
+            "start it": "yes",
+            "go ahead": "yes",
+            "No, don't.": "no",
+            "wait": "no",
+            "never mind": "no",
+            "not that one": "no",
+            "please don't": "no",
+            "yes, but don’t start it": "no",
+            "What do you mean?": None,
+            "do you mean the other one": None,
+            "yes?": None,
+            "sure, how long will it take": None,
+            "do": None,
+            "could you start it": None,
+            "please tell me more": None,
+            "I said yes earlier": None,
+            "yes, maybe later": None,
+            "start it in the other project": None,
+        }
         for text, kind in cases.items():
-            self.assertEqual(reply_kind(text), kind, text)
+            with self.subTest(text=text):
+                self.assertEqual(reply_kind(text), kind)
 
 
 if __name__ == "__main__":
