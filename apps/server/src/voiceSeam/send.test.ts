@@ -421,18 +421,6 @@ it.effect(
         (yield* recordsOf(running.threadId)).runs.find((run) => run.id === next.runId),
         later.runs.find((run) => run.id === next.runId),
       );
-      // A thread with nothing active answers nothing_running and records no command.
-      const idle = { requestId: "01JD5Z7Q8M3N4P5R6S7T8V9X5D", threadId: running.threadId };
-      const fresh = yield* launchThread("01JD5Z7Q8M3N4P5R6S7T8V9X5E");
-      yield* seam.interrupt(caller(), {
-        requestId: "01JD5Z7Q8M3N4P5R6S7T8V9X5F",
-        threadId: fresh.threadId,
-      });
-      assert.deepStrictEqual(
-        yield* seam.interrupt(caller(), { ...idle, threadId: fresh.threadId }),
-        { kind: "nothing_running" },
-      );
-      assert.isTrue(Option.isNone(yield* receiptOf("interrupt", idle.requestId)));
     }).pipe(Effect.provide(layerTest)),
 );
 

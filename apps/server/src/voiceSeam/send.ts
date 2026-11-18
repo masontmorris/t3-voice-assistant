@@ -6,6 +6,7 @@ import {
   type ThreadId,
 } from "@t3tools/contracts";
 import type * as Digest from "effect/crypto/Digest";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
 
@@ -188,14 +189,16 @@ export const make = (sources: SendSources) => {
     } satisfies VoiceSendResult;
   });
 
-  /** A request with a receipt already interrupted its run, so it has nothing left to stop. */
+  /** A request with a receipt already answered, so it has nothing left to stop. */
   const answerInterrupt = (
-    gate: Exclude<ReceiptGate, { readonly kind: "none" }>,
+    gate: ReceiptGate,
     commandId: CommandId,
   ): Effect.Effect<VoiceInterruptResult, VoiceSeamRefusal> =>
     gate.kind === "accepted"
       ? Effect.succeed({ kind: "nothing_running" })
-      : Effect.fail(refuseGate(gate, commandId));
+      : gate.kind === "none"
+        ? Effect.fail(VoiceSeamRefusal.unavailable(`Interrupt ${commandId} has no receipt.`))
+        : Effect.fail(refuseGate(gate, commandId));
 
   const interrupt = Effect.fn("VoiceSeam.interruptThread")(function* (
     shell: OrchestrationV2ThreadShell,
@@ -219,13 +222,27 @@ export const make = (sources: SendSources) => {
       return yield* answerInterrupt(after, commandId);
     }
     const result = interrupted.success;
-    return result.type === "interrupt_requested"
-      ? ({
-          kind: "requested",
-          runId: result.run.id,
-          sequence: result.dispatch.sequence,
-        } satisfies VoiceInterruptResult)
-      : ({ kind: "nothing_running" } satisfies VoiceInterruptResult);
+    if (result.type === "interrupt_requested") {
+      return {
+        kind: "requested",
+        runId: result.run.id,
+        sequence: result.dispatch.sequence,
+      } satisfies VoiceInterruptResult;
+    }
+    // Recorded, so a retry answers from it instead of stopping a run that starts later.
+    const recorded = yield* receipts
+      .insertIfAbsent({
+        commandId,
+        threadId: input.threadId,
+        commandType: "run.interrupt",
+        status: "accepted",
+        error: null,
+        acceptedAt: yield* DateTime.now,
+        resultSequence: yield* threads.getThreadEventSequence(input.threadId).pipe(unavailable),
+      })
+      .pipe(unavailable);
+    if (recorded) return { kind: "nothing_running" } satisfies VoiceInterruptResult;
+    return yield* answerInterrupt(yield* readGate(commandId, input.threadId), commandId);
   });
 
   return { send, interrupt };
