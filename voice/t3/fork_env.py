@@ -830,8 +830,12 @@ def cmd_down(paths: EnvPaths) -> int:
     deadline = time.monotonic() + DOWN_TIMEOUT_S
     while time.monotonic() < deadline:
         if not pid_alive(pid) and not port_open(FORK_PORT):
-            clear_pid_file(paths)
-            clear_runtime_files(paths)
+            refusal = foreign_server_refusal(paths)
+            if refusal is None:
+                clear_pid_file(paths)
+                clear_runtime_files(paths)
+            else:
+                print(f"{refusal}; kept runtime files", file=sys.stderr)
             print(f"fork_env: stopped pid {pid}")
             return 0
         time.sleep(DOWN_POLL_INTERVAL_S)

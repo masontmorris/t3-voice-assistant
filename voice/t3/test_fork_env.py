@@ -640,6 +640,34 @@ class StaleRuntimeTest(unittest.TestCase):
                 self.assertEqual(fork_env.cmd_down(paths), 0)
             self.assertFalse(runtime.exists())
 
+    def test_down_keeps_runtime_files_if_another_process_uses_the_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            paths.home.mkdir(parents=True)
+            paths.pid_file.write_text("1234\n", encoding="utf-8")
+            fork_env.write_state(paths, {"port": fork_env.FORK_PORT, "serverPid": 1234, "serverStarted": "stamp-1"})
+            runtime = self.runtime_file(paths)
+            done = subprocess.CompletedProcess(args=["taskkill"], returncode=0)
+            sleeper = subprocess.Popen(
+                [sys.executable, "-c", "import time; time.sleep(60)", "--home-dir", str(paths.home)]
+            )
+            try:
+                with (
+                    mock.patch.object(fork_env, "_process_info", side_effect=lambda pid: fake_identity(paths)),
+                    mock.patch.object(fork_env, "pid_alive", side_effect=[True, False]),
+                    mock.patch.object(fork_env, "kill_tree", return_value=done),
+                    mock.patch.object(fork_env, "port_open", return_value=False),
+                    contextlib.redirect_stdout(io.StringIO()),
+                    contextlib.redirect_stderr(io.StringIO()) as err,
+                ):
+                    self.assertEqual(fork_env.cmd_down(paths), 0)
+                self.assertTrue(runtime.exists())
+                self.assertEqual(paths.pid_file.read_text(encoding="utf-8"), "1234\n")
+                self.assertIsNone(sleeper.poll())
+                self.assertIn("another server uses this home", err.getvalue())
+            finally:
+                stop_sleeper(sleeper)
+
 
 class ModelTest(unittest.TestCase):
     """`model` sets the sandbox's default model in the fork home, and only while no server runs on it."""
