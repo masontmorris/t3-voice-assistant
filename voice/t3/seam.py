@@ -40,6 +40,10 @@ class SeamUnavailable(Exception):
     """The seam answered unavailable, or the socket closed before a result."""
 
 
+class SeamProtocolError(SeamUnavailable):
+    """The seam sent a result the client could not decode."""
+
+
 class SeamConnectionEnded(Exception):
     """Connect failed, or a call raced a dead socket. The end is the value."""
 
@@ -284,38 +288,51 @@ class T3Seam:
             if kind == "result":
                 self._on_result(frame)
             elif kind == "event":
-                self._events.put(T.decode_event(frame["event"]))
+                self._events.put(T.decode_event(frame.get("event")))
             elif kind == "watch_ended":
                 self._events.put(T.decode_watch_ended(frame))
             else:
                 raise ValueError(f"unknown seam frame type: {kind!r}")
-        except ValueError:
+        except (TypeError, ValueError):
             return T.CLOSE_1007
         return None
 
     def _on_result(self, frame: dict[str, Any]) -> None:
         call_id = frame.get("id")
         with self._lock:
-            entry = self._pending.pop(call_id, None) if isinstance(call_id, int) else None
+            entry = self._pending.get(call_id) if type(call_id) is int else None
         if entry is None:
             raise ValueError(f"seam result names no open request: {frame!r:.160}")
         op, future = entry
-        if frame.get("ok") is True:
+        try:
+            result = self._decode_result(op, frame)
+        except (TypeError, ValueError):
+            future.set_exception(SeamProtocolError("the seam sent an invalid result"))
+            raise
+        with self._lock:
+            del self._pending[call_id]
+        if isinstance(result, T.ResultErr):
+            if result.code is T.RefusalCode.UNAVAILABLE:
+                future.set_exception(SeamUnavailable(result.message))
+            else:
+                future.set_exception(SeamRefused(result.code, result.message))
+        else:
+            future.set_result(result)
+
+    @staticmethod
+    def _decode_result(op: str, frame: dict[str, Any]) -> T.ResultValue | T.ResultErr:
+        ok = frame.get("ok")
+        if ok is True:
             decoder = T.RESULT_DECODERS.get(op)
             if decoder is None:
                 raise ValueError(f"seam answered ok for {op}, which has no decoder yet")
-            future.set_result(decoder(frame.get("value")))
-            return
-        error = frame.get("error") or {}
-        try:
-            code = T.RefusalCode(error.get("code"))
-        except ValueError:
-            raise ValueError(f"seam refusal names no known code: {frame!r:.160}") from None
-        message = error.get("message", "")
-        if code is T.RefusalCode.UNAVAILABLE:
-            future.set_exception(SeamUnavailable(message))
-        else:
-            future.set_exception(SeamRefused(code, message))
+            return decoder(frame.get("value"))
+        if ok is not False:
+            raise ValueError("seam result requires a boolean ok field")
+        error = frame.get("error")
+        if not isinstance(error, dict) or not isinstance(error.get("message"), str):
+            raise ValueError("seam refusal requires an error object with a message")
+        return T.ResultErr(code=T.RefusalCode(error.get("code")), message=error["message"])
 
     def _settle_ready(self, hello: T.Hello) -> None:
         self._handoff.put(("ready", hello))
