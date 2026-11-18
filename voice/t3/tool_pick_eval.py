@@ -4,7 +4,8 @@ Each case in `eval/tool_pick.jsonl` is one utterance with the tool a person labe
 `live_gate_eval.run_item` runs a live turn: the intent rules decide whether the decider is asked, then the hybrid
 segmenter asks its questions with the tool question's options as `--t3 on` offers them (`T3Registry`). The pick is
 the tool the decider answered for the utterance's first segment. `reaches` says whether that pick would route:
-the gate dispatched the task and its tool answer clears the registry's bar.
+the gate dispatched the task and its tool answer clears the registry's bar. The free decider refuses the place and
+day questions (a 400 on their `text` type), so they are off unless `--arguments` asks for them.
 
     VOICE_ENV_FILE=<env file with OPENROUTER_API_KEY> python -m voice.t3.tool_pick_eval
 
@@ -65,6 +66,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--budget", type=int, default=150, help="stop when the ledger holds this many attempts")
     parser.add_argument("--only", help="one case id, for a setup check")
+    parser.add_argument("--arguments", action="store_true", help="also ask the place and day questions")
     args = parser.parse_args(argv)
     cases = [json.loads(line) for line in CASES.read_text(encoding="utf-8").splitlines() if line.strip()]
     if args.only:
@@ -75,7 +77,8 @@ def main(argv=None) -> int:
     with make_decider("cloud") as client:
         for case in cases:
             item = {**case, "split": "t3", "category": case["tool"], "expect": case["tool"], "context": {}}
-            trace, _ = run_item(client, item, 1, False, calls=OUT / "calls", tools=TOOLS, arguments=True)
+            trace, _ = run_item(client, item, 1, False, calls=OUT / "calls", tools=TOOLS,
+                                arguments=args.arguments)
             pick, confidence = picked(trace)
             rows.append({"id": case["id"], "label": case["tool"], "pick": pick, "confidence": confidence,
                          "reaches": reaches(trace, pick), "intent": trace["intent"], "utterance": case["utterance"]})
