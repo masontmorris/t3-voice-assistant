@@ -16,11 +16,15 @@ On the final transcript a read-only task also runs when the decider named one re
 after the final transcript runs a held task in live mode, so a hold there is a lookup that never happens. Measured on
 Mason's demo call (20261117-013438, turn 011): "check the weather in Charlotte, Nuxunda?" read `ready` at 0.33 and was
 held while its tool answer was weather at 0.90, and the voice then said it couldn't check the weather.
+
+A tool in `confirmed_tools`, a T3 thread tool, passes on the same firm tool answer even as a side effect, because it
+asks the person for an explicit yes before it acts. Measured on #57's 20 T3 requests: the side-effect bar held 8 of
+them, "Tell it to also add a test." among them, and a held request is silence in live mode.
 """
 
 from dataclasses import dataclass
 
-from voice.tools.registry import GENERAL, NONE
+from voice.tools.registry import GENERAL, NONE, T3_TOOLS
 
 YES_NO = ("side_effect", "finished")
 SCORED = ("ready", "side_effect")
@@ -49,6 +53,7 @@ class Gate:
     threshold: float
     side_effect_threshold: float
     named_tool_threshold: float | None = None
+    confirmed_tools: frozenset[str] = frozenset()
 
     def bar(self, side_effect):
         return self.side_effect_threshold if side_effect else self.threshold
@@ -61,8 +66,9 @@ class Gate:
         if score >= threshold:
             return Verdict(True, score, weakest, threshold)
         tool = decision.tool
-        if (is_final and not decision.side_effect and self.named_tool_threshold is not None and tool is not None
-                and tool.tool not in (NONE, GENERAL) and tool.confidence >= self.named_tool_threshold):
+        named = tool is not None and (tool.tool in self.confirmed_tools
+                                      or (not decision.side_effect and tool.tool not in (NONE, GENERAL)))
+        if is_final and named and self.named_tool_threshold is not None and tool.confidence >= self.named_tool_threshold:
             return Verdict(True, tool.confidence, "tool", self.named_tool_threshold)
         return Verdict(False, score, weakest, threshold)
 
@@ -73,4 +79,5 @@ class Gate:
 # The named-tool bar: on the live gate eval's 210 recorded traces (traces-followups.jsonl), 0.60 and 0.70 both turn two
 # held-out false holds into dispatches (t64, "What's the whether in DEN ver?") and dispatch nothing that should not
 # run; 0.80 recovers one, and 0.90 none. 0.70 keeps a margin above the lowest bar that helped.
-PLAN_A = Gate(threshold=0.40, side_effect_threshold=0.80, named_tool_threshold=0.70)
+PLAN_A = Gate(threshold=0.40, side_effect_threshold=0.80, named_tool_threshold=0.70,
+              confirmed_tools=T3_TOOLS)

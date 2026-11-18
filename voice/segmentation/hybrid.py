@@ -28,7 +28,13 @@ from voice.segmentation.intent import utterance_intent
 from voice.segmentation.score import score
 from voice.segmentation.spans import _is_filler, clause_cuts
 from voice.segmentation.tasks import Orchestrator
+from voice.tools.registry import T3_TOOLS
 
+# With the T3 tools offered, the decider called 3 of 5 thread status questions chitchat, "How's the PR thread going?"
+# among them, so no task reached T3 (measured, #57's tool-pick eval).
+T3_REQUEST = (" Asking how a coding thread or other work outside this call is going, or asking to start one, "
+              "pass it a message, or stop it, is external work.")
+T3_CHITCHAT = " A question about a thread's progress is not chitchat."
 I_MEAN = re.compile(r"\bi mean\b", re.IGNORECASE)
 MAX_DRAIN = 4
 QUIET = (0, (), ())
@@ -328,6 +334,9 @@ class HybridSegmenter:
                     question["criteria"]["chitchat"] = ("Conversation, greetings, reactions, or questions the voice "
                                                          "assistant can answer from this conversation or its own "
                                                          "knowledge without an external tool.")
+                    if T3_TOOLS & set(self.tool_choices or ()):
+                        question["criteria"]["request"] += T3_REQUEST
+                        question["criteria"]["chitchat"] += T3_CHITCHAT
                     if self.prior_resolved_tasks:
                         question["criteria"]["request"] += (" A short follow-up that continues an earlier request or "
                                                              "lookup in prior_resolved_tasks is external work, even "
