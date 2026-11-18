@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import tempfile
 import threading
@@ -11,17 +13,17 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (ASK, START, STOP, T3_TOOLS, T3_WAITING, TELL, T3Registry, T3TaskService, T3Tasks,
-                                 reply_kind, status_act, tell_parts, transcript_rows)
+from voice.live.t3_tasks import (ASK, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
+                                 T3Tasks, reply_kind, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import FakeSession
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
-from voice.t3.acts import RULES, act
+from voice.t3.acts import QUESTIONS, RULES, Act, act, check
 from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal
-from voice.t3.speech import RENDER_SYSTEM, Lane, Speech
+from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.segmentation.gate import PLAN_A
 from voice.tools import registry as tool_registry
 
@@ -49,20 +51,26 @@ class FakeText:
     """The voice's text model: a line built from the acts' exact facts, which passes the slot check."""
 
     model = "fake/text:free"
+    GIST = "It added the helper."
 
     def __init__(self, line=None):
         self.line, self.calls = line, 0
+        self.summarised = threading.Event()
 
     def complete(self, messages):
         self.calls += 1
         if messages[0]["content"] != RENDER_SYSTEM:
-            return {"text": "It added the helper.", "ms": 1, "tokens": {}}
+            self.summarised.set()
+            return {"text": self.GIST, "ms": 1, "tokens": {}}
         body = json.loads(messages[1]["content"])
         if self.line is not None:
             return {"text": self.line, "ms": 1, "tokens": {}}
-        facts = ", ".join(body["keep_exact"]) or "your threads"
-        return {"text": f"About {facts}, any thoughts?" if body["ask"] else f"About {facts}, noted.", "ms": 1,
-                "tokens": {}}
+        return {"text": self.wording(body["keep_exact"], body["ask"]), "ms": 1, "tokens": {}}
+
+    @staticmethod
+    def wording(exact, ask):
+        facts = ", ".join(exact) or "your threads"
+        return f"About {facts}, any thoughts?" if ask else f"About {facts}, noted."
 
 
 def worded(t3: T3Tasks, text: FakeText) -> T3Tasks:
@@ -619,6 +627,24 @@ class Service(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(turn.answer(T3_WAITING, "What's the weather in Lisbon?", 2), [])
         self.assertEqual(self.service(tasks_over(self, F.FakeSeam()), []).open_question(), None)
 
+    def test_a_mid_utterance_t3_ask_starts_the_read_and_the_summary(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
+                                       activity=T.ThreadActivity.FINISHED,
+                                       last_reply=T.LastReply("Done. Tests pass.", "m1", None, "r1", "2026")))
+        seam.listing = listing(*THREADS)
+        text = FakeText()
+        t3 = worded(tasks_over(self, seam), text)
+        t3.follow.ensure(0)
+        asking = {**self.record("task_1", "How is the clamp helper thread", ASK), "status": "pending"}
+        service = T3TaskService(SimpleNamespace(records=lambda: [asking], dispatch_log=[]), "conv_turn_001", 0.0,
+                                None, holds_side_effects=False, t3=t3)
+        service.sync(0)
+        self.assertTrue(text.summarised.wait(2), "the summary starts before the decider dispatches the ask")
+        self.assertEqual(seam.ops("read"), [("read", "t5")])
+        self.assertEqual(service.executions, {}, "nothing is dispatched or said yet")
+        service.sync(1)
+        self.assertEqual(text.calls, 1, "one speculative start per marked ask")
+
     def test_the_registry_offers_the_four_t3_tools_before_none(self):
         base = SimpleNamespace(choices=lambda: {"weather": "w", "agent": "a", "none": "n"}, tool_threshold=0.6)
         registry = T3Registry(base)
@@ -650,6 +676,49 @@ class Service(unittest.IsolatedAsyncioTestCase):
                                           "thread_id": None, "sequences": [681]}])
         self.assertEqual((rows[1]["idle"], rows[1]["t3"][0]["sequences"], rows[1]["said"]),
                          (True, [750, 751], ["It finished."]))
+
+
+class WholeDialogue(unittest.TestCase):
+    def test_every_spoken_line_is_the_text_model_s_wording_of_its_acts(self):
+        seam = F.FakeSeam(read=F.state(thread="t1", title="Add a clamp helper", as_of=210,
+                                       activity=T.ThreadActivity.FINISHED,
+                                       last_reply=T.LastReply("Added clamp. Tests pass.", "m9", None, "r1", "2026")))
+        seam.listing = listing(("t1", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        t3 = worded(tasks_over(self, seam), FakeText())
+        script = Script(t3)
+        out = io.StringIO()
+        with contextlib.redirect_stdout(out):
+            script.tool("a1", START, "Add a clamp helper in the sandbox project")
+            script.reply("a1", "Yes, start it.")
+            seam.push(F.run_event(100), F.reply(101, text="Working on clamp."), F.needs_you(102),
+                      F.resolved(103), F.done(200))
+            t3.poll(script.clock())
+            for update in t3.take():
+                script.show("watch", None, update)
+            script.tool("b1", ASK, "How is the clamp helper thread going?")
+            script.reply("b1", "yes")
+            seam.answer("send", F.sent(thread="t1"))
+            script.tool("c1", TELL, "Tell the clamp helper thread to also add a test.")
+            script.reply("c1", "Yes, send it.")
+            seam.answer("interrupt", F.requested())
+            script.tool("s1", STOP, "Stop the clamp helper thread.")
+            script.reply("s1", "Yes, stop it.")
+        rows = [json.loads(line) for line in out.getvalue().splitlines()]
+        spoken = [row for row in rows if row.get("acts")]
+        self.assertEqual([row for row in spoken if row["line"] is None], [], "nothing waits")
+        self.assertEqual([a["kind"] for row in spoken for a in row["acts"]],
+                         ["confirm_launch", "launched", "run_update", "replied", "needs_you", "need_resolved",
+                          "done", "confirm_thread", "thread_status", "confirm_tell", "sent_followup", "confirm_stop",
+                          "stopping"])
+        for row in spoken:
+            acts = [Act.from_json(a) for a in row["acts"]]
+            with self.subTest(acts=[a.kind.value for a in acts]):
+                self.assertEqual(row["line"], FakeText.wording(kept_exact(acts),
+                                                               any(a.kind in QUESTIONS for a in acts)))
+                self.assertEqual(check(row["line"], acts), [])
+        done = next(row for row in spoken if row["acts"][0]["kind"] == "done")
+        self.assertEqual((done["acts"][0]["slots"]["summary"], done["evidence"]["sequences"]),
+                         (FakeText.GIST, [200, 201, 210]), "the done carries its summary and the read it came from")
 
 
 class ReplyWords(unittest.TestCase):
