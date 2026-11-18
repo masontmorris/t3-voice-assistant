@@ -36,6 +36,7 @@ MAX_FAILURES = 8
 BUDGET_RESET_S = 60.0
 ACK_AFTER_S = 3.0
 DONE_WINDOW_S = 10.0
+TERMINAL_RUN_STATUSES = frozenset(T.RunStatus(status.value) for status in T.TerminalStatus)
 
 
 class Ends(StrEnum):
@@ -255,6 +256,7 @@ class Follow:
     seam: Any = None
     watching: dict[str, str] = field(default_factory=dict)
     opened_at: dict[str, float] = field(default_factory=dict)
+    releasing: set[str] = field(default_factory=set)
     queue: deque = field(default_factory=deque)
     queued_said: set = field(default_factory=set)
     budgets: dict[str, Budget] = field(default_factory=dict)
@@ -300,7 +302,8 @@ class Follow:
             elif task.status is Status.LIVE:
                 self.run("restart-live", task, now)
             elif task.status is Status.HELD:
-                self.run("restart-held", task, now)
+                if task.task_id not in self.budgets:
+                    self.run("restart-held", task, now)
             else:
                 self.run("restart-ended", task, now)
 
@@ -371,9 +374,12 @@ class Follow:
             self.socket_end(ended.end, now)
             return None
         self.seam, self.socket.due_at, self.socket_opened_at = seam, None, now
-        for task in [*self.journal.live(), *self.journal.held()]:
+        for task in self.journal.live():
             if task.task_id not in self.budgets:
                 self.watch(task, now)
+        for task in self.journal.held():
+            if task.status is Status.HELD and task.task_id not in self.budgets:
+                self.read_first(task, now, keep_cursor=True)
         return self.seam
 
     def tick(self, now: float) -> None:
@@ -445,7 +451,7 @@ class Follow:
         status = self.journal.tasks[owner].status
         return status in ENDED or (status is Status.HELD and task.status is Status.LIVE)
 
-    def read_first(self, task: JournalTask, now: float) -> None:
+    def read_first(self, task: JournalTask, now: float, *, keep_cursor: bool = False) -> None:
         """Speak only what the read shows, save its need, take its sequence as the cursor, then watch."""
         seam = self.seam
         if seam is None:
@@ -458,12 +464,20 @@ class Follow:
             return self.run("read-failed", task, now, code=C.UNAVAILABLE)
         except SeamConnectionEnded:
             return
+        if task.status is Status.HELD and state.run is not None and state.run.status in TERMINAL_RUN_STATUSES:
+            if task.link.thread_id in self.releasing:
+                # Another run can finish between the release's busy reply and this read.
+                self.budgets[task.task_id] = Budget(due_at=now + RETRY_WAITS_S[0], op="read")
+            else:
+                self.run("held-release", task, now)
+            return
         need, link = state.pending, task.link
         if need is not None and link.requests.get(need.request_id) != "needs_you":
             self.speak(task, need_line(need.kind, need.prompt, task.ended), "read", (state.as_of_sequence,))
             link.requests[need.request_id] = "needs_you"
             link.pending = {"request_id": need.request_id, "kind": need.kind.value, "prompt": need.prompt}
-        link.cursor = state.as_of_sequence
+        if not keep_cursor or link.cursor is None:
+            link.cursor = state.as_of_sequence
         self.journal.save()
         self.watch(task, now)
 
@@ -534,6 +548,8 @@ class Follow:
             return self.run(WATCH_ENDED_ROWS[item.reason], task, now, code=item.reason)
         if isinstance(item, T.DoneEvent):
             if task.status is Status.LIVE:
+                if task.link.run_id is not None and item.run_id != task.link.run_id:
+                    return
                 self.run("done-event", task, now, event=item)
             held = self.journal.held(item.thread_id)
             if held:
@@ -741,15 +757,21 @@ def _hold(f: Follow, name, row, task, now, refusal=None):
     first = task.status is not Status.HELD
     task.status = Status.HELD
     task.link.request_id = ulid()
-    if first:
-        f.speak(task, row.line, name)
     f.journal.save()
-    f.watch(task, now)
+    f.read_first(task, now)
+    if first and task.status is Status.HELD:
+        f.speak(task, row.line, name)
+        f.journal.save()
 
 
 def _release(f: Follow, name, row, task, now, **_):
-    for held in f.journal.held(task.link.thread_id):
-        f.send(held, now)
+    thread = task.link.thread_id
+    f.releasing.add(thread)
+    try:
+        for held in f.journal.held(thread):
+            f.send(held, now)
+    finally:
+        f.releasing.remove(thread)
 
 
 def _drop(f: Follow, name, row, task, now, **_):
