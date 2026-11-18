@@ -2,7 +2,7 @@
 
 One JSON file holds every task the voice launched, sent to, held, or stopped: its request id,
 minted and saved before the seam call, the thread it reached, the cursor, the applied request
-ids, the reply dedupe, the first interrupt result, and pending spoken lines. A restarted voice server reads it back and follows each
+ids, the reply dedupe, the first interrupt result, and the acts still waiting to be spoken. A restarted voice server reads it back and follows each
 live thread from its own cursor. Every write replaces the file whole, so a crash leaves either
 the old record or the new one.
 """
@@ -17,6 +17,8 @@ import time
 from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
+
+from voice.t3.acts import Act
 
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -84,6 +86,7 @@ class JournalTask:
     status: Status
     link: T3Link
     announced: bool = False
+    title: str | None = None
 
     @property
     def ended(self) -> bool:
@@ -99,23 +102,33 @@ def _task_from(raw: dict) -> JournalTask:
         status=Status(raw["status"]),
         link=T3Link(**raw["link"]),
         announced=raw.get("announced", False),
+        title=raw.get("title"),
     )
 
 
 @dataclass
 class Update:
-    """One thing the voice may say, with the stored or read sequences it comes from."""
+    """What the voice may say, as acts, with the stored or read sequences they come from."""
 
     task_id: str
-    line: str
+    acts: tuple[Act, ...]
     status: str
     row: str | None = None
     thread_id: str | None = None
     sequences: tuple[int, ...] = ()
     delivery_failures: int = 0
+    problems: tuple[str, ...] = ()
 
     def evidence(self) -> dict:
         return {"thread_id": self.thread_id, "sequences": list(self.sequences)}
+
+    def to_json(self) -> dict:
+        return {**asdict(self), "acts": [a.to_json() for a in self.acts]}
+
+    @classmethod
+    def from_json(cls, raw: dict) -> Update:
+        return cls(**{**raw, "acts": tuple(Act.from_json(a) for a in raw["acts"]),
+                      "sequences": tuple(raw["sequences"]), "problems": tuple(raw.get("problems", ()))})
 
 
 class T3Journal:
@@ -128,14 +141,14 @@ class T3Journal:
         if self.path.exists():
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             self.tasks = {t["task_id"]: _task_from(t) for t in raw.get("tasks", [])}
-            self.pending_lines = [Update(**{**u, "sequences": tuple(u["sequences"])})
-                                  for u in raw.get("pending_lines", [])]
+            # Version 1 saved spoken text, which is never replayed: a version 2 line is acts.
+            self.pending_lines = [Update.from_json(u) for u in raw.get("pending_lines", []) if "acts" in u]
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
-        body = {"version": 1, "tasks": [asdict(t) for t in self.tasks.values()],
-                "pending_lines": [asdict(u) for u in self.pending_lines]}
+        body = {"version": 2, "tasks": [asdict(t) for t in self.tasks.values()],
+                "pending_lines": [u.to_json() for u in self.pending_lines]}
         tmp.write_text(json.dumps(body, indent=1) + "\n", encoding="utf-8")
         os.replace(tmp, self.path)
 
@@ -152,10 +165,10 @@ class T3Journal:
                 raise
 
     def begin(self, kind: Kind, instruction: str, project_id: str | None, project_name: str | None = None,
-              thread_id: str | None = None) -> JournalTask:
+              thread_id: str | None = None, title: str | None = None) -> JournalTask:
         """Mint the task and its request id and save both before the caller makes the seam call."""
         task = JournalTask(ulid(), Kind(kind), instruction, project_name, Status.UNSTARTED,
-                           T3Link(request_id=ulid(), project_id=project_id, thread_id=thread_id))
+                           T3Link(request_id=ulid(), project_id=project_id, thread_id=thread_id), title=title)
         self.tasks[task.task_id] = task
         self.save()
         return task

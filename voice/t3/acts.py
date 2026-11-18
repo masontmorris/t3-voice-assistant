@@ -1,0 +1,228 @@
+"""Typed dialog acts: what the voice may say about T3 work, as exact facts, never as sentences.
+
+Code emits an `Act` for each thing the voice says. A text model words the acts (voice/t3/speech.py), and `check`
+is the code's only say over that wording. It is narrow on purpose. A confirm act must come out as a question, each
+named slot (a project, a thread, a message, a prompt) must appear as given up to case, punctuation and
+first-to-second person, and the line must not claim a status the act does not have. RULES holds one entry per act.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+from enum import StrEnum
+from typing import Any, Iterable, Mapping
+
+
+class Kind(StrEnum):
+    CONFIRM_LAUNCH = "confirm_launch"
+    ASK_WHICH = "ask_which"
+    NO_PROJECT = "no_project"
+    LAUNCH_PENDING = "launch_pending"
+    LAUNCHED = "launched"
+    LAUNCH_UNCONFIRMED = "launch_unconfirmed"
+    NO_THREAD = "no_thread"
+    CONFIRM_THREAD = "confirm_thread"
+    CONFIRM_TELL = "confirm_tell"
+    CONFIRM_STOP = "confirm_stop"
+    CANCELLED = "cancelled"
+    THREAD_STATUS = "thread_status"
+    TELL_PENDING = "tell_pending"
+    SENT_FOLLOWUP = "sent_followup"
+    TELL_UNCONFIRMED = "tell_unconfirmed"
+    HELD_FOLLOWUP = "held_followup"
+    DROPPED_FOLLOWUP = "dropped_followup"
+    STOPPING = "stopping"
+    NOTHING_RUNNING = "nothing_running"
+    STOP_UNCONFIRMED = "stop_unconfirmed"
+    RUN_UPDATE = "run_update"
+    REPLIED = "replied"
+    NEEDS_YOU = "needs_you"
+    NEED_RESOLVED = "need_resolved"
+    DONE = "done"
+    THREAD_DELETED = "thread_deleted"
+    LOST_TRACK = "lost_track"
+    THREAD_GONE = "thread_gone"
+    WATCH_QUEUED = "watch_queued"
+    UNREACHABLE = "unreachable"
+    SEAM_DOWN = "seam_down"
+    REFUSED = "refused"
+
+
+@dataclass(frozen=True)
+class Act:
+    kind: Kind
+    slots: dict[str, Any] = field(default_factory=dict, hash=False)
+
+    def to_json(self) -> dict:
+        return {"kind": self.kind.value, "slots": dict(self.slots)}
+
+    @classmethod
+    def from_json(cls, raw: Mapping) -> Act:
+        return cls(Kind(raw["kind"]), dict(raw.get("slots") or {}))
+
+    def with_slots(self, **slots) -> Act:
+        return act(self.kind, **{**self.slots, **slots})
+
+
+# Status claims, matched on the normalised line. Narrow: a word only counts where it states the thread's state.
+FINISHED = re.compile(r"\b(?:finished|completed|is done|s done|is complete|all done|wrapped up)\b")
+STOPPED = re.compile(r"\b(?:stopped|halted|interrupted|cancelled|canceled|killed|aborted)\b")
+STARTED = re.compile(r"\b(?:started|launched|kicked off)\b")
+SENT = re.compile(r"\b(?:sent|passed (?:it|that|this) (?:on|along)|delivered|forwarded)\b")
+WORKING = re.compile(r"\b(?:still (?:working|running|going)|is (?:working|running)|s (?:working|running)|in progress)\b")
+CLAIMS = {"finished": FINISHED, "stopped": STOPPED, "started": STARTED, "sent": SENT, "working": WORKING}
+
+RUNNING = ("working", "waiting_on_you", "waiting_on_background", "queued", "idle", "running")
+STATUS_FORBIDS: dict[str, tuple[str, ...]] = {
+    **{status: ("finished", "stopped") for status in RUNNING},
+    "finished": ("stopped", "working"),
+    "completed": ("stopped", "working"),
+    "failed": ("working",),
+    "interrupted": ("working", "finished"),
+    "cancelled": ("working", "finished"),
+    "rolled_back": ("working",),
+}
+
+
+@dataclass(frozen=True)
+class Rule:
+    """`slots` an act may carry, `named` the ones its line must say as given, and `forbids` the status claims its
+    line must not make. `question` acts ask the person something, so their line ends in a question mark. A
+    `status` slot adds STATUS_FORBIDS for its value."""
+
+    slots: tuple[str, ...]
+    named: tuple[str, ...] = ()
+    question: bool = False
+    forbids: tuple[str, ...] = ()
+
+
+RULES: dict[Kind, Rule] = {
+    Kind.CONFIRM_LAUNCH: Rule(("project", "request"), ("project",), True, ("started",)),
+    Kind.ASK_WHICH: Rule(("of", "candidates"), ("candidates",), True, ("started", "sent", "stopped")),
+    Kind.NO_PROJECT: Rule(("available",), ("available",)),
+    Kind.LAUNCH_PENDING: Rule(("project",)),
+    Kind.LAUNCHED: Rule(("project", "request"), ("project",)),
+    Kind.LAUNCH_UNCONFIRMED: Rule(("project",)),
+    Kind.NO_THREAD: Rule(("recent", "other")),
+    Kind.CONFIRM_THREAD: Rule(("thread",), ("thread",), True),
+    Kind.CONFIRM_TELL: Rule(("thread", "message"), ("thread", "message"), True, ("sent",)),
+    Kind.CONFIRM_STOP: Rule(("thread",), ("thread",), True, ("stopped",)),
+    Kind.CANCELLED: Rule(("op", "thread"), ("thread",)),
+    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "pending", "asked"), ("thread", "pending")),
+    Kind.TELL_PENDING: Rule(("thread",), ("thread",), forbids=("sent",)),
+    Kind.SENT_FOLLOWUP: Rule(("thread",), ("thread",)),
+    Kind.TELL_UNCONFIRMED: Rule(("thread",), ("thread",)),
+    Kind.HELD_FOLLOWUP: Rule(("thread",), ("thread",), forbids=("sent", "finished")),
+    Kind.DROPPED_FOLLOWUP: Rule(("thread",), ("thread",), forbids=("sent",)),
+    Kind.STOPPING: Rule(("thread",), ("thread",), forbids=("stopped", "finished")),
+    Kind.NOTHING_RUNNING: Rule(("thread",), ("thread",), forbids=("stopped", "working")),
+    Kind.STOP_UNCONFIRMED: Rule(("thread",), ("thread",), forbids=("stopped",)),
+    Kind.RUN_UPDATE: Rule(("thread", "status"), ("thread",)),
+    Kind.REPLIED: Rule(("thread", "reply"), ("thread",), forbids=("finished", "stopped")),
+    Kind.NEEDS_YOU: Rule(("thread", "prompt", "in_app", "after_end", "summary"), ("thread", "prompt")),
+    Kind.NEED_RESOLVED: Rule(("thread", "status"), ("thread",)),
+    Kind.DONE: Rule(("thread", "status", "summary"), ("thread",)),
+    Kind.THREAD_DELETED: Rule(("thread",), ("thread",)),
+    Kind.LOST_TRACK: Rule(("thread",), ("thread",)),
+    Kind.THREAD_GONE: Rule(("thread",), ("thread",)),
+    Kind.WATCH_QUEUED: Rule(("thread", "following"), ("thread",)),
+    Kind.UNREACHABLE: Rule(()),
+    Kind.SEAM_DOWN: Rule(("reason",)),
+    Kind.REFUSED: Rule(("op", "code", "reason"), forbids=("started", "sent")),
+}
+QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
+# The acts whose words come from a read of the thread: the voice summarises it before it speaks them.
+SUMMARISED = frozenset({Kind.THREAD_STATUS, Kind.DONE, Kind.NEEDS_YOU})
+MAX_NAMED = 3
+
+
+def act(kind: Kind, **slots) -> Act:
+    """An act with its present slots. A slot the rule does not name is a bug, so it raises."""
+    rule = RULES[kind]
+    unknown = set(slots) - set(rule.slots)
+    if unknown:
+        raise ValueError(f"{kind.value} has no slot {sorted(unknown)}")
+    kept = {name: value for name, value in slots.items() if value is not None and value != ()}
+    for name in ("candidates", "available"):
+        if name in kept:
+            kept[name] = list(kept[name])[:MAX_NAMED]
+    return Act(kind, kept)
+
+
+_MARKDOWN = re.compile(r"[*_`#>|\[\]]+")
+_NOT_WORD = re.compile(r"[^\w']+")
+_PERSON = {"i": "you", "me": "you", "my": "your", "mine": "yours", "myself": "yourself", "i'm": "you're",
+           "i've": "you've", "i'll": "you'll", "i'd": "you'd", "am": "are"}
+_CONTRACTIONS = (("n't", " not"), ("'re", " are"), ("'ve", " have"), ("'ll", " will"), ("'d", " would"),
+                 ("'m", " am"), ("'s", " s"))
+_SENTENCE = re.compile(r"[.!?]+(?=\s|$)")
+_NOT_SPEECH = re.compile(r"```|`|\*\*|https?://|\|")
+MAX_SENTENCES_PER_ACT = 2
+
+
+def normalise(text: str) -> str:
+    """Lower case, straight quotes, no markdown or punctuation, first person as second, contractions spelled out."""
+    text = (text or "").lower().replace("\N{RIGHT SINGLE QUOTATION MARK}", "'").replace(
+        "\N{LEFT SINGLE QUOTATION MARK}", "'")
+    text = _MARKDOWN.sub(" ", text)
+    words = [_PERSON.get(word.strip("'"), word.strip("'")) for word in _NOT_WORD.split(text) if word.strip("'")]
+    text = " ".join(words)
+    for short, full in _CONTRACTIONS:
+        text = text.replace(short, full)
+    return " ".join(text.split())
+
+
+def says(line: str, value: str) -> bool:
+    """`value` appears in `line` as whole words, after `normalise`."""
+    want = normalise(value)
+    return bool(want) and f" {want} " in f" {normalise(line)} "
+
+
+def _named_values(value) -> list[str]:
+    if isinstance(value, (list, tuple)):
+        return [str(item) for item in value]
+    return [str(value)]
+
+
+def check(line: str, acts: Iterable[Act]) -> list[str]:
+    """Why `line` may not be spoken for `acts`. Empty when it may."""
+    acts = list(acts)
+    problems = []
+    text = (line or "").strip()
+    if not text:
+        return ["empty"]
+    if _NOT_SPEECH.search(text):
+        problems.append("not plain speech")
+    if len(_SENTENCE.findall(text if text[-1] in ".!?" else text + ".")) > MAX_SENTENCES_PER_ACT * len(acts):
+        problems.append("too long")
+    if any(a.kind in QUESTIONS for a in acts) and not text.endswith("?"):
+        problems.append("not a question")
+    for a in acts:
+        for name in RULES[a.kind].named:
+            if name in a.slots:
+                for value in _named_values(a.slots[name]):
+                    if not says(text, value):
+                        problems.append(f"{a.kind.value} {name} missing: {value}")
+    flat = normalise(text)
+    problems.extend(f"claims {claim}" for claim in sorted(forbidden_claims(acts)) if CLAIMS[claim].search(flat))
+    return problems
+
+
+def forbidden_claims(acts: Iterable[Act]) -> set[str]:
+    """The status claims a line for `acts` may not make: each act's own, less any another act in it states."""
+    claimed, forbidden = set(), set()
+    for a in acts:
+        status = str(a.slots.get("status"))
+        forbidden |= set(RULES[a.kind].forbids) | set(STATUS_FORBIDS.get(status, ()))
+        if a.kind in (Kind.CANCELLED, Kind.REFUSED):
+            forbidden |= set(OP_FORBIDS.get(str(a.slots.get("op")), ()))
+        claimed |= set(CLAIMED.get(a.kind, ())) | (set(STATUS_CLAIMS.get(status, ())) if "status" in a.slots else set())
+    return forbidden - claimed
+
+
+OP_FORBIDS = {"start": ("started",), "tell": ("sent",), "stop": ("stopped",), "ask": ()}
+# What an act states as true, so another act in the same line may not forbid it.
+CLAIMED = {Kind.LAUNCHED: ("started",), Kind.SENT_FOLLOWUP: ("sent",)}
+STATUS_CLAIMS = {"finished": ("finished",), "completed": ("finished",), "interrupted": ("stopped",),
+                 "cancelled": ("stopped",), "working": ("working",), "running": ("working",)}

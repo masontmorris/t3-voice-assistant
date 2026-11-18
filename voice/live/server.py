@@ -81,9 +81,9 @@ retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_
 
 With --t3 on, news from a T3 thread the voice started or sent to (it is working, its reply, it finished) is spoken
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
-speaking, and IDLE_GRACE_S since the last of them. Its lines are T3's own, spoken word for word in the server's
-voice (`say_verbatim`), as every T3 line is, on the reply path, so the client ducks them, a barge-in stops them, and
-the record names each line's evidence sequences. A burst within COALESCE_S is one turn, one line per update. A line
+speaking, and IDLE_GRACE_S since the last of them. Each update is typed acts, worded by the voice's text model and
+spoken word for word in the server's voice (`say_acts`), as every T3 line is, on the reply path, so the client ducks
+them, a barge-in stops them, and the record names each line's evidence sequences. A burst within COALESCE_S is one turn, one line per update. A line
 taken just before the person started talking, and not yet heard, goes back to wait for the next quiet moment.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
@@ -124,10 +124,9 @@ from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, clas
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
-                                 heard_prefix, interrupted_note, plain_text, run_clip, say_verbatim,
-                                 tts_line)
+                                 heard_prefix, interrupted_note, plain_text, run_clip, say_acts, tts_line)
 from voice.live.ledger import ConversationLedger
-from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, default_journal, default_model, \
+from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, default_model, \
     default_origin, default_token_file
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
@@ -855,6 +854,8 @@ class Conversation:
         updates = live.t3.reserve_news(idle=True)
         entries = [live.t3.news_entry(update, f"conv_{turn.stem}") for update in updates]
         unsent = {id(update): update for update in updates}
+        of_entry = {id(entry): update for update, entry in zip(updates, entries)}
+        words = Words(live.t3, lambda entry: of_entry[id(entry)])
         record = {"clip": turn.name, "idle": True, "final_transcript": None,
                   "t3_updates": [asdict(update) for update in updates], "task_updates": entries, "timeline": timeline,
                   "replies": []}
@@ -874,10 +875,10 @@ class Conversation:
                         if state != "unsent":
                             live.t3.ack_news(unsent.pop(id(update)))
 
-                    reply, _ = await say_verbatim(
-                        self.voice, turn.out_rate, self.voice_clock(), (entry["spoken"],), log,
-                        render=live.t3_voice, send_audio=lambda text, pcm: self.speak_t3(turn, text, pcm),
-                        record_delivery=delivered)
+                    reply, _ = await say_acts(
+                        self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
+                        speak=lambda text, pcm, done: self.speak(turn, text, pcm, done), render=live.t3_voice,
+                        send_audio=lambda text, pcm: self.speak_t3(turn, text, pcm), record_delivery=delivered)
                     record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
                     log("reply", reply="t3_update", text=reply["text"])
                     if turn.muted:
