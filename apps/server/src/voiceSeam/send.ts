@@ -223,6 +223,10 @@ export const make = (sources: SendSources) => {
     }
     const result = interrupted.success;
     if (result.type === "interrupt_requested") {
+      // Another copy of this request recorded the command after the gate read: its run, not this one.
+      if (result.dispatch.replayed === true) {
+        return yield* answerInterrupt(yield* readGate(commandId, input.threadId), commandId);
+      }
       return {
         kind: "requested",
         runId: result.run.id,
