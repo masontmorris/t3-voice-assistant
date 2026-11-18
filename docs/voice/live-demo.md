@@ -192,10 +192,13 @@ The packager prints the zip's SHA-256. The zip is under `$VOICE_HOME/live/dist/`
 
 ```powershell
 cd $HOME\voice-live-client
-.\.venv\Scripts\python client.py --input "<mic>" --output "<headphones>"
+.\.venv\Scripts\python client.py --input "<mic>" --output "<speakers>"
 ```
 
-Use headphones. If silence detection misbehaves, add `--ptt` and press Enter to start and stop talking.
+For a speaker call, use the built-in microphone with its driver effects enabled in Windows. The client uses those
+effects by default. For a headphone call, add `--raw-mic` if you want to bypass the effects.
+
+If silence detection misbehaves, add `--ptt` and press Enter to start and stop talking.
 
 **Swap the prompt.** Write Mason's chosen persona to `$VOICE_HOME/live/prompt.txt`. The next turn uses it, on a new voice session seeded with the call so far. The record names the file and its hash. Delete the file to go back to the built-in persona.
 
@@ -205,7 +208,7 @@ Use headphones. If silence detection misbehaves, add `--ptt` and press Enter to 
 
 - The voice session keeps the call, but the ASR, segmenter, task service and tools session still start fresh on every turn. A follow-up whose meaning lives in the task layer ("And what about Saturday?") reaches that layer as its own words only, so the task it creates may be missing a place or a day the person named earlier. The voice model remembers; the task service does not.
 - A snapshot cannot be deleted from llama.cpp's conversation. Each turn adds one as a user text item, so a long call fills its slot with snapshots as well as speech. The instructions say only the newest one is current, and `--call-max-turns` bounds the rest.
-- There is no echo cancellation. Reply audio from speakers would cancel the reply.
+- Echo cancellation on speaker calls depends on the microphone driver's support and Windows settings.
 - The endpointer listens to loudness only. A cough starts a turn, and a long thinking pause ends one.
 - `gated` opens a tool session as well as the voice and ASR sessions. At this head that put the first reply audio 0.32 to 0.70 s after the audio ended (measured).
 - The CPU tests stand in for LFM3, except one, which drives the real `run_clip` against a scripted realtime server to cover the event seam. The shared-session tests stand in for the same socket. None of them covers LFM3's replies, its memory or its timing. Only a real-GPU run does.

@@ -33,21 +33,23 @@ py -3 -m venv .venv
 
 ## 3. Pick the devices
 
-Plug in headphones first. There is no echo cancellation. Reply audio from the speakers reaches the microphone, the server hears it as speech, and the reply interrupts itself.
+For a speaker call, use the built-in microphone. The client uses the microphone driver's effects by default, including echo cancellation when the driver provides it.
 
 ```powershell
 .\.venv\Scripts\python client.py --list-devices
 ```
 
-Note the index or part of the name of the microphone and of the headphones. Without `--input` and `--output` the client uses the Windows defaults.
+Note the index or part of the name of the microphone and speakers or headphones. Without `--input` and `--output` the client uses the Windows defaults.
 
 ## 4. Run
 
 Start the server on the Desktop first (see `docs/voice/live-demo.md`). Then:
 
 ```powershell
-.\.venv\Scripts\python client.py --input "Microphone" --output "Headphones"
+.\.venv\Scripts\python client.py --input "Microphone" --output "Speakers"
 ```
+
+For a headphone call, select your headphones as the output. Add `--raw-mic` if you want to bypass the microphone driver's effects.
 
 It prints `connected` when the server accepts it. Talk, then pause. About 0.7 s of silence ends your turn. The client prints what the server heard and what it said. Talking while it replies interrupts the reply. The client also prints the folder it records to, and records every run by default.
 
