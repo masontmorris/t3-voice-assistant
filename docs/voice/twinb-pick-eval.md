@@ -349,11 +349,13 @@ of the utterance or revise the 700 ms bar, which no $0 arm meets. The ten scored
 this round stay local at `$VOICE_HOME/evals/twinb-pick/round3/sample-10-scored.md`, alongside every
 run file.
 
-## Hosted d1.2 on the round 3 set
+## Round A, name-only evidence (invalid comparison)
 
-**Keep particle-1 in the thread pick path.** The measured d1.2 request p95 was 194 ms,
+The measured d1.2 request p95 was 194 ms,
 below the 700 ms bar, but d1.2 confirmed the wrong thread on one case in all three repeats.
 Its strict confirmation score was 38 of 80 cases, compared with 70 of 80 for particle-1.
+This round omitted evidence present in the recorded particle-1 input. Round B supersedes
+it for the replacement decision.
 
 In this configuration, `narrow+decider` ranked titles and project names by word overlap and
 kept the top eight. Ties kept snapshot order, and zero-overlap rows could fill the list.
@@ -416,8 +418,63 @@ Measured d1.2 chose ask 132 times and none zero times. It asked on all 11 nonexi
 or outside cases. Those asks are not wrong picks under the rubric, but they each fail
 the frozen gold. The name-only evidence omits the words that could distinguish an absent
 name, an activity request, or a back reference. The eval cannot show how d1.2 would
-perform with that context. The PM's ten scored outputs across both evals are local in
-`$VOICE_HOME/evals/pick-decider/sample-10-scored.md`.
+perform with that context. The original run records remain in `runs/narrow+decider`.
+
+## Round B, matched request evidence
+
+**Keep particle-1 for thread picks.** Measured on the frozen set, d1.2 passed the latency
+bar at 194 ms request p95 and got all 90 exact and paraphrase runs right. It still passed
+49 of 80 cases with strict confirmation, compared with 70 for particle-1. It confirmed
+one wrong thread in the state slice in all three repeats and asked unnecessarily on
+47 of 240 runs, above the 10% gate.
+
+Round B reused the particle-1 user message for the offered rows. It preserved the raw
+request, snapshot date, title, project, activity, and last activity time in the original
+listing order. Six back-reference cases also supplied the recorded thread ID that the
+baseline used to bypass the model. Only text went to Liquid. The run kept the top eight,
+three repeats, and the fixed 0.20 floor. When d1.2 asked, the local question named the
+offered threads and scoring checked those same IDs. The visible lists held 30 or 60
+threads, so there were no eligible full-list cases.
+
+Measured scores give case passes in strict, lenient, confirm, and confirm-lenient order.
+A case passes when all of its repeats pass. Request timing includes connection setup when
+observed and excludes pacing. Wall timing includes pacing and local work.
+
+| Arm | Cases | Runs | Cases passed in the four views | Request p50 / p95 (ms) | Wall p50 / p95 (ms) | Liquid calls | Liquid spend |
+| --- | ---: | ---: | --- | --- | --- | ---: | ---: |
+| Prefilter | 80 | 240 | 39 / 40 / 39 / 40 | None | 0.34 / 0.63 | 0 | $0 |
+| Prefilter + particle-1 | 80 | 240 | 70 / 73 / 70 / 74 | 570 / 1620 | 2882 / 3901 | 0 | $0 |
+| `narrow+decider` | 80 | 240 | 49 / 55 / 49 / 62 | 106 / 194 | 132 / 220 | 240 | $0.00436950 |
+| `full+decider` | 0 | 0 | Ineligible | None | None | 0 | $0 |
+
+Measured wrong counts give cases with at least one wrong result and wrong runs, in
+strict, lenient, and confirm order. The recorded baseline breakouts are in Round A above.
+
+| Slice | Cases / runs | `narrow+decider` wrong cases/runs in the three views |
+| --- | ---: | --- |
+| Exact | 13 / 39 | 0/0 · 0/0 · 0/0 |
+| Paraphrase | 17 / 51 | 0/0 · 0/0 · 0/0 |
+| Project | 6 / 18 | 1/3 · 1/3 · 0/0 |
+| State | 8 / 24 | 2/6 · 2/6 · 1/3 |
+| Back reference | 6 / 18 | 0/0 · 0/0 · 0/0 |
+| Ambiguous | 10 / 30 | 5/11 · 5/11 · 0/0 |
+| Nonexistent | 6 / 18 | 0/0 · 0/0 · 0/0 |
+| Older | 5 / 15 | 0/0 · 0/0 · 0/0 |
+| No subject | 4 / 12 | 0/0 · 0/0 · 0/0 |
+| Outside | 5 / 15 | 0/0 · 0/0 · 0/0 |
+| Total | 80 / 240 | 8/20 · 8/20 · 1/3 |
+
+The measured retrieval limit remained 39 of 46 single targets in the top eight.
+Only 2 of 6 recorded back-reference targets were offered, and those were the two
+back-reference cases that passed. No single-target state case had its target offered.
+Measured strict confirmation passed 51, 51, and 49 runs across repeats. Request p95
+ranged from 163 to 204 ms. All 240 calls returned valid choices with zero retries.
+The latency comparison covers the two hosted request paths, so it does not isolate
+model compute. The baseline's larger candidate list and deterministic bypass also
+limit what this measures about the models alone.
+
+Round B raw and scored records are local in `runs/round-b-narrow+decider`. The PM's ten
+current scores and reasons across both sets are in `$VOICE_HOME/evals/pick-decider/sample-10-scored.md`.
 
 ## Reproduce
 

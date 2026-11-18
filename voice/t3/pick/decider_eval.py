@@ -6,12 +6,15 @@ import time
 from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timezone
+from functools import partial
 from pathlib import Path
+from typing import Callable
 
 from voice.liquid_decider import client as liquid
 
 from . import harness, project_harness
 from .decider import FULL_LIMIT, MIN_CONFIDENCE, Candidate, choice_request, interpret, shortlist
+from .model import render, render_projects
 
 ARMS = ("narrow+decider", "full+decider")
 REPEATS = 3
@@ -22,20 +25,40 @@ class Case:
 	label: dict
 	gold: dict
 	visible: list[Candidate]
+	evidence: Callable[[set[str]], str]
+
+
+def thread_evidence(utterance, threads, projects, now, offered):
+	rows = [thread for thread in threads if thread["threadId"] in offered]
+	return render(utterance, rows, projects, now)[-1]["content"]
+
+
+def project_evidence(utterance, projects, offered):
+	rows = [project for project in projects if project["projectId"] in offered]
+	return render_projects(utterance, rows)[-1]["content"]
 
 
 def load_cases(kind, root):
 	if kind == "project":
 		snap, labels = project_harness.load_inputs(root)
-		items = [Candidate(p["projectId"], p["name"]) for p in project_harness.projects_of(snap)]
-		return [Case(label, project_harness.gold_for_thread(label), items) for label in labels]
+		projects = project_harness.projects_of(snap)
+		items = [Candidate(p["projectId"], p["name"]) for p in projects]
+		return [Case(label, project_harness.gold_for_thread(label), items,
+		             partial(project_evidence, label["utterance"], projects)) for label in labels]
 	snaps, labels = harness.load_inputs(root)
+	visible = {key: harness.visible(snap) for key, snap in snaps.items()}
 	listings = {
 		key: [Candidate(t["threadId"], t["title"], snap["projects"].get(t["projectId"], ""))
-		      for t in harness.visible(snap)]
+		      for t in visible[key]]
 		for key, snap in snaps.items()
 	}
-	return [Case(label, label["gold"], listings[label["snapshot"]]) for label in labels]
+	cases = []
+	for label in labels:
+		key = label["snapshot"]
+		evidence = partial(thread_evidence, label["utterance"], visible[key],
+		                   snaps[key]["projects"], snaps[key]["takenAt"])
+		cases.append(Case(label, label["gold"], listings[key], evidence))
+	return cases
 
 
 def selected_cases(cases, arm):
@@ -66,20 +89,21 @@ def run(kind, arm, root, config, expect):
 	if not selected:
 		print(f"No eligible cases for {arm}. Visible list sizes: {sorted({len(c.visible) for c in cases})}.")
 		return
-	out = root / "runs" / arm
+	out = root / "runs" / f"round-b-{arm}"
 	out.mkdir(parents=True, exist_ok=False)
 	started = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
 	header = (f"{config}\n{expect}\nmodel {liquid.MODEL}, repeats {REPEATS}, "
 	          f"confidence floor {MIN_CONFIDENCE}, {len(selected)} eligible cases, started {started}")
 	(out / "config.txt").write_text(header + "\n", encoding="utf-8")
 	print(header, flush=True)
-	prefix = f"pick/{kind}/{arm}/{started}/"
+	prefix = f"pick/round-b/{kind}/{arm}/{started}/"
 	rows = []
 	client = liquid.LiquidClient(url=f"https://{liquid.HOST}", day_limit=liquid.DAY_LIMIT_USD)
 	try:
 		for idx, case in enumerate(selected, 1):
 			items = shortlist(case.label["utterance"], case.visible) if arm == "narrow+decider" else case.visible
-			body = choice_request(kind, case.label["utterance"], items, case.visible)
+			body = choice_request(kind, case.evidence({item.id for item in items}), items,
+			                      case.label.get("task_record_thread_id"))
 			for attempt in range(1, REPEATS + 1):
 				stem = f"{case.label['id']}-r{attempt}"
 				start = time.perf_counter()

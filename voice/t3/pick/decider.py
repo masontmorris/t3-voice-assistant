@@ -1,4 +1,4 @@
-"""Build one title-only choice and map the answer back to a local pick."""
+"""Build one typed choice from the picker's request evidence."""
 
 from dataclasses import dataclass
 
@@ -29,22 +29,26 @@ def _options(items):
 	return {f"item_{i:02d}": item for i, item in enumerate(items, 1)}
 
 
-def choice_request(kind, utterance, items, visible):
-	# Only existing name words may leave the machine. The utterance and all listing metadata stay local.
-	vocabulary = {word for item in visible for name in (item.name, item.project) for word in content_words(name)}
+def choice_request(kind, evidence, items, task_record_thread_id=None):
+	state = {"request": evidence}
+	context = ""
+	if task_record_thread_id:
+		state["task_record_thread_id"] = task_record_thread_id
+		context = "If the request refers back to the task record, use its recorded thread id. "
 	return {
 		"model": MODEL,
-		"state": {"heard_name_words": [word for word in content_words(utterance) if word in vocabulary]},
+		"state": state,
 		"questions": {"pick": {
 			"type": "choice",
 			"instructions": (
-				f"Which {kind} did the speaker mean? Use the words they said that also occur in listed names. "
-				"Choose one only when those words identify it. If there is no evidence or several fit, ask. "
-				"If the words point to something outside the offered choices, choose none."
+				f"Which {kind} did the speaker mean? Read the spoken request and the listing in state. "
+				f"Use the listing details to resolve references. {context}"
+				"Choose one only when the request identifies one option. "
+				"If the request has no clear target or several fit, ask. "
+				"If it identifies a target outside the offered choices, choose none."
 			),
 			"criteria": {
-				**{key: f"{item.name} (project: {item.project})" if item.project else item.name
-				   for key, item in _options(items).items()},
+				**{key: f"{item.name} (listed id: {item.id})" for key, item in _options(items).items()},
 				"none": "None of these. The speaker means something outside this list.",
 				"ask": "Ambiguous, ask. There is no clear target among these options.",
 			},
@@ -53,8 +57,10 @@ def choice_request(kind, utterance, items, visible):
 
 
 def interpret(answer, items, kind):
-	question = f"Which {kind} do you mean?"
 	options = _options(items)
+	listed = [item.id for item in items]
+	names = " or ".join(item.name for item in items)
+	question = f"Do you mean {names}?" if names else f"Which {kind} do you mean?"
 	if isinstance(answer, dict) and answer.get("type") == "choice":
 		choice, confidence = answer.get("choice"), answer.get("confidence")
 		if type(confidence) in (int, float) and 0 <= confidence <= 1 and isinstance(choice, str):
@@ -62,7 +68,7 @@ def interpret(answer, items, kind):
 				return Pick.none("decider"), "ok"
 			if choice == "ask" or (choice in options and confidence < MIN_CONFIDENCE):
 				reason = "decider" if choice == "ask" else "decider low confidence"
-				return Pick.ask([], question, reason), "ok"
+				return Pick.ask(listed, question, reason), "ok"
 			if choice in options:
-				return Pick.one(options[choice].id, [item.id for item in items], "decider"), "ok"
-	return Pick.ask([], question, "invalid decider choice"), "unparseable"
+				return Pick.one(options[choice].id, listed, "decider"), "ok"
+	return Pick.ask(listed, question, "invalid decider choice"), "unparseable"

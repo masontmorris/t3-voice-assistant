@@ -174,12 +174,14 @@ and the ten scored outputs stay under `$VOICE_HOME/evals/twina-pick`.
 6. Treat the 700 ms bar as unmet at $0. Either the pick runs ahead of the utterance, or the
    bar needs the PM's revision.
 
-## Hosted d1.2 on the frozen project set
+## Round A, name-only evidence (invalid comparison)
 
-**Keep particle-1 in the project pick path.** Measured d1.2 met the 700 ms request p95 bar
+Measured d1.2 met the 700 ms request p95 bar
 and made zero wrong confirmations in both arms. The full-list arm still missed the
 unambiguous and unnecessary-question gates, and passed 18 of 30 cases in the strict
 confirmation view versus 23 for the recorded particle-1 arm.
+This round omitted evidence present in the recorded particle-1 input. Round B supersedes
+it for the replacement decision.
 
 `narrow+decider` ranked display names by word overlap and kept the top eight, preserving
 snapshot order for ties and filling unused slots with zero-overlap names. `full+decider`
@@ -234,9 +236,67 @@ the three repeats. Full passed 18 in each repeat. Narrow request p95 ranged from
 2636 ms. These were separate hosted runs with different clients and pacing. Inferred
 from that design, the figures measure the tested request paths and cannot isolate why
 one is faster. The names-only input also drops target grammar and unlisted names, so
-these results do not establish d1.2's accuracy with the original request. The PM's ten
-scored outputs across both evals are local in
-`$VOICE_HOME/evals/pick-decider/sample-10-scored.md`.
+these results do not establish d1.2's accuracy with the original request. The original run
+records remain in `runs/narrow+decider` and `runs/full+decider`.
+
+## Round B, matched request evidence
+
+**Use top-eight d1.2 with confirming delivery for project picks.** Both Round B arms passed the
+confirming-question gates on the frozen labels. Measured top-eight strict confirmation
+passed 26 of 30 cases versus 24 for the full list and 23 for particle-1. Both d1.2 arms
+passed 30 of 30 in confirm-lenient, and both met the 700 ms request p95 bar. The measured
+direct-pick errors rule out direct delivery.
+
+Both arms used the particle-1 user message with the raw request, display names, and
+spoken aliases for the offered rows. Full-list input included all 11 projects. Project
+rows have no thread activity field. Round B used three repeats and the fixed 0.20 floor.
+When d1.2 asked, the question named the offered projects and the scorer checked those
+same IDs. The measured top eight still contained all 31 named gold IDs across 23 cases,
+including all 9 single-target cases.
+
+Measured scores use the frozen golds and give case passes in strict, lenient, confirm,
+and confirm-lenient order. A case passes when all of its repeats pass. Request timing
+includes connection setup when observed and excludes pacing. Wall timing includes pacing
+and local work.
+
+| Arm | Cases | Runs | Cases passed in the four views | Request p50 / p95 (ms) | Wall p50 / p95 (ms) | Liquid calls | Liquid spend |
+| --- | ---: | ---: | --- | --- | --- | ---: | ---: |
+| Deterministic match | 30 | 30 | 27 / 27 / 27 / 27 | None | 0.18 / 0.42 | 0 | $0 |
+| Match + particle-1 | 30 | 90 | 17 / 17 / 23 / 24 | 613 / 2341 | 2946 / 4341 | 0 | $0 |
+| `narrow+decider` | 30 | 90 | 20 / 20 / 26 / 30 | 101 / 220 | 126 / 259 | 91 | $0.00126036 |
+| `full+decider` | 30 | 90 | 18 / 18 / 24 / 30 | 120 / 232 | 152 / 257 | 90 | $0.00169338 |
+
+Measured wrong counts give cases with at least one wrong result and wrong runs, in
+strict, lenient, and confirm order. The recorded baseline breakouts are in Round A above.
+
+| Slice | Cases / runs | `narrow+decider` wrong cases/runs | `full+decider` wrong cases/runs |
+| --- | ---: | --- | --- |
+| Exact | 6 / 18 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Variant | 3 / 9 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Partial | 6 / 18 | 6/18 · 6/18 · 0/0 | 6/18 · 6/18 · 0/0 |
+| Shared | 4 / 12 | 0/0 · 0/0 · 0/0 | 2/3 · 2/3 · 0/0 |
+| Nontarget | 4 / 12 | 4/12 · 4/12 · 0/0 | 4/12 · 4/12 · 0/0 |
+| Absent | 4 / 12 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Missing | 3 / 9 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Total | 30 / 90 | 10/30 · 10/30 · 0/0 | 12/33 · 12/33 · 0/0 |
+
+Measured in the confirm view, both arms got 27 of 27 unambiguous runs right and
+asked unnecessarily zero times. The remaining strict errors were questions that
+named only one of the projects required by gold. Narrow strict-confirm runs passed
+26, 26, and 26, while full passed 25, 24, and 26. Request p95 ranged from 194 to
+258 ms across narrow repeats and from 188 to 233 ms across full repeats. Those
+ranges overlap. The narrow arm recovered one HTTP 503 on retry. All 180 scored
+runs had valid choices, and there were zero billing errors.
+
+The baseline and Round B use different routing and clients. Measured strict
+clarification scores require all gold names and allow extra offered names, so this
+eval does not measure how helpful a long spoken list is. Inferred from the frozen
+results, top-eight d1.2 is the better tested option for confirmation on Twin A.
+This result covers 30 cases and one 11-project snapshot.
+
+Round B raw and scored records live in `runs/round-b-narrow+decider` and
+`runs/round-b-full+decider`. The PM's ten current scores and reasons across both
+sets are local in `$VOICE_HOME/evals/pick-decider/sample-10-scored.md`.
 
 ## Reproduce
 
