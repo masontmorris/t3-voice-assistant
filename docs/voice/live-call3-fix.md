@@ -45,11 +45,10 @@ All on the recorded turn audio, voice path only, with the lookup states the reco
   2026-11-16 17:38 replay's llama-server tasks ran on slot 1, and five turns' final transcripts arrived 27 to 30 s
   after their audio, against 0.03 to 0.28 s in the recorded call's three-slot server).
 - The voice session gets a turn's audio once, when the turn ends.
-- No fixed line is played. A refused reply whose opening sentences pass the check is spoken up to there, cut at the
-  pause between sentences. Otherwise it is asked again once with a note naming what was wrong, and a second failure
-  is silence.
-- The fact check accepts a place the person named without a preposition, refuses a reply that narrates "the
-  assistant", and refuses a reply that reads the lookup note's own words.
+- No fixed line is played. A reply is spoken as the model makes it, and the fact check only logs it
+  ([live-fact-check.md](live-fact-check.md)); as of 2026-11-18 nothing is held, cut or asked again.
+- The fact check accepts a place the person named without a preposition, and logs a reply that narrates "the
+  assistant" or reads the lookup note's own words.
 - A general lookup worker exists (`voice/tools/agent.py`) and is off by default. See "Open" below.
 
 ## Headroom

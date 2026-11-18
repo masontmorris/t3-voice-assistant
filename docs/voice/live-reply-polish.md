@@ -1,5 +1,7 @@
 # The reply path: the chosen city, and the line it said twice
 
+**Superseded 2026-11-18.** The retries, the last ask, the chosen-place memory and the repeat screen below were removed when the fact check became a log ([live-fact-check.md](live-fact-check.md)). The measurements stay as the record of why they existed.
+
 Written 2026-11-16 on branch `voice/polish-reply` from `53ff4ff5a5`. Two defects sat on the default live path. A turn
 that lost both replies went silent, and a turn could say what the previous turn already said. Every number below is
 measured from the records named beside it, except where it says inferred or guess.

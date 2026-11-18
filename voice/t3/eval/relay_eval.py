@@ -85,7 +85,18 @@ ALT_RELAY = (
     'repeat the news unless a new note arrives.'
     '\n\nHere are examples of a note and the reply to it. The threads, projects and numbers in them are only examples.'
     + "".join(f"\n\nNote: {T3_NOTE}{line}]\nReply: {line}" for line in RELAY_EXAMPLES))
-VARIANTS = {"before": (BEFORE_RELAY, BEFORE_NOTE, ""), "after": (T3_RELAY, T3_NOTE, "]"), "alt": (ALT_RELAY, T3_NOTE, "]")}
+ALT2_RELAY = (
+    '\n\nSometimes a private note arrives from a colleague about their coding threads. A thread is a workspace '
+    'conversation with a coding agent, separate from this call. The note gives the words to tell them now, and they '
+    'have not heard them yet. Say exactly those words and nothing else, as "I" to "you". Begin with the first word of '
+    'them and end with the last: no lead-in, no remark about what you are about to say, and no closing line. The '
+    "note's names and details are the ones to say, even when what the person just asked for used others. Do not "
+    'repeat the news unless a new note arrives.'
+    '\n\nHere are examples. The threads, projects and numbers in them are only examples.'
+    + f"\n\nThe person had just asked: Could you start a thread for the checkout page redesign?\nNote: {T3_NOTE}{READER_EXAMPLES[Kind.LAUNCHED][1]}]\nReply: {READER_EXAMPLES[Kind.LAUNCHED][1]}"
+    + "".join(f"\n\nNote: {T3_NOTE}{line}]\nReply: {line}" for line in RELAY_EXAMPLES if line != READER_EXAMPLES[Kind.LAUNCHED][1]))
+VARIANTS = {"before": (BEFORE_RELAY, BEFORE_NOTE, ""), "after": (T3_RELAY, T3_NOTE, "]"), "alt": (ALT_RELAY, T3_NOTE, "]"),
+            "alt2": (ALT2_RELAY, T3_NOTE, "]")}
 
 
 def render_turns(server, texts):
