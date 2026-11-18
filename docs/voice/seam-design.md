@@ -219,6 +219,13 @@ export interface VoicePending {
   readonly requestId: string;
   /** approval and question can be relayed. in_app means only the app can act on it. */
   readonly kind: "approval" | "question" | "in_app";
+  /** The runtime request kind, a link or secret card, or `card` when only the shell names it. */
+  readonly source:
+    | OrchestrationV2RuntimeRequest["kind"]
+    | "link_request"
+    | "secret_request"
+    | "card";
+  /** Context for the voice's own words, never read out. */
   readonly prompt: string;
 }
 
@@ -610,7 +617,7 @@ A `reply` at sequence N and a `done` at N+1 for the same message would speak the
 | `dynamic_tool_call`, `auth_refresh`                                                                             | none             | T3 does not count these as waiting on the user (`RestartContinuation.ts:68-72`, measured)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | a secret or link card, which the shell reports as `user_input` with `userOnly` (`ProjectionStore.ts:1712-1723`) | `in_app`         | a fixed line: "It needs something from you in the app."                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 
-A pending request whose turn item is not yet stored gets the fixed line for its kind. The recorded fixture shows which arrives first.
+A pending request whose turn item is not yet stored gets the fixed line for its kind. The recorded fixture shows which arrives first. Every need also carries `source`, what raised it, so the voice can say what kind of need it is (a command approval, a file change, a question, a link). The prompt, fixed lines included, is only context for the voice's own words and is never read out.
 
 **The pending read checks that the need still waits.** A replay can carry a need's stored event long after Mason answered it, and the distiller has no state, so it cannot tell. The pending read therefore checks current state before it emits `needs_you`, in the same read that fetches the prompt. If the need no longer waits, the event yields nothing. The need's end has its own stored event, which yields `resolved` for a request and a settle check for a card.
 
@@ -810,7 +817,7 @@ class T3TaskService(MockTaskService):
 		#   else apply it, then advance and save the cursor.
 		# done and watch_ended never touch the cursor.
 		# reply: skip a messageId already in link.replies.
-		# needs_you: a one-time `needs_you` act with the prompt and its kind; in_app says to open the app.
+		# needs_you: a one-time `needs_you` act with the need's kind from its source, and the prompt as context.
 		# needs_you and resolved: skip a requestId that link.requests already holds with that event type.
 		#   Save it to link.requests in the same write as the cursor.
 		# resolved: speak it only if link.requests holds that requestId as needs_you. Otherwise save it

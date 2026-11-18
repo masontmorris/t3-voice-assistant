@@ -430,7 +430,7 @@ class Follow:
         task.title = state.title or task.title
         need, link = state.pending, task.link
         if need is not None and link.requests.get(need.request_id) != "needs_you":
-            self.speak(task, need_act(need.kind, need.prompt, task.ended), "read", (state.as_of_sequence,))
+            self.speak(task, need_act(need, task.ended), "read", (state.as_of_sequence,))
             link.requests[need.request_id] = "needs_you"
             link.pending = {"request_id": need.request_id, "kind": need.kind.value, "prompt": need.prompt}
         if not keep_cursor or link.cursor is None:
@@ -541,7 +541,7 @@ class Follow:
                 link.replies[event.message_id] = event.sequence
         elif isinstance(event, T.NeedsYouEvent):
             if link.requests.get(event.request_id) != "needs_you":
-                self.speak(task, need_act(event.kind, event.prompt, task.ended), "needs_you", seq)
+                self.speak(task, need_act(event, task.ended), "needs_you", seq)
                 link.requests[event.request_id] = "needs_you"
                 link.pending = {"request_id": event.request_id, "kind": event.kind.value, "prompt": event.prompt}
         elif isinstance(event, T.ResolvedEvent):
@@ -577,8 +577,24 @@ STOP_ACTS = {"requested": Say.STOPPING, "nothing_running": Say.NOTHING_RUNNING}
 INTERRUPT_KIND = {cls: kind for kind, cls in T.INTERRUPT_KINDS.items()}
 
 
-def need_act(kind: T.PendingKind, prompt: str, ended: bool) -> Act:
-    return act(Say.NEEDS_YOU, prompt=prompt, waiting_for=kind.value, after_end=ended)
+# What a need asks of Mason, by what raised it. The prompt is only context for the voice's own words.
+NEEDS = {T.NeedSource.COMMAND: "command_approval", T.NeedSource.FILE_CHANGE: "file_change",
+         T.NeedSource.FILE_READ: "file_read", T.NeedSource.PERMISSION: "permission",
+         T.NeedSource.MCP_ELICITATION: "tool_input", T.NeedSource.USER_INPUT: "question",
+         T.NeedSource.LINK_REQUEST: "link", T.NeedSource.SECRET_REQUEST: "secret", T.NeedSource.CARD: "card"}
+CARDS = frozenset({T.NeedSource.LINK_REQUEST, T.NeedSource.SECRET_REQUEST, T.NeedSource.CARD})
+
+
+def need_of(kind: T.PendingKind, source: T.NeedSource) -> str:
+    """A request only the app can still act on is unanswerable, whatever raised it; a card asks in the app."""
+    if kind is T.PendingKind.IN_APP and source not in CARDS:
+        return "unanswerable"
+    return NEEDS.get(source, kind.value)
+
+
+def need_act(need: T.PendingNeed | T.NeedsYouEvent, ended: bool) -> Act:
+    return act(Say.NEEDS_YOU, need=need_of(need.kind, need.source), prompt=need.prompt, waiting_for=need.kind.value,
+               after_end=ended)
 
 
 # Actions, one per Do. Each takes (follow, row name, row, task, now, **context).

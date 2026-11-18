@@ -662,11 +662,27 @@
               "type": "string",
               "enum": ["approval", "question", "in_app"]
             },
+            "source": {
+              "type": "string",
+              "enum": [
+                "command",
+                "file-read",
+                "file-change",
+                "mcp-elicitation",
+                "permission",
+                "dynamic_tool_call",
+                "user_input",
+                "auth_refresh",
+                "link_request",
+                "secret_request",
+                "card"
+              ]
+            },
             "prompt": {
               "type": "string"
             }
           },
-          "required": ["type", "threadId", "sequence", "requestId", "kind", "prompt"],
+          "required": ["type", "threadId", "sequence", "requestId", "kind", "source", "prompt"],
           "additionalProperties": true
         },
         {
@@ -1122,11 +1138,27 @@
                   "type": "string",
                   "enum": ["approval", "question", "in_app"]
                 },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "command",
+                    "file-read",
+                    "file-change",
+                    "mcp-elicitation",
+                    "permission",
+                    "dynamic_tool_call",
+                    "user_input",
+                    "auth_refresh",
+                    "link_request",
+                    "secret_request",
+                    "card"
+                  ]
+                },
                 "prompt": {
                   "type": "string"
                 }
               },
-              "required": ["requestId", "kind", "prompt"],
+              "required": ["requestId", "kind", "source", "prompt"],
               "additionalProperties": true
             },
             {

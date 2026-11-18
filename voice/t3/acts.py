@@ -92,12 +92,14 @@ STATUS_FORBIDS: dict[str, tuple[str, ...]] = {
 class Rule:
     """`slots` an act may carry, `named` the ones its line must say as given, and `forbids` the status claims its
     line must not make. `question` acts ask the person something, so their line ends in a question mark. A
-    `status` slot adds STATUS_FORBIDS for its value."""
+    `status` slot adds STATUS_FORBIDS for its value. A `plain` act carries a raw prompt as context, so its line
+    must describe the need in words and never read out a command, a path or code."""
 
     slots: tuple[str, ...]
     named: tuple[str, ...] = ()
     question: bool = False
     forbids: tuple[str, ...] = ()
+    plain: bool = False
 
 
 RULES: dict[Kind, Rule] = {
@@ -112,7 +114,8 @@ RULES: dict[Kind, Rule] = {
     Kind.CONFIRM_TELL: Rule(("thread", "message"), ("thread", "message"), True, ("sent",)),
     Kind.CONFIRM_STOP: Rule(("thread",), ("thread",), True, ("stopped",)),
     Kind.CANCELLED: Rule(("op", "thread"), ("thread",)),
-    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "pending", "waiting_for", "asked"), ("thread",)),
+    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "need", "pending", "waiting_for", "asked"), ("thread",),
+                             plain=True),
     Kind.TELL_PENDING: Rule(("thread",), ("thread",), forbids=("sent",)),
     Kind.SENT_FOLLOWUP: Rule(("thread",), ("thread",)),
     Kind.TELL_UNCONFIRMED: Rule(("thread",), ("thread",)),
@@ -123,7 +126,7 @@ RULES: dict[Kind, Rule] = {
     Kind.STOP_UNCONFIRMED: Rule(("thread",), ("thread",), forbids=("stopped",)),
     Kind.RUN_UPDATE: Rule(("thread", "status"), ("thread",)),
     Kind.REPLIED: Rule(("thread", "reply"), ("thread",), forbids=("finished", "stopped")),
-    Kind.NEEDS_YOU: Rule(("thread", "prompt", "waiting_for", "after_end", "summary"), ("thread", "prompt")),
+    Kind.NEEDS_YOU: Rule(("thread", "need", "prompt", "waiting_for", "after_end", "summary"), ("thread",), plain=True),
     Kind.NEED_RESOLVED: Rule(("thread", "status"), ("thread",)),
     Kind.DONE: Rule(("thread", "status", "summary"), ("thread",)),
     Kind.THREAD_DELETED: Rule(("thread",), ("thread",)),
@@ -160,7 +163,9 @@ _PERSON = {"i": "you", "me": "you", "my": "your", "mine": "yours", "myself": "yo
 _CONTRACTIONS = (("n't", " not"), ("'re", " are"), ("'ve", " have"), ("'ll", " will"), ("'d", " would"),
                  ("'m", " am"), ("'s", " s"))
 _SENTENCE = re.compile(r"[.!?]+(?=\s|$)")
-_NOT_SPEECH = re.compile(r"```|`|\*\*|https?://|\|")
+_NOT_SPEECH = re.compile(r"```|`|\*\*|https?://|\||\.\.\.|\N{HORIZONTAL ELLIPSIS}")
+# Shell syntax, a flag, a path or a backslash: what a raw command reads like, which no spoken line holds.
+_CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?\.{0,2}/\w|\w/[\w.-]+\.\w+|\\\w")
 MAX_SENTENCES_PER_ACT = 2
 
 
@@ -202,6 +207,8 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
         form = form.replace(value, "x")
     if _NOT_SPEECH.search(form):
         problems.append("not plain speech")
+    if any(RULES[a.kind].plain for a in acts) and _CODE.search(form):
+        problems.append("reads code")
     if len(_SENTENCE.findall(form if form[-1] in ".!?" else form + ".")) > MAX_SENTENCES_PER_ACT * len(acts):
         problems.append("too long")
     if any(a.kind in QUESTIONS for a in acts) and not text.endswith("?"):

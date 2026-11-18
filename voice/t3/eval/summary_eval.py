@@ -175,7 +175,9 @@ def thread_state(raw: dict) -> T.ThreadState:
         raw["thread_id"], raw["project_id"], raw["title"], T.ThreadActivity(raw["activity"]),
         T.RunInfo(raw["run"]["run_id"], T.RunStatus(raw["run"]["status"]), None),
         T.PendingNeed("q", T.PendingKind.APPROVAL if pending and pending["kind"] == "approval"
-                      else T.PendingKind.QUESTION, pending["prompt"]) if pending else None,
+                      else T.PendingKind.QUESTION, pending["prompt"],
+                      T.NeedSource.COMMAND if pending["kind"] == "approval" else T.NeedSource.USER_INPUT)
+        if pending else None,
         T.LastReply(reply, "m", None, raw["run"]["run_id"], raw.get("as_of") or "") if reply else None,
         1)
 

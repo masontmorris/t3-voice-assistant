@@ -30,6 +30,12 @@ RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
 TURNS = 3
 
+NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command it wants to run), file_change "
+              "(approve file edits), file_read, permission, tool_input, question (answer its question), link or "
+              "secret or card (something only the app can take), or unanswerable (a request no one can answer any "
+              "more, so they can stop it in the app). Describe the need in a few words of your own, using the "
+              "`prompt` (or `pending`) only to say what it is about, such as the program a command runs. Never read "
+              "the prompt out, and never say a command line, a flag, a path or code.")
 # What each act means, for the model that words it. These are directions, never wording to repeat.
 MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread for their request in this project. Nothing has "
@@ -46,8 +52,7 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop).",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
-                        "asked. `pending` is what the thread is waiting on them for, and `waiting_for` says how they "
-                        "answer it: approval (approve or deny it in the app), question (answer it), or in_app.",
+                        "asked. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
     Kind.TELL_PENDING: "T3 was asked to pass the message on and has not confirmed it yet.",
     Kind.SENT_FOLLOWUP: "The message reached the thread.",
     Kind.TELL_UNCONFIRMED: "T3 was asked to pass the message on but never confirmed it arrived. They can check the "
@@ -59,9 +64,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.STOP_UNCONFIRMED: "The voice could not reach T3 to stop the thread. They can stop it in the app.",
     Kind.RUN_UPDATE: "The thread's run is now in this status (running or queued).",
     Kind.REPLIED: "The thread posted this reply while it works. Give its gist in one sentence.",
-    Kind.NEEDS_YOU: "The thread is waiting on them for this prompt. `waiting_for` says how they answer it: approval "
-                    "(approve or deny it in the app), question (answer it), or in_app (only in the app). "
-                    "`after_end` means the run ended and the need is still open.",
+    Kind.NEEDS_YOU: "The thread is waiting on them. " + NEED_WORDS + " `after_end` means the run ended and the "
+                    "need is still open.",
     Kind.NEED_RESOLVED: "A request the thread had made of them was settled (answered, expired or cancelled).",
     Kind.DONE: "The thread's run ended with this status. Say the status, then the summary.",
     Kind.THREAD_DELETED: "The thread was deleted.",
@@ -299,6 +303,7 @@ def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems:
 def summary_messages(state: T.ThreadState, question: str | None) -> list[dict]:
     records = {TITLE_KEY: state.title, "status": state.activity.value,
                "run": state.run.status.value if state.run is not None else None,
+               "need": state.pending.source.value if state.pending is not None else None,
                "pending": state.pending.prompt if state.pending is not None else None,
                "waiting_for": state.pending.kind.value if state.pending is not None else None,
                "last_reply": state.last_reply.text if state.last_reply is not None else None}

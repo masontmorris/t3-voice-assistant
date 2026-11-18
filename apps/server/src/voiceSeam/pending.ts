@@ -11,13 +11,25 @@ import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 
 import type * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
-import { pendingKindOf, type VoicePendingKind, type VoiceSignal } from "./events.ts";
+import {
+  pendingKindOf,
+  type VoicePendingKind,
+  type VoicePendingSource,
+  type VoiceSignal,
+} from "./events.ts";
 
-/** A need the voice may relay, worded for speech. */
+/**
+ * What raised a need: a runtime request kind, a link or secret card, or `card` when only the shell's
+ * user-only pick names it.
+ */
+export type VoiceNeedSource = VoicePendingSource | "secret_request" | "card";
+
+/** A need the voice may relay. The prompt is context for the voice's own words, never read out. */
 export interface VoicePending {
   readonly requestId: string;
   /** approval and question can be relayed. in_app means only the app can act on it. */
   readonly kind: VoicePendingKind;
+  readonly source: VoiceNeedSource;
   readonly prompt: string;
 }
 
@@ -28,7 +40,7 @@ const NOT_RESUMABLE_LINE =
   "It's stuck on a request that can't be answered any more. You can stop it in the app.";
 const CARD_LINE = "It needs something from you in the app.";
 
-/** The prompt when the request's turn item is not stored yet or carries no text. */
+/** The prompt when the request's turn item is not stored yet or carries no text. Context, never speech. */
 const FIXED_LINE: Record<OrchestrationV2RuntimeRequest["kind"], string> = {
   command: "It wants your approval to run a command.",
   "file-read": "It wants your approval to read a file.",
@@ -129,13 +141,18 @@ export const requestNeed = (
   return {
     requestId: request.id,
     kind,
+    source: request.kind,
     prompt: promptFor(request, kind, turnItems.find(isPromptOf(request.id))),
   };
 };
 
-export const cardNeed = (cardId: string): VoicePending => ({
+export const cardNeed = (
+  cardId: string,
+  source: "link_request" | "secret_request" | "card",
+): VoicePending => ({
   requestId: cardId,
   kind: "in_app",
+  source,
   prompt: CARD_LINE,
 });
 
@@ -169,7 +186,7 @@ export const readNeed = Effect.fn("VoiceSeam.readNeed")(function* (
     });
     const card = records.turnItems.find((item) => item.id === signal.requestId);
     return card !== undefined && waitsOnUser(card, liveRunIdsOf(records.runs), null)
-      ? cardNeed(signal.requestId)
+      ? cardNeed(signal.requestId, "secret_request")
       : null;
   }
   const records = yield* threads.getThreadRecords(threadId, ["turnItems", "messages"], {
@@ -180,6 +197,6 @@ export const readNeed = Effect.fn("VoiceSeam.readNeed")(function* (
   const card = records.turnItems.find((item) => item.id === signal.requestId);
   return card !== undefined &&
     waitsOnUser(card, new Set(), latestUserAuthoredMessageAt(records.messages))
-    ? cardNeed(signal.requestId)
+    ? cardNeed(signal.requestId, "link_request")
     : null;
 });

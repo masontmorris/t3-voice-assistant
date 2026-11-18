@@ -3,6 +3,7 @@ import {
   MessageId,
   NonNegativeInt,
   OrchestrationV2RunStatus,
+  OrchestrationV2RuntimeRequest,
   PositiveInt,
   ProjectId,
   RunId,
@@ -73,6 +74,12 @@ const VoicePending = Schema.Struct({
   requestId: Schema.String,
   /** approval and question can be relayed. in_app means only the app can act on it. */
   kind: Schema.Literals(["approval", "question", "in_app"]),
+  /** What raised it: the runtime request's kind, a link or secret card, or `card` when only the shell names it. */
+  source: Schema.Union([
+    OrchestrationV2RuntimeRequest.fields.kind,
+    Schema.Literals(["link_request", "secret_request", "card"]),
+  ]),
+  /** Context for the voice's own words, never read out. */
   prompt: Schema.String,
 });
 

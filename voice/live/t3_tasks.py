@@ -134,6 +134,7 @@ def status_act(state: T.ThreadState, asked: str | None = None) -> Act:
     """A read as an act. Its status and need come from the read; `say` adds the summary before it is spoken."""
     need = state.pending
     return act(Say.THREAD_STATUS, thread=state.title, status=state.activity.value,
+               need=L.need_of(need.kind, need.source) if need is not None else None,
                pending=need.prompt if need is not None else None,
                waiting_for=need.kind.value if need is not None else None, asked=asked)
 
