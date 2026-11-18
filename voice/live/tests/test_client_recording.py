@@ -118,7 +118,7 @@ class SendAudioTest(unittest.IsolatedAsyncioTestCase):
 
 
 def make_args(tmp, **overrides):
-    values = dict(server="ws://127.0.0.1:1", secret_file=Path(tmp) / "secret", output=None, input=None,
+    values = dict(server="ws://127.0.0.1:1", secret_file=Path(tmp) / "secret", output="0", input=None,
                   prebuffer_ms=80, wav=None, ptt=False, output_rate=24_000, wait_for_server=0,
                   barge_in_ms=None, log_dir=Path(tmp) / "logs", record=True)
     values.update(overrides)

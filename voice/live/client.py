@@ -3,10 +3,10 @@
     python client.py [--server ws://HOST:8770] [--input DEVICE] [--output DEVICE] [--ptt] [--wav CLIP.wav ...]
     python client.py --list-devices
 
-Use speakers or headphones. The client cancels speaker echo from the microphone before it sends it, so the reply
-audio the speakers play is not heard as speech and does not interrupt the reply. A person talking over the reply
-still interrupts it. `--no-echo-cancel` sends the raw microphone, which works with headphones and was the earlier
-behavior. The echo canceller models a 256 ms echo path by default; `--echo-tail-ms` raises it for a long delay.
+Microphone capture uses the driver's effects by default, including echo cancellation if the driver provides it.
+Use `--raw-mic` with headphones or to debug without those effects. `--no-raw-mic` cancels that override.
+`--echo-cancel` enables the client's experimental echo canceller and requests raw input. Its default echo path
+is 256 ms. Use `--echo-tail-ms` for a longer delay.
 
 The server decides when a turn ends (about 0.7 s of silence). With --ptt, press Enter to start talking and Enter
 again to stop. Talking while a reply plays turns it down at once; the server then either stops it, and this client
@@ -105,8 +105,7 @@ def auto_output():
 def echo_canceller(args):
     """This run's microphone echo canceller, or None when the run does not use one.
 
-    Off unless --echo-cancel is given: on real laptop echo it garbles the person's speech (issue #33), so use
-    headphones until that is fixed."""
+    Off unless --echo-cancel is given because it can garble speech on real laptop echo (issue #33)."""
     if getattr(args, "echo_cancel", None) is None:
         enabled = False
     else:
@@ -209,22 +208,23 @@ class Player:
             self.stream = None
 
 
-async def mic_frames(input_device, queue, raw=True):
+async def mic_frames(input_device, queue, raw=False):
     import sounddevice as sd
     loop = asyncio.get_running_loop()
 
     def on_frame(pcm):
         loop.call_soon_threadsafe(queue.put_nowait, (pcm, time.perf_counter()))
 
-    communications = default_name(CAPTURE) if input_device is None else None
-    stream, how = (open_raw(sd, input_device, RATE, FRAME_SAMPLES, on_frame, communications) if raw
-                   else (None, "--no-raw-mic"))
+    stream, how = None, "driver-processed capture"
+    if raw:
+        communications = default_name(CAPTURE) if input_device is None else None
+        stream, how = open_raw(sd, input_device, RATE, FRAME_SAMPLES, on_frame, communications)
+        if stream is None:
+            how = f"driver-processed capture ({how})"
     if stream is None:
-        print(f"input: driver-processed capture ({how})", flush=True)
         stream = sd.RawInputStream(samplerate=RATE, channels=1, dtype="int16", blocksize=FRAME_SAMPLES,
                                    device=input_device, callback=lambda data, *_: on_frame(bytes(data)))
-    else:
-        print(f"input: {how}", flush=True)
+    print(f"input: {how}", flush=True)
     with stream:
         await asyncio.Event().wait()
 
@@ -459,7 +459,8 @@ class Client:
             if self.args.wav:
                 source = wav_frames(self.args.wav, frames, self.next_clip)
             else:
-                source = mic_frames(device(self.args.input), frames, raw=getattr(self.args, "raw_mic", True))
+                raw = self.echo is not None or getattr(self.args, "raw_mic", False)
+                source = mic_frames(device(self.args.input), frames, raw=raw)
             async with ws:
                 await ws.send(json.dumps({"type": "hello", "mode": "ptt" if self.args.ptt else "vad"}))
                 tasks = [asyncio.create_task(c) for c in (source, self.send_audio(ws, frames), self.ping(ws),
@@ -509,12 +510,14 @@ def main():
                         help="with --wav, send the next clip this long after a reply starts, to test barge-in")
     parser.add_argument("--prebuffer-ms", type=int, default=80, help="reply audio to queue before playback starts")
     parser.add_argument("--echo-cancel", dest="echo_cancel", action="store_true", default=None,
-                        help="cancel speaker echo from the microphone (default: off; it garbles speech on real echo, issue #33)")
+                        help="enable the experimental client echo canceller and request raw microphone capture "
+                             "(off by default, can garble speech on real echo, issue #33)")
     parser.add_argument("--no-echo-cancel", dest="echo_cancel", action="store_false",
-                        help="send the raw microphone, as with headphones")
+                        help="disable the client's experimental echo canceller")
+    parser.add_argument("--raw-mic", action="store_true",
+                        help="request raw WASAPI capture for headphones or debugging (bypasses driver effects)")
     parser.add_argument("--no-raw-mic", dest="raw_mic", action="store_false",
-                        help="take the microphone after the driver's own effects (its echo cancellation and noise "
-                             "suppression) instead of the raw WASAPI stream")
+                        help="use the driver's microphone effects, the default, unless --echo-cancel is enabled")
     parser.add_argument("--echo-tail-ms", type=int, default=256,
                         help="echo path the canceller models, from output callback to microphone (default 256); "
                              "raise it for a Bluetooth speaker")
