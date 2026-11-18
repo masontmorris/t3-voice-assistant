@@ -280,6 +280,8 @@ def task_note(entry):
     not. A task that is pending or needs clarification gets no note, so the model answers the person's own words,
     unless the task names what it is waiting for: then the note asks them for it, and the next turn's answer
     completes the task (`MockTaskService.answer`)."""
+    if entry.get("spoken"):
+        return f"{NOTE_OPEN}a T3 thread reported this: {entry['spoken']} Tell them exactly that, in one or two short "                "sentences, and add nothing it does not say.]"
     status, name = entry["status"], lookup_name(entry)
     if status == "running":
         return f"{NOTE_OPEN}{name} is running and has no answer yet. Tell them you're checking, in a few words.]"
@@ -799,7 +801,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    tools=None, eou="gated", persona=PERSONA, on_voice_event=None, voice=None,
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    fallback_pcm=b"", prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
-                   recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=()):
+                   recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(), established=(),
+                   task_service=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -866,11 +869,13 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         segmenter.conversation_mode = final_decider
     if eou == "gated":
         segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, True
-    service = MockTaskService(segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
-                              earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")),
-                                           None), simulate=simulate_tasks, context=list(context))
-    # The newest task an earlier turn left waiting on a question about its own arguments, as `carried_tasks` gives it.
-    waiting = next((t for t in reversed(prior_tasks) if t.get("waiting")), None)
+    service = (task_service or MockTaskService)(
+        segmenter, f"conv_{stem}", delay_s, tools, holds_side_effects=eou != "gated",
+        earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")), None),
+        simulate=simulate_tasks, context=list(context))
+    # The newest task an earlier turn left waiting on a question about its own arguments, as `carried_tasks` gives it,
+    # else a question the service holds itself.
+    waiting = next((t for t in reversed(prior_tasks) if t.get("waiting")), None) or service.open_question()
     adapter = StaggeredTranscript(asr_stagger) if asr_stagger > 1 else TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
