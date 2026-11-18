@@ -332,6 +332,7 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
     "operation_not_allowed",
     "project_not_allowed",
     "above_ceiling",
+    "thread_busy",
     "not_found",
     "gone",
     "refused",
@@ -352,7 +353,7 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
 }) {}
 ```
 
-The seam has one error class with a `code`, because its only consumer is the wire. Python maps each `code` to a spoken line. `refused` means T3 recorded a rejected receipt for the command, and Python speaks it as "T3 refused it", followed by `reason`. `gone` means the command was accepted and its thread has since been deleted. The two never stand in for each other. Voice send has no mode in milestone 1. It always queues behind an active run and never steers one (see the open questions).
+The seam has one error class with a `code`, because its only consumer is the wire. Python maps each `code` to a spoken line. `refused` means T3 recorded a rejected receipt for the command, and Python speaks it as "T3 refused it", followed by `reason`. `gone` means the command was accepted and its thread has since been deleted. The two never stand in for each other. Voice send has no mode in milestone 1 and never steers. It queues behind an active run only where T3's queue holds the ceiling. Elsewhere a send to a busy thread answers `thread_busy` (see Access and ceiling and the open questions).
 
 ### The service
 
@@ -464,8 +465,10 @@ const make = Effect.gen(function* () {
     //   accepted -> answer from the message's projection, replayed: true (gone if the thread was deleted)
     // preflight: exceededDispatchModeLimit(ceiling, shell) -> above_ceiling
     //   // before sendToThread, which restores the worktree before its own mode check (ThreadManagementService.ts:908-924)
+    // preflight: shell.activeRunId !== null and !queueHoldsCeiling -> thread_busy
     // threads.sendToThread({ commandId, messageId, ..., mode: "queue", createdBy: "user", creationSource: "server" })
     //   .pipe(Effect.provideService(DispatchModeLimit, ceiling))   // the recheck under the command lock
+    // queued and !queueHoldsCeiling -> queued-run.cancel as `${commandId}:cancel`, then thread_busy
     return yield* Effect.die("not implemented");
   });
 
@@ -474,7 +477,8 @@ const make = Effect.gen(function* () {
     // require "interrupt" and a visible thread; no DispatchModeLimit, so the voice can stop any thread it can see
     // commandId = voiceCommandId("interrupt", requestId)
     // receipt accepted -> nothing_running, without calling interruptThread; rejected -> "refused"
-    // threads.interruptThread({ commandId, ... }): interrupt_requested -> requested; no_active_run -> nothing_running
+    // threads.interruptThread({ commandId, ... }): interrupt_requested -> requested, or nothing_running when replayed
+    //   no_active_run -> record an accepted run.interrupt receipt (insertIfAbsent), then nothing_running
     return yield* Effect.die("not implemented");
   });
 
@@ -510,14 +514,14 @@ A launch that fails after T3 recorded its command reads both receipts again and 
 
 Send and interrupt apply the same rule to their own command ids, and neither calls `ThreadManagementService` on a receipt:
 
-| Receipt            | Send                                                                                                 | Interrupt                                |
-| ------------------ | ---------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| none               | preflight, then `sendToThread`                                                                       | `interruptThread`                        |
-| for another thread | `invalid_request`                                                                                    | `invalid_request`                        |
-| rejected           | `refused`, with `reason` and `commandId`                                                             | `refused`, with `reason` and `commandId` |
-| accepted           | the message's run and delivery from its projection, `replayed: true`, or `gone` for a deleted thread | `nothing_running`                        |
+| Receipt            | Send                                                                                                                                           | Interrupt                                |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| none               | preflight, then `sendToThread`                                                                                                                 | `interruptThread`                        |
+| for another thread | `invalid_request`                                                                                                                              | `invalid_request`                        |
+| rejected           | `refused`, with `reason` and `commandId`                                                                                                       | `refused`, with `reason` and `commandId` |
+| accepted           | the message's run and delivery from its projection, `replayed: true`, or `gone` for a deleted thread. `thread_busy` when the seam cancelled it | `nothing_running`                        |
 
-A send replay reads the message by its id, so it answers after the event log pruned the command's events. It also skips the worktree restore that `sendToThread` runs before its dispatch. An interrupt replay must not reach `interruptThread`. That method aims the command at whichever run is active now, and the orchestrator's receipt replay would then report a later run as interrupted (measured: with the gate removed, a retry after a second run started answered `requested` for that run). A rejected send receipt answers `refused`, so a retried send never reports success for a message T3 refused. A mode refusal records no receipt, so a send refused for its mode can pass on retry after Mason lowers the mode.
+A send replay reads the message by its id, so it answers after the event log pruned the command's events. It also skips the worktree restore that `sendToThread` runs before its dispatch. An interrupt replay must not reach `interruptThread`. That method aims the command at whichever run is active now, and the orchestrator's receipt replay would then report a later run as interrupted (measured: with the gate removed, a retry after a second run started answered `requested` for that run). So an interrupt that finds nothing running records its own accepted receipt, and a copy that passed the gate before another copy dispatched answers `nothing_running` when its dispatch comes back replayed (measured: without either, a retry or a concurrent copy answered `requested` for a later run that nothing stopped). A rejected send receipt answers `refused`, so a retried send never reports success for a message T3 refused. A mode refusal records no receipt, so a send refused for its mode can pass on retry after Mason lowers the mode.
 
 ### Who calls the thread operations
 
@@ -696,6 +700,7 @@ The seam enforces the ceiling in four places:
 1. Every operation checks `operations` and the allowed projects. A thread outside them, or one with unlisted lineage, reads as `not_found`, so the voice cannot probe for it.
 2. Launch clamps the runtime mode to `maxRuntimeMode` and the interaction mode to `default`, through the mode resolvers.
 3. Send preflights the thread's modes against the ceiling before it calls `sendToThread`, so a refused send never restores a worktree. It then runs under a provided `DispatchModeLimit`, which the orchestrator rechecks under the command lock (`Orchestrator.ts:15420-15429`, measured). A thread Mason raised to `full-access` after the preflight is refused, not driven.
+   That limit covers only the dispatch. T3 starts a queued run later, in the thread's mode at that time, and checks only the managed ceiling there (`Orchestrator.ts:2449`, measured). So a send to a busy thread queues only when `queueHoldsCeiling` is true: the managed ceiling is at or below `maxRuntimeMode`, or no mode is above it. Otherwise the send refuses with `thread_busy` before `sendToThread`, and a send that still queued, because the thread got busy after the preflight, is cancelled and answers `thread_busy`.
 4. Interrupt runs with no `DispatchModeLimit`. The recheck refuses every command on a thread above the limit, and only the managed ceiling exempts commands that lower a mode or start no work (`DispatchModeLimit.ts:67-71`, measured). Without this exception the voice could not stop a thread Mason raised.
 
 The managed-policy ceiling still applies on top of all four (`Orchestrator.ts:1558-1564`, measured).
@@ -949,7 +954,7 @@ Each question carries a recommendation. The design proceeds on the recommendatio
 1. **Which server runs the seam?** The seam exists only in a server built from the fork, and the installed desktop app runs upstream's nightly. Recommendation: run the fork's server on the Desktop as a separate environment with its own T3 home, and link it from Mason's desktop, web, and mobile apps in **Settings > Connections**. Fork code then never writes his daily database, and no fork-versus-nightly migration skew can reach it. The cost is that Twin B sees only the fork environment's threads in milestone 1 (inferred: linked environments' threads appear in the apps, to confirm on the installed nightly). The alternative is to install the fork's desktop build as his daily app, with auto-update off. That gives one thread list, but `voice/main`'s merge lag becomes his daily-driver risk.
 2. **May a fast model pick the project for Twin A?** This departs from the charter. The charter allows a fast model only for Twin B's lookup and has a frontier agent use the thread operations for Twin A. Here the launched thread is the frontier agent, and the project is chosen before it exists. A fast model picking the project buys two things. It saves a frontier turn before every launch, and it keeps the time from "start a thread" to "started" short enough for a spoken reply (guess: under 1 s for the pick against several seconds for a frontier turn). Recommendation: yes, gated. Until the 30-utterance Twin A project-pick eval passes the same bar as Twin B, Twin A uses only the deterministic match on `spokenNames` and asks whenever it is not exact. A later step could launch requests with no clear project into a configured triage project, where a frontier thread finds the repository and launches the real thread itself.
 3. **What is the default ceiling?** Recommendation: `auto-accept-edits` for one or two named projects. Under `approval-required`, a voice-started thread stops at its first command and the voice relays "it needs you". That is safe, but every demo turn would wait on Mason's app. `full-access` stays out of reach of the voice.
-4. **Should voice ever steer a running thread?** Recommendation: not in milestone 1. A voice follow-up always queues behind the active run, so it never changes a turn mid-flight. Steering can come later behind an explicit phrase.
+4. **Should voice ever steer a running thread?** Recommendation: not in milestone 1. A voice follow-up queues behind the active run, or refuses where the queue cannot hold the ceiling, so it never changes a turn mid-flight. Steering can come later behind an explicit phrase.
 5. **Is a read-scoped token that writes only through the seam acceptable?** Recommendation: yes, because it is the only shape in which the credential cannot launch above the ceiling over `/ws`. The other option is an `operate` token, which shows "operate" in Settings and can launch at `full-access` outside the seam.
 
 ## Risks
