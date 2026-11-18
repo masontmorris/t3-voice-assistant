@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import json
 import tempfile
+import threading
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 from voice.live.t3_tasks import (ASK, START, STOP, T3_WAITING, TELL, T3Registry, T3TaskService, T3Tasks, reply_kind,
                                  speak_state, tell_parts)
@@ -48,6 +51,18 @@ class FakeModel:
         if self.error is not None:
             raise self.error
         return {"text": json.dumps(self.answer), "ms": 12, "tokens": {}}
+
+
+class BlockingModel(FakeModel):
+    def __init__(self):
+        super().__init__("t5")
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def complete(self, messages):
+        self.entered.set()
+        self.release.wait()
+        return super().complete(messages)
 
 
 def busy_seam(read_as_of=150) -> F.FakeSeam:
@@ -175,6 +190,21 @@ class TwinB(unittest.TestCase):
         self.assertEqual((answered.line, answered.sequences), ("Fix the flaky ASR test is still working.", (150,)))
         self.assertEqual(t3.model.calls, 0)
 
+    def test_ambiguous_or_unmatched_title_answer_asks_again_without_reading(self):
+        for reply in ("The flaky test.", "The billing one."):
+            with self.subTest(reply=reply):
+                seam = F.FakeSeam(read=F.state(thread="t6", title="Fix the flaky ASR test", as_of=150))
+                seam.listing = listing(("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test"))
+                t3 = tasks_over(self, seam)
+                asked = t3.about("k2", ASK, "How is the flaky test thread going?", 0)
+
+                again = t3.answer(reply, 1)
+
+                self.assertIsNotNone(again)
+                self.assertEqual((again.line, again.status), (asked.line, "needs_clarification"))
+                self.assertEqual(seam.ops("read"), [])
+                self.assertEqual(t3.answer("The ASR one.", 2).thread_id, "t6")
+
     def test_speak_state_names_a_pending_need(self):
         state = F.state(activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need(prompt="Run the tests?"))
         self.assertEqual(speak_state(state), "Fix the flaky test is waiting for you: Run the tests?")
@@ -213,6 +243,41 @@ class ModelArm(unittest.TestCase):
         t3 = tasks_over(self, self.seam(), FakeModel("t5"))
         t3.about("k3", ASK, self.MISS, 0)
         self.assertEqual(t3.answer("No, the toolchain one.", 1).line, "Do you mean the Upgrade the toolchain thread?")
+
+    def test_a_lifecycle_event_is_saved_while_the_model_is_blocked(self):
+        seam, model = self.seam(), BlockingModel()
+        t3 = tasks_over(self, seam, model)
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        t3.answer("yes", 1)
+        running = next(iter(t3.follow.journal.tasks.values()))
+
+        with ThreadPoolExecutor(max_workers=2) as workers:
+            pick = workers.submit(t3.about, "k3", ASK, self.MISS, 2)
+            try:
+                self.assertTrue(model.entered.wait(2))
+                seam.push(F.done(160))
+                workers.submit(t3.poll, 3).result(timeout=2)
+                saved = T3Journal(t3.follow.journal.path)
+                self.assertEqual(saved.tasks[running.task_id].status, Status.COMPLETED)
+                self.assertEqual(saved.pending_lines[0].line, "It finished. It said: I added clamp. The tests pass.")
+                self.assertFalse(pick.done())
+            finally:
+                model.release.set()
+            self.assertEqual(pick.result(timeout=2).line, "Do you mean the Add a clamp helper thread?")
+
+    def test_a_blocked_model_times_out_and_asks_with_the_prefilter_s_candidates(self):
+        seam, model = self.seam(), BlockingModel()
+        t3 = tasks_over(self, seam, model)
+        with patch("voice.live.t3_tasks.PICK_TIMEOUT_S", 0.05, create=True), ThreadPoolExecutor() as workers:
+            pick = workers.submit(t3.about, "k3", ASK, self.MISS, 0)
+            try:
+                self.assertTrue(model.entered.wait(2))
+                asked = pick.result(timeout=2)
+                self.assertEqual(asked.line, question_for([title for _, title in THREADS[:3]]))
+                self.assertEqual(t3.question.candidates, ("t5", "t6", "t7"))
+                self.assertEqual(seam.ops("read"), [])
+            finally:
+                model.release.set()
 
     def test_a_model_failure_or_timeout_asks_with_the_prefilter_s_candidates(self):
         for error in (TimeoutError("timed out"), OSError("unreachable")):
@@ -365,13 +430,28 @@ class ExplicitYes(unittest.TestCase):
                     self.assertIsNone(t3.answer("yes", 3))
                     self.assertEqual((seam.ops("send"), seam.ops("interrupt")), ([], []))
 
-    def test_a_which_question_answer_is_still_asked_back_before_acting(self):
-        seam = busy_seam()
-        seam.listing = listing(("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test"))
+    def test_a_tell_title_answer_requires_a_yes_before_sending(self):
+        seam = self.tied_threads().answer("send", F.sent(thread="t6", run="r2"))
         t3 = tasks_over(self, seam)
         t3.about("k1", TELL, "Tell the flaky test thread to rerun.", 0)
         self.assertEqual(t3.answer("The ASR one.", 1).line, "Tell the Fix the flaky ASR test thread to rerun?")
         self.assertEqual(seam.ops("send"), [])
+        self.assertEqual(t3.answer("Yes, send it.", 2).line, "I've passed that on.")
+        self.assertEqual([call[2:] for call in seam.ops("send")], [("t6", "Rerun")])
+
+    def test_a_stop_title_answer_requires_a_yes_before_interrupting(self):
+        seam = self.tied_threads().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam)
+        t3.about("k1", STOP, "Stop the flaky test thread.", 0)
+        self.assertEqual(t3.answer("The ASR one.", 1).line, "Stop the Fix the flaky ASR test thread?")
+        self.assertEqual(seam.ops("interrupt"), [])
+        self.assertEqual(t3.answer("Yes, stop it.", 2).line, "Stopping it.")
+        self.assertEqual([call[2] for call in seam.ops("interrupt")], ["t6"])
+
+    def tied_threads(self):
+        seam = F.FakeSeam()
+        seam.listing = listing(("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test"))
+        return seam
 
 
 class Service(unittest.TestCase):

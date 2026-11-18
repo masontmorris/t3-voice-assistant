@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from voice.t3 import fakes as F
@@ -180,6 +181,49 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(h.said(), [L.HELD_LINE, "It needs you: Run the tests?"])
         self.assertEqual(len(seam.ops("send")), 1)
 
+    def test_busy_follow_up_releases_when_the_read_already_shows_the_run_ended(self):
+        for terminal in T.TerminalStatus:
+            with self.subTest(status=terminal):
+                ended = replace(F.state(as_of=150), run=T.RunInfo("r1", T.RunStatus(terminal.value), None))
+                running = replace(F.state(as_of=170), run=T.RunInfo("r2", T.RunStatus.RUNNING, None))
+                seam = F.FakeSeam().answer("read", ended, running)
+                seam.answer("send", F.busy(), F.sent(run="r2", sequence=170))
+                h = Harness(self, seam)
+                task = h.unstarted(Kind.TELL, thread="t1")
+                refused_id = task.link.request_id
+
+                h.follow.send(task, 0)
+
+                self.assertEqual(task.status, Status.LIVE)
+                self.assertNotEqual(refused_id, task.link.request_id)
+                self.assertEqual([call[1] for call in seam.ops("send")], [refused_id, task.link.request_id])
+                self.assertEqual(seam.ops("watch"), [("watch", "t1", 170, "r2")])
+
+                seam.push(F.done(150, run="r1", status=terminal))
+                h.tick(1)
+                self.assertEqual(len(seam.ops("send")), 2)
+                self.assertEqual(T3Journal(h.path).tasks[task.task_id].status, Status.LIVE)
+                self.assertEqual(h.said(), ["I've passed that on."])
+
+    def test_a_busy_release_rechecks_after_another_run_ends(self):
+        ended = replace(F.state(as_of=150), run=T.RunInfo("r1", T.RunStatus.COMPLETED, None))
+        later_ended = replace(ended, run=T.RunInfo("r2", T.RunStatus.COMPLETED, None), as_of_sequence=160)
+        running = replace(ended, run=T.RunInfo("r3", T.RunStatus.RUNNING, None), as_of_sequence=170)
+        seam = F.FakeSeam().answer("read", ended, later_ended, later_ended, running)
+        seam.answer("send", F.busy(), F.busy(), F.sent(run="r3"))
+        h = Harness(self, seam)
+        task = h.unstarted(Kind.TELL, thread="t1")
+
+        h.follow.send(task, 0)
+
+        self.assertEqual(task.status, Status.HELD)
+        self.assertEqual(len(seam.ops("send")), 2)
+        saved = T3Journal(h.path).tasks[task.task_id].link.request_id
+        h.tick(1)
+        self.assertEqual([call[1] for call in seam.ops("send")][-1], saved)
+        self.assertEqual(seam.ops("watch"), [("watch", "t1", 170, "r3")])
+        self.assertEqual(h.said(), [L.HELD_LINE, "I've passed that on."])
+
     def test_held_release(self):
         seam = F.FakeSeam(read=F.state(as_of=40))
         h = Harness(self, seam)
@@ -232,6 +276,26 @@ class WatchLifecycleRows(unittest.TestCase):
         h.tick(1)
         self.assertEqual(seam.ops("send")[0][1:3], (saved, "t1"))
         self.assertEqual(h.follow.journal.tasks[task.task_id].status, Status.LIVE)
+
+    def test_restart_releases_held_follow_up_when_the_read_shows_done(self):
+        for cursor in (None, 100):
+            with self.subTest(cursor=cursor):
+                h = Harness(self)
+                task = h.unstarted(Kind.TELL, thread="t1")
+                task.status, task.link.cursor = Status.HELD, cursor
+                h.journal.save()
+                ended = replace(F.state(as_of=150), run=T.RunInfo("r1", T.RunStatus.COMPLETED, None))
+                running = replace(F.state(as_of=170), run=T.RunInfo("r2", T.RunStatus.RUNNING, None))
+                seam = F.FakeSeam().answer("read", ended, running).answer("send", F.sent(run="r2", sequence=170))
+                h.restart(seam)
+
+                h.follow.resume(0)
+                h.tick(1)
+
+                self.assertEqual(seam.ops("send"), [("send", task.link.request_id, "t1", task.instruction)])
+                self.assertEqual(seam.ops("watch"), [("watch", "t1", 170, "r2")])
+                self.assertEqual(T3Journal(h.path).tasks[task.task_id].status, Status.LIVE)
+                self.assertEqual(h.said(), ["I've passed that on."])
 
     def test_ask(self):
         from voice.live.t3_tasks import T3Tasks
