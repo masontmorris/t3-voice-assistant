@@ -13,10 +13,12 @@ import contextlib
 import json
 import logging
 import os
+import queue
 import socket
 import tempfile
 import threading
 import unittest
+from unittest.mock import patch
 
 from websockets.asyncio.server import serve
 
@@ -367,6 +369,26 @@ class SeamClientTest(unittest.TestCase):
         self.assertEqual(events[-1], T.CLOSE_1013)
         self.assertIsInstance(events[0], T.DoneEvent)
         self.assertEqual(list(seam.drain(timeout=1)), [T.CLOSE_1013])
+
+    def test_timed_drain_cannot_overtake_a_queued_event(self):
+        seam = S.T3Seam()
+        get = seam._events.get
+
+        def get_with_arrivals(*, timeout):
+            try:
+                return get(timeout=timeout)
+            except queue.Empty:
+                seam._on_message(json.dumps({"type": "event", "event": DONE_EVENT}))
+                seam._settle(T.CLOSE_1013)
+                raise
+
+        with patch.object(seam._events, "get", side_effect=get_with_arrivals):
+            self.assertEqual(list(seam.drain(timeout=0)), [])
+
+        event, end = seam.drain(timeout=0)
+        self.assertIsInstance(event, T.DoneEvent)
+        self.assertEqual(end, T.CLOSE_1013)
+        self.assertEqual(list(seam.drain(timeout=0)), [T.CLOSE_1013])
 
     def test_close_1008_after_hello(self):
         async def handler(ws):
