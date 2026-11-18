@@ -47,6 +47,7 @@ class Kind(StrEnum):
     UNREACHABLE = "unreachable"
     SEAM_DOWN = "seam_down"
     REFUSED = "refused"
+    LEGACY_UPDATE = "legacy_update"
 
 
 @dataclass(frozen=True)
@@ -136,6 +137,7 @@ RULES: dict[Kind, Rule] = {
     Kind.UNREACHABLE: Rule(()),
     Kind.SEAM_DOWN: Rule(("reason",)),
     Kind.REFUSED: Rule(("op", "code", "reason"), forbids=("started", "sent")),
+    Kind.LEGACY_UPDATE: Rule(("thread", "text")),
 }
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
 # The acts whose words come from a read of the thread: the voice summarises it before it speaks them.

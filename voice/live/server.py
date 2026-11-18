@@ -872,7 +872,7 @@ class Conversation:
                 log("task_updates", updates=entries)
                 for update, entry in zip(updates, entries):
                     def delivered(state):
-                        if state != "unsent":
+                        if state == "sent":
                             live.t3.ack_news(unsent.pop(id(update)))
 
                     reply, _ = await say_acts(

@@ -76,6 +76,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.SEAM_DOWN: "The voice stopped following their threads, which are still in the app. `reason`: connection "
                     "(the connection to T3 was lost), access (T3 no longer accepts the voice's access) or seam_off.",
     Kind.REFUSED: "T3 refused to do what was asked (`op`). Say why, from `reason`.",
+    Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
+                        "same news in your own words, adding nothing.",
 }
 assert set(MEANINGS) == set(Kind)
 

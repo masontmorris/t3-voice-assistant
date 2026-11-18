@@ -59,7 +59,9 @@ class Harness:
         return self.lines()
 
     def lines(self) -> list[str]:
+        """The lines the voice took and heard whole since the last call."""
         new = self.follow.take()
+        self.follow.ack(new)
         self.heard.extend(new)
         return [kinds(u) for u in new]
 
@@ -440,8 +442,10 @@ class WatchLifecycleRows(unittest.TestCase):
         h.follow.resume(2)
         expected_watches = [] if watch_after is None else [("watch", "t1", watch_after, "r1")]
         self.assertEqual(h.seam.ops("watch"), expected_watches)
-        self.assertEqual([(kinds(u), u.sequences) for u in h.follow.take()], [(line, evidence)])
+        taken = h.follow.take()
+        self.assertEqual([(kinds(u), u.sequences) for u in taken], [(line, evidence)])
         self.assertEqual(h.follow.take(), [])
+        h.follow.ack(taken)
 
         h.restart(F.FakeSeam())
         h.follow.resume(3)

@@ -18,7 +18,7 @@ from dataclasses import asdict, dataclass, field
 from enum import StrEnum
 from pathlib import Path
 
-from voice.t3.acts import Act
+from voice.t3.acts import Act, Kind as Say, act
 
 CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ"
 
@@ -131,6 +131,13 @@ class Update:
                       "sequences": tuple(raw["sequences"]), "problems": tuple(raw.get("problems", ()))})
 
 
+def legacy_update(raw: dict) -> Update:
+    """A version 1 pending line, which saved its spoken text, as news the voice words and checks like any other."""
+    return Update(raw["task_id"], (act(Say.LEGACY_UPDATE, thread=raw.get("title"), text=raw["line"]),),
+                  raw["status"], raw.get("row"), raw.get("thread_id"), tuple(raw.get("sequences", ())),
+                  raw.get("delivery_failures", 0))
+
+
 class T3Journal:
     """Tasks by id, loaded from `path` and saved whole after every change the caller makes."""
 
@@ -141,8 +148,9 @@ class T3Journal:
         if self.path.exists():
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             self.tasks = {t["task_id"]: _task_from(t) for t in raw.get("tasks", [])}
-            # Version 1 saved spoken text, which is never replayed: a version 2 line is acts.
-            self.pending_lines = [Update.from_json(u) for u in raw.get("pending_lines", []) if "acts" in u]
+            # Version 1 saved spoken text. It is never replayed as text: it becomes a legacy_update act to word again.
+            self.pending_lines = [Update.from_json(u) if "acts" in u else legacy_update(u)
+                                  for u in raw.get("pending_lines", [])]
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -151,6 +159,16 @@ class T3Journal:
                 "pending_lines": [u.to_json() for u in self.pending_lines]}
         tmp.write_text(json.dumps(body, indent=1) + "\n", encoding="utf-8")
         os.replace(tmp, self.path)
+
+    def replace_lines(self, old: list[Update], new: Update) -> None:
+        """`new` stands where the first of `old` stood, when any of them is saved."""
+        taken = set(map(id, old))
+        at = next((i for i, u in enumerate(self.pending_lines) if id(u) in taken), None)
+        if at is not None:
+            kept = [u for u in self.pending_lines if id(u) not in taken]
+            kept.insert(min(at, len(kept)), new)
+            self.pending_lines = kept
+            self.save()
 
     def remove_lines(self, updates: list[Update]) -> None:
         taken = set(map(id, updates))

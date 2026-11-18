@@ -378,8 +378,10 @@ class T3Tasks:
         if not mine:
             self.follow.acked.add(task.task_id)
             return L.Update(key, (L.about(task, ack),), STATUS_WORDS[task.status], row, task.link.thread_id)
-        return L.Update(key, tuple(a for u in mine for a in u.acts), STATUS_WORDS[task.status], mine[0].row,
-                        task.link.thread_id, tuple(s for u in mine for s in u.sequences))
+        update = L.Update(key, tuple(a for u in mine for a in u.acts), STATUS_WORDS[task.status], mine[0].row,
+                          task.link.thread_id, tuple(s for u in mine for s in u.sequences))
+        self.follow.journal.replace_lines(mine, update)
+        return update
 
     def _launch(self, question: Question, project_id: str, name: str, now: float) -> L.Update:
         task = self.follow.journal.begin(Kind.START, question.instruction, project_id, name)
@@ -527,7 +529,7 @@ class T3Tasks:
         dropped = self.follow.journal.held(thread)
         for held in dropped:
             self.follow.drop(held, now)
-            self.follow.take(held.task_id)
+            self.follow.ack(self.follow.take(held.task_id))
         task = self.follow.journal.begin(Kind.STOP, question.instruction, project, name, thread_id=thread, title=title)
         self.keys[task.task_id] = question.key
         self.follow.stop(task, now)
@@ -752,14 +754,17 @@ class T3TaskService(MockTaskService):
         return entries
 
     def record_delivery(self, entry, state):
-        if state == "unsent":
+        """Only a line whose whole audio was sent is delivered. One cut off part way stays pending, and `close`
+        gives it back to be said again."""
+        if state != "sent":
             return
         if entry.get("type") == "task_update":
             self.t3.ack_news(self.news.pop(id(entry)))
         else:
             task_id = entry["task_id"]
             self.delivered.add(task_id)
-            if state == "sent" and self.t3.unasked is self.spoken[task_id]:
+            self.t3.ack_news(self.spoken[task_id])
+            if self.t3.unasked is self.spoken[task_id]:
                 self.t3.unasked = None
 
     def close(self):
@@ -852,6 +857,7 @@ class Script:
             self.waiting.append((label, update))
         else:
             self.turns.append({"assistant": rendered.line})
+            self.t3.ack_news(update)
         print(json.dumps(row), flush=True)
         return rendered.line is not None
 

@@ -229,15 +229,21 @@ class Follow:
         ACTIONS[row.do](self, name, row, task, now, **context)
 
     def take(self, task_id: str | None = None) -> list[Update]:
+        """Reserve the outbox's lines: they leave the outbox and stay in the journal until `ack`, so a crash before
+        they are heard finds them again."""
         taken = [u for u in self.outbox if task_id is None or u.task_id == task_id]
-        self.journal.remove_lines(taken)
         self.outbox = [u for u in self.outbox if task_id is not None and u.task_id != task_id]
         return taken
+
+    def ack(self, updates: list[Update]) -> None:
+        """The lines were heard whole: they leave the journal."""
+        self.journal.remove_lines(updates)
 
     def give_back(self, updates: list[Update]) -> None:
         """Lines taken but never heard go back to the front of the outbox, and of the journal's pending lines."""
         self.outbox[:0] = updates
-        self.journal.pending_lines[:0] = updates
+        saved = set(map(id, self.journal.pending_lines))
+        self.journal.pending_lines[:0] = [u for u in updates if id(u) not in saved]
         self.journal.save()
 
     def speak(self, task: JournalTask, said: Act, row: str | None = None, sequences=(), *,

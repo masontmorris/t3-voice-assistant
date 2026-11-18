@@ -81,6 +81,8 @@ CASES = {
     Kind.UNREACHABLE: ({}, "I can't reach T3 right now.", {"   ": "empty"}),
     Kind.SEAM_DOWN: ({"reason": "access"}, "T3 stopped taking my access, so I've stopped following your threads.",
                      {"See https://example.invalid for why.": "not plain speech"}),
+    Kind.LEGACY_UPDATE: ({"text": "Add a clamp helper finished."}, "Your clamp helper thread is done.",
+                         {"See `the app`.": "not plain speech"}),
     Kind.REFUSED: ({"op": "start", "code": "refused", "reason": "Model is off."},
                    "T3 wouldn't start it because the model is off.",
                    {"T3 started it.": "claims started"}),

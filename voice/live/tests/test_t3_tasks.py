@@ -301,7 +301,7 @@ class ModelArm(unittest.TestCase):
         seam, model = self.seam(), BlockingModel()
         t3 = tasks_over(self, seam, model)
         t3.start("k1", "Add a clamp helper in the sandbox project", 0)
-        t3.answer("yes", 1)
+        t3.ack_news(t3.answer("yes", 1))
         running = next(iter(t3.follow.journal.tasks.values()))
 
         with ThreadPoolExecutor(max_workers=2) as workers:
@@ -611,7 +611,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam, path=path)
         t3.start("a1", "Add a clamp helper in the sandbox project", 0)
-        t3.answer("yes", 1)
+        t3.ack_news(t3.answer("yes", 1))
         seam.push(F.done(160))
         t3.poll(2)
         taken = t3.take()
@@ -652,8 +652,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
         t3.start("a1", "Add a clamp helper in the sandbox project", 0)
-        t3.answer("yes", 1)
-        t3.take()
+        t3.ack_news(t3.answer("yes", 1))
         seam.push(F.done(160))
         t3.poll(2)
         turn = self.service(t3, [])

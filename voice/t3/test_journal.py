@@ -34,9 +34,11 @@ class JournalCase(unittest.TestCase):
         return task
 
     def lines(self, follow: L.Follow) -> list[str]:
-        """Each update as its act kinds, with a status slot after a colon."""
+        """Each update the voice took and heard whole, as its act kinds, with a status slot after a colon."""
+        heard = follow.take()
+        follow.ack(heard)
         return ["+".join(a.kind.value + (f":{a.slots['status']}" if "status" in a.slots else "") for a in u.acts)
-                for u in follow.take()]
+                for u in heard]
 
 
 class RequestIds(JournalCase):
