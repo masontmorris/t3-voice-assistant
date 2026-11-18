@@ -27,7 +27,7 @@ import urllib.error
 import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
@@ -110,14 +110,13 @@ SUMMARY_SYSTEM = (
     "You read the records of one coding thread and write a gist for a voice assistant to say out loud. Answer the "
     "question when there is one, else say what the thread reported. One spoken sentence of at most 25 words. "
     "Attribute claims from the last reply to the thread. Use wording like \"it says\" or \"the thread reported\" "
-    "for any claimed work or results. Also, never say the thread did what its name says unless the last reply says "
-    "it. State "
-    "only what the records say: no guesses, no advice, no file paths or code unless asked. Do not say whether the "
-    "thread is running, finished, failed or stopped, because the assistant says that separately. The thread's name "
-    "is only a name, not evidence of what was done. If the records do not answer the question, say what they do "
-    "show. When the run has ended, "
-    "say what its last reply said, not what it is doing now. When last_reply is null, say what it waits on, from "
-    "status and pending. Reply with the gist only."
+    "for any claimed work or results. Recent entries are the thread's stored records for its latest run, newest "
+    "first. A tool outcome describes that tool only. Treat a last reply marked earlier as history. "
+    "Use only the records: no guesses, no advice, no file paths or code unless asked. The thread's name is only "
+    "a name, not evidence of what was done. The assistant says the thread's overall status separately. "
+    "If the records do not answer the "
+    "question, say what they do show. If there are no results, use pending and status to describe what it waits "
+    "on. Reply with the gist only."
 )
 TITLE_KEY = "name (only a name, not evidence of what was done)"
 
@@ -444,7 +443,10 @@ def summary_messages(state: T.ThreadState, question: str | None) -> list[dict]:
                "need": state.pending.source.value if state.pending is not None else None,
                "pending": state.pending.prompt if state.pending is not None else None,
                "waiting_for": state.pending.kind.value if state.pending is not None else None,
-               "last_reply": state.last_reply.text if state.last_reply is not None else None}
+               "last_reply": state.last_reply.text if state.last_reply is not None else None,
+               "recent": [{"kind": item.kind, **asdict(item)} for item in state.recent]}
+    if state.last_reply is not None and state.run is not None and state.last_reply.run_id != state.run.run_id:
+        records["last_reply_run"] = "earlier"
     body = {"question": question, "records": records}
     return [{"role": "system", "content": SUMMARY_SYSTEM}, {"role": "user", "content": json.dumps(body)}]
 

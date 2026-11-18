@@ -34,11 +34,11 @@ import {
   type VoiceSeamConfig,
 } from "./ceiling.ts";
 import {
-  cutAtSentence,
   isFinishedReply,
   newestFirst,
   readPendingJoin,
   readThreadNow,
+  replyTail,
   runResult,
   type PendingJoin,
 } from "./outcome.ts";
@@ -164,7 +164,7 @@ const iso = (time: DateTime.Utc) => DateTime.formatIso(time);
 const replyOf = (
   message: OrchestrationV2ConversationMessage & { readonly runId: RunId },
 ): NonNullable<VoiceThreadState["lastReply"]> => ({
-  text: cutAtSentence(message.text),
+  text: replyTail(message.text),
   messageId: message.id,
   turnItemId: null,
   runId: message.runId,
@@ -325,7 +325,7 @@ const make = Effect.gen(function* () {
       { sql, threads },
       threadId,
       (shell) => (shell.latestRunId === null ? [] : [shell.latestRunId]),
-      EARLIER_REPLY_RUNS,
+      { earlierRuns: EARLIER_REPLY_RUNS, projects },
     ).pipe(Effect.mapError(VoiceSeamRefusal.unavailable));
     if (read === null || !isVisible(caller.config)(read.shell)) {
       return yield* VoiceSeamRefusal.notFound();
@@ -341,7 +341,7 @@ const make = Effect.gen(function* () {
         ? null
         : TERMINAL_ACTIVITIES.has(activity)
           ? {
-              ...runResult(records, run),
+              ...runResult(records, run, replyTail),
               runId: run.id,
               at: iso(run.completedAt ?? run.requestedAt),
             }
@@ -363,6 +363,7 @@ const make = Effect.gen(function* () {
             },
       pending,
       lastReply,
+      recent: read.recent,
       asOfSequence: read.asOfSequence,
     } satisfies VoiceThreadState;
   });
