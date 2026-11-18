@@ -245,24 +245,33 @@ const serveSeam = Effect.fn("test.serveSeam")(function* (
   };
 });
 
-/** Revokes each session as the route marks it connected: after the upgrade's check, before hello. */
-const revokeOnConnect = Layer.effect(
-  SessionStore.SessionStore,
-  Effect.gen(function* () {
-    const real = yield* SessionStore.SessionStore;
-    const auth = yield* EnvironmentAuth.EnvironmentAuth;
-    return {
-      ...real,
-      markConnected: (sessionId) =>
-        auth
-          .revokeSession(sessionId)
-          .pipe(Effect.orDie, Effect.andThen(real.markConnected(sessionId))),
-    };
-  }),
-);
+/**
+ * Revokes each session as the route marks it connected, after the upgrade's check. The
+ * invalidation watcher's first read waits until `hello` reads projects, so only a check that
+ * runs before `hello` can see the revocation in time.
+ */
+const revokeBeforeHello = (helloStarted: Deferred.Deferred<void>) =>
+  Layer.effect(
+    SessionStore.SessionStore,
+    Effect.gen(function* () {
+      const real = yield* SessionStore.SessionStore;
+      const auth = yield* EnvironmentAuth.EnvironmentAuth;
+      return {
+        ...real,
+        markConnected: (sessionId) =>
+          auth
+            .revokeSession(sessionId)
+            .pipe(Effect.orDie, Effect.andThen(real.markConnected(sessionId))),
+        awaitInvalidation: (sessionId, proofKeyThumbprint) =>
+          Deferred.await(helloStarted).pipe(
+            Effect.andThen(real.awaitInvalidation(sessionId, proofKeyThumbprint)),
+          ),
+      };
+    }),
+  );
 
 /** Counts project reads, the first service call `hello` makes. */
-const countProjectReads = (reads: Ref.Ref<number>) =>
+const countProjectReads = (reads: Ref.Ref<number>, helloStarted: Deferred.Deferred<void>) =>
   Layer.effect(
     ProjectStore.ProjectStoreV2,
     Effect.gen(function* () {
@@ -270,7 +279,10 @@ const countProjectReads = (reads: Ref.Ref<number>) =>
       return {
         ...real,
         list: (input) =>
-          Ref.update(reads, (count) => count + 1).pipe(Effect.andThen(real.list(input))),
+          Ref.update(reads, (count) => count + 1).pipe(
+            Effect.andThen(Deferred.succeed(helloStarted, undefined)),
+            Effect.andThen(real.list(input)),
+          ),
       };
     }),
   );
@@ -362,9 +374,15 @@ it.live("closes a session revoked between the upgrade and hello before any servi
   live(
     Effect.gen(function* () {
       const projectReads = yield* Ref.make(0);
+      const helloStarted = yield* Deferred.make<void>();
       const seam = yield* serveSeam(
         VoiceSeamRoute.layer.pipe(
-          Layer.provide(Layer.mergeAll(revokeOnConnect, countProjectReads(projectReads))),
+          Layer.provide(
+            Layer.mergeAll(
+              revokeBeforeHello(helloStarted),
+              countProjectReads(projectReads, helloStarted),
+            ),
+          ),
         ),
       );
       yield* seam.configure(CONFIG_TEXT);
