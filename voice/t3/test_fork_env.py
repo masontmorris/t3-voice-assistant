@@ -588,6 +588,108 @@ class SeamConfigTest(unittest.TestCase):
         project_ids = {project["projectId"] for project in doc["projects"]}
         self.assertLessEqual(set(doc["workspace"]), project_ids)
 
+class StaleRuntimeTest(unittest.TestCase):
+    """2026-11-18: a force-killed server left a runtime file naming pid 25332, which Windows probed as alive, and the
+    next up's server refused to start without a word in the log."""
+
+    def runtime_file(self, paths):
+        runtime = paths.home / fork_env.RUNTIME_STATE_FILES[0]
+        runtime.parent.mkdir(parents=True, exist_ok=True)
+        runtime.write_text(json.dumps({"pid": 25332, "port": fork_env.FORK_PORT}), encoding="utf-8")
+        return runtime
+
+    def test_up_clears_a_stale_runtime_file_before_it_starts_the_server(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            runtime = self.runtime_file(paths)
+            added = mock.Mock(return_value=mock.Mock(returncode=0, stdout="Added project proj_sandbox (V) at X.",
+                                                     stderr=""))
+            seen = []
+
+            def spawn(repo, spawned_paths, port):
+                seen.append(runtime.exists())
+                return FakeProc()
+
+            with (
+                mock.patch.object(fork_env, "port_open", return_value=False),
+                mock.patch.object(fork_env, "servers_on_home", return_value=[]),
+                mock.patch.object(fork_env, "run_node_cli", added),
+                mock.patch.object(fork_env, "spawn_dev_server", spawn),
+                mock.patch.object(fork_env, "wait_ready", return_value=True),
+                mock.patch.object(fork_env, "_process_info", side_effect=lambda pid: fake_identity(paths)),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(fork_env.cmd_up(Path(tmp), paths), 0)
+            self.assertEqual(seen, [False])
+
+    def test_down_clears_the_runtime_file_once_the_server_is_gone(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            paths.home.mkdir(parents=True)
+            paths.pid_file.write_text("1234\n", encoding="utf-8")
+            fork_env.write_state(paths, {"port": fork_env.FORK_PORT, "serverPid": 1234, "serverStarted": "stamp-1"})
+            runtime = self.runtime_file(paths)
+            done = subprocess.CompletedProcess(args=["taskkill"], returncode=0)
+            with (
+                mock.patch.object(fork_env, "_process_info", side_effect=lambda pid: fake_identity(paths)),
+                mock.patch.object(fork_env, "pid_alive", side_effect=[True, False]),
+                mock.patch.object(fork_env, "kill_tree", return_value=done),
+                mock.patch.object(fork_env, "port_open", return_value=False),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                self.assertEqual(fork_env.cmd_down(paths), 0)
+            self.assertFalse(runtime.exists())
+
+
+class ModelTest(unittest.TestCase):
+    """`model` sets the sandbox's default model in the fork home, and only while no server runs on it."""
+
+    def setUpPaths(self, tmp):
+        paths = make_paths(Path(tmp))
+        paths.home.mkdir(parents=True)
+        fork_env.write_state(paths, {"port": fork_env.FORK_PORT, "sandboxProjectId": "p-sandbox"})
+        fork_env.ensure_sandbox_model(paths, "p-sandbox")
+        return paths
+
+    def run_model(self, paths, selection, up=None, others=()):
+        out, err = io.StringIO(), io.StringIO()
+        with (
+            mock.patch.object(fork_env, "environment_up", return_value=up),
+            mock.patch.object(fork_env, "servers_on_home", return_value=list(others)),
+            contextlib.redirect_stdout(out),
+            contextlib.redirect_stderr(err),
+        ):
+            return fork_env.cmd_model(paths, selection), out.getvalue() + err.getvalue()
+
+    def test_model_sets_the_sandbox_default_and_replay_stays_the_default_for_a_new_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = self.setUpPaths(tmp)
+            self.assertEqual(fork_env.sandbox_model(paths, "p-sandbox"),
+                             {"instanceId": fork_env.DEV_REPLAY_PROVIDER, "model": fork_env.DEV_REPLAY_MODEL})
+            code, said = self.run_model(paths, "codex/gpt-6-luna")
+            self.assertEqual(code, 0)
+            self.assertIn("was devReplay/showcase", said)
+            self.assertEqual(fork_env.sandbox_model(paths, "p-sandbox"), {"instanceId": "codex", "model": "gpt-6-luna"})
+            self.assertFalse(fork_env.ensure_sandbox_model(paths, "p-sandbox"), "a later up keeps the chosen model")
+
+    def test_model_refuses_while_the_environment_or_another_server_is_up(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = self.setUpPaths(tmp)
+            before = (paths.home / fork_env.SETTINGS_FILE).read_text(encoding="utf-8")
+            for up, others in ((1234, ()), (None, (4242,))):
+                with self.subTest(up=up, others=others):
+                    code, said = self.run_model(paths, "codex/gpt-6-luna", up=up, others=others)
+                    self.assertEqual(code, 1)
+                    self.assertIn("fork_env:", said)
+            self.assertEqual((paths.home / fork_env.SETTINGS_FILE).read_text(encoding="utf-8"), before)
+
+    def test_model_needs_a_provider_and_a_model_and_a_set_up_home(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = self.setUpPaths(tmp)
+            self.assertEqual(self.run_model(paths, "codex")[0], 2)
+            fork_env.write_state(paths, {})
+            self.assertEqual(self.run_model(paths, "codex/gpt-6-luna")[0], 1)
+
 
 if __name__ == "__main__":
     unittest.main()
