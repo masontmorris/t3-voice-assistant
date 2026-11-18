@@ -136,7 +136,7 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(h.said(), ["I've passed that on.", "It needs you: Which branch?"])
 
     def test_tell_refused(self):
-        for code in NON_UNAVAILABLE:
+        for code in (c for c in NON_UNAVAILABLE if c is not T.RefusalCode.THREAD_BUSY):
             with self.subTest(code=code.value):
                 seam = F.FakeSeam().answer("send", F.refusal(code.value, "Not that one."))
                 h = Harness(self, seam)
@@ -158,6 +158,81 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(len(h.seam.ops("send")), 8)
         self.assertEqual(h.said(), [L.ROWS["tell-unavailable"].line])
 
+    def held(self, h: Harness, thread: str = "t1"):
+        task = h.unstarted(Kind.TELL, thread=thread)
+        h.seam.answer("send", F.busy())
+        h.follow.send(task, 0)
+        return task
+
+    def test_tell_busy(self):
+        seam = F.FakeSeam(read=F.state(as_of=150))
+        h = Harness(self, seam)
+        task = h.unstarted(Kind.TELL, thread="t1")
+        refused_id = task.link.request_id
+        seam.answer("send", F.busy())
+        h.follow.send(task, 0)
+        self.assertEqual(task.status, Status.HELD)
+        self.assertNotEqual(task.link.request_id, refused_id)
+        self.assertEqual(T3Journal(h.path).tasks[task.task_id].link.request_id, task.link.request_id)
+        self.assertEqual(seam.ops("watch"), [("watch", "t1", 150, None)])
+        seam.push(F.run_event(151), F.reply(152), F.needs_you(153))
+        h.tick(1)
+        self.assertEqual(h.said(), [L.HELD_LINE, "It needs you: Run the tests?"])
+        self.assertEqual(len(seam.ops("send")), 1)
+
+    def test_held_release(self):
+        seam = F.FakeSeam(read=F.state(as_of=40))
+        h = Harness(self, seam)
+        start = h.live(cursor=10)
+        h.start()
+        first, second = self.held(h), self.held(h)
+        saved = first.link.request_id
+        self.assertEqual(seam.ops("watch"), [("watch", "t1", 10, "r1")])
+        h.tick(1)
+        self.assertEqual(len(seam.ops("send")), 2)
+
+        seam.answer("send", F.sent(run="r2", sequence=30), F.busy())
+        seam.push(F.done(20))
+        h.tick(2)
+        self.assertEqual(start.status, Status.COMPLETED)
+        self.assertEqual((first.status, second.status), (Status.LIVE, Status.HELD))
+        self.assertEqual(seam.ops("send")[2][1], saved)
+        self.assertEqual(seam.ops("watch")[-1], ("watch", "t1", 40, "r2"))
+        self.assertEqual(h.follow.watching, {"t1": first.task_id})
+
+        seam.answer("send", F.sent(run="r3", sequence=60))
+        seam.push(F.done(50, run="r2", text="Added the test."))
+        h.tick(3)
+        self.assertEqual(second.status, Status.LIVE)
+        self.assertEqual(seam.ops("watch")[-1], ("watch", "t1", 40, "r3"))
+        self.assertEqual(h.said(), [L.HELD_LINE, L.HELD_LINE, "It finished. It said: I added clamp. The tests pass.",
+                                    "I've passed that on.", "It finished. It said: Added the test.",
+                                    "I've passed that on."])
+
+    def test_held_dropped(self):
+        h = Harness(self, F.FakeSeam(read=F.state(as_of=150)))
+        task = self.held(h)
+        h.follow.drop(task, 1)
+        self.assertEqual(task.status, Status.CANCELLED)
+        self.assertEqual(h.seam.ops("unwatch"), [("unwatch", "t1")])
+        h.seam.push(F.done(160))
+        h.tick(2)
+        self.assertEqual(len(h.seam.ops("send")), 1)
+        self.assertEqual(h.said(), [L.HELD_LINE, L.DROPPED_LINE])
+
+    def test_restart_held(self):
+        h = Harness(self, F.FakeSeam(read=F.state(as_of=150)))
+        task = self.held(h)
+        saved = task.link.request_id
+        seam = F.FakeSeam().answer("send", F.sent(run="r2"))
+        h.restart(seam)
+        h.follow.resume(0)
+        self.assertEqual(seam.ops("watch"), [("watch", "t1", 150, None)])
+        seam.push(F.done(170))
+        h.tick(1)
+        self.assertEqual(seam.ops("send")[0][1:3], (saved, "t1"))
+        self.assertEqual(h.follow.journal.tasks[task.task_id].status, Status.LIVE)
+
     def test_ask(self):
         from voice.live.t3_tasks import T3Tasks
 
@@ -166,12 +241,13 @@ class WatchLifecycleRows(unittest.TestCase):
                                                      "2026-11-17T10:00:00Z", False),), 1, False, 77)
         h = Harness(self, seam)
         tasks = T3Tasks(h.follow)
-        answer = tasks.ask_about("b1", "How is the flaky test thread going?", 0)
+        tasks.about("b1", "t3_ask", "How is the flaky test thread going?", 0)
+        answer = tasks.answer("yes", 1)
         self.assertEqual(seam.ops("watch"), [])
         self.assertEqual(answer.line, "Fix the flaky test is still working.")
         self.assertEqual(answer.sequences, (120,))
         broken = Harness(self, F.FakeSeam().answer("list", F.unavailable()))
-        failed = T3Tasks(broken.follow).ask_about("b2", "How is the flaky test thread going?", 0)
+        failed = T3Tasks(broken.follow).about("b2", "t3_ask", "How is the flaky test thread going?", 0)
         self.assertEqual((failed.status, failed.line), ("failed", L.UNREACHABLE_LINE))
 
     def test_restart_unstarted(self):
@@ -485,7 +561,7 @@ class WatchLifecycleRows(unittest.TestCase):
         cases = {name[len("test_"):] for name in dir(self) if name.startswith("test_")}
         missing = [row for row in L.ROWS if row.replace("-", "_") not in cases]
         self.assertEqual(missing, [])
-        self.assertEqual(len(L.ROWS), 27)
+        self.assertEqual(len(L.ROWS), 31)
 
 
 class SchemaCoverage(unittest.TestCase):

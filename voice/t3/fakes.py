@@ -29,6 +29,18 @@ def launched(thread="t1", run="r1", sequence=93, replayed=False) -> T.LaunchResu
     return T.LaunchResult(thread, run, T.RuntimeMode.AUTO_ACCEPT_EDITS, "Showcase", sequence, replayed)
 
 
+def sent(thread="t1", run="r2", sequence=190, replayed=False, delivery=T.Delivery.STARTED) -> T.SendResult:
+    return T.SendResult(thread, f"m-{run}", run, delivery, sequence, replayed)
+
+
+def requested(run="r1", sequence=95) -> T.InterruptRequested:
+    return T.InterruptRequested(run, sequence)
+
+
+def busy() -> SeamRefused:
+    return refusal("thread_busy", "That thread is busy.")
+
+
 def state(thread="t1", as_of=120, pending=None, activity=T.ThreadActivity.WORKING, title="Fix the flaky test",
           last_reply=None, project="p1") -> T.ThreadState:
     return T.ThreadState(thread, project, title, activity, None, pending, last_reply, as_of)

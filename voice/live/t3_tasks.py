@@ -1,19 +1,22 @@
-"""The T3 task service: Twin A launches through the project picker, Twin B asks about a thread.
+"""The T3 task service: Twin A launches through the project picker, and Twin B asks about, tells, or stops a thread.
 
 T3Tasks lives as long as the voice server. It owns the seam, the journal, and Follow, which runs the
 watch lifecycle (voice/t3/lifecycle.py). T3TaskService is the per-turn task service the prototype
-already uses, with records whose decider tool answer names t3_start or t3_ask sent to T3Tasks. Every
+already uses, with records whose decider tool answer names a T3 tool sent to T3Tasks. Every
 spoken line comes from a seam result, a stored event, or a read, and carries that sequence as its
 evidence.
 
-Twin A never launches on the pick alone. A lone project match is asked back as "Start it in Y?", and
-only a yes in the next turn launches. Twin B is read-only: list, pick, read, speak.
+Nothing acts on a pick alone. A lone project match is asked back as "Start it in Y?", and a lone
+thread as "Do you mean the X thread?", "Tell the X thread to ...?" or "Stop the X thread?". Only an
+explicit yes in the next turn launches, reads, sends, or stops. A follow-up to a thread that is still
+working is held in the journal and sent when that thread's run is done.
 
-    python -m voice.live.t3_tasks drive "Add a clamp helper in the sandbox project" \
+    python -m voice.live.t3_tasks drive "Add a clamp helper in the sandbox project" \\
         --ask "How is the clamp helper thread going?"
 
 drives one launch, its watch to done, and one Twin B ask against the fork environment
-(voice/t3/fork_env.py), printing each line with its evidence.
+(voice/t3/fork_env.py), printing each line with its evidence. `smoke` drives the whole dialogue:
+a launch, a held follow-up, an ask, and a stop said twice.
 """
 
 from __future__ import annotations
@@ -34,34 +37,64 @@ from voice.t3 import types as T
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.pick.decide import pick as pick_thread
+from voice.t3.pick.decide import prefilter_pick
+from voice.t3.pick.model import LiveClient
 from voice.t3.pick.pick import question_for
+from voice.t3.pick.prefilter import content_words
 from voice.t3.pick.project import pick_project, question_for_projects
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 
-START, ASK = "t3_start", "t3_ask"
+START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 T3_TOOLS = {
     START: "Start a new T3 coding thread that does the work the speaker asks for, in a project they name. "
            "Use it when they ask to start, open, or kick off a thread or a coding task.",
     ASK: "Report how an existing T3 coding thread is going. Use it when the speaker asks about a thread's "
          "progress, state, or result.",
+    TELL: "Pass a message or more work to an existing T3 coding thread. Use it when the speaker asks to tell, "
+          "remind, or ask a thread to do something, or adds to the work a thread already has.",
+    STOP: "Stop the work an existing T3 coding thread is doing now. Use it when the speaker asks to stop, halt, "
+          "or interrupt a thread.",
 }
-STATUS_WORDS = {Status.UNSTARTED: "running", Status.LIVE: "running", Status.COMPLETED: "completed",
-                Status.FAILED: "failed", Status.CANCELLED: "cancelled", Status.LOST: "lost"}
+STATUS_WORDS = {Status.UNSTARTED: "running", Status.LIVE: "running", Status.HELD: "held",
+                Status.COMPLETED: "completed", Status.FAILED: "failed", Status.CANCELLED: "cancelled",
+                Status.LOST: "lost"}
 
 _CONFIRMATION_TEXT = re.compile(r"[a-zA-Z.,!\s]+")
 _WORD = re.compile(r"[a-z']+")
 _QUESTION = re.compile(r"\?|\b(?:what|when|where|which|who|whom|whose|why|how)\b", re.IGNORECASE)
 _OTHER_PROJECT = re.compile(r"\b(?:in|for) (?:the )?other project(?:,? please)?[.! ]*$", re.IGNORECASE)
-YES = frozenset({"yes", "yeah", "yep", "yup", "sure", "ok", "okay", "affirmative"})
-YES_ACTIONS = {("do", "it"), ("go", "ahead"), ("start", "it")}
+YES = frozenset({"yes", "yeah", "yep", "yup", "sure", "ok", "okay", "affirmative", "correct", "right", "exactly"})
+YES_PHRASES = {("do", "it"), ("go", "ahead"), ("that", "one"), ("that's", "it"), ("that's", "right"),
+               ("that's", "the", "one")}
+# The words that carry out each op. "stop" refuses a launch or a follow-up, but it is the yes to "Stop the X thread?".
+OP_PHRASES = {START: {("start", "it")}, ASK: set(), TELL: {("send", "it"), ("tell", "it"), ("pass", "it", "on")},
+              STOP: {("stop",), ("stop", "it"), ("stop", "that")}}
 NO = frozenset({"no", "nope", "nah", "don't", "dont", "cancel", "stop", "wait", "never", "not"})
 START_CANCELLED = "Okay, I won't start it."
+TELL_ACK = "I've asked T3 to pass that on."
+STOP_DROPPED = " I've dropped the message I was holding for it."
+
+_LEAD = r"^\W*(?:(?:ok(?:ay)?|so|and|also|please|hey|actually|now)[,\s]+)*(?:(?:can|could|would) you\s+)?(?:please\s+)?"
+_TELL = re.compile(_LEAD + r"(?:tell|remind|ask|let)\s+(?P<ref>.+?)\s+(?:know\s+)?(?P<link>to|that)\s+"
+                   r"(?P<message>.+?)[.!?\s]*$", re.IGNORECASE)
+_STOP_VERBS = re.compile(r"\b(?:stop|halt|interrupt|abort|kill|cancel)\b", re.IGNORECASE)
+# Mason takes back a held follow-up: by naming it at any time, or with a bare "never mind" right after the hold.
+_DROP_NAMED = re.compile(r"\b(?:don'?t|do not|no need to)\s+(?:pass|send|tell|give)\b|\b(?:cancel|drop|forget|"
+                         r"scrap|scratch|never ?mind)\s+(?:about\s+)?(?:the|that|my)\s+(?:message|follow[- ]?up|"
+                         r"note|request)\b", re.IGNORECASE)
+_DROP_BARE = re.compile(r"^\W*(?:no[,\s]+)?(?:never ?mind|cancel (?:that|it)|forget (?:it|that)|scratch that|"
+                        r"don'?t bother)\b", re.IGNORECASE)
 
 
-def reply_kind(text: str) -> str | None:
-    text = text or ""
-    words = tuple(_WORD.findall(text.lower().replace("\u2019", "'")))
-    if NO.intersection(words):
+def _plain(text: str) -> str:
+    return (text or "").replace("’", "'")
+
+
+def reply_kind(text: str, op: str = START) -> str | None:
+    """"yes" only for an explicit confirmation of `op`, "no" for any refusal word, else None."""
+    text = _plain(text)
+    words = tuple(_WORD.findall(text.lower()))
+    if (NO - {"stop"} if op == STOP else NO).intersection(words):
         return "no"
     if not words or not _CONFIRMATION_TEXT.fullmatch(text) or _QUESTION.search(text):
         return None
@@ -71,14 +104,39 @@ def reply_kind(text: str) -> str | None:
     rest = words[1:] if affirmative else words
     if rest[-1:] == ("please",):
         rest = rest[:-1]
-    if (affirmative and not rest) or rest in YES_ACTIONS:
+    if (affirmative and not rest) or rest in YES_PHRASES or rest in OP_PHRASES[op]:
         return "yes"
     return None
 
 
+def tell_parts(instruction: str) -> tuple[str, str, str | None]:
+    """(the words that name the thread, the message to send, "to" or "that" or None when the words have no split)."""
+    match = _TELL.match(_plain(instruction).strip())
+    if match is None:
+        return instruction, instruction.strip(), None
+    return match["ref"], match["message"], match["link"].lower()
+
+
+def speak_title(title: str) -> str:
+    return L.speakable(title, sentences=1, limit=80).rstrip(".!?:")
+
+
+def confirm_line(op: str, title: str, message: str | None = None, link: str | None = None) -> str:
+    """The confirming question for one picked thread. Only a yes to it acts."""
+    title = speak_title(title)
+    if op == TELL:
+        return f"Tell the {title} thread {link} {message}?" if link else f"Pass this to the {title} thread: {message}?"
+    if op == STOP:
+        return f"Stop the {title} thread?"
+    return f"Do you mean the {title} thread?"
+
+
+CANCELLED_LINES = {ASK: "Okay, never mind.", TELL: L.DROPPED_LINE, STOP: "Okay, I won't stop it."}
+
+
 def speak_state(state: T.ThreadState) -> str:
     """One short line from a read, in the thread's own words where it has them."""
-    title = L.speakable(state.title, sentences=1, limit=80).rstrip(".!?:")
+    title = speak_title(state.title)
     activity = state.activity
     said = L.speakable(state.last_reply.text) if state.last_reply is not None else ""
     if activity is T.ThreadActivity.WAITING_ON_YOU and state.pending is not None:
@@ -102,26 +160,47 @@ def speak_state(state: T.ThreadState) -> str:
 
 @dataclass
 class Question:
-    """The open question the next utterance may answer: which project, "Start it in Y?", or which thread."""
+    """The open question the next utterance may answer.
+
+    `kind` is the state: "project" (which project), "confirm" ("Start it in Y?"), "thread" (which thread), or
+    "thread_confirm" (one thread, asked back for `op`). `candidates` are project or thread ids, and `titles` names
+    each thread. `message` and `link` are a follow-up's words, from `tell_parts`.
+    """
 
     key: str
     kind: str
     instruction: str
     candidates: tuple[str, ...]
     reasked: bool = False
+    op: str = START
+    titles: dict[str, str] = field(default_factory=dict)
+    projects: dict[str, str] = field(default_factory=dict)
+    message: str | None = None
+    link: str | None = None
+    evidence: tuple[int, ...] = ()
+
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="minutes")
 
 
 @dataclass
 class T3Tasks:
+    """`model` is the Twin B model arm, asked only when the prefilter misses. None keeps the prefilter alone."""
+
     follow: L.Follow
+    model: LiveClient | None = None
     question: Question | None = None
     keys: dict[str, str] = field(default_factory=dict)
+    recent: str | None = None
+    just_held: bool = False
     lock: threading.RLock = field(default_factory=threading.RLock)
 
     @classmethod
-    def open(cls, origin: str, token_file: str | Path, journal_path: str | Path) -> T3Tasks:
+    def open(cls, origin: str, token_file: str | Path, journal_path: str | Path,
+             model: LiveClient | None = None) -> T3Tasks:
         follow = L.Follow(T3Journal(journal_path), lambda: T3Seam.connect(origin, token_file))
-        return cls(follow)
+        return cls(follow, model)
 
     def resume(self, now: float) -> None:
         with self.lock:
@@ -149,6 +228,9 @@ class T3Tasks:
         for update in out:
             update.task_id = self.keys.get(update.task_id, update.task_id)
         return out
+
+    def holding(self) -> bool:
+        return bool(self.follow.journal.held())
 
     def _down(self, key: str, now: float) -> L.Update | None:
         seam = self.follow.ensure(now)
@@ -191,12 +273,16 @@ class T3Tasks:
                         "pick", sequences=(self.follow.seam.hello.latest_sequence,))
 
     def answer(self, text: str, now: float) -> L.Update | None:
+        """The next utterance, read as the answer to the open question, or as taking back a held follow-up."""
         with self.lock:
             question, self.question = self.question, None
+            just_held, self.just_held = self.just_held, False
             if question is None:
-                return None
+                return self._drop_by_words(text, just_held, now)
             if question.kind == "thread":
                 return self._answer_thread(question, text, now)
+            if question.kind == "thread_confirm":
+                return self._answer_thread_confirm(question, text, now)
             kind = reply_kind(text)
             if kind == "no":
                 return L.Update(question.key, START_CANCELLED, "cancelled", "pick")
@@ -238,56 +324,164 @@ class T3Tasks:
         return L.Update(question.key, question_for_projects([names[pid] for pid in candidates]),
                         "needs_clarification", "pick", sequences=(self.follow.seam.hello.latest_sequence,))
 
+    def _spoken(self, key: str, task, ack: str, row: str) -> L.Update:
+        """What a write's own call made the lifecycle say, as the turn's answer. `ack` when it has said nothing yet."""
+        mine = self.follow.take(task.task_id)
+        if not mine:
+            self.follow.acked.add(task.task_id)
+            return L.Update(key, ack, STATUS_WORDS[task.status], row, task.link.thread_id)
+        return L.Update(key, " ".join(u.line for u in mine), STATUS_WORDS[task.status], mine[0].row,
+                        task.link.thread_id, tuple(s for u in mine for s in u.sequences))
+
     def _launch(self, question: Question, project_id: str, name: str, now: float) -> L.Update:
         task = self.follow.journal.begin(Kind.START, question.instruction, project_id, name)
         self.keys[task.task_id] = question.key
         self.follow.launch(task, now)
-        mine = self.follow.take(task.task_id)
-        if not mine:
-            self.follow.acked.add(task.task_id)
-            return L.Update(question.key, L.LAUNCH_ACK, STATUS_WORDS[task.status], "launch-unavailable",
-                            task.link.thread_id)
-        return L.Update(question.key, " ".join(u.line for u in mine), STATUS_WORDS[task.status], mine[0].row,
-                        task.link.thread_id, tuple(s for u in mine for s in u.sequences))
+        self.recent = task.link.thread_id or self.recent
+        return self._spoken(question.key, task, L.LAUNCH_ACK, "launch-unavailable")
 
-    def ask_about(self, key: str, instruction: str, now: float) -> L.Update:
-        """Twin B: list, pick, read, speak. No watch starts (row ask)."""
+    def about(self, key: str, op: str, instruction: str, now: float) -> L.Update:
+        """Twin B for `op` (ask, tell or stop): list, pick, and ask back. Nothing reads, sends or stops until a yes."""
         with self.lock:
             down = self._down(key, now)
             if down is not None:
                 return down
-            seam = self.follow.seam
-            try:
-                listing = seam.list_threads()
-            except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
-                return L.Update(key, L.ROWS["ask"].line, "failed", "ask")
-            threads = [{"threadId": t.thread_id, "title": t.title, "activity": t.activity.value,
-                        "projectId": t.project_id, "lastActivityAt": t.last_activity_at} for t in listing.threads]
-            pick, _ = pick_thread(instruction, threads, self.project_names(), datetime.now(timezone.utc), client=None)
+            listing = self._list(key)
+            if isinstance(listing, L.Update):
+                return listing
+            reference, message, link = (tell_parts(instruction) if op == TELL else
+                                        (_STOP_VERBS.sub(" ", instruction) if op == STOP else instruction, None, None))
+            base = Question(key, "thread_confirm", instruction, (), op=op, message=message, link=link,
+                            titles={t.thread_id: t.title for t in listing.threads},
+                            projects={t.thread_id: t.project_id for t in listing.threads})
             evidence = (listing.as_of_sequence,)
+            if not content_words(reference):
+                recent = self._recent(base.titles)
+                if recent is not None:
+                    return self._ask_back(replace(base, candidates=(recent,)), evidence)
+                newest = tuple(t.thread_id for t in listing.threads[:3])
+                return self._which(replace(base, kind="thread", candidates=newest), evidence)
+            pick, _ = pick_thread(reference, self._threads(listing), self.project_names(), _now_iso(),
+                                  client=self.model)
             if pick.kind == "none":
                 line = (f"I don't see it among your {len(listing.threads)} most recent threads." if listing.truncated
                         else "I don't see an active thread like that.")
                 return L.Update(key, line, "completed", "ask", sequences=evidence)
             if pick.kind == "ask":
-                self.question = Question(key, "thread", instruction, pick.candidates)
-                return L.Update(key, pick.question, "needs_clarification", "ask", sequences=evidence)
-            return self._read(key, pick.thread_id)
+                return self._which(replace(base, kind="thread", candidates=pick.candidates), evidence,
+                                   pick.question)
+            return self._ask_back(replace(base, candidates=(pick.thread_id,)), evidence)
+
+    def _list(self, key: str):
+        try:
+            return self.follow.seam.list_threads()
+        except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
+            return L.Update(key, L.ROWS["ask"].line, "failed", "ask")
+
+    @staticmethod
+    def _threads(listing: T.ThreadList, among=None) -> list[dict]:
+        return [{"threadId": t.thread_id, "title": t.title, "activity": t.activity.value, "projectId": t.project_id,
+                 "lastActivityAt": t.last_activity_at}
+                for t in listing.threads if among is None or t.thread_id in among]
+
+    def _recent(self, listed: dict[str, str]) -> str | None:
+        """The thread "it" means: the one this voice last spoke about, else the newest one it started or sent to."""
+        if self.recent in listed:
+            return self.recent
+        return next((t.link.thread_id for t in reversed(self.follow.journal.tasks.values())
+                     if t.link.thread_id in listed), None)
+
+    def _ask_back(self, question: Question, evidence=()) -> L.Update:
+        self.question = question = replace(question, evidence=tuple(evidence) or question.evidence)
+        thread = question.candidates[0]
+        line = confirm_line(question.op, question.titles[thread], question.message, question.link)
+        return L.Update(question.key, line, "needs_clarification", "pick", thread, question.evidence)
+
+    def _which(self, question: Question, evidence, line: str | None = None) -> L.Update:
+        self.question = question
+        line = line or question_for([question.titles[t] for t in question.candidates])
+        return L.Update(question.key, line, "needs_clarification", "pick", sequences=evidence)
+
+    def _answer_thread_confirm(self, question: Question, text: str, now: float) -> L.Update | None:
+        kind = reply_kind(text, question.op)
+        thread = question.candidates[0]
+        if kind == "yes":
+            down = self._down(question.key, now)
+            return down if down is not None else self._act(question, thread, now)
+        if kind == "no" and question.op != ASK:
+            return L.Update(question.key, CANCELLED_LINES[question.op], "cancelled", "pick", thread)
+        if kind == "no":
+            return self._declined(question, thread, text, now)
+        if question.reasked:
+            return L.Update(question.key, CANCELLED_LINES[question.op], "cancelled", "pick", thread)
+        return self._ask_back(replace(question, reasked=True))
+
+    def _declined(self, question: Question, declined: str, text: str, now: float) -> L.Update | None:
+        """A no to "Do you mean the X thread?": the thread the reply names, else which one, by up to three titles."""
+        down = self._down(question.key, now)
+        if down is not None:
+            return down
+        listing = self._list(question.key)
+        if isinstance(listing, L.Update):
+            return listing
+        others = [t for t in self._threads(listing) if t["threadId"] != declined]
+        question = replace(question, titles={t["threadId"]: t["title"] for t in others},
+                           projects={t["threadId"]: t["projectId"] for t in others}, reasked=False)
+        evidence = (listing.as_of_sequence,)
+        words = " ".join(w for w in _WORD.findall(_plain(text).lower()) if w not in NO)
+        pick = prefilter_pick(words, others, self.project_names()) if content_words(words) else None
+        if pick is not None and pick.kind == "one":
+            return self._ask_back(replace(question, candidates=(pick.thread_id,)), evidence)
+        candidates = (pick.candidates if pick is not None and pick.kind == "ask" and pick.candidates
+                      else tuple(t["threadId"] for t in others[:3]))
+        if not candidates:
+            return L.Update(question.key, "I don't see another active thread.", "completed", "ask",
+                            sequences=evidence)
+        return self._which(replace(question, kind="thread", candidates=tuple(candidates)[:3]), evidence)
 
     def _answer_thread(self, question: Question, text: str, now: float) -> L.Update | None:
-        seam = self.follow.ensure(now)
-        if seam is None:
+        if question.op != ASK and reply_kind(text, question.op) == "no":
+            return L.Update(question.key, CANCELLED_LINES[question.op], "cancelled", "pick")
+        if self._down(question.key, now) is not None:
             return L.Update(question.key, L.ROWS["ask"].line, "failed", "ask")
-        try:
-            listing = seam.list_threads()
-        except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
-            return L.Update(question.key, L.ROWS["ask"].line, "failed", "ask")
-        threads = [{"threadId": t.thread_id, "title": t.title, "activity": t.activity.value,
-                    "projectId": t.project_id} for t in listing.threads if t.thread_id in question.candidates]
-        pick, _ = pick_thread(text, threads, self.project_names(), datetime.now(timezone.utc), client=None)
+        listing = self._list(question.key)
+        if isinstance(listing, L.Update):
+            return listing
+        threads = self._threads(listing, among=question.candidates)
+        pick = prefilter_pick(text, threads, self.project_names())
         if pick.kind != "one":
             return None
-        return self._read(question.key, pick.thread_id)
+        if question.op == ASK:
+            self.recent = pick.thread_id
+            return self._read(question.key, pick.thread_id)
+        question = replace(question, kind="thread_confirm", candidates=(pick.thread_id,), reasked=False,
+                           titles={t["threadId"]: t["title"] for t in threads},
+                           projects={t["threadId"]: t["projectId"] for t in threads})
+        return self._ask_back(question, (listing.as_of_sequence,))
+
+    def _act(self, question: Question, thread: str, now: float) -> L.Update:
+        self.recent = thread
+        if question.op == ASK:
+            return self._read(question.key, thread)
+        project = question.projects.get(thread)
+        name = self.project_names().get(project)
+        if question.op == TELL:
+            task = self.follow.journal.begin(Kind.TELL, _sentence(question.message), project, name, thread_id=thread)
+            self.keys[task.task_id] = question.key
+            self.follow.send(task, now)
+            self.just_held = task.status is Status.HELD
+            return self._spoken(question.key, task, TELL_ACK, "tell-unavailable")
+        dropped = self.follow.journal.held(thread)
+        for held in dropped:
+            self.follow.drop(held, now)
+            self.follow.take(held.task_id)
+        task = self.follow.journal.begin(Kind.STOP, question.instruction, project, name, thread_id=thread)
+        self.keys[task.task_id] = question.key
+        self.follow.stop(task, now)
+        update = self._spoken(question.key, task, L.STOP_UNAVAILABLE, "stop")
+        if dropped:
+            update.line += STOP_DROPPED
+        return update
 
     def _read(self, key: str, thread_id: str) -> L.Update:
         try:
@@ -296,24 +490,27 @@ class T3Tasks:
             return L.Update(key, L.ROWS["ask"].line, "failed", "ask")
         return L.Update(key, speak_state(state), "completed", "ask", thread_id, (state.as_of_sequence,))
 
-    def stop(self, key: str, now: float) -> L.Update | None:
-        """Interrupt the thread a voice task started. A retry reports the first saved result."""
-        with self.lock:
-            task_id = next((t for t, k in self.keys.items() if k == key), None)
-            task = self.follow.journal.tasks.get(task_id) if task_id else None
-            if task is None or task.link.thread_id is None:
-                return None
-            line = self.follow.stop(task, now)
-            stop = task.link.stop or {}
-            return L.Update(key, line, STATUS_WORDS[task.status], "stop", task.link.thread_id,
-                            (stop["sequence"],) if stop.get("sequence") is not None else ())
+    def _drop_by_words(self, text: str, just_held: bool, now: float) -> L.Update | None:
+        held = self.follow.journal.held()
+        text = _plain(text)
+        if not held or not (_DROP_NAMED.search(text) or (just_held and _DROP_BARE.search(text))):
+            return None
+        task = held[-1]
+        self.follow.drop(task, now)
+        update = self._spoken(self.keys.get(task.task_id, task.task_id), task, L.DROPPED_LINE, "held-dropped")
+        return update
+
+
+def _sentence(text: str | None) -> str:
+    text = (text or "").strip()
+    return text[:1].upper() + text[1:]
 
 
 T3_WAITING = {"t3": True}
 
 
 class T3Registry:
-    """The live registry with the two T3 tools added to the decider's tool question."""
+    """The live registry with the T3 tools added to the decider's tool question."""
 
     def __init__(self, base):
         self._base = base
@@ -330,8 +527,8 @@ class T3TaskService(MockTaskService):
     """MockTaskService, with T3 records sent to `t3`. Other tasks keep the parent's behaviour.
 
     A T3 execution in a turn is never left running, so the turn never waits on a thread: the turn's own
-    job (asking, starting, or reading) is done when it answers, and the thread's later news arrives as
-    task updates at the next turn boundary.
+    job (asking, starting, reading, sending, stopping) is done when it answers, and the thread's later news
+    arrives as task updates at the next turn boundary.
     """
 
     def __init__(self, segmenter, conversation_id, *args, t3: T3Tasks, **kwargs):
@@ -347,7 +544,7 @@ class T3TaskService(MockTaskService):
             return super()._start(task_id, instruction, side_effect, now, choice)
         key = f"{self.conversation_id}:{task_id}"
         update = (self.t3.start(key, instruction, now) if choice.tool == START
-                  else self.t3.ask_about(key, instruction, now))
+                  else self.t3.about(key, choice.tool, instruction, now))
         return self._execution(task_id, update, now, choice.tool)
 
     def _execution(self, task_id, update: L.Update, now, tool):
@@ -357,18 +554,20 @@ class T3TaskService(MockTaskService):
                          tool={"tool": tool, "arguments": {}})
 
     def open_question(self):
-        return T3_WAITING if self.t3.question is not None else None
+        """T3 reads the next words when it asked a question, or while it holds a follow-up Mason may take back."""
+        return T3_WAITING if self.t3.question is not None or self.t3.holding() else None
 
     def answer(self, waiting, instruction, now):
         if waiting is not T3_WAITING:
             return super().answer(waiting, instruction, now)
+        tool = self.t3.question.op if self.t3.question is not None else TELL
         update = self.t3.answer(instruction, now)
         if update is None:
             return []
         task_id = f"t3_{len(self.extra) + 1}"
         self.extra[task_id] = {"task_id": task_id, "instruction": instruction, "status": "dispatched",
                                "depends_on": [], "side_effect": True}
-        execution = self._execution(task_id, update, now, START if update.row != "ask" else ASK)
+        execution = self._execution(task_id, update, now, tool)
         self.executions[task_id] = execution
         return [{"task_id": task_id, "event": execution.state.value, "instruction": instruction}]
 
@@ -406,6 +605,13 @@ def default_journal() -> Path:
     return Path(os.environ.get("VOICE_T3_JOURNAL", default_voice_home() / "state" / "t3-journal.json"))
 
 
+def default_model() -> LiveClient | None:
+    """The Twin B model arm, when a key is configured. Without one the prefilter answers alone."""
+    if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE")):
+        return None
+    return LiveClient(cache_dir=default_voice_home() / "state" / "t3-pick-cache")
+
+
 class Poller:
     """Keeps the lifecycle current between turns on its own thread: it waits on seam events, not a timer."""
 
@@ -430,37 +636,90 @@ class Poller:
         self.thread.join(timeout=5)
 
 
+class Script:
+    """Drives T3Tasks the way the voice does, printing each spoken line with its evidence."""
+
+    def __init__(self, t3: T3Tasks):
+        self.t3, self.clock = t3, time.monotonic
+
+    def show(self, label, said, update):
+        if update is not None:
+            print(json.dumps({"turn": label, "said": said, "line": update.line, "status": update.status,
+                              "row": update.row, "evidence": update.evidence()}), flush=True)
+        return update
+
+    def tool(self, label, tool, words):
+        update = (self.t3.start(label, words, self.clock()) if tool == START
+                  else self.t3.about(label, tool, words, self.clock()))
+        return self.show(label, words, update)
+
+    def reply(self, label, words):
+        return self.show(label, words, self.t3.answer(words, self.clock()))
+
+    def follow(self, until, timeout_s):
+        """Apply seam items and print each update until `until(update)` holds or the time runs out."""
+        deadline = self.clock() + timeout_s
+        while self.clock() < deadline:
+            waited = self.t3.wait(1.0)
+            if waited is None:
+                threading.Event().wait(1.0)
+            self.t3.poll(self.clock(), waited)
+            for update in self.t3.take():
+                self.show("watch", None, update)
+                if until(update):
+                    return True
+        return False
+
+
+def _done_for(key):
+    return lambda u: u.task_id == key and (u.row in ("done-event", "gone-event") or u.status == "lost")
+
+
 def drive(args) -> int:
     """One Twin A launch to done and one Twin B ask, through T3Tasks, printing each line with its evidence."""
-    t3 = T3Tasks.open(args.origin, args.token_file, args.journal)
-    clock = time.monotonic
-
-    def show(label, update):
-        if update is not None:
-            print(json.dumps({"turn": label, "line": update.line, "status": update.status, "row": update.row,
-                              "evidence": update.evidence()}), flush=True)
-
-    t3.resume(clock())
-    show("start", t3.start("a1", args.instruction, clock()))
-    show("yes", t3.answer("Yes, start it.", clock()))
-    deadline = clock() + args.timeout_s
-    finished = False
-    while clock() < deadline and not finished:
-        waited = t3.wait(1.0)
-        if waited is None:
-            threading.Event().wait(1.0)
-        t3.poll(clock(), waited)
-        for update in t3.take():
-            show("watch", update)
-            finished = finished or update.row in ("done-event", "gone-event") or update.status == "lost"
+    t3 = T3Tasks.open(args.origin, args.token_file, args.journal, default_model())
+    script = Script(t3)
+    t3.resume(script.clock())
+    script.tool("a1", START, args.instruction)
+    script.reply("a1", "Yes, start it.")
+    finished = script.follow(_done_for("a1"), args.timeout_s)
     if args.ask:
-        show("ask", t3.ask_about("b1", args.ask, clock()))
-    t3.poll(clock() + L.DONE_WINDOW_S)
+        script.tool("b1", ASK, args.ask)
+        script.reply("b1", "yes")
+    t3.poll(script.clock() + L.DONE_WINDOW_S)
     for update in t3.take():
-        show("watch", update)
+        script.show("watch", None, update)
     if t3.follow.seam is not None:
         t3.follow.seam.close()
     return 0 if finished else 1
+
+
+def smoke(args) -> int:
+    """Launch, hold a follow-up until the run is done, ask through the model arm, and stop a second thread twice."""
+    t3 = T3Tasks.open(args.origin, args.token_file, args.journal, default_model())
+    script = Script(t3)
+    t3.resume(script.clock())
+    script.tool("a1", START, args.instruction)
+    script.reply("a1", "Yes, start it.")
+    script.tool("c1", TELL, args.tell)
+    held = script.reply("c1", "Yes, send it.")
+    ok = held is not None and held.row == "tell-busy"
+    ok = script.follow(_done_for("a1"), args.timeout_s) and ok
+    ok = script.follow(_done_for("c1"), args.timeout_s) and ok
+    calls = t3.model.calls if t3.model else 0
+    script.tool("b1", ASK, args.ask)
+    print(json.dumps({"model_calls_for_the_ask": (t3.model.calls if t3.model else 0) - calls}), flush=True)
+    script.reply("b1", "yes")
+    script.tool("a2", START, args.second)
+    script.reply("a2", "Yes, start it.")
+    for label in ("s1", "s2"):
+        script.tool(label, STOP, "Stop it.")
+        script.reply(label, "Yes, stop it.")
+    ok = script.follow(_done_for("a2"), args.timeout_s) and ok
+    print(json.dumps({"model_calls": t3.model.calls if t3.model else 0}), flush=True)
+    if t3.follow.seam is not None:
+        t3.follow.seam.close()
+    return 0 if ok else 1
 
 
 def main(argv=None) -> int:
@@ -469,12 +728,18 @@ def main(argv=None) -> int:
     run = sub.add_parser("drive", help="launch, watch to done, then ask about a thread")
     run.add_argument("instruction")
     run.add_argument("--ask", help="a Twin B question to ask after the thread is done")
-    run.add_argument("--origin", default=default_origin())
-    run.add_argument("--token-file", type=Path, default=default_token_file())
-    run.add_argument("--journal", type=Path, default=default_journal())
-    run.add_argument("--timeout-s", type=float, default=180.0)
+    whole = sub.add_parser("smoke", help="launch, a held follow-up, an ask, and a stop said twice")
+    whole.add_argument("instruction")
+    whole.add_argument("--tell", default="Tell it to also add a test.")
+    whole.add_argument("--ask", default="How is the clamping work coming along?")
+    whole.add_argument("--second", default="Add a sum helper in the sandbox project")
+    for command in (run, whole):
+        command.add_argument("--origin", default=default_origin())
+        command.add_argument("--token-file", type=Path, default=default_token_file())
+        command.add_argument("--journal", type=Path, default=default_journal())
+        command.add_argument("--timeout-s", type=float, default=180.0)
     args = parser.parse_args(argv)
-    return drive(args)
+    return drive(args) if args.command == "drive" else smoke(args)
 
 
 if __name__ == "__main__":

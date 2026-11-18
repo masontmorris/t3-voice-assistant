@@ -119,7 +119,8 @@ from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
                                  heard_prefix, interrupted_note, plain_text, run_clip)
 from voice.live.ledger import ConversationLedger
-from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, default_journal, default_origin,     default_token_file
+from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, default_journal, default_model, \
+    default_origin, default_token_file
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -869,11 +870,13 @@ async def main_async(args):
                   f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
         t3 = poller = None
         if getattr(args, "t3", "off") == "on":
-            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal())
+            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model())
             t3.resume(time.monotonic())
             poller = Poller(t3).start()
             tools = T3Registry(tools)
-            print(f"t3 tasks on: {len(t3.follow.journal.live())} live threads resumed", flush=True)
+            print(f"t3 tasks on: {len(t3.follow.journal.live())} live threads and "
+                  f"{len(t3.follow.journal.held())} held follow-ups resumed, thread picker model "
+                  f"{'on' if t3.model else 'off'}", flush=True)
         live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock,
                     eou=eou, secret=secret)
         if t3 is not None:
@@ -937,8 +940,9 @@ def main():
     parser.add_argument("--delay", type=float, default=4.0, help="seconds a mock task takes (default 4)")
     parser.add_argument("--mock-tools", action="store_true", help="no real lookups: every task runs on the mock")
     parser.add_argument("--t3", choices=["off", "on"], default="off",
-                        help="on: the decider may pick t3_start and t3_ask, which run on the fork's T3 server through "
-                             "the voice seam (VOICE_T3_ORIGIN, VOICE_T3_TOKEN_FILE, VOICE_T3_JOURNAL); off by default")
+                        help="on: the decider may pick t3_start, t3_ask, t3_tell and t3_stop, which run on the fork's "
+                             "T3 server through the voice seam (VOICE_T3_ORIGIN, VOICE_T3_TOKEN_FILE, "
+                             "VOICE_T3_JOURNAL); off by default")
     parser.add_argument("--asr-stagger", type=int, default=1, choices=[1, 2, 3, 4, 6, 12],
                         help="transcription sessions fed the same audio, shifted by 0.96 s / N so the live "
                              "transcript updates N times per block (default 1: one update per 0.96 s)")

@@ -1,8 +1,14 @@
+import io
+import os
+import tempfile
 import unittest
-from urllib.error import URLError
+from pathlib import Path
+from unittest import mock
+from urllib.error import HTTPError, URLError
 
+from voice.t3.pick import model
 from voice.t3.pick.decide import pick, prefilter_pick
-from voice.t3.pick.model import ModelClient, ModelFailed, error_is_billing, pick_thread, tokens
+from voice.t3.pick.model import LiveClient, ModelClient, ModelFailed, error_is_billing, pick_thread, tokens
 from voice.t3.pick.pick import Pick
 from voice.t3.pick.prefilter import content_words, prefilter
 
@@ -301,6 +307,52 @@ class RefusalTest(unittest.TestCase):
 		              "completion_tokens_details": {"reasoning_tokens": 22}})
 		self.assertEqual(got, {"reasoning_tokens": 22, "content_tokens": 8,
 		                       "prompt_tokens": 90, "completion_tokens": 30})
+
+
+
+class LiveClientTest(unittest.TestCase):
+	"""The arm inside a voice turn makes one short attempt and never waits out a rate limit."""
+
+	def client(self, error):
+		tmp = tempfile.TemporaryDirectory()
+		self.addCleanup(tmp.cleanup)
+		patches = (mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "test"}),
+		           mock.patch.object(model, "_post", side_effect=error), mock.patch.object(model, "MIN_GAP_S", 0.0))
+		post = [p.start() for p in patches][1]
+		for p in patches:
+			self.addCleanup(p.stop)
+		return LiveClient(cache_dir=Path(tmp.name)), post
+
+	def test_a_failure_or_a_429_fails_the_pick_once_and_cools_down(self):
+		for error in (TimeoutError("slow"), HTTPError(model.ENDPOINT, 429, "rate", {}, io.BytesIO(b"{}"))):
+			with self.subTest(error=type(error).__name__):
+				client, post = self.client(error)
+				with self.assertRaises(ModelFailed):
+					client.complete([{"role": "user", "content": "a"}])
+				with self.assertRaises(ModelFailed):
+					client.complete([{"role": "user", "content": "b"}])
+				self.assertEqual(post.call_count, 1)
+				self.assertEqual(post.call_args.args[2], 5.0)
+				self.assertIsNone(client.paused)
+				client.quiet_until = 0.0
+				with self.assertRaises(ModelFailed):
+					client.complete([{"role": "user", "content": "c"}])
+				self.assertEqual((post.call_count, client.failures), (2, 2))
+
+	def test_a_billing_stop_fails_every_later_pick_without_a_call(self):
+		client, post = self.client(HTTPError(model.ENDPOINT, 402, "pay", {}, io.BytesIO(b"{}")))
+		with self.assertRaises(ModelFailed):
+			client.complete([{"role": "user", "content": "a"}])
+		client.quiet_until = 0.0
+		with self.assertRaises(ModelFailed):
+			client.complete([{"role": "user", "content": "b"}])
+		self.assertEqual(post.call_count, 1)
+		self.assertTrue(client.billing)
+
+	def test_the_live_arm_is_a_free_model(self):
+		self.assertTrue(LiveClient.model.endswith(":free"))
+		with self.assertRaises(ValueError):
+			LiveClient(model="some-vendor/some-model")
 
 
 if __name__ == "__main__":
