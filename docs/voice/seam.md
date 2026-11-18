@@ -2,8 +2,9 @@
 
 Every file this fork changes outside `voice/` and `docs/voice/` belongs in the table below with the reason it exists, because upstream also edits those files and each one adds merge work to the daily sync. Add a row before you push a change to an upstream file, and delete the row when the change goes away.
 
-| Path                       | Reason                                                                   |
-| -------------------------- | ------------------------------------------------------------------------ |
-| apps/server/src/voiceSeam/ | voice-owned seam: new files only, mounted from apps/server/src/server.ts |
+| Path                       | Reason                                                                                           |
+| -------------------------- | ------------------------------------------------------------------------------------------------ |
+| apps/server/src/voiceSeam/ | voice-owned seam: new files only, mounted from apps/server/src/server.ts                         |
+| apps/server/src/server.ts  | mounts `GET /voice-seam`: one import and one entry in `layerMakeRoutes`, beside the speech route |
 
 `python voice/ci/check_seam.py` fails, naming the file, when a changed upstream file has no row here with a reason.

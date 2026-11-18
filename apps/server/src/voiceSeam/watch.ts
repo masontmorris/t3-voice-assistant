@@ -1,6 +1,7 @@
 import type {
   MessageId,
   OrchestrationV2StoredEvent,
+  OrchestrationV2ThreadShell,
   ProjectId,
   RunId,
   ThreadId,
@@ -104,7 +105,8 @@ export interface WatchSources {
     OrchestrationEventStore.OrchestrationEventStore["Service"],
     "latestAgentSequence" | "prunedThroughSequence" | "getAgentReplayStats" | "readAgentEvents"
   >;
-  readonly isProjectAllowed: (projectId: ProjectId) => boolean;
+  /** The seam's visibility rule: listed lineage, not delegated, in an allowed project. */
+  readonly isVisible: (shell: OrchestrationV2ThreadShell) => boolean;
   readonly settle: SettleCheck;
 }
 
@@ -378,7 +380,7 @@ export const make =
             return yield* end("unavailable");
           }
           // The shell read leaves out a deleted thread, so null covers both missing and deleted.
-          if (shell.success === null || !sources.isProjectAllowed(shell.success.projectId)) {
+          if (shell.success === null || !sources.isVisible(shell.success)) {
             return yield* end("not_found");
           }
           const { projectId } = shell.success;
@@ -399,11 +401,11 @@ export const fromServices = (services: {
   readonly sql: SqlClient.SqlClient;
   readonly threads: ThreadManagementService.ThreadManagementService["Service"];
   readonly eventStore: OrchestrationEventStore.OrchestrationEventStore["Service"];
-  readonly isProjectAllowed: (projectId: ProjectId) => boolean;
+  readonly isVisible: (shell: OrchestrationV2ThreadShell) => boolean;
 }) =>
   make({
     threads: services.threads,
     eventStore: services.eventStore,
-    isProjectAllowed: services.isProjectAllowed,
+    isVisible: services.isVisible,
     settle: makeSettleCheck({ sql: services.sql, threads: services.threads }),
   });

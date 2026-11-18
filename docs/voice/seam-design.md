@@ -618,7 +618,7 @@ The stream itself has no prune check, so steps 2 and 5 are the only guard agains
 
 On `resync`, Python reads the thread first and watches again from the read's `asOfSequence` (row `ended-resync`). The new watch's subscribe check emits `done` if the thread has settled, even when the skipped events held the terminal `run.updated`. Sequences are global and increase monotonically (measured). Under the cursor rule above, dropping a cursor event at or below the cursor rules out duplicates, and re-watching from the cursor rules out loss (inferred). The server keeps no per-client cursor.
 
-The outbound socket queue holds 256 frames. When Python stops reading and the queue fills, the seam closes with code 1013. Python reconnects and re-watches from its cursors (row `close-1013`). Each socket may hold at most `maxWatches` watches, 16 by default.
+The outbound socket queue holds 256 frames, and `ws` may hold 1 MiB for one socket. When Python stops reading and either fills, the seam closes with code 1013. Python reconnects and re-watches from its cursors (row `close-1013`). Each socket may hold at most `maxWatches` watches, 16 by default.
 
 Every spoken claim traces to evidence:
 
@@ -649,7 +649,7 @@ server -> client  { "type": "event", "event": VoiceEvent }
 server -> client  { "type": "watch_ended", "threadId": "...", "reason": "gone" | "resync" | "not_found" | "unavailable" }
 ```
 
-`route.ts` keeps one handler table typed `Record<WireOp, Handler>`, and `voice-seam.json` decodes its `operations` against `VOICE_OPERATIONS`. Adding an operation therefore fails the build until it is handled. Unit 4 mounts the table with all seven entries. `launch`, `send`, and `interrupt` answer `unavailable` there until units 5 and 6 replace those entries, so the order of units holds and the type check stays total. Each request runs in its own fiber, with up to 4 in flight, so a slow launch never blocks a read. Each watch is a forked fiber that writes to the bounded outbound queue, and `unwatch` interrupts it.
+`route.ts` keeps one handler table typed `Record<WireOp, Handler>`, and `voice-seam.json` decodes its `operations` against `VOICE_OPERATIONS`. Adding an operation therefore fails the build until it is handled. Unit 4 mounts the table with all seven entries. `launch`, `send`, and `interrupt` answer `unavailable` there until units 5 and 6 replace those entries, so the order of units holds and the type check stays total. Each request runs in its own fiber, with up to 4 in flight, so a slow launch never blocks a read. Each watch is a forked fiber that writes to the bounded outbound queue, and `unwatch` interrupts it. Watch admission, replacement, and `unwatch` run one at a time per socket.
 
 ### Access and ceiling
 
@@ -660,7 +660,7 @@ t3 auth session issue --subject voice --label "Voice server (ceiling in voice-se
 	--scope orchestration:read --ttl 30d --token-only > "$VOICE_HOME/state/t3-seam-token"
 ```
 
-`issueSession` passes the subject through and marks the client `deviceType: "bot"` (`EnvironmentAuth.ts:1290-1317`, measured). The session appears in **Settings > Connections** with that label. Mason can revoke it there, with `t3 auth session revoke <id>`, or with `POST /api/auth/clients/revoke`. The speech route does not watch for revocation, so `route.ts` adds it. It races the socket against `SessionStore.awaitInvalidation`, as `ws.ts:3737-3751` does (measured for `/ws`, and a requirement for the seam that its route test checks). Mint the token with the server stopped, because CLI writes to a running server's SQLite are unverified.
+`issueSession` passes the subject through and marks the client `deviceType: "bot"` (`EnvironmentAuth.ts:1290-1317`, measured). The session appears in **Settings > Connections** with that label. Mason can revoke it there, with `t3 auth session revoke <id>`, or with `POST /api/auth/clients/revoke`. The speech route does not watch for revocation, so `route.ts` adds it. It reads the session once more before `hello` and races the socket against `SessionStore.awaitInvalidation`, as `ws.ts:3737-3751` does (measured for `/ws`, and a requirement for the seam that its route test checks). Mint the token with the server stopped, because CLI writes to a running server's SQLite are unverified.
 
 The route admits only sessions with subject `voice` and the `orchestration:read` scope. A browser cookie, the T3 Tots token, and an MCP client session all fail that check (an MCP session fails earlier, at `EnvironmentAuth.ts:681-688`, measured).
 
@@ -741,7 +741,8 @@ The table has 27 rows. A second test in `lifecycle_test.py` reads `voice/t3/seam
 ```text
 voice/t3/seam.py           T3Seam client: one socket on a background thread, typed calls, drain() for events
 voice/t3/types.py          Hello, Project, ThreadSummary, ThreadList, ThreadState, Launched, Sent, VoiceEvent
-voice/t3/seam.schema.json  written by the server's golden test; a Python test checks types.py against it
+voice/t3/seam.schema.json  written by write_seam_schema.ts, compared by the server's golden test; a Python test checks types.py against it
+voice/t3/write_seam_schema.ts  regenerates seam.schema.json from protocol.ts
 voice/t3/journal.py        T3Journal: request ids, thread links, cursors, and interrupt results, saved before each call
 voice/t3/lifecycle.py      the watch lifecycle table as one dict keyed by row, and Follow, which runs it
 voice/t3/pick/             the Pick type, the prefilter, and the model picker, from the Twin B eval

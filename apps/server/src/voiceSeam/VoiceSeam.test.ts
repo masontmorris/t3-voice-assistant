@@ -1,6 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import {
-  EnvironmentId,
+  AuthSessionId,
   EventId,
   type OrchestrationV2DomainEvent,
   type OrchestrationV2RuntimeRequest,
@@ -11,6 +11,7 @@ import {
   RuntimeRequestId,
   ThreadId,
 } from "@t3tools/contracts";
+import * as Context from "effect/Context";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -22,17 +23,15 @@ import * as EventSink from "../orchestration-v2/EventSink.ts";
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
 import * as OrchestrationEventStore from "../persistence/OrchestrationEventStore.ts";
 import type { VoicePending } from "./pending.ts";
-import { FIXTURES } from "./testFixtures.ts";
+import { VOICE_OPERATIONS } from "./ceiling.ts";
+import { createdOf, FIXTURES, SEED_PROJECT, thread } from "./testFixtures.ts";
 import { checksOnLiveClock, seamLayer, write } from "./testLayer.ts";
 import * as VoiceSeam from "./VoiceSeam.ts";
 import * as Watch from "./watch.ts";
 
-const PROJECT = ProjectId.make("project:voice");
+const PROJECT = SEED_PROJECT;
 const OUTSIDE = ProjectId.make("project:outside");
 const BUSY = ProjectId.make("project:busy");
-
-const createdOf = (events: ReadonlyArray<OrchestrationV2StoredEvent>) =>
-  events.flatMap((stored) => (stored.event.type === "thread.created" ? [stored.event] : []))[0]!;
 
 const ALLOWED = new Set([
   PROJECT,
@@ -40,62 +39,25 @@ const ALLOWED = new Set([
   ...Object.values(FIXTURES).map((events) => createdOf(events).payload.projectId),
 ]);
 
-const provideSeam = Effect.provide(
-  VoiceSeam.layer({ allowedProjects: ALLOWED }).pipe(Layer.provideMerge(seamLayer)),
-);
-
-const CREATED = createdOf(FIXTURES.plainReply);
-const START = DateTime.makeUnsafe("2026-11-01T00:00:00.000Z");
-
-/** A thread with no runs, created `minutes` after START, so a larger number is newer. */
-const thread = (input: {
-  readonly id: string;
-  readonly minutes: number;
-  readonly projectId?: ProjectId;
-  readonly settled?: boolean;
-  readonly lineage?: Partial<(typeof CREATED)["payload"]["lineage"]>;
-  readonly delegated?: boolean;
-}): OrchestrationV2DomainEvent => {
-  const id = ThreadId.make(input.id);
-  const at = DateTime.add(START, { minutes: input.minutes });
-  return {
-    ...CREATED,
-    id: EventId.make(`created:${input.id}`),
-    threadId: id,
-    occurredAt: at,
-    payload: {
-      ...CREATED.payload,
-      id,
-      projectId: input.projectId ?? PROJECT,
-      title: `thread ${input.id}`,
-      lineage: {
-        parentThreadId: null,
-        relationshipToParent: null,
-        rootThreadId: id,
-        ...input.lineage,
-      },
-      ...(input.delegated === true
-        ? {
-            delegatedFrom: {
-              environmentId: EnvironmentId.make("environment:elsewhere"),
-              threadId: ThreadId.make("elsewhere"),
-              title: "elsewhere",
-            },
-          }
-        : {}),
-      createdAt: at,
-      updatedAt: at,
-      settledOverride: input.settled === true ? "settled" : null,
-      settledAt: input.settled === true ? at : null,
-    },
-  };
+const CALLER: VoiceSeam.VoiceCaller = {
+  sessionId: AuthSessionId.make("session:voice"),
+  namespace: "voice",
+  config: {
+    maxRuntimeMode: "auto-accept-edits",
+    operations: VOICE_OPERATIONS,
+    projects: [...ALLOWED].map((projectId) => ({ projectId, spokenNames: [] })),
+    workspace: {},
+    maxWatches: 16,
+  },
 };
 
+const provideSeam = Effect.provide(VoiceSeam.layer.pipe(Layer.provideMerge(seamLayer)));
+
 const listThreads = (input: { readonly projectId?: ProjectId; readonly limit?: number } = {}) =>
-  VoiceSeam.VoiceSeam.pipe(Effect.flatMap((seam) => seam.listThreads(input)));
+  VoiceSeam.VoiceSeam.pipe(Effect.flatMap((seam) => seam.listThreads(CALLER, input)));
 
 const readThread = (threadId: ThreadId) =>
-  VoiceSeam.VoiceSeam.pipe(Effect.flatMap((seam) => seam.readThread({ threadId })));
+  VoiceSeam.VoiceSeam.pipe(Effect.flatMap((seam) => seam.readThread(CALLER, { threadId })));
 
 const refusalOf = (threadId: ThreadId) =>
   readThread(threadId).pipe(
@@ -103,8 +65,28 @@ const refusalOf = (threadId: ThreadId) =>
     Effect.map((refusal) => refusal.code),
   );
 
+/** Records each thread the legacy transcript import runs for. */
+class Migrations extends Context.Service<Migrations, Ref.Ref<ReadonlyArray<ThreadId>>>()(
+  "t3/voiceSeam/VoiceSeam.test/Migrations",
+) {}
+
+const recordMigrations = Layer.effect(
+  ThreadManagementService.ThreadManagementService,
+  Effect.gen(function* () {
+    const real = yield* ThreadManagementService.ThreadManagementService;
+    const migrated = yield* Migrations;
+    return {
+      ...real,
+      ensureLegacyTranscript: (threadId) =>
+        Ref.update(migrated, (ids) => [...ids, threadId]).pipe(
+          Effect.andThen(real.ensureLegacyTranscript(threadId)),
+        ),
+    };
+  }),
+);
+
 it.effect(
-  "lists only listed, undelegated threads in allowed projects, and reads the rest as not_found",
+  "lists only listed, undelegated threads in allowed projects, and reads the rest as not_found without migrating them",
   () =>
     Effect.gen(function* () {
       const parent = ThreadId.make("parent");
@@ -150,13 +132,75 @@ it.effect(
         ),
         ["not_found", "not_found", "not_found", "not_found", "not_found"],
       );
+      assert.deepStrictEqual(yield* Ref.get(yield* Migrations), []);
       assert.deepInclude(yield* readThread(parent), {
         activity: "idle",
         run: null,
         pending: null,
         lastReply: null,
       });
-    }).pipe(provideSeam),
+      assert.deepStrictEqual(yield* Ref.get(yield* Migrations), [parent]);
+    }).pipe(
+      Effect.provide(
+        VoiceSeam.layer.pipe(
+          Layer.provide(recordMigrations),
+          Layer.provideMerge(seamLayer),
+          Layer.provideMerge(Layer.effect(Migrations, Ref.make<ReadonlyArray<ThreadId>>([]))),
+        ),
+      ),
+    ),
+);
+
+it.effect("answers only the operations and projects the caller's ceiling allows", () =>
+  Effect.gen(function* () {
+    const second = ProjectId.make("project:second");
+    yield* write([
+      thread({ id: "voice-thread", minutes: 1 }),
+      thread({ id: "second-thread", minutes: 2, projectId: second }),
+      thread({ id: "outside-thread", minutes: 3, projectId: OUTSIDE }),
+    ]);
+    const seam = yield* VoiceSeam.VoiceSeam;
+    const caller = (
+      operations: VoiceSeam.VoiceCaller["config"]["operations"],
+    ): VoiceSeam.VoiceCaller => ({
+      ...CALLER,
+      config: {
+        ...CALLER.config,
+        operations,
+        projects: [PROJECT, second].map((projectId) => ({ projectId, spokenNames: [] })),
+      },
+    });
+    const ids = (list: VoiceSeam.VoiceThreadList) => list.threads.map((t) => t.threadId);
+    const code = <A>(effect: Effect.Effect<A, VoiceSeam.VoiceSeamRefusal>) =>
+      effect.pipe(
+        Effect.flip,
+        Effect.map((refusal) => refusal.code),
+      );
+    const all = caller(VOICE_OPERATIONS);
+    const threadId = ThreadId.make("voice-thread");
+
+    assert.deepStrictEqual(ids(yield* seam.listThreads(all, {})), [
+      ThreadId.make("second-thread"),
+      threadId,
+    ]);
+    assert.deepInclude(yield* seam.listThreads(all, { projectId: second }), {
+      threads: [(yield* seam.listThreads(all, {})).threads[0]!],
+      total: 1,
+      truncated: false,
+    });
+    assert.strictEqual(
+      yield* code(seam.listThreads(all, { projectId: OUTSIDE })),
+      "project_not_allowed",
+    );
+    assert.deepStrictEqual(
+      yield* Effect.all([
+        code(seam.listThreads(caller(["read", "watch"]), {})),
+        code(seam.readThread(caller(["list", "watch"]), { threadId })),
+        code(seam.watch(caller(["list", "read"]), { threadId, afterSequence: 0 })),
+      ]),
+      ["operation_not_allowed", "operation_not_allowed", "operation_not_allowed"],
+    );
+  }).pipe(provideSeam),
 );
 
 it.effect("lists the 26th-newest settled thread and every older one", () =>
@@ -498,10 +542,7 @@ it.effect.each(NEEDS_AFTER_RUN)("reads $case as waiting_on_you with a pending", 
     const answered = yield* readThread(threadId);
 
     assert.deepInclude(answered, { activity: "finished", pending: null });
-    assert.strictEqual(
-      answered.lastReply?.text,
-      need.reply ?? "Child task completed without an assistant result.",
-    );
+    assert.strictEqual(answered.lastReply?.text, need.reply ?? "");
   }).pipe(provideSeam),
 );
 
@@ -653,7 +694,7 @@ const watchUntilDone = Effect.fn("test.watchUntilDone")(function* (afterSequence
     sql: yield* SqlClient.SqlClient,
     threads: checksOnLiveClock(yield* ThreadManagementService.ThreadManagementService),
     eventStore: yield* OrchestrationEventStore.OrchestrationEventStore,
-    isProjectAllowed: (projectId) => ALLOWED.has(projectId),
+    isVisible: (shell) => ALLOWED.has(shell.projectId),
   });
   return Array.from(
     yield* watch({ threadId: PLAIN_THREAD, afterSequence }).pipe(
@@ -752,7 +793,7 @@ it.effect("a need that commits as the read starts is in the read or after its as
     );
   }).pipe(
     Effect.provide(
-      VoiceSeam.layer({ allowedProjects: ALLOWED }).pipe(
+      VoiceSeam.layer.pipe(
         Layer.provide(
           commitOnSequenceRead(APPROVAL.slice(cut, cut + 2).map((event) => event.event)),
         ),

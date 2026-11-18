@@ -1,0 +1,299 @@
+import {
+  MessageId,
+  NonNegativeInt,
+  OrchestrationV2RunStatus,
+  PositiveInt,
+  ProjectId,
+  RunId,
+  RuntimeMode,
+  ThreadId,
+  TrimmedNonEmptyString,
+  TurnItemId,
+} from "@t3tools/contracts";
+import * as Schema from "effect/Schema";
+
+import { VoiceOperation, VoiceSeamConfig } from "./ceiling.ts";
+
+/** The only wire definition. Every frame the route sends is encoded through these schemas. */
+
+/** A stored event's global sequence, or the sequence a read was true as of. */
+const Sequence = NonNegativeInt;
+
+/** The most threads a list carries; Python's picker reads at most this many. */
+export const LIST_LIMIT = 200;
+
+export const RefusalCode = Schema.Literals([
+  "operation_not_allowed",
+  "project_not_allowed",
+  "above_ceiling",
+  "not_found",
+  "gone",
+  "refused",
+  "too_many_watches",
+  "no_default_model",
+  "invalid_request",
+  "unavailable",
+]).annotate({ identifier: "RefusalCode" });
+
+export const WatchEndReason = Schema.Literals([
+  "gone",
+  "resync",
+  "not_found",
+  "unavailable",
+]).annotate({ identifier: "WatchEndReason" });
+
+export const ThreadActivity = Schema.Literals([
+  "working",
+  "waiting_on_you",
+  "waiting_on_background",
+  "queued",
+  "idle",
+  "finished",
+  "failed",
+  "interrupted",
+  "cancelled",
+  "rolled_back",
+]).annotate({ identifier: "ThreadActivity" });
+
+/** The five statuses `isTerminalRunStatus` accepts. */
+export const VoiceTerminalStatus = Schema.Literals([
+  "completed",
+  "failed",
+  "interrupted",
+  "cancelled",
+  "rolled_back",
+]).annotate({ identifier: "VoiceTerminalStatus" });
+
+/** A ULID that Python mints once per write and journals before the call. */
+const VoiceRequestId = Schema.String.check(Schema.isPattern(/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/));
+
+const VoicePending = Schema.Struct({
+  requestId: Schema.String,
+  /** approval and question can be relayed. in_app means only the app can act on it. */
+  kind: Schema.Literals(["approval", "question", "in_app"]),
+  prompt: Schema.String,
+});
+
+/** T3's own result for a run. Empty text when the run stored no message and no result item. */
+const VoiceRunResult = Schema.Struct({
+  text: Schema.String,
+  messageId: Schema.NullOr(MessageId),
+  turnItemId: Schema.NullOr(TurnItemId),
+});
+
+const VoiceProject = Schema.Struct({
+  projectId: ProjectId,
+  name: Schema.String,
+  spokenNames: Schema.Array(Schema.String),
+});
+
+const VoiceThreadSummary = Schema.Struct({
+  threadId: ThreadId,
+  projectId: ProjectId,
+  title: Schema.String,
+  activity: ThreadActivity,
+  lastActivityAt: Schema.String,
+  pinned: Schema.Boolean,
+});
+
+export const VoiceThreadList = Schema.Struct({
+  threads: Schema.Array(VoiceThreadSummary),
+  total: NonNegativeInt,
+  truncated: Schema.Boolean,
+  asOfSequence: Sequence,
+}).annotate({ identifier: "VoiceThreadList" });
+export type VoiceThreadList = typeof VoiceThreadList.Type;
+
+export const VoiceThreadState = Schema.Struct({
+  threadId: ThreadId,
+  projectId: ProjectId,
+  title: Schema.String,
+  activity: ThreadActivity,
+  run: Schema.NullOr(
+    Schema.Struct({
+      runId: RunId,
+      status: OrchestrationV2RunStatus,
+      startedAt: Schema.NullOr(Schema.String),
+    }),
+  ),
+  pending: Schema.NullOr(VoicePending),
+  /** `runId` is the run the reply came from, which is not `run` when the latest run has not replied yet. */
+  lastReply: Schema.NullOr(
+    Schema.Struct({ ...VoiceRunResult.fields, runId: RunId, at: Schema.String }),
+  ),
+  asOfSequence: Sequence,
+}).annotate({ identifier: "VoiceThreadState" });
+export type VoiceThreadState = typeof VoiceThreadState.Type;
+
+/** Every event but `done` comes from one stored event, and only those move Python's cursor. */
+export const VoiceEvent = Schema.Union([
+  Schema.Struct({
+    type: Schema.Literal("run"),
+    threadId: ThreadId,
+    runId: RunId,
+    status: OrchestrationV2RunStatus,
+    sequence: Sequence,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("reply"),
+    threadId: ThreadId,
+    runId: Schema.NullOr(RunId),
+    messageId: MessageId,
+    text: Schema.String,
+    sequence: Sequence,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("needs_you"),
+    threadId: ThreadId,
+    sequence: Sequence,
+    ...VoicePending.fields,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("resolved"),
+    threadId: ThreadId,
+    requestId: Schema.String,
+    status: Schema.Literals(["resolved", "expired", "cancelled"]),
+    sequence: Sequence,
+  }),
+  Schema.Struct({
+    type: Schema.Literal("done"),
+    threadId: ThreadId,
+    runId: RunId,
+    status: VoiceTerminalStatus,
+    result: VoiceRunResult,
+    /** The stored event that triggered the settle read, or the replay's high-water. */
+    sequence: Sequence,
+    /** The thread's sequence at the settle read. */
+    asOfSequence: Sequence,
+  }),
+  Schema.Struct({ type: Schema.Literal("gone"), threadId: ThreadId, sequence: Sequence }),
+]).annotate({ identifier: "VoiceEvent" });
+
+const WatchStarted = Schema.Struct({ threadId: ThreadId });
+
+/** Each op, its input, and the value an accepted request answers with. */
+export const REQUESTS = {
+  list_threads: {
+    input: Schema.Struct({
+      projectId: Schema.optionalKey(ProjectId),
+      limit: Schema.optionalKey(
+        Schema.Int.check(Schema.isBetween({ minimum: 1, maximum: LIST_LIMIT })),
+      ),
+    }),
+    output: VoiceThreadList,
+  },
+  read_thread: { input: Schema.Struct({ threadId: ThreadId }), output: VoiceThreadState },
+  watch: {
+    input: Schema.Struct({
+      threadId: ThreadId,
+      afterSequence: Sequence,
+      /** The run the voice started or sent to. `done` then reports that run's own outcome. */
+      runId: Schema.optionalKey(RunId),
+    }),
+    output: WatchStarted,
+  },
+  unwatch: { input: Schema.Struct({ threadId: ThreadId }), output: WatchStarted },
+  launch: {
+    input: Schema.Struct({
+      requestId: VoiceRequestId,
+      projectId: ProjectId,
+      instruction: TrimmedNonEmptyString,
+    }),
+    output: Schema.Never,
+  },
+  send: {
+    input: Schema.Struct({
+      requestId: VoiceRequestId,
+      threadId: ThreadId,
+      text: TrimmedNonEmptyString,
+    }),
+    output: Schema.Never,
+  },
+  interrupt: {
+    input: Schema.Struct({ requestId: VoiceRequestId, threadId: ThreadId }),
+    output: Schema.Never,
+  },
+} as const;
+
+export type WireOp = keyof typeof REQUESTS;
+const WIRE_OPS = Object.keys(REQUESTS) as ReadonlyArray<WireOp>;
+export type RequestInput<Op extends WireOp> = (typeof REQUESTS)[Op]["input"]["Type"];
+export type RequestOutput<Op extends WireOp> = (typeof REQUESTS)[Op]["output"]["Type"];
+
+/** Read first, so a frame with a bad input still gets an answer under its own id. */
+export const ClientEnvelope = Schema.Struct({
+  id: NonNegativeInt,
+  op: Schema.String,
+  input: Schema.Unknown,
+});
+
+/** What the client sends, per op. The route decodes the envelope, then the op's input. */
+const ClientFrame = Schema.Union(
+  WIRE_OPS.map((op) =>
+    Schema.Struct({ id: NonNegativeInt, op: Schema.Literal(op), input: REQUESTS[op].input }),
+  ),
+).annotate({ identifier: "ClientFrame" });
+
+export const HelloFrame = Schema.Struct({
+  type: Schema.Literal("hello"),
+  ceiling: Schema.Struct({
+    maxRuntimeMode: RuntimeMode,
+    interactionMode: Schema.Literal("default"),
+    operations: Schema.Array(VoiceOperation),
+    maxWatches: PositiveInt,
+  }),
+  /** Allowed projects that exist. */
+  projects: Schema.Array(VoiceProject),
+  latestSequence: Sequence,
+}).annotate({ identifier: "HelloFrame" });
+export type VoiceHello = typeof HelloFrame.Type;
+
+export const ResultErrorFrame = Schema.Struct({
+  type: Schema.Literal("result"),
+  id: NonNegativeInt,
+  ok: Schema.Literal(false),
+  error: Schema.Struct({
+    code: RefusalCode,
+    /** Short text the voice may speak. Never built from a cause. */
+    message: Schema.String,
+  }),
+});
+
+/** An accepted request's answer. Launch, send and interrupt never answer ok until units 5 and 6. */
+export const resultFrame = <Op extends WireOp>(op: Op) =>
+  Schema.Struct({
+    type: Schema.Literal("result"),
+    id: NonNegativeInt,
+    ok: Schema.Literal(true),
+    value: REQUESTS[op].output,
+  });
+
+const ResultFrame = Schema.Union([...WIRE_OPS.map(resultFrame), ResultErrorFrame]);
+
+export const EventFrame = Schema.Struct({ type: Schema.Literal("event"), event: VoiceEvent });
+
+export const WatchEndedFrame = Schema.Struct({
+  type: Schema.Literal("watch_ended"),
+  threadId: ThreadId,
+  reason: WatchEndReason,
+});
+
+const ServerFrame = Schema.Union([HelloFrame, ResultFrame, EventFrame, WatchEndedFrame]).annotate({
+  identifier: "ServerFrame",
+});
+
+/** The golden schema Python checks its types against: both directions, and the config file. */
+export const seamJsonSchema = (): Record<string, unknown> => {
+  const documents = { ClientFrame, ServerFrame, VoiceSeamConfig };
+  const defs: Record<string, unknown> = {};
+  for (const [name, schema] of Object.entries(documents)) {
+    const document = Schema.toJsonSchemaDocument(schema);
+    Object.assign(defs, document.definitions);
+    defs[name] ??= document.schema;
+  }
+  return {
+    $schema: "https://json-schema.org/draft/2020-12/schema",
+    title: "T3 voice seam protocol",
+    $defs: Object.fromEntries(Object.entries(defs).toSorted(([a], [b]) => a.localeCompare(b))),
+  };
+};

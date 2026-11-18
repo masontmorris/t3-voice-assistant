@@ -193,15 +193,20 @@ export const readThreadNow = Effect.fn("VoiceSeam.outcome.readThreadNow")(functi
     .pipe(NodeSqliteClient.readOnly);
 });
 
-/** T3's own result for a run, cut for speech. No `runs`, so it never falls back to an earlier run's reply. */
+/**
+ * T3's own result for a run, cut for speech. No `runs`, so it never falls back to an earlier run's
+ * reply. A run that stored no message and no result item gets empty text, not T3's stand-in line
+ * ("Child task ended with status ..."), which the run never said. Python words the status.
+ */
 export const runResult = (
   records: Pick<OrchestrationV2ThreadProjection, "messages" | "turnItems" | "providerTurns">,
   run: OrchestrationV2Run,
 ): VoiceRunResult => {
   const { messages, turnItems, providerTurns } = records;
   const result = subagentResultForRun({ messages, turnItems, providerTurns }, run);
+  const said = result.messageId !== null || result.turnItemId !== null;
   return {
-    text: cutAtSentence(result.text),
+    text: said ? cutAtSentence(result.text) : "",
     messageId: result.messageId,
     turnItemId: result.turnItemId,
   };
@@ -236,13 +241,7 @@ export const makeSettleCheck = (sources: OutcomeSources): SettleCheck => {
     if (run === undefined) return NOTHING;
     const status = run.status;
     if (!ThreadManagementService.isTerminalRunStatus(status)) return NOTHING;
-    const own = runResult(read.records, run);
-    // An anchor that is not the result run speaks only what that run itself stored. T3's stand-in
-    // line for a run with no answer ("Child task ended with status ...") is not that.
-    const result =
-      run.id !== resultRun.id && own.messageId === null && own.turnItemId === null
-        ? { ...own, text: "" }
-        : own;
+    const result = runResult(read.records, run);
     // A need stored after the first read is not in the records, so the send waits for the watch
     // to emit everything through the re-read and checks again.
     const reread = yield* threads.getThreadEventSequence(threadId);

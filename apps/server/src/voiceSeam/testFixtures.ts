@@ -1,10 +1,16 @@
 import {
   CommandId,
+  EnvironmentId,
+  EventId,
   NonNegativeInt,
+  type OrchestrationV2DomainEvent,
   OrchestrationV2DomainEventJson,
   type OrchestrationV2StoredEvent,
+  ProjectId,
   type RunId,
+  ThreadId,
 } from "@t3tools/contracts";
+import * as DateTime from "effect/DateTime";
 import * as Schema from "effect/Schema";
 
 import { distill } from "./events.ts";
@@ -162,4 +168,56 @@ export const needLandings = (events: ReadonlyArray<OrchestrationV2StoredEvent>) 
     return `${asked?.item.type} asked ${against(asked?.sequence, terminal)}, ${ended?.item.status ?? "open"} ${against(ended?.sequence, terminal)}`;
   });
   return [...requestNeeds, ...cardNeeds];
+};
+
+export const createdOf = (events: ReadonlyArray<OrchestrationV2StoredEvent>) =>
+  events.flatMap((stored) => (stored.event.type === "thread.created" ? [stored.event] : []))[0]!;
+
+const CREATED = createdOf(FIXTURES.plainReply);
+const START = DateTime.makeUnsafe("2026-11-01T00:00:00.000Z");
+
+export const SEED_PROJECT = ProjectId.make("project:voice");
+
+/** A thread with no runs, created `minutes` after START, so a larger number is newer. */
+export const thread = (input: {
+  readonly id: string;
+  readonly minutes: number;
+  readonly projectId?: ProjectId;
+  readonly settled?: boolean;
+  readonly lineage?: Partial<(typeof CREATED)["payload"]["lineage"]>;
+  readonly delegated?: boolean;
+}): OrchestrationV2DomainEvent => {
+  const id = ThreadId.make(input.id);
+  const at = DateTime.add(START, { minutes: input.minutes });
+  return {
+    ...CREATED,
+    id: EventId.make(`created:${input.id}`),
+    threadId: id,
+    occurredAt: at,
+    payload: {
+      ...CREATED.payload,
+      id,
+      projectId: input.projectId ?? SEED_PROJECT,
+      title: `thread ${input.id}`,
+      lineage: {
+        parentThreadId: null,
+        relationshipToParent: null,
+        rootThreadId: id,
+        ...input.lineage,
+      },
+      ...(input.delegated === true
+        ? {
+            delegatedFrom: {
+              environmentId: EnvironmentId.make("environment:elsewhere"),
+              threadId: ThreadId.make("elsewhere"),
+              title: "elsewhere",
+            },
+          }
+        : {}),
+      createdAt: at,
+      updatedAt: at,
+      settledOverride: input.settled === true ? "settled" : null,
+      settledAt: input.settled === true ? at : null,
+    },
+  };
 };

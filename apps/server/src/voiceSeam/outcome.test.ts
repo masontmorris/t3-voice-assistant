@@ -36,7 +36,7 @@ const firstDone = Effect.fn("test.firstDone")(function* (input: Watch.WatchInput
     sql: yield* SqlClient.SqlClient,
     threads: checksOnLiveClock(yield* ThreadManagementService.ThreadManagementService),
     eventStore: yield* OrchestrationEventStore.OrchestrationEventStore,
-    isProjectAllowed: () => true,
+    isVisible: () => true,
   });
   return Array.from(
     yield* watch(input).pipe(
@@ -190,6 +190,25 @@ it.effect.each([
       assert.strictEqual(done.result.messageId === null, text === "");
       assert.strictEqual(done.result.turnItemId === null, text === "");
     }).pipe(Effect.provide(seamLayer)),
+);
+
+it.effect("sends done with its status and empty text for a run that stored no answer", () =>
+  Effect.gen(function* () {
+    // Run 1 asks a question and says nothing. The cut ends where the question resolves.
+    const resolved = FIXTURES.messageQuestion.findIndex(
+      ({ event }) =>
+        event.type === "runtime-request.updated" && event.payload.status === "resolved",
+    );
+    const fixture = FIXTURES.messageQuestion.slice(0, resolved + 1);
+    yield* write(fixture.map((event) => event.event));
+    const done = (yield* firstDone({
+      threadId: fixture[0]!.event.threadId,
+      afterSequence: 0,
+    })).at(-1) as Watch.WatchDone;
+
+    assert.deepInclude(done, { runId: runOf(fixture, 1), status: "completed" });
+    assert.deepStrictEqual(done.result, { text: "", messageId: null, turnItemId: null });
+  }).pipe(Effect.provide(seamLayer)),
 );
 
 it.effect("reports a failed run's error text as its result", () =>
