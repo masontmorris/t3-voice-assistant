@@ -93,9 +93,12 @@ SUMMARY_SYSTEM = (
     "You read the records of one coding thread and write a gist for a voice assistant to say out loud. Answer the "
     "question when there is one, else say what the thread did or found. One spoken sentence of at most 25 words. State "
     "only what the records say: no guesses, no advice, no file paths or code unless asked. Do not say whether the "
-    "thread is running, finished, failed or stopped, because the assistant says that separately. If the records "
-    "do not answer the question, say what they do show. Reply with the gist only."
+    "thread is running, finished, failed or stopped, because the assistant says that separately. The thread's name "
+    "is only a name, not evidence of what was done: never say the thread did what its name says unless the last "
+    "reply says it. If the records do not answer the question, say what they do show. Only when last_reply is "
+    "null, say it has not replied yet, or what it is waiting on. Reply with the gist only."
 )
+TITLE_KEY = "name (only a name, not evidence of what was done)"
 
 _QUOTES = "\"'\N{LEFT DOUBLE QUOTATION MARK}\N{RIGHT DOUBLE QUOTATION MARK}"
 
@@ -223,7 +226,7 @@ class Speech:
             self._summary(state, question, partial=True)
 
     def _summary(self, state: T.ThreadState, question: str | None, partial: bool = False) -> Future | None:
-        if self.lane is None or state.last_reply is None or not state.last_reply.text.strip():
+        if self.lane is None:
             return None
         key = (state.thread_id, state.as_of_sequence, normalise(question or ""))
         with self.lock:
@@ -294,7 +297,7 @@ def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems:
 
 
 def summary_messages(state: T.ThreadState, question: str | None) -> list[dict]:
-    records = {"thread": state.title, "status": state.activity.value,
+    records = {TITLE_KEY: state.title, "status": state.activity.value,
                "run": state.run.status.value if state.run is not None else None,
                "pending": state.pending.prompt if state.pending is not None else None,
                "waiting_for": state.pending.kind.value if state.pending is not None else None,

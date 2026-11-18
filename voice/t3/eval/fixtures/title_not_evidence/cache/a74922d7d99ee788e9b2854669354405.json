@@ -1,15 +1,15 @@
 {
- "text": "Fix failing tests and update the snapshot is finished. The thread fixed failing tests and updated the snapshot.",
- "ms": 451,
+ "text": "It said there was no shell in this mode, so it would use the direct file tools.",
+ "ms": 328,
  "model": "particle-ai/particle-1:free",
  "usage": {
-  "prompt_tokens": 404,
-  "completion_tokens": 21,
-  "total_tokens": 425,
+  "prompt_tokens": 304,
+  "completion_tokens": 20,
+  "total_tokens": 324,
   "cost": 0,
   "is_byok": false,
   "prompt_tokens_details": {
-   "cached_tokens": 0,
+   "cached_tokens": 256,
    "cache_write_tokens": 0,
    "audio_tokens": 0,
    "video_tokens": 0
@@ -27,9 +27,9 @@
  },
  "tokens": {
   "reasoning_tokens": 0,
-  "content_tokens": 21,
-  "prompt_tokens": 404,
-  "completion_tokens": 21
+  "content_tokens": 20,
+  "prompt_tokens": 304,
+  "completion_tokens": 20
  },
  "finish_reason": "stop"
 }
