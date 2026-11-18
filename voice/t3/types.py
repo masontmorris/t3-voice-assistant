@@ -135,7 +135,7 @@ class Ceiling:
 class Project:
     project_id: str
     name: str
-    spoken_names: tuple[str, ...] = ()
+    spoken_names: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -381,7 +381,7 @@ def decode_hello(obj: Any) -> Hello:
             Project(
                 project_id=_need(p, "projectId"),
                 name=_need(p, "name"),
-                spoken_names=tuple(p.get("spokenNames", ())),
+                spoken_names=tuple(_need(p, "spokenNames")),
             )
             for p in _need(obj, "projects")
         ),
