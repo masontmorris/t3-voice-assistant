@@ -84,13 +84,13 @@ def lenient(verdict, gold):
 
 
 def confirm_outcome(picked, gold, listed, parse="ok"):
-	"""Score a model's single pick as the question "do you mean <that thread>?".
+	"""Score a model or decider's single pick as the question "do you mean <that thread>?".
 
 	A prefilter hit is still spoken directly. A confirmation of the gold thread is `confirmed`, a
 	confirmation of another thread is `confirm_wrong`, and any other gold scores it as a one-thread
 	question.
 	"""
-	if picked.kind != "one" or picked.reason != "model":
+	if picked.kind != "one" or picked.reason not in ("model", "decider"):
 		return outcome(picked, gold, listed, parse)
 	if gold["kind"] == "one":
 		return "confirmed" if picked.thread_id == gold["thread_id"] else "confirm_wrong"

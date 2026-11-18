@@ -238,14 +238,15 @@ class LiquidClient:
                 usage[name] += float((response.get("usage") or {}).get(name) or 0.0)
         return 200, {"model": MODEL, "answers": answers, "usage": usage}, records, sent
 
-    def call(self, route, body, label="", fresh=False):
+    def call(self, route, body, label="", fresh=False, *, cache_record=True):
         """Return the cached record for this request, calling the API at most once per distinct request.
 
-        `fresh` sends the request again for a timing or spread run and never overwrites the cached entry. A body with
+        `fresh` skips cache lookup and never overwrites the cached entry. `cache_record=False` skips both cache reads
+        and writes while keeping the spend ledger. A body with
         no questions is answered here: the API rejects it with a 422 while pplx answers it with an empty answer set
         (measured on one live turn), and there is nothing to ask and nothing to bill."""
         assert route == "decisions", route
-        hit = None if fresh else cached(route, body)
+        hit = None if fresh or not cache_record else cached(route, body)
         if hit is not None:
             return hit
         if not body.get("questions"):
@@ -254,9 +255,7 @@ class LiquidClient:
                                    "usage": {"input_tokens": 0, "output_tokens": 0, "cost": 0.0}},
                       "timing": {"started_at": _now(), "ms": 0.0, "connect_ms": None},
                       "attempts": [], "requests": 0}
-            CACHE.mkdir(parents=True, exist_ok=True)
-            cache_path(route, body).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
-            return record
+            return self._cache_record(route, body, record) if cache_record else record
         if BILLING.exists():
             raise BillingStop(BILLING.read_text(encoding="utf-8"))
         self._guard(label)
@@ -291,7 +290,11 @@ class LiquidClient:
                   "model": MODEL, "timing": {"started_at": started_at, "ms": ms, "connect_ms": connect_ms},
                   "attempts": payload_attempts,
                   "requests": len(sent)}
-        CACHE.mkdir(parents=True, exist_ok=True)
-        if not cache_path(route, body).exists():
-            cache_path(route, body).write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+        return self._cache_record(route, body, record) if cache_record else record
+
+    def _cache_record(self, route, body, record):
+        path = cache_path(route, body)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        if not path.exists():
+            path.write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
         return record

@@ -174,6 +174,70 @@ and the ten scored outputs stay under `$VOICE_HOME/evals/twina-pick`.
 6. Treat the 700 ms bar as unmet at $0. Either the pick runs ahead of the utterance, or the
    bar needs the PM's revision.
 
+## Hosted d1.2 on the frozen project set
+
+**Keep particle-1 in the project pick path.** Measured d1.2 met the 700 ms request p95 bar
+and made zero wrong confirmations in both arms. The full-list arm still missed the
+unambiguous and unnecessary-question gates, and passed 18 of 30 cases in the strict
+confirmation view versus 23 for the recorded particle-1 arm.
+
+`narrow+decider` ranked display names by word overlap and kept the top eight, preserving
+snapshot order for ties and filling unused slots with zero-overlap names. `full+decider`
+offered all 11 display names in snapshot order on every case. Neither arm used the
+deterministic project matcher to pick or skip a case. Each sent one typed question with
+opaque option keys, names, the locally matched name words, and `none` and `ask` options.
+The raw request, project IDs, folder aliases, and audio stayed local. The confidence floor
+was fixed at 0.20 before the run because the set had no designated tuning split. An
+explicit ask or below-floor item became a generic clarification with no named options.
+
+The table reports measured case passes under the original frozen golds. A case passes if
+all its repeats pass. Scores are in strict, lenient, confirm, and confirm-lenient order.
+Request and wall latencies are in milliseconds. Request timing includes a connection
+setup when observed and excludes pacing. Wall timing includes pacing and local work.
+
+| Arm | Cases | Runs | Cases passed in the four views | Request p50 / p95 | Wall p50 / p95 | d1.2 calls | Liquid spend |
+| --- | ---: | ---: | --- | --- | --- | ---: | ---: |
+| Deterministic match | 30 | 30 | 27 / 27 / 27 / 27 | None | 0.18 / 0.42 | 0 | $0 |
+| Match + particle-1 | 30 | 90 | 17 / 17 / 23 / 24 | 613 / 2341 | 2946 / 4341 | 0 | $0 |
+| `narrow+decider` | 30 | 90 | 8 / 15 / 17 / 25 | 93 / 243 | 118 / 381 | 90 | $0.00031884 |
+| `full+decider` | 30 | 90 | 8 / 15 / 18 / 26 | 93 / 159 | 125 / 424 | 90 | $0.00036276 |
+
+Measured wrong counts by slice. Each cell gives distinct cases with a wrong result and then
+wrong runs, in strict, lenient, and confirm order. In the confirm view, a direct pick where
+gold says none becomes an unnecessary question. It still fails the case.
+
+| Slice | Cases | Match | Match + particle-1 | `narrow+decider` | `full+decider` |
+| --- | ---: | --- | --- | --- | --- |
+| Exact | 6 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Variant | 3 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Partial | 6 | 0/0 · 0/0 · 0/0 | 6/16 · 6/16 · 0/0 | 6/18 · 6/18 · 0/0 | 6/18 · 6/18 · 0/0 |
+| Shared | 4 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Nontarget | 4 | 2/2 · 2/2 · 2/2 | 3/9 · 3/9 · 2/6 | 1/3 · 1/3 · 0/0 | 1/3 · 1/3 · 0/0 |
+| Absent | 4 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 3/6 · 3/6 · 0/0 | 4/12 · 4/12 · 0/0 |
+| Missing | 3 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 3/8 · 3/8 · 0/0 | 3/9 · 3/9 · 0/0 |
+| Total | 30 | 2/2 · 2/2 · 2/2 | 9/25 · 9/25 · 2/6 | 13/35 · 13/35 · 0/0 | 14/42 · 14/42 · 0/0 |
+
+**Retrieval.** Measured once per case, the top eight contained the gold project in all
+9 single-target cases and every named gold project in all 23 cases with named golds,
+covering 31 gold IDs across those cases. The full list also contained all 31.
+
+Measured with confirming delivery, narrow and full passed 81.5% and 88.9% of unambiguous
+runs against the 90% minimum, and asked unnecessarily on 15.6% and 13.3% of runs against
+the 10% maximum. d1.2 never chose `none` in either arm. Every missing case failed all three
+repeats in both arms. The frozen nontarget golds and the sensitivity analysis above are
+separate readings. This comparison uses the frozen golds for every arm.
+
+Measured all 180 Liquid attempts returned 200 with valid choices, zero retries, and
+zero billing errors. Narrow passed 17, 17, and 18 of 30 strict confirmation runs across
+the three repeats. Full passed 18 in each repeat. Narrow request p95 ranged from 218 to
+323 ms and full from 130 to 172 ms. The recorded particle-1 p95 ranged from 1134 to
+2636 ms. These were separate hosted runs with different clients and pacing. Inferred
+from that design, the figures measure the tested request paths and cannot isolate why
+one is faster. The names-only input also drops target grammar and unlisted names, so
+these results do not establish d1.2's accuracy with the original request. The PM's ten
+scored outputs across both evals are local in
+`$VOICE_HOME/evals/pick-decider/sample-10-scored.md`.
+
 ## Reproduce
 
 ```text
