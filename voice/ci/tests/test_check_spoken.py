@@ -18,8 +18,8 @@ PLANTS = {
                     'def started(title):\n    return f"{title} finished."\n\n\ndef which_project(candidates'),
     "wording in a slot": ("voice/live/t3_tasks.py", 'act(Say.CANCELLED, op="start")',
                           'act(Say.CANCELLED, op="start", thread="Okay, I won\'t start it")'),
-    "a line handed to the speaker": ("voice/prototype/run.py", "since, rendered.line, log,",
-                                     'since, "It finished.", log,'),
+    "a line handed to the speaker": ("voice/prototype/run.py", "since, draft.line)",
+                                     'since, "It finished.")'),
     "a row's line": ("voice/t3/lifecycle.py", "Ends.GIVE_UP, act(Say.LAUNCH_UNCONFIRMED)),",
                      'Ends.GIVE_UP, "I couldn\'t confirm it started."),'),
 }
@@ -46,10 +46,10 @@ class CheckSpoken(unittest.TestCase):
         self.assertEqual(literal_lines(REPO), [])
 
     def test_a_literal_planted_at_any_entry_point_is_caught(self):
-        plants = {"say_verbatim": 'await say_verbatim(session, 24_000, 0.0, "It finished.", log)',
+        plants = {"relay_draft": 'await relay_draft(session, 24_000, 0.0, "It finished.")',
                   "speak_t3": 'await self.speak_t3(turn, f"{title} is done.", pcm)',
                   "send_audio": 'await send_audio(("It", "finished."), pcm)',
-                  "send_verbatim": 'send_verbatim(line="It finished.", pcm=b"")'}
+                  "send_checked": 'send_checked(line="It finished.", pcm=b"")'}
         for name, call in plants.items():
             with self.subTest(name), tempfile.TemporaryDirectory() as tmp:
                 root = Path(tmp)

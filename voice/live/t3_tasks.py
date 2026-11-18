@@ -46,8 +46,9 @@ from voice.t3.pick.decide import prefilter_pick
 from voice.t3.pick.model import LiveClient
 from voice.t3.pick.prefilter import content_words
 from voice.t3.pick.project import pick_project
+from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
-from voice.t3.speech import Lane, LocalText, Rendered, Speech, fallback_prompt, text_model
+from voice.t3.speech import Lane, LocalText, Rendered, Speech, text_model
 from voice.t3.verify import Decider, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
@@ -176,7 +177,7 @@ class T3Tasks:
     against its acts (voice/t3/verify.py); with none, no line passes and every act waits."""
 
     follow: L.Follow
-    model: LiveClient | LocalText | None = None
+    model: LiveClient | LocalText | RealtimeWriter | None = None
     decider: Decider | None = None
     question: Question | None = None
     keys: dict[str, str] = field(default_factory=dict)
@@ -193,7 +194,7 @@ class T3Tasks:
 
     @classmethod
     def open(cls, origin: str, token_file: str | Path, journal_path: str | Path,
-             model: LiveClient | LocalText | None = None, decider: Decider | None = None) -> T3Tasks:
+             model: LiveClient | LocalText | RealtimeWriter | None = None, decider: Decider | None = None) -> T3Tasks:
         follow = L.Follow(T3Journal(journal_path), lambda: T3Seam.connect(origin, token_file))
         return cls(follow, model, decider)
 
@@ -596,14 +597,11 @@ class T3Tasks:
         return rendered
 
     def say_entry(self, update: L.Update, entry: dict, turns=()) -> Rendered:
-        """`say` for the entry a turn speaks from: its acts, evidence and, once worded, its line stay on the entry."""
+        """Draft the entry with its updated acts and evidence."""
         rendered = self.say(update, turns)
         entry["acts"] = [a.to_json() for a in update.acts]
         entry["evidence"] = update.evidence()
-        if rendered.line is not None:
-            entry["spoken"] = rendered.line.text
         return rendered
-
 
     def _drop_by_words(self, text: str, just_held: bool, now: float) -> L.Update | None:
         held = self.follow.journal.held()
@@ -617,8 +615,7 @@ class T3Tasks:
 
 @dataclass(frozen=True)
 class Words:
-    """What `say_acts` needs for an entry: the text model's words, the LFM3 prompt, and the same two checks for
-    LFM3's reply, all on the update `update_for(entry)` finds."""
+    """Draft and check the call's reply against the same update."""
 
     t3: T3Tasks
     update_for: object
@@ -626,16 +623,11 @@ class Words:
     def say(self, entry, turns=()) -> Rendered:
         return self.t3.say_entry(self.update_for(entry), entry, turns)
 
-    def fallback_prompt(self, entry) -> tuple[str, str]:
-        return fallback_prompt(self.update_for(entry).acts)
-
     def accept(self, entry, text) -> Rendered:
-        update = self.update_for(entry)
-        rendered = self.t3.speech.accept(update.acts, text, "lfm3")
-        refuse(update, rendered)
-        if rendered.line is not None:
-            entry["spoken"] = rendered.line.text
-        return rendered
+        return self.t3.speech.accept(self.update_for(entry).acts, text, "call")
+
+    def refuse(self, entry, rendered) -> None:
+        refuse(self.update_for(entry), rendered)
 
 
 def refuse(update: L.Update, rendered: Rendered) -> None:
@@ -734,20 +726,13 @@ class T3TaskService(MockTaskService):
         return self.spoken[entry["task_id"]]
 
     def say(self, entry, turns=()) -> Rendered:
-        """Word one T3 entry's acts. A line that passes is also its execution's result, as what was said."""
-        return self._said(entry, Words(self.t3, self.update_for).say(entry, turns))
-
-    def fallback_prompt(self, entry) -> tuple[str, str]:
-        return Words(self.t3, self.update_for).fallback_prompt(entry)
+        return Words(self.t3, self.update_for).say(entry, turns)
 
     def accept(self, entry, text) -> Rendered:
-        return self._said(entry, Words(self.t3, self.update_for).accept(entry, text))
+        return Words(self.t3, self.update_for).accept(entry, text)
 
-    def _said(self, entry, rendered: Rendered) -> Rendered:
-        execution = self.executions.get(entry["task_id"])
-        if rendered.line is not None and execution is not None and execution.mode == "t3":
-            execution.result_summary = rendered.line.text
-        return rendered
+    def refuse(self, entry, rendered) -> None:
+        Words(self.t3, self.update_for).refuse(entry, rendered)
 
     def open_question(self):
         """T3 reads the next words when it asked a question, or while it holds a follow-up Mason may take back."""
@@ -798,6 +783,7 @@ class T3TaskService(MockTaskService):
         else:
             task_id = entry["task_id"]
             self.delivered.add(task_id)
+            self.executions[task_id].result_summary = entry.get("spoken")
             with self.t3.lock:
                 self.t3.ack_news(self.spoken[task_id])
                 if self.t3.unasked is self.spoken[task_id]:
@@ -828,9 +814,11 @@ def default_journal() -> Path:
     return Path(os.environ.get("VOICE_T3_JOURNAL", default_voice_home() / "state" / "t3-journal.json"))
 
 
-def default_model() -> LiveClient | LocalText | None:
-    """The voice's text model by `$VOICE_RENDERER` (speech.text_model): the free cloud model when a key is configured,
-    or the local llama-server. With neither the prefilter answers alone."""
+def default_model(realtime_url: str | None = None) -> LiveClient | LocalText | RealtimeWriter | None:
+    """Use the live realtime server unless VOICE_RENDERER selects another model."""
+    if realtime_url is not None and not (os.environ.get("VOICE_RENDERER") or os.environ.get("VOICE_PAID_TEXT_MODEL")):
+        return RealtimeWriter(realtime_url)
+
     def cloud() -> LiveClient | None:
         if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE")):
             return None

@@ -134,6 +134,10 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
         means = _fill(MEANS[a.kind], a.slots)
         if "thread" in a.slots:
             out.append(Ask(f"a{n}_about", f"Is the line about the thread named \"{a.slots['thread']}\"?", True))
+        elif a.kind is Kind.CANCELLED:
+            out.append(Ask(f"a{n}_names_target",
+                           "Does the cancellation name a specific thread or project? Generic references like "
+                           "'the thread' or 'it' do not count.", False))
         if a.kind in QUESTIONS:
             out.append(Ask(f"a{n}_means", f"Is the line a question that asks {means}?", True))
         else:

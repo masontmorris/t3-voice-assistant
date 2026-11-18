@@ -11,7 +11,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from voice.t3 import fakes as F
 from voice.t3 import types as T
 from voice.t3.acts import Kind, act
-from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, LocalText, Speech, fallback_prompt, text_model
+from voice.t3.realtime_writer import RealtimeWriter
+from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, LocalText, Speech, reader_messages, text_model
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -266,16 +267,53 @@ class RenderTest(unittest.TestCase):
         self.assertIn("that the thread stopped or was cancelled", body["never_say"])
         self.assertEqual(body["an earlier wording was refused because"], ["not a question"])
 
-    def test_the_lfm3_prompt_keeps_directions_separate_from_the_named_facts(self):
-        instructions, payload = fallback_prompt(
-            (act(Kind.CONFIRM_TELL, thread="Add a clamp helper", message="also add a test"),))
-        self.assertIn("Ask only a question the acts call for.", instructions)
-        self.assertNotIn("also add a test", instructions)
-        facts = json.loads(payload)
-        self.assertEqual(facts["keep_exact"], ["Add a clamp helper", "also add a test"])
-        self.assertTrue(facts["ask"])
-        self.assertIn("that the message was sent or passed on", instructions)
-        self.assertNotIn("never_say", facts)
+    def test_the_realtime_reader_gets_the_existing_thread_direction_and_example(self):
+        for title in ("Rotate Signing Keys", "Refresh Onboarding Checklist"):
+            with self.subTest(title=title):
+                system, user = reader_messages((act(Kind.CONFIRM_THREAD, thread=title),))
+                self.assertIn("existing thread named in thread", system["content"])
+                self.assertNotIn(title, system["content"])
+                self.assertEqual(json.loads(user["content"]), {"kind": "confirm_thread", "thread": title})
+
+
+class RealtimeWriterTest(unittest.TestCase):
+    def test_complete_uses_a_fresh_text_only_session(self):
+        from unittest.mock import patch
+
+        from voice.prototype.tests.test_run_shared_session import FakeSession
+
+        class TextOnly(FakeSession):
+            async def send(self, **event):
+                if event["type"] == "response.create":
+                    self.sent.append(event)
+                    await self.push({"type": "response.output_text.delta", "delta": "Is Rotate Signing Keys the thread?"})
+                    await self.push({"type": "response.done", "response": {"status": "completed"}})
+                else:
+                    await super().send(**event)
+
+        sessions = []
+
+        async def capture_session(url, name, clock):
+            session = await TextOnly.open(url, name, clock)
+            sessions.append(session)
+            return session
+
+        messages = reader_messages((act(Kind.CONFIRM_THREAD, thread="Rotate Signing Keys"),))
+        writer = RealtimeWriter("ws://unused")
+        with patch("voice.prototype.realtime.Session.open", new=capture_session):
+            results = [writer.complete(messages) for _ in range(2)]
+
+        self.assertEqual([r["text"] for r in results], ["Is Rotate Signing Keys the thread?"] * 2)
+        self.assertTrue(all(isinstance(r["ms"], float) for r in results))
+        first, second = sessions
+        self.assertIsNot(first, second)
+        for session in sessions:
+            self.assertEqual(session.configs[0]["output_modalities"], ["text"])
+            received, = [e["item"] for e in session.sent if e["type"] == "conversation.item.create"]
+            self.assertEqual(received["role"], "user")
+            self.assertEqual(received["content"], [{"type": "input_text", "text": messages[1]["content"]}])
+            self.assertEqual(session.audio, [])
+            self.assertTrue(session.closed)
 
 
 if __name__ == "__main__":

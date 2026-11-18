@@ -224,12 +224,12 @@ python -m voice.t3.fork_env model <provider instance>/<model>
 python -m voice.t3.fork_env up
 ```
 
-**Start the live server with T3 on.** Use the default snapshot mode, `note`, for a call with T3. With T3 on, the free decider skips place and day questions by default. The voice's free text model words each T3 act, the slot check passes the line, and the line is spoken word for word ([spoken-acts.md](spoken-acts.md)). Thread news is announced while the call is quiet. `VOICE_ENV_FILE` gives the text model its key. Without one, LFM3 words every act under the same check.
+**Start the live server with T3 on.** LFM3 drafts each T3 line in a separate text-only session. The call's own voice says the draft, and the server checks both texts before playing the audio. Thread news waits for a quiet moment. `VOICE_ENV_FILE` supplies the Liquid key for the speech check. [Spoken acts](spoken-acts.md)
 
 ```bash
-export VOICE_ENV_FILE=<path to the .env that holds OPENROUTER_API_KEY>
+export VOICE_ENV_FILE=<path to the .env that holds LIQUID_API_KEY>
 python ~/.gpu/gpu_lease.py run --holder voice-live --purpose "call with T3" --max-minutes 60 -- \
-  "$VOICE_HOME/venv-lfm3/Scripts/python" -m voice.live.server --t3 on --decider cloud --max-minutes 55
+  "$VOICE_HOME/venv-lfm3/Scripts/python" -m voice.live.server --t3 on --decider liquid --max-minutes 55
 ```
 
 **Pair Mason's apps.** The link expires in 5 minutes, so mint it just before he links the environment in Settings > Connections. It is written to `$VOICE_HOME/t3-fork-home/pairing-url.txt` and never printed. Hand it to him without opening it.

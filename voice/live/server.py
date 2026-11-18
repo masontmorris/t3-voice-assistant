@@ -77,14 +77,13 @@ facts in it, and only then is it silent, recorded as blocked. No fixed line is p
 TTS endpoint is a different voice from the call's (measured: turns 22 and 26 of the recorded call, after which the
 person asked why it sounded different). When the registry has a general worker (`voice/tools/agent.py`,
 VOICE_AGENT=on), a reply that states a fact nothing gave it starts a lookup for the person's words in place of the
-retry. The older modes keep their fixed lines, `FALLBACK_LINE` and `ASK_INSTEAD_LINE`.
+retry.
 
 With --t3 on, news from a T3 thread the voice started or sent to (it is working, its reply, it finished) is spoken
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
-speaking, and IDLE_GRACE_S since the last of them. Each update is typed acts, worded by the voice's text model and
-spoken word for word in the server's voice (`say_acts`), as every T3 line is, on the reply path, so the client ducks
-them, a barge-in stops them, and the record names each line's evidence sequences. A burst within COALESCE_S is one turn, one line per update. A line
-taken just before the person started talking, and not yet heard, goes back to wait for the next quiet moment.
+speaking, and IDLE_GRACE_S since the last of them. Every update carries typed acts. The writer drafts a line, then
+the call's voice session says it. Both texts pass the same checks before the client gets any audio. The client can
+duck or interrupt it, and the record keeps the act's evidence. A line that does not play goes back to wait.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
@@ -117,18 +116,18 @@ from pathlib import Path
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
-from voice.live import fallback
 from voice.live import eou_audio
 from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start, State
 from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
-                                 heard_prefix, interrupted_note, plain_text, run_clip, say_acts, tts_line)
+from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, T3_RELAY, by_ear, create_item,
+                                 heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
-from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_decider, default_journal, \
+from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
     default_model, default_origin, default_token_file
+from voice.t3.verify import default_decider as default_speech_decider
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -281,6 +280,8 @@ class Reply:
 
     text: str = ""
     pcm: bytearray = field(default_factory=bytearray)
+    sent_bytes: int = 0
+    first_sent: float | None = None
 
 
 @dataclass
@@ -310,11 +311,15 @@ def note_for(heard):
     return interrupted_note() if heard and heard["heard"] and not heard["whole"] else None
 
 
-@dataclass
-class VerbatimAudio:
+@dataclass(frozen=True)
+class AudioFrame:
     pcm: bytes
     reply: Reply
-    done: asyncio.Future[bytes]
+
+
+@dataclass(frozen=True)
+class AudioDelivery:
+    done: asyncio.Future[None]
 
 
 class MicTurn:
@@ -427,34 +432,31 @@ class Conversation:
     def post(self, message, turn=None):
         self.outbox.put_nowait((turn, json.dumps(message)))
 
-    def post_audio(self, turn, pcm):
+    def post_audio(self, turn, pcm, reply):
         step = turn.out_rate * DOWN_CHUNK_MS // 1000 * 2
         for offset in range(0, len(pcm), step):
-            self.outbox.put_nowait((turn, pcm[offset:offset + step]))
+            self.outbox.put_nowait((turn, AudioFrame(pcm[offset:offset + step], reply)))
 
     async def _send_loop(self):
         try:
             while True:
                 turn, payload = await self.outbox.get()
-                if isinstance(payload, VerbatimAudio):
-                    try:
-                        step = turn.out_rate * DOWN_CHUNK_MS // 1000 * 2
-                        for offset in range(0, len(payload.pcm), step):
-                            if turn.muted:
-                                break
-                            frame = payload.pcm[offset:offset + step]
-                            await self.ws.send(frame)
-                            turn.first_audio = turn.first_audio or time.perf_counter()
-                            payload.reply.pcm += frame
-                    finally:
-                        payload.done.set_result(bytes(payload.reply.pcm))
-                elif not (isinstance(payload, bytes) and turn is not None and turn.muted):
+                if isinstance(payload, AudioFrame):
+                    if not turn.muted:
+                        await self.ws.send(payload.pcm)
+                        sent = time.perf_counter()
+                        turn.first_audio = turn.first_audio or sent
+                        payload.reply.first_sent = payload.reply.first_sent or sent
+                        payload.reply.sent_bytes += len(payload.pcm)
+                elif isinstance(payload, AudioDelivery):
+                    payload.done.set_result(None)
+                else:
                     await self.ws.send(payload)
         finally:
             while not self.outbox.empty():
                 _, payload = self.outbox.get_nowait()
-                if isinstance(payload, VerbatimAudio):
-                    payload.done.set_result(b"")
+                if isinstance(payload, AudioDelivery):
+                    payload.done.set_result(None)
 
     async def run(self):
         self.sender = sender = asyncio.create_task(self._send_loop())
@@ -744,7 +746,6 @@ class Conversation:
         if pcm and not turn.muted:
             if not turn.speaking:
                 turn.speaking, turn.reply_started = True, True
-                turn.first_audio = turn.first_audio or now
                 turn.replies.append(Reply())
                 self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
             reply = turn.replies[-1]
@@ -752,32 +753,27 @@ class Conversation:
             reply.text = text
             reply.pcm += pcm
             self.playback.add(len(pcm) / 2 / turn.out_rate, new_text.strip(), now, turn.n)
-            self.post_audio(turn, pcm)
+            self.post_audio(turn, pcm, reply)
         if done and turn.speaking:
             turn.speaking = False
             self.post({"type": "reply_end", "turn": turn.n}, turn)
 
     async def speak_t3(self, turn, line, pcm):
-        """Send one T3 line's audio on the reply path. Only a RenderedLine is spoken; a plain string raises."""
+        """Release a checked call reply and settle delivery from the frames the sender wrote."""
         text = speakable(line, "speak_t3").text
         if turn.muted or (self.sender is not None and self.sender.done()):
-            return b""
-        turn.speaking = turn.reply_started = True
-        reply = Reply(text)
-        turn.replies.append(reply)
-        now = time.perf_counter()
-        self.playback.add(len(pcm) / 2 / turn.out_rate, text, now, turn.n)
-        self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
+            return b"", None
+        self.speak(turn, text, pcm, True)
+        reply = turn.replies[-1]
         done = asyncio.get_running_loop().create_future()
-        self.outbox.put_nowait((turn, VerbatimAudio(pcm, reply, done)))
+        self.outbox.put_nowait((turn, AudioDelivery(done)))
         try:
-            return await asyncio.shield(done)
+            await asyncio.shield(done)
         except asyncio.CancelledError:
-            # The sender may already have written frames. Settle the line using its actual byte count.
-            return await asyncio.shield(done)
-        finally:
-            turn.speaking = False
-            self.post({"type": "reply_end", "turn": turn.n}, turn)
+            # The sender may already have written frames. Settle using the actual byte count.
+            await asyncio.shield(done)
+        del reply.pcm[reply.sent_bytes:]
+        return bytes(reply.pcm), None if reply.first_sent is None else reply.first_sent - self.started
 
     async def open_voice(self):
         """The call's one voice session, opened by its first turn. The persona is read here and kept for the call."""
@@ -786,9 +782,21 @@ class Conversation:
         self.persona, self.prompt_source = load_persona(live.prompt_file, NOTE_PERSONA if noted else PERSONA)
         if not noted:
             self.persona += CALL_RULES
-        self.voice = await Session.open(live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
-        created = await self.voice.wait_for("session.created")
-        self.out_rate = created["session"]["audio"]["output"]["format"]["rate"]
+        if live.t3 is not None:
+            self.persona += T3_RELAY
+        voice = await Session.open(live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
+        try:
+            created = await voice.wait_for("session.created")
+            self.out_rate = created["session"]["audio"]["output"]["format"]["rate"]
+            if live.t3 is not None:
+                config = {"type": "realtime", "instructions": self.persona + FORMAT_LINES["c"],
+                          "output_modalities": ["text", "audio"]}
+                await update_session(voice, config)
+                voice.config = config
+        except BaseException:
+            await voice.close()
+            raise
+        self.voice = voice
 
     async def run_turn(self, turn, prior):
         live = self.live
@@ -816,15 +824,14 @@ class Conversation:
                                     speak=lambda text, pcm, done: self.speak(turn, text, pcm, done),
                                     prior_utterances=tuple(turn_text["user"] for turn_text in self.ledger.conversation()
                                                            if "user" in turn_text),
-                                    fallback_pcm=live.fallback.pcm(turn.out_rate), prior_tasks=tuple(self.ledger.tasks),
-                                    ask_pcm=live.ask.pcm(turn.out_rate), asr_stagger=getattr(live.args, "asr_stagger", 1),
+                                    prior_tasks=tuple(self.ledger.tasks), asr_stagger=getattr(live.args, "asr_stagger", 1),
                                     simulate_tasks=getattr(live.args, "mock_tools", False), final_decider=True,
                                     recall=live.args.recall, context=self.ledger.context(),
                                     prior_results=tuple(self.ledger.results()),
                                     prior_replies=tuple(self.ledger.replies()),
                                     established=tuple(self.ledger.established()),
-                                    task_service=live.task_service, t3_voice=live.t3_voice,
-                                    send_verbatim=lambda line, pcm: self.speak_t3(turn, line, pcm))
+                                    task_service=live.task_service,
+                                    send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -880,8 +887,6 @@ class Conversation:
 
                     reply, _ = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
-                        speak=lambda text, pcm, done: self.speak(turn, text, pcm, done), render=live.t3_voice,
-                        fallback_url=live.url,
                         send_audio=lambda line, pcm: self.speak_t3(turn, line, pcm), record_delivery=delivered)
                     record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
                     log("reply", reply="t3_update", text=reply["text"])
@@ -937,7 +942,6 @@ class Live:
     def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, *, secret):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
         self.task_service = self.t3 = None
-        self.t3_voice = tts_line(url)
         self.news = asyncio.Event()
         self.secret = secret
         self.eou = eou
@@ -950,7 +954,6 @@ class Live:
         self.active, self.turns, self.overlaps = None, 0, 0
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.barge_in_note = getattr(args, "barge_in_note", "off") == "on"
-        self.fallback, self.ask = fallback.Clip(FALLBACK_LINE), fallback.Clip(ASK_INSTEAD_LINE)
 
     async def transcribe(self, pcm):
         return await transcribe(self.url, pcm, Session)
@@ -971,11 +974,6 @@ class Live:
         with open(self.out / "overlaps.jsonl", "a", encoding="utf-8") as log:
             log.write(json.dumps(entry) + "\n")
         print(f"overlap {json.dumps(entry)}", flush=True)
-
-    def render_lines(self):
-        """Render the fixed lines in the server's own TTS voice before any client connects, so no turn pays for it."""
-        for clip in (self.fallback, self.ask):
-            clip.render(f"http://127.0.0.1:{self.args.lfm_port}")
 
     def header_authed(self, ws):
         """A Python client proves itself with the header before the handshake; the page proves itself later, with
@@ -1032,6 +1030,7 @@ async def main_async(args):
     use_decider_cache(args.decider_cache, args.decider_budget)
     out = args.out or EVIDENCE / datetime.now().strftime("%Y%m%d-%H%M%S")
     out.mkdir(parents=True, exist_ok=True)
+    url = f"ws://127.0.0.1:{args.lfm_port}/v1/realtime"
     # One KV pool for both sessions. Split evenly, the voice session got a third of -c while the ASR session used a
     # few hundred tokens of its share (measured: n_ctx_slot = 11008 in the recorded call's llama-server log).
     lfm_args = ("-c", str(args.lfm_ctx), "-kvu")
@@ -1050,15 +1049,15 @@ async def main_async(args):
         t3 = poller = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
         if getattr(args, "t3", "off") == "on":
-            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
-                              default_decider())
+            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(url),
+                              default_speech_decider())
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
             tools = T3Registry(tools)
             print(f"t3 tasks on: {len(t3.follow.journal.live())} live threads and "
                   f"{len(t3.follow.journal.held())} held follow-ups resumed, thread picker model "
                   f"{'on' if t3.model else 'off'}", flush=True)
-        live = Live(args, f"ws://127.0.0.1:{args.lfm_port}/v1/realtime", decider, tools, out, cloud_lock,
+        live = Live(args, url, decider, tools, out, cloud_lock,
                     eou=eou, secret=secret)
         live.news = news
         if t3 is not None:
@@ -1067,8 +1066,6 @@ async def main_async(args):
         async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
             print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
-            if args.snapshot != "note":
-                live.render_lines()
             print(f"live server on ws://{host}:{args.port}, prompt: {prompt_source}, records: {out}", flush=True)
             await wait_for_stop(args.max_minutes, args.stop_file)
             if live.active is not None:
@@ -1136,8 +1133,6 @@ def main():
     args = parser.parse_args()
     if args.segmenter != "hybrid":
         parser.error("the gated turn needs the hybrid segmenter")
-    if args.t3 == "on" and args.snapshot != "note":
-        parser.error("--t3 on requires --snapshot note so T3 lines are spoken verbatim")
     if args.t3 == "on" and args.mock_tools:
         parser.error("--t3 on needs the real registry: the decider's tool question offers the T3 tools")
     asyncio.run(main_async(args))

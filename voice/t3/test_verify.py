@@ -112,6 +112,20 @@ class LineCheck(unittest.TestCase):
         self.assertEqual(body["state"]["facts"], [{"act": "thread_status", "thread": "Alpha", "status": "working"}])
         self.assertTrue(all(q["type"] == "noul" for q in body["questions"].values()))
 
+    def test_an_unnamed_cancellation_cannot_name_a_thread(self):
+        acts = (act(Kind.CANCELLED, op="start"),)
+
+        class NameCheck:
+            def call(self, route, body, label=""):
+                answers = {"a1_means": 1, "a1_asks_unrequested": 0, "claims_started": 0, "invents": 0, "a1_names_target": 1}
+                return {"status": 200, "response": {"answers": {
+                    name: {"type": "noul", "noul": value} for name, value in answers.items()
+                }}}
+
+        speech = Speech(None, lambda _: None, Decider(NameCheck()))
+        line = "I won't start the Plan Icon Audit."
+        self.assertIsNone(speech.accept(acts, line, "call").line)
+
     def test_a_decider_that_cannot_answer_never_passes_a_line(self):
         stop = [act(Kind.CONFIRM_STOP, thread="Alpha")]
         for error in (socket.timeout("timed out"), TimeoutError(), SpendStop("cap"), BillingStop("402")):

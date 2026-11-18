@@ -1,7 +1,7 @@
 import asyncio
 import base64
 import contextlib
-import io
+import inspect
 import json
 import tempfile
 import unittest
@@ -52,6 +52,9 @@ class FakeVoice:
         self.name, self.on_event, self.config = name, on_event, None
         self.events, self.sent, self.audio = [], [], []
         self.closed = False
+        self.responses = []
+        self.default_audio = bytes(960)
+        self.reply_gate = None
 
     def clock(self):
         return 0.0
@@ -62,12 +65,26 @@ class FakeVoice:
 
     async def send(self, **event):
         self.sent.append(event)
+        if event["type"] == "response.create":
+            draft = next(e["item"]["content"][0]["text"] for e in reversed(self.sent)
+                         if e["type"] == "conversation.item.create")
+            draft = draft.removeprefix(prototype_run.T3_DRAFT_NOTE)
+            text, pcm = self.responses.pop(0) if self.responses else (draft, self.default_audio)
+            self.events.append({"type": "response.output_text.delta", "delta": text, "_t": 0})
+            if pcm:
+                self.audio.append((len(self.events), pcm))
+                self.events.append({"type": "response.output_audio.delta", "_t": 0})
+            if self.reply_gate is not None:
+                self.reply_gate[0].set()
+                await self.reply_gate[1].wait()
+            self.events.append({"type": "response.done", "response": {"status": "completed"}, "_t": 0})
 
     async def wait_for(self, *types, after=0, timeout=120):
         if "session.created" in types:
             return {"type": "session.created",
                     "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}}
-        return {"type": "conversation.item.added", "item": {}}
+        return next((e for e in self.events[after:] if e["type"] in types),
+                    {"type": "session.updated" if "session.updated" in types else "conversation.item.added"})
 
     async def close(self):
         self.closed = True
@@ -667,21 +684,6 @@ class News(T3Tasks):
 DONE = Update("conv_turn_001:task_1", (act(S.DONE, thread="Add a hello function", status="completed"),),
               "completed", "done-event", "thread-1", (750, 751))
 DONE_LINE = "About Add a hello function, noted."
-NOTES = []
-
-
-def idle_speaker(gate=None, seconds=2.0):
-    original = prototype_run.say_verbatim
-
-    async def say_verbatim(session, rate, since, line, log, **kwargs):
-        NOTES.append(line.text)
-        if gate is not None:
-            gate[0].set()
-            await gate[1].wait()
-        kwargs["render"] = lambda text, rate: b"\x01\x00" * int(OUT_RATE * seconds)
-        return await original(session, rate, since, line, log, **kwargs)
-
-    return say_verbatim
 
 
 class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
@@ -690,11 +692,19 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
     asyncSetUp, asyncTearDown = LiveServerTest.asyncSetUp, LiveServerTest.asyncTearDown
     connect, send, until, heard = LiveServerTest.connect, LiveServerTest.send, LiveServerTest.until, LiveServerTest.heard
 
-    def news(self, speaker, *updates):
-        NOTES.clear()
+    def news(self, *updates, responses=(), audio=None, gate=None):
         self.live.t3 = News(Path(self.tmp.name) / "journal.json", *updates)
+
+        async def open_voice(url, name, clock, on_event=None):
+            voice = await FakeVoice.open(url, name, clock, on_event)
+            voice.responses = list(responses)
+            voice.reply_gate = gate
+            if audio is not None:
+                voice.default_audio = audio
+            return voice
+
         for owner, name, value in ((server, "IDLE_GRACE_S", 0.05), (server, "COALESCE_S", 0.05),
-                                   (prototype_run, "say_verbatim", speaker)):
+                                   (server.Session, "open", open_voice)):
             patch = mock.patch.object(owner, name, value)
             patch.start()
             self.addCleanup(patch.stop)
@@ -704,7 +714,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         return json.loads((Path(self.tmp.name) / f"turn_{n:03d}.json").read_text())
 
     async def test_news_while_the_call_is_silent_is_spoken_as_its_own_turn(self):
-        t3 = self.news(idle_speaker(), DONE)
+        t3 = self.news(DONE, audio=bytes(OUT_RATE * 2 * 2))
         ws = await self.connect()
         log = []
         self.live.news.set()
@@ -714,19 +724,21 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((start["turn"], done["turn"], done["idle"], done["rows"]), (1, 1, True, ["done-event"]))
         self.assertIn("reply_end", log)
         self.assertEqual(sum(self.frames), OUT_RATE * 2 * 2, "the whole line went out")
-        self.assertEqual(NOTES, [DONE_LINE], "the text model's line for the act, word for word")
         record = self.record(1)
         self.assertTrue(record["idle"])
         self.assertEqual(record["t3_updates"][0]["sequences"], [750, 751], "the record keeps the line's evidence")
         self.assertEqual(record["task_updates"][0]["evidence"], {"thread_id": "thread-1", "sequences": [750, 751]})
         self.assertEqual(record["replies"][0]["text"], DONE_LINE)
+        settings, draft, response = self.live.active.voice.sent
+        self.assertIn("say the draft", settings["session"]["instructions"].lower())
+        self.assertEqual(draft["item"]["role"], "user")
+        self.assertEqual(response["type"], "response.create")
         self.assertEqual(record["task_updates"][0]["acts"], [a.to_json() for a in DONE.acts])
         self.assertEqual((t3.outbox, t3.given), ([], []))
         await ws.close()
 
-    async def test_failed_idle_render_is_retried_once_without_a_false_told_note(self):
-        t3 = self.news(prototype_run.say_verbatim, DONE)
-        self.live.t3_voice = mock.Mock(side_effect=[OSError("TTS down"), bytes(960)])
+    async def test_silent_call_reply_is_retried_without_sending_audio(self):
+        t3 = self.news(DONE, responses=[(DONE_LINE, b"")])
         ws = await self.connect()
         log = []
         first = await self.until(ws, "turn_done", log)
@@ -737,26 +749,24 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.frames, [960])
         notes = [event["item"]["content"][0]["text"] for event in self.live.active.voice.sent
                  if event["type"] == "conversation.item.create"]
-        self.assertEqual(len(notes), 1)
-        self.assertIn(DONE_LINE, notes[0])
+        self.assertEqual(notes, [prototype_run.T3_DRAFT_NOTE + DONE_LINE, prototype_run.T3_DISCARD,
+                                 prototype_run.T3_DRAFT_NOTE + DONE_LINE])
         self.assertFalse(t3.has_news())
-        self.assertEqual(self.live.t3_voice.call_count, 2)
         await ws.close()
 
     async def test_two_idle_failures_hold_news_for_the_next_person_turn(self):
-        t3 = self.news(prototype_run.say_verbatim, DONE)
-        self.live.t3_voice = mock.Mock(side_effect=OSError("TTS down"))
+        t3 = self.news(DONE, responses=[("Something else finished.", bytes(960))] * 2)
         ws = await self.connect()
         for _ in range(2):
             done = await self.until(ws, "turn_done", [])
             self.assertTrue(done["given_back"])
+        self.assertEqual(self.frames, [], "audio with rejected text must never reach the client")
         self.assertFalse(t3.has_news(idle=True))
         self.assertEqual(t3.reserve_news(idle=True), [])
         reopened = T3Journal(t3.follow.journal.path)
         self.assertEqual([(line.acts, line.delivery_failures) for line in reopened.pending_lines], [(DONE.acts, 2)])
-        self.live.t3_voice = mock.Mock(return_value=bytes(960))
 
-        async def user_turn(source, *args, voice, send_verbatim, **kwargs):
+        async def user_turn(source, *args, voice, send_checked, **kwargs):
             await source.stream(FakeSession(), FakeSession())
             service = server.T3TaskService(SimpleNamespace(records=lambda: []), source.name, t3=t3)
             entries = service.take_updates()
@@ -764,7 +774,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
             for entry in entries:
                 reply, _ = await server.say_acts(
                     voice, OUT_RATE, 0, entry, service, [], lambda *args, **kwargs: None,
-                    render=self.live.t3_voice, fallback_url=self.live.url, send_audio=send_verbatim,
+                    send_audio=send_checked,
                     record_delivery=lambda state: service.record_delivery(entry, state))
                 replies.append({"row": entry["row"], **reply})
             service.close()
@@ -780,7 +790,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         await ws.close()
 
     async def test_news_waits_while_the_person_talks_and_after_the_reply(self):
-        self.news(idle_speaker(), DONE)
+        self.news(DONE, audio=bytes(OUT_RATE * 2 * 2))
         ws = await self.connect()
         log = []
         await self.send(ws, noise(500) + tone(600))
@@ -796,7 +806,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_speech_before_the_line_is_heard_gives_it_back_for_later(self):
         gate = (asyncio.Event(), asyncio.Event())
-        t3 = self.news(idle_speaker(gate), DONE)
+        t3 = self.news(DONE, gate=gate)
         ws = await self.connect()
         self.live.news.set()
         await asyncio.wait_for(gate[0].wait(), 5)
@@ -808,7 +818,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((idle["turn"], idle["idle"], idle["given_back"]), (1, True, True))
         self.assertEqual(idle["cancelled"], "superseded", "muted and left to finish, never cancelled mid-session")
         self.assertNotIn("audio", log, "a line the person talked before is never played over them")
-        self.assertEqual(self.live.active.voice.sent, [], "the muted question never enters the session as heard")
+        self.assertIn(prototype_run.T3_DISCARD, str(self.live.active.voice.sent))
         self.assertEqual(t3.given, [DONE.acts])
         await self.send(ws, noise(900, seed=1))
         while not (done := await self.until(ws, "turn_done", log)).get("idle"):
@@ -820,7 +830,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
 
     async def test_talking_over_an_idle_line_barges_in(self):
         self.heard("unused")
-        self.news(idle_speaker(), DONE)
+        self.news(DONE, audio=bytes(OUT_RATE * 2 * 2))
         ws = await self.connect()
         log = []
         await self.send(ws, noise(500))
@@ -868,7 +878,8 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         kinds, frames = [], 0
         while not conversation.outbox.empty():
             turn, payload = conversation.outbox.get_nowait()
-            if isinstance(payload, bytes):
+            if isinstance(payload, server.AudioFrame):
+                payload = payload.pcm
                 if turn is not None and turn.muted:
                     continue
                 kinds.append("audio")
@@ -915,8 +926,6 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         turn = server.MicTurn(1, b"")
         turn.out_rate = OUT_RATE
         frames = []
-        voice = FakeVoice("voice", None)
-
         async def send(payload):
             if isinstance(payload, bytes):
                 frames.append(payload)
@@ -926,14 +935,10 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         sender = asyncio.create_task(conversation._send_loop())
         try:
             line = Speech(None, lambda thread_id: None, F.Agree()).accept(DONE.acts, DONE_LINE, "text_model").line
-            reply, pcm = await prototype_run.say_verbatim(
-                voice, OUT_RATE, 0, line, lambda *args, **kwargs: None,
-                render=lambda text, rate: bytes(9600),
-                send_audio=lambda line, audio: conversation.speak_t3(turn, line, audio))
-            self.assertEqual(len(frames), 1)
-            self.assertEqual(pcm, frames[0])
-            self.assertEqual(reply["delivery"], "partial")
-            self.assertEqual(voice.sent, [])
+            pcm, first_sent = await conversation.speak_t3(turn, line, bytes(9600))
+            self.assertEqual(frames, [pcm])
+            self.assertEqual(len(pcm), 1920)
+            self.assertIsNotNone(first_sent)
         finally:
             sender.cancel()
             await asyncio.gather(sender, return_exceptions=True)
@@ -1053,19 +1058,36 @@ class ChunkTest(unittest.IsolatedAsyncioTestCase):
 
 
 class DefaultsTest(unittest.TestCase):
-    def test_t3_refuses_snapshot_modes_that_do_not_speak_verbatim(self):
-        for mode in ("reply-no-utterance", "reply", "before-audio", "off"):
+    def test_live_writer_defaults_to_realtime_and_keeps_the_paid_opt_in(self):
+        from voice.live import t3_tasks
+        from voice.t3.realtime_writer import RealtimeWriter
+
+        with mock.patch.dict("os.environ", {"VOICE_RENDERER": "", "VOICE_PAID_TEXT_MODEL": ""}):
+            self.assertIsInstance(server.default_model("ws://unused"), RealtimeWriter)
+            with mock.patch.dict("os.environ", {"VOICE_PAID_TEXT_MODEL": "paid/model", "VOICE_ENV_FILE": "unused"}), \
+                    mock.patch.object(t3_tasks, "LiveClient") as cloud:
+                self.assertIs(server.default_model("ws://unused"), cloud.return_value)
+
+    def test_live_speech_has_no_tts_mode_dependency(self):
+        from voice.t3 import realtime_writer
+
+        for module in (server, prototype_run, realtime_writer):
+            with self.subTest(module=module.__name__):
+                source = inspect.getsource(module)
+                for tts in ("/v1/audio/speech", "from voice.live import script", "voice.live.fallback", "tts_line"):
+                    self.assertNotIn(tts, source)
+
+    def test_t3_can_start_with_any_snapshot_mode(self):
+        for mode in ("note", "reply-no-utterance", "reply", "before-audio", "off"):
             with self.subTest(mode=mode), mock.patch("sys.argv", ["server", "--t3", "on", "--snapshot", mode]), \
                     mock.patch.object(server, "main_async", new=mock.Mock()) as start, \
-                    mock.patch.object(server.asyncio, "run"), contextlib.redirect_stderr(err := io.StringIO()):
-                with self.assertRaises(SystemExit):
-                    server.main()
-                start.assert_not_called()
-                self.assertIn("--t3 on requires --snapshot note", err.getvalue())
+                    mock.patch.object(server.asyncio, "run"):
+                server.main()
+                self.assertEqual(start.call_args.args[0].snapshot, mode)
 
     def test_live_mode_sends_only_a_lookup_note_unless_told_otherwise(self):
         argv = mock.patch("sys.argv", ["server"])
-        with argv, mock.patch.object(server, "main_async") as main_async, mock.patch.object(server.asyncio, "run"):
+        with argv, mock.patch.object(server, "main_async", new=mock.Mock()) as main_async, mock.patch.object(server.asyncio, "run"):
             server.main()
         self.assertEqual(main_async.call_args.args[0].snapshot, "note")
 
@@ -1074,7 +1096,7 @@ class DefaultsTest(unittest.TestCase):
 
     def test_live_mode_names_the_turn_a_question_asks_about_unless_told_otherwise(self):
         argv = mock.patch("sys.argv", ["server"])
-        with argv, mock.patch.object(server, "main_async") as main_async, mock.patch.object(server.asyncio, "run"):
+        with argv, mock.patch.object(server, "main_async", new=mock.Mock()) as main_async, mock.patch.object(server.asyncio, "run"):
             server.main()
         self.assertEqual(main_async.call_args.args[0].recall, "note")
 
@@ -1102,50 +1124,6 @@ class BindTest(unittest.TestCase):
             text, label = server.load_persona(path)
             self.assertEqual(text, "Be brief.")
             self.assertTrue(label.startswith("prompt.txt sha256:"))
-
-
-class FallbackAudioTest(unittest.TestCase):
-    """The line a failed turn says reaches the client as audio at the session's own rate."""
-
-    ARGS = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
-                           max_turn_s=30.0, prompt=None, lfm_port=8099)
-
-    def live(self, tmp):
-        return server.Live(self.ARGS, "ws://unused", None, None, Path(tmp), secret=SECRET)
-
-    def test_no_rendered_clip_means_no_audio(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            live = self.live(tmp)
-            for clip in (live.fallback, live.ask):
-                self.assertEqual(clip.pcm(OUT_RATE), b"",
-                                 "the turn still says the line in its record, but plays nothing")
-
-    def test_a_rendered_clip_is_pcm_at_the_session_rate(self):
-        from voice.live.tests.test_fallback import wav_bytes
-        with tempfile.TemporaryDirectory() as tmp:
-            live = self.live(tmp)
-            live.fallback.wav = wav_bytes(16_000, [0] * 1600)
-            self.assertEqual(len(live.fallback.pcm(OUT_RATE)) // 2, 2400)
-            self.assertEqual(live.fallback.pcm(OUT_RATE), live.fallback.pcm(OUT_RATE),
-                             "one conversion per rate, kept for the call")
-
-    def test_a_failed_render_is_reported_and_changes_nothing_else(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            with mock.patch.object(server.fallback, "wav", side_effect=OSError("no TTS")):
-                live = self.live(tmp)
-                live.render_lines()
-            for clip in (live.fallback, live.ask):
-                self.assertEqual(clip.wav, b"")
-                self.assertIn("no TTS", clip.error)
-                self.assertEqual(clip.pcm(OUT_RATE), b"")
-
-    def test_both_lines_are_rendered_in_the_servers_voice(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            with mock.patch.object(server.fallback, "wav", side_effect=lambda url, line: line.encode()) as render:
-                self.live(tmp).render_lines()
-            self.assertEqual([call.args for call in render.call_args_list],
-                             [("http://127.0.0.1:8099", server.FALLBACK_LINE),
-                              ("http://127.0.0.1:8099", server.ASK_INSTEAD_LINE)])
 
 
 class LlamaServerSlotsTest(unittest.IsolatedAsyncioTestCase):
