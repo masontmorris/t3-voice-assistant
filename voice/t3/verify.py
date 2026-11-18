@@ -138,9 +138,8 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
             out.append(Ask(f"a{n}_means", f"Is the line a question that asks {means}?", True))
         else:
             out.append(Ask(f"a{n}_means", f"Does the line tell them that {means}?", True))
-        if a.kind is Kind.REPLIED or a.slots.get("summary"):
-            out.append(Ask(f"a{n}_claims_verified",
-                           "Does the line present the thread's claim as the speaker's own verified fact?", False))
+            out.append(Ask(f"a{n}_asks_unrequested",
+                           "Does the line ask the person a question the act did not call for?", False))
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")

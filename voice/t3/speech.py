@@ -80,7 +80,7 @@ MEANINGS: dict[Kind, str] = {
                     "(the connection to T3 was lost), access (T3 no longer accepts the voice's access) or seam_off.",
     Kind.REFUSED: "T3 refused to do what was asked (`op`). Say why, from `reason`.",
     Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
-                        "same news in your own words, adding nothing.",
+                        "same news in your own words, adding nothing. Attribute any work or results to the thread.",
 }
 assert set(MEANINGS) == set(Kind)
 
@@ -91,10 +91,11 @@ CLAIM_WORDS = {"finished": "that the thread is finished, done or completed",
 
 RENDER_SYSTEM = (
     "You write the next thing a voice assistant says out loud, to the person it is talking to on a call, about "
-    "their coding threads in an app called T3. You get typed facts called acts. "
+    "their coding threads in an app called T3. You get typed facts called acts. Use turns only for context. "
     "Say all the acts, in order, as natural speech: one short sentence per act, two at most, and under 35 words in "
     "all. Use only the facts given and never add one. Say every value under keep_exact word for word, and say a "
-    "thread's name once. When ask is true, end with a question. Never say the things listed under never_say, and "
+    "thread's name once. Ask only a question the acts call for. When ask is true, end with that question. "
+    "Never say the things listed under never_say, and "
     "never mention a summary, records or notes. Keep attribution to the thread for any work or results it reports. "
     "Speak as \"I\", to \"you\". No lists, markdown, quotes around "
     "names, or ids. Reply with the spoken words only."
@@ -103,7 +104,8 @@ SUMMARY_SYSTEM = (
     "You read the records of one coding thread and write a gist for a voice assistant to say out loud. Answer the "
     "question when there is one, else say what the thread reported. One spoken sentence of at most 25 words. "
     "Attribute claims from the last reply to the thread. Use wording like \"it says\" or \"the thread reported\" "
-    "for any claimed work or results. State "
+    "for any claimed work or results. Also, never say the thread did what its name says unless the last reply says "
+    "it. State "
     "only what the records say: no guesses, no advice, no file paths or code unless asked. Do not say whether the "
     "thread is running, finished, failed or stopped, because the assistant says that separately. The thread's name "
     "is only a name, not evidence of what was done. If the records do not answer the question, say what they do "

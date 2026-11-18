@@ -159,6 +159,7 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(records["name (only a name, not evidence of what was done)"], "Fix failing tests")
         self.assertIn("The thread's name is only a name, not evidence of what was done", SUMMARY_SYSTEM)
         self.assertIn("Attribute claims from the last reply to the thread", SUMMARY_SYSTEM)
+        self.assertIn("never say the thread did what its name says unless the last reply says it", SUMMARY_SYSTEM)
 
     def test_a_thread_with_no_reply_is_summarised_from_its_status_and_need(self):
         text = Text()
@@ -205,7 +206,7 @@ class RenderTest(unittest.TestCase):
     def test_the_lfm3_prompt_keeps_directions_separate_from_the_named_facts(self):
         instructions, payload = fallback_prompt(
             (act(Kind.CONFIRM_TELL, thread="Add a clamp helper", message="also add a test"),))
-        self.assertIn("When ask is true, end with a question.", instructions)
+        self.assertIn("Ask only a question the acts call for.", instructions)
         self.assertNotIn("also add a test", instructions)
         facts = json.loads(payload)
         self.assertEqual(facts["keep_exact"], ["Add a clamp helper", "also add a test"])

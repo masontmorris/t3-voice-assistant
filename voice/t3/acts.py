@@ -198,15 +198,18 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
     form = text
     for value in sorted((v for a in acts for name in RULES[a.kind].named if name in a.slots
                          for v in _named_values(a.slots[name])), key=len, reverse=True):
-        form = form.replace(value, "x")
+        form = re.sub(re.escape(value), "x", form, flags=re.IGNORECASE)
     if _NOT_SPEECH.search(form):
         problems.append("not plain speech")
     if any(RULES[a.kind].plain for a in acts) and _CODE.search(form):
         problems.append("reads code")
     if len(_SENTENCE.findall(form if form[-1] in ".!?" else form + ".")) > MAX_SENTENCES_PER_ACT * len(acts):
         problems.append("too long")
-    if any(a.kind in QUESTIONS for a in acts) and not text.endswith("?"):
+    expects_question = any(a.kind in QUESTIONS for a in acts)
+    if expects_question and not text.endswith("?"):
         problems.append("not a question")
+    if not expects_question and "?" in form:
+        problems.append("unrequested question")
     for a in acts:
         for name in RULES[a.kind].named:
             if name in a.slots:

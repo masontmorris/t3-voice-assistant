@@ -709,9 +709,10 @@ class T3TaskService(MockTaskService):
         return self._execution(task_id, update, now, choice.tool)
 
     def _execution(self, task_id, update: L.Update, now, tool):
-        self.spoken[task_id] = update
-        if update.status == "needs_clarification":
-            self.t3.unasked = update
+        with self.t3.lock:
+            self.spoken[task_id] = update
+            if update.status == "needs_clarification":
+                self.t3.unasked = update
         state = Run.FAILED if update.status in ("failed", "lost") else Run.COMPLETED
         return Execution(task_id, state, now, None, result_summary=None, finished_at=now, mode="t3",
                          tool={"tool": tool, "arguments": {}})
@@ -756,10 +757,11 @@ class T3TaskService(MockTaskService):
         if waiting is not T3_WAITING:
             return super().answer(waiting, instruction, now)
         # A request dispatched mid-utterance may already have asked its own confirmation.
-        if any(update is self.t3.unasked for update in self.spoken.values()):
-            return []
-        tool = self.t3.question.op if self.t3.question is not None else TELL
-        update = self.t3.answer(instruction, now)
+        with self.t3.lock:
+            if any(update is self.t3.unasked for update in self.spoken.values()):
+                return []
+            tool = self.t3.question.op if self.t3.question is not None else TELL
+            update = self.t3.answer(instruction, now)
         if update is None:
             return []
         task_id = f"t3_{len(self.extra) + 1}"
@@ -796,9 +798,10 @@ class T3TaskService(MockTaskService):
         else:
             task_id = entry["task_id"]
             self.delivered.add(task_id)
-            self.t3.ack_news(self.spoken[task_id])
-            if self.t3.unasked is self.spoken[task_id]:
-                self.t3.unasked = None
+            with self.t3.lock:
+                self.t3.ack_news(self.spoken[task_id])
+                if self.t3.unasked is self.spoken[task_id]:
+                    self.t3.unasked = None
 
     def close(self):
         super().close()

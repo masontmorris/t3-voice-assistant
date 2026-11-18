@@ -3,12 +3,15 @@ code's word lists used to refuse, and one right line for each, so voice/t3/test_
 with no live call.
 
     VOICE_ENV_FILE=<env file> python -m voice.t3.eval.record_verify
+    VOICE_ENV_FILE=<env file> python -m voice.t3.eval.record_verify --attribution-probe
 
-Run it again after a change to the questions in voice/t3/verify.py. One request per case to Liquid's d1.2.
+Run it again after a change to the questions in voice/t3/verify.py. Each new line goes to Liquid's d1.2.
+The attribution probe records the optional question separately because its answers were too noisy to gate speech.
 """
 
 from __future__ import annotations
 
+import argparse
 import json
 from pathlib import Path
 
@@ -17,6 +20,10 @@ from voice.t3.acts import Kind, act
 from voice.t3.verify import request
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "verify_lines.json"
+ATTRIBUTION_FIXTURE = FIXTURE.with_name("verify_attribution.json")
+ATTRIBUTION_QUESTION = ("Does the spoken line claim work or results without an attribution like 'it says', "
+                        "'it reported', or 'according to the thread'? Ignore the thread's run status and any "
+                        "request for the person to act.")
 
 CASES = [
     ("a stop confirm", act(Kind.CONFIRM_STOP, thread="Alpha"), "Alpha is complete?", "Want me to stop Alpha?"),
@@ -35,7 +42,7 @@ CLAIMS = [
     (act(Kind.CONFIRM_STOP, thread=T), f"I've stopped {T}, right?", f"Want me to stop {T}?"),
     (act(Kind.CANCELLED, op="stop", thread=T), f"Okay, {T} is stopped.", f"Okay, I'll leave {T} running."),
     (act(Kind.THREAD_STATUS, thread=T, status="working", summary="It added the helper."), f"{T} has finished.",
-     f"{T} is still working, and it has added the helper."),
+     f"{T} is still working and says it added the helper."),
     (act(Kind.THREAD_STATUS, thread=T, status="working", summary="It added the helper."), f"{T} was stopped.",
      None),
     (act(Kind.TELL_PENDING, thread=T), f"I passed that on to {T}.", f"I've asked T3 to pass that to {T}."),
@@ -59,7 +66,7 @@ SMOKE = "Add a Clamp Helper"
 CASES += [
     ("smoke replied", act(Kind.REPLIED, thread=SMOKE, status="running",
                           reply="I added clamp next to sum. All 12 tests pass."),
-     f"{SMOKE} has finished: it added clamp next to sum.", "It added clamp next to sum and the tests pass."),
+     f"{SMOKE} has finished: it added clamp next to sum.", f"{SMOKE} says it added clamp next to sum and the tests pass."),
     # Refused twice in the fourth smoke run: an interrupted run has ended, but it did not finish.
     ("smoke done interrupted", act(Kind.DONE, thread="Add a Sum Helper", status="interrupted",
                                    summary="The thread has no reply yet and is interrupted, with nothing pending or "
@@ -69,7 +76,7 @@ CASES += [
     # The PM's two replied cases (2026-11-18), recorded TAKES times each, since one d1.2 answer can drift.
     ("pm replied finished work", act(Kind.REPLIED, thread=SMOKE, status="running",
                                      reply="I added clamp next to sum. All 12 tests pass."),
-     None, "It added clamp, and the tests pass."),
+     None, f"{SMOKE} says it added clamp and the tests pass."),
     ("pm replied says done", act(Kind.REPLIED, thread=SMOKE, status="running",
                                  reply="I added clamp next to sum. All 12 tests pass."),
      f"{SMOKE} is done: it added clamp, and the tests pass.", None),
@@ -77,37 +84,99 @@ CASES += [
      f"Your message reached {SMOKE}."),
 ]
 
+ATTRIBUTION_CASES = [
+    ("historical bare status", act(Kind.THREAD_STATUS, thread=T, status="working", summary="It added the helper."),
+     f"{T} is still working, and it has added the helper.", None),
+    ("historical bare reply", act(Kind.REPLIED, thread=SMOKE, status="running",
+                                  reply="I added clamp next to sum. All 12 tests pass."),
+     "It added clamp next to sum and the tests pass.", None),
+    ("pm replied finished work", act(Kind.REPLIED, thread=SMOKE, status="running",
+                                     reply="I added clamp next to sum. All 12 tests pass."),
+     "It added clamp, and the tests pass.", None),
+]
+
+WORK = [
+    ("The clamp helper", "added clamp", "says it added clamp"),
+    ("Parser cleanup", "removed the unused parser", "reports removing the unused parser"),
+    ("Cache tests", "fixed the flaky test", "says the flaky test is fixed"),
+    ("Queue metrics", "found a duplicate counter", "reported finding a duplicate counter"),
+    ("Export check", "confirmed the export works", "says it confirmed the export works"),
+]
+for thread, work, attributed in WORK:
+    for said, start in (
+        (act(Kind.REPLIED, thread=thread, status="running", reply=f"I {work}."), f"{thread} "),
+        (act(Kind.THREAD_STATUS, thread=thread, status="working", summary=f"It {attributed}."),
+         f"{thread} is still working, and it "),
+        (act(Kind.DONE, thread=thread, status="finished", summary=f"It {attributed}."),
+         f"{thread} is finished, and it "),
+        (act(Kind.NEEDS_YOU, thread=thread, need="command_approval", summary=f"It {attributed}."),
+         f"{thread} needs your approval to run a command. It "),
+    ):
+        ATTRIBUTION_CASES.append((f"attribution {said.kind.value}", said, f"{start}{work}.", f"{start}{attributed}."))
+
+ATTRIBUTION_CASES.append(("attribution legacy_update",
+                          act(Kind.LEGACY_UPDATE, thread="Parser cleanup", text="Parser cleanup removed the unused parser."),
+                          "Parser cleanup removed the unused parser.", "Parser cleanup says it removed the unused parser."))
+
+for said, line, question in (
+    (act(Kind.REPLIED, thread="The clamp helper", status="running", reply="I added clamp."),
+     "The clamp helper says it added clamp.", "What's next?"),
+    (act(Kind.THREAD_STATUS, thread="Parser cleanup", status="working"),
+     "Parser cleanup is still working.", "Anything else?"),
+    (act(Kind.DONE, thread="Cache tests", status="finished"),
+     "Cache tests is finished.", "Do you want me to check anything else?"),
+    (act(Kind.LAUNCHED, project="Voice sandbox", request="add a clamp helper"),
+     "The new thread started in Voice sandbox.", "What should we do next?"),
+    (act(Kind.STOPPING, thread="Queue metrics"),
+     "I'm stopping Queue metrics now.", "Need anything else?"),
+):
+    CASES.append((f"unsolicited question {said.kind.value}", said, f"{line} {question}", line))
+
 
 TAKES = 3
 
 
-def main() -> int:
+def main(argv=None) -> int:
     """Record each case's lines. A row already recorded for the same line, acts and questions is kept as it is, so a
     change to some questions re-asks only the lines it touches."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--attribution-probe", action="store_true")
+    attribution_probe = parser.parse_args(argv).attribution_probe
+    fixture, cases = (ATTRIBUTION_FIXTURE, ATTRIBUTION_CASES) if attribution_probe else (FIXTURE, CASES)
     client = LiquidClient(max_attempts=3)
-    kept = json.loads(FIXTURE.read_text(encoding="utf-8")) if FIXTURE.exists() else []
+    kept = json.loads(fixture.read_text(encoding="utf-8")) if fixture.exists() else []
     out = []
-    for name, said, escape, right in CASES:
+    for name, said, escape, right in cases:
         for line, should_pass in ((escape, False), (right, True)):
             if line is None:
                 continue
             body = request([said], line)
+            if attribution_probe:
+                questions = body["questions"]
+                unrequested = "a1_asks_unrequested"
+                keys = list(questions)
+                keys.insert(keys.index(unrequested) + 1, "a1_claims_verified")
+                questions["a1_claims_verified"] = {**questions[unrequested], "instructions": ATTRIBUTION_QUESTION}
+                body["questions"] = {key: questions[key] for key in keys}
             asked = {name: question["instructions"] for name, question in body["questions"].items()}
             takes = TAKES if name.startswith("pm ") else 1
-            old = [row for row in kept if row["line"] == line and row["acts"] == [said.to_json()]
+            old = [row for row in kept if row["case"] == name and row["line"] == line and row["acts"] == [said.to_json()]
                    and row.get("asked") == asked]
             for take in range(takes):
                 if take < len(old):
-                    out.append({**old[take], "case": name, "take": take + 1})
+                    out.append({**old[take], "case": name, "take": take + 1, "should_pass": should_pass})
                     continue
                 record = client.call("decisions", body, label="t3_line_fixture", fresh=True, cache_record=False)
+                answers = (record.get("response") or {}).get("answers")
+                if record["status"] != 200 or not isinstance(answers, dict) or set(answers) != set(asked):
+                    raise RuntimeError(f"Liquid gave an incomplete answer for {name!r}: status {record['status']}")
                 out.append({"case": name, "take": take + 1, "acts": [said.to_json()], "line": line,
                             "should_pass": should_pass, "asked": asked, "status": record["status"],
-                            "answers": (record.get("response") or {}).get("answers"),
+                            "answers": answers,
                             "ms": round(record["timing"]["ms"], 1)})
                 print(json.dumps(out[-1]), flush=True)
-    FIXTURE.parent.mkdir(parents=True, exist_ok=True)
-    FIXTURE.write_bytes((json.dumps(out, indent=2) + "\n").encode())
+    fixture.parent.mkdir(parents=True, exist_ok=True)
+    fixture.write_bytes((json.dumps(out, indent=2) + "\n").encode())
     return 0
 
 
