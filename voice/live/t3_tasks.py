@@ -45,7 +45,7 @@ from voice.t3.pick.model import LiveClient
 from voice.t3.pick.prefilter import content_words
 from voice.t3.pick.project import pick_project
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
-from voice.t3.speech import Lane, Rendered, Speech
+from voice.t3.speech import Lane, LocalText, Rendered, Speech, text_model
 from voice.t3.speech import note as act_note
 from voice.t3.verify import Decider, default_decider
 
@@ -169,13 +169,13 @@ MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting
 
 @dataclass
 class T3Tasks:
-    """`model` is the free text model: the Twin B model arm, asked only when the prefilter misses, and the voice's
-    words for every act and summary. One `Lane` carries all of it, one request at a time. None keeps the prefilter
-    alone, and then no act can be worded by the text model. `decider` checks every worded line against its acts
-    (voice/t3/verify.py); with none, no line passes and every act waits."""
+    """`model` is the voice's text model (speech.text_model): the Twin B model arm, asked only when the prefilter
+    misses, and the voice's words for every act and summary. One `Lane` carries all of it, one request at a time. None
+    keeps the prefilter alone, and then no act can be worded by the text model. `decider` checks every worded line
+    against its acts (voice/t3/verify.py); with none, no line passes and every act waits."""
 
     follow: L.Follow
-    model: LiveClient | None = None
+    model: LiveClient | LocalText | None = None
     decider: Decider | None = None
     question: Question | None = None
     keys: dict[str, str] = field(default_factory=dict)
@@ -192,7 +192,7 @@ class T3Tasks:
 
     @classmethod
     def open(cls, origin: str, token_file: str | Path, journal_path: str | Path,
-             model: LiveClient | None = None, decider: Decider | None = None) -> T3Tasks:
+             model: LiveClient | LocalText | None = None, decider: Decider | None = None) -> T3Tasks:
         follow = L.Follow(T3Journal(journal_path), lambda: T3Seam.connect(origin, token_file))
         return cls(follow, model, decider)
 
@@ -817,11 +817,15 @@ def default_journal() -> Path:
     return Path(os.environ.get("VOICE_T3_JOURNAL", default_voice_home() / "state" / "t3-journal.json"))
 
 
-def default_model() -> LiveClient | None:
-    """The Twin B model arm, when a key is configured. Without one the prefilter answers alone."""
-    if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE")):
-        return None
-    return LiveClient(cache_dir=default_voice_home() / "state" / "t3-pick-cache")
+def default_model() -> LiveClient | LocalText | None:
+    """The voice's text model by `$VOICE_RENDERER` (speech.text_model): the free cloud model when a key is configured,
+    or the local llama-server. With neither the prefilter answers alone."""
+    def cloud() -> LiveClient | None:
+        if not (os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE")):
+            return None
+        return LiveClient(cache_dir=default_voice_home() / "state" / "t3-pick-cache")
+
+    return text_model(cloud=cloud)
 
 
 class Poller:

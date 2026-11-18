@@ -12,13 +12,19 @@ writes a gist into the act's `summary` slot, and is cached per thread, read sequ
 start may begin it while Mason is still asking.
 
 Every model request goes through one `Lane`: one request in flight, on the lane's own thread, so no request runs
-under the T3 lock and none waits on another caller's slot past its own timeout.
+under the T3 lock and none waits on another caller's slot past its own timeout. The lane's model is chosen by
+`$VOICE_RENDERER` (`text_model`): `particle-1`, the free cloud model and the default, or `local`, an OpenAI-compatible
+llama-server on this machine (docs/voice/local-renderer.md).
 """
 
 from __future__ import annotations
 
 import json
+import os
 import threading
+import time
+import urllib.error
+import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
@@ -117,18 +123,84 @@ def assert_free(model: str) -> None:
         raise ValueError(f"refusing a non-free model id: {model}")
 
 
+class LocalText:
+    """A text model on a local llama-server's OpenAI-compatible chat route, the same `complete(messages)` record as
+    the cloud client. No request leaves the machine, so no quota or `:free` rule applies. LFM3 thinks by default, and
+    with the template's thinking switch off it still opened `<think>` on render prompts and spent its whole token
+    budget there (measured), so the `<think>` token is banned outright."""
+
+    model = "local"
+
+    def __init__(self, url: str | None = None, timeout_s: float = RENDER_TIMEOUT_S, max_tokens: int = 200):
+        self.url = (url or os.environ.get("VOICE_RENDERER_URL", "http://127.0.0.1:8098")).rstrip("/")
+        self.timeout_s, self.max_tokens = timeout_s, max_tokens
+        self.calls = 0
+        self.ledger: list[dict] = []
+        self._ban: list | None = None
+
+    def _post(self, path: str, body: dict) -> dict:
+        request = urllib.request.Request(f"{self.url}{path}", data=json.dumps(body).encode(),
+                                         headers={"Content-Type": "application/json"})
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+                return json.load(response)
+        except (urllib.error.URLError, OSError) as exc:
+            raise ConnectionError(f"the local text model at {self.url} failed: {exc}") from exc
+
+    def _think_ban(self) -> list:
+        if self._ban is None:
+            tokens = self._post("/tokenize", {"content": "<think>", "parse_special": True}).get("tokens") or []
+            if len(tokens) != 1:
+                raise RuntimeError(f"the local text model splits <think> into {len(tokens)} tokens, so it can't be banned")
+            self._ban = [[tokens[0], False]]
+        return self._ban
+
+    def complete(self, messages) -> dict:
+        body = {"messages": messages, "temperature": 0, "max_tokens": self.max_tokens,
+                "chat_template_kwargs": {"enable_thinking": False}, "logit_bias": self._think_ban()}
+        self.calls += 1
+        started = time.perf_counter()
+        payload = self._post("/v1/chat/completions", body)
+        ms = round((time.perf_counter() - started) * 1000, 1)
+        choice = (payload.get("choices") or [{}])[0]
+        usage = payload.get("usage") or {}
+        self.ledger.append({"ms": ms, "prompt_tokens": usage.get("prompt_tokens"),
+                            "completion_tokens": usage.get("completion_tokens")})
+        return {"text": (choice.get("message") or {}).get("content") or "", "ms": ms,
+                "model": payload.get("model", self.model), "usage": usage, "finish_reason": choice.get("finish_reason")}
+
+
+RENDERERS = ("particle-1", "local")
+
+
+def text_model(name: str | None = None, cloud: Callable[[], Any] | None = None):
+    """The lane's model by `$VOICE_RENDERER`: `local` is LocalText; `particle-1`, the default, is `cloud()`, which
+    returns None when no key is configured."""
+    name = name or os.environ.get("VOICE_RENDERER") or "particle-1"
+    if name not in RENDERERS:
+        raise ValueError(f"VOICE_RENDERER must be one of {RENDERERS}, not {name!r}")
+    if name == "local":
+        return LocalText()
+    return cloud() if cloud is not None else None
+
+
 class Lane:
     """One model request in flight for every voice caller: the picker, the renderer, and the summaries."""
 
     def __init__(self, client):
-        assert_free(client.model)
+        self._check(client)
         self.client = client
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="t3-text")
         self.lock = threading.Lock()
         self.calls = 0
 
+    @staticmethod
+    def _check(client) -> None:
+        if not isinstance(client, LocalText):
+            assert_free(client.model)
+
     def submit(self, messages) -> Future:
-        assert_free(self.client.model)
+        self._check(self.client)
         with self.lock:
             self.calls += 1
         return self.pool.submit(self.client.complete, messages)

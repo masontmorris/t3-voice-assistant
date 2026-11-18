@@ -5,7 +5,7 @@ Nothing the voice says about T3 work is a hard-coded string (Mason, 2026-11-18).
 ## The path
 
 1. **Code emits typed acts.** Each act (`voice/t3/acts.py`) is a kind plus the facts that make it true, taken from a seam result, a stored event, or a read. Examples are `confirm_tell{thread, message}`, `done{thread, status, summary}` and `thread_status{thread, status, summary, need, pending, waiting_for}`. Every act keeps the sequences that are its evidence, as before.
-2. **The voice's text model words them.** `T3Tasks.say` sends the acts and the call's last three turns to `particle-ai/particle-1:free` (`voice/t3/speech.py`). It runs on one lane: one request in flight for the picker, the renderer and the summaries, off the T3 lock, under a short timeout.
+2. **The voice's text model words them.** `T3Tasks.say` sends the acts and the call's last three turns to `particle-ai/particle-1:free` (`voice/t3/speech.py`). `$VOICE_RENDERER=local` points the same lane at a local llama-server instead; it failed its eval, so it is not the default ([local-renderer.md](local-renderer.md)). It runs on one lane: one request in flight for the picker, the renderer and the summaries, off the T3 lock, under a short timeout.
 3. **Code checks only the named slots and the form.** `acts.check` holds one rule per act:
    - A confirm act comes out as a question.
    - Each named slot (a project, a thread title, a message) appears as given, ignoring case, punctuation and first versus second person.
