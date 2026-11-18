@@ -59,6 +59,21 @@ const relativePath = (file: string, workspaceRoot: string | undefined) => {
   return segments.length > 0 ? segments.join("/") : undefined;
 };
 
+const escapeRegExp = (text: string) => text.replaceAll(/[.*+?^${}()|[\]\\]/gu, "\\$&");
+
+// Cut at the earliest mention of any run command, so no argument survives whatever the commands'
+// order or overlap. The boundaries stop a short command such as `ls` matching inside a word.
+const withoutCommands = (message: string, commands: ReadonlyArray<string>) => {
+  let cut = message.length;
+  for (const command of commands) {
+    const found = new RegExp(`(?<![\\w-])${escapeRegExp(command)}(?![\\w-])`, "u").exec(message);
+    if (found !== null && found.index < cut) cut = found.index;
+  }
+  return cut === message.length ? message : `${message.slice(0, cut)}[command]`;
+};
+
+const HOST_PATH = /(?:(?<!\w)[a-z]:[\\/]|\\\\|~[\\/]|(?<=^|[\s'"`(=])\/)[^\s'"`)]*/giu;
+
 export const recentRecords = (
   items: ReadonlyArray<OrchestrationV2TurnItem>,
   workspaceRoot: string | undefined,
@@ -121,11 +136,8 @@ export const recentRecords = (
         break;
       }
       case "error": {
-        const redacted = [...commands].reduce(
-          (message, command) => message.replaceAll(command, "[command]"),
-          item.failure.message,
-        );
-        const message = redacted.split(/\r?\n/u, 1)[0] ?? "";
+        const redacted = withoutCommands(item.failure.message, [...commands]);
+        const message = (redacted.split(/\r?\n/u, 1)[0] ?? "").replaceAll(HOST_PATH, "[path]");
         recent.push({ kind: "error", message: message.slice(0, RECENT_ERROR_LENGTH) });
         break;
       }

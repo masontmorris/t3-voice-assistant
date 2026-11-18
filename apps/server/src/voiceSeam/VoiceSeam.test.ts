@@ -768,7 +768,7 @@ it.effect("reads bounded recent records from the latest run without exposing com
 
     assert.strictEqual(state.asOfSequence, stored.at(-1)?.sequence);
     assert.deepStrictEqual(state.recent, [
-      { kind: "error", message: "The build worker disconnected while running [command]." },
+      { kind: "error", message: "The build worker disconnected while running [command]" },
       { kind: "tool", name: "read_file", outcome: "running" },
       { kind: "files", paths: ["src/main.ts", "tests/main.test.ts"], count: 2 },
       { kind: "tool", name: "Test run", outcome: "failed" },
