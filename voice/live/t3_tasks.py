@@ -37,7 +37,6 @@ from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.acts import Act, act
 from voice.t3.acts import Kind as Say
-from voice.t3.acts import check as check_line
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.pick.decide import pick as pick_thread
@@ -48,6 +47,7 @@ from voice.t3.pick.project import pick_project
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import Lane, Rendered, Speech
 from voice.t3.speech import note as act_note
+from voice.t3.verify import Decider, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 PICK_TIMEOUT_S = 5.0
@@ -171,10 +171,12 @@ MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting
 class T3Tasks:
     """`model` is the free text model: the Twin B model arm, asked only when the prefilter misses, and the voice's
     words for every act and summary. One `Lane` carries all of it, one request at a time. None keeps the prefilter
-    alone, and then no act can be worded by the text model."""
+    alone, and then no act can be worded by the text model. `decider` checks every worded line against its acts
+    (voice/t3/verify.py); with none, no line passes and every act waits."""
 
     follow: L.Follow
     model: LiveClient | None = None
+    decider: Decider | None = None
     question: Question | None = None
     keys: dict[str, str] = field(default_factory=dict)
     recent: str | None = None
@@ -186,13 +188,13 @@ class T3Tasks:
 
     def __post_init__(self) -> None:
         self.lane = Lane(self.model) if self.model is not None else None
-        self.speech = Speech(self.lane, self._read_quiet)
+        self.speech = Speech(self.lane, self._read_quiet, self.decider)
 
     @classmethod
     def open(cls, origin: str, token_file: str | Path, journal_path: str | Path,
-             model: LiveClient | None = None) -> T3Tasks:
+             model: LiveClient | None = None, decider: Decider | None = None) -> T3Tasks:
         follow = L.Follow(T3Journal(journal_path), lambda: T3Seam.connect(origin, token_file))
-        return cls(follow, model)
+        return cls(follow, model, decider)
 
     def resume(self, now: float) -> None:
         with self.lock:
@@ -587,7 +589,7 @@ class T3Tasks:
         entry["acts"] = [a.to_json() for a in update.acts]
         entry["evidence"] = update.evidence()
         if rendered.line is not None:
-            entry["spoken"] = rendered.line
+            entry["spoken"] = rendered.line.text
         return rendered
 
 
@@ -603,8 +605,8 @@ class T3Tasks:
 
 @dataclass(frozen=True)
 class Words:
-    """What `say_acts` needs for an entry: the text model's words, the LFM3 note, and the slot check, all on the
-    update `update_for(entry)` finds."""
+    """What `say_acts` needs for an entry: the text model's words, the LFM3 note, and the same two checks for
+    LFM3's reply, all on the update `update_for(entry)` finds."""
 
     t3: T3Tasks
     update_for: object
@@ -615,8 +617,13 @@ class Words:
     def note(self, entry) -> str:
         return act_note(self.update_for(entry).acts)
 
-    def check(self, entry, text) -> list[str]:
-        return check_line(text, self.update_for(entry).acts)
+    def accept(self, entry, text) -> Rendered:
+        update = self.update_for(entry)
+        rendered = self.t3.speech.accept(update.acts, text, "lfm3")
+        update.problems = tuple(rendered.problems or ([rendered.error] if rendered.error else []))
+        if rendered.line is not None:
+            entry["spoken"] = rendered.line.text
+        return rendered
 
 
 def which_project(candidates, names: dict[str, str]) -> Act:
@@ -706,17 +713,19 @@ class T3TaskService(MockTaskService):
 
     def say(self, entry, turns=()) -> Rendered:
         """Word one T3 entry's acts. A line that passes is also its execution's result, as what was said."""
-        rendered = Words(self.t3, self.update_for).say(entry, turns)
-        execution = self.executions.get(entry["task_id"])
-        if rendered.line is not None and execution is not None and execution.mode == "t3":
-            execution.result_summary = rendered.line
-        return rendered
+        return self._said(entry, Words(self.t3, self.update_for).say(entry, turns))
 
     def note(self, entry) -> str:
         return Words(self.t3, self.update_for).note(entry)
 
-    def check(self, entry, text) -> list[str]:
-        return Words(self.t3, self.update_for).check(entry, text)
+    def accept(self, entry, text) -> Rendered:
+        return self._said(entry, Words(self.t3, self.update_for).accept(entry, text))
+
+    def _said(self, entry, rendered: Rendered) -> Rendered:
+        execution = self.executions.get(entry["task_id"])
+        if rendered.line is not None and execution is not None and execution.mode == "t3":
+            execution.result_summary = rendered.line.text
+        return rendered
 
     def open_question(self):
         """T3 reads the next words when it asked a question, or while it holds a follow-up Mason may take back."""
@@ -848,15 +857,18 @@ class Script:
 
     def speak(self, label, said, update, retry=False) -> bool:
         rendered = self.t3.say(update, self.turns)
-        row = {"turn": label, "said": said, "line": rendered.line, "acts": [a.to_json() for a in update.acts],
-               "status": update.status, "row": update.row, "evidence": update.evidence()}
+        verdict = rendered.verdict
+        row = {"turn": label, "said": said, "line": rendered.text, "acts": [a.to_json() for a in update.acts],
+               "status": update.status, "row": update.row, "evidence": update.evidence(),
+               "decider": None if verdict is None else {"passed": verdict.passed, "ms": verdict.ms,
+                                                        "failed": list(verdict.failed), "error": verdict.error}}
         if retry:
             row["retried"] = True
         if rendered.line is None:
             row["waiting"] = rendered.problems or rendered.error
             self.waiting.append((label, update))
         else:
-            self.turns.append({"assistant": rendered.line})
+            self.turns.append({"assistant": rendered.line.text})
             self.t3.ack_news(update)
         print(json.dumps(row), flush=True)
         return rendered.line is not None
@@ -897,7 +909,7 @@ def _done_for(key):
 
 def drive(args) -> int:
     """One Twin A launch to done and one Twin B ask, through T3Tasks, printing each line with its evidence."""
-    t3 = T3Tasks.open(args.origin, args.token_file, args.journal, default_model())
+    t3 = T3Tasks.open(args.origin, args.token_file, args.journal, default_model(), default_decider())
     script = Script(t3)
     t3.resume(script.clock())
     script.tool("a1", START, args.instruction)
@@ -919,7 +931,7 @@ ASKS = ("How is the clamping work coming along?", "How's the ASR fix coming alon
 
 def smoke(args) -> int:
     """Launch, hold a follow-up until the run is done, ask through the model arm, and stop a second thread twice."""
-    t3 = T3Tasks.open(args.origin, args.token_file, args.journal, default_model())
+    t3 = T3Tasks.open(args.origin, args.token_file, args.journal, default_model(), default_decider())
     script = Script(t3)
     t3.resume(script.clock())
     script.tool("a1", START, args.instruction)
@@ -943,7 +955,8 @@ def smoke(args) -> int:
     script.retry()
     print(json.dumps({"titles": launched_titles(t3)}), flush=True)
     print(json.dumps({"model_calls": t3.model.calls if t3.model else 0,
-                      "lane_requests": t3.lane.calls if t3.lane else 0, "still_waiting": len(script.waiting)}),
+                      "lane_requests": t3.lane.calls if t3.lane else 0,
+                      "decider_calls": t3.decider.calls if t3.decider else 0, "still_waiting": len(script.waiting)}),
           flush=True)
     if t3.follow.seam is not None:
         t3.follow.seam.close()

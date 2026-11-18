@@ -1,9 +1,11 @@
 """Typed dialog acts: what the voice may say about T3 work, as exact facts, never as sentences.
 
 Code emits an `Act` for each thing the voice says. A text model words the acts (voice/t3/speech.py), and `check`
-is the code's only say over that wording. It is narrow on purpose. A confirm act must come out as a question, each
-named slot (a project, a thread, a message, a prompt) must appear as given up to case, punctuation and
-first-to-second person, and the line must not claim a status the act does not have. RULES holds one entry per act.
+is the code's own say over that wording. It is narrow on purpose. A confirm act must come out as a question, each
+named slot (a project, a thread, a message) must appear as given up to case, punctuation and first-to-second person,
+and the line must be plain speech. Whether the line says what its act means is the decider's question
+(voice/t3/verify.py), never a word list here. RULES holds one entry per act; its `forbids` are the status claims
+the text model is told not to make and the decider is asked about.
 """
 
 from __future__ import annotations
@@ -66,17 +68,6 @@ class Act:
         return act(self.kind, **{**self.slots, **slots})
 
 
-# Status claims, matched on the normalised line. Narrow: a word only counts where it states the thread's state, so
-# a negated one ("it hasn't stopped yet") is no claim.
-_NOT = r"(?<!\bnot )(?<!\bnot yet )(?<!\bnever )(?<!\bno )"
-FINISHED = re.compile(_NOT + r"\b(?:finished|completed|is done|s done|is complete|all done|wrapped up)\b")
-STOPPED = re.compile(_NOT + r"\b(?:stopped|halted|interrupted|cancelled|canceled|killed|aborted)\b")
-STARTED = re.compile(_NOT + r"\b(?:started|launched|kicked off)\b")
-SENT = re.compile(_NOT + r"\b(?:sent|passed (?:it|that|this) (?:on|along)|delivered|forwarded)\b")
-WORKING = re.compile(_NOT + r"\b(?:still (?:working|running|going)|is (?:working|running)|s (?:working|running)|"
-                     r"in progress)\b")
-CLAIMS = {"finished": FINISHED, "stopped": STOPPED, "started": STARTED, "sent": SENT, "working": WORKING}
-
 RUNNING = ("working", "waiting_on_you", "waiting_on_background", "queued", "idle", "running")
 STATUS_FORBIDS: dict[str, tuple[str, ...]] = {
     **{status: ("finished", "stopped") for status in RUNNING},
@@ -91,10 +82,11 @@ STATUS_FORBIDS: dict[str, tuple[str, ...]] = {
 
 @dataclass(frozen=True)
 class Rule:
-    """`slots` an act may carry, `named` the ones its line must say as given, and `forbids` the status claims its
-    line must not make. `question` acts ask the person something, so their line ends in a question mark. A
-    `status` slot adds STATUS_FORBIDS for its value. A `plain` act carries a raw prompt as context, so its line
-    must describe the need in words and never read out a command, a path or code."""
+    """`slots` an act may carry, `named` the ones its line must say as given, and `forbids` the status claims the
+    text model is told, and the decider asked, that its line must not make. `question` acts ask the person
+    something, so their line ends in a question mark. A `status` slot adds STATUS_FORBIDS for its value. A `plain`
+    act carries a raw prompt as context, so its line must describe the need in words and never read out a command,
+    a path or code."""
 
     slots: tuple[str, ...]
     named: tuple[str, ...] = ()
@@ -221,8 +213,6 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
                 for value in _named_values(a.slots[name]):
                     if not says(text, value):
                         problems.append(f"{a.kind.value} {name} missing: {value}")
-    flat = normalise(text)
-    problems.extend(f"claims {claim}" for claim in sorted(forbidden_claims(acts)) if CLAIMS[claim].search(flat))
     return problems
 
 

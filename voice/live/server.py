@@ -126,8 +126,9 @@ from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (ASK_INSTEAD_LINE, FALLBACK_LINE, NOTE_PERSONA, PERSONA, by_ear, create_item,
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, tts_line)
 from voice.live.ledger import ConversationLedger
-from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, default_model, \
-    default_origin, default_token_file
+from voice.t3.speech import speakable
+from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_decider, default_journal, \
+    default_model, default_origin, default_token_file
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
 
@@ -756,7 +757,9 @@ class Conversation:
             turn.speaking = False
             self.post({"type": "reply_end", "turn": turn.n}, turn)
 
-    async def speak_t3(self, turn, text, pcm):
+    async def speak_t3(self, turn, line, pcm):
+        """Send one T3 line's audio on the reply path. Only a RenderedLine is spoken; a plain string raises."""
+        text = speakable(line, "speak_t3").text
         if turn.muted or (self.sender is not None and self.sender.done()):
             return b""
         turn.speaking = turn.reply_started = True
@@ -821,7 +824,7 @@ class Conversation:
                                     prior_replies=tuple(self.ledger.replies()),
                                     established=tuple(self.ledger.established()),
                                     task_service=live.task_service, t3_voice=live.t3_voice,
-                                    send_verbatim=lambda text, pcm: self.speak_t3(turn, text, pcm))
+                                    send_verbatim=lambda line, pcm: self.speak_t3(turn, line, pcm))
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:
@@ -878,7 +881,7 @@ class Conversation:
                     reply, _ = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
                         speak=lambda text, pcm, done: self.speak(turn, text, pcm, done), render=live.t3_voice,
-                        send_audio=lambda text, pcm: self.speak_t3(turn, text, pcm), record_delivery=delivered)
+                        send_audio=lambda line, pcm: self.speak_t3(turn, line, pcm), record_delivery=delivered)
                     record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
                     log("reply", reply="t3_update", text=reply["text"])
                     if turn.muted:
@@ -1046,7 +1049,8 @@ async def main_async(args):
         t3 = poller = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
         if getattr(args, "t3", "off") == "on":
-            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model())
+            t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
+                              default_decider())
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
             tools = T3Registry(tools)

@@ -2,8 +2,9 @@
 
 Code says what is true as typed acts (voice/t3/acts.py). `Speech.render` asks the text model for one or two natural
 spoken sentences that say those acts, fitted to the last few turns of the call, and keeps the line only when
-`acts.check` passes it. `Speech.note` is the same acts as a private direction for LFM3, the fallback when the text
-model fails, and the voice holds LFM3's reply to the same check. No line is ever a fixed string.
+`acts.check` and then the decider pass it (voice/t3/verify.py), as a RenderedLine. `Speech.note` is the same acts as
+a private direction for LFM3, the fallback when the text model fails, and LFM3's reply goes through the same
+`Speech.accept`. No line is ever a fixed string.
 
 A thread's summary is written here too, only when the voice is about to speak about that thread: an answer to an ask,
 a done, or a need. It reads the thread through the seam (status and need come from code, plus the full last reply),
@@ -25,6 +26,7 @@ from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
 from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, forbidden_claims, normalise
+from voice.t3.verify import Verdict
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
@@ -183,7 +185,7 @@ def kept_exact(acts: Iterable[Act]) -> list[str]:
 
 
 def never_say(acts: Iterable[Act]) -> list[str]:
-    """The status claims `check` refuses for these acts, as words the prompt warns against."""
+    """The status claims a line for these acts must not make, as words the prompt warns against."""
     return [CLAIM_WORDS[claim] for claim in sorted(forbidden_claims(acts))]
 
 
@@ -193,10 +195,43 @@ def act_facts(a: Act) -> dict:
 
 @dataclass
 class Rendered:
-    line: str | None
+    """One wording of some acts. `line` is set only when both the slot check and the decider passed it."""
+
+    line: RenderedLine | None
     problems: list[str] = field(default_factory=list)
     raw: str | None = None
     error: str | None = None
+    verdict: Verdict | None = None
+
+    @property
+    def text(self) -> str | None:
+        return self.line.text if self.line is not None else None
+
+
+_MINT = object()
+
+
+@dataclass(frozen=True)
+class RenderedLine:
+    """A line the voice may speak about T3 work. Only `Speech.accept` makes one, after the slot check and the
+    decider both pass it, and every T3 speaking entry point takes only this type, so no plain string can be said."""
+
+    text: str
+    acts: tuple[Act, ...]
+    worded_by: str
+    verdict: Verdict
+    mint: object = field(default=None, repr=False, compare=False)
+
+    def __post_init__(self) -> None:
+        if self.mint is not _MINT:
+            raise TypeError("a RenderedLine comes only from Speech.accept, after its line passed both checks")
+
+
+def speakable(line: Any, entry_point: str) -> RenderedLine:
+    """`line` when it is a RenderedLine; anything else, a plain string above all, raises."""
+    if not isinstance(line, RenderedLine):
+        raise TypeError(f"{entry_point} speaks only a RenderedLine, never {type(line).__name__}")
+    return line
 
 
 @dataclass
@@ -210,10 +245,12 @@ class Gist:
 @dataclass
 class Speech:
     """`lane` is None when no model is configured: every render then fails and the act goes to LFM3 or waits.
-    `read(thread_id)` reads a thread through the seam, or returns None when it cannot."""
+    `read(thread_id)` reads a thread through the seam, or returns None when it cannot. `decider` checks each line
+    against its acts (voice/t3/verify.py); with none, no line passes."""
 
     lane: Lane | None
     read: Callable[[str], T.ThreadState | None]
+    decider: Any = None
     states: dict = field(default_factory=dict)
     summaries: dict = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -288,9 +325,21 @@ class Speech:
             record = self.lane.call(render_messages(acts, turns, problems), RENDER_TIMEOUT_S)
         except Exception as exc:
             return Rendered(None, error=repr(exc))
-        line = _clean(record.get("text", ""))
-        found = check(line, acts)
-        return Rendered(None if found else line, found, record.get("text"))
+        return self.accept(acts, _clean(record.get("text", "")), "text_model", record.get("text"))
+
+    def accept(self, acts: Iterable[Act], text: str, worded_by: str, raw: str | None = None) -> Rendered:
+        """`text` as a RenderedLine when code's slot check and then the decider pass it for `acts`."""
+        acts = tuple(acts)
+        raw = text if raw is None else raw
+        found = check(text, acts)
+        if found:
+            return Rendered(None, found, raw)
+        if self.decider is None:
+            return Rendered(None, [], raw, "no decider to check the line")
+        verdict = self.decider.verify(acts, text)
+        if not verdict.passed:
+            return Rendered(None, list(verdict.problems), raw, verdict.error, verdict)
+        return Rendered(RenderedLine(text, acts, worded_by, verdict, _MINT), [], raw, verdict=verdict)
 
 
 def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems: Iterable[str] = ()) -> list[dict]:

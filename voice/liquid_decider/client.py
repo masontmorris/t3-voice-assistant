@@ -135,7 +135,7 @@ def _payment_error(body):
 class LiquidClient:
     """One persistent HTTPS connection to Liquid's System One endpoint, one request in flight."""
 
-    def __init__(self, url=None, pacer=None, day_limit=DAY_LIMIT_USD):
+    def __init__(self, url=None, pacer=None, day_limit=DAY_LIMIT_USD, timeout_s=TIMEOUT_S, max_attempts=MAX_ATTEMPTS):
         parts = urlsplit(url or os.environ.get("VOICE_LIQUID_URL", f"https://{HOST}"))
         self.secure, self.host, self.port = parts.scheme != "http", parts.hostname, parts.port
         self._conn = None
@@ -143,12 +143,13 @@ class LiquidClient:
         self._last = None
         self.pacer = pacer or api.Pacer()
         self.day_limit = day_limit
+        self.timeout_s, self.max_attempts = timeout_s, max_attempts
 
     def _connection(self):
         if self._conn is not None:
             return self._conn, None
         connect = http.client.HTTPSConnection if self.secure else http.client.HTTPConnection
-        conn = connect(self.host, self.port, timeout=TIMEOUT_S)
+        conn = connect(self.host, self.port, timeout=self.timeout_s)
         started = time.perf_counter()
         conn.connect()
         self._conn = conn
@@ -260,7 +261,8 @@ class LiquidClient:
             raise BillingStop(BILLING.read_text(encoding="utf-8"))
         self._guard(label)
         payload_attempts, sent, status, response, started_at = [], [], None, None, None
-        for attempt in range(MAX_ATTEMPTS):
+        for attempt in range(self.max_attempts):
+            again = attempt + 1 < self.max_attempts
             if self._last is not None and self.pacer.gap_s:
                 time.sleep(max(0.0, self.pacer.gap_s - (time.monotonic() - self._last)))
             self._last = time.monotonic()
@@ -280,7 +282,8 @@ class LiquidClient:
                 self.pacer.on_429(int(retry_after) if retry_after.isdigit() else None)
                 continue
             if status in (500, 502, 503, 504, 524, 529) or status is None:
-                time.sleep(2 ** (attempt + 1))
+                if again:
+                    time.sleep(2 ** (attempt + 1))
                 continue
             self.pacer.on_success()
             break

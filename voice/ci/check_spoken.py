@@ -8,6 +8,9 @@ built with a literal slot value that has a space in it, since a slot carries a f
 What it skips, because none of it is spoken: docstrings, log and print text, exception messages, assert messages,
 argparse text, the lifecycle table's row descriptions, the decider's tool descriptions, and the CLI drivers whose
 literals are what the person says to the voice.
+
+The T3 speaking entry points take only a RenderedLine and raise on a plain string (voice/t3/speech.py). As a second
+net, the check also reads every module under voice/, tests aside, for a string literal handed to one of them.
 """
 
 from __future__ import annotations
@@ -33,6 +36,9 @@ NOT_SPOKEN_CALLS = frozenset({"log", "print", "add_argument", "add_parser", "Arg
 # A lifecycle row's first argument says when the row applies; what the row says comes after it.
 DESCRIBED_CALLS = frozenset({"Row"})
 ACT_BUILDERS = frozenset({"act", "Act", "with_slots"})
+
+# The calls that put a T3 line on the speaker.
+ENTRY_POINTS = frozenset({"say_verbatim", "speak_t3", "send_audio", "send_verbatim"})
 
 TWO_WORDS = re.compile(r"[A-Za-z][A-Za-z']*[,;:]?\s+[A-Za-z']+")
 NOT_PROSE = re.compile(r"\\[a-zA-Z]|\(\?|\[\^|\{\d")
@@ -164,17 +170,44 @@ def scan(repo: Path, speaking=None) -> list[Finding]:
     return findings
 
 
+def _holds_literal(node: ast.AST) -> bool:
+    if _literal_text(node) is not None:
+        return True
+    return isinstance(node, (ast.Tuple, ast.List)) and any(_holds_literal(item) for item in node.elts)
+
+
+def is_test(path: str) -> bool:
+    return "/tests/" in path or path.rsplit("/", 1)[-1].startswith("test_")
+
+
+def literal_lines(repo: Path) -> list[Finding]:
+    """Every string literal handed to a T3 speaking entry point anywhere under voice/, tests aside."""
+    findings = []
+    for file in sorted((repo / "voice").rglob("*.py")):
+        path = file.relative_to(repo).as_posix()
+        if is_test(path):
+            continue
+        for node in ast.walk(ast.parse(file.read_text(encoding="utf-8"), filename=path)):
+            if isinstance(node, ast.Call) and _call_name(node) in ENTRY_POINTS:
+                for arg in [*node.args, *(keyword.value for keyword in node.keywords)]:
+                    if _holds_literal(arg):
+                        findings.append(Finding(path, arg.lineno, ast.unparse(arg),
+                                                f"a literal handed to {_call_name(node)}"))
+    return findings
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--repo", type=Path, default=Path(__file__).resolve().parents[2])
     args = parser.parse_args(argv)
-    findings = scan(args.repo)
+    findings = scan(args.repo) + literal_lines(args.repo)
     for finding in findings:
         print(f"{finding.path}:{finding.line}: {finding.why}: {finding.text!r}")
     if findings:
         print(f"check_spoken: {len(findings)} spoken string literal(s) on the T3 speaking path", file=sys.stderr)
         return 1
-    print(f"check_spoken: no spoken string literal in {len(SPEAKING)} T3 speaking files")
+    print(f"check_spoken: no spoken string literal in {len(SPEAKING)} T3 speaking files, and none handed to a T3 "
+          "speaking entry point under voice/")
     return 0
 
 

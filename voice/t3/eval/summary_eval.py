@@ -11,8 +11,9 @@ be frozen as of a moment inside a run, so working, waiting and queued threads ar
 
 `run` writes, for each state, the summary and the line the voice would say for its `thread_status` act, to
 `summaries.json`, before any scoring. `acts` renders `acts.json`'s acts, built from the frozen states, and writes
-each line with its slot-check result to `rendered.json`. Both use the voice's own free text model and save every
-output. The frozen data names real threads, so it stays under VOICE_HOME and never enters the repo.
+each line with its slot-check and decider results to `rendered.json`. Both use the voice's own free text model and
+the hosted decider, and save every output. The frozen data names real threads, so it stays under VOICE_HOME and
+never enters the repo.
 """
 
 from __future__ import annotations
@@ -30,6 +31,8 @@ from voice.t3.acts import Act, Kind, act, check
 from voice.t3.pick.model import LiveClient
 from voice.t3 import speech
 from voice.t3.speech import Lane, Speech
+from voice.t3.verify import Decider
+from voice.liquid_decider.client import LiquidClient
 
 RESULT_TEXT_LIMIT = 1_200
 TERMINAL = {"completed": "finished", "failed": "failed", "interrupted": "interrupted", "cancelled": "cancelled",
@@ -190,8 +193,20 @@ def client(args) -> LiveClient:
     return model
 
 
+def decider(args) -> Decider:
+    """The live line check over Liquid's d1.2, with retries: a 429 is not a bad line."""
+    return Decider(LiquidClient(max_attempts=3))
+
+
+def verdict_of(rendered) -> dict | None:
+    verdict = rendered.verdict
+    return None if verdict is None else {"passed": verdict.passed, "ms": verdict.ms, "failed": list(verdict.failed),
+                                         "answers": verdict.answers, "error": verdict.error}
+
+
 def run(args) -> int:
     states = json.loads((args.dir / "states.json").read_text(encoding="utf-8"))
+    line_check = decider(args)
     labels = {label["thread_id"]: label for label in json.loads((args.dir / "labels.json").read_text(encoding="utf-8"))}
     model = client(args)
     lane = Lane(model)
@@ -199,7 +214,7 @@ def run(args) -> int:
     for raw in states:
         label = labels[raw["thread_id"]]
         state = thread_state(raw)
-        speech = Speech(lane, lambda thread_id, state=state: state)
+        speech = Speech(lane, lambda thread_id, state=state: state, line_check)
         speech.remember(state)
         asked = status_act(state, label["ask"])
         started = time.perf_counter()
@@ -208,7 +223,8 @@ def run(args) -> int:
         turns = [{"user": label["ask"]}]
         rendered = speech.render(acts, turns)
         out.append({"thread_id": raw["thread_id"], "kind": raw["kind"], "ask": label["ask"],
-                    "summary": acts[0].slots.get("summary"), "line": rendered.line, "raw": rendered.raw,
+                    "summary": acts[0].slots.get("summary"), "line": rendered.text, "raw": rendered.raw,
+                    "decider": verdict_of(rendered),
                     "problems": rendered.problems, "error": rendered.error, "summary_s": round(summary_s, 2),
                     "render_s": round(time.perf_counter() - started - summary_s, 2)})
         print(json.dumps(out[-1])[:300], flush=True)
@@ -221,15 +237,16 @@ def acts_run(args) -> int:
     planned = json.loads((args.dir / "acts.json").read_text(encoding="utf-8"))
     model = client(args)
     lane = Lane(model)
-    speech = Speech(lane, lambda thread_id: None)
+    speech = Speech(lane, lambda thread_id: None, decider(args))
     out = []
     for item in planned:
         acts = [Act.from_json(a) for a in item["acts"]]
         rendered = speech.render(acts, item.get("turns", ()))
-        out.append({"acts": item["acts"], "turns": item.get("turns", []), "line": rendered.line, "raw": rendered.raw,
+        out.append({"acts": item["acts"], "turns": item.get("turns", []), "line": rendered.text, "raw": rendered.raw,
+                    "decider": verdict_of(rendered),
                     "problems": rendered.problems, "error": rendered.error,
                     "check_on_raw": check(rendered.raw or "", acts) if rendered.raw else None})
-        print(json.dumps({"kinds": [a["kind"] for a in item["acts"]], "line": rendered.line,
+        print(json.dumps({"kinds": [a["kind"] for a in item["acts"]], "line": rendered.text,
                           "problems": rendered.problems})[:300], flush=True)
     (args.dir / "rendered.json").write_text(json.dumps(out, indent=1), encoding="utf-8")
     passed = sum(1 for r in out if r["line"] is not None)

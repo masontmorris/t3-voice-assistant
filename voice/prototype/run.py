@@ -72,6 +72,7 @@ from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
 from voice.prototype.release import Release
+from voice.t3.speech import speakable
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
@@ -648,47 +649,58 @@ def tts_line(url):
     return lambda text, rate: line_pcm(line_wav(base, text), rate)
 
 
+def _verdict(rendered):
+    verdict = rendered.verdict
+    return None if verdict is None else {"passed": verdict.passed, "ms": verdict.ms, "failed": list(verdict.failed),
+                                         "error": verdict.error}
+
+
 async def say_acts(session, rate, since, entry, words, turns, log, speak=None, render=None, *,
                    send_audio=None, record_delivery=None):
     """Speak one T3 entry's acts. `words` is the T3 task service: `words.say(entry, turns)` has the voice's text model
-    word the acts off this loop, and a line that passes the slot check goes out word for word (`say_verbatim`).
-    Otherwise LFM3 words them from `words.note(entry)`, held whole until `words.check(entry, text)` passes. If that
-    fails too, nothing plays and the entry is recorded unsent, so its acts wait for the next idle point or turn."""
+    word the acts off this loop, and a line that both the slot check and the decider pass comes back as a
+    RenderedLine, which goes out word for word (`say_verbatim`). Otherwise LFM3 words them from `words.note(entry)`;
+    its reply is held whole, never released while it streams, until `words.accept(entry, text)` passes it under the
+    same two checks, and then its own audio goes out through `say_verbatim`. If that fails too, nothing plays and
+    the entry is recorded unsent, so its acts wait for the next idle point or turn."""
     rendered = await asyncio.to_thread(words.say, entry, turns)
-    log("t3_words", acts=entry.get("acts"), line=rendered.line, problems=rendered.problems, error=rendered.error)
+    log("t3_words", acts=entry.get("acts"), line=rendered.text, problems=rendered.problems, error=rendered.error,
+        decider=_verdict(rendered))
     if rendered.line is not None:
-        reply, sent = await say_verbatim(session, rate, since, (rendered.line,), log, speak=speak, render=render,
+        reply, sent = await say_verbatim(session, rate, since, rendered.line, log, speak=speak, render=render,
                                          send_audio=send_audio, record_delivery=record_delivery)
-        return {**reply, "worded_by": "text_model"}, sent
+        return {**reply, "worded_by": "text_model", "decider": _verdict(rendered)}, sent
     item = await create_item(session, plain_text(words.note(entry)))
-    spoken = Spoken(speak, session.clock)
-    gate = Release(lambda text, final: final and not words.check(entry, text), spoken.add)
-    result, released = await stream_reply(session, rate, since, gate)
-    result["screened_against"] = {"acts": entry.get("acts")}
-    problems = words.check(entry, result["text"])
-    delivery = "sent" if result["passed"] and released else "unsent"
-    if delivery == "sent":
-        entry["spoken"] = result["text"]
-    if record_delivery is not None:
-        record_delivery(delivery)
-    log("t3_lfm3_words", text=result["text"], problems=problems, delivery=delivery)
-    reply, pcm = spoken.finish(result, rate, since, [result])
-    return {**reply, "delivery": delivery, "worded_by": "lfm3", "note_item": item, "problems": problems}, pcm
+    held = Release(lambda text, final: False, lambda text, pcm: None)
+    result, _ = await stream_reply(session, rate, since, held)
+    lfm3 = await asyncio.to_thread(words.accept, entry, result["text"])
+    log("t3_lfm3_words", text=result["text"], problems=lfm3.problems, error=lfm3.error, decider=_verdict(lfm3))
+    if lfm3.line is None:
+        if record_delivery is not None:
+            record_delivery("unsent")
+        return {**result, "text": "", "speech_s": 0.0, "delivery": "unsent", "worded_by": "lfm3",
+                "note_item": item, "problems": lfm3.problems, "decider": _verdict(lfm3)}, b""
+    reply, sent = await say_verbatim(session, rate, since, lfm3.line, log, speak=speak, pcm=bytes(held.pcm),
+                                     send_audio=send_audio, record_delivery=record_delivery)
+    return {**reply, "worded_by": "lfm3", "note_item": item, "problems": [], "decider": _verdict(lfm3)}, sent
 
 
-async def say_verbatim(session, rate, since, lines, log, speak=None, render=None, *,
+async def say_verbatim(session, rate, since, line, log, speak=None, render=None, *, pcm=None,
                        send_audio=None, record_delivery=None):
-    """Render a line in the server's voice and record how much audio reached the reply path."""
-    text = " ".join(lines)
-    try:
-        pcm = await asyncio.to_thread(render, text, rate) if render is not None else b""
-    except Exception as exc:
-        log("t3_voice_failed", error=repr(exc))
-        pcm = b""
+    """Speak one RenderedLine and record how much of its audio reached the reply path. `pcm` is LFM3's own audio
+    for a line it worded; otherwise `render` makes the audio in the server's voice. A plain string raises."""
+    text = speakable(line, "say_verbatim").text
+    own = pcm is not None
+    if not own:
+        try:
+            pcm = await asyncio.to_thread(render, text, rate) if render is not None else b""
+        except Exception as exc:
+            log("t3_voice_failed", error=repr(exc))
+            pcm = b""
     sent = b""
     if pcm:
         if send_audio is not None:
-            sent = await send_audio(text, pcm)
+            sent = await send_audio(line, pcm)
         elif speak is not None:
             speak(text, pcm, True)
             sent = pcm
@@ -697,7 +709,8 @@ async def say_verbatim(session, rate, since, lines, log, speak=None, render=None
         record_delivery(delivery)
     reply = fixed_reply(text, sent, rate, session.clock() - since)
     reply["delivery"] = delivery
-    if delivery == "sent":
+    if delivery == "sent" and not own:
+        # LFM3 already holds a line it worded itself; a line from the text model is new to it.
         reply["item"] = await create_item(session, plain_text(
             f"{NOTE_OPEN}you just told them this about their T3 work: \"{text}\"]"))
     log("t3_delivery", text=text, delivery=delivery, audio_s=round(reply["speech_s"], 3))
