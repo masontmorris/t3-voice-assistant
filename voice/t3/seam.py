@@ -52,18 +52,6 @@ class SeamConnectionEnded(Exception):
         self.end = end
 
 
-_END_TYPES = (
-    T.Close1013,
-    T.Close1008,
-    T.Close1007,
-    T.Close1011,
-    T.CloseOther,
-    T.Upgrade401,
-    T.Upgrade403,
-    T.Upgrade404,
-    T.Unreachable,
-)
-
 _UPGRADE_ENDS = {401: T.UPGRADE_401, 403: T.UPGRADE_403, 404: T.UPGRADE_404}
 
 
@@ -84,7 +72,7 @@ class T3Seam:
         self._lock = threading.Lock()
         self._ids = itertools.count(1)
         self._pending: dict[int, tuple[str, concurrent.futures.Future]] = {}
-        self._events: queue.Queue = queue.Queue()
+        self._events: queue.Queue[T.DrainItem] = queue.Queue()
         self._handoff: queue.Queue = queue.Queue(maxsize=1)
         self._hello: T.Hello | None = None
         self._end: T.SocketEnd | None = None
@@ -181,14 +169,12 @@ class T3Seam:
             try:
                 item = self._events.get(timeout=timeout)
             except queue.Empty:
-                item = None
-            if item is None:
-                if self._end is not None:
-                    yield self._end
+                return
+            if isinstance(item, T.SocketEnd):
+                self._events.put(item)
+                yield item
                 return
             yield item
-            if isinstance(item, _END_TYPES):
-                return
 
     def close(self) -> None:
         """Close the socket and join the background thread. Idempotent."""
