@@ -88,7 +88,7 @@ MEANINGS: dict[Kind, str] = {
                     "(the connection to T3 was lost), access (T3 no longer accepts the voice's access) or seam_off.",
     Kind.REFUSED: "Say what T3 refused to do in plain words. For `op` tell, say it refused to send the follow-up "
                   "message. For start, ask, or stop, say it refused to start, look up, or stop the thread, "
-                  "respectively. Include the reason when the record gives one.",
+                  "respectively. If the record gives a reason, attribute it to T3 as its reason for refusing.",
     Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
                         "same news in your own words, adding nothing. Attribute any work or results to the thread.",
 }
@@ -519,7 +519,7 @@ READER_EXAMPLES = {
     Kind.UNREACHABLE: ({}, "I can't reach T3 right now."),
     Kind.SEAM_DOWN: ({"reason": "connection"}, "I lost my connection to T3 and stopped following your threads."),
     Kind.REFUSED: ({"op": "tell", "code": "refused", "reason": "the thread is archived"},
-                   "T3 refused to send your follow-up message because the thread is archived."),
+                   "T3 refused to send your follow-up message, citing an archived thread."),
     Kind.LEGACY_UPDATE: ({"thread": "Example Revise Column Labels", "text": "Example Revise Column Labels is still running."},
                          "Example Revise Column Labels is still running."),
 }
