@@ -144,7 +144,7 @@ class Question:
 
     `kind` is the state: "project" (which project), "confirm" (start it in this project?), "thread" (which
     thread), or "thread_confirm" (one thread, asked back for `op`). `candidates` are project or thread ids, and
-    `titles` names each thread. `message` and `link` are a follow-up's words, from `tell_parts`.
+    `titles` names each thread. `message` is a follow-up's words, from `tell_parts`.
     """
 
     key: str
@@ -156,7 +156,6 @@ class Question:
     titles: dict[str, str] = field(default_factory=dict)
     projects: dict[str, str] = field(default_factory=dict)
     message: str | None = None
-    link: str | None = None
     evidence: tuple[int, ...] = ()
 
 
@@ -397,9 +396,9 @@ class T3Tasks:
             listing = self._list(key)
             if isinstance(listing, L.Update):
                 return listing
-            reference, message, link = (tell_parts(instruction) if op == TELL else
-                                        (_STOP_VERBS.sub(" ", instruction) if op == STOP else instruction, None, None))
-            base = Question(key, "thread_confirm", instruction, (), op=op, message=message, link=link,
+            reference, message, _ = (tell_parts(instruction) if op == TELL else
+                                     (_STOP_VERBS.sub(" ", instruction) if op == STOP else instruction, None, None))
+            base = Question(key, "thread_confirm", instruction, (), op=op, message=message,
                             titles={t.thread_id: t.title for t in listing.threads},
                             projects={t.thread_id: t.project_id for t in listing.threads})
             evidence = (listing.as_of_sequence,)
