@@ -128,6 +128,16 @@ def held_follow_up(test, seam, path=None) -> T3Tasks:
 
 
 class TwinA(unittest.TestCase):
+    def test_a_launch_without_a_named_project_defaults_to_a_confirmation(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        request = "Start a thread to fix the flaky test"
+        asked = t3.start("k1", request, 0)
+        self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertEqual(said(t3.answer("Please do.", 1)), [("launched", "Voice sandbox")])
+        self.assertEqual(seam.ops("launch")[0][2:], ("p1", request))
+
     def test_a_lone_match_is_asked_back_before_any_launch(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)

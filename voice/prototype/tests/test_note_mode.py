@@ -356,6 +356,24 @@ class T3TurnTest(NoteTurn):
         self.spoken.append(line.text)
         return pcm, CLOCK
 
+    async def test_a_held_t3_reply_does_not_fall_through_to_ordinary_speech(self):
+        class Mixed(T3SnapshotService):
+            draft = "I stopped the clamp helper thread."
+
+            def snapshot(self, *args, **kwargs):
+                snapshot = super().snapshot(*args, **kwargs)
+                snapshot["tasks"].append({"task_id": "task_2", "status": "running"})
+                return snapshot
+
+        record = await self.turn(["I'll check."], task_service=Mixed, send_checked=self.send_checked)
+        self.assertEqual([(r["kind"], r.get("delivery")) for r in record["replies"]], [("t3", "unsent")])
+        self.assertEqual(self.spoken, [])
+
+    async def test_a_t3_reply_with_an_appended_sentence_is_held(self):
+        record = await self.turn([DRAFT + " Ready?"], task_service=T3SnapshotService, send_checked=self.send_checked)
+        self.assertEqual(self.spoken, [])
+        self.assertEqual(record["replies"][0]["delivery"], "unsent")
+
     async def test_a_t3_entry_uses_the_same_call_session_in_each_snapshot_mode(self):
         for mode in ("note", "reply", "before-audio", "off"):
             with self.subTest(mode=mode):

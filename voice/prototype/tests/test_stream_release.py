@@ -147,6 +147,16 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(reply["text"], "It's sunny in Denver tomorrow.")
         self.assertEqual(blocks_in(pcm), [0, 1, 2])
 
+    async def test_fact_logging_never_stops_or_reasks_the_reply(self):
+        reply, pcm = await self.answer(
+            [["It's", " sunny"], [" in", " Denver"], [" tomorrow", " and"], [" on", " Sunday"], [" too", "."]],
+            [[" I", " don't"], [" know", "."]])
+        self.assertEqual(blocks_in(pcm), [0, 1, 2, 3, 4])
+        self.assertEqual(reply["text"], "It's sunny in Denver tomorrow and on Sunday too.")
+        self.assertEqual(self.asks(), 1)
+        check, = [event for event in self.timeline if event["kind"] == "fact_check"]
+        self.assertEqual(check["ungrounded"], ["weekday Sunday"])
+
     async def test_a_late_failure_stops_at_the_last_boundary_that_passed_and_goes_on_without_repeating(self):
         reply, pcm = await self.answer(
             [["It's", " sunny"], [" in", " Denver"], [" tomorrow", " and"], [" on", " Sunday"], [" too", "."]],
