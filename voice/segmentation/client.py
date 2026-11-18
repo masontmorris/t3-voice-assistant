@@ -113,6 +113,10 @@ def _nonzero_cost(body):
 class Client:
     """One persistent HTTPS connection, one request in flight."""
 
+    # The free decider answers 400 to a body with a `text` question, which the place and day questions are (measured:
+    # the setup call of #57's tool-pick eval). `decider_arguments` reads this to leave them out.
+    text_questions = False
+
     def __init__(self, pacer=None):
         self._conn = None
         self._key = None
