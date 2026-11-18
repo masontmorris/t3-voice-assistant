@@ -204,6 +204,36 @@ class TwinA(unittest.TestCase):
 
 
 
+class Wordings:
+    """A text model that answers renders from a script, one wording per request, and keeps each request body."""
+
+    model = "fake/text:free"
+
+    def __init__(self, *lines):
+        self.lines, self.bodies = list(lines), []
+
+    def complete(self, messages):
+        self.bodies.append(json.loads(messages[1]["content"]))
+        return {"text": self.lines.pop(0)}
+
+
+class Retries(unittest.TestCase):
+    def test_a_refused_act_is_asked_again_differently_each_time(self):
+        """Measured in the smoke run: a retry sent the request its refusal came from, so the model's cache gave the
+        same line back, the decider's cache the same refusal, and the act never left the journal."""
+        refused = "I've stopped Add a clamp helper."
+        text = Wordings(refused, refused, "Want me to stop Add a clamp helper?")
+        t3 = worded(tasks_over(self, F.FakeSeam()), FakeText())
+        t3.speech.lane = Lane(text)
+        update = L.Update("k1", (act(S.CONFIRM_STOP, thread="Add a clamp helper"),), "needs_clarification")
+        self.assertEqual([t3.say(update).text for _ in range(3)], [None, None, "Want me to stop Add a clamp helper?"])
+        self.assertEqual(len({json.dumps(body, sort_keys=True) for body in text.bodies}), 3,
+                         "no retry repeats an earlier request")
+        self.assertEqual([body.get("refused wordings") for body in text.bodies], [None, [refused], [refused]])
+        restored = L.Update.from_json(json.loads(json.dumps(update.to_json())))
+        self.assertEqual((restored.tries, restored.refused), (2, (refused,)), "a restart keeps counting")
+
+
 class TwinB(unittest.TestCase):
     def test_a_lone_pick_is_asked_back_and_a_yes_reads_it(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
