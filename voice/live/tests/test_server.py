@@ -640,10 +640,7 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         live = SimpleNamespace(settings=server.Settings(silence_ms=700, start_ms=100, preroll_ms=300,
                                                         floor_dbfs=-50.0, margin_db=10.0, max_turn_s=30.0),
                                turns=0)
-        conversation = server.Conversation(live, SimpleNamespace(send=None))
-        conversation.sender.cancel()
-        self.addAsyncCleanup(asyncio.gather, conversation.sender, return_exceptions=True)
-        return conversation
+        return server.Conversation(live, SimpleNamespace(send=None), secret=SECRET)
 
     async def test_a_checked_reply_is_sent_start_audio_end(self):
         conversation = await self.conversation()
@@ -857,7 +854,7 @@ class FallbackAudioTest(unittest.TestCase):
                            max_turn_s=30.0, prompt=None, lfm_port=8099)
 
     def live(self, tmp):
-        return server.Live(self.ARGS, "ws://unused", None, None, Path(tmp))
+        return server.Live(self.ARGS, "ws://unused", None, None, Path(tmp), secret=SECRET)
 
     def test_no_rendered_clip_means_no_audio(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,0 +1,29 @@
+  body {
+    font-family: system-ui, sans-serif;
+    max-width: 28rem;
+    margin: 0 auto;
+    padding: 1rem;
+    color: #1a1a1a;
+    background: #fff;
+  }
+  h1 { font-size: 1.1rem; margin: 0 0 1rem; }
+  .row { display: flex; gap: 0.5rem; margin-bottom: 0.75rem; }
+  button {
+    font-size: 1rem;
+    padding: 0.6rem 0.85rem;
+    border: 1px solid #555;
+    border-radius: 0.4rem;
+    background: #fff;
+  }
+  button:disabled { opacity: 0.4; }
+  button.on { background: #1a1a1a; color: #fff; }
+  #talk { touch-action: none; user-select: none; }
+  #talk.down { background: #b00020; border-color: #b00020; color: #fff; }
+  #secret { flex: 1; min-width: 0; font-size: 1rem; padding: 0.6rem; border: 1px solid #555; border-radius: 0.4rem; }
+  #line { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+  #status { font-weight: 600; }
+  #meter { height: 0.6rem; border: 1px solid #555; border-radius: 0.3rem; margin-bottom: 0.75rem; }
+  #meter-fill { height: 100%; width: 0%; background: #1a1a1a; }
+  #log { font-size: 0.85rem; }
+  #log div { padding: 0.15rem 0; border-bottom: 1px solid #eee; }
+  .hint { font-size: 0.85rem; color: #333; }

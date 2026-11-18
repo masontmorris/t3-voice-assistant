@@ -49,7 +49,7 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
 
     def get(self, path):
         with urllib.request.urlopen(self.http + path, timeout=5) as response:
-            return response.status, response.headers.get_content_type(), response.read().decode("utf-8")
+            return response.status, response.headers, response.read().decode("utf-8")
 
     async def browser(self):
         return await websockets.connect(self.url, additional_headers={"Origin": "http://example.com"})
@@ -66,18 +66,38 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                 return json.loads(message)
 
     async def test_get_root_serves_the_page(self):
-        status, content_type, body = await asyncio.to_thread(self.get, "/")
-        self.assertEqual(status, 200)
-        self.assertEqual(content_type, "text/html")
-        self.assertIn("<title>Voice call</title>", body)
-        self.assertIn('src="app.js"', body)
-        self.assertNotIn(test_server.SECRET, body, "the page carries no secret")
+        for path in ("/", "/?debug", "/?anything"):
+            with self.subTest(path=path):
+                status, headers, body = await asyncio.to_thread(self.get, path)
+                self.assertEqual((status, headers.get_content_type()), (200, "text/html"))
+                self.assertIn("<title>Voice call</title>", body)
+                self.assertIn('src="app.js"', body)
+                self.assertNotIn(test_server.SECRET, body, "the page carries no secret")
 
     async def test_get_script_paths_serve_javascript(self):
         for path in ("/app.js", "/resample.js", "/capture-worklet.js", "/playback-worklet.js"):
-            status, content_type, body = await asyncio.to_thread(self.get, path)
-            self.assertEqual((status, content_type), (200, "text/javascript"), path)
+            status, headers, body = await asyncio.to_thread(self.get, path)
+            self.assertEqual((status, headers.get_content_type()), (200, "text/javascript"), path)
             self.assertTrue(body.strip(), path)
+
+    async def test_page_and_scripts_restrict_content_to_the_live_origin(self):
+        for path in ("/", "/app.js", "/resample.js", "/capture-worklet.js", "/playback-worklet.js"):
+            with self.subTest(path=path):
+                _, headers, _ = await asyncio.to_thread(self.get, path)
+                self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
+                directives = dict(part.split(maxsplit=1) for part in headers["Content-Security-Policy"].split("; "))
+                self.assertEqual(directives["default-src"], "'none'")
+                self.assertEqual(directives["script-src"], "'self'")
+                self.assertEqual(directives["style-src"], "'self'")
+                self.assertCountEqual(directives["connect-src"].split(),
+                                      ["'self'", self.url, self.url.replace("ws:", "wss:")])
+                self.assertEqual(directives["frame-ancestors"], "'none'")
+
+    def test_live_and_conversation_require_an_explicit_secret(self):
+        with self.assertRaisesRegex(TypeError, "secret"):
+            server.Live(self.live.args, "ws://unused", None, None, Path(self.tmp.name))
+        with self.assertRaisesRegex(TypeError, "secret"):
+            server.Conversation(self.live, SimpleNamespace(send=None))
 
     async def test_get_unknown_path_is_not_found(self):
         with self.assertRaises(urllib.error.HTTPError) as caught:
@@ -121,6 +141,31 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
         await ws.send(json.dumps({"type": "hello", "mode": "vad"}))
         self.assertEqual(json.loads(await ws.recv())["type"], "ready")
         await ws.close()
+
+    async def test_silent_browser_leaves_room_for_a_header_client(self):
+        async with await self.browser():
+            async with websockets.connect(self.url, additional_headers={server.HEADER: test_server.SECRET}) as ws:
+                await ws.send(json.dumps({"type": "hello", "mode": "vad"}))
+                self.assertEqual(json.loads(await asyncio.wait_for(ws.recv(), 2))["type"], "ready")
+
+    async def test_silent_browser_leaves_room_for_an_authenticated_browser(self):
+        async with await self.browser():
+            async with await self.browser() as ws:
+                await ws.send(f"auth {test_server.SECRET}")
+                await ws.send(json.dumps({"type": "hello", "mode": "vad"}))
+                self.assertEqual(json.loads(await asyncio.wait_for(ws.recv(), 2))["type"], "ready")
+
+    async def test_busy_status_requires_valid_browser_auth(self):
+        async with websockets.connect(self.url, additional_headers={server.HEADER: test_server.SECRET}) as active:
+            await active.send(json.dumps({"type": "hello", "mode": "vad"}))
+            self.assertEqual(json.loads(await asyncio.wait_for(active.recv(), 2))["type"], "ready")
+            for secret, code, reason in (("wrong", 1008, "bad or missing auth"),
+                                         (test_server.SECRET, 1013, "another client is connected")):
+                async with await self.browser() as ws:
+                    await ws.send(f"auth {secret}")
+                    with self.assertRaises(ConnectionClosed) as caught:
+                        await asyncio.wait_for(ws.recv(), 2)
+                    self.assertEqual((caught.exception.rcvd.code, caught.exception.rcvd.reason), (code, reason))
 
     async def test_a_header_secret_with_an_origin_is_still_refused(self):
         with self.assertRaises(websockets.InvalidStatus):

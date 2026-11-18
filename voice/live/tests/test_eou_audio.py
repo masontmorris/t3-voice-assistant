@@ -208,7 +208,7 @@ class DefaultTest(unittest.TestCase):
     def test_without_the_audio_decider_the_silence_rule_is_unchanged(self):
         with tempfile.TemporaryDirectory() as tmp:
             live = server.Live(SimpleNamespace(**ARGS, eou="silence", prompt=None), "ws://unused", None, None,
-                               Path(tmp))
+                               Path(tmp), secret=SECRET)
         self.assertIsNone(live.eou)
         self.assertEqual(live.settings.check_ms, (), "no check points, so no model is asked")
 

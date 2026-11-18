@@ -95,6 +95,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import re
 import secrets
 import subprocess
 import threading
@@ -129,6 +130,7 @@ HEADER = "X-Voice-Secret"
 WEB_DIR = Path(__file__).resolve().parent / "web"
 WEB_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
+    "/style.css": ("style.css", "text/css; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/resample.js": ("resample.js", "text/javascript; charset=utf-8"),
     "/capture-worklet.js": ("capture-worklet.js", "text/javascript; charset=utf-8"),
@@ -187,21 +189,30 @@ def check_bind(host):
     return host
 
 
-def serve_page(connection, request, web_dir=WEB_DIR):
-    """The browser client, served from the live server's own port. Exact paths only, so no traversal is possible."""
-    name, content_type = WEB_FILES[request.path]
+def serve_page(connection, asset, hosts, web_dir):
+    name, content_type = asset
     response = connection.respond(HTTPStatus.OK, (web_dir / name).read_text(encoding="utf-8"))
     del response.headers["Content-Type"]
     response.headers["Content-Type"] = content_type
     response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    connect_src = "'self'"
+    # Some browsers need explicit WebSocket sources even when the socket shares the page's host and port.
+    if len(hosts) == 1 and re.fullmatch(r"[A-Za-z0-9.-]+(?::[0-9]{1,5})?", hosts[0]):
+        connect_src += f" ws://{hosts[0]} wss://{hosts[0]}"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'none'; script-src 'self'; style-src 'self'; "
+        f"connect-src {connect_src}; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+    )
     return response
 
 
 def authorize(secret, web_dir=WEB_DIR):
     def check(connection, request):
         if request.headers.get("Upgrade") is None and request.method == "GET":
-            if request.path in WEB_FILES:
-                return serve_page(connection, request, web_dir)
+            asset = WEB_FILES.get(request.path.partition("?")[0])
+            if asset is not None:
+                return serve_page(connection, asset, request.headers.get_all("Host"), web_dir)
             return connection.respond(HTTPStatus.NOT_FOUND, "not found\n")
         header = request.headers.get(HEADER, "")
         if request.headers.get("Origin") is not None:
@@ -357,13 +368,12 @@ class Conversation:
     `voice_turn` is the turn that currently has that session: the turn before it has finished, so its events and the
     new turn's cannot interleave."""
 
-    def __init__(self, live, ws, secret="", header_authed=False):
+    def __init__(self, live, ws, secret):
         self.live, self.ws = live, ws
-        self.secret, self.header_authed = secret, header_authed
+        self.secret = secret
         self.endpointer = Endpointer(live.settings)
         self.mode, self.ptt_down, self.turn = "vad", False, None
         self.outbox = asyncio.Queue()
-        self.sender = asyncio.create_task(self._send_loop())
         self.voice, self.voice_turn, self.session_turns, self.out_rate = None, None, 0, None
         self.persona = self.prompt_source = None
         self.ledger = ConversationLedger()
@@ -392,13 +402,19 @@ class Conversation:
             await self.ws.send(payload)
 
     async def run(self):
-        if not self.header_authed and not await self.browser_auth():
-            return
-        async for message in self.ws:
-            if isinstance(message, bytes):
-                self.on_audio(message)
-            else:
-                await self.on_control(json.loads(message))
+        sender = asyncio.create_task(self._send_loop())
+        try:
+            async for message in self.ws:
+                if isinstance(message, bytes):
+                    self.on_audio(message)
+                else:
+                    await self.on_control(json.loads(message))
+        finally:
+            try:
+                await self.close()
+            finally:
+                sender.cancel()
+                await asyncio.gather(sender, return_exceptions=True)
 
     async def browser_auth(self):
         """The page's first text frame carries the secret, since a browser cannot set the header. It must arrive
@@ -734,11 +750,10 @@ class Conversation:
         self.voice_turn = None
         if self.voice is not None:
             await self.voice.close()
-        self.sender.cancel()
 
 
 class Live:
-    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, secret=""):
+    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, *, secret):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
         self.secret = secret
         self.eou = eou
@@ -785,15 +800,17 @@ class Live:
         return bool(header) and hmac.compare_digest(header.encode(), self.secret.encode())
 
     async def handler(self, ws):
+        conversation = Conversation(self, ws, self.secret)
+        if not self.header_authed(ws) and not await conversation.browser_auth():
+            return
         if self.active is not None:
             await ws.close(1013, "another client is connected")
             return
-        conversation = self.active = Conversation(self, ws, self.secret, self.header_authed(ws))
+        self.active = conversation
         print(f"client connected from {ws.remote_address[0]}", flush=True)
         try:
             await conversation.run()
         finally:
-            await conversation.close()
             self.active = None
             print("client disconnected", flush=True)
 
