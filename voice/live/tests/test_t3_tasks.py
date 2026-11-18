@@ -258,7 +258,8 @@ class TwinB(unittest.TestCase):
     def test_a_read_names_a_pending_need(self):
         state = F.state(activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need(prompt="Run the tests?"))
         self.assertEqual(status_act(state), act(S.THREAD_STATUS, thread="Fix the flaky test", status="waiting_on_you",
-                                                pending="Run the tests?", waiting_for="approval"))
+                                                need="command_approval", pending="Run the tests?",
+                                                waiting_for="approval"))
 
 
 class ModelArm(unittest.TestCase):

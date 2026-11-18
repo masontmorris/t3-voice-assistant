@@ -96,12 +96,29 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(seam.ops("read"), [("read", "t1")])
         self.assertEqual(seam.ops("watch"), [("watch", "t1", 120, "r1")])
         self.assertEqual(h.said(), ["launched", "needs_you"])
-        self.assertEqual(h.acts()[1].slots, {"thread": "Fix the flaky test", "prompt": "Run the tests?",
-                                             "waiting_for": "approval", "after_end": False})
+        self.assertEqual(h.acts()[1].slots, {"thread": "Fix the flaky test", "need": "command_approval",
+                                             "prompt": "Run the tests?", "waiting_for": "approval",
+                                             "after_end": False})
         seam.push(F.needs_you(130), F.ended("resync"))
         h.tick(1)
         self.assertEqual(h.said().count("needs_you"), 1)
         self.assertEqual(seam.ops("watch")[-1], ("watch", "t1", 120, "r1"))
+
+    def test_a_need_carries_its_kind_from_what_raised_it(self):
+        K, N = T.PendingKind, T.NeedSource
+        cases = {(K.APPROVAL, N.COMMAND): "command_approval", (K.APPROVAL, N.FILE_CHANGE): "file_change",
+                 (K.APPROVAL, N.FILE_READ): "file_read", (K.APPROVAL, N.PERMISSION): "permission",
+                 (K.APPROVAL, N.MCP_ELICITATION): "tool_input", (K.QUESTION, N.USER_INPUT): "question",
+                 (K.IN_APP, N.LINK_REQUEST): "link", (K.IN_APP, N.SECRET_REQUEST): "secret",
+                 (K.IN_APP, N.CARD): "card", (K.IN_APP, N.COMMAND): "unanswerable"}
+        for (kind, source), need in cases.items():
+            with self.subTest(source=source.value, kind=kind.value):
+                h = Harness(self, F.FakeSeam(read=F.state(as_of=120)))
+                h.seam.answer("launch", F.launched(sequence=118))
+                h.follow.launch(h.unstarted(), 0)
+                h.seam.push(F.needs_you(130, prompt="cd app && make test", kind=kind, source=source))
+                h.tick(1)
+                self.assertEqual(h.acts()[-1].slots["need"], need)
 
     def test_launch_refused(self):
         lines = {}

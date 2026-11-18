@@ -7,6 +7,9 @@ import unittest
 from voice.t3.acts import RULES, Kind, act, check, normalise
 
 T = "Add a clamp helper"
+COMMAND = "cd ~/src/app && python -m pytest -q tests/test_parser.py 2>&1 | tail -40 && git status --short"
+CUT = ("Should I delete the generated fixtures under the snapshots folder and regenerate them from the"
+       "\N{HORIZONTAL ELLIPSIS}")
 # kind: (slots, a line that passes, {a line that fails: the problem it must report})
 CASES = {
     Kind.CONFIRM_LAUNCH: ({"project": "Voice sandbox"}, "Should I start that in Voice sandbox?",
@@ -59,8 +62,12 @@ CASES = {
                       {f"{T} is done.": "claims finished"}),
     Kind.REPLIED: ({"thread": T, "reply": "I added clamp."}, f"{T} says it added clamp.",
                    {f"{T} finished adding clamp.": "claims finished"}),
-    Kind.NEEDS_YOU: ({"thread": T, "prompt": "Run the tests?"}, f"{T} needs you: run the tests?",
-                     {f"{T} needs your approval.": "prompt missing"}),
+    Kind.NEEDS_YOU: ({"thread": T, "need": "command_approval", "prompt": COMMAND},
+                     f"{T} needs your approval to run pytest and git status.",
+                     {f"{T} wants to run {COMMAND}": "reads code",
+                      f"{T} needs your approval to run python -m pytest -q.": "reads code",
+                      f"{T} needs your approval to run the parser tests and then...": "not plain speech",
+                      "It needs your approval to run pytest.": "thread missing"}),
     Kind.NEED_RESOLVED: ({"thread": T, "status": "resolved"}, f"The request from {T} was answered.",
                          {"That request was answered.": "thread missing"}),
     Kind.DONE: ({"thread": T, "status": "failed"}, f"{T} failed partway through.",
@@ -109,6 +116,17 @@ class SlotRules(unittest.TestCase):
         with self.assertRaises(ValueError):
             act(Kind.CONFIRM_STOP, thread=T, message="nope")
         self.assertTrue(all(set(rule.named) <= set(rule.slots) for rule in RULES.values()))
+
+    def test_a_need_is_described_in_words_and_its_prompt_is_never_read_out(self):
+        for need, prompt in (("command_approval", COMMAND), ("question", CUT), ("file_change", "Apply 3 edits?"),
+                             ("link", "Open the sign-in link")):
+            with self.subTest(need):
+                needs_you = act(Kind.NEEDS_YOU, thread=T, need=need, prompt=prompt)
+                self.assertEqual(check(f"{T} needs you in the app.", [needs_you]), [], "the prompt is not a slot")
+        cut = act(Kind.NEEDS_YOU, thread=T, need="question", prompt=CUT)
+        self.assertIn("not plain speech", check(f"{T} asks: {CUT}", [cut]), "a cut prompt is never read out")
+        status = act(Kind.THREAD_STATUS, thread=T, status="waiting_on_you", need="command_approval", pending=COMMAND)
+        self.assertIn("reads code", check(f"{T} is waiting for you to approve a command: {COMMAND}", [status]))
 
     def test_more_than_three_candidates_are_cut_to_three(self):
         said = act(Kind.ASK_WHICH, of="thread", candidates=["a", "b", "c", "d"])

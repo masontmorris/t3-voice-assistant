@@ -81,6 +81,7 @@ class SchemaCoverageTest(unittest.TestCase):
         by_type = {branch_type(b)[0]: b["properties"] for b in DEFS["VoiceEvent"]["anyOf"]}
         self.assertEqual(set(by_type["run"]["status"]["enum"]), members(T.RunStatus))
         self.assertEqual(set(by_type["needs_you"]["kind"]["enum"]), members(T.PendingKind))
+        self.assertEqual(set(by_type["needs_you"]["source"]["enum"]), members(T.NeedSource))
         self.assertEqual(
             set(by_type["resolved"]["status"]["enum"]), members(T.ResolvedStatus)
         )
