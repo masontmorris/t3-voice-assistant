@@ -1,9 +1,11 @@
 import asyncio
 import json
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import numpy as np
 
@@ -84,6 +86,65 @@ class ClientWiringTest(unittest.TestCase):
             finally:
                 run.player.close()
                 run.log_file.close()
+
+
+class CaptureSelectionTest(unittest.TestCase):
+    def run_client(self, flags):
+        clip_frame = pcm(42, client.FRAME_SAMPLES)
+        sent_audio = []
+        finished = asyncio.Event()
+        sounddevice = MagicMock()
+        sounddevice.query_hostapis.return_value = [{"name": "Windows WASAPI", "default_input_device": 0}]
+        microphone = {
+            "name": "Built-in microphone", "hostapi": 0, "default_samplerate": 48000, "max_input_channels": 1,
+        }
+        sounddevice.query_devices.side_effect = lambda index=None: [microphone] if index is None else microphone
+        sounddevice.WasapiSettings.return_value = SimpleNamespace(_streaminfo=SimpleNamespace(streamOption=0))
+
+        def open_input(**_kwargs):
+            finished.set()
+            return MagicMock()
+
+        async def send(data):
+            if isinstance(data, bytes) and any(data):
+                sent_audio.append(data)
+                finished.set()
+
+        async def receive():
+            await finished.wait()
+            yield "{}"
+
+        sounddevice.RawInputStream.side_effect = open_input
+        socket = MagicMock()
+        socket.__aenter__.return_value = socket
+        socket.__aiter__.side_effect = receive
+        socket.send.side_effect = send
+        with tempfile.TemporaryDirectory() as tmp:
+            secret = Path(tmp) / "secret"
+            secret.write_text("test", encoding="utf-8")
+            argv = ["client.py", "--server", "ws://localhost:1", "--secret-file", str(secret),
+                    "--input", "0", "--output", "0", "--log-dir", tmp, "--no-record", *flags]
+            with (patch.object(sys, "argv", argv),
+                  patch.dict(sys.modules, sounddevice=sounddevice),
+                  patch.object(client.websockets, "connect", new_callable=AsyncMock, return_value=socket),
+                  patch.object(client, "read_wav_16k", return_value=clip_frame)):
+                client.main()
+        return sounddevice.RawInputStream, sent_audio
+
+    def test_microphone_capture_mode(self):
+        for flags, raw in (([], False), (["--echo-cancel"], True), (["--raw-mic"], True),
+                           (["--no-raw-mic"], False), (["--raw-mic", "--no-raw-mic"], False),
+                           (["--echo-cancel", "--no-raw-mic"], True)):
+            with self.subTest(flags=flags):
+                capture, _ = self.run_client(flags)
+                capture.assert_called_once()
+                settings = capture.call_args.kwargs.get("extra_settings")
+                self.assertEqual(settings._streaminfo.streamOption if settings else 0, int(raw))
+
+    def test_wav_replays_audio_without_opening_a_microphone(self):
+        capture, sent_audio = self.run_client(["--wav", "clip.wav"])
+        capture.assert_not_called()
+        self.assertEqual(sent_audio, [pcm(42, client.FRAME_SAMPLES)])
 
 
 class PlayerTest(unittest.TestCase):
