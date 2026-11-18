@@ -227,6 +227,7 @@ class Replies(unittest.TestCase):
             "please tell me more": None,
             "I said yes earlier": None,
             "yes, maybe later": None,
+            "yes, #2": None,
             "start it in the other project": None,
         }
         for text, kind in cases.items():

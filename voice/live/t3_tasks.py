@@ -24,7 +24,7 @@ import os
 import re
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -35,7 +35,7 @@ from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.pick.decide import pick as pick_thread
 from voice.t3.pick.pick import question_for
-from voice.t3.pick.project import pick_project
+from voice.t3.pick.project import pick_project, question_for_projects
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 
 START, ASK = "t3_start", "t3_ask"
@@ -48,18 +48,30 @@ T3_TOOLS = {
 STATUS_WORDS = {Status.UNSTARTED: "running", Status.LIVE: "running", Status.COMPLETED: "completed",
                 Status.FAILED: "failed", Status.CANCELLED: "cancelled", Status.LOST: "lost"}
 
+_CONFIRMATION_TEXT = re.compile(r"[a-zA-Z.,!\s]+")
 _WORD = re.compile(r"[a-z']+")
-YES = frozenset({"yes", "yeah", "yep", "yup", "sure", "ok", "okay", "please", "correct", "right", "go", "do",
-                 "start", "affirmative"})
+_QUESTION = re.compile(r"\?|\b(?:what|when|where|which|who|whom|whose|why|how)\b", re.IGNORECASE)
+_OTHER_PROJECT = re.compile(r"\b(?:in|for) (?:the )?other project(?:,? please)?[.! ]*$", re.IGNORECASE)
+YES = frozenset({"yes", "yeah", "yep", "yup", "sure", "ok", "okay", "affirmative"})
+YES_ACTIONS = {("do", "it"), ("go", "ahead"), ("start", "it")}
 NO = frozenset({"no", "nope", "nah", "don't", "dont", "cancel", "stop", "wait", "never", "not"})
+START_CANCELLED = "Okay, I won't start it."
 
 
 def reply_kind(text: str) -> str | None:
-    """yes, no, or None for a reply that is neither, from its words alone. A no word wins over a yes word."""
-    words = set(_WORD.findall((text or "").lower()))
-    if words & NO:
+    text = text or ""
+    words = tuple(_WORD.findall(text.lower().replace("\u2019", "'")))
+    if NO.intersection(words):
         return "no"
-    if words & YES:
+    if not words or not _CONFIRMATION_TEXT.fullmatch(text) or _QUESTION.search(text):
+        return None
+    if words == ("please",):
+        return "yes"
+    affirmative = words[0] in YES
+    rest = words[1:] if affirmative else words
+    if rest[-1:] == ("please",):
+        rest = rest[:-1]
+    if (affirmative and not rest) or rest in YES_ACTIONS:
         return "yes"
     return None
 
@@ -96,6 +108,7 @@ class Question:
     kind: str
     instruction: str
     candidates: tuple[str, ...]
+    reasked: bool = False
 
 
 @dataclass
@@ -163,9 +176,7 @@ class T3Tasks:
             hello_seq = (self.follow.seam.hello.latest_sequence,)
             pick = pick_project(instruction, projects)
             if pick.kind == "one":
-                self.question = Question(key, "confirm", instruction, (pick.project_id,))
-                return L.Update(key, f"Start it in {names[pick.project_id]}?", "needs_clarification", "pick",
-                                sequences=hello_seq)
+                return self._confirm(Question(key, "confirm", instruction, (pick.project_id,)), names)
             if pick.kind == "ask":
                 candidates = pick.candidates or tuple(names)
                 self.question = Question(key, "project", instruction, tuple(candidates))
@@ -174,32 +185,58 @@ class T3Tasks:
             return L.Update(key, f"I don't see that project. I can start threads in {', '.join(names.values())}.",
                             "failed", "pick", sequences=hello_seq)
 
+    def _confirm(self, question: Question, names: dict[str, str]) -> L.Update:
+        self.question = question
+        return L.Update(question.key, f"Start it in {names[question.candidates[0]]}?", "needs_clarification",
+                        "pick", sequences=(self.follow.seam.hello.latest_sequence,))
+
     def answer(self, text: str, now: float) -> L.Update | None:
-        """The next turn's words against the open question. None when they do not answer it."""
         with self.lock:
             question, self.question = self.question, None
             if question is None:
                 return None
             if question.kind == "thread":
                 return self._answer_thread(question, text, now)
+            kind = reply_kind(text)
+            if kind == "no":
+                return L.Update(question.key, START_CANCELLED, "cancelled", "pick")
             down = self._down(question.key, now)
             if down is not None:
                 return down
-            projects = [p for p in self.projects() if p["projectId"] in question.candidates]
-            names = {p["projectId"]: p["name"] for p in projects}
-            kind = reply_kind(text)
-            if question.kind == "confirm":
-                if kind == "yes":
-                    return self._launch(question, question.candidates[0], names[question.candidates[0]], now)
-                if kind == "no":
-                    return L.Update(question.key, "Okay, I won't start it.", "cancelled", "pick")
-            # The answer to "which project?" names the target, so its words take the picker's target seat.
+            return self._answer_start(question, text, kind, now)
+
+    def _answer_start(self, question: Question, text: str, kind: str | None, now: float) -> L.Update:
+        projects = self.projects()
+        names = {p["projectId"]: p["name"] for p in projects}
+        is_question = _QUESTION.search(text) is not None
+        if question.kind == "confirm":
+            current = question.candidates[0]
+            if kind == "yes" and current in names:
+                return self._launch(question, current, names[current], now)
+            if not is_question and _OTHER_PROJECT.search(text):
+                others = tuple(pid for pid in names if pid != current)
+                if len(others) == 1:
+                    return self._confirm(replace(question, candidates=others, reasked=False), names)
+                if others:
+                    question = replace(question, kind="project", candidates=others)
+        if question.kind == "project":
+            projects = [p for p in projects if p["projectId"] in question.candidates]
+
+        if not is_question:
             pick = pick_project(f"in {text}", projects)
-            if pick.kind == "one":
-                self.question = Question(question.key, "confirm", question.instruction, (pick.project_id,))
-                return L.Update(question.key, f"Start it in {names[pick.project_id]}?", "needs_clarification",
-                                "pick", sequences=(self.follow.seam.hello.latest_sequence,))
-            return None
+            if pick.kind == "one" and (question.kind == "project" or (pick.project_id,) != question.candidates):
+                return self._confirm(replace(question, kind="confirm", candidates=(pick.project_id,),
+                                             reasked=False), names)
+
+        if question.reasked:
+            return L.Update(question.key, START_CANCELLED, "cancelled", "pick")
+        question = replace(question, reasked=True)
+        if question.kind == "confirm" and question.candidates[0] in names:
+            return self._confirm(question, names)
+        candidates = tuple(pid for pid in question.candidates if pid in names) or tuple(names)
+        self.question = replace(question, kind="project", candidates=candidates)
+        return L.Update(question.key, question_for_projects([names[pid] for pid in candidates]),
+                        "needs_clarification", "pick", sequences=(self.follow.seam.hello.latest_sequence,))
 
     def _launch(self, question: Question, project_id: str, name: str, now: float) -> L.Update:
         task = self.follow.journal.begin(Kind.START, question.instruction, project_id, name)
