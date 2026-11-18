@@ -1,9 +1,8 @@
 """Typed client for the voice seam.
 
 One socket on a background thread, typed calls, drain() for events. The token
-is read from the token file and never logged. Every way a socket ends reports
-as its own SocketEnd value, so the watch lifecycle can tell close-1013,
-close-other, upgrade-401 and upgrade-404 apart.
+is read from the token file and never logged. A socket end is a SocketEnd
+value the watch lifecycle can act on.
 """
 
 from __future__ import annotations
@@ -53,13 +52,15 @@ _END_TYPES = (
     T.Close1013,
     T.Close1008,
     T.Close1007,
+    T.Close1011,
     T.CloseOther,
     T.Upgrade401,
+    T.Upgrade403,
     T.Upgrade404,
     T.Unreachable,
 )
 
-_UPGRADE_ENDS = {401: T.UPGRADE_401, 404: T.UPGRADE_404}
+_UPGRADE_ENDS = {401: T.UPGRADE_401, 403: T.UPGRADE_403, 404: T.UPGRADE_404}
 
 
 def _origin_to_url(origin: str) -> str:

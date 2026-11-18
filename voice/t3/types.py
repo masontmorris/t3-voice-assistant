@@ -304,6 +304,11 @@ class Close1007:
 
 
 @dataclass(frozen=True)
+class Close1011:
+    label: str = field(default="close-1011", init=False)
+
+
+@dataclass(frozen=True)
 class CloseOther:
     code: int
     label: str = field(default="close-other", init=False)
@@ -312,6 +317,11 @@ class CloseOther:
 @dataclass(frozen=True)
 class Upgrade401:
     label: str = field(default="upgrade-401", init=False)
+
+
+@dataclass(frozen=True)
+class Upgrade403:
+    label: str = field(default="upgrade-403", init=False)
 
 
 @dataclass(frozen=True)
@@ -324,12 +334,17 @@ class Unreachable:
     label: str = field(default="unreachable", init=False)
 
 
-SocketEnd = Union[Close1013, Close1008, Close1007, CloseOther, Upgrade401, Upgrade404, Unreachable]
+SocketEnd = Union[
+    Close1013, Close1008, Close1007, Close1011, CloseOther,
+    Upgrade401, Upgrade403, Upgrade404, Unreachable,
+]
 
 CLOSE_1013 = Close1013()
 CLOSE_1008 = Close1008()
 CLOSE_1007 = Close1007()
+CLOSE_1011 = Close1011()
 UPGRADE_401 = Upgrade401()
+UPGRADE_403 = Upgrade403()
 UPGRADE_404 = Upgrade404()
 UNREACHABLE = Unreachable()
 
@@ -342,6 +357,8 @@ def decode_close(code: int | None) -> SocketEnd:
         return CLOSE_1008
     if code == 1007:
         return CLOSE_1007
+    if code == 1011:
+        return CLOSE_1011
     return CloseOther(code=code if code is not None else 1006)
 
 
