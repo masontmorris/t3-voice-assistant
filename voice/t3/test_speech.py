@@ -280,7 +280,7 @@ class RenderTest(unittest.TestCase):
                 self.assertEqual(json.loads(user["content"]), {"kind": "confirm_thread", "thread": title})
 
 
-    def test_known_and_example_titles_are_rejected_at_both_checks(self):
+    def test_known_and_example_titles_are_rejected_in_the_draft_and_the_call_may_say_only_the_draft(self):
         acts = (act(Kind.CONFIRM_THREAD, thread="Current Thread Notes"),)
         titles = frozenset({"Current Thread", "Archived Project"})
         legitimate = "Is Current Thread Notes the thread you mean?"
@@ -292,8 +292,8 @@ class RenderTest(unittest.TestCase):
                 text = f"Is Current Thread Notes or {title} the thread you mean?"
                 wrong = Speech(Lane(Text(text)), Reads(), F.Agree()).render(acts, known_names=titles)
                 self.assertEqual(wrong.problems, [f"unlisted title: {title}"])
-                call = speech.accept(draft.acts, text, "call", known_names=draft.known_names)
-                self.assertEqual(call.problems, wrong.problems)
+                call = speech.recite(draft, text)
+                self.assertIsNone(call.line, "the call may say only the checked draft")
 
 
 class WriterSession(FakeSession):

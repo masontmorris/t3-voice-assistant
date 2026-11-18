@@ -637,7 +637,7 @@ class Words:
         return self.t3.say_entry(self.update_for(entry), entry, turns)
 
     def accept(self, entry, text, draft) -> Rendered:
-        return self.t3.speech.accept(draft.acts, text, "call", known_names=draft.known_names)
+        return self.t3.speech.recite(draft, text)
 
     def refuse(self, entry, rendered) -> None:
         refuse(self.update_for(entry), rendered)

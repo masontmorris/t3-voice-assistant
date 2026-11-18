@@ -28,7 +28,8 @@ from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise
+from voice.t3.acts import (QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
+                           recites)
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Verdict
 
@@ -302,7 +303,6 @@ class RenderedLine:
     worded_by: str
     verdict: Verdict
     mint: object = field(default=None, repr=False, compare=False)
-    known_names: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.mint is not _MINT:
@@ -428,8 +428,16 @@ class Speech:
         verdict = self.decider.verify(acts, text)
         if not verdict.passed:
             return Rendered(None, list(verdict.problems), raw, verdict.error, verdict)
-        line = RenderedLine(text, acts, worded_by, verdict, _MINT, known_names)
+        line = RenderedLine(text, acts, worded_by, verdict, _MINT)
         return Rendered(line, [], raw, verdict=verdict)
+
+    @staticmethod
+    def recite(draft: RenderedLine, reply: str) -> Rendered:
+        """The call's reply to `draft`, accepted only when it says the draft's words and nothing else. The draft passed
+        both checks already, so the same words need none again, and any other words are not the checked line."""
+        if recites(reply, draft.text):
+            return Rendered(draft, [], reply, verdict=draft.verdict)
+        return Rendered(None, ["not the draft's words"], reply)
 
 
 def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems: Iterable[str] = (),

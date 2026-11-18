@@ -733,7 +733,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
     async def test_unspoken_stop_confirmation_is_reasked_before_a_yes_can_act(self):
         seam = F.FakeSeam()
         seam.listing = listing(*THREADS)
-        t3 = worded(tasks_over(self, seam), FakeText())
+        t3 = worded(tasks_over(self, seam), FakeText("Should I stop Add a clamp helper?"))
         first = self.service(t3, [self.record("task_1", "Stop the clamp helper thread.", STOP)])
         first.sync(0)
         entry = first.snapshot("utt_1", "...")["tasks"][0]
