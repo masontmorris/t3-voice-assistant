@@ -17,9 +17,9 @@ Nothing the voice says about T3 work is a hard-coded string (Mason, 2026-11-18).
 
 ## Summaries
 
-A summary is written only when the voice is about to speak about a thread: an answer to a `t3_ask`, a `done`, or a `needs_you`. `Speech.fill` reads the thread through the seam. The status and the pending need come from code. The summarizer writes a one-sentence gist from the last reply and recent records. It receives the thread title as a name only. The gist is cached per thread, read sequence and question, and a speculative gist from words still being spoken serves only a final question with the same words. When the decider marks a `t3_ask` while Mason is still talking, `T3TaskService.sync` starts the read and the summary at once, and the answer after his yes reuses them.
+A summary is written only when the voice is about to speak about a thread: an answer to a `t3_ask`, a `done`, or a `needs_you`. `Speech.fill` reads the thread through the seam. The status and the pending need come from code. The summarizer gets the last reply and writes a one-sentence gist into the act's `summary` slot. The thread's title is given as a name only, not as evidence of what was done. A thread with no last reply is summarized from its status and need. The gist is cached per thread, read sequence and question, and a speculative gist from words still being spoken serves only a final question with the same words. When the decider marks a `t3_ask` while Mason is still talking, `T3TaskService.sync` starts the read and the summary at once, and the answer after his yes reuses them.
 
-The read includes up to 12 stored records from the latest run, newest first. A tool record carries a short name and an outcome. A file change carries workspace-relative paths and a count. An error carries a short message. The read keeps up to 3,200 characters from the end of the last reply and starts at a sentence boundary when one fits. If the last reply comes from an earlier run, the summarizer sees it marked as history.
+The seam limits what a summary can see. The read carries no tool runs, changed files or errors, and it cuts the last reply at 1,200 characters (`apps/server/src/voiceSeam/outcome.ts`). Giving the summarizer more means changing the seam's read.
 
 ## Guarding it
 

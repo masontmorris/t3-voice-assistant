@@ -133,7 +133,6 @@ class T3Seam:
         )
 
     def read_thread(self, thread_id: str) -> T.ThreadState:
-        """Read a thread's state and latest-run records at its sequence cursor."""
         return self._call("read_thread", {"threadId": thread_id})
 
     def watch(

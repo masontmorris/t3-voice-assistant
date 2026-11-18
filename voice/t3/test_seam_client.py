@@ -74,11 +74,6 @@ READ_VALUE = {
         "startedAt": "2026-11-17T20:24:00.000Z",
     },
     "pending": None,
-    "recent": [
-        {"kind": "tool", "name": "Test run", "outcome": "failed"},
-        {"kind": "files", "paths": ["src/main.ts"], "count": 1},
-        {"kind": "error", "message": "The build worker disconnected."},
-    ],
     "lastReply": {
         "text": "",
         "messageId": "msg_1",
@@ -248,11 +243,6 @@ class SeamClientTest(unittest.TestCase):
         self.assertEqual(state.as_of_sequence, 78)
         self.assertIsNone(state.pending)
         self.assertEqual(state.last_reply.text, "")
-        self.assertEqual(
-            state.recent,
-            (T.RecentTool("Test run", T.ToolOutcome.FAILED), T.RecentFiles(("src/main.ts",), 1),
-             T.RecentError("The build worker disconnected.")),
-        )
 
         watched = seam.watch(THREAD, after_sequence=state.as_of_sequence)
         self.assertEqual(watched, T.WatchStarted(thread_id=THREAD))

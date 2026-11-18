@@ -6,7 +6,6 @@ from __future__ import annotations
 import json
 import threading
 import unittest
-from dataclasses import replace
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 from voice.t3 import fakes as F
@@ -165,16 +164,13 @@ class SummaryTest(unittest.TestCase):
     def test_a_read_answer_uses_the_read_it_came_from_and_its_question(self):
         text, reads = Text(), Reads()
         speech = Speech(Lane(text), reads, F.Agree())
-        speech.remember(replace(finished(140), recent=(T.RecentTool("Test run", T.ToolOutcome.OK),)))
+        speech.remember(finished(140))
         asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
                      asked="Did the tests pass?"),)
         filled, evidence = speech.fill(asked, "t5", (140,))
         self.assertEqual((reads.count, evidence), (0, ()), "no second read")
         self.assertEqual(text.bodies[0]["question"], "Did the tests pass?")
-        records = text.bodies[0]["records"]
-        self.assertEqual(records["last_reply"], REPLY.text)
-        self.assertEqual(records["recent"], [{"kind": "tool", "name": "Test run", "outcome": "ok"}])
-        self.assertEqual(records["name (only a name, not evidence of what was done)"], "Add a clamp helper")
+        self.assertEqual(text.bodies[0]["records"]["last_reply"], REPLY.text, "the full last reply, never a cut")
         self.assertIn("summary", filled[0].slots)
 
     def test_a_speculative_start_is_the_summary_the_answer_uses(self):
@@ -226,7 +222,7 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual(records["name (only a name, not evidence of what was done)"], "Fix failing tests")
         self.assertIn("The thread's name is only a name, not evidence of what was done", SUMMARY_SYSTEM)
         self.assertIn("Attribute claims from the last reply to the thread", SUMMARY_SYSTEM)
-        self.assertIn("Use only the records", SUMMARY_SYSTEM)
+        self.assertIn("never say the thread did what its name says unless the last reply says it", SUMMARY_SYSTEM)
 
     def test_a_thread_with_no_reply_is_summarised_from_its_status_and_need(self):
         text = Text()

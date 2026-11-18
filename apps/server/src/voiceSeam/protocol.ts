@@ -23,10 +23,6 @@ const Sequence = NonNegativeInt;
 
 /** The most threads a list carries; Python's picker reads at most this many. */
 export const LIST_LIMIT = 200;
-export const RECENT_LIMIT = 12;
-export const RECENT_PATH_LIMIT = 12;
-export const RECENT_PATH_LENGTH = 256;
-export const RECENT_ERROR_LENGTH = 240;
 
 export const RefusalCode = Schema.Literals([
   "operation_not_allowed",
@@ -117,26 +113,6 @@ export const VoiceThreadList = Schema.Struct({
 }).annotate({ identifier: "VoiceThreadList" });
 export type VoiceThreadList = typeof VoiceThreadList.Type;
 
-const VoiceRecentRecord = Schema.Union([
-  Schema.Struct({
-    kind: Schema.Literal("tool"),
-    name: Schema.String.check(Schema.isMaxLength(64)),
-    outcome: Schema.Literals(["ok", "failed", "running"]),
-  }),
-  Schema.Struct({
-    kind: Schema.Literal("files"),
-    paths: Schema.Array(Schema.String.check(Schema.isMaxLength(RECENT_PATH_LENGTH))).check(
-      Schema.isMaxLength(RECENT_PATH_LIMIT),
-    ),
-    count: PositiveInt,
-  }),
-  Schema.Struct({
-    kind: Schema.Literal("error"),
-    message: Schema.String.check(Schema.isMaxLength(RECENT_ERROR_LENGTH)),
-  }),
-]);
-export type VoiceRecentRecord = typeof VoiceRecentRecord.Type;
-
 export const VoiceThreadState = Schema.Struct({
   threadId: ThreadId,
   projectId: ProjectId,
@@ -154,7 +130,6 @@ export const VoiceThreadState = Schema.Struct({
   lastReply: Schema.NullOr(
     Schema.Struct({ ...VoiceRunResult.fields, runId: RunId, at: Schema.String }),
   ),
-  recent: Schema.Array(VoiceRecentRecord).check(Schema.isMaxLength(RECENT_LIMIT)),
   asOfSequence: Sequence,
 }).annotate({ identifier: "VoiceThreadState" });
 export type VoiceThreadState = typeof VoiceThreadState.Type;
