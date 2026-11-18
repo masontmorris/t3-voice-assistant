@@ -65,19 +65,22 @@ class Act:
         return act(self.kind, **{**self.slots, **slots})
 
 
-# Status claims, matched on the normalised line. Narrow: a word only counts where it states the thread's state.
-FINISHED = re.compile(r"\b(?:finished|completed|is done|s done|is complete|all done|wrapped up)\b")
-STOPPED = re.compile(r"\b(?:stopped|halted|interrupted|cancelled|canceled|killed|aborted)\b")
-STARTED = re.compile(r"\b(?:started|launched|kicked off)\b")
-SENT = re.compile(r"\b(?:sent|passed (?:it|that|this) (?:on|along)|delivered|forwarded)\b")
-WORKING = re.compile(r"\b(?:still (?:working|running|going)|is (?:working|running)|s (?:working|running)|in progress)\b")
+# Status claims, matched on the normalised line. Narrow: a word only counts where it states the thread's state, so
+# a negated one ("it hasn't stopped yet") is no claim.
+_NOT = r"(?<!\bnot )(?<!\bnot yet )(?<!\bnever )(?<!\bno )"
+FINISHED = re.compile(_NOT + r"\b(?:finished|completed|is done|s done|is complete|all done|wrapped up)\b")
+STOPPED = re.compile(_NOT + r"\b(?:stopped|halted|interrupted|cancelled|canceled|killed|aborted)\b")
+STARTED = re.compile(_NOT + r"\b(?:started|launched|kicked off)\b")
+SENT = re.compile(_NOT + r"\b(?:sent|passed (?:it|that|this) (?:on|along)|delivered|forwarded)\b")
+WORKING = re.compile(_NOT + r"\b(?:still (?:working|running|going)|is (?:working|running)|s (?:working|running)|"
+                     r"in progress)\b")
 CLAIMS = {"finished": FINISHED, "stopped": STOPPED, "started": STARTED, "sent": SENT, "working": WORKING}
 
 RUNNING = ("working", "waiting_on_you", "waiting_on_background", "queued", "idle", "running")
 STATUS_FORBIDS: dict[str, tuple[str, ...]] = {
     **{status: ("finished", "stopped") for status in RUNNING},
-    "finished": ("stopped", "working"),
-    "completed": ("stopped", "working"),
+    "finished": ("working",),
+    "completed": ("working",),
     "failed": ("working",),
     "interrupted": ("working", "finished"),
     "cancelled": ("working", "finished"),
@@ -109,7 +112,7 @@ RULES: dict[Kind, Rule] = {
     Kind.CONFIRM_TELL: Rule(("thread", "message"), ("thread", "message"), True, ("sent",)),
     Kind.CONFIRM_STOP: Rule(("thread",), ("thread",), True, ("stopped",)),
     Kind.CANCELLED: Rule(("op", "thread"), ("thread",)),
-    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "pending", "asked"), ("thread", "pending")),
+    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "pending", "waiting_for", "asked"), ("thread",)),
     Kind.TELL_PENDING: Rule(("thread",), ("thread",), forbids=("sent",)),
     Kind.SENT_FOLLOWUP: Rule(("thread",), ("thread",)),
     Kind.TELL_UNCONFIRMED: Rule(("thread",), ("thread",)),
@@ -120,7 +123,7 @@ RULES: dict[Kind, Rule] = {
     Kind.STOP_UNCONFIRMED: Rule(("thread",), ("thread",), forbids=("stopped",)),
     Kind.RUN_UPDATE: Rule(("thread", "status"), ("thread",)),
     Kind.REPLIED: Rule(("thread", "reply"), ("thread",), forbids=("finished", "stopped")),
-    Kind.NEEDS_YOU: Rule(("thread", "prompt", "in_app", "after_end", "summary"), ("thread", "prompt")),
+    Kind.NEEDS_YOU: Rule(("thread", "prompt", "waiting_for", "after_end", "summary"), ("thread", "prompt")),
     Kind.NEED_RESOLVED: Rule(("thread", "status"), ("thread",)),
     Kind.DONE: Rule(("thread", "status", "summary"), ("thread",)),
     Kind.THREAD_DELETED: Rule(("thread",), ("thread",)),
@@ -192,9 +195,14 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
     text = (line or "").strip()
     if not text:
         return ["empty"]
-    if _NOT_SPEECH.search(text):
+    # A named value is said as given, so its own punctuation ("incl.", "...", a command's "|") is not the line's.
+    form = text
+    for value in sorted((v for a in acts for name in RULES[a.kind].named if name in a.slots
+                         for v in _named_values(a.slots[name])), key=len, reverse=True):
+        form = form.replace(value, "x")
+    if _NOT_SPEECH.search(form):
         problems.append("not plain speech")
-    if len(_SENTENCE.findall(text if text[-1] in ".!?" else text + ".")) > MAX_SENTENCES_PER_ACT * len(acts):
+    if len(_SENTENCE.findall(form if form[-1] in ".!?" else form + ".")) > MAX_SENTENCES_PER_ACT * len(acts):
         problems.append("too long")
     if any(a.kind in QUESTIONS for a in acts) and not text.endswith("?"):
         problems.append("not a question")

@@ -192,11 +192,11 @@ class PendingActs(JournalCase):
     def test_pending_acts_round_trip_and_version_1_text_is_never_replayed(self):
         follow = self.follow()
         task = self.live(follow)
-        follow.speak(task, Act(S.NEEDS_YOU, {"prompt": "Merge it?", "in_app": False}), "needs_you", (21,))
+        follow.speak(task, Act(S.NEEDS_YOU, {"prompt": "Merge it?", "waiting_for": "approval"}), "needs_you", (21,))
         follow.journal.save()
         reread = T3Journal(self.path)
         self.assertEqual([(u.acts, u.sequences) for u in reread.pending_lines],
-                         [((Act(S.NEEDS_YOU, {"prompt": "Merge it?", "in_app": False}),), (21,))])
+                         [((Act(S.NEEDS_YOU, {"prompt": "Merge it?", "waiting_for": "approval"}),), (21,))])
         raw = json.loads(self.path.read_text(encoding="utf-8"))
         raw["pending_lines"] = [{"task_id": task.task_id, "line": "old text", "status": "live", "row": "reply",
                                  "thread_id": "t1", "sequences": [5], "delivery_failures": 0}]

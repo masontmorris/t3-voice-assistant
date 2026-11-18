@@ -578,7 +578,7 @@ INTERRUPT_KIND = {cls: kind for kind, cls in T.INTERRUPT_KINDS.items()}
 
 
 def need_act(kind: T.PendingKind, prompt: str, ended: bool) -> Act:
-    return act(Say.NEEDS_YOU, prompt=prompt, in_app=kind is T.PendingKind.IN_APP, after_end=ended)
+    return act(Say.NEEDS_YOU, prompt=prompt, waiting_for=kind.value, after_end=ended)
 
 
 # Actions, one per Do. Each takes (follow, row name, row, task, now, **context).

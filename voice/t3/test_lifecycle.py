@@ -97,7 +97,7 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(seam.ops("watch"), [("watch", "t1", 120, "r1")])
         self.assertEqual(h.said(), ["launched", "needs_you"])
         self.assertEqual(h.acts()[1].slots, {"thread": "Fix the flaky test", "prompt": "Run the tests?",
-                                             "in_app": False, "after_end": False})
+                                             "waiting_for": "approval", "after_end": False})
         seam.push(F.needs_you(130), F.ended("resync"))
         h.tick(1)
         self.assertEqual(h.said().count("needs_you"), 1)

@@ -132,8 +132,10 @@ def confirm_act(op: str, title: str, message: str | None = None) -> Act:
 
 def status_act(state: T.ThreadState, asked: str | None = None) -> Act:
     """A read as an act. Its status and need come from the read; `say` adds the summary before it is spoken."""
+    need = state.pending
     return act(Say.THREAD_STATUS, thread=state.title, status=state.activity.value,
-               pending=state.pending.prompt if state.pending is not None else None, asked=asked)
+               pending=need.prompt if need is not None else None,
+               waiting_for=need.kind.value if need is not None else None, asked=asked)
 
 
 @dataclass
@@ -141,8 +143,8 @@ class Question:
     """The open question the next utterance may answer.
 
     `kind` is the state: "project" (which project), "confirm" (start it in this project?), "thread" (which
-    thread), or "thread_confirm" (one thread, asked back for `op`). `candidates` are project or thread ids, and `titles` names
-    each thread. `message` and `link` are a follow-up's words, from `tell_parts`.
+    thread), or "thread_confirm" (one thread, asked back for `op`). `candidates` are project or thread ids, and
+    `titles` names each thread. `message` and `link` are a follow-up's words, from `tell_parts`.
     """
 
     key: str
@@ -559,7 +561,8 @@ class T3Tasks:
                 pick = prefilter_pick(instruction, threads, self.project_names())
                 thread = pick.thread_id if pick is not None and pick.kind == "one" else None
             else:
-                thread = self._recent({t["threadId"]: t["title"] for t in threads})
+                with self.lock:
+                    thread = self._recent({t["threadId"]: t["title"] for t in threads})
             if thread is not None:
                 self.speech.prefetch(thread, instruction)
 

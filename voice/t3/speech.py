@@ -46,7 +46,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop).",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
-                        "asked. A pending need is something the thread is waiting on them for.",
+                        "asked. `pending` is what the thread is waiting on them for, and `waiting_for` says how they "
+                        "answer it: approval (approve or deny it in the app), question (answer it), or in_app.",
     Kind.TELL_PENDING: "T3 was asked to pass the message on and has not confirmed it yet.",
     Kind.SENT_FOLLOWUP: "The message reached the thread.",
     Kind.TELL_UNCONFIRMED: "T3 was asked to pass the message on but never confirmed it arrived. They can check the "
@@ -58,7 +59,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.STOP_UNCONFIRMED: "The voice could not reach T3 to stop the thread. They can stop it in the app.",
     Kind.RUN_UPDATE: "The thread's run is now in this status (running or queued).",
     Kind.REPLIED: "The thread posted this reply while it works. Give its gist in one sentence.",
-    Kind.NEEDS_YOU: "The thread is waiting on them for this prompt. `in_app` means they must answer in the app. "
+    Kind.NEEDS_YOU: "The thread is waiting on them for this prompt. `waiting_for` says how they answer it: approval "
+                    "(approve or deny it in the app), question (answer it), or in_app (only in the app). "
                     "`after_end` means the run ended and the need is still open.",
     Kind.NEED_RESOLVED: "A request the thread had made of them was settled (answered, expired or cancelled).",
     Kind.DONE: "The thread's run ended with this status. Say the status, then the summary.",
@@ -81,14 +83,15 @@ CLAIM_WORDS = {"finished": "that the thread is finished, done or completed",
 RENDER_SYSTEM = (
     "You write the next thing a voice assistant says out loud, to the person it is talking to on a call, about "
     "their coding threads in an app called T3. You get typed facts called acts and the last few turns of the call. "
-    "Say all the acts, in order, as natural speech: one short sentence per act, two at most. Use only the facts "
-    "given and never add one. Say every value under keep_exact word for word. When ask is true, end with a "
-    "question. Never say the things listed under never_say. Speak as \"I\", to \"you\". No lists, markdown, quotes "
-    "around names, or ids. Reply with the spoken words only."
+    "Say all the acts, in order, as natural speech: one short sentence per act, two at most, and under 35 words in "
+    "all. Use only the facts given and never add one. Say every value under keep_exact word for word, and say a "
+    "thread's name once. When ask is true, end with a question. Never say the things listed under never_say, and "
+    "never mention a summary, records or notes. Speak as \"I\", to \"you\". No lists, markdown, quotes around "
+    "names, or ids. Reply with the spoken words only."
 )
 SUMMARY_SYSTEM = (
     "You read the records of one coding thread and write a gist for a voice assistant to say out loud. Answer the "
-    "question when there is one, else say what the thread did or found. One or two short spoken sentences. State "
+    "question when there is one, else say what the thread did or found. One spoken sentence of at most 25 words. State "
     "only what the records say: no guesses, no advice, no file paths or code unless asked. Do not say whether the "
     "thread is running, finished, failed or stopped, because the assistant says that separately. If the records "
     "do not answer the question, say what they do show. Reply with the gist only."
@@ -282,6 +285,7 @@ def summary_messages(state: T.ThreadState, question: str | None) -> list[dict]:
     records = {"thread": state.title, "status": state.activity.value,
                "run": state.run.status.value if state.run is not None else None,
                "pending": state.pending.prompt if state.pending is not None else None,
+               "waiting_for": state.pending.kind.value if state.pending is not None else None,
                "last_reply": state.last_reply.text if state.last_reply is not None else None}
     body = {"question": question, "records": records}
     return [{"role": "system", "content": SUMMARY_SYSTEM}, {"role": "user", "content": json.dumps(body)}]

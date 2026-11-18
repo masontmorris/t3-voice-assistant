@@ -340,7 +340,8 @@ class SayVerbatimTest(NoteTurn):
         self.assertEqual((spoken, rendered), ([line], [(line, 24_000)]))
         self.assertEqual((reply["text"], len(pcm)), (line, 960))
         self.assertFalse([e for e in self.voice.sent if e.get("type") == "response.create"], "LFM3 words nothing")
-        self.assertEqual(texts(self.voice), [prototype.NOTE_OPEN + f'you just told them this about their T3 work: "{line}"]'])
+        told = prototype.NOTE_OPEN + f'you just told them this about their T3 work: "{line}"]'
+        self.assertEqual(texts(self.voice), [told])
 
     async def test_a_failed_render_says_the_line_in_the_record_and_plays_nothing(self):
         spoken = []

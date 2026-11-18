@@ -2,8 +2,8 @@
 
 One JSON file holds every task the voice launched, sent to, held, or stopped: its request id,
 minted and saved before the seam call, the thread it reached, the cursor, the applied request
-ids, the reply dedupe, the first interrupt result, and the acts still waiting to be spoken. A restarted voice server reads it back and follows each
-live thread from its own cursor. Every write replaces the file whole, so a crash leaves either
+ids, the reply dedupe, the first interrupt result, and the acts still waiting to be spoken. A
+restarted voice server reads it back and follows each live thread from its own cursor. Every write replaces the file whole, so a crash leaves either
 the old record or the new one.
 """
 
