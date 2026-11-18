@@ -1,8 +1,10 @@
 import {
-  type CommandId,
+  CommandId,
   MessageId,
+  type OrchestrationV2Run,
   type OrchestrationV2ThreadShell,
   type OrchestrationV2TurnItem,
+  type RuntimeMode,
   type ThreadId,
 } from "@t3tools/contracts";
 import type * as Digest from "effect/crypto/Digest";
@@ -13,7 +15,12 @@ import * as Option from "effect/Option";
 import type * as CommandReceiptStore from "../orchestration-v2/CommandReceiptStore.ts";
 import { DispatchModeLimit } from "../orchestration-v2/DispatchModeLimit.ts";
 import type * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
-import { dispatchModeLimit, isAboveCeiling, type VoiceSeamConfig } from "./ceiling.ts";
+import {
+  dispatchModeLimit,
+  isAboveCeiling,
+  queueHoldsCeiling,
+  type VoiceSeamConfig,
+} from "./ceiling.ts";
 import { voiceCommandId } from "./launch.ts";
 import type { RequestInput, VoiceInterruptResult, VoiceSendResult } from "./protocol.ts";
 import { VoiceSeamRefusal } from "./refusal.ts";
@@ -49,7 +56,12 @@ export interface SendSources {
   readonly digest: Digest.Digest["Service"];
   readonly threads: ThreadManagementService.ThreadManagementService["Service"];
   readonly receipts: CommandReceiptStore.CommandReceiptStoreV2["Service"];
+  /** T3's managed ceiling, the only one it checks when a queued run starts. */
+  readonly managedMaxRuntimeMode: RuntimeMode | undefined;
 }
+
+/** The seam's cancel of a send it queued where the queue cannot hold the ceiling. */
+const cancelCommandId = (commandId: CommandId) => CommandId.make(`${commandId}:cancel`);
 
 /**
  * Writes to a thread the service already found visible. Each request id fixes its command, and a
@@ -74,8 +86,35 @@ export const make = (sources: SendSources) => {
       ? VoiceSeamRefusal.invalidRequest("That request already went to another thread.")
       : VoiceSeamRefusal.refused({ reason: gate.reason, commandId });
 
+  /**
+   * An accepted send whose message waits in a queue that cannot hold the ceiling is cancelled and
+   * answers thread_busy. So does every later copy of the request, from the cancel's receipt.
+   */
+  const refuseUnsafeQueue = Effect.fn("VoiceSeam.refuseUnsafeQueue")(function* (
+    config: VoiceSeamConfig,
+    ids: { readonly commandId: CommandId; readonly threadId: ThreadId },
+    run: Pick<OrchestrationV2Run, "id" | "status">,
+  ) {
+    const cancel = cancelCommandId(ids.commandId);
+    if (run.status === "cancelled" && (yield* readGate(cancel, ids.threadId)).kind === "accepted") {
+      return yield* VoiceSeamRefusal.threadBusy();
+    }
+    if (run.status !== "queued" || queueHoldsCeiling(config, sources.managedMaxRuntimeMode)) return;
+    yield* threads
+      .dispatch({
+        type: "queued-run.cancel",
+        commandId: cancel,
+        threadId: ids.threadId,
+        runId: run.id,
+      })
+      .pipe(unavailable);
+    return yield* VoiceSeamRefusal.threadBusy();
+  });
+
   /** An accepted send, answered from the message it wrote. It never sends again. */
   const replaySend = Effect.fn("VoiceSeam.replaySend")(function* (
+    config: VoiceSeamConfig,
+    commandId: CommandId,
     threadId: ThreadId,
     messageId: MessageId,
   ) {
@@ -84,7 +123,7 @@ export const make = (sources: SendSources) => {
     const shell = yield* threads.getThreadShell(threadId).pipe(unavailable);
     if (shell === null || shell.deletedAt !== null) return yield* VoiceSeamRefusal.gone();
     const records = yield* threads
-      .getThreadRecords(threadId, ["messages", "turnItems"], {
+      .getThreadRecords(threadId, ["messages", "turnItems", "runs"], {
         messageIds: [messageId],
         turnItemTypes: ["user_message"],
       })
@@ -95,6 +134,8 @@ export const make = (sources: SendSources) => {
         `Send ${messageId} was accepted with no durable run.`,
       );
     }
+    const run = records.runs.find((candidate) => candidate.id === runId);
+    if (run !== undefined) yield* refuseUnsafeQueue(config, { commandId, threadId }, run);
     // Mason can promote a queued message to a steer in the app; the voice still queued it.
     const started =
       records.turnItems.filter(isUserMessage).find((item) => item.messageId === messageId)
@@ -110,6 +151,7 @@ export const make = (sources: SendSources) => {
   });
 
   const answerSend = (
+    config: VoiceSeamConfig,
     gate: Exclude<ReceiptGate, { readonly kind: "none" }>,
     ids: {
       readonly commandId: CommandId;
@@ -118,7 +160,7 @@ export const make = (sources: SendSources) => {
     },
   ): Effect.Effect<VoiceSendResult, VoiceSeamRefusal> =>
     gate.kind === "accepted"
-      ? replaySend(ids.threadId, ids.messageId)
+      ? replaySend(config, ids.commandId, ids.threadId, ids.messageId)
       : Effect.fail(refuseGate(gate, ids.commandId));
 
   const send = Effect.fn("VoiceSeam.sendToThread")(function* (
@@ -129,9 +171,12 @@ export const make = (sources: SendSources) => {
     const commandId = yield* voiceCommandId(sources.digest, "send", input.requestId);
     const ids = { commandId, threadId: input.threadId, messageId: MessageId.make(commandId) };
     const gate = yield* readGate(commandId, input.threadId);
-    if (gate.kind !== "none") return yield* answerSend(gate, ids);
+    if (gate.kind !== "none") return yield* answerSend(config, gate, ids);
     // sendToThread restores a missing worktree before the orchestrator checks the mode.
     if (isAboveCeiling(config, shell)) return yield* VoiceSeamRefusal.threadAboveCeiling();
+    if (shell.activeRunId !== null && !queueHoldsCeiling(config, sources.managedMaxRuntimeMode)) {
+      return yield* VoiceSeamRefusal.threadBusy();
+    }
     const sent = yield* threads
       .sendToThread({
         projectId: shell.projectId,
@@ -170,12 +215,14 @@ export const make = (sources: SendSources) => {
       // A send that failed after T3 recorded its command answers as its retry would.
       const after = yield* readGate(commandId, input.threadId);
       if (after.kind === "none") return yield* VoiceSeamRefusal.unavailable(error);
-      return yield* answerSend(after, ids);
+      return yield* answerSend(config, after, ids);
     }
     const { delivery, dispatch, run } = sent.success;
     if (delivery !== "started" && delivery !== "queued") {
       return yield* Effect.die(`A queued voice send was ${delivery}.`);
     }
+    // The thread got busy after the preflight read it, or another copy of this request queued it.
+    yield* refuseUnsafeQueue(config, ids, run);
     const replayed = dispatch.replayed === true;
     return {
       threadId: input.threadId,

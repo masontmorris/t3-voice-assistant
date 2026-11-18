@@ -27,6 +27,9 @@ const sendInput = (requestId: string, threadId: ThreadId, text = "Also add a tes
   text,
 });
 
+/** Nothing is above full-access, so T3's queue holds this ceiling and a busy thread queues. */
+const queueing = () => caller({ maxRuntimeMode: "full-access" });
+
 /** A launched thread whose first run waits in preparation, which counts as its active turn. */
 const launchThread = Effect.fn("test.launchThread")(function* (requestId: string) {
   const seam = yield* VoiceSeam.VoiceSeam;
@@ -100,7 +103,7 @@ it.effect("queues a send behind the running turn and never steers it", () =>
     const running = yield* launchThread("01JD5Z7Q8M3N4P5R6S7T8V9X0A");
 
     const sent = yield* seam.send(
-      caller(),
+      queueing(),
       sendInput("01JD5Z7Q8M3N4P5R6S7T8V9X0B", running.threadId),
     );
 
@@ -145,14 +148,14 @@ it.effect(
       const requestId = "01JD5Z7Q8M3N4P5R6S7T8V9X1B";
       const commandId = yield* commandIdOf("send", requestId);
 
-      const first = yield* seam.send(caller(), sendInput(requestId, threadId));
-      const second = yield* seam.send(caller(), sendInput(requestId, threadId));
+      const first = yield* seam.send(queueing(), sendInput(requestId, threadId));
+      const second = yield* seam.send(queueing(), sendInput(requestId, threadId));
       yield* sql`DELETE FROM orchestration_events WHERE command_id = ${commandId}`;
       const pruned = yield* sql<{ readonly count: number }>`
         SELECT COUNT(*) AS count FROM orchestration_events WHERE command_id = ${commandId}
       `;
       assert.strictEqual(pruned[0]?.count, 0);
-      const third = yield* seam.send(caller(), sendInput(requestId, threadId));
+      const third = yield* seam.send(queueing(), sendInput(requestId, threadId));
 
       assert.strictEqual(first.messageId, MessageId.make(commandId));
       assert.isFalse(first.replayed);
@@ -192,7 +195,7 @@ it.effect("answers a send's receipt without sending: refused, or another thread'
       error: "Thread is archived.",
     });
     const elsewhere = "01JD5Z7Q8M3N4P5R6S7T8V9X2D";
-    yield* seam.send(caller(), sendInput(elsewhere, other.threadId));
+    yield* seam.send(queueing(), sendInput(elsewhere, other.threadId));
     const restoresBefore = yield* restored;
 
     assert.deepStrictEqual(yield* refusalOf(seam.send(caller(), sendInput(rejected, threadId))), {
@@ -239,6 +242,7 @@ it.effect("refuses a send whose thread Mason raised above the ceiling after the 
     const seam = yield* VoiceSeam.VoiceSeam;
     const threads = yield* ThreadManagement.ThreadManagementService;
     const { threadId } = yield* launchThread("01JD5Z7Q8M3N4P5R6S7T8V9X4A");
+    yield* stopRun(threadId);
     const requestId = "01JD5Z7Q8M3N4P5R6S7T8V9X4B";
     // The restore runs after the preflight and before the dispatch takes the command lock.
     yield* Ref.set(

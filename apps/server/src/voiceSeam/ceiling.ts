@@ -1,4 +1,5 @@
 import {
+  isRuntimeModeAbove,
   OrchestrationV2ThreadLaunchWorkspaceStrategy,
   PositiveInt,
   ProjectId,
@@ -88,6 +89,16 @@ export const dispatchModeLimit = (config: VoiceSeamConfig): DispatchModes => ({
 /** A thread whose modes are above the ceiling, so a voice command would run work in them. */
 export const isAboveCeiling = (config: VoiceSeamConfig, modes: DispatchModes) =>
   exceededDispatchModeLimit(dispatchModeLimit(config), modes) !== undefined;
+
+/**
+ * Whether a message queued now still starts at or below the ceiling. T3 starts a queued run in the
+ * thread's mode at that time and holds it only above its managed ceiling, so Mason can raise the
+ * thread meanwhile. With no managed ceiling, any mode can start.
+ */
+export const queueHoldsCeiling = (
+  config: VoiceSeamConfig,
+  managedMaxRuntimeMode: RuntimeMode | undefined,
+) => !isRuntimeModeAbove(managedMaxRuntimeMode ?? "full-access", config.maxRuntimeMode);
 
 export const allowsOperation = (config: VoiceSeamConfig, operation: VoiceOperation) =>
   config.operations.includes(operation);

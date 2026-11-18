@@ -18,6 +18,7 @@ class RefusalCode(str, Enum):
     OPERATION_NOT_ALLOWED = "operation_not_allowed"
     PROJECT_NOT_ALLOWED = "project_not_allowed"
     ABOVE_CEILING = "above_ceiling"
+    THREAD_BUSY = "thread_busy"
     NOT_FOUND = "not_found"
     GONE = "gone"
     REFUSED = "refused"

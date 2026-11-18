@@ -27,6 +27,7 @@ export const RefusalCode = Schema.Literals([
   "operation_not_allowed",
   "project_not_allowed",
   "above_ceiling",
+  "thread_busy",
   "not_found",
   "gone",
   "refused",

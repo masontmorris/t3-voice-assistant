@@ -76,6 +76,13 @@ export class VoiceSeamRefusal extends Schema.TaggedError<VoiceSeamRefusal>()("Vo
       ...(cause === undefined ? {} : { cause }),
     });
 
+  /** A send would queue on a thread Mason could raise above the ceiling before it starts. */
+  static readonly threadBusy = () =>
+    new VoiceSeamRefusal({
+      code: "thread_busy",
+      message: "That thread is still working. Ask me again when it's done.",
+    });
+
   static readonly noDefaultModel = () =>
     new VoiceSeamRefusal({
       code: "no_default_model",

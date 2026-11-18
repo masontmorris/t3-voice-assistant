@@ -89,7 +89,10 @@ export class VoiceSeam extends Context.Service<
       caller: VoiceCaller,
       input: RequestInput<"launch">,
     ) => Effect.Effect<VoiceLaunchResult, VoiceSeamRefusal>;
-    /** Queues a message behind the thread's active run, under the ceiling. A retry replays it. */
+    /**
+     * Queues a message behind the thread's active run when T3's queue holds the ceiling, and
+     * otherwise refuses while the thread is busy. A retry replays it.
+     */
     readonly send: (
       caller: VoiceCaller,
       input: RequestInput<"send">,
@@ -181,14 +184,20 @@ const make = Effect.gen(function* () {
   const projects = yield* ProjectStore.ProjectStoreV2;
   const digest = yield* Digest.Digest;
   const receipts = yield* CommandReceiptStore.CommandReceiptStoreV2;
-  const writes = Send.make({ digest, threads, receipts });
+  const settings = yield* ServerSettings.ServerSettingsService;
+  const writes = Send.make({
+    digest,
+    threads,
+    receipts,
+    managedMaxRuntimeMode: settings.managedPolicy?.limits?.maxRuntimeMode,
+  });
   const launchThread = Launch.make({
     digest,
     threads,
     launches: yield* ThreadLaunch.ThreadLaunchService,
     receipts,
     projects: yield* ProjectService.ProjectService,
-    settings: yield* ServerSettings.ServerSettingsService,
+    settings,
     providers: yield* ProviderRegistry.ProviderRegistry,
   });
 
