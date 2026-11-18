@@ -949,7 +949,7 @@ def launched_titles(t3: T3Tasks) -> dict:
     for task in t3.follow.journal.tasks.values():
         if task.kind is Kind.START and task.link.thread_id:
             state = t3._read_quiet(task.link.thread_id)
-            titles[task.link.thread_id[:12]] = {"instruction": task.instruction,
+            titles[task.link.thread_id[-8:]] = {"instruction": task.instruction,
                                                 "title": state.title if state is not None else None}
     return titles
 
