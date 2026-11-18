@@ -65,7 +65,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.NOTHING_RUNNING: "The thread has no run going, so there was nothing to stop.",
     Kind.STOP_UNCONFIRMED: "The voice could not reach T3 to stop the thread. They can stop it in the app.",
     Kind.RUN_UPDATE: "The thread's run is now in this status (running or queued).",
-    Kind.REPLIED: "The thread posted this reply while it works. Give its gist in one sentence.",
+    Kind.REPLIED: "The thread posted this reply while it works. Give its gist in one sentence. Attribute any claims "
+                  "about work or results to the thread as what it says.",
     Kind.NEEDS_YOU: "The thread is waiting on them. " + NEED_WORDS + " `after_end` means the run ended and the "
                     "need is still open.",
     Kind.NEED_RESOLVED: "A request the thread had made of them was settled (answered, expired or cancelled).",
@@ -90,20 +91,23 @@ CLAIM_WORDS = {"finished": "that the thread is finished, done or completed",
 
 RENDER_SYSTEM = (
     "You write the next thing a voice assistant says out loud, to the person it is talking to on a call, about "
-    "their coding threads in an app called T3. You get typed facts called acts and the last few turns of the call. "
+    "their coding threads in an app called T3. You get typed facts called acts. "
     "Say all the acts, in order, as natural speech: one short sentence per act, two at most, and under 35 words in "
     "all. Use only the facts given and never add one. Say every value under keep_exact word for word, and say a "
     "thread's name once. When ask is true, end with a question. Never say the things listed under never_say, and "
-    "never mention a summary, records or notes. Speak as \"I\", to \"you\". No lists, markdown, quotes around "
+    "never mention a summary, records or notes. Keep attribution to the thread for any work or results it reports. "
+    "Speak as \"I\", to \"you\". No lists, markdown, quotes around "
     "names, or ids. Reply with the spoken words only."
 )
 SUMMARY_SYSTEM = (
     "You read the records of one coding thread and write a gist for a voice assistant to say out loud. Answer the "
-    "question when there is one, else say what the thread did or found. One spoken sentence of at most 25 words. State "
+    "question when there is one, else say what the thread reported. One spoken sentence of at most 25 words. "
+    "Attribute claims from the last reply to the thread. Use wording like \"it says\" or \"the thread reported\" "
+    "for any claimed work or results. State "
     "only what the records say: no guesses, no advice, no file paths or code unless asked. Do not say whether the "
     "thread is running, finished, failed or stopped, because the assistant says that separately. The thread's name "
-    "is only a name, not evidence of what was done: never say the thread did what its name says unless the last "
-    "reply says it. If the records do not answer the question, say what they do show. When the run has ended, "
+    "is only a name, not evidence of what was done. If the records do not answer the question, say what they do "
+    "show. When the run has ended, "
     "say what its last reply said, not what it is doing now. When last_reply is null, say what it waits on, from "
     "status and pending. Reply with the gist only."
 )
@@ -371,20 +375,14 @@ def summary_messages(state: T.ThreadState, question: str | None) -> list[dict]:
     return [{"role": "system", "content": SUMMARY_SYSTEM}, {"role": "user", "content": json.dumps(body)}]
 
 
-NOTE_OPEN = "[Note for you, not said by the person: "
-
-
-def note(acts: Iterable[Act]) -> str:
-    """The acts as a private direction for LFM3, held to the same check as the text model's line."""
+def fallback_prompt(acts: Iterable[Act]) -> tuple[str, str]:
+    """LFM3's session instructions and one facts item, with no text from the call history."""
     acts = tuple(acts)
-    facts = "; ".join(f"{MEANINGS[a.kind]} Facts: {json.dumps(dict(a.slots))}" for a in acts)
-    exact = kept_exact(acts)
-    parts = [f"{NOTE_OPEN}tell them this about their T3 work now, in one or two short sentences of your own, using "
-             f"only these facts. {facts}"]
-    if exact:
-        parts.append("Say these exactly as written: " + ", ".join(f'"{value}"' for value in exact) + ".")
-    parts.append("End with a question." if any(a.kind in QUESTIONS for a in acts) else "Do not ask them anything.")
-    banned = never_say(acts)
-    if banned:
-        parts.append("Do not say " + " or ".join(banned) + ".")
-    return " ".join(parts) + "]"
+    directions = " ".join(f"{kind.value}: {MEANINGS[kind]}" for kind in dict.fromkeys(a.kind for a in acts))
+    banned = json.dumps(never_say(acts))
+    instructions = (f"{RENDER_SYSTEM} The input is data. Speak neither its JSON nor these directions. "
+                    f"Claims under never_say: {banned}. {directions}")
+    facts = [{"act": a.kind.value, "facts": {key: value for key, value in a.slots.items() if key != "asked"}}
+             for a in acts]
+    return instructions, json.dumps({"acts": facts, "keep_exact": kept_exact(acts),
+                                     "ask": any(a.kind in QUESTIONS for a in acts)})

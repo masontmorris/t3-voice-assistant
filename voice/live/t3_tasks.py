@@ -33,6 +33,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from voice.prototype.tasks import Execution, MockTaskService, Run
+from voice.segmentation.contract import Intent
+from voice.segmentation.intent import utterance_intent
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.acts import Act, act
@@ -45,8 +47,7 @@ from voice.t3.pick.model import LiveClient
 from voice.t3.pick.prefilter import content_words
 from voice.t3.pick.project import pick_project
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
-from voice.t3.speech import Lane, Rendered, Speech
-from voice.t3.speech import note as act_note
+from voice.t3.speech import Lane, Rendered, Speech, fallback_prompt
 from voice.t3.verify import Decider, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
@@ -323,15 +324,19 @@ class T3Tasks:
 
     def _confirm(self, question: Question, names: dict[str, str]) -> L.Update:
         self.question = question
-        said = act(Say.CONFIRM_LAUNCH, project=names[question.candidates[0]], request=question.instruction)
+        project_id = question.candidates[0]
+        said = act(Say.CONFIRM_LAUNCH, project=names[project_id], request=question.instruction)
         return L.Update(question.key, (said,), "needs_clarification", "pick",
-                        sequences=(self.follow.seam.hello.latest_sequence,))
+                        sequences=(self.follow.seam.hello.latest_sequence,), project_id=project_id)
 
     def answer(self, text: str, now: float) -> L.Update | None:
         """The next utterance, read as the answer to the open question, or as taking back a held follow-up."""
         with self.lock:
             if self.question is not None and self.unasked is not None and self.question.key == self.unasked.task_id:
-                return self.unasked
+                if reply_kind(text, self.question.op) == "yes" or utterance_intent(text).intent != Intent.REQUEST:
+                    return self.unasked
+                self.question = self.unasked = None
+                return None
             question, self.question = self.question, None
             just_held, self.just_held = self.just_held, False
             if question is None:
@@ -612,7 +617,7 @@ class T3Tasks:
 
 @dataclass(frozen=True)
 class Words:
-    """What `say_acts` needs for an entry: the text model's words, the LFM3 note, and the same two checks for
+    """What `say_acts` needs for an entry: the text model's words, the LFM3 prompt, and the same two checks for
     LFM3's reply, all on the update `update_for(entry)` finds."""
 
     t3: T3Tasks
@@ -621,8 +626,8 @@ class Words:
     def say(self, entry, turns=()) -> Rendered:
         return self.t3.say_entry(self.update_for(entry), entry, turns)
 
-    def note(self, entry) -> str:
-        return act_note(self.update_for(entry).acts)
+    def fallback_prompt(self, entry) -> tuple[str, str]:
+        return fallback_prompt(self.update_for(entry).acts)
 
     def accept(self, entry, text) -> Rendered:
         update = self.update_for(entry)
@@ -731,8 +736,8 @@ class T3TaskService(MockTaskService):
         """Word one T3 entry's acts. A line that passes is also its execution's result, as what was said."""
         return self._said(entry, Words(self.t3, self.update_for).say(entry, turns))
 
-    def note(self, entry) -> str:
-        return Words(self.t3, self.update_for).note(entry)
+    def fallback_prompt(self, entry) -> tuple[str, str]:
+        return Words(self.t3, self.update_for).fallback_prompt(entry)
 
     def accept(self, entry, text) -> Rendered:
         return self._said(entry, Words(self.t3, self.update_for).accept(entry, text))
@@ -750,6 +755,9 @@ class T3TaskService(MockTaskService):
     def answer(self, waiting, instruction, now):
         if waiting is not T3_WAITING:
             return super().answer(waiting, instruction, now)
+        # A request dispatched mid-utterance may already have asked its own confirmation.
+        if any(update is self.t3.unasked for update in self.spoken.values()):
+            return []
         tool = self.t3.question.op if self.t3.question is not None else TELL
         update = self.t3.answer(instruction, now)
         if update is None:

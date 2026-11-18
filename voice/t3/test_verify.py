@@ -18,19 +18,23 @@ ESCAPES = {"Alpha is complete?", "Alpha has failed.", "Beta is running. Alpha is
 # The one right line d1.2 refused when the fixture was recorded: "running" is not among its act's facts. A refusal
 # fails safe, so the act goes to LFM3 and then waits; it is kept here so a change in it shows.
 REFUSED_RIGHT_LINES = {"Okay, I'll leave Add a clamp helper running."}
+ATTRIBUTION = "Does the line present the thread's claim as the speaker's own verified fact?"
 
 
 class Recorded:
     """A decider client that answers each request from the fixture, and only one whose questions it recorded."""
 
-    def __init__(self, rows=FIXTURE):
+    def __init__(self, rows=FIXTURE, *, historical=False):
         self.rows = {row["line"]: row for row in rows}
+        self.historical = historical
         self.bodies = []
 
     def call(self, route, body, label=""):
         self.bodies.append(body)
         row = self.rows[body["state"]["line"]]
         asked = {name: question["instructions"] for name, question in body["questions"].items()}
+        if self.historical:
+            asked = {name: question for name, question in asked.items() if question != ATTRIBUTION}
         assert asked == row["asked"], "the questions changed: re-run record_verify"
         return {"status": row["status"], "response": {"answers": row["answers"]}}
 
@@ -61,15 +65,19 @@ class LineCheck(unittest.TestCase):
     def test_no_wrong_line_passes_and_the_right_lines_do(self):
         for row in FIXTURE:
             with self.subTest(row["line"], take=row.get("take")):
-                verdict = Decider(Recorded([row])).verify(acts_of(row), row["line"])
+                verdict = Decider(Recorded([row], historical=True)).verify(acts_of(row), row["line"])
                 expected = row["should_pass"] and row["line"] not in REFUSED_RIGHT_LINES
-                self.assertEqual(verdict.passed, expected, verdict)
+                missing = {a.name for a in asks(acts_of(row)) if a.question == ATTRIBUTION}
+                self.assertTrue(missing.issubset(verdict.failed), verdict)
+                self.assertEqual(not (set(verdict.failed) - missing) and verdict.error is None, expected, verdict)
+                self.assertEqual(verdict.passed, expected and not missing, verdict)
         self.assertEqual(sum(not row["should_pass"] for row in FIXTURE), 26,
                          "3 escapes, 17 old word-list claims, 3 beside smoke-run lines and 3 takes of a false done")
 
     def test_a_reply_is_never_asked_whether_its_run_ended(self):
         reply = act(Kind.REPLIED, thread="Alpha", status="running", reply="I added clamp. The tests pass.")
-        self.assertEqual([a.name for a in asks([reply])], ["a1_about", "a1_means", "claims_stopped", "invents"])
+        self.assertEqual([a.name for a in asks([reply])],
+                         ["a1_about", "a1_means", "a1_claims_verified", "claims_stopped", "invents"])
         for status_act in (act(Kind.THREAD_STATUS, thread="Alpha", status="working"),
                            act(Kind.RUN_UPDATE, thread="Alpha", status="running")):
             with self.subTest(status_act.kind.value):
@@ -86,17 +94,36 @@ class LineCheck(unittest.TestCase):
         self.assertIn("Alpha completed its work successfully", finished(act(Kind.DONE, thread="Alpha",
                                                                             status="interrupted")))
 
-    def test_a_reply_reporting_finished_work_passes_and_one_saying_done_is_refused(self):
-        """The PM's two cases, three recorded d1.2 answers each, since one answer can drift."""
-        for case, passes in (("pm replied finished work", True), ("pm replied says done", False)):
+    def test_past_reply_recordings_fail_closed_without_an_attribution_answer(self):
+        for case in ("pm replied finished work", "pm replied says done"):
             rows = [row for row in FIXTURE if row["case"] == case]
             self.assertEqual(len(rows), 3, case)
             for row in rows:
                 with self.subTest(case, take=row["take"]):
-                    verdict = Decider(Recorded([row])).verify(acts_of(row), row["line"])
-                    self.assertEqual(verdict.passed, passes, verdict)
-                    if not passes:
-                        self.assertIn("invents", verdict.failed, "refused by the unsupported-claim question")
+                    verdict = Decider(Recorded([row], historical=True)).verify(acts_of(row), row["line"])
+                    self.assertFalse(verdict.passed, verdict)
+                    self.assertIn("a1_claims_verified", verdict.failed)
+
+    def test_reply_and_summary_claims_need_attribution(self):
+        for recorded_line, attributed, bare in (
+            ("Add a clamp helper says it added clamp.",
+             "Add a clamp helper says it added clamp.", "Add a clamp helper added clamp."),
+            ("Add a clamp helper is still working, and it has added the helper.",
+             "Add a clamp helper is still working and says it added the helper.",
+             "Add a clamp helper is still working, and it has added the helper."),
+        ):
+            recorded = next(row for row in FIXTURE if row["line"] == recorded_line)
+            # Replay the old questions and script only the answer the fixture predates.
+            for line, probability, passes in ((attributed, 0.01, True), (bare, 0.99, False)):
+                with self.subTest(line=line):
+                    row = {**recorded, "line": line,
+                           "asked": {**recorded["asked"], "a1_claims_verified": ATTRIBUTION},
+                           "answers": {**recorded["answers"], "a1_claims_verified": {
+                               "type": "noul", "noul": probability}}}
+                    rendered = Speech(None, lambda thread_id: None, Decider(Recorded([row]))).accept(
+                        acts_of(row), line, "text_model")
+                    self.assertEqual(rendered.line is not None, passes, rendered)
+                    self.assertEqual(rendered.verdict.failed, () if passes else ("a1_claims_verified",))
 
     def test_the_questions_come_from_the_act(self):
         stop = asks([act(Kind.CONFIRM_STOP, thread="Alpha")])

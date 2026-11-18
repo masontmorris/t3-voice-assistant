@@ -157,7 +157,7 @@ _PERSON = {"i": "you", "me": "you", "my": "your", "mine": "yours", "myself": "yo
 _CONTRACTIONS = (("n't", " not"), ("'re", " are"), ("'ve", " have"), ("'ll", " will"), ("'d", " would"),
                  ("'m", " am"), ("'s", " s"))
 _SENTENCE = re.compile(r"[.!?]+(?=\s|$)")
-_NOT_SPEECH = re.compile(r"```|`|\*\*|https?://|\||\.\.\.|\N{HORIZONTAL ELLIPSIS}")
+_NOT_SPEECH = re.compile(r"^[\[{]|```|`|\*\*|https?://|\||\.\.\.|\N{HORIZONTAL ELLIPSIS}")
 # Shell syntax, a flag, a path or a backslash: what a raw command reads like, which no spoken line holds.
 _CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?\.{0,2}/\w|\w/[\w.-]+\.\w+|\\\w")
 MAX_SENTENCES_PER_ACT = 2
