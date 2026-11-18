@@ -7,8 +7,8 @@ model fails, and the voice holds LFM3's reply to the same check. No line is ever
 
 A thread's summary is written here too, only when the voice is about to speak about that thread: an answer to an ask,
 a done, or a need. It reads the thread through the seam (status and need come from code, plus the full last reply),
-writes a gist into the act's `summary` slot, and is cached per thread and read sequence. A speculative start may
-begin it while Mason is still asking.
+writes a gist into the act's `summary` slot, and is cached per thread, read sequence and question. A speculative
+start may begin it while Mason is still asking.
 
 Every model request goes through one `Lane`: one request in flight, on the lane's own thread, so no request runs
 under the T3 lock and none waits on another caller's slot past its own timeout.
@@ -24,7 +24,7 @@ from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
-from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, forbidden_claims
+from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, forbidden_claims, normalise
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
@@ -191,6 +191,14 @@ class Rendered:
 
 
 @dataclass
+class Gist:
+    """One cached summary. `partial` while only a speculative start from words still being spoken has asked for it."""
+
+    future: Future
+    partial: bool
+
+
+@dataclass
 class Speech:
     """`lane` is None when no model is configured: every render then fails and the act goes to LFM3 or waits.
     `read(thread_id)` reads a thread through the seam, or returns None when it cannot."""
@@ -206,21 +214,25 @@ class Speech:
             self.states[(state.thread_id, state.as_of_sequence)] = state
 
     def prefetch(self, thread_id: str, question: str | None = None) -> None:
-        """A speculative start: read the thread now and begin its summary on the lane, without waiting."""
+        """A speculative start: read the thread now and begin its summary on the lane, without waiting. The words so
+        far may not be the whole question, so the entry is partial: only a final question that normalises to the
+        same words reuses it."""
         state = self.read(thread_id)
         if state is not None:
             self.remember(state)
-            self._summary(state, question)
+            self._summary(state, question, partial=True)
 
-    def _summary(self, state: T.ThreadState, question: str | None) -> Future | None:
+    def _summary(self, state: T.ThreadState, question: str | None, partial: bool = False) -> Future | None:
         if self.lane is None or state.last_reply is None or not state.last_reply.text.strip():
             return None
-        key = (state.thread_id, state.as_of_sequence)
+        key = (state.thread_id, state.as_of_sequence, normalise(question or ""))
         with self.lock:
-            future = self.summaries.get(key)
-            if future is None or (future.done() and future.exception() is not None):
-                future = self.summaries[key] = self.lane.submit(summary_messages(state, question))
-        return future
+            gist = self.summaries.get(key)
+            if gist is None or (gist.future.done() and gist.future.exception() is not None):
+                gist = self.summaries[key] = Gist(self.lane.submit(summary_messages(state, question)), partial)
+            elif not partial:
+                gist.partial = False
+        return gist.future
 
     def summary(self, state: T.ThreadState, question: str | None = None) -> str | None:
         future = self._summary(state, question)
