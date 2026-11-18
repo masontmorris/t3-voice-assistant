@@ -349,6 +349,25 @@ class SeamClientTest(unittest.TestCase):
         seam = self.connect(server.start_and_wait())
         self.assertEqual(list(seam.drain(timeout=5)), [T.CLOSE_1008])
 
+    def test_close_1011_before_and_after_hello(self):
+        for sends_hello in (False, True):
+            with self.subTest(sends_hello=sends_hello):
+                async def handler(ws):
+                    if sends_hello:
+                        await ws.send(json.dumps(HELLO))
+                    await ws.close(1011, "The voice seam lost its session check.")
+
+                server = ServerThread(handler)
+                port = server.start_and_wait()
+                if sends_hello:
+                    end, = self.connect(port).drain(timeout=5)
+                else:
+                    with self.assertRaises(S.SeamConnectionEnded) as caught:
+                        self.connect(port)
+                    end = caught.exception.end
+                self.assertEqual(end.label, "close-1011")
+                self.assertIsInstance(end, T.Close1011)
+
     def test_aborted_socket_is_close_other_1006(self):
         async def handler(ws):
             await ws.send(json.dumps(HELLO))
@@ -379,6 +398,13 @@ class SeamClientTest(unittest.TestCase):
         with self.assertRaises(S.SeamConnectionEnded) as caught:
             S.T3Seam.connect(f"ws://127.0.0.1:{free_port()}", self.write_token())
         self.assertEqual(caught.exception.end, T.UNREACHABLE)
+
+    def test_upgrade_403(self):
+        with status_server("403 Forbidden") as port:
+            with self.assertRaises(S.SeamConnectionEnded) as caught:
+                self.connect(port)
+        self.assertEqual(caught.exception.end.label, "upgrade-403")
+        self.assertIsInstance(caught.exception.end, T.Upgrade403)
 
     def test_token_never_reaches_logs(self):
         async def handler(ws):
