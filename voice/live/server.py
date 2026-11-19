@@ -109,10 +109,11 @@ from websockets.exceptions import ConnectionClosed
 
 from voice.live import eou_audio
 from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start, State
-from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe
+from voice.live.overlap import (Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe,
+                                 words)
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, create_item,
+from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, create_item, floor_free,
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
@@ -332,6 +333,7 @@ class MicTurn:
         self.out_rate, self.reply_started, self.speaking, self.replies = None, False, False, []
         self.muted, self.cancelled, self.carried_s = False, None, 0.0
         self.task = self.decider = self.overlap = self.barge_in = None
+        self.parked = []
         self.checks, self.check = [], None
         self.feed(pcm)
 
@@ -540,8 +542,9 @@ class Conversation:
         return turn
 
     def on_start(self, pcm):
-        """Speech while a reply is audible waits for a verdict, holding its audio; other speech starts a turn now. An
-        overlap still being transcribed when speech resumes hands its audio to what comes next."""
+        """Speech while a reply is audible waits for a verdict, holding its audio. So does sound after a turn ended
+        whose reply is still coming: it may be noise, and only words continue that turn. Other speech starts a turn
+        now. An overlap still being transcribed when speech resumes hands its audio to what comes next."""
         held = b""
         self.heard_at = time.perf_counter()
         if self.overlap is not None:
@@ -552,11 +555,47 @@ class Conversation:
         if self.turn is not None and self.reply_audible():
             self.overlap = Overlap(self.live.overlap_settings, bytearray(held + pcm), self.playback.turn)
             self.post({"type": "duck", "turn": self.playback.turn})
+            self.hold_floor(False)
+        elif self.reply_coming():
+            self.overlap = Overlap(self.live.overlap_settings, bytearray(held + pcm), self.turn.n, before_reply=True)
+            self.hold_floor(True)
         else:
             self.start_turn(held + pcm)
+            self.hold_floor(False)
+
+    def reply_coming(self):
+        """A person turn has ended and is still working on what to say."""
+        turn = self.turn
+        return turn is not None and not turn.idle and turn.turn_end is not None and not turn.task.done()
+
+    def hold_floor(self, held):
+        """While the call holds sound it has not judged, its voice session makes no response (`floor_free`) and no
+        reply is released (`speak`, `speak_t3`): one could answer a request that is still growing. The turn's tools
+        and drafts keep running. Letting go releases what the current turn parked; a turn the sound continued was
+        cancelled first, and its parked reply with it."""
+        floor = getattr(self.voice, "floor", None)
+        if floor is None:
+            return
+        if held:
+            floor.clear()
+            return
+        floor.set()
+        turn = self.turn
+        if turn is not None and turn.parked:
+            parked, turn.parked = turn.parked, []
+            for args in parked:
+                self.speak(turn, *args)
+
+    def floor_held(self):
+        floor = getattr(self.voice, "floor", None)
+        return floor is not None and not floor.is_set()
 
     def on_overlap_frame(self, event):
-        if self.overlap.feed(event.pcm, event.level_dbfs, self.endpointer.noise_dbfs):
+        overlap = self.overlap
+        voiced = overlap.feed(event.pcm, event.level_dbfs, self.endpointer.noise_dbfs)
+        if overlap.before_reply:
+            overlap.reply_heard = overlap.reply_heard or self.reply_audible()
+        elif voiced:
             self.settle(Verdict.BARGE_IN, "voiced")
         elif not self.reply_audible():
             self.settle(None, "reply ended")
@@ -571,9 +610,14 @@ class Conversation:
     async def classify_overlap(self, overlap, trailing_ms):
         try:
             text = await self.live.transcribe(bytes(overlap.pcm))
-            verdict, how = classify(text, self.playback.text), "transcript"
+            if overlap.before_reply and not overlap.reply_heard:
+                # Before any reply, sound is either words that go on with the request, or nothing to act on.
+                verdict, how = (None if words(text) else Verdict.NOISE), "words"
+            else:
+                verdict, how = classify(text, self.playback.text), "transcript"
         except Exception as exc:
-            text, verdict, how = None, Verdict.BARGE_IN, f"transcript failed: {exc!r}"
+            text, how = None, f"transcript failed: {exc!r}"
+            verdict = None if overlap.before_reply and not overlap.reply_heard else Verdict.BARGE_IN
         if self.overlap is overlap:
             self.settle(verdict, how, text, trailing_ms)
 
@@ -583,13 +627,14 @@ class Conversation:
         overlap, self.overlap = self.overlap, None
         entry = overlap.record(verdict or "turn", how, time.perf_counter(), transcript)
         self.live.log_overlap(entry, None if verdict in (None, Verdict.BARGE_IN) else overlap.pcm)
-        if verdict is not Verdict.BARGE_IN:
+        if verdict is not Verdict.BARGE_IN and not overlap.before_reply:
             self.post({"type": "unduck", "turn": overlap.turn, "verdict": str(verdict or "turn")})
         if verdict in (None, Verdict.BARGE_IN):
             self.start_turn(bytes(overlap.pcm), barge_in=verdict is Verdict.BARGE_IN)
             self.turn.overlap = entry
             if trailing_ms is not None:
                 self.end_turn(trailing_ms, False)
+        self.hold_floor(False)
 
     async def heard_before(self, turn, remaining_s, speaking):
         """What the person heard of `turn`'s replies before talking over them, or None if it never spoke.
@@ -733,6 +778,9 @@ class Conversation:
         """Send a reply to the client as its audio is released: `reply_start` before the first piece, each piece in
         40 ms frames, and `reply_end` once the reply is `done`. A muted turn sends no more audio but still ends the
         reply it started, so the client is not left waiting for the rest."""
+        if self.floor_held() and not turn.reply_started:
+            turn.parked.append((text, pcm, done))
+            return
         now = time.perf_counter()
         if pcm and not turn.muted:
             if not turn.speaking:
@@ -752,6 +800,7 @@ class Conversation:
     async def speak_t3(self, turn, line, pcm):
         """Release a checked call reply and settle delivery from the frames the sender wrote."""
         text = speakable(line, "speak_t3").text
+        await floor_free(self.voice)
         if turn.muted or (self.sender is not None and self.sender.done()):
             return b"", None
         self.speak(turn, text, pcm, True)
@@ -782,6 +831,8 @@ class Conversation:
                           "output_modalities": ["text", "audio"]}
                 await update_session(voice, config)
                 voice.config = config
+            voice.floor = asyncio.Event()
+            voice.floor.set()
         except BaseException:
             await voice.close()
             raise
@@ -821,6 +872,8 @@ class Conversation:
                                     task_service=live.task_service,
                                     send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm),
                                     is_muted=lambda: turn.muted)
+            # Sound still being judged may continue this turn: until it is known, the turn has not finished.
+            await floor_free(self.voice)
         except asyncio.CancelledError:
             record = {"clip": turn.name, "cancelled": turn.cancelled, **partial}
         except Exception as exc:

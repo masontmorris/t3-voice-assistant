@@ -451,3 +451,18 @@ class T3TurnTest(NoteTurn):
         record = await self.turn([DRAFT], task_service=T3SnapshotService, send_checked=self.send_checked)
         self.assertEqual(sum(e.get("type") == "response.cancel" for e in self.voice.sent), 0)
         self.assertEqual((self.spoken, record["replies"][0]["delivery"]), ([DRAFT], "sent"))
+
+
+class FloorTest(unittest.IsolatedAsyncioTestCase):
+    async def test_a_relay_cancelled_while_the_floor_is_held_leaves_nothing_in_the_session(self):
+        session = await FakeSession.open("ws://unused", "voice", lambda: CLOCK)
+        session.floor = asyncio.Event()
+        task = asyncio.create_task(prototype.relay_draft(session, 24_000, 0, CHECKED.accept((STOP,), DRAFT,
+                                                                                           "text_model").line))
+        await asyncio.sleep(0)
+        task.cancel()
+        session.floor.set()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        self.assertEqual(texts(session), [], "the sound continued the turn, so its relay never reached the call")
+        self.assertNotIn("response.create", [event.get("type") for event in session.sent])

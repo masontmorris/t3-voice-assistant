@@ -120,6 +120,8 @@ class Overlap:
     started: float = field(default_factory=time.perf_counter)
     voiced_ms: int = 0
     task: asyncio.Task | None = None
+    before_reply: bool = False
+    reply_heard: bool = False
 
     def feed(self, pcm, level_dbfs, noise_dbfs):
         """Adds one frame. True once the overlap holds enough voiced audio to be a barge-in."""
@@ -130,6 +132,7 @@ class Overlap:
 
     def record(self, verdict, how, now, transcript=None):
         return {"turn": self.turn, "verdict": str(verdict), "how": how, "voiced_ms": self.voiced_ms,
+                "before_reply": self.before_reply, "reply_heard": self.reply_heard,
                 "audio_s": round(len(self.pcm) / 2 / RATE, 3), "transcript": transcript,
                 "start_to_verdict_s": round(now - self.started, 3)}
 

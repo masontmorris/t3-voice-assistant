@@ -35,6 +35,26 @@ The voiced count uses a -60 dBFS floor. Call 2's quiet short turns peak near -40
 
 **Why 600 ms.** On Mason's 40 recorded turns, `voice/research/live/overlap_bench.py` shows every turn reaching 600 ms voiced within 680 to 980 ms of its onset, median 700 ms. One exception, "Can you hear me?", reached it only through the transcript stage. His lone "Okay." holds 540 ms voiced, so a shorter threshold would stop the reply for it (measured).
 
+### Sound before the reply
+
+Sound that starts after a turn has ended, while that turn is still working on its reply and nothing is audible, used to cancel the turn at once and carry its audio into a new one ("continued"). On a live call with steady background noise, noise a second after a thread question did that twice, and the caller heard nothing for three turns. The endpointer starts a turn on energy alone, so it cannot tell noise from words.
+
+Such sound is now held like an overlap, without ducking and without the 600 ms voiced rule. Its verdict comes from its one-shot transcript once it ends. With no words, it is dismissed and logged, and the turn goes on. With words, the turn is cancelled and the words continue it, as before. If a reply becomes audible while the sound is held, the overlap rules above decide instead. While the sound is held, the call's voice session takes no new item and makes no response (`floor_free`), the turn's reply audio waits (`Conversation.hold_floor`), and the turn does not finish. So a turn that the sound continues has put nothing in the session, a relay included (`relay_draft` waits before its shield). The turn's transcript, decider pick, tools and drafts keep running.
+
+Measured with `python -m voice.live.rehearse drive --noise` (five calls; synthetic road noise 2 to 4.4 s long, 4 to 12 dB below the speech, starting 1.0 to 1.3 s after a thread question; then a thread question continued after a 0.9 s pause), two runs each, GPU:
+
+| | Before | After |
+| --- | --- | --- |
+| The noise cancelled the question's turn | 9 of 10 calls | 0 of 10 |
+| The question's status line was said | 8 of 10 (both misses were the decider asking a confirmation) | 10 of 10 |
+| Noise bursts held and dismissed, of those the endpointer took for speech | none held | 9 of 9, every transcript empty |
+| The continued question was joined into one turn | 10 of 10 | 8 of 10 |
+| Its status line was said | 10 of 10 | 8 of 10 |
+
+The cost is waiting: the reply comes once the noise has been judged, 4.6 to 6.9 s after the question's speech ended on the noise calls, against a median of 2.0 s for a plain thread status question (99 rehearsed turns: 0.7 s endpointer silence, 0.36 s final transcript, decider pick and tools, 0.20 s draft, 0.52 s relay). Before, the restarted turn waited out the noise too, and then did its work again.
+
+What is open: both missed joins were the first part's reply becoming audible, 1.4 s after its speech ended, before the second part's sound began. The old code loses that race the same way, by muting instead of joining; in its two runs the replies here came later. On joined two-clause questions the status relay ran past its draft ("...is working. It is") on the first attempt in 3 of 8 after, against 0 of 10 before; the cause is not found. A relay cancelled while held no longer leaves its note in the session, which was one cause, and a probe of the first part's audio already sitting in the session was inconclusive (4 of 5 against 3 of 5). Idle turns are not held: sound during idle news still supersedes it.
+
 ## Results
 
 Real audio and synthetic audio are reported separately.
