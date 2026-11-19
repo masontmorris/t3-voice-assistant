@@ -28,13 +28,22 @@ The checker needs what a thread-less act means. Launch acts carry no thread, and
 
 ## Starting a thread by voice, measured
 
-`python -m voice.live.rehearse` is the score: threads started, of calls shaped like the 2026-11-18 one (two chat turns, a long hesitant request, a yes, a question about the thread, a yes), through the real live server with a scripted T3. Calls 1 to 5 are the visible half; 6 to 10 and 11 to 15 are two held-out halves, each written once. Measured on 2026-11-18, GPU, synthetic voice:
+`python -m voice.live.rehearse` is the score: threads started, of calls shaped like the 2026-11-18 one (two chat turns, a long hesitant request, a yes, a question about the thread, a yes), through the real live server with a scripted T3. Calls 1 to 5 are the visible half; 6 to 10, 11 to 15 and 16 to 20 are three held-out halves (A, B, C), each written once, C after B had run. Measured on 2026-11-18, GPU, synthetic voice:
 
 | Run | Visible | Held-out A | Held-out B | First breaks |
 | --- | --- | --- | --- | --- |
 | Baseline, the code of the first PR | 2 of 5 | 0 of 5 | not written | request not dispatched 4, launch draft refused 2, relay held 2, started 2 |
 | After the dispatch, writer, one-confirmation, decider-yes and relay-note fixes | 4 of 5 | 3 of 5 | not run | request not dispatched 3 |
 | After the dependency and correction wording | 5 of 5 | not re-run | 5 of 5 | none |
+
+The first three runs counted any launch during a call as its thread and gave the seam a listing to start from. Since then a thread counts only when the seam saw a launch whose payload carries this call's request, the seam lists no thread until a launch makes one, and each line the voice said is judged against that record. Under that scoring, with the round-3 code (confirmation scope, unconditional yes, relay instructions in the note, whole-request launch, re-drafted status lines), on visible and C:
+
+| Half | Threads started | Status questions answered | False claims | First breaks |
+| --- | --- | --- | --- | --- |
+| Visible | 4 of 5 | 2 of 5 | 0 | request not dispatched 1 |
+| Held-out C | 5 of 5 | 5 of 5 | 0 | none |
+
+Every launch carried its call's whole request (all 9 at full overlap), all 35 T3 lines passed both checks and were said on the first relay, and no ordinary reply carried a note's or a draft's words. Two causes are open. Call 1's request was cut into "start a thread to get work going on", a separate description of what it is for, "Can you kick that off" and "and keep it tidy?", and readiness read each start fragment on its own words and asked for a clarification; on the CPU the same call broke the same way. A wording that counts other segments' description moved the replay of this call from 0 of 3 draws to 0 of 3, because a later fragment was then read as replacing the request, so per-segment wording does not reach it. In calls 3 and 4 the status question found no thread: "the nightly build threat" (the transcript's word) and "the spreadsheet columns thread done yet" carry words no title holds, so the lexical prefilter, which needs each content word in one title, matched nothing, and the lane model, given every title, answered none too. Both lines said were true ("I checked the recent threads and couldn't find a match.").
 
 The dispatch cause: the decider's readiness question called a long hesitant "start a thread" request ambiguous because it names no project (15 of 30 replayed draws dispatched, 27 of 30 with `T3_READY`), and its dependency and correction questions read the fragments one request is cut into ("for that", "the part that writes slots") as needing or replacing each other (17 of 24 draws dispatched, 23 of 24 with `T3_DEPENDS` and `T3_CORRECTS`, replaying the decider's dispatch questions on the rehearsal's requests). The first held-out half was looked at for causes before the dependency fix, so the second half is the clean one. The readiness wording is scoped to thread requests: worded for every request, it moved weather and time lookups off their tool. Scoped, on the tool-pick replay (`python -m voice.t3.tool_pick_eval --decider liquid`, 3 draws per case), the weather and time controls reach their tool in 10 of 10 cases, every T3 case picks its tool, and no chit-chat control is routed to a T3 tool: 0 of 84 draws, as before the change (d1.2 picks a T3 tool for 12 of them and the gate stops each).
 

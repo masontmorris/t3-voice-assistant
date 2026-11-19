@@ -3,8 +3,8 @@
     python -m voice.live.rehearse drive --out DIR [--calls 10] [--port 8771]
     python -m voice.live.rehearse summary --out DIR
 
-The score is threads started, of N calls shaped like Mason's. `drive` starts `serve` as a child, renders each call's
-turns with the server's own TTS, and sends them with the WAV client (to a null output, so nothing plays), one call
+The score is threads started, of N calls shaped like the call this lane is fixing. `drive` starts `serve` as a child,
+renders each call's turns with the server's own TTS, and sends them with the WAV client (to a null output, so nothing plays), one call
 after another on one server. Each call is two chat turns, a long hesitant request, a yes, a question about the thread,
 and a yes to the thread being confirmed. The server is the real one (voice/live/server.py: LFM3, the segmenter and
 decider, the T3 task service, the call-voice relay, the checks); only the seam it reads T3 through is scripted
@@ -17,9 +17,10 @@ tuned against the visible half only. Report all of them.
 A thread counts as started only when the scripted seam saw a launch whose payload is this call's request (most of its
 words are in what the launch carried) in the sandbox project, during this call. The seam knows no thread until a launch
 makes it. A line the voice said is judged against the seam's record: "a new coding thread has started" is true only
-after such a launch, and a status line is true only when it names the thread this call launched. `summary` reads the records and says, per call, how far it got:
-dispatched (the request became a launch act), asked (that question was spoken), yes read (the answer became a launch
-act), started (the seam saw a launch), and where the first break was.
+after such a launch, and a status line is true only when it names the thread this call launched. `summary` reads the
+records and says, per call, how far it got: dispatched (the request became a launch act), asked (that question was
+spoken), yes read (the answer became a launch act), started (the seam saw this call's launch), status answered, and
+where the first break was.
 
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
 are synthetic speech; the thread picker's cloud model and the general agent are off, so no OpenRouter call is made.
