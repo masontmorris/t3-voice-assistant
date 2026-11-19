@@ -335,7 +335,7 @@ class WatchLifecycleRows(unittest.TestCase):
         seam.listing = T.ThreadList((T.ThreadSummary("t5", "p1", "Fix the flaky test", T.ThreadActivity.WORKING,
                                                      "2026-11-17T10:00:00Z", False),), 1, False, 77)
         h = Harness(self, seam)
-        tasks = T3Tasks(h.follow)
+        tasks = T3Tasks(h.follow, decider=F.Reader({"yes": "yes"}))
         tasks.about("b1", "t3_ask", "How is the flaky test thread going?", 0)
         answer = tasks.answer("yes", 1)
         self.assertEqual(seam.ops("watch"), [])

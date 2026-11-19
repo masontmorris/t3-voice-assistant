@@ -7,7 +7,7 @@ from typing import Any
 
 from voice.t3 import types as T
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable
-from voice.t3.verify import Verdict
+from voice.t3.verify import Reading, Verdict
 
 
 def hello(max_watches: int = 16, projects=(("p1", "Voice sandbox", ("sandbox", "voice sandbox")),)) -> T.Hello:
@@ -174,3 +174,18 @@ class Agree:
     def verify(self, acts, line):
         self.calls += 1
         return Verdict(True)
+
+
+class Reader(Agree):
+    """A decider whose reading of each reply is the test's own: reply to label, or to (label, the option it asks for).
+    A reply the test did not script reads as unrelated. What d1.2 really reads is in voice/t3/test_replies.py."""
+
+    def __init__(self, readings: dict):
+        self.readings, self.asked = readings, []
+
+    def reads(self, said, reply, options=()):
+        self.asked.append((said, reply, tuple(options)))
+        label, target = (self.readings.get(reply, "unrelated"), None)
+        if isinstance(label, tuple):
+            label, target = label
+        return Reading(label, {label: 1.0}, target=target)
