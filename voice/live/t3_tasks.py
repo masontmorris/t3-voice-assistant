@@ -703,7 +703,8 @@ class T3Tasks:
                               (listing.as_of_sequence,))
 
     def _act(self, question: Question, thread: str, now: float) -> L.Update:
-        self.recent = thread
+        # The thread becomes the one the call last spoke about when its line is heard (`spoke`), not here: a read
+        # that fails or a line that never plays must not change what "it" means to the caller.
         if question.op == ASK:
             return self._read(question.key, thread, question.instruction)
         project = question.projects.get(thread)

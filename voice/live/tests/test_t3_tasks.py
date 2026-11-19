@@ -625,8 +625,11 @@ class DeciderPick(unittest.TestCase):
         seam = self.seam()
         t3 = self.over(seam)
         t3.about("k3", ASK, self.MISS, 0)
-        t3.answer("Yes.", 1)
-        asked = t3.about("k4", STOP, "Stop it.", 2)
+        status = t3.answer("Yes.", 1)
+        t3.about("k4", STOP, "Stop it.", 2)
+        self.assertIsNone(t3.decider.picked[-1][2], "a status the caller never heard does not become 'it'")
+        t3.spoke(status)
+        asked = t3.about("k5", STOP, "Stop it.", 3)
         self.assertEqual(t3.decider.picked[-1][2], "Add a clamp helper")
         self.assertEqual(said(asked), [("confirm_stop", "Add a clamp helper")])
 
