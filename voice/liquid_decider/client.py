@@ -248,7 +248,7 @@ class LiquidClient:
         (measured on one live turn), and there is nothing to ask and nothing to bill."""
         assert route == "decisions", route
         hit = None if fresh or not cache_record else cached(route, body)
-        if hit is not None:
+        if hit is not None and hit.get("status") == 200:
             return hit
         if not body.get("questions"):
             record = {"route": route, "label": label, "request": body, "status": 200, "model": MODEL,
@@ -293,7 +293,9 @@ class LiquidClient:
                   "model": MODEL, "timing": {"started_at": started_at, "ms": ms, "connect_ms": connect_ms},
                   "attempts": payload_attempts,
                   "requests": len(sent)}
-        return self._cache_record(route, body, record) if cache_record else record
+        # A failed call (a connection reset, a timeout) is never kept: cached, it answered every identical request with
+        # the same failure, so the retry of a line the decider had never judged was refused too.
+        return self._cache_record(route, body, record) if cache_record and status == 200 else record
 
     def _cache_record(self, route, body, record):
         path = cache_path(route, body)

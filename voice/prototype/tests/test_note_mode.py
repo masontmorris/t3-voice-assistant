@@ -276,6 +276,19 @@ class T3TurnTest(NoteTurn):
         record = await self.turn(["Glad to hear it."], task_service=Plain)
         self.assertEqual([r["kind"] for r in record["replies"]], ["snapshot"])
 
+    async def test_a_draft_that_fails_is_worded_again_in_the_same_turn(self):
+        class Retries(T3SnapshotService):
+            attempts = 0
+
+            def say(self, entry, turns=()):
+                Retries.attempts += 1
+                return (CHECKED.accept((STOP,), "I stopped the clamp helper thread.", "text_model")
+                        if Retries.attempts == 1 else CHECKED.accept((STOP,), DRAFT, "text_model"))
+
+        record = await self.turn([DRAFT], task_service=Retries, send_checked=self.send_checked)
+        self.assertEqual((Retries.attempts, self.spoken), (2, [DRAFT]))
+        self.assertEqual([e["attempt"] for e in record["timeline"] if e["kind"] == "t3_words"], [1, 2])
+
     async def test_a_t3_reply_with_an_appended_sentence_is_held(self):
         record = await self.turn([DRAFT + " Ready?"], task_service=T3SnapshotService, send_checked=self.send_checked)
         self.assertEqual(self.spoken, [])

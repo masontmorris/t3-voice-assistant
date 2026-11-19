@@ -399,6 +399,11 @@ T3_RELAY = (
 T3_RELAY += "".join(f"\n\nNote: {T3_NOTE}{line}]\nReply: {line}" for line in RELAY_EXAMPLES)
 
 
+# A refused draft is worded again once in the same turn, with what was refused in the request: the writer shortened a
+# long thread title (1 of 10 rehearsal calls) and a connection reset made the checker refuse a line it never judged.
+MAX_DRAFTS = 2
+
+
 def _verdict(rendered):
     verdict = rendered.verdict
     return None if verdict is None else {"passed": verdict.passed, "ms": verdict.ms, "failed": list(verdict.failed),
@@ -407,11 +412,14 @@ def _verdict(rendered):
 
 async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio, record_delivery=None, is_muted=lambda: False):
     """Check the draft before handing it to the call, and say its audio only when the call's reply is the draft's words."""
-    started = session.clock()
-    draft = await asyncio.to_thread(words.say, entry, turns)
-    log("t3_words", acts=entry.get("acts"), started=started, line=draft.raw,
-        problems=draft.problems, error=draft.error,
-        decider=_verdict(draft))
+    for attempt in range(MAX_DRAFTS):
+        started = session.clock()
+        draft = await asyncio.to_thread(words.say, entry, turns)
+        log("t3_words", acts=entry.get("acts"), started=started, line=draft.raw,
+            problems=draft.problems, error=draft.error,
+            decider=_verdict(draft), attempt=attempt + 1)
+        if draft.line is not None:
+            break
     delivery, sent, first_sent = "unsent", b"", None
     reply = fixed_reply("", b"", rate, 0)
     spoken = None
