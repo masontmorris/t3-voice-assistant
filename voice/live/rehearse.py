@@ -10,8 +10,9 @@ and a yes to the thread being confirmed. The server is the real one (voice/live/
 decider, the T3 task service, the call-voice relay, the checks); only the seam it reads T3 through is scripted
 (voice/t3/fakes.py), so a launch starts nothing and costs nothing.
 
-Calls 1 to 5 are the visible half and calls 6 to 10 the held-out half. Both were written once, and fixes are tuned
-against the visible half only; report both. `summary` reads the records and says, per call, how far it got:
+Calls 1 to 5 are the visible half, calls 6 to 10 the first held-out half and calls 11 to 15 a second one, written
+after the first had been looked at for causes. Each was written once; fixes are tuned against the visible half only.
+Report all of them. `summary` reads the records and says, per call, how far it got:
 dispatched (the request became a launch act), asked (that question was spoken), yes read (the answer became a launch
 act), started (the seam saw a launch), and where the first break was.
 
@@ -42,18 +43,27 @@ CHAT = (("Hey there, how are things?", "Pretty good, how about you?"),
         ("Good morning.", "Pretty good, a bit tired honestly."),
         ("Morning!", "Pretty well, thanks, and you?"), ("Hi there.", "Can't complain, how's your day going?"),
         ("Hey, are you there?", "Good, I'm just checking in."), ("Hello again.", "Fine, thanks for asking."),
-        ("Hey you.", "Not too bad, a bit of a slow start."))
+        ("Hey you.", "Not too bad, a bit of a slow start."),
+        ("Hey, you there?", "Yeah, all good, you?"), ("Good afternoon.", "Afternoon! Busy day so far."),
+        ("Hi!", "Doing well, thanks for asking."), ("Hello, hello.", "Not bad at all, how are you?"),
+        ("Hey assistant.", "Pretty good, just warming up."))
 THREADS = ("Clean up texture export for the game engine", "Convert audio presets for the editor",
            "Find out why the nightly build is slow", "Fix the dropped spreadsheet columns",
            "Remember window sizes on the settings screen",
            "Reduce noisy logging in the importer", "Rename exported meshes with a script",
-           "Find why shader compiles are slow", "Clean up the save slot writer", "Make build notes output markdown")
+           "Find why shader compiles are slow", "Clean up the save slot writer", "Make build notes output markdown",
+           "Fix the installer hang at ninety percent", "Tidy the config loader",
+           "Find why the dashboard loads slowly", "Fix the typo checker flagging every word",
+           "Add dark mode to the settings page")
 ASKS = ("How is the texture export thread going?", "How's the audio presets thread going?",
         "What is the nightly build thread up to?", "Is the spreadsheet columns thread done yet?",
         "How is the window sizes thread going?",
         "How is the importer logging thread going?", "What is the mesh renaming thread up to?",
         "Is the shader compile thread finished?", "How is the save slot thread going?",
-        "How are the build notes going?")
+        "How are the build notes going?",
+        "How is the installer thread going?", "What's the config loader thread up to?",
+        "Is the dashboard thread finished?", "How is the typo checker thread going?",
+        "How's the dark mode thread going?")
 REQUESTS = (
     "Uhm, I was wondering if you could start a thread to get work going on, uhm, a little project to make, uhm, "
     "textures export into the game engine cleanly? Can you kick that off and keep it tidy?",
@@ -74,9 +84,20 @@ REQUESTS = (
     "Uh, hey, so, quick thing, well, a few things, uhm, I need the save system cleaned up, the, the part that writes "
     "slots, and could you, uh, spin up a thread for it please?",
     "So, uhm, this might sound odd, but I'd like to, uh, kick off a thread about, uh, making the build notes "
-    "generator output markdown, a small project, nothing urgent.")
+    "generator output markdown, a small project, nothing urgent.",
+    "Hi, so, uh, I keep running into this thing where, um, the installer hangs at ninety percent, and I was hoping, "
+    "uh, you could start a thread to look into it, like a proper investigation.",
+    "Okay, uhm, so we've got this config loader, right, and it's, it's a mess, so, uh, can you spin up a thread to "
+    "tidy it, maybe a small project, nothing huge.",
+    "Um, right, so, the thing I want, the dashboard is slow to load, and, uhm, I'd like a thread on that, to figure "
+    "out where the time goes, if you can.",
+    "So, uh, I need a favor, kind of, a thread for fixing the typo checker, the, the one that flags every other "
+    "word, could you open that up for me?",
+    "Alright, uhm, here's what I'm thinking, a thread to add dark mode to the settings page, a small project, and, "
+    "uh, go ahead and kick it off whenever.")
 YES = ("Please do.", "Yes, please do.", "Yeah, go ahead.", "Please do.", "Yes please.",
-       "Please do?", "Yeah, go ahead.", "Sure.", "Yes, do it.", "Please do.")
+       "Please do?", "Yeah, go ahead.", "Sure.", "Yes, do it.", "Please do.",
+       "Please do.", "Yeah, go ahead.", "Sure.", "Please do?", "Yes, do it.")
 assert len(CHAT) == len(THREADS) == len(ASKS) == len(REQUESTS) == len(YES)
 
 
@@ -270,7 +291,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("mode", choices=["drive", "serve", "summary"])
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--calls", type=int, default=10)
+    parser.add_argument("--calls", type=int, default=15)
     parser.add_argument("--only", type=int, nargs="+", help="call indexes from 0, for a smoke test")
     parser.add_argument("--no-tail", action="store_true", help="leave out the status question and its yes")
     parser.add_argument("--port", type=int, default=8771)
@@ -283,13 +304,15 @@ def main():
     if args.mode == "summary":
         rows, grades, started = summarize(args.out)
         visible = [g for c, g in grades.items() if c <= VISIBLE]
-        held = [g for c, g in grades.items() if c > VISIBLE]
+        held = [g for c, g in grades.items() if VISIBLE < c <= 2 * VISIBLE]
+        held_b = [g for c, g in grades.items() if c > 2 * VISIBLE]
         causes = {}
         for g in grades.values():
             causes[g["first_break"] or "started"] = causes.get(g["first_break"] or "started", 0) + 1
         print(json.dumps({"rows": rows, "grades": grades, "first_break_causes": causes,
                           "started_visible": f"{sum(g['started'] for g in visible)} of {len(visible)}",
-                          "started_held_out": f"{sum(g['started'] for g in held)} of {len(held)}"}, indent=1))
+                          "started_held_out_a": f"{sum(g['started'] for g in held)} of {len(held)}",
+                          "started_held_out_b": f"{sum(g['started'] for g in held_b)} of {len(held_b)}"}, indent=1))
     else:
         serve(args, rest) if args.mode == "serve" else run_drive(args)
 

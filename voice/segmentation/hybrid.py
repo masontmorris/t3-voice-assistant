@@ -35,6 +35,12 @@ from voice.tools.registry import T3_TOOLS
 T3_REQUEST = (" Asking how a coding thread or other work outside this call is going, or asking to start one, "
               "pass it a message, or stop it, is external work.")
 T3_CHITCHAT = " A question about a thread's progress is not chitchat."
+# One request is cut into fragments at every pause and hesitation, and the decider then read "for that" as needing an
+# earlier fragment's result and "the part that writes slots" as replacing the request: 2 of 10 rehearsal calls never
+# dispatched (measured: 17 of 24 draws dispatched, 23 of 24 with these lines; docs/voice/spoken-acts.md).
+T3_DEPENDS = (" A request to start a coding thread does not wait for an earlier segment: words before it such as "
+              "\"for that\" are its subject, not a result it needs.")
+T3_CORRECTS = " Later words that add detail to or restate the same request do not change or withdraw it."
 # Left alone, the decider called 5 of 10 long hesitant "start a thread" requests ambiguous because they name no project,
 # so they waited for a clarification the T3 service asks for itself (measured: 15 of 30 draws dispatched, 27 of 30 with
 # this line; docs/voice/spoken-acts.md).
@@ -332,9 +338,12 @@ class HybridSegmenter:
                     question["criteria"]["true"] += " Sending or writing anything is a side effect."
                     question["criteria"]["false"] += (" Reading or searching stored data, such as email, files or "
                                                        "a calendar, without changing it is a lookup.")
-                if name.endswith("_ready") and T3_TOOLS & set(self.tool_choices or ()):
-                    question["criteria"] = dict(question["criteria"])
-                    question["criteria"]["dispatch_now"] += T3_READY
+                if T3_TOOLS & set(self.tool_choices or ()):
+                    for suffix, key, line in (("_ready", "dispatch_now", T3_READY), ("_depends", "none", T3_DEPENDS),
+                                              ("_corrects", "none", T3_CORRECTS)):
+                        if name.endswith(suffix):
+                            question["criteria"] = dict(question["criteria"])
+                            question["criteria"][key] += line
                 if name.endswith("_kind"):
                     question["criteria"]["request"] = ("The speaker asks for work requiring an external lookup, tool, "
                                                         "agent, or action. Questions answerable from this conversation "

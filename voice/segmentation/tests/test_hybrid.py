@@ -248,6 +248,22 @@ class Hybrid(unittest.TestCase):
         self.assertIn("names no project", ready["on"]["dispatch_now"])
         self.assertNotIn("names no project", ready["on"]["clarify"])
 
+    def test_the_fragments_of_one_thread_request_do_not_wait_on_or_replace_each_other_only_with_the_t3_tools(self):
+        criteria = {}
+        for name, tools in (("off", {"weather": "Weather.", "none": "No tool."}),
+                            ("on", {"t3_start": "Start a thread.", "weather": "Weather.", "none": "No tool."})):
+            decider = FakeDecider()
+            segmenter = HybridSegmenter(decider, name, tools=tools)
+            segmenter.conversation_mode = True
+            segmenter.update(TranscriptUpdate(1, "I need the importer cleaned up. And could you start a thread for it?",
+                                              True))
+            criteria[name] = decider.bodies[-1]["questions"]
+        for name, suffix in (("off", "_depends"), ("on", "_depends")):
+            question = next(q for key, q in criteria[name].items() if key.endswith(suffix))
+            self.assertEqual("for that" in question["criteria"]["none"], name == "on")
+        question = next(q for key, q in criteria["on"].items() if key.endswith("_corrects"))
+        self.assertIn("do not change or withdraw", question["criteria"]["none"])
+
     def test_a_voice_delegate_links_to_its_segment_and_dispatches_once(self):
         seg = stream(["look up tomorrow's weather in seattle", "look up tomorrow's weather in seattle and um",
                       "look up tomorrow's weather in seattle and um what time does the ferry leave",

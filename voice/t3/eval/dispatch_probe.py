@@ -14,16 +14,23 @@ import json
 from pathlib import Path
 
 from voice.liquid_decider.client import CACHE, LiquidClient
-from voice.segmentation.hybrid import T3_READY
+from voice.segmentation.hybrid import T3_CORRECTS, T3_DEPENDS, T3_READY
 
 OLD_START = "in a project they name. "
 READY_T3 = T3_READY
 
 
+DEPENDS_T3, CORRECTS_T3 = T3_DEPENDS, T3_CORRECTS
+
+
 def variants(body, name):
-    """`body` with the readiness and tool questions changed as `name` says."""
+    """`body` with the readiness, tool, dependency and correction questions changed as `name` says."""
     out = json.loads(json.dumps(body))
     for key, question in out["questions"].items():
+        if name in ("depends", "both2") and key.endswith("_depends"):
+            question["criteria"]["none"] += DEPENDS_T3
+        if name in ("corrects", "both2") and key.endswith("_corrects"):
+            question["criteria"]["none"] += CORRECTS_T3
         if name in ("ready", "both") and key.endswith("_ready"):
             question["criteria"]["dispatch_now"] += READY_T3
         if name in ("tool", "both") and key.endswith("_tool"):
@@ -50,16 +57,26 @@ def request_bodies(directory):
 
 
 def dispatched(response):
+    """A t3_start segment that is dispatch_now, waits on no earlier segment, and no later one replaces or cancels it:
+    what lets its task run."""
     answers = (response or {}).get("answers") or {}
-    return any(answers.get(key[:-len("_ready")] + "_tool", {}).get("choice") == "t3_start"
-               and answers.get(key, {}).get("choice") == "dispatch_now" for key in answers if key.endswith("_ready"))
+    gone = {str(a.get("choice")).split("_", 1)[1] for key, a in answers.items()
+            if key.endswith("_corrects") and str(a.get("choice")).startswith(("replace_", "cancel_"))}
+    for key in answers:
+        if not key.endswith("_ready"):
+            continue
+        sid = key[:-len("_ready")]
+        if (answers.get(sid + "_tool", {}).get("choice") == "t3_start" and answers[key].get("choice") == "dispatch_now"
+                and answers.get(sid + "_depends", {}).get("choice", "none") == "none" and sid not in gone):
+            return True
+    return False
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("directory", type=Path)
     parser.add_argument("--draws", type=int, default=3)
-    parser.add_argument("--variants", nargs="+", default=["as_is", "ready", "tool", "both"])
+    parser.add_argument("--variants", nargs="+", default=["as_is", "depends", "corrects", "both2"])
     args = parser.parse_args()
     client = LiquidClient(max_attempts=3)
     bodies = request_bodies(args.directory)
