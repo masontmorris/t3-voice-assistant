@@ -312,7 +312,7 @@ class T3TurnTest(NoteTurn):
                     voice=self.voice, snapshot_mode=mode, final_decider=True, task_service=T3SnapshotService,
                     send_checked=self.send_checked)
                 self.assertEqual(self.voice.asked, 1)
-                self.assertEqual(texts(self.voice), [f"{prototype.T3_NOTE}{DRAFT}]"])
+                self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT)])
                 self.assertEqual([(r["kind"], r["delivery"]) for r in record["replies"]], [("t3", "sent")])
         self.assertEqual(self.spoken, [DRAFT] * 4)
 
@@ -358,10 +358,11 @@ class T3TurnTest(NoteTurn):
             with self.subTest(reply=reply):
                 self.spoken.clear()
                 self.voice.sent.clear()
-                record = await self.turn([reply], task_service=T3SnapshotService, send_checked=self.send_checked)
+                record = await self.turn([reply, reply], task_service=T3SnapshotService, send_checked=self.send_checked)
                 self.assertEqual(self.spoken, [])
-                self.assertEqual(texts(self.voice), [f"{prototype.T3_NOTE}{DRAFT}]"],
-                                 "the draft went in once, and no note about a reply that did not play follows it")
+                self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT)] * 2,
+                                 "the words went in twice, the second time as the same note, and no note about a reply "
+                                 "that did not play follows either")
                 self.assertEqual(record["replies"][0]["delivery"], "unsent")
                 self.assertEqual(record["replies"][0]["text"], reply)
 
@@ -377,13 +378,21 @@ class T3TurnTest(NoteTurn):
         response at the first word that is not the draft's, so only its start is left."""
         self.voice = await Streaming.open("ws://unused", "voice", lambda: CLOCK)
         reply = "I can stop that for you. Here's the draft: " + DRAFT + " Let's get this started!"
-        record = await self.turn([reply], task_service=T3SnapshotService, send_checked=self.send_checked)
-        said = "".join(e.get("delta", "") for e in self.voice.events if e["type"] == "response.output_text.delta")
-        self.assertEqual(said.strip(), "I", "stopped at the first word the draft does not start with")
-        self.assertEqual(sum(e.get("type") == "response.cancel" for e in self.voice.sent), 1)
+        record = await self.turn([reply, reply], task_service=T3SnapshotService, send_checked=self.send_checked)
+        said = [e.get("delta", "").strip() for e in self.voice.events if e["type"] == "response.output_text.delta"]
+        self.assertEqual(said, ["I", "I"], "each try was stopped at the first word the draft does not start with")
+        self.assertEqual(sum(e.get("type") == "response.cancel" for e in self.voice.sent), 2)
         self.assertEqual(record["replies"][0]["status"], "cancelled")
         self.assertEqual((self.spoken, record["replies"][0]["delivery"]), ([], "unsent"))
-        self.assertEqual(texts(self.voice), [f"{prototype.T3_NOTE}{DRAFT}]"])
+
+    async def test_a_voice_that_goes_off_the_words_is_asked_once_more_and_the_second_try_is_said(self):
+        self.voice = await Streaming.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn(["Great! Let's get started.", DRAFT], task_service=T3SnapshotService,
+                                 send_checked=self.send_checked)
+        self.assertEqual((self.spoken, record["replies"][0]["delivery"]), ([DRAFT], "sent"))
+        self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT)] * 2)
+        attempts = [(e["attempt"], e["status"]) for e in record["timeline"] if e["kind"] == "t3_call_reply"]
+        self.assertEqual(attempts, [(1, "cancelled"), (2, "completed")])
 
     async def test_a_reply_that_says_the_draft_is_never_stopped(self):
         self.voice = await Streaming.open("ws://unused", "voice", lambda: CLOCK)

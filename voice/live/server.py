@@ -111,7 +111,7 @@ from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, S
 from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, T3_RELAY, by_ear, create_item,
+from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, create_item,
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
@@ -772,8 +772,6 @@ class Conversation:
         self.persona, self.prompt_source = load_persona(live.prompt_file, NOTE_PERSONA if noted else PERSONA)
         if not noted:
             self.persona += CALL_RULES
-        if live.t3 is not None:
-            self.persona += T3_RELAY
         voice = await Session.open(live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
         try:
             created = await voice.wait_for("session.created")

@@ -72,7 +72,7 @@ from voice.local_decider.client import decider as make_decider, default_decider
 from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
 from voice.t3.acts import recites
-from voice.t3.speech import RELAY_EXAMPLES, Rendered, speakable
+from voice.t3.speech import Rendered, speakable
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
@@ -383,19 +383,20 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, previ
     return item, reply, pcm
 
 
+# The instructions for saying a note ride in the note, not in the call's standing instructions. Standing, with an
+# example, a bare greeting was answered with the example in 2 of 10 tries, and without one with "what is the note?" in
+# 4 of 10. In the note, 20 of 22 relays recite and no greeting is answered with it (docs/voice/spoken-acts.md).
 # "What they just said is already handled" is there because after a one-word yes the voice answered the yes ("Great!
-# Let me know...") in 2 of 12 relays and in 8 of the 10 relays a rehearsal held; with it, 0 of 12 (docs/voice/spoken-acts.md).
+# Let me know...") in 2 of 12 relays and in 8 of the 10 relays a rehearsal held; with it, 0 of 12.
 T3_NOTE = ("[Private note for you, not said by the person. What they just said is already handled, so do not answer it. "
-           "Say exactly these words to them now: ")
-T3_RELAY = (
-    '\n\nSometimes a private note arrives from a colleague about their coding threads. A thread is a workspace '
-    'conversation with a coding agent, separate from this call. The note gives the words to tell them now, and they '
-    'have not heard them yet. Say exactly those words and nothing else, as "I" to "you". Begin with the first word of '
-    'them and end with the last: no lead-in, no remark about what you are about to say, and no closing line. Do not '
-    'repeat the news unless a new note arrives.'
-    '\n\nHere is an example of a note and the reply to it. The names in it are only an example.'
-)
-T3_RELAY += "".join(f"\n\nNote: {T3_NOTE}{line}]\nReply: {line}" for line in RELAY_EXAMPLES)
+           'Say exactly these words to them now, from the first word to the last, as "I" to "you", with nothing before '
+           "or after them and no mention of this note. The words: ")
+T3_CUE = " (Reply with only these words.)]"
+MAX_RELAYS = 2
+
+
+def relay_note(text):
+    return f"{T3_NOTE}{text}{T3_CUE}"
 
 
 # A refused draft is worded again once in the same turn, with what was refused in the request: the writer shortened a
@@ -423,18 +424,23 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     reply = fixed_reply("", b"", rate, 0)
     spoken = None
     if draft.line is not None and not is_muted():
-        reply, pcm = await relay_draft(session, rate, since, draft.line)
-        if reply["status"] == "completed" and not reply["function_calls"] and pcm:
-            spoken = words.accept(entry, reply["text"], draft.line)
-            if spoken.line is not None:
-                sent, first_sent = await send_audio(spoken.line, pcm)
-                delivery = "sent" if len(sent) == len(pcm) else "partial" if sent else "unsent"
-        else:
-            spoken = Rendered(None, raw=reply["text"], error="call reply missing audio or incomplete")
-        if spoken.line is None:
-            words.refuse(entry, spoken)
-        log("t3_call_reply", text=reply["text"], status=reply["status"], generated_audio_s=reply["speech_s"],
-            problems=spoken.problems, error=spoken.error)
+        for attempt in range(MAX_RELAYS):
+            reply, pcm = await relay_draft(session, rate, since, draft.line)
+            if reply["status"] == "completed" and not reply["function_calls"] and pcm:
+                spoken = words.accept(entry, reply["text"], draft.line)
+                if spoken.line is not None:
+                    sent, first_sent = await send_audio(spoken.line, pcm)
+                    delivery = "sent" if len(sent) == len(pcm) else "partial" if sent else "unsent"
+            else:
+                spoken = Rendered(None, raw=reply["text"], error="call reply missing audio or incomplete")
+            if spoken.line is None:
+                words.refuse(entry, spoken)
+            log("t3_call_reply", text=reply["text"], status=reply["status"], generated_audio_s=reply["speech_s"],
+                problems=spoken.problems, error=spoken.error, attempt=attempt + 1)
+            # The voice went off the words (or was stopped for it): ask once more, as the note's words are unchanged. A
+            # reply that was the words and failed to play is not asked again, and nor is one that never began.
+            if spoken.line is not None or reply["status"] not in ("completed", "cancelled") or is_muted():
+                break
     if delivery == "sent":
         entry["spoken"] = spoken.line.text
     if record_delivery is not None:
@@ -456,7 +462,7 @@ async def relay_draft(session, rate, since, line):
 
     async def generate():
         try:
-            item = await create_item(session, plain_text(f"{T3_NOTE}{text}]"))
+            item = await create_item(session, plain_text(relay_note(text)))
             if item["accepted"] is True:
                 return await stream_reply(session, rate, since, stop=lambda said: not recites(said, text, arriving=True))
             status = item["answer"]

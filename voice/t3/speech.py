@@ -536,9 +536,6 @@ assert set(READER_EXAMPLES) == set(Kind)
 EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
                           for key in ("thread", "project", "available", "candidates") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
-# One example: the call's voice read four of them back as its own replies (2 of 12 ordinary replies on a request, 0 of 12
-# with one), and recited the draft on 21 of 22 relays either way (docs/voice/spoken-acts.md).
-RELAY_EXAMPLES = (READER_EXAMPLES[Kind.CONFIRM_STOP][1],)
 
 
 def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0) -> list[dict]:

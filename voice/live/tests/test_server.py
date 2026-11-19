@@ -69,7 +69,7 @@ class FakeVoice:
         if event["type"] == "response.create":
             draft = next(e["item"]["content"][0]["text"] for e in reversed(self.sent)
                          if e["type"] == "conversation.item.create")
-            draft = draft.removeprefix(prototype_run.T3_NOTE).removesuffix("]")
+            draft = draft.removeprefix(prototype_run.T3_NOTE).removesuffix(prototype_run.T3_CUE)
             text, pcm = self.responses.pop(0) if self.responses else (draft, self.default_audio)
             self.events.append({"type": "response.output_text.delta", "delta": text, "_t": 0})
             if pcm:
@@ -742,7 +742,9 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(record["task_updates"][0]["evidence"], {"thread_id": "thread-1", "sequences": [750, 751]})
         self.assertEqual(record["replies"][0]["text"], DONE_LINE)
         settings, draft, response = self.live.active.voice.sent
-        self.assertIn("say exactly those words and nothing else", settings["session"]["instructions"].lower())
+        self.assertNotIn("note", settings["session"]["instructions"].lower(),
+                         "the call's standing instructions say nothing about private notes")
+        self.assertIn("say exactly these words", draft["item"]["content"][0]["text"].lower())
         self.assertEqual(draft["item"]["role"], "user")
         self.assertEqual(response["type"], "response.create")
         self.assertEqual(record["task_updates"][0]["acts"], [a.to_json() for a in DONE.acts])
@@ -750,24 +752,21 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         await ws.close()
 
     async def test_silent_call_reply_is_retried_without_sending_audio(self):
-        t3 = self.news(DONE, responses=[(DONE_LINE, b"")])
+        t3 = self.news(DONE, responses=[(DONE_LINE, b""), (DONE_LINE, bytes(960))])
         ws = await self.connect()
         log = []
-        first = await self.until(ws, "turn_done", log)
-        self.assertEqual((first["given_back"], first["rows"], first["replies"], log),
-                         (True, [], [], ["turn_done"]))
-        second = await self.until(ws, "turn_done", log)
-        self.assertEqual((second["given_back"], t3.outbox, t3.given), (False, [], [DONE.acts]))
+        done = await self.until(ws, "turn_done", log)
+        self.assertEqual((done["given_back"], t3.outbox, t3.given), (False, [], []), "the second try played, so nothing is handed back")
         self.assertEqual(self.frames, [960])
         notes = [event["item"]["content"][0]["text"] for event in self.live.active.voice.sent
                  if event["type"] == "conversation.item.create"]
-        self.assertEqual(notes, [f"{prototype_run.T3_NOTE}{DONE_LINE}]"] * 2,
+        self.assertEqual(notes, [prototype_run.relay_note(DONE_LINE)] * 2,
                          "the retry sends the draft again, with no note about the reply that did not play")
         self.assertFalse(t3.has_news())
         await ws.close()
 
     async def test_two_idle_failures_hold_news_for_the_next_person_turn(self):
-        t3 = self.news(DONE, responses=[("Something else finished.", bytes(960))] * 2)
+        t3 = self.news(DONE, responses=[("Something else finished.", bytes(960))] * 4)
         ws = await self.connect()
         for _ in range(2):
             done = await self.until(ws, "turn_done", [])
