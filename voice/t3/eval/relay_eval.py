@@ -176,9 +176,8 @@ async def one(url, rendered, name, scenario, persona, relay, note, close, leak=F
 
 YES_WORDS = ("Yes.", "Yeah, go ahead.", "Please do.", "Sure.")
 NOTES = {
-    "current": T3_NOTE,
-    "handled": "[Private note for you, not said by the person. What they just said is already handled, so do not "
-               "answer it. Say exactly these words to them now: ",
+    "current": "[Private note for you, not said by the person. Say exactly these words to them now: ",
+    "handled": T3_NOTE,
     "quoted": "[Private note for you, not said by the person. They just said \"{last}\", which is already handled. "
               "Say exactly these words to them now: ",
     "no_greeting": "[Private note for you, not said by the person. Do not start with a greeting or an acknowledgement. "

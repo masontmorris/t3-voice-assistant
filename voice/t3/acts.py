@@ -152,8 +152,6 @@ def act(kind: Kind, **slots) -> Act:
 
 _MARKDOWN = re.compile(r"[*_`#>|\[\]]+")
 _NOT_WORD = re.compile(r"[^\w']+")
-_PERSON = {"i": "you", "me": "you", "my": "your", "mine": "yours", "myself": "yourself", "i'm": "you're",
-           "i've": "you've", "i'll": "you'll", "i'd": "you'd", "am": "are"}
 _CONTRACTIONS = (("n't", " not"), ("'re", " are"), ("'ve", " have"), ("'ll", " will"), ("'d", " would"),
                  ("'m", " am"), ("'s", " s"))
 _SENTENCE = re.compile(r"[.!?]+(?=\s|$)")
@@ -164,14 +162,13 @@ _CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?
 MAX_SENTENCES_PER_ACT = 2
 
 
-def normalise(text: str, person: bool = True) -> str:
-    """Lower case, straight quotes, no markdown or punctuation, first person as second (unless `person` is off),
-    contractions spelled out."""
+def normalise(text: str) -> str:
+    """Lower case, straight quotes, no markdown or punctuation, contractions spelled out. Who does what is never
+    changed: "I" stays "I", so a line must say a person's own words as they were said."""
     text = (text or "").lower().replace("\N{RIGHT SINGLE QUOTATION MARK}", "'").replace(
         "\N{LEFT SINGLE QUOTATION MARK}", "'")
     text = _MARKDOWN.sub(" ", text)
-    words = [_PERSON.get(word.strip("'"), word.strip("'")) if person else word.strip("'")
-             for word in _NOT_WORD.split(text) if word.strip("'")]
+    words = [word.strip("'") for word in _NOT_WORD.split(text) if word.strip("'")]
     text = " ".join(words)
     for short, full in _CONTRACTIONS:
         text = text.replace(short, full)
@@ -179,10 +176,9 @@ def normalise(text: str, person: bool = True) -> str:
 
 
 def recites(text: str, line: str, *, arriving: bool = False) -> bool:
-    """`text` says `line`'s words and no others, up to case, punctuation, markdown and contractions. Who does what
-    must stay as written, so "I" is never read as "you". With `arriving`, `text` is the start of a reply: it only has
+    """`text` says `line`'s words and no others, up to case, punctuation, markdown and contractions. With `arriving`, `text` is the start of a reply: it only has
     to open `line`, and a last word that may be half said is not read."""
-    said, want = normalise(text, False).split(), normalise(line, False).split()
+    said, want = normalise(text).split(), normalise(line).split()
     if not arriving:
         return said == want
     if said and (text or "")[-1:].isalnum():

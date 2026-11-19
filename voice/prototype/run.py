@@ -384,7 +384,10 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, previ
     return item, reply, pcm
 
 
-T3_NOTE = "[Private note for you, not said by the person. Say exactly these words to them now: "
+# "What they just said is already handled" is there because after a one-word yes the voice answered the yes ("Great!
+# Let me know...") in 2 of 12 relays and in 8 of the 10 relays a rehearsal held; with it, 0 of 12 (docs/voice/spoken-acts.md).
+T3_NOTE = ("[Private note for you, not said by the person. What they just said is already handled, so do not answer it. "
+           "Say exactly these words to them now: ")
 T3_RELAY = (
     '\n\nSometimes a private note arrives from a colleague about their coding threads. A thread is a workspace '
     'conversation with a coding agent, separate from this call. The note gives the words to tell them now, and they '

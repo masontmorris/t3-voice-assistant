@@ -55,7 +55,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.NO_THREAD: "No thread matches what they asked about. `recent` is how many recent threads were checked, "
                     "and `other` means there is no other thread besides the one they turned down.",
     Kind.CONFIRM_THREAD: "Ask whether the existing thread named in thread is the one they mean.",
-    Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Nothing is sent yet.",
+    Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Say the message exactly as given, in quotes, "
+                        "leaving words like my and I as they are. Nothing is sent yet.",
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",

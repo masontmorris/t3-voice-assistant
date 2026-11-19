@@ -102,7 +102,10 @@ class SlotRules(unittest.TestCase):
 
     def test_names_survive_case_punctuation_and_person(self):
         acts = [act(Kind.CONFIRM_TELL, thread="Fix: the *flaky* test", message="check my PR")]
-        self.assertEqual(check("Should I tell fix the flaky test to check your PR?", acts), [])
+        self.assertEqual(check("Should I tell fix the flaky test to check my PR?", acts), [])
+        self.assertIn("confirm_tell message missing: check my PR",
+                      check("Should I tell fix the flaky test to check your PR?", acts),
+                      "a person's own words are said as they were said, never turned into the voice's person")
         status = act(Kind.DONE, thread="Fix the parser?", status="finished")
         self.assertEqual(check("Fix the Parser? is finished.", [status]), [])
         self.assertEqual(normalise("It's done, isn't it?"), "it s done is not it")
@@ -158,7 +161,7 @@ class Recites(unittest.TestCase):
                 self.assertFalse(recites(text, self.LINE))
 
     def test_who_does_what_is_never_flipped(self):
-        self.assertEqual(normalise("I asked T3."), normalise("You asked T3."), "the slot check's person flip")
+        self.assertNotEqual(normalise("I asked T3."), normalise("You asked T3."))
         self.assertFalse(recites("You asked T3 to stop it.", "I asked T3 to stop it."))
 
     def test_a_start_may_still_be_arriving(self):
