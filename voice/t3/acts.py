@@ -151,7 +151,6 @@ def act(kind: Kind, **slots) -> Act:
 
 
 _MARKDOWN = re.compile(r"[*_`#>|\[\]]+")
-_NOT_WORD = re.compile(r"[^\w']+")
 _CONTRACTIONS = (("n't", " not"), ("'re", " are"), ("'ve", " have"), ("'ll", " will"), ("'d", " would"),
                  ("'m", " am"), ("'s", " s"))
 _SENTENCE = re.compile(r"[.!?]+(?=\s|$)")
@@ -162,28 +161,40 @@ _CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?
 MAX_SENTENCES_PER_ACT = 2
 
 
-def normalise(text: str) -> str:
-    """Lower case, straight quotes, no markdown or punctuation, contractions spelled out. Who does what is never
-    changed: "I" stays "I", so a line must say a person's own words as they were said."""
-    text = (text or "").lower().replace("\N{RIGHT SINGLE QUOTATION MARK}", "'").replace(
-        "\N{LEFT SINGLE QUOTATION MARK}", "'")
+_TOKEN = re.compile(r"\d+(?:[.,:/]\d+)*|[%$€£]|\w+(?:'\w+)*")
+# What can still be added to a token that ends the text so far: an apostrophe, or a number's separator or sign.
+_MAY_CONTINUE = "'.,:/%$"
+
+
+def _words(text: str, *, arriving: bool = False) -> list[str]:
+    """The words of `text`, lower case, with markdown and punctuation gone and contractions spelled out. A number is one
+    word with its own separators ("1,500" is not "1.500"), and "$" and "%" are words. Who does what is never changed:
+    "I" stays "I", so a line must say a person's own words as they were said. With `arriving`, `text` is the start of a
+    reply, and a last word that more characters could still change ("don'", "1,") is left out."""
+    text = (text or "").lower().replace("’", "'").replace(
+        "‘", "'")
     text = _MARKDOWN.sub(" ", text)
-    words = [word.strip("'") for word in _NOT_WORD.split(text) if word.strip("'")]
-    text = " ".join(words)
-    for short, full in _CONTRACTIONS:
-        text = text.replace(short, full)
-    return " ".join(text.split())
+    found = list(_TOKEN.finditer(text))
+    if arriving and found and (found[-1].end() == len(text) or text[found[-1].end()] in _MAY_CONTINUE):
+        found.pop()
+    words = []
+    for match in found:
+        word = match.group(0)
+        for short, full in _CONTRACTIONS:
+            word = word.replace(short, full)
+        words.extend(word.split())
+    return words
+
+
+def normalise(text: str) -> str:
+    return " ".join(_words(text))
 
 
 def recites(text: str, line: str, *, arriving: bool = False) -> bool:
-    """`text` says `line`'s words and no others, up to case, punctuation, markdown and contractions. With `arriving`, `text` is the start of a reply: it only has
-    to open `line`, and a last word that may be half said is not read."""
-    said, want = normalise(text).split(), normalise(line).split()
-    if not arriving:
-        return said == want
-    if said and (text or "")[-1:].isalnum():
-        said = said[:-1]
-    return want[:len(said)] == said
+    """`text` says `line`'s words and no others, up to case, punctuation, markdown and contractions. With `arriving`,
+    `text` is the start of a reply: it only has to open `line`, and a last word that may be half said is not read."""
+    said, want = _words(text, arriving=arriving), _words(line)
+    return want[:len(said)] == said if arriving else said == want
 
 
 def says(line: str, value: str) -> bool:

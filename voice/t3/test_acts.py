@@ -160,6 +160,25 @@ class Recites(unittest.TestCase):
             with self.subTest(text=text):
                 self.assertFalse(recites(text, self.LINE))
 
+    def test_numbers_keep_their_separators_and_signs(self):
+        for text, line in (("It found 1,500 files.", "It found 1.500 files."), ("It found 1500 files.", "It found 1,500 files."),
+                           ("Pay $5.", "Pay 5."), ("It is 50 done.", "It is 50% done."), ("At 10:30.", "At 10.30.")):
+            with self.subTest(text=text):
+                self.assertFalse(recites(text, line))
+        self.assertTrue(recites("It found 1,500 files.", "it found 1,500 files"))
+
+    def test_a_word_is_judged_only_once_it_is_complete(self):
+        """A reply cut after "don'" is on its way to "don't", and one cut after "1," to "1,500"."""
+        for text, line in (("I don'", "I don't know."), ("I don", "I don't know."), ("I got 1,", "I got 1,500 files."),
+                           ("I got 1", "I got 1,500 files."), ("I got 1,50", "I got 1,500 files.")):
+            with self.subTest(text=text):
+                self.assertTrue(recites(text, line, arriving=True))
+        for text, line in (("I got 1.5 ", "I got 1,500 files."), ("I got 1,5 ", "I got 1,500 files."),
+                           ("I got 2 ", "I got 1,500 files.")):
+            with self.subTest(text=text):
+                self.assertFalse(recites(text, line, arriving=True))
+        self.assertTrue(recites("I do not know", "I don't know.", arriving=True), "a spelled-out contraction is the same")
+
     def test_who_does_what_is_never_flipped(self):
         self.assertNotEqual(normalise("I asked T3."), normalise("You asked T3."))
         self.assertFalse(recites("You asked T3 to stop it.", "I asked T3 to stop it."))
