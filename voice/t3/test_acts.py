@@ -73,6 +73,8 @@ CASES = {
     Kind.THREAD_DELETED: ({"thread": T}, f"{T} was deleted.", {"That thread was deleted.": "thread missing"}),
     Kind.LOST_TRACK: ({"thread": T}, f"I lost track of {T}, but it's still in the app.",
                       {"I lost track of it.": "thread missing"}),
+    Kind.SAME_TITLE: ({"thread": T, "op": "stop"}, f"More than one thread is called {T}, so I can't tell which to stop.",
+                      {"I can't tell which thread to stop.": "thread missing"}),
     Kind.THREAD_GONE: ({"thread": T}, f"I can't see {T} any more.", {"I can't see it.": "thread missing"}),
     Kind.WATCH_QUEUED: ({"thread": T, "following": 16}, f"I'll pick up {T} when one of my 16 threads ends.",
                         {"I'll pick it up soon.": "thread missing"}),

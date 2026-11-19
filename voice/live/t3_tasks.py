@@ -448,9 +448,11 @@ class T3Tasks:
         again = self._refer(update.question, _plain(text), now, without=update.without, recent=False)
         if update.without is not None or again.acts != (self.pending_act(update.question),):
             return again
-        # The same "which thread" again: it is never asked twice.
+        # The same "which thread" again: it is never asked twice. Only that question is dropped, not one another
+        # request opened while the decider was picking.
         with self.lock:
-            self._drop_question()
+            if self.question is not None and (self.question.key, self.question.kind) == (update.question.key, "thread"):
+                self._drop_question()
         return None
 
     def _answer(self, text: str, now: float, reading: Reading | None, kind: str | None, question: Question | None):
@@ -549,17 +551,23 @@ class T3Tasks:
                            titles={t.thread_id: t.title for t in listed},
                            projects={t.thread_id: t.project_id for t in listed})
             evidence = (listing.as_of_sequence,)
+            options, shared = self._options(listed)
+            # The decider saw only `options`, so "not listed" is true of those: a thread past them is not ruled out.
+            partial = listing.truncated or len({t.title.casefold() for t in listed}) > len(options)
             none = L.Update(key, (act(Say.NO_THREAD, other=True) if without is not None else
-                                  act(Say.NO_THREAD, recent=len(listing.threads) if listing.truncated else None),),
+                                  act(Say.NO_THREAD, recent=len(options) if partial else None),),
                             "completed", "ask", sequences=evidence)
             if not listed:
                 return none
-            options, shared = self._options(listed)
             last = base.titles.get(self._recent(base.titles)) if recent else None
+            call = self.call
 
         picked = self._picked(reference, options, last)
 
         with self.lock:
+            if self.call != call:
+                # The call ended while the decider was picking: nothing is asked or read for a call that has gone.
+                return L.Update(key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
             if picked.choice == NONE:
                 return none
             thread = picked.thread
@@ -569,6 +577,17 @@ class T3Tasks:
             if asked.op == ASK and picked.sure and thread not in shared:
                 return self._act(base, thread, now)
             return self._ask_back(replace(base, candidates=(thread,)), evidence)
+
+    def names_thread(self, instruction: str, now: float) -> bool:
+        """Whether a message's words pick a thread there is, by the decider. Off the lock."""
+        with self.lock:
+            if self._down("", now) is not None:
+                return False
+            listing = self._list("")
+            if isinstance(listing, L.Update) or listing is None or not listing.threads:
+                return False
+            options, _ = self._options(listing.threads)
+        return self._picked(tell_parts(instruction)[0], options, None).thread is not None
 
     def _options(self, listed) -> tuple[tuple[Listed, ...], frozenset[str]]:
         """The threads the decider chooses among, newest first, and those whose title another thread has too. Threads
@@ -601,8 +620,14 @@ class T3Tasks:
                      if t.link.thread_id in listed), None)
 
     def _ask_back(self, question: Question, evidence=()) -> L.Update:
-        question = self._ask(replace(question, evidence=tuple(evidence) or question.evidence))
+        """Confirm the one candidate back. A message or a stop for a title that another listed thread shares is not
+        offered at all: the question could only name the title, and a yes to it could act on the wrong thread."""
         thread = question.candidates[0]
+        title = question.titles[thread]
+        if question.op != ASK and sum(t.casefold() == title.casefold() for t in question.titles.values()) > 1:
+            return L.Update(question.key, (act(Say.SAME_TITLE, thread=title, op=OPS[question.op]),), "completed",
+                            "ask", sequences=tuple(evidence) or question.evidence)
+        question = self._ask(replace(question, evidence=tuple(evidence) or question.evidence))
         said = confirm_act(question.op, question.titles[thread], question.message)
         return L.Update(question.key, (said,), "needs_clarification", "pick", thread, question.evidence)
 
@@ -645,8 +670,8 @@ class T3Tasks:
         chosen = self.alternatives(question).get(reading.target) if reading is not None else None
         if chosen not in {t.thread_id for t in threads}:
             return Lookup(question) if reading is not None and reading.elsewhere else None
-        question = replace(question, titles={t.thread_id: t.title for t in threads},
-                           projects={t.thread_id: t.project_id for t in threads})
+        question = replace(question, titles={t.thread_id: t.title for t in listing.threads},
+                           projects={t.thread_id: t.project_id for t in listing.threads})
         if question.op == ASK:
             return self._act(question, chosen, now)
         return self._ask_back(replace(question, kind="thread_confirm", candidates=(chosen,)),
@@ -833,9 +858,10 @@ class T3TaskService(MockTaskService):
         if choice is None or choice.tool not in T3_TOOLS or choice.confidence < self._threshold():
             return super()._start(task_id, instruction, side_effect, now, choice)
         key = f"{self.conversation_id}:{task_id}"
-        if choice.tool in (START, TELL) and self.t3.asking_start(f"{self.conversation_id}:"):
+        if (choice.tool in (START, TELL) and self.t3.asking_start(f"{self.conversation_id}:")
+                and not (choice.tool == TELL and self.t3.names_thread(instruction, now))):
             # One long request is cut into several segments. The first already asked, and the launch carries the whole
-            # turn, so another launch, or an instruction for the thread being started, is part of it.
+            # turn, so another launch, or an instruction that names no thread there is, is part of it.
             return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
                              tool={"tool": choice.tool, "arguments": {}})
         update = (self.t3.start(key, instruction, now) if choice.tool == START

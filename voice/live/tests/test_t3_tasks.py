@@ -574,6 +574,42 @@ class DeciderPick(unittest.TestCase):
                 self.assertEqual(update.status == "needs_clarification", not reads)
                 self.assertEqual(seam.ops("read"), [("read", "t5")] if reads else [])
 
+    def test_a_message_or_a_stop_for_a_title_two_threads_share_is_not_offered(self):
+        """The question could only name the title, so a yes to it could act on the wrong one of them."""
+        for op, words in ((STOP, "Stop the clamp helper thread."), (TELL, "Tell the clamp helper thread to rerun.")):
+            with self.subTest(op=op):
+                seam = self.seam()
+                seam.listing = listing(*THREADS, ("t9", "Add a Clamp Helper"))
+                t3 = self.over(seam, {words: {"t5": 0.97}, "the clamp helper thread": {"t5": 0.97}})
+                update = t3.about("k3", op, words, 0)
+                self.assertEqual([a.kind for a in update.acts], [S.SAME_TITLE])
+                self.assertEqual((update.acts[0].slots["thread"], update.status), ("Add a clamp helper", "completed"))
+                self.assertIsNone(t3.live_question())
+                self.assertIsNone(t3.answer("Yes.", 1))
+                self.assertEqual((seam.ops("interrupt"), seam.ops("send")), ([], []))
+
+    def test_not_listed_says_how_many_it_checked_when_it_did_not_see_them_all(self):
+        seam = self.seam()
+        seam.listing = listing(*[(f"t{i}", f"Thread number {i}") for i in range(45)])
+        update = self.over(seam, {self.MISS: "none"}).about("k3", ASK, self.MISS, 0)
+        self.assertEqual(update.acts, (act(S.NO_THREAD, recent=40),))
+
+    def test_a_pick_that_comes_back_after_the_call_ended_asks_and_reads_nothing(self):
+        seam, decider = self.seam(), BlockingPicks({self.MISS: {"t5": 0.97}})
+        t3 = self.over(seam, decider=decider)
+        t3.begin_call()
+        with ThreadPoolExecutor(max_workers=1) as workers:
+            pick = workers.submit(t3.about, "k3", ASK, self.MISS, 0)
+            try:
+                self.assertTrue(decider.entered.wait(2))
+                t3.end_call()
+                t3.begin_call()
+            finally:
+                decider.release.set()
+            self.assertEqual(pick.result(timeout=2).status, "failed")
+        self.assertEqual(seam.ops("read"), [])
+        self.assertIsNone(t3.live_question())
+
     def test_words_that_fit_several_ask_which_of_those(self):
         seam = self.seam()
         fits = {"unclear": 0.5, "t7": 0.3, "t5": 0.15, "t6": 0.04}
@@ -1019,6 +1055,16 @@ class Service(unittest.IsolatedAsyncioTestCase):
         launch, = seam.ops("launch")
         self.assertEqual(launch[2:], ("p1", said_whole), "the launch carries every constraint and the second request")
         self.assertEqual(t3.follow.journal.tasks[next(iter(t3.follow.journal.tasks))].instruction, said_whole)
+
+    def test_a_message_for_a_thread_there_is_stays_its_own_request_beside_a_launch(self):
+        seam = F.FakeSeam()
+        seam.listing = listing(*THREADS)
+        t3 = tasks_over(self, seam)
+        service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
+                                    self.record("task_2", "Tell the toolchain thread to retry.", TELL)])
+        service.sync(0)
+        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
+        self.assertEqual([a["kind"] for a in tasks["task_2"]["acts"]], ["confirm_tell"])
 
     def test_a_launch_question_from_an_earlier_turn_does_not_swallow_a_new_request(self):
         t3 = tasks_over(self, F.FakeSeam())

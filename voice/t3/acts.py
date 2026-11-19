@@ -27,6 +27,7 @@ class Kind(StrEnum):
     CONFIRM_THREAD = "confirm_thread"
     CONFIRM_TELL = "confirm_tell"
     CONFIRM_STOP = "confirm_stop"
+    SAME_TITLE = "same_title"
     CANCELLED = "cancelled"
     THREAD_STATUS = "thread_status"
     TELL_PENDING = "tell_pending"
@@ -106,6 +107,7 @@ RULES: dict[Kind, Rule] = {
     Kind.CONFIRM_THREAD: Rule(("thread",), ("thread",), True),
     Kind.CONFIRM_TELL: Rule(("thread", "message"), ("thread", "message"), True, ("sent",)),
     Kind.CONFIRM_STOP: Rule(("thread",), ("thread",), True, ("stopped",)),
+    Kind.SAME_TITLE: Rule(("thread", "op"), ("thread",), forbids=("sent", "stopped")),
     Kind.CANCELLED: Rule(("op", "thread"), ("thread",)),
     Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "need", "pending", "waiting_for", "asked"), ("thread",),
                              plain=True),

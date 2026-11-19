@@ -58,6 +58,9 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Say the message exactly as given, in quotes, "
                         "leaving words like my and I as they are. Nothing is sent yet.",
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
+    Kind.SAME_TITLE: "More than one of their threads has this name, so you cannot tell which one they mean and did "
+                     "nothing. `op` is what they asked for: tell (send it a message) or stop. They can do it in the "
+                     "app.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
@@ -484,6 +487,9 @@ READER_EXAMPLES = {
     Kind.CONFIRM_TELL: ({"thread": "Example Trim Image Margins", "message": "keep the captions"},
                         "Should I send 'keep the captions' to Example Trim Image Margins as a follow-up?"),
     Kind.CONFIRM_STOP: ({"thread": "Example Split Export Files"}, "Should I stop Example Split Export Files?"),
+    Kind.SAME_TITLE: ({"thread": "Example Sort Photo Albums", "op": "stop"},
+                      "More than one thread is called Example Sort Photo Albums, so I can't tell which to stop. You "
+                      "can stop it in the app."),
     Kind.CANCELLED: ({"op": "start"}, "I won't start the thread."),
     Kind.THREAD_STATUS: ({"thread": "Example Tune Audio Levels", "status": "working", "summary": "It says playback is stable."},
                          "Example Tune Audio Levels is still working and reports that playback is stable."),

@@ -55,6 +55,8 @@ MEANS: dict[Kind, str] = {
     Kind.THREAD_DELETED: "{thread} was deleted",
     Kind.LOST_TRACK: "the assistant lost track of {thread}",
     Kind.THREAD_GONE: "the assistant can no longer see {thread}",
+    Kind.SAME_TITLE: ("more than one thread is called {thread}, so the assistant could not tell which one they meant, did not "
+                      "send a message or stop anything, and they can do it in the app"),
     Kind.WATCH_QUEUED: "the assistant will follow {thread} once one of the threads it follows ends",
     Kind.UNREACHABLE: "the assistant cannot reach T3 right now",
     Kind.SEAM_DOWN: "the assistant stopped following their threads",
