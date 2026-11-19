@@ -69,6 +69,16 @@ class Scoring(unittest.TestCase):
                           "free_lines_naming_a_thread": ["I can't start a thread."]})
         self.assertIsNone(R.mixed_turn({**row, "t3": []}), "a turn with no T3 line is not a mixed turn")
 
+    def test_a_which_call_grades_the_first_status_line_after_the_question_as_the_one_picked_by_place(self):
+        first, twin, third = R.WHICH[0][:3]
+        asked = dict(line(["ask_which"], f"Which of these do you mean, {twin} or {first}?"), relays=1)
+        picked = dict(line(["thread_status"], f"{first}."), draft=f"The {first} thread is interrupted.",
+                      delivery="unsent", relays=2)
+        named = dict(line(["thread_status"], f"The {third} thread is interrupted."), relays=1)
+        graded = R.which_call([{"t3": [asked]}, {"t3": [picked]}, {"t3": [named]}], 0)
+        self.assertEqual((graded["asked_said"], graded["by_place"]["said"], graded["by_name"]["first_relay"]),
+                         (True, False, True), "the question's order decides which thread is second, not the table's")
+
     def test_the_seam_knows_no_thread_until_a_launch_makes_one(self):
         with tempfile.TemporaryDirectory() as tmp:
             seam = R.ScriptedSeam(Path(tmp) / "launches.json")
