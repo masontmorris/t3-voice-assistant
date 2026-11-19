@@ -875,6 +875,7 @@ class Conversation:
                     def delivered(state):
                         if state == "sent":
                             live.t3.ack_news(unsent.pop(id(update)))
+                            live.t3.spoke(update)
 
                     reply, _ = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
@@ -983,11 +984,15 @@ class Live:
             await ws.close(1013, "another client is connected")
             return
         self.active = conversation
+        if self.t3 is not None:
+            self.t3.begin_call()
         print(f"client connected from {ws.remote_address[0]}", flush=True)
         try:
             await conversation.run()
         finally:
             self.active = None
+            if self.t3 is not None:
+                self.t3.end_call()
             print("client disconnected", flush=True)
 
 

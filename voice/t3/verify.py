@@ -243,13 +243,15 @@ class Decider:
 
 
 READ_CRITERIA = {
-    "yes": "It agrees to what the assistant asked, in any words, whatever its punctuation.",
+    "yes": "It agrees to exactly what the assistant asked, with nothing added, changed or conditional.",
     "no": "It declines what the assistant asked, or takes it back.",
-    "question": "It asks the assistant something instead of answering.",
-    "other": "It names a different project or thread than the one asked about, or asks for something else.",
+    "question": "It asks the assistant something, or asks about what was proposed, instead of answering.",
+    "other": "It agrees but changes the project, thread or terms, adds a condition, or names something else.",
     "unrelated": "It does not answer what the assistant asked.",
 }
 YES_CONFIDENCE = 0.7
+# A reply that is any share a question or another target is not an unconditional yes, however much of it says yes.
+OTHER_CEILING = 0.2
 
 
 def reading_request(said: Act, reply: str) -> dict:
@@ -273,15 +275,27 @@ class Reading:
 
     @property
     def yes(self) -> bool:
-        return self.label == "yes" and self.probabilities.get("yes", 0.0) >= YES_CONFIDENCE
+        """An unconditional yes: the reply's own label, confident, with no real share of a question, a changed target
+        or a condition. Anything short of that is not a yes."""
+        p = self.probabilities
+        return (self.label == "yes" and p.get("yes", 0.0) >= YES_CONFIDENCE
+                and max(p.get("other", 0.0), p.get("question", 0.0)) <= OTHER_CEILING)
 
 
 def judge_reading(answers: Any) -> Reading:
+    """The decider's answer as a Reading. A label that is not an option, or a score that is not a number from 0 to 1,
+    is no reading at all, never an error."""
     answer = answers.get("reading") if isinstance(answers, dict) else None
     probabilities = answer.get("probabilities") if isinstance(answer, dict) else None
-    if not isinstance(probabilities, dict) or answer.get("choice") not in READ_CRITERIA:
+    if (not isinstance(probabilities, dict) or answer.get("choice") not in READ_CRITERIA
+            or not set(probabilities) <= set(READ_CRITERIA)):
         return Reading(None, error="the decider gave no reading")
-    return Reading(answer["choice"], {k: float(v) for k, v in probabilities.items()})
+    scores = {}
+    for label, value in probabilities.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= value <= 1.0:
+            return Reading(None, error="the decider gave no reading")
+        scores[label] = float(value)
+    return Reading(answer["choice"], scores)
 
 
 def _ms(started: float) -> float:

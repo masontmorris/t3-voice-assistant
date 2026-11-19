@@ -148,24 +148,33 @@ class Question:
     `kind` is the state: "project" (which project), "confirm" (start it in this project?), "thread" (which
     thread), or "thread_confirm" (one thread, asked back for `op`). `candidates` are project or thread ids, and
     `titles` names each thread. `message` is a follow-up's words, from `tell_parts`.
+
+    An answer authorizes only this question: asked in `call`, heard (its audio was sent), and answered on the next
+    turn. `owner` is the turn that asked it and `expired` says a later turn ended without answering it.
     """
 
     key: str
     kind: str
     instruction: str
     candidates: tuple[str, ...]
-    reasked: bool = False
     op: str = START
     titles: dict[str, str] = field(default_factory=dict)
     projects: dict[str, str] = field(default_factory=dict)
     message: str | None = None
     evidence: tuple[int, ...] = ()
+    call: int = 0
+    owner: object = None
+    heard: bool = False
+    heard_at: float = 0.0
+    asked_at: float = 0.0
+    expired: bool = False
 
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="minutes")
 
 
+CONFIRM_TTL_S = 90.0  # How long a heard question can be answered.
 MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting for a person turn.
 
 
@@ -183,6 +192,7 @@ class T3Tasks:
     just_held: bool = False
     lock: threading.RLock = field(default_factory=threading.RLock)
     unasked: L.Update | None = field(default=None, init=False)
+    call: int = field(default=0, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
     speech: Speech = field(init=False)
@@ -295,6 +305,75 @@ class T3Tasks:
         except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
             return None
 
+    def begin_call(self) -> None:
+        """A new call starts: nothing asked on an earlier one can be answered on it."""
+        with self.lock:
+            self.call += 1
+            self._drop_question()
+
+    def end_call(self) -> None:
+        with self.lock:
+            self._drop_question()
+
+    def _drop_question(self) -> None:
+        self.question = self.unasked = None
+        self.just_held = False
+
+    def _ask(self, question: Question) -> Question:
+        """Open `question` as a new prompt: this call's, not yet heard."""
+        self.question = question = replace(question, call=self.call, owner=None, heard=False, heard_at=0.0,
+                                           asked_at=time.monotonic(), expired=False)
+        return question
+
+    def live_question(self) -> Question | None:
+        """The open question when an answer may still authorize it, else None, and the stale one is dropped: one from
+        another call, one a later turn ended without answering, or one past CONFIRM_TTL_S since it was heard."""
+        with self.lock:
+            question = self.question
+            if question is None:
+                return None
+            since = question.heard_at if question.heard else question.asked_at
+            if question.call != self.call or question.expired or time.monotonic() - since > CONFIRM_TTL_S:
+                self._drop_question()
+                return None
+            return question
+
+    def spoke(self, update: L.Update) -> None:
+        """`update` was said aloud, whole. If it is the open question, the person has heard it and the next turn may
+        answer it. Anything else said after it moves the conversation on, so the question is dropped."""
+        with self.lock:
+            question = self.question
+            if question is None:
+                return
+            if update.task_id == question.key and update.status == "needs_clarification":
+                question.heard, question.heard_at = True, time.monotonic()
+                if self.unasked is update:
+                    self.unasked = None
+            elif question.heard:
+                self._drop_question()
+
+    def turn_closed(self, owner: object) -> None:
+        """A turn ended. A question that an earlier turn asked and this one did not answer can no longer be."""
+        with self.lock:
+            question = self.question
+            if question is not None and question.owner is not None and question.owner is not owner:
+                question.expired = True
+
+    def bind_request(self, prefix: str, transcript: str) -> None:
+        """The launch carries everything the person said in the turn that asked, not the fragment that asked."""
+        with self.lock:
+            question = self.question
+            if (question is not None and question.op == START and question.key.startswith(prefix)
+                    and (transcript or "").strip()):
+                question.instruction = transcript.strip()
+
+    def claim(self, update: L.Update, owner: object) -> None:
+        """The turn `owner` asked the question `update` says."""
+        with self.lock:
+            question = self.question
+            if question is not None and question.key == update.task_id:
+                question.owner = owner
+
     def asking_start(self, prefix: str) -> bool:
         """Whether a launch question that a task with this key prefix (one turn's) asked is still open."""
         with self.lock:
@@ -321,16 +400,16 @@ class T3Tasks:
             pick = pick_project(instruction, projects)
             candidates = (pick.project_id,) if pick.kind == "one" else tuple(pick.candidates or names)
             if not candidates:
-                self.question = None
+                self._drop_question()
                 return L.Update(key, (act(Say.NO_PROJECT),), "failed", "pick", sequences=hello_seq)
             if len(candidates) == 1:
                 return self._confirm(Question(key, "confirm", instruction, candidates), names)
-            self.question = Question(key, "project", instruction, candidates)
+            self._ask(Question(key, "project", instruction, candidates))
             return L.Update(key, (which_project(candidates, names),), "needs_clarification", "pick",
                             sequences=hello_seq)
 
     def _confirm(self, question: Question, names: dict[str, str]) -> L.Update:
-        self.question = question
+        question = self._ask(question)
         project_id = question.candidates[0]
         said = act(Say.CONFIRM_LAUNCH, project=names[project_id])
         return L.Update(question.key, (said,), "needs_clarification", "pick",
@@ -360,16 +439,26 @@ class T3Tasks:
                 return "yes"
         return kind
 
-    def answer(self, text: str, now: float) -> L.Update | None:
-        """The next utterance, read as the answer to the open question, or as taking back a held follow-up."""
+    def answer(self, text: str, now: float, kind: str | None = None, question: Question | None = None
+               ) -> L.Update | None:
+        """The next utterance, read as the answer to the open question, or as taking back a held follow-up.
+
+        `question` and `kind` are the open question and the reading of the reply when the caller made them off the
+        lock. Left out, they are read here. If the open question is no longer that one when the reading is back, the
+        reply was for a prompt that has gone, and it answers nothing."""
+        if question is None:
+            question = self.live_question()
+            kind = self.read_reply(text, question) if question is not None else None
         with self.lock:
-            question = self.question
-        kind = self.read_reply(text, question) if question is not None else None
-        with self.lock:
-            if self.question is not None and self.unasked is not None and self.question.key == self.unasked.task_id:
-                if kind == "yes" or utterance_intent(text).intent != Intent.REQUEST:
+            if self.question is not question:
+                return None
+            unheard = self.question is not None and self.question.owner is not None and not self.question.heard
+            if self.question is not None and (unheard or (self.unasked is not None
+                                                           and self.question.key == self.unasked.task_id)):
+                # The person never heard this question, so nothing they said answers it: it is asked again.
+                if (kind == "yes" or utterance_intent(text).intent != Intent.REQUEST) and self.unasked is not None:
                     return self.unasked
-                self.question = self.unasked = None
+                self._drop_question()
                 return None
             question, self.question = self.question, None
             just_held, self.just_held = self.just_held, False
@@ -386,7 +475,7 @@ class T3Tasks:
                 return down
             return self._answer_start(question, text, kind, now)
 
-    def _answer_start(self, question: Question, text: str, kind: str | None, now: float) -> L.Update:
+    def _answer_start(self, question: Question, text: str, kind: str | None, now: float) -> L.Update | None:
         projects = self.projects()
         names = {p["projectId"]: p["name"] for p in projects}
         is_question = _QUESTION.search(text) is not None
@@ -397,7 +486,7 @@ class T3Tasks:
             if not is_question and _OTHER_PROJECT.search(text):
                 others = tuple(pid for pid in names if pid != current)
                 if len(others) == 1:
-                    return self._confirm(replace(question, candidates=others, reasked=False), names)
+                    return self._confirm(replace(question, candidates=others), names)
                 if others:
                     question = replace(question, kind="project", candidates=others)
         if question.kind == "project":
@@ -406,18 +495,9 @@ class T3Tasks:
         if not is_question:
             pick = pick_project(f"in {text}", projects)
             if pick.kind == "one" and (question.kind == "project" or (pick.project_id,) != question.candidates):
-                return self._confirm(replace(question, kind="confirm", candidates=(pick.project_id,),
-                                             reasked=False), names)
-
-        if question.reasked:
-            return L.Update(question.key, (act(Say.CANCELLED, op="start"),), "cancelled", "pick")
-        question = replace(question, reasked=True)
-        if question.kind == "confirm" and question.candidates[0] in names:
-            return self._confirm(question, names)
-        candidates = tuple(pid for pid in question.candidates if pid in names) or tuple(names)
-        self.question = replace(question, kind="project", candidates=candidates)
-        return L.Update(question.key, (which_project(candidates, names),), "needs_clarification", "pick",
-                        sequences=(self.follow.seam.hello.latest_sequence,))
+                return self._confirm(replace(question, kind="confirm", candidates=(pick.project_id,)), names)
+        # A reply that answers nothing drops the question. It is never asked again, and the turn goes on as talk.
+        return None
 
     def _spoken(self, key: str, task, ack: Act, row: str) -> L.Update:
         """What a write's own call made the lifecycle say, as the turn's answer. `ack` when it has said nothing yet."""
@@ -491,13 +571,13 @@ class T3Tasks:
                      if t.link.thread_id in listed), None)
 
     def _ask_back(self, question: Question, evidence=()) -> L.Update:
-        self.question = question = replace(question, evidence=tuple(evidence) or question.evidence)
+        question = self._ask(replace(question, evidence=tuple(evidence) or question.evidence))
         thread = question.candidates[0]
         said = confirm_act(question.op, question.titles[thread], question.message)
         return L.Update(question.key, (said,), "needs_clarification", "pick", thread, question.evidence)
 
     def _which(self, question: Question, evidence) -> L.Update:
-        self.question = question
+        question = self._ask(question)
         said = act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
         return L.Update(question.key, (said,), "needs_clarification", "pick", sequences=evidence)
 
@@ -511,9 +591,7 @@ class T3Tasks:
             return L.Update(question.key, (cancelled,), "cancelled", "pick", thread)
         if kind == "no":
             return self._declined(question, thread, text, now)
-        if question.reasked:
-            return L.Update(question.key, (cancelled,), "cancelled", "pick", thread)
-        return self._ask_back(replace(question, reasked=True))
+        return None
 
     def _declined(self, question: Question, declined: str, text: str, now: float) -> L.Update | None:
         """A no to "Do you mean the X thread?": the thread the reply names, else which one, by up to three titles."""
@@ -525,7 +603,7 @@ class T3Tasks:
             return listing
         others = [t for t in self._threads(listing) if t["threadId"] != declined]
         question = replace(question, titles={t["threadId"]: t["title"] for t in others},
-                           projects={t["threadId"]: t["projectId"] for t in others}, reasked=False)
+                           projects={t["threadId"]: t["projectId"] for t in others})
         evidence = (listing.as_of_sequence,)
         words = " ".join(w for w in _WORD.findall(_plain(text).lower()) if w not in NO)
         pick = prefilter_pick(words, others, self.project_names()) if content_words(words) else None
@@ -555,7 +633,7 @@ class T3Tasks:
             return self._which(replace(question, candidates=tuple(question.titles)), evidence)
         if question.op == ASK:
             return self._act(question, pick.thread_id, now)
-        return self._ask_back(replace(question, kind="thread_confirm", candidates=(pick.thread_id,), reasked=False),
+        return self._ask_back(replace(question, kind="thread_confirm", candidates=(pick.thread_id,)),
                               evidence)
 
     def _act(self, question: Question, thread: str, now: float) -> L.Update:
@@ -754,6 +832,7 @@ class T3TaskService(MockTaskService):
             self.spoken[task_id] = update
             if update.status == "needs_clarification":
                 self.t3.unasked = update
+                self.t3.claim(update, self)
         state = Run.FAILED if update.status in ("failed", "lost") else Run.COMPLETED
         return Execution(task_id, state, now, None, result_summary=None, finished_at=now, mode="t3",
                          tool={"tool": tool, "arguments": {}})
@@ -785,7 +864,7 @@ class T3TaskService(MockTaskService):
 
     def open_question(self):
         """T3 reads the next words when it asked a question, or while it holds a follow-up Mason may take back."""
-        return T3_WAITING if self.t3.question is not None or self.t3.holding() else None
+        return T3_WAITING if self.t3.live_question() is not None or self.t3.holding() else None
 
     def answer(self, waiting, instruction, now):
         if waiting is not T3_WAITING:
@@ -794,8 +873,11 @@ class T3TaskService(MockTaskService):
         with self.t3.lock:
             if any(update is self.t3.unasked for update in self.spoken.values()):
                 return []
-            tool = self.t3.question.op if self.t3.question is not None else TELL
-            update = self.t3.answer(instruction, now)
+        question = self.t3.live_question()
+        kind = self.t3.read_reply(instruction, question) if question is not None else None
+        with self.t3.lock:
+            tool = question.op if question is not None else TELL
+            update = self.t3.answer(instruction, now, kind, question)
         if update is None:
             return []
         task_id = f"t3_{len(self.extra) + 1}"
@@ -806,6 +888,7 @@ class T3TaskService(MockTaskService):
         return [{"task_id": task_id, "event": execution.state.value, "instruction": instruction}]
 
     def snapshot(self, utterance_id, final_transcript, unreviewed=None, notes=False):
+        self.t3.bind_request(f"{self.conversation_id}:", final_transcript)
         snapshot = super().snapshot(utterance_id, final_transcript, unreviewed, notes)
         for entry in snapshot["tasks"]:
             update = self.spoken.get(entry["task_id"])
@@ -835,11 +918,11 @@ class T3TaskService(MockTaskService):
             self.executions[task_id].result_summary = entry.get("spoken")
             with self.t3.lock:
                 self.t3.ack_news(self.spoken[task_id])
-                if self.t3.unasked is self.spoken[task_id]:
-                    self.t3.unasked = None
+                self.t3.spoke(self.spoken[task_id])
 
     def close(self):
         super().close()
+        self.t3.turn_closed(self)
         unsent = [update for task_id, update in self.spoken.items()
                   if task_id not in self.delivered and update.status != "needs_clarification"]
         unsent.extend(self.news.values())
@@ -942,6 +1025,7 @@ class Script:
         else:
             self.turns.append({"assistant": rendered.line.text})
             self.t3.ack_news(update)
+            self.t3.spoke(update)
         print(json.dumps(row), flush=True)
         return rendered.line is not None
 
