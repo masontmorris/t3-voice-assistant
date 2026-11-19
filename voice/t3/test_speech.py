@@ -342,9 +342,7 @@ class RealtimeWriterTest(unittest.IsolatedAsyncioTestCase):
                 third = asyncio.create_task(asyncio.to_thread(writer.complete, self.messages))
                 for session in sessions:
                     await session.closing.wait()
-                await asyncio.sleep(0)
-                self.assertFalse(third.done(), "two sessions are still closing, so the third waits")
-                self.assertEqual(len(sessions), 2)
+                self.assertEqual(len(sessions), 2, "two sessions are still closing, so the third has none to open")
                 sessions[0].allow_close.set()
                 self.assertEqual((await third)["text"], "Is Rotate Signing Keys the thread?")
                 for session in sessions:

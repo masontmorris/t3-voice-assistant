@@ -10,9 +10,14 @@ and a yes to the thread being confirmed. The server is the real one (voice/live/
 decider, the T3 task service, the call-voice relay, the checks); only the seam it reads T3 through is scripted
 (voice/t3/fakes.py), so a launch starts nothing and costs nothing.
 
-Calls 1 to 5 are the visible half, calls 6 to 10 the first held-out half and calls 11 to 15 a second one, written
-after the first had been looked at for causes. Each was written once; fixes are tuned against the visible half only.
-Report all of them. `summary` reads the records and says, per call, how far it got:
+Calls 1 to 5 are the visible half, 6 to 10 the first held-out half (A), 11 to 15 a second one (B), written after A had
+been looked at for causes, and 16 to 20 a third (C), written after B had been run. Each was written once; fixes are
+tuned against the visible half only. Report all of them.
+
+A thread counts as started only when the scripted seam saw a launch whose payload is this call's request (most of its
+words are in what the launch carried) in the sandbox project, during this call. The seam knows no thread until a launch
+makes it. A line the voice said is judged against the seam's record: "a new coding thread has started" is true only
+after such a launch, and a status line is true only when it names the thread this call launched. `summary` reads the records and says, per call, how far it got:
 dispatched (the request became a launch act), asked (that question was spoken), yes read (the answer became a launch
 act), started (the seam saw a launch), and where the first break was.
 
@@ -46,7 +51,10 @@ CHAT = (("Hey there, how are things?", "Pretty good, how about you?"),
         ("Hey you.", "Not too bad, a bit of a slow start."),
         ("Hey, you there?", "Yeah, all good, you?"), ("Good afternoon.", "Afternoon! Busy day so far."),
         ("Hi!", "Doing well, thanks for asking."), ("Hello, hello.", "Not bad at all, how are you?"),
-        ("Hey assistant.", "Pretty good, just warming up."))
+        ("Hey assistant.", "Pretty good, just warming up."),
+        ("Morning, are you around?", "Yep, doing alright, you?"), ("Hey hey.", "Pretty decent, can't complain."),
+        ("Hello, can you hear me okay?", "Loud and clear, how's it going?"),
+        ("Hi again.", "Good thanks, ready when you are."), ("Hey, quick check-in.", "Sure, what's up?"))
 THREADS = ("Clean up texture export for the game engine", "Convert audio presets for the editor",
            "Find out why the nightly build is slow", "Fix the dropped spreadsheet columns",
            "Remember window sizes on the settings screen",
@@ -54,7 +62,10 @@ THREADS = ("Clean up texture export for the game engine", "Convert audio presets
            "Find why shader compiles are slow", "Clean up the save slot writer", "Make build notes output markdown",
            "Fix the installer hang at ninety percent", "Tidy the config loader",
            "Find why the dashboard loads slowly", "Fix the typo checker flagging every word",
-           "Add dark mode to the settings page")
+           "Add dark mode to the settings page",
+           "Speed up the level loading screen", "Fix the controller rumble on pause",
+           "Clean up the localization export", "Find the memory leak in the particle system",
+           "Add a replay mode to the debug menu")
 ASKS = ("How is the texture export thread going?", "How's the audio presets thread going?",
         "What is the nightly build thread up to?", "Is the spreadsheet columns thread done yet?",
         "How is the window sizes thread going?",
@@ -63,7 +74,10 @@ ASKS = ("How is the texture export thread going?", "How's the audio presets thre
         "How are the build notes going?",
         "How is the installer thread going?", "What's the config loader thread up to?",
         "Is the dashboard thread finished?", "How is the typo checker thread going?",
-        "How's the dark mode thread going?")
+        "How's the dark mode thread going?",
+        "How is the loading screen thread going?", "What's the controller rumble thread up to?",
+        "Is the localization thread finished?", "How is the memory leak thread going?",
+        "How's the replay mode thread going?")
 REQUESTS = (
     "Uhm, I was wondering if you could start a thread to get work going on, uhm, a little project to make, uhm, "
     "textures export into the game engine cleanly? Can you kick that off and keep it tidy?",
@@ -94,9 +108,20 @@ REQUESTS = (
     "So, uh, I need a favor, kind of, a thread for fixing the typo checker, the, the one that flags every other "
     "word, could you open that up for me?",
     "Alright, uhm, here's what I'm thinking, a thread to add dark mode to the settings page, a small project, and, "
-    "uh, go ahead and kick it off whenever.")
+    "uh, go ahead and kick it off whenever.",
+    "Um, okay, so the level loading screen is, like, painfully slow, and I was thinking, uh, could you start a thread "
+    "on that, just to see what's going on, nothing fancy?",
+    "Right, uhm, there's this bug where the controller keeps rumbling when you pause, and, uh, I'd really like a "
+    "thread on that, if you could get that going.",
+    "So, uh, I have this, this localization export, and it's kind of a mess, a small project really, and, uhm, would "
+    "you open a thread to clean that up for me?",
+    "Okay, so, this is a bit of a long one, uhm, we have a memory leak somewhere in the particle system, I think, "
+    "and, uh, I need a thread for tracking it down, thorough, but not crazy.",
+    "Hey, uh, quick idea, a replay mode, in the debug menu, uhm, so we can scrub through a session, can you start a "
+    "thread to build that?")
 YES = ("Please do.", "Yes, please do.", "Yeah, go ahead.", "Please do.", "Yes please.",
        "Please do?", "Yeah, go ahead.", "Sure.", "Yes, do it.", "Please do.",
+       "Please do.", "Yeah, go ahead.", "Sure.", "Please do?", "Yes, do it.",
        "Please do.", "Yeah, go ahead.", "Sure.", "Please do?", "Yes, do it.")
 assert len(CHAT) == len(THREADS) == len(ASKS) == len(REQUESTS) == len(YES)
 
@@ -106,34 +131,57 @@ def turns(call, tail=True):
     return [*CHAT[call], REQUESTS[call], YES[call], *((ASKS[call], "Yes.") if tail else ())]
 
 
+FILLER = frozenset({"uh", "uhm", "um", "so", "okay", "right", "and", "the", "a", "to", "it", "that", "i", "you", "if",
+                    "of", "on", "in", "for", "can", "could", "would", "be", "is", "my", "me", "this", "there"})
+
+
+def words_of(text):
+    return {w for w in "".join(c if c.isalnum() or c == "'" else " " for c in (text or "").lower()).split()
+            if w not in FILLER}
+
+
+def overlap(request, payload):
+    """The share of `request`'s content words that `payload` carries."""
+    want = words_of(request)
+    return len(want & words_of(payload)) / len(want) if want else 0.0
+
+
 class ScriptedSeam(F.FakeSeam):
-    """The seam a call reads: one sandbox project, a thread per request the calls make, and reads of them. Each launch
-    is logged with the time it came."""
+    """The seam a call reads: one sandbox project, and no thread until a launch makes one. A launch is logged with the
+    time it came, its payload, and which call's request that payload is."""
 
     def __init__(self, log_path: Path):
         super().__init__()
         self.log_path = log_path
-        for call in range(len(THREADS)):
-            self.answer("launch", F.launched(thread=f"t{call + 1}", run=f"r{call + 1}", sequence=93 + call))
-        self.listing = T.ThreadList(tuple(
-            T.ThreadSummary(f"t{i + 1}", "p1", title, T.ThreadActivity.WORKING, "2026-11-18T10:00:00Z", False)
-            for i, title in enumerate(THREADS)), len(THREADS), False, 200)
-        self.launches = []
+        self.launches, self.threads = [], {}
+
+    @property
+    def listing(self):
+        return T.ThreadList(tuple(T.ThreadSummary(tid, "p1", title, T.ThreadActivity.WORKING, "2026-11-18T10:00:00Z",
+                                                  False) for tid, title in self.threads.items()),
+                            len(self.threads), False, 200)
+
+    @listing.setter
+    def listing(self, _):
+        pass
 
     def read_thread(self, thread_id):
         self.calls.append(("read", thread_id))
-        title = THREADS[int(thread_id[1:]) - 1]
-        return F.state(thread=thread_id, title=title, as_of=210)
+        return F.state(thread=thread_id, title=self.threads[thread_id], as_of=210)
 
     def drain(self, timeout=None):
         time.sleep(min(timeout or 0.5, 0.5))
         return iter(())
 
     def launch(self, request_id, project_id, instruction):
-        result = super().launch(request_id, project_id, instruction)
-        self.launches.append({"at": time.time(), "project": project_id, "instruction": instruction})
+        self.calls.append(("launch", request_id, project_id, instruction))
+        best = max(range(len(REQUESTS)), key=lambda i: overlap(REQUESTS[i], instruction))
+        thread = f"t{best + 1}"
+        self.threads[thread] = THREADS[best]
+        self.launches.append({"at": time.time(), "project": project_id, "instruction": instruction, "call": best,
+                              "overlap": round(overlap(REQUESTS[best], instruction), 2), "thread": thread})
         self.log_path.write_text(json.dumps(self.launches), encoding="utf-8")
-        return result
+        return F.launched(thread=thread, run=f"r{best + 1}", sequence=93 + len(self.launches))
 
 
 def serve(args, rest):
@@ -227,13 +275,31 @@ def entries(record):
     return found
 
 
-def grade(call_rows, started):
-    """How far one call got and where it first broke. `call_rows` are its turns in order, with their T3 entries."""
+MATCH = 0.75  # How much of the request a launch's payload must carry to be this call's request.
+
+
+def grade(call_rows, call, launches):
+    """How far one call got and where it first broke. `call_rows` are its turns in order, with their T3 entries, `call`
+    its index from 0, and `launches` the seam's launches during it. A thread is started only by a launch that carries
+    this call's request, and each line the voice said is judged against that record."""
     lines = [e for row in call_rows for e in row["t3"]]
+    mine = [x for x in launches if x["call"] == call and x["overlap"] >= MATCH and x["project"] == "p1"]
+    started, title = bool(mine), THREADS[call]
+    said = [e for e in lines if e["delivery"] == "sent"]
+    claims = []
+    for e in said:
+        kinds, text = set(e["kinds"]), (e["reply"] or "").lower()
+        if "launched" in kinds:
+            claims.append({"line": e["reply"], "true": started})
+        elif {"thread_status", "confirm_thread"} & kinds:
+            claims.append({"line": e["reply"], "true": started and title.lower() in text})
     asking = [e for e in lines if ASKING & set(e["kinds"])]
     asked = [e for e in asking if e["delivery"] == "sent"]
     answered = [e for e in lines if ANSWERED & set(e["kinds"])]
-    stages = {"dispatched": bool(asking), "asked": bool(asked), "yes_read": bool(answered), "started": started}
+    status = any("thread_status" in e["kinds"] and title.lower() in (e["reply"] or "").lower() for e in said) and started
+    stages = {"dispatched": bool(asking), "asked": bool(asked), "yes_read": bool(answered), "started": started,
+              "launch_overlap": [x["overlap"] for x in launches if x["call"] == call],
+              "status_answered": status, "false_claims": [c["line"] for c in claims if not c["true"]]}
     if started:
         cause = None
     elif not asking:
@@ -242,6 +308,8 @@ def grade(call_rows, started):
         cause = ("draft refused" if all(e["draft_problems"] for e in asking) else "relay reply held")
     elif not answered:
         cause = "yes not read"
+    elif launches:
+        cause = "launch payload is not the request"
     else:
         cause = "launch not performed"
     return {**stages, "first_break": cause}
@@ -268,8 +336,8 @@ def summarize(out):
     grades = {}
     for order, window in enumerate(windows, 1):
         mine = [r for r in rows if r["call"] == order]
-        hit = any(window["start"] <= s["at"] <= window["end"] + 5 for s in started)
-        grades[window["call"]] = grade(mine, hit)
+        during = [x for x in started if window["start"] <= x["at"] <= window["end"] + 5]
+        grades[window["call"]] = grade(mine, window["call"] - 1, during)
     return rows, grades, started
 
 
@@ -289,16 +357,17 @@ def main():
     args = parser.parse_args(head)
     if args.mode == "summary":
         rows, grades, started = summarize(args.out)
-        visible = [g for c, g in grades.items() if c <= VISIBLE]
-        held = [g for c, g in grades.items() if VISIBLE < c <= 2 * VISIBLE]
-        held_b = [g for c, g in grades.items() if c > 2 * VISIBLE]
+        halves = {"visible": [g for c, g in grades.items() if c <= VISIBLE],
+                  "held_out_a": [g for c, g in grades.items() if VISIBLE < c <= 2 * VISIBLE],
+                  "held_out_b": [g for c, g in grades.items() if 2 * VISIBLE < c <= 3 * VISIBLE],
+                  "held_out_c": [g for c, g in grades.items() if c > 3 * VISIBLE]}
         causes = {}
         for g in grades.values():
             causes[g["first_break"] or "started"] = causes.get(g["first_break"] or "started", 0) + 1
-        print(json.dumps({"rows": rows, "grades": grades, "first_break_causes": causes,
-                          "started_visible": f"{sum(g['started'] for g in visible)} of {len(visible)}",
-                          "started_held_out_a": f"{sum(g['started'] for g in held)} of {len(held)}",
-                          "started_held_out_b": f"{sum(g['started'] for g in held_b)} of {len(held_b)}"}, indent=1))
+        score = {name: {"started": f"{sum(g['started'] for g in gs)} of {len(gs)}",
+                        "status_answered": f"{sum(g['status_answered'] for g in gs)} of {len(gs)}",
+                        "false_claims": sum(len(g["false_claims"]) for g in gs)} for name, gs in halves.items() if gs}
+        print(json.dumps({"score": score, "first_break_causes": causes, "grades": grades, "rows": rows}, indent=1))
     else:
         serve(args, rest) if args.mode == "serve" else run_drive(args)
 

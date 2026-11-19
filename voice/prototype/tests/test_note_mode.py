@@ -218,13 +218,21 @@ class Streaming(Scripted):
         else:
             await FakeSession.send(self, **event)
 
+    async def wait_for(self, *types, after=0, timeout=120):
+        if (drained := getattr(self, "drained", None)) is not None:
+            drained.set()
+        return await super().wait_for(*types, after=after, timeout=timeout)
+
     async def generate(self, text):
+        """One word at a time, and the next only once the turn has read this one and gone back to waiting, so a cancel
+        sent on a word reaches the session before the next word does."""
+        self.drained = asyncio.Event()
         for word in text.split(" "):
             for event in ({"type": "response.output_text.delta", "delta": word + " "},
                           {"type": "response.output_audio.delta", "delta": "AQA="}):
+                self.drained.clear()
                 await self.push(event)
-                for _ in range(3):
-                    await asyncio.sleep(0)
+                await self.drained.wait()
             if self.cancelled:
                 break
         await self.push({"type": "response.done",

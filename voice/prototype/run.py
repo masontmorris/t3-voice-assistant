@@ -257,8 +257,7 @@ def given_results(prior_results, noted, tasks):
 def fact_check(text, sources, previous=()):
     """What the screens would have said about a spoken reply, for the record. Every list is empty for a clean one.
 
-    Mason, 2026-11-18, after a call whose second reply was cut after "but I" for naming a place: this check never
-    holds, cuts, mutes or asks again. It only reports."""
+    This check never holds, cuts, mutes or asks again. It only reports (ruling, 2026-11-18)."""
     found = {"ungrounded": [f"{fact.kind} {fact.surface}" for fact in ungrounded(text, sources)],
              "machinery": names_machinery(text), "third_person": speaks_of_person(text),
              "repeated": repeated(text, previous)}
