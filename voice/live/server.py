@@ -162,6 +162,9 @@ IDLE_GRACE_S = 1.5
 # can be said in one short turn. A guess, not measured.
 COALESCE_S = 1.0
 QUIET_CHECK_S = 0.2
+# Held sound is transcribed this often while it lasts (`judge_held`). On the noise rehearsal every burst transcribed
+# empty, so the reply goes about this long after the sound starts instead of after it ends.
+HELD_CHECK_S = 1.0
 
 
 def slots(asr_stagger=1):
@@ -549,8 +552,9 @@ class Conversation:
         self.heard_at = time.perf_counter()
         if self.overlap is not None:
             held = bytes(self.overlap.pcm)
-            if self.overlap.task is not None:
-                self.overlap.task.cancel()
+            for task in (self.overlap.task, self.overlap.early):
+                if task is not None:
+                    task.cancel()
             self.overlap = None
         if self.turn is not None and self.reply_audible():
             self.overlap = Overlap(self.live.overlap_settings, bytearray(held + pcm), self.playback.turn)
@@ -559,6 +563,7 @@ class Conversation:
         elif self.reply_coming():
             self.overlap = Overlap(self.live.overlap_settings, bytearray(held + pcm), self.turn.n, before_reply=True)
             self.hold_floor(True)
+            self.overlap.early = asyncio.create_task(self.judge_held(self.overlap))
         else:
             self.start_turn(held + pcm)
             self.hold_floor(False)
@@ -594,15 +599,45 @@ class Conversation:
         overlap = self.overlap
         voiced = overlap.feed(event.pcm, event.level_dbfs, self.endpointer.noise_dbfs)
         if overlap.before_reply:
-            overlap.reply_heard = overlap.reply_heard or self.reply_audible()
+            self.note_reply(overlap)
         elif voiced:
             self.settle(Verdict.BARGE_IN, "voiced")
         elif not self.reply_audible():
             self.settle(None, "reply ended")
 
+    def note_reply(self, overlap):
+        """A reply became audible while the sound was held: it is ducked, as under any overlap, and the sound is
+        judged against it from now on."""
+        if not overlap.reply_heard and self.reply_audible():
+            overlap.reply_heard = True
+            self.post({"type": "duck", "turn": self.playback.turn})
+
+    async def judge_held(self, overlap):
+        """Held sound is judged on its transcript so far every HELD_CHECK_S, not only when it ends. Words before any
+        reply continue the turn at once; over a reply, the overlap rules decide, so an interruption stops it; with
+        nothing to act on yet, the reply goes and the sound is still held. Noise does not count as voiced here, so a
+        reply is never stopped for sound alone."""
+        while True:
+            await asyncio.sleep(HELD_CHECK_S)
+            try:
+                text = await self.live.transcribe(bytes(overlap.pcm))
+            except Exception:
+                continue
+            if self.overlap is not overlap or overlap.task is not None:
+                return
+            self.note_reply(overlap)
+            if overlap.reply_heard:
+                if classify(text, self.playback.text) is Verdict.BARGE_IN:
+                    return self.settle(Verdict.BARGE_IN, "transcript so far", text)
+            elif words(text):
+                return self.settle(None, "words so far", text)
+            self.hold_floor(False)
+
     def on_overlap_end(self, trailing_ms):
         overlap = self.overlap
-        if overlap.voiced_ms < self.live.overlap_settings.min_voiced_ms:
+        if overlap.early is not None:
+            overlap.early.cancel()
+        if not overlap.before_reply and overlap.voiced_ms < self.live.overlap_settings.min_voiced_ms:
             self.settle(Verdict.NOISE, "too short")
         else:
             overlap.task = asyncio.create_task(self.classify_overlap(overlap, trailing_ms))
@@ -625,9 +660,11 @@ class Conversation:
         """The overlap's verdict. A barge-in, or speech the reply finished under, becomes a turn that opens with all
         of the overlap's audio; a dismissed overlap is logged with its audio and the reply plays on."""
         overlap, self.overlap = self.overlap, None
+        if overlap.early is not None and overlap.early is not asyncio.current_task():
+            overlap.early.cancel()
         entry = overlap.record(verdict or "turn", how, time.perf_counter(), transcript)
         self.live.log_overlap(entry, None if verdict in (None, Verdict.BARGE_IN) else overlap.pcm)
-        if verdict is not Verdict.BARGE_IN and not overlap.before_reply:
+        if verdict is not Verdict.BARGE_IN and (not overlap.before_reply or overlap.reply_heard):
             self.post({"type": "unduck", "turn": overlap.turn, "verdict": str(verdict or "turn")})
         if verdict in (None, Verdict.BARGE_IN):
             self.start_turn(bytes(overlap.pcm), barge_in=verdict is Verdict.BARGE_IN)
@@ -970,8 +1007,10 @@ class Conversation:
     async def close(self):
         if self.news is not None:
             self.news.cancel()
-        if self.overlap is not None and self.overlap.task is not None:
-            self.overlap.task.cancel()
+        if self.overlap is not None:
+            for task in (self.overlap.task, self.overlap.early):
+                if task is not None:
+                    task.cancel()
         for task in (*self.checks, *self.read_backs):
             task.cancel()
         turns = list(self.pending)

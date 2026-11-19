@@ -122,6 +122,7 @@ class Overlap:
     task: asyncio.Task | None = None
     before_reply: bool = False
     reply_heard: bool = False
+    early: asyncio.Task | None = None
 
     def feed(self, pcm, level_dbfs, noise_dbfs):
         """Adds one frame. True once the overlap holds enough voiced audio to be a barge-in."""

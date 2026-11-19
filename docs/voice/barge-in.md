@@ -39,21 +39,23 @@ The voiced count uses a -60 dBFS floor. Call 2's quiet short turns peak near -40
 
 Sound that starts after a turn has ended, while that turn is still working on its reply and nothing is audible, used to cancel the turn at once and carry its audio into a new one ("continued"). On a live call with steady background noise, noise a second after a thread question did that twice, and the caller heard nothing for three turns. The endpointer starts a turn on energy alone, so it cannot tell noise from words.
 
-Such sound is now held like an overlap, without ducking and without the 600 ms voiced rule. Its verdict comes from its one-shot transcript once it ends. With no words, it is dismissed and logged, and the turn goes on. With words, the turn is cancelled and the words continue it, as before. If a reply becomes audible while the sound is held, the overlap rules above decide instead. While the sound is held, the call's voice session takes no new item and makes no response (`floor_free`), the turn's reply audio waits (`Conversation.hold_floor`), and the turn does not finish. So a turn that the sound continues has put nothing in the session, a relay included (`relay_draft` waits before its shield). The turn's transcript, decider pick, tools and drafts keep running.
+Such sound is now held like an overlap, without the 600 ms voiced rule, and judged on its transcript: every second while it lasts (`judge_held`, `HELD_CHECK_S`) and once when it ends, however short it is. Words before any reply continue the turn at once: the turn is cancelled and the words, with the rest of what follows, carry into a new one, as before. No words so far lets the reply go while the sound is still held. A reply that becomes audible while the sound is held is ducked, and from then the overlap rules decide on the transcript: an interruption stops the reply within about a second, and an echo, a backchannel or noise does not. Noise never counts as voiced here, so a reply is not stopped for sound alone.
+
+Until the first judgment lets the reply go, the call's voice session takes no new item and makes no response (`floor_free`), the turn's reply audio waits (`Conversation.hold_floor`), and the turn does not finish. So a turn that the sound continues has put nothing in the session. A relay waits for the floor before its shield, and again after its note is acknowledged, and then makes no response for a turn that was cancelled or muted meanwhile. The turn's transcript, decider pick, tools and drafts keep running.
 
 Measured with `python -m voice.live.rehearse drive --noise` (five calls; synthetic road noise 2 to 4.4 s long, 4 to 12 dB below the speech, starting 1.0 to 1.3 s after a thread question; then a thread question continued after a 0.9 s pause), two runs each, GPU:
 
-| | Before | After |
-| --- | --- | --- |
-| The noise cancelled the question's turn | 9 of 10 calls | 0 of 10 |
-| The question's status line was said | 8 of 10 (both misses were the decider asking a confirmation) | 10 of 10 |
-| Noise bursts held and dismissed, of those the endpointer took for speech | none held | 9 of 9, every transcript empty |
-| The continued question was joined into one turn | 10 of 10 | 8 of 10 |
-| Its status line was said | 10 of 10 | 8 of 10 |
+| | Before | Judged at the end | Judged every second (shipped) |
+| --- | --- | --- | --- |
+| The noise cancelled the question's turn | 9 of 10 calls | 0 of 10 | 0 of 10 |
+| The question's status line was said | 8 of 10 (both misses were the decider asking a confirmation) | 10 of 10 | 10 of 10 |
+| Its first audio, after the question's speech ended | | 4.6 to 6.9 s | 1.4 to 2.8 s |
+| The continued question was joined into one turn | 10 of 10 | 8 of 10 | 8 of 10 |
+| Its status line was said | 10 of 10 | 8 of 10 | 9 of 10 |
 
-The cost is waiting: the reply comes once the noise has been judged, 4.6 to 6.9 s after the question's speech ended on the noise calls, against a median of 2.0 s for a plain thread status question (99 rehearsed turns: 0.7 s endpointer silence, 0.36 s final transcript, decider pick and tools, 0.20 s draft, 0.52 s relay). Before, the restarted turn waited out the noise too, and then did its work again.
+Every noise burst the endpointer took for speech transcribed empty. A plain thread status question takes a median of 2.0 s from the end of speech to first audio (99 rehearsed turns: 0.7 s endpointer silence, 0.36 s final transcript, decider pick and tools, 0.20 s draft, 0.52 s relay). The start and mixed calls scored as before on the shipped code (start: 4 of 5 threads started, 0 false claims; mixed: 10 of 10 first relays and both halves heard, 0 free lines naming a thread).
 
-What is open: both missed joins were the first part's reply becoming audible, 1.4 s after its speech ended, before the second part's sound began. The old code loses that race the same way, by muting instead of joining; in its two runs the replies here came later. On joined two-clause questions the status relay ran past its draft ("...is working. It is") on the first attempt in 3 of 8 after, against 0 of 10 before; the cause is not found. A relay cancelled while held no longer leaves its note in the session, which was one cause, and a probe of the first part's audio already sitting in the session was inconclusive (4 of 5 against 3 of 5). Idle turns are not held: sound during idle news still supersedes it.
+What is open: of the two missed joins in the shipped runs, one was the call with the longest noise, still running when the next words came, so those words joined the held noise and were judged against the reply that had gone out meanwhile; the other was the first part's reply becoming audible 1.5 s after its speech ended, before the second part's sound began, a race the old code loses too, by muting instead of joining. On joined two-clause questions the status relay ran past its draft ("...is working. It is") on the first attempt in 3 of 8 shipped turns, against 0 of 10 before; the cause is not found. A probe of the first part's audio already sitting in the session was inconclusive (4 of 5 against 3 of 5). Idle turns are not held: sound during idle news still supersedes it.
 
 ## Results
 

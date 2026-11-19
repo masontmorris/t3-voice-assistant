@@ -446,7 +446,7 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     spoken = None
     if draft.line is not None and not is_muted():
         for attempt in range(MAX_RELAYS):
-            reply, pcm = await relay_draft(session, rate, since, draft.line)
+            reply, pcm = await relay_draft(session, rate, since, draft.line, abandoned=is_muted)
             if reply["status"] == "completed" and not reply["function_calls"] and pcm:
                 spoken = words.accept(entry, reply["text"], draft.line)
                 if spoken.line is not None:
@@ -476,15 +476,20 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     }, sent
 
 
-async def relay_draft(session, rate, since, line):
+async def relay_draft(session, rate, since, line, abandoned=lambda: False):
     """The call's own voice says the checked draft. The response stops at the first word that is not the draft's, so
-    a reply that goes off the words leaves only its start in the session."""
+    a reply that goes off the words leaves only its start in the session. `abandoned()` is true once the turn is
+    cancelled or muted; a relay that finds it so after the floor opens makes no response."""
     text = speakable(line, "relay_draft").text
 
     async def generate():
         try:
             item = await create_item(session, plain_text(relay_note(text)))
             if item["accepted"] is True:
+                # The floor can close while the note is acknowledged, and the sound can then continue the turn.
+                await floor_free(session)
+                if abandoned():
+                    return {**fixed_reply("", b"", rate, 0), "status": "abandoned"}, b""
                 return await stream_reply(session, rate, since, stop=lambda said: not recites(said, text, arriving=True))
             status = item["answer"]
         except (OSError, SessionRefused, WebSocketException) as exc:

@@ -466,3 +466,28 @@ class FloorTest(unittest.IsolatedAsyncioTestCase):
             await task
         self.assertEqual(texts(session), [], "the sound continued the turn, so its relay never reached the call")
         self.assertNotIn("response.create", [event.get("type") for event in session.sent])
+
+    async def test_a_relay_whose_turn_ended_while_its_note_was_acknowledged_makes_no_response(self):
+        """The note went in before the sound started; the floor closed while the server acknowledged it, and the
+        sound then turned out to continue the turn."""
+        muted = []
+
+        class HeldDuringAck(FakeSession):
+            async def send(self, **event):
+                if event.get("type") == "conversation.item.create":
+                    self.floor.clear()
+                await super().send(**event)
+
+        session = await HeldDuringAck.open("ws://unused", "voice", lambda: CLOCK)
+        session.floor = asyncio.Event()
+        session.floor.set()
+        line = CHECKED.accept((STOP,), DRAFT, "text_model").line
+        task = asyncio.create_task(prototype.relay_draft(session, 24_000, 0, line, abandoned=lambda: bool(muted)))
+        while not texts(session):
+            await asyncio.sleep(0)
+        muted.append(True)
+        task.cancel()
+        session.floor.set()
+        with self.assertRaises(asyncio.CancelledError):
+            await task
+        self.assertNotIn("response.create", [event.get("type") for event in session.sent])
