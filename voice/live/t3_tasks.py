@@ -33,8 +33,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from voice.prototype.tasks import Execution, MockTaskService, Run
-from voice.segmentation.contract import Intent
-from voice.segmentation.intent import utterance_intent
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.acts import Act, act
@@ -49,10 +47,11 @@ from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import Lane, LocalText, Rendered, Speech, text_model
-from voice.t3.verify import Decider, default_decider
+from voice.t3.verify import Decider, Reading, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 PICK_TIMEOUT_S = 5.0
+MAX_ALTERNATIVES = 8
 T3_TOOLS = {
     START: "Start a new T3 coding thread that does the work the speaker asks for, in a project they name. "
            "Use it when they ask to start, open, or kick off a thread or a coding task.",
@@ -67,17 +66,6 @@ STATUS_WORDS = {Status.UNSTARTED: "running", Status.LIVE: "running", Status.HELD
                 Status.COMPLETED: "completed", Status.FAILED: "failed", Status.CANCELLED: "cancelled",
                 Status.LOST: "lost"}
 
-_CONFIRMATION_TEXT = re.compile(r"[a-zA-Z.,!\s]+")
-_WORD = re.compile(r"[a-z']+")
-_QUESTION = re.compile(r"\?|\b(?:what|when|where|which|who|whom|whose|why|how)\b", re.IGNORECASE)
-_OTHER_PROJECT = re.compile(r"\b(?:in|for) (?:the )?other project(?:,? please)?[.! ]*$", re.IGNORECASE)
-YES = frozenset({"yes", "yeah", "yep", "yup", "sure", "ok", "okay", "affirmative", "correct", "right", "exactly"})
-YES_PHRASES = {("do", "it"), ("go", "ahead"), ("that", "one"), ("that's", "it"), ("that's", "right"),
-               ("that's", "the", "one")}
-# The words that carry out each op. "stop" refuses a launch or a follow-up, but it is the yes to "Stop the X thread?".
-OP_PHRASES = {START: {("start", "it")}, ASK: set(), TELL: {("send", "it"), ("tell", "it"), ("pass", "it", "on")},
-              STOP: {("stop",), ("stop", "it"), ("stop", "that")}}
-NO = frozenset({"no", "nope", "nah", "don't", "dont", "cancel", "stop", "wait", "never", "not"})
 OPS = {START: "start", ASK: "ask", TELL: "tell", STOP: "stop"}
 
 _LEAD = r"^\W*(?:(?:ok(?:ay)?|so|and|also|please|hey|actually|now)[,\s]+)*(?:(?:can|could|would) you\s+)?(?:please\s+)?"
@@ -94,25 +82,6 @@ _DROP_BARE = re.compile(r"^\W*(?:no[,\s]+)?(?:never ?mind|cancel (?:that|it)|for
 
 def _plain(text: str) -> str:
     return (text or "").replace("’", "'")
-
-
-def reply_kind(text: str, op: str = START) -> str | None:
-    """"yes" only for an explicit confirmation of `op`, "no" for any refusal word, else None."""
-    text = _plain(text)
-    words = tuple(_WORD.findall(text.lower()))
-    if (NO - {"stop"} if op == STOP else NO).intersection(words):
-        return "no"
-    if not words or not _CONFIRMATION_TEXT.fullmatch(text) or _QUESTION.search(text):
-        return None
-    if words == ("please",):
-        return "yes"
-    affirmative = words[0] in YES
-    rest = words[1:] if affirmative else words
-    if rest[-1:] == ("please",):
-        rest = rest[:-1]
-    if (affirmative and not rest) or rest in YES_PHRASES or rest in OP_PHRASES[op]:
-        return "yes"
-    return None
 
 
 def tell_parts(instruction: str) -> tuple[str, str, str | None]:
@@ -416,39 +385,48 @@ class T3Tasks:
                         sequences=(self.follow.seam.hello.latest_sequence,), project_id=project_id)
 
     def pending_act(self, question: Question) -> Act | None:
-        """The yes or no question the voice asked, as the act it said, or None when the open question is a choice."""
+        """The question the voice asked, as the act it said."""
+        names = self.project_names() if self.follow.seam is not None else {}
         if question.kind == "confirm":
-            seam = self.follow.seam
-            names = {p.project_id: p.name for p in seam.hello.projects} if seam is not None else {}
             name = names.get(question.candidates[0])
             return act(Say.CONFIRM_LAUNCH, project=name) if name else None
+        if question.kind == "project":
+            return which_project(question.candidates, names)
         if question.kind == "thread_confirm":
             return confirm_act(question.op, question.titles[question.candidates[0]], question.message)
-        return None
+        return act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
 
-    def read_reply(self, text: str, question: Question | None) -> str | None:
-        """"yes", "no" or None for a reply to a pending confirmation. Code's own words are the floor: a no word is a
-        no. Where they read nothing, the decider is asked what the reply does, and only a confident yes acts, so a
-        rising "please do" that a transcript ends with a question mark still starts the thread. Off the lock, since the
-        decider is a network call."""
-        kind = reply_kind(text, question.op if question is not None else START)
+    def alternatives(self, question: Question) -> dict[str, str]:
+        """The projects a reply to a launch question could ask for instead, as name to id. Empty for thread questions,
+        whose replies are matched against thread titles."""
+        if question.kind not in ("confirm", "project") or self.follow.seam is None:
+            return {}
+        names = self.project_names()
+        ids = ([pid for pid in names if pid != question.candidates[0]] if question.kind == "confirm"
+               else [pid for pid in question.candidates if pid in names])
+        return {names[pid]: pid for pid in ids[:MAX_ALTERNATIVES]}
+
+    def read_reply(self, text: str, question: Question | None) -> Reading | None:
+        """What a reply does about the open question, by the decider: the one reading of it there is. Only a confident,
+        unconditional yes acts, and a reply nobody could read (no decider, a timeout) answers nothing. Off the lock,
+        since the decider is a network call."""
         reads = getattr(self.decider, "reads", None)
-        if kind is None and question is not None and reads is not None:
-            said = self.pending_act(question)
-            if said is not None and reads(said, _plain(text)).yes:
-                return "yes"
-        return kind
+        said = self.pending_act(question) if question is not None and reads is not None else None
+        if said is None:
+            return None
+        return reads(said, _plain(text), tuple(self.alternatives(question)))
 
-    def answer(self, text: str, now: float, kind: str | None = None, question: Question | None = None
+    def answer(self, text: str, now: float, reading: Reading | None = None, question: Question | None = None
                ) -> L.Update | None:
         """The next utterance, read as the answer to the open question, or as taking back a held follow-up.
 
-        `question` and `kind` are the open question and the reading of the reply when the caller made them off the
+        `question` and `reading` are the open question and the reading of the reply when the caller made them off the
         lock. Left out, they are read here. If the open question is no longer that one when the reading is back, the
         reply was for a prompt that has gone, and it answers nothing."""
         if question is None:
             question = self.live_question()
-            kind = self.read_reply(text, question) if question is not None else None
+            reading = self.read_reply(text, question) if question is not None else None
+        kind = reading.kind if reading is not None else None
         with self.lock:
             if self.question is not question:
                 return None
@@ -456,7 +434,7 @@ class T3Tasks:
             if self.question is not None and (unheard or (self.unasked is not None
                                                            and self.question.key == self.unasked.task_id)):
                 # The person never heard this question, so nothing they said answers it: it is asked again.
-                if (kind == "yes" or utterance_intent(text).intent != Intent.REQUEST) and self.unasked is not None:
+                if reading is not None and reading.label not in (None, "unrelated") and self.unasked is not None:
                     return self.unasked
                 self._drop_question()
                 return None
@@ -465,37 +443,39 @@ class T3Tasks:
             if question is None:
                 return self._drop_by_words(text, just_held, now)
             if question.kind == "thread":
-                return self._answer_thread(question, text, now)
+                return self._answer_thread(question, text, kind, now)
             if question.kind == "thread_confirm":
                 return self._answer_thread_confirm(question, text, kind, now)
-            if kind == "no":
-                return L.Update(question.key, (act(Say.CANCELLED, op="start"),), "cancelled", "pick")
-            down = self._down(question.key, now)
+            down = self._down(question.key, now) if kind != "no" else None
             if down is not None:
                 return down
-            return self._answer_start(question, text, kind, now)
+            return self._answer_start(question, text, reading, now)
 
-    def _answer_start(self, question: Question, text: str, kind: str | None, now: float) -> L.Update | None:
+    def _answer_start(self, question: Question, text: str, reading: Reading | None, now: float) -> L.Update | None:
         projects = self.projects()
         names = {p["projectId"]: p["name"] for p in projects}
-        is_question = _QUESTION.search(text) is not None
-        if question.kind == "confirm":
-            current = question.candidates[0]
-            if kind == "yes" and current in names:
-                return self._launch(question, current, names[current], now)
-            if not is_question and _OTHER_PROJECT.search(text):
-                others = tuple(pid for pid in names if pid != current)
-                if len(others) == 1:
-                    return self._confirm(replace(question, candidates=others), names)
-                if others:
-                    question = replace(question, kind="project", candidates=others)
+        if reading is None or reading.label in (None, "question", "unrelated"):
+            return None
+        if question.kind == "confirm" and reading.yes and question.candidates[0] in names:
+            return self._launch(question, question.candidates[0], names[question.candidates[0]], now)
+        # The reply asks for another project: the one it names, else the one the decider read it as changing to.
+        others = self.alternatives(question)
         if question.kind == "project":
             projects = [p for p in projects if p["projectId"] in question.candidates]
-
-        if not is_question:
-            pick = pick_project(f"in {text}", projects)
-            if pick.kind == "one" and (question.kind == "project" or (pick.project_id,) != question.candidates):
-                return self._confirm(replace(question, kind="confirm", candidates=(pick.project_id,)), names)
+        pick = pick_project(f"in {text}", projects)
+        target = pick.project_id if pick.kind == "one" else others.get(reading.target)
+        if target is None and reading.elsewhere and question.kind == "confirm":
+            # It moves off the proposed project without naming one: the only other, or a question of which.
+            if len(others) == 1:
+                target = next(iter(others.values()))
+            elif others:
+                question = self._ask(replace(question, kind="project", candidates=tuple(others.values())))
+                return L.Update(question.key, (which_project(question.candidates, names),), "needs_clarification",
+                                "pick", sequences=(self.follow.seam.hello.latest_sequence,))
+        if target is not None and (question.kind == "project" or (target,) != question.candidates):
+            return self._confirm(replace(question, kind="confirm", candidates=(target,)), names)
+        if reading.kind == "no":
+            return L.Update(question.key, (act(Say.CANCELLED, op="start"),), "cancelled", "pick")
         # A reply that answers nothing drops the question. It is never asked again, and the turn goes on as talk.
         return None
 
@@ -605,7 +585,7 @@ class T3Tasks:
         question = replace(question, titles={t["threadId"]: t["title"] for t in others},
                            projects={t["threadId"]: t["projectId"] for t in others})
         evidence = (listing.as_of_sequence,)
-        words = " ".join(w for w in _WORD.findall(_plain(text).lower()) if w not in NO)
+        words = _plain(text)
         pick = prefilter_pick(words, others, self.project_names()) if content_words(words) else None
         if pick is not None and pick.kind == "one":
             return self._ask_back(replace(question, candidates=(pick.thread_id,)), evidence)
@@ -616,8 +596,8 @@ class T3Tasks:
                             sequences=evidence)
         return self._which(replace(question, kind="thread", candidates=tuple(candidates)[:3]), evidence)
 
-    def _answer_thread(self, question: Question, text: str, now: float) -> L.Update | None:
-        if question.op != ASK and reply_kind(text, question.op) == "no":
+    def _answer_thread(self, question: Question, text: str, kind: str | None, now: float) -> L.Update | None:
+        if question.op != ASK and kind == "no":
             return L.Update(question.key, (act(Say.CANCELLED, op=OPS[question.op]),), "cancelled", "pick")
         if self._down(question.key, now) is not None:
             return L.Update(question.key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
@@ -874,10 +854,10 @@ class T3TaskService(MockTaskService):
             if any(update is self.t3.unasked for update in self.spoken.values()):
                 return []
         question = self.t3.live_question()
-        kind = self.t3.read_reply(instruction, question) if question is not None else None
+        reading = self.t3.read_reply(instruction, question) if question is not None else None
         with self.t3.lock:
             tool = question.op if question is not None else TELL
-            update = self.t3.answer(instruction, now, kind, question)
+            update = self.t3.answer(instruction, now, reading, question)
         if update is None:
             return []
         task_id = f"t3_{len(self.extra) + 1}"

@@ -9,28 +9,32 @@ from pathlib import Path
 
 from voice.t3.acts import Act
 from voice.t3.test_verify import Failing
-from voice.t3.verify import Decider, judge_reading, reading_request
+from voice.t3.verify import ELSEWHERE, Decider, judge_reading, reading_request
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "reply_reads.json").read_text(encoding="utf-8"))
 ROWS = FIXTURE["rows"]
-# Yes replies the decider read below its confidence line. Code's own table still reads "okay" and "go ahead" as yes;
-# the others are asked again, which is the safe side.
-BELOW_THE_LINE = {"Okay.", "Uh-huh.", "Go ahead."}
+# Replies d1.2 misreads. This one names no project and the decider says it keeps the proposed one. It is still not a
+# yes, so nothing starts, and the person has to name the project.
+TARGET_MISREADS = {"Yes, but in the other project."}
+DECLINES = {"No.", "No, don't.", "Nope.", "Never mind.", "No, cancel that.", "No, leave it running.", "Don't stop it.",
+            "Hold on, not yet.", "No, the other one.", "Not that one."}
 
 
 class Recorded:
     """A decider client that answers each request from the fixture, and only one whose question it recorded."""
 
     def __init__(self, rows=ROWS):
-        self.rows = {(json.dumps(row["act"]), row["reply"]): row for row in rows}
+        self.rows = {(json.dumps(row["act"]), row["reply"], tuple(row.get("options", ()))): row for row in rows}
 
     def call(self, route, body, label=""):
         for row in self.rows.values():
             act = Act.from_json(row["act"])
-            if reading_request(act, row["reply"]) == body:
+            if reading_request(act, row["reply"], tuple(row.get("options", ()))) == body:
                 assert body["questions"]["reading"]["criteria"] == FIXTURE["criteria"], "re-run record_replies"
-                return {"status": 200, "response": {"answers": {"reading": {
-                    "choice": row["choice"], "probabilities": row["p"]}}}}
+                answers = {"reading": {"choice": row["choice"], "probabilities": row["p"]}}
+                if row.get("target_answer") is not None:
+                    answers["target"] = row["target_answer"]
+                return {"status": 200, "response": {"answers": answers}}
         raise KeyError(body["state"])
 
 
@@ -43,9 +47,27 @@ class Reads(unittest.TestCase):
         decider = Decider(Recorded())
         for row in ROWS:
             with self.subTest(row["reply"], act=row["act"]["kind"]):
-                reading = decider.reads(acts_of(row), row["reply"])
+                reading = decider.reads(acts_of(row), row["reply"], tuple(row.get("options", ())))
                 self.assertIsNone(reading.error)
-                self.assertEqual(reading.yes, row["must_act"] and row["reply"] not in BELOW_THE_LINE, reading)
+                if row["act"]["kind"] != "ask_which":  # a which-question has no yes: its reply names one
+                    self.assertEqual(reading.yes, row["must_act"], reading)
+                if row["reply"] in DECLINES:
+                    self.assertEqual(reading.kind, "no", reading)
+
+    def test_a_reply_that_changes_the_target_says_which_or_that_it_changed(self):
+        decider = Decider(Recorded())
+        rows = [row for row in ROWS if row.get("options") and row["reply"] not in TARGET_MISREADS]
+        self.assertGreaterEqual(len(rows), 20)
+        for row in rows:
+            options, want = tuple(row["options"]), row["expected_target"]
+            with self.subTest(row["reply"], options=options):
+                reading = decider.reads(acts_of(row), row["reply"], options)
+                if want in options and reading.target is None:
+                    # Pointed at, not named: with one alternative, changing elsewhere can only mean that one.
+                    self.assertTrue(reading.elsewhere and len(options) == 1, reading)
+                else:
+                    self.assertEqual((reading.target, reading.elsewhere),
+                                     (want if want in options else None, want == ELSEWHERE), reading)
 
     def test_a_yes_that_changes_the_target_or_adds_a_condition_is_not_a_yes(self):
         conditional = [row for row in ROWS if row["reply"].startswith(("Yes, but", "Sure, in", "Yeah, but", "Okay, if",
@@ -54,16 +76,25 @@ class Reads(unittest.TestCase):
         decider = Decider(Recorded())
         for row in conditional:
             with self.subTest(row["reply"]):
-                reading = decider.reads(acts_of(row), row["reply"])
+                reading = decider.reads(acts_of(row), row["reply"], tuple(row.get("options", ())))
                 self.assertFalse(reading.yes, reading)
                 self.assertEqual(reading.label, "other")
 
     def test_a_label_that_says_yes_with_a_real_share_of_other_or_question_is_not_a_yes(self):
-        for shares in ({"yes": 0.8, "other": 0.3}, {"yes": 0.75, "question": 0.25}):
+        for shares in ({"yes": 0.7, "other": 0.3}, {"yes": 0.75, "question": 0.25},
+                       {"yes": 0.59, "other": 0.2, "question": 0.2}, {"yes": 0.7, "no": 0.3}):
             reading = judge_reading({"reading": {"choice": "yes", "probabilities": shares}})
             self.assertEqual(reading.label, "yes")
             self.assertFalse(reading.yes, shares)
         self.assertTrue(judge_reading({"reading": {"choice": "yes", "probabilities": {"yes": 0.9, "other": 0.1}}}).yes)
+
+    def test_a_yes_read_beside_a_change_of_target_is_not_a_yes(self):
+        yes = {"choice": "yes", "probabilities": {"yes": 0.95, "other": 0.05}}
+        for choice in ("option_1", "elsewhere"):
+            target = {"choice": choice, "probabilities": {choice: 0.9, "keeps": 0.1}}
+            self.assertFalse(judge_reading({"reading": yes, "target": target}, ("Voice server",)).yes, choice)
+        keeps = {"choice": "keeps", "probabilities": {"keeps": 0.9, "option_1": 0.1}}
+        self.assertTrue(judge_reading({"reading": yes, "target": keeps}, ("Voice server",)).yes)
 
     def test_a_rising_please_do_with_its_question_mark_is_a_yes(self):
         row = next(r for r in ROWS if r["reply"] == "Please do?")
@@ -86,6 +117,7 @@ class Reads(unittest.TestCase):
                        {"choice": "yes", "probabilities": {"yes": "high"}},
                        {"choice": "yes", "probabilities": {"yes": float("nan")}},
                        {"choice": "yes", "probabilities": {"yes": 1.7}},
+                       {"choice": "yes", "probabilities": {"yes": 0.51, "no": 0.99}},
                        {"choice": "yes", "probabilities": {"yes": True}},
                        {"choice": "yes", "probabilities": {"sure": 0.9}},
                        {"choice": "yes", "probabilities": None}, {"choice": "yes"}, "yes", None):

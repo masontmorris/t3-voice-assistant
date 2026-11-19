@@ -228,18 +228,18 @@ class Decider:
         passed, answers, failed, problems = judge(acts, (record.get("response") or {}).get("answers"))
         return Verdict(passed, answers, failed, _ms(started), problems=problems)
 
-    def reads(self, said: Act, reply: str) -> Reading:
-        """What `reply` does about the question `said` asked. A timeout or any error reads as nothing, so code's own
-        reading of the reply decides."""
+    def reads(self, said: Act, reply: str, options: tuple[str, ...] = ()) -> Reading:
+        """What `reply` does about the question `said` asked, and which of `options` it changes to when it asks for
+        something else. A timeout or any error reads as nothing, and nothing never acts."""
         try:
             with self.lock:
                 self.calls += 1
-                record = self.client.call("decisions", reading_request(said, reply), label="t3_reply")
+                record = self.client.call("decisions", reading_request(said, reply, options), label="t3_reply")
         except Exception as exc:
             return Reading(None, error=f"{type(exc).__name__}: {exc}")
         if record.get("status") != 200:
             return Reading(None, error=f"decider status {record.get('status')}")
-        return judge_reading((record.get("response") or {}).get("answers"))
+        return judge_reading((record.get("response") or {}).get("answers"), options)
 
 
 READ_CRITERIA = {
@@ -249,54 +249,98 @@ READ_CRITERIA = {
     "other": "It agrees but changes the project, thread or terms, adds a condition, or names something else.",
     "unrelated": "It does not answer what the assistant asked.",
 }
-YES_CONFIDENCE = 0.7
+# The reply's own label with most of the weight is a yes. The recorded yes replies score 0.60 and up, and the most any
+# other reply gives yes is 0.36.
+YES_CONFIDENCE = 0.5
 # A reply that is any share a question or another target is not an unconditional yes, however much of it says yes.
 OTHER_CEILING = 0.2
+# The two together: a rising "please do" gives them 0.21 of the weight, the most of any recorded yes.
+TOGETHER_CEILING = 0.25
+OPTION_CONFIDENCE = 0.6
+ELSEWHERE_CONFIDENCE = 0.5
+KEEPS, ELSEWHERE = "keeps", "elsewhere"
 
 
-def reading_request(said: Act, reply: str) -> dict:
+def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dict:
     """One decisions body asking what the person's reply does about the question `said` asked them. `reply` is the
-    transcript, whose punctuation need not match how they said it: a rising "please do" arrives with a question mark."""
+    transcript, whose punctuation need not match how they said it: a rising "please do" arrives with a question mark.
+    `options` are the other things the reply could be asking for, by name, and add a question of whether it keeps
+    what was proposed, changes to one of them, or changes without saying which."""
     state = {"assistant_asked": _fill(MEANS[said.kind], said.slots), "reply": reply,
              "context": "A voice assistant asked the person a yes or no question about their coding threads. `reply` "
                         "is a transcript of what they said back."}
-    question = {"type": "choice", "instructions": "What does the person's reply do about what the assistant asked?",
-                "criteria": READ_CRITERIA}
-    return {"model": "d1.2", "state": state, "questions": {"reading": question}}
+    questions = {"reading": {"type": "choice", "instructions": "What does the person's reply do about what the "
+                                                               "assistant asked?", "criteria": READ_CRITERIA}}
+    if options:
+        state["alternatives"] = list(options)
+        criteria = {KEEPS: "It keeps what the assistant proposed, or does not say to change it."}
+        criteria.update({f"option_{i}": f"It changes to {name!r}." for i, name in enumerate(options, 1)})
+        criteria[ELSEWHERE] = ("It changes away from what was proposed to another of the alternatives, without making "
+                               "clear which one.")
+        questions["target"] = {"type": "choice", "criteria": criteria,
+                               "instructions": "The assistant proposed one thing, and `alternatives` lists every other "
+                                               "thing it could be. Does the reply keep what was proposed, or change "
+                                               "to one of the alternatives?"}
+    return {"model": "d1.2", "state": state, "questions": questions}
 
 
 @dataclass(frozen=True)
 class Reading:
-    """What a reply does about a pending question, by the decider. Only a confident yes ever acts."""
+    """What a reply does about a pending question, by the decider. `target` is the option it changes to, and
+    `elsewhere` says it changes to another option without making clear which."""
 
     label: str | None
     probabilities: dict[str, float] = field(default_factory=dict)
     error: str | None = None
+    target: str | None = None
+    elsewhere: bool = False
 
     @property
     def yes(self) -> bool:
-        """An unconditional yes: the reply's own label, confident, with no real share of a question, a changed target
-        or a condition. Anything short of that is not a yes."""
+        """An unconditional yes: the reply's own label, confident, with no real share of a no, or of a question, a
+        changed target or a condition together, and no change of target read beside it. Anything short is not a yes."""
         p = self.probabilities
-        return (self.label == "yes" and p.get("yes", 0.0) >= YES_CONFIDENCE
-                and max(p.get("other", 0.0), p.get("question", 0.0)) <= OTHER_CEILING)
+        return (self.label == "yes" and p.get("yes", 0.0) >= YES_CONFIDENCE and p.get("no", 0.0) <= OTHER_CEILING
+                and max(p.get("other", 0.0), p.get("question", 0.0)) <= OTHER_CEILING
+                and p.get("other", 0.0) + p.get("question", 0.0) < TOGETHER_CEILING
+                and self.target is None and not self.elsewhere)
+
+    @property
+    def kind(self) -> str | None:
+        """"yes", "no", or None for a reply that neither agrees outright nor declines."""
+        return "yes" if self.yes else "no" if self.label == "no" else None
 
 
-def judge_reading(answers: Any) -> Reading:
-    """The decider's answer as a Reading. A label that is not an option, or a score that is not a number from 0 to 1,
-    is no reading at all, never an error."""
-    answer = answers.get("reading") if isinstance(answers, dict) else None
+def _scores(answer: Any, labels) -> dict[str, float] | None:
+    """A choice answer's shares when its label is one of `labels`, every share is a number from 0 to 1, and together
+    they are shares of one whole."""
     probabilities = answer.get("probabilities") if isinstance(answer, dict) else None
     choice = answer.get("choice") if isinstance(answer, dict) else None
-    if (not isinstance(probabilities, dict) or not isinstance(choice, str) or choice not in READ_CRITERIA
-            or not set(probabilities) <= set(READ_CRITERIA)):
-        return Reading(None, error="the decider gave no reading")
-    scores = {}
-    for label, value in probabilities.items():
+    if (not isinstance(probabilities, dict) or not isinstance(choice, str) or choice not in labels
+            or not set(probabilities) <= set(labels)):
+        return None
+    for value in probabilities.values():
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= value <= 1.0:
-            return Reading(None, error="the decider gave no reading")
-        scores[label] = float(value)
-    return Reading(answer["choice"], scores)
+            return None
+    if sum(probabilities.values()) > 1.05:
+        return None
+    return {label: float(value) for label, value in probabilities.items()}
+
+
+def judge_reading(answers: Any, options: tuple[str, ...] = ()) -> Reading:
+    """The decider's answer as a Reading. A label that is not an option, or a score that is not a number from 0 to 1,
+    is no reading at all, never an error. A change of target is kept only when the decider is confident of it."""
+    answers = answers if isinstance(answers, dict) else {}
+    scores = _scores(answers.get("reading"), READ_CRITERIA)
+    if scores is None:
+        return Reading(None, error="the decider gave no reading")
+    names = {f"option_{i}": name for i, name in enumerate(options, 1)}
+    picked = answers.get("target") if options else None
+    shares = _scores(picked, {*names, KEEPS, ELSEWHERE}) if picked is not None else None
+    share = shares.get(picked["choice"], 0.0) if shares is not None else 0.0
+    target = names.get(picked["choice"]) if share >= OPTION_CONFIDENCE else None
+    elsewhere = shares is not None and picked["choice"] == ELSEWHERE and share >= ELSEWHERE_CONFIDENCE
+    return Reading(answers["reading"]["choice"], scores, target=target, elsewhere=elsewhere)
 
 
 def _ms(started: float) -> float:

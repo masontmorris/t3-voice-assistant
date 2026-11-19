@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from voice.live.t3_tasks import (ASK, CONFIRM_TTL_S, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
-                                 T3Tasks, reply_kind, status_act, tell_parts, transcript_rows)
+                                 T3Tasks, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
 from voice.t3 import fakes as F
@@ -35,14 +35,22 @@ THREADS = (("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"), ("t7"
            ("t8", "Write the release notes"))
 
 
-class Reading(F.Agree):
+class ReplayReading(F.Agree):
     """The speech decider, with reply readings replayed from the recorded d1.2 answers (voice/t3/test_replies.py)."""
 
     def __init__(self):
         self.reader = Decider(Recorded())
 
-    def reads(self, said, reply):
-        return self.reader.reads(said, reply)
+    def reads(self, said, reply, options=()):
+        return self.reader.reads(said, reply, options)
+
+
+# How the scripted decider reads the replies these tests say. Anything else reads as unrelated, which answers nothing.
+READINGS = {"yes": "yes", "Yes.": "yes", "Yes, send it.": "yes", "Yes, stop it.": "yes", "Yes, start it.": "yes",
+            "Yes, go ahead.": "yes", "No.": "no", "No, don't.": "no", "No, never mind.": "no",
+            "No, the toolchain one.": "no", "What do you mean?": "question", "The voice server.": "yes",
+            "yes, start it in the voice server": "other", "start it in the other project": ("other", "Voice server"),
+            "yes please": "yes"}
 
 
 def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path | None = None,
@@ -51,7 +59,7 @@ def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path
         tmp = tempfile.TemporaryDirectory()
         test.addCleanup(tmp.cleanup)
         path = Path(tmp.name) / "journal.json"
-    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model, decider or F.Agree())
+    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model, decider or F.Reader(READINGS))
 
 
 def said(update) -> list[tuple]:
@@ -143,7 +151,7 @@ def held_follow_up(test, seam, path=None) -> T3Tasks:
 class TwinA(unittest.TestCase):
     def test_a_launch_without_a_named_project_defaults_to_a_confirmation(self):
         seam = F.FakeSeam()
-        t3 = tasks_over(self, seam, decider=Reading())
+        t3 = tasks_over(self, seam, decider=ReplayReading())
         request = "Start a thread to fix the flaky test"
         asked = t3.start("k1", request, 0)
         self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
@@ -157,7 +165,7 @@ class TwinA(unittest.TestCase):
         """The 2026-11-18 call: the request said "project" but named none, and the voice only stated that nothing
         matched, so the person's "please do" had nothing to answer."""
         seam = F.FakeSeam()
-        t3 = tasks_over(self, seam, decider=Reading())
+        t3 = tasks_over(self, seam, decider=ReplayReading())
         asked = t3.start("k1", self.UNLISTED, 0)
         self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
         self.assertEqual(seam.ops("launch"), [])
@@ -199,50 +207,67 @@ class TwinA(unittest.TestCase):
         self.assertEqual(update.acts[0].slots, {})
         self.assertIsNone(t3.question)
 
-    def test_the_decider_reads_the_shapes_of_yes_and_code_stays_the_floor(self):
+    def test_the_decider_reads_the_shapes_of_yes_and_nothing_else_launches(self):
         yes = ["Please do.", "Please do?", "Yeah, go ahead.", "Sure.", "Yes, do it.", "Go for it.", "Yep."]
         never = ["No.", "Wait.", "What do you mean?", "How long will it take?", "Start it in the voice server instead.",
                  "Yes, but in the server project.", "What's the weather like?", "Maybe later.", "Thanks."]
         for reply, launches in [(r, True) for r in yes] + [(r, False) for r in never]:
             with self.subTest(reply=reply):
                 seam = F.FakeSeam()
-                t3 = tasks_over(self, seam, decider=Reading())
+                t3 = tasks_over(self, seam, decider=ReplayReading())
                 t3.start("k1", "Add a clamp helper in the sandbox project", 0)
                 t3.answer(reply, 1)
                 self.assertEqual(len(seam.ops("launch")), int(launches))
 
     def test_a_yes_with_a_changed_target_is_not_a_yes_and_never_launches_the_old_project(self):
         seam = F.FakeSeam(projects=TWO_PROJECTS)
-        t3 = tasks_over(self, seam, decider=Reading())
+        t3 = tasks_over(self, seam, decider=ReplayReading())
         t3.start("k1", "Add a clamp helper in the sandbox project", 0)
-        again = t3.answer("Yes, but in the other project.", 1)
+        again = t3.answer("The other project please.", 1)
         self.assertEqual(seam.ops("launch"), [], "the old project was not committed before the target was chosen")
         self.assertEqual(said(again), [("confirm_launch", "Voice server")], "the retarget asks its own question")
+
+    def test_a_no_that_points_at_the_only_other_project_asks_about_that_one(self):
+        seam = F.FakeSeam(projects=TWO_PROJECTS)
+        t3 = tasks_over(self, seam, decider=ReplayReading())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        self.assertEqual(said(t3.answer("No, the other one.", 1)), [("confirm_launch", "Voice server")])
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_a_change_with_several_other_projects_asks_which(self):
+        seam = F.FakeSeam(projects=(*TWO_PROJECTS, ("p3", "Docs site", ("docs site",))))
+        t3 = tasks_over(self, seam, decider=ReplayReading())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        again = t3.answer("The other one.", 1)
+        self.assertEqual(said(again), [("ask_which", ["Voice server", "Docs site"])])
+        self.assertEqual((t3.question.kind, seam.ops("launch")), ("project", []))
+
+    def test_without_a_decider_that_reads_no_reply_acts(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=F.Agree())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        self.assertIsNone(t3.answer("Yes.", 1))
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_a_yes_whose_change_the_decider_cannot_place_launches_nothing(self):
+        seam = F.FakeSeam(projects=TWO_PROJECTS)
+        t3 = tasks_over(self, seam, decider=ReplayReading())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        self.assertIsNone(t3.answer("Yes, but in the other project.", 1))
+        self.assertEqual(seam.ops("launch"), [])
 
     def test_a_conditional_yes_launches_nothing(self):
         for reply in ("Yes, but only after the tests pass.", "Okay, if it's quick.", "Yeah, but make it about the build instead."):
             with self.subTest(reply=reply):
                 seam = F.FakeSeam()
-                t3 = tasks_over(self, seam, decider=Reading())
+                t3 = tasks_over(self, seam, decider=ReplayReading())
                 t3.start("k1", "Add a clamp helper in the sandbox project", 0)
                 self.assertIsNone(t3.answer(reply, 1))
                 self.assertEqual(seam.ops("launch"), [])
 
-    def test_a_no_word_still_wins_over_a_decider_that_says_yes(self):
-        class AlwaysYes(F.Agree):
-            def reads(self, said, reply):
-                from voice.t3.verify import Reading as Read
-                return Read("yes", {"yes": 0.99})
-
-        seam = F.FakeSeam()
-        t3 = tasks_over(self, seam, decider=AlwaysYes())
-        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
-        self.assertEqual(said(t3.answer("No, don't.", 1)), [("cancelled", "start")])
-        self.assertEqual(seam.ops("launch"), [])
-
-    def test_with_no_reading_the_phrase_table_still_decides(self):
+    def test_a_reply_the_decider_cannot_read_answers_nothing(self):
         class Silent(F.Agree):
-            def reads(self, said, reply):
+            def reads(self, said, reply, options=()):
                 from voice.t3.verify import Reading as Read
                 return Read(None, error="TimeoutError: timed out")
 
@@ -765,7 +790,7 @@ class Authorization(unittest.TestCase):
 
     def stop_setup(self):
         seam = busy_seam().answer("interrupt", F.requested())
-        t3 = tasks_over(self, seam, decider=Reading())
+        t3 = tasks_over(self, seam, decider=ReplayReading())
         t3.begin_call()
         return seam, t3
 
@@ -814,7 +839,7 @@ class Authorization(unittest.TestCase):
         from voice.t3.verify import Reading as Read
 
         class HangsUpMidRead(F.Agree):
-            def reads(self, said, reply):
+            def reads(self, said, reply, options=()):
                 def elsewhere():
                     free.append(t3.lock.acquire(blocking=False))
                     if free[-1]:
@@ -1178,52 +1203,6 @@ class WholeDialogue(unittest.TestCase):
 
 
 class ReplyWords(unittest.TestCase):
-    def test_reply_kind(self):
-        cases = {
-            "Yes, start it.": "yes",
-            "yeah": "yes",
-            "yep!": "yes",
-            "sure, go ahead": "yes",
-            "yes please": "yes",
-            "please": "yes",
-            "please do": None,
-            "Please do?": None,
-            "do it": "yes",
-            "start it": "yes",
-            "go ahead": "yes",
-            "yes, that one": "yes",
-            "No, don't.": "no",
-            "wait": "no",
-            "never mind": "no",
-            "not that one": "no",
-            "please don't": "no",
-            "yes, but don’t start it": "no",
-            "stop it": "no",
-            "What do you mean?": None,
-            "do you mean the other one": None,
-            "yes?": None,
-            "sure, how long will it take": None,
-            "do": None,
-            "could you start it": None,
-            "please tell me more": None,
-            "I said yes earlier": None,
-            "yes, maybe later": None,
-            "yes, #2": None,
-            "start it in the other project": None,
-            "send it": None,
-        }
-        for text, kind in cases.items():
-            with self.subTest(text=text):
-                self.assertEqual(reply_kind(text), kind)
-
-    def test_reply_kind_reads_the_op_s_own_words(self):
-        cases = {(STOP, "Yes, stop it."): "yes", (STOP, "stop"): "yes", (STOP, "don't stop it"): "no",
-                 (STOP, "start it"): None, (TELL, "yes, send it"): "yes", (TELL, "tell it"): "yes",
-                 (TELL, "stop"): "no", (ASK, "yes"): "yes", (ASK, "stop it"): "no"}
-        for (op, text), kind in cases.items():
-            with self.subTest(op=op, text=text):
-                self.assertEqual(reply_kind(text, op), kind)
-
     def test_tell_parts(self):
         cases = {
             "Tell it to also add a test.": ("it", "also add a test", "to"),
