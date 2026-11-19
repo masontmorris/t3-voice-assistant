@@ -1,4 +1,5 @@
-"""The T3 task service: Twin A launches through the project picker, and Twin B asks about, tells, or stops a thread.
+"""The T3 task service: Twin A launches through the project picker, and Twin B asks about, tells, or stops the
+thread the decider picks.
 
 T3Tasks lives as long as the voice server. It owns the seam, the journal, and Follow, which runs the
 watch lifecycle (voice/t3/lifecycle.py). T3TaskService is the per-turn task service the prototype
@@ -29,7 +30,6 @@ import re
 import threading
 import time
 from dataclasses import dataclass, field, replace
-from datetime import datetime, timezone
 from pathlib import Path
 
 from voice.prototype.tasks import Execution, MockTaskService, Run
@@ -39,18 +39,16 @@ from voice.t3.acts import Act, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
-from voice.t3.pick.decide import pick as pick_thread
-from voice.t3.pick.decide import prefilter_pick
 from voice.t3.pick.model import LiveClient
-from voice.t3.pick.prefilter import content_words
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import Lane, LocalText, Rendered, Speech, text_model
-from voice.t3.verify import Decider, Reading, default_decider
+from voice.t3.verify import NONE, Decider, Listed, Picked, Reading, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
-PICK_TIMEOUT_S = 5.0
+# The newest threads the decider chooses among. Its picks held, at about 185 ms, with 40 listed.
+PICK_LIMIT = 40
 MAX_ALTERNATIVES = 8
 T3_TOOLS = {
     START: "Start a new T3 coding thread that does the work the speaker asks for, in a project they name. "
@@ -139,12 +137,17 @@ class Question:
     expired: bool = False
 
 
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat(timespec="minutes")
-
-
 CONFIRM_TTL_S = 90.0  # How long a heard question can be answered.
 MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting for a person turn.
+
+
+@dataclass(frozen=True)
+class Lookup:
+    """A reply that asks for another thread than the one or ones offered: `question`'s request is looked up again
+    by the reply's words, off the lock, among every thread but `without`."""
+
+    question: Question
+    without: str | None = None
 
 
 @dataclass
@@ -206,11 +209,21 @@ class T3Tasks:
 
     def has_news(self, *, idle=False) -> bool:
         with self.lock:
-            return any(not idle or update.delivery_failures < MAX_IDLE_DELIVERY_FAILURES for update in self.follow.outbox)
+            return any((not idle or update.delivery_failures < MAX_IDLE_DELIVERY_FAILURES) and self.askable(update)
+                       for update in self.follow.outbox)
+
+    def askable(self, update: L.Update) -> bool:
+        """A question is news only while it is the open one nobody has heard: once heard, answered or dropped, saying
+        it would ask something no reply can answer."""
+        return update.status != "needs_clarification" or (update is self.unasked and self.live_question() is not None)
 
     def reserve_news(self, *, idle=False) -> list[L.Update]:
         """Claim the news for a turn. The journal keeps it pending until audio is sent."""
         with self.lock:
+            stale = [update for update in self.follow.outbox if not self.askable(update)]
+            if stale:
+                self.follow.outbox = [update for update in self.follow.outbox if self.askable(update)]
+                self.follow.journal.remove_lines(stale)
             if not idle:
                 updates, self.follow.outbox = self.follow.outbox, []
                 return updates
@@ -397,8 +410,10 @@ class T3Tasks:
         return act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
 
     def alternatives(self, question: Question) -> dict[str, str]:
-        """The projects a reply to a launch question could ask for instead, as name to id. Empty for thread questions,
-        whose replies are matched against thread titles."""
+        """What a reply could be choosing, as name to id: the other projects for a launch question, and the listed
+        threads for "which thread". Empty for "do you mean this thread", whose no is matched against thread titles."""
+        if question.kind == "thread":
+            return {question.titles[t]: t for t in question.candidates}
         if question.kind not in ("confirm", "project") or self.follow.seam is None:
             return {}
         names = self.project_names()
@@ -427,6 +442,18 @@ class T3Tasks:
             question = self.live_question()
             reading = self.read_reply(text, question) if question is not None else None
         kind = reading.kind if reading is not None else None
+        update = self._answer(text, now, reading, kind, question)
+        if not isinstance(update, Lookup):
+            return update
+        again = self._refer(update.question, _plain(text), now, without=update.without, recent=False)
+        if update.without is not None or again.acts != (self.pending_act(update.question),):
+            return again
+        # The same "which thread" again: it is never asked twice.
+        with self.lock:
+            self._drop_question()
+        return None
+
+    def _answer(self, text: str, now: float, reading: Reading | None, kind: str | None, question: Question | None):
         with self.lock:
             if self.question is not question:
                 return None
@@ -443,7 +470,7 @@ class T3Tasks:
             if question is None:
                 return self._drop_by_words(text, just_held, now)
             if question.kind == "thread":
-                return self._answer_thread(question, text, kind, now)
+                return self._answer_thread(question, text, reading, now)
             if question.kind == "thread_confirm":
                 return self._answer_thread_confirm(question, text, kind, now)
             down = self._down(question.key, now) if kind != "no" else None
@@ -499,6 +526,17 @@ class T3Tasks:
 
     def about(self, key: str, op: str, instruction: str, now: float) -> L.Update:
         """List threads, pick a target, and ask the speaker to confirm or choose it."""
+        reference, message, _ = (tell_parts(instruction) if op == TELL else
+                                 (_STOP_VERBS.sub(" ", instruction) if op == STOP else instruction, None, None))
+        return self._refer(Question(key, "thread_confirm", instruction, (), op=op, message=message), reference, now)
+
+    def _refer(self, asked: Question, reference: str, now: float, without: str | None = None,
+               recent: bool = True) -> L.Update:
+        """The thread `reference` means, for the request `asked` carries, by the decider's choice among the listed
+        threads. One it is sure of answers a question at once, one it leans to is confirmed back, and words that fit
+        several are asked about, by the titles they fit. `without` is a thread the person just said no to, and
+        `recent` lets "it" mean the thread the call last spoke about."""
+        key = asked.key
         with self.lock:
             down = self._down(key, now)
             if down is not None:
@@ -506,42 +544,54 @@ class T3Tasks:
             listing = self._list(key)
             if isinstance(listing, L.Update):
                 return listing
-            reference, message, _ = (tell_parts(instruction) if op == TELL else
-                                     (_STOP_VERBS.sub(" ", instruction) if op == STOP else instruction, None, None))
-            base = Question(key, "thread_confirm", instruction, (), op=op, message=message,
-                            titles={t.thread_id: t.title for t in listing.threads},
-                            projects={t.thread_id: t.project_id for t in listing.threads})
+            listed = [t for t in listing.threads if t.thread_id != without]
+            base = replace(asked, kind="thread_confirm", candidates=(),
+                           titles={t.thread_id: t.title for t in listed},
+                           projects={t.thread_id: t.project_id for t in listed})
             evidence = (listing.as_of_sequence,)
-            if not content_words(reference):
-                recent = self._recent(base.titles)
-                if recent is not None:
-                    return self._ask_back(replace(base, candidates=(recent,)), evidence)
-                newest = tuple(t.thread_id for t in listing.threads[:3])
-                return self._which(replace(base, kind="thread", candidates=newest), evidence)
-            threads, projects = self._threads(listing), self.project_names()
-            client = self.lane.picker(PICK_TIMEOUT_S) if self.lane is not None else None
+            none = L.Update(key, (act(Say.NO_THREAD, other=True) if without is not None else
+                                  act(Say.NO_THREAD, recent=len(listing.threads) if listing.truncated else None),),
+                            "completed", "ask", sequences=evidence)
+            if not listed:
+                return none
+            options, shared = self._options(listed)
+            last = base.titles.get(self._recent(base.titles)) if recent else None
 
-        pick, _ = pick_thread(reference, threads, projects, _now_iso(), client=client)
+        picked = self._picked(reference, options, last)
 
         with self.lock:
-            if pick.kind == "none":
-                said = act(Say.NO_THREAD, recent=len(listing.threads) if listing.truncated else None)
-                return L.Update(key, (said,), "completed", "ask", sequences=evidence)
-            if pick.kind == "ask":
-                return self._which(replace(base, kind="thread", candidates=pick.candidates), evidence)
-            return self._ask_back(replace(base, candidates=(pick.thread_id,)), evidence)
+            if picked.choice == NONE:
+                return none
+            thread = picked.thread
+            if thread is None:
+                candidates = picked.candidates[:3] or tuple(t.thread_id for t in listed[:3])
+                return self._which(replace(base, kind="thread", candidates=candidates), evidence)
+            if asked.op == ASK and picked.sure and thread not in shared:
+                return self._act(base, thread, now)
+            return self._ask_back(replace(base, candidates=(thread,)), evidence)
+
+    def _options(self, listed) -> tuple[tuple[Listed, ...], frozenset[str]]:
+        """The threads the decider chooses among, newest first, and those whose title another thread has too. Threads
+        that share a title cannot be told apart by voice, so the newest stands for the title."""
+        names, options, shared = self.project_names(), {}, set()
+        for t in listed:
+            title = t.title.casefold()
+            if title in options:
+                shared.add(options[title].thread_id)
+            elif len(options) < PICK_LIMIT:
+                options[title] = Listed(t.thread_id, t.title, names.get(t.project_id, ""), t.activity.value)
+        return tuple(options.values()), frozenset(shared)
+
+    def _picked(self, reference: str, options: tuple[Listed, ...], last: str | None) -> Picked:
+        """The decider's pick, off the lock since it is a network call. With no decider nothing is picked."""
+        picks = getattr(self.decider, "picks", None)
+        return picks(reference, options, last) if picks is not None else Picked(None)
 
     def _list(self, key: str):
         try:
             return self.follow.seam.list_threads()
         except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
             return L.Update(key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
-
-    @staticmethod
-    def _threads(listing: T.ThreadList, among=None) -> list[dict]:
-        return [{"threadId": t.thread_id, "title": t.title, "activity": t.activity.value, "projectId": t.project_id,
-                 "lastActivityAt": t.last_activity_at}
-                for t in listing.threads if among is None or t.thread_id in among]
 
     def _recent(self, listed: dict[str, str]) -> str | None:
         """The thread "it" means: the one this voice last spoke about, else the newest one it started or sent to."""
@@ -557,11 +607,19 @@ class T3Tasks:
         return L.Update(question.key, (said,), "needs_clarification", "pick", thread, question.evidence)
 
     def _which(self, question: Question, evidence) -> L.Update:
+        """Ask which of the candidates. Threads that share a title cannot be told apart by voice, so the newest of
+        them stands for the title (`titles` is newest first), and one title left is confirmed, not asked about."""
+        newest: dict[str, str] = {}
+        for thread in sorted(question.candidates, key=list(question.titles).index):
+            newest.setdefault(question.titles[thread].casefold(), thread)
+        question = replace(question, candidates=tuple(t for t in question.candidates if t in newest.values()))
+        if len(question.candidates) == 1:
+            return self._ask_back(replace(question, kind="thread_confirm"), evidence)
         question = self._ask(question)
         said = act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
         return L.Update(question.key, (said,), "needs_clarification", "pick", sequences=evidence)
 
-    def _answer_thread_confirm(self, question: Question, text: str, kind: str | None, now: float) -> L.Update | None:
+    def _answer_thread_confirm(self, question: Question, text: str, kind: str | None, now: float):
         thread = question.candidates[0]
         if kind == "yes":
             down = self._down(question.key, now)
@@ -569,34 +627,13 @@ class T3Tasks:
         cancelled = act(Say.CANCELLED, op=OPS[question.op], thread=question.titles.get(thread))
         if kind == "no" and question.op != ASK:
             return L.Update(question.key, (cancelled,), "cancelled", "pick", thread)
-        if kind == "no":
-            return self._declined(question, thread, text, now)
-        return None
+        return Lookup(question, thread) if kind == "no" else None
 
-    def _declined(self, question: Question, declined: str, text: str, now: float) -> L.Update | None:
-        """A no to "Do you mean the X thread?": the thread the reply names, else which one, by up to three titles."""
-        down = self._down(question.key, now)
-        if down is not None:
-            return down
-        listing = self._list(question.key)
-        if isinstance(listing, L.Update):
-            return listing
-        others = [t for t in self._threads(listing) if t["threadId"] != declined]
-        question = replace(question, titles={t["threadId"]: t["title"] for t in others},
-                           projects={t["threadId"]: t["projectId"] for t in others})
-        evidence = (listing.as_of_sequence,)
-        words = _plain(text)
-        pick = prefilter_pick(words, others, self.project_names()) if content_words(words) else None
-        if pick is not None and pick.kind == "one":
-            return self._ask_back(replace(question, candidates=(pick.thread_id,)), evidence)
-        candidates = (pick.candidates if pick is not None and pick.kind == "ask" and pick.candidates
-                      else tuple(t["threadId"] for t in others[:3]))
-        if not candidates:
-            return L.Update(question.key, (act(Say.NO_THREAD, other=True),), "completed", "ask",
-                            sequences=evidence)
-        return self._which(replace(question, kind="thread", candidates=tuple(candidates)[:3]), evidence)
-
-    def _answer_thread(self, question: Question, text: str, kind: str | None, now: float) -> L.Update | None:
+    def _answer_thread(self, question: Question, text: str, reading: Reading | None, now: float):
+        """A reply to "which thread": the one the decider reads it as choosing, by name or by place. A reply that
+        asks for a thread that was not offered is looked up among every thread. Any other drops the question, which
+        is never asked twice."""
+        kind = reading.kind if reading is not None else None
         if question.op != ASK and kind == "no":
             return L.Update(question.key, (act(Say.CANCELLED, op=OPS[question.op]),), "cancelled", "pick")
         if self._down(question.key, now) is not None:
@@ -604,17 +641,16 @@ class T3Tasks:
         listing = self._list(question.key)
         if isinstance(listing, L.Update):
             return listing
-        threads = self._threads(listing, among=question.candidates)
-        pick = prefilter_pick(text, threads, self.project_names())
-        evidence = (listing.as_of_sequence,)
-        question = replace(question, titles={t["threadId"]: t["title"] for t in threads},
-                           projects={t["threadId"]: t["projectId"] for t in threads})
-        if pick.kind != "one":
-            return self._which(replace(question, candidates=tuple(question.titles)), evidence)
+        threads = [t for t in listing.threads if t.thread_id in question.candidates]
+        chosen = self.alternatives(question).get(reading.target) if reading is not None else None
+        if chosen not in {t.thread_id for t in threads}:
+            return Lookup(question) if reading is not None and reading.elsewhere else None
+        question = replace(question, titles={t.thread_id: t.title for t in threads},
+                           projects={t.thread_id: t.project_id for t in threads})
         if question.op == ASK:
-            return self._act(question, pick.thread_id, now)
-        return self._ask_back(replace(question, kind="thread_confirm", candidates=(pick.thread_id,)),
-                              evidence)
+            return self._act(question, chosen, now)
+        return self._ask_back(replace(question, kind="thread_confirm", candidates=(chosen,)),
+                              (listing.as_of_sequence,))
 
     def _act(self, question: Question, thread: str, now: float) -> L.Update:
         self.recent = thread
@@ -662,13 +698,11 @@ class T3Tasks:
                 listing = seam.list_threads()
             except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
                 return
-            threads = self._threads(listing)
-            if content_words(instruction):
-                pick = prefilter_pick(instruction, threads, self.project_names())
-                thread = pick.thread_id if pick is not None and pick.kind == "one" else None
-            else:
-                with self.lock:
-                    thread = self._recent({t["threadId"]: t["title"] for t in threads})
+            titles = {t.thread_id: t.title for t in listing.threads}
+            with self.lock:
+                options, _ = self._options(listing.threads)
+                last = titles.get(self._recent(titles))
+            thread = self._picked(instruction, options, last).thread
             if thread is not None:
                 self.speech.prefetch(thread, instruction)
 
@@ -799,10 +833,11 @@ class T3TaskService(MockTaskService):
         if choice is None or choice.tool not in T3_TOOLS or choice.confidence < self._threshold():
             return super()._start(task_id, instruction, side_effect, now, choice)
         key = f"{self.conversation_id}:{task_id}"
-        if choice.tool == START and self.t3.asking_start(f"{self.conversation_id}:"):
-            # One long request is cut into several segments that each read as a launch. The first already asked.
+        if choice.tool in (START, TELL) and self.t3.asking_start(f"{self.conversation_id}:"):
+            # One long request is cut into several segments. The first already asked, and the launch carries the whole
+            # turn, so another launch, or an instruction for the thread being started, is part of it.
             return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
-                             tool={"tool": START, "arguments": {}})
+                             tool={"tool": choice.tool, "arguments": {}})
         update = (self.t3.start(key, instruction, now) if choice.tool == START
                   else self.t3.about(key, choice.tool, instruction, now))
         return self._execution(task_id, update, now, choice.tool)
@@ -855,9 +890,8 @@ class T3TaskService(MockTaskService):
                 return []
         question = self.t3.live_question()
         reading = self.t3.read_reply(instruction, question) if question is not None else None
-        with self.t3.lock:
-            tool = question.op if question is not None else TELL
-            update = self.t3.answer(instruction, now, reading, question)
+        tool = question.op if question is not None else TELL
+        update = self.t3.answer(instruction, now, reading, question)
         if update is None:
             return []
         task_id = f"t3_{len(self.extra) + 1}"
@@ -907,8 +941,10 @@ class T3TaskService(MockTaskService):
     def close(self):
         super().close()
         self.t3.turn_closed(self)
-        unsent = [update for task_id, update in self.spoken.items()
-                  if task_id not in self.delivered and update.status != "needs_clarification"]
+        # A question nobody heard goes back too, to be asked when the call is quiet: no reply can answer it unheard.
+        with self.t3.lock:
+            unsent = [update for task_id, update in self.spoken.items()
+                      if task_id not in self.delivered and self.t3.askable(update)]
         unsent.extend(self.news.values())
         if unsent:
             self.t3.retry_news(unsent)

@@ -536,7 +536,7 @@ Option 3 says the worker behind the task service becomes a frontier agent with T
 Models make every judgment that needs one:
 
 1. The decider decides that an utterance is T3 work, and the gate holds it as a side effect.
-2. The picker resolves the thread for Twin B from what the seam returned. It answers with one id, a question, or none. A fast model picks only after the Twin B eval passes.
+2. The decider picks the thread for Twin B from what the seam returned, as one choice among the listed threads ([spoken-acts.md](spoken-acts.md)). It answers with one id, a question, or none. No chat model picks.
 3. The picker resolves the project for Twin A with the same three answers. In milestone 1 it starts as a deterministic match on `spokenNames`. A fast model takes over only after its own eval passes (open question 2).
 4. The frontier agent in the launched thread does the work.
 

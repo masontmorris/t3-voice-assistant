@@ -9,7 +9,7 @@ a done, or a need. It reads the thread through the seam (status and need come fr
 writes a gist into the act's `summary` slot, and is cached per thread, read sequence and question. A speculative
 start may begin it while Mason is still asking.
 
-The picker and summaries share the text-model lane. The live renderer uses a separate text-only realtime lane
+The summaries use the text-model lane. The live renderer uses a separate text-only realtime lane
 by default, with the text model available as an override.
 """
 
@@ -195,7 +195,7 @@ def text_model(name: str | None = None, cloud: Callable[[], Any] | None = None):
 
 
 class Lane:
-    """One model request in flight for every voice caller: the picker, the renderer, and the summaries."""
+    """One model request in flight for every voice caller: the renderer and the summaries."""
 
     def __init__(self, client):
         self._check(client)
@@ -223,15 +223,6 @@ class Lane:
             # A queued request is dropped; one already running keeps the slot until its HTTP call returns.
             future.cancel()
             raise TimeoutError("the voice text model did not answer in time") from None
-
-    def picker(self, timeout: float) -> Any:
-        lane = self
-
-        class Picker:
-            def complete(self, messages):
-                return lane.call(messages, timeout)
-
-        return Picker()
 
 
 def _turns(turns: Iterable[dict]) -> list[dict]:
@@ -489,7 +480,7 @@ READER_EXAMPLES = {
     Kind.LAUNCH_UNCONFIRMED: ({"project": "Example Reef Cards"},
                               "T3 never confirmed the start in Example Reef Cards. You can check in the app."),
     Kind.NO_THREAD: ({"recent": 19}, "I checked 19 recent threads and couldn't find a match."),
-    Kind.CONFIRM_THREAD: ({"thread": "Example Polish Checkout Layout"}, "Is Example Polish Checkout Layout the thread you mean?"),
+    Kind.CONFIRM_THREAD: ({"thread": "Example Polish Checkout Layout"}, "Do you mean the thread called Example Polish Checkout Layout?"),
     Kind.CONFIRM_TELL: ({"thread": "Example Trim Image Margins", "message": "keep the captions"},
                         "Should I send 'keep the captions' to Example Trim Image Margins as a follow-up?"),
     Kind.CONFIRM_STOP: ({"thread": "Example Split Export Files"}, "Should I stop Example Split Export Files?"),

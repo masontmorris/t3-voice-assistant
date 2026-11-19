@@ -2,6 +2,7 @@
 
     python -m voice.live.rehearse drive --out DIR [--calls 10] [--port 8771]
     python -m voice.live.rehearse summary --out DIR
+    python -m voice.live.rehearse drive --mixed --out DIR [--calls 5] [-- extra server arguments]
 
 The score is threads started, of N calls shaped like the call this lane is fixing. `drive` starts `serve` as a child,
 renders each call's turns with the server's own TTS, and sends them with the WAV client (to a null output, so nothing plays), one call
@@ -22,8 +23,15 @@ records and says, per call, how far it got: dispatched (the request became a lau
 spoken), yes read (the answer became a launch act), started (the seam saw this call's launch), status answered, and
 where the first break was.
 
+`--mixed` runs the mixed calls instead, shaped like the 2026-11-19 call: two chat turns, a weather lookup and a thread
+request in one breath, a yes, a weather lookup and a question about the thread in one breath, and a yes. Calls 1, 2 and
+4 ask for the lookup first, calls 3 and 5 for the thread. `summary` adds, per turn that had both a lookup and a T3
+line, whether the T3 line was said on its first relay, whether a reply said the lookup's forecast high, and whether
+both were heard. A lookup reply that names a thread is listed for reading, since nothing in code can tell what it says
+about one.
+
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
-are synthetic speech; the thread picker's cloud model and the general agent are off, so no OpenRouter call is made.
+are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made.
 """
 
 import argparse
@@ -125,10 +133,27 @@ YES = ("Please do.", "Yes, please do.", "Yeah, go ahead.", "Please do.", "Yes pl
        "Please do.", "Yeah, go ahead.", "Sure.", "Please do?", "Yes, do it.",
        "Please do.", "Yeah, go ahead.", "Sure.", "Please do?", "Yes, do it.")
 assert len(CHAT) == len(THREADS) == len(ASKS) == len(REQUESTS) == len(YES)
+# The mixed calls reuse calls 1 to 5's chat, threads and yeses. Written once, before any run of them.
+MIXED_REQUESTS = (
+    "Could you tell me the weather in Denver tomorrow, and then also start a thread to clean up the texture export "
+    "for the game engine?",
+    "Uhm, what's the weather going to be in Seattle tomorrow, and could you start a thread on converting the audio "
+    "presets for the editor?",
+    "Start a thread to find out why the nightly build is slow, and also, what's the weather in Chicago tomorrow?",
+    "Can you check tomorrow's weather in Portland and kick off a thread to fix the dropped spreadsheet columns?",
+    "Could you open a thread for remembering window sizes on the settings screen, and tell me the weather in "
+    "Atlanta tomorrow?")
+MIXED_ASKS = ("What's the weather in Boston tomorrow, and how is the texture export thread going?",
+              "What's the weather in Austin tomorrow, and how's the audio presets thread going?",
+              "What's the weather like in Miami tomorrow, and what is the nightly build thread up to?",
+              "What's the weather in Phoenix tomorrow, and is the spreadsheet columns thread done yet?",
+              "How is the window sizes thread going, and what's the weather in Nashville tomorrow?")
 
 
-def turns(call, tail=True):
+def turns(call, tail=True, mixed=False):
     """One call's turns as text, in the order the person says them."""
+    if mixed:
+        return [*CHAT[call], MIXED_REQUESTS[call], YES[call], *((MIXED_ASKS[call], "Yes.") if tail else ())]
     return [*CHAT[call], REQUESTS[call], YES[call], *((ASKS[call], "Yes.") if tail else ())]
 
 
@@ -151,9 +176,9 @@ class ScriptedSeam(F.FakeSeam):
     """The seam a call reads: one sandbox project, and no thread until a launch makes one. A launch is logged with the
     time it came, its payload, and which call's request that payload is."""
 
-    def __init__(self, log_path: Path):
+    def __init__(self, log_path: Path, requests=REQUESTS):
         super().__init__()
-        self.log_path = log_path
+        self.log_path, self.requests = log_path, requests
         self.launches, self.threads = [], {}
 
     @property
@@ -176,18 +201,18 @@ class ScriptedSeam(F.FakeSeam):
 
     def launch(self, request_id, project_id, instruction):
         self.calls.append(("launch", request_id, project_id, instruction))
-        best = max(range(len(REQUESTS)), key=lambda i: overlap(REQUESTS[i], instruction))
+        best = max(range(len(self.requests)), key=lambda i: overlap(self.requests[i], instruction))
         thread = f"t{best + 1}"
         self.threads[thread] = THREADS[best]
         self.launches.append({"at": time.time(), "project": project_id, "instruction": instruction, "call": best,
-                              "overlap": round(overlap(REQUESTS[best], instruction), 2), "thread": thread})
+                              "overlap": round(overlap(self.requests[best], instruction), 2), "thread": thread})
         self.log_path.write_text(json.dumps(self.launches), encoding="utf-8")
         return F.launched(thread=thread, run=f"r{best + 1}", sequence=93 + len(self.launches))
 
 
 def serve(args, rest):
-    """The live server with its T3 seam and thread picker replaced."""
-    seam = ScriptedSeam(args.out / "seam-calls.json")
+    """The live server with its T3 seam replaced and no T3 text model."""
+    seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS)
 
     def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, *, writer=None):
         return cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, writer=writer)
@@ -201,16 +226,16 @@ def serve(args, rest):
     server.main()
 
 
-def run_drive(args):
+def run_drive(args, rest=()):
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
     env = dict(os.environ, VOICE_T3_JOURNAL=str(out / "t3-journal.json"), VOICE_AGENT="off", PYTHONIOENCODING="utf-8")
     stop = out / "STOP"
     command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out),
-               *(["--cpu"] if args.cpu else []), "--",
+               *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []), "--",
                "--host", "127.0.0.1", "--port", str(args.port), "--t3", "on", "--snapshot", "note",
                "--max-minutes", str(args.max_minutes), "--out", str(out / "server"), "--stop-file", str(stop),
-               "--decider-cache", str(out / "decider-cache")]
+               "--decider-cache", str(out / "decider-cache"), *rest]
     child = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
                              encoding="utf-8")
     ready, lines = threading.Event(), []
@@ -232,7 +257,7 @@ def run_drive(args):
         client = VOICE / "venv-live-client/Scripts/python.exe"
         for call in args.only or range(args.calls):
             text = out / f"call{call + 1}.txt"
-            text.write_text("\n".join(turns(call, not args.no_tail)) + "\n", encoding="utf-8")
+            text.write_text("\n".join(turns(call, not args.no_tail, args.mixed)) + "\n", encoding="utf-8")
             clips = out / f"clips{call + 1}"
             subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text), "--out", str(clips),
                             "--server", f"http://127.0.0.1:{args.lfm_port}"], env=env, check=True,
@@ -267,13 +292,50 @@ def entries(record):
             kinds = [a["kind"] for a in event.get("acts") or ()]
             current = {"kinds": kinds, "draft": event.get("line"), "draft_problems": event.get("problems") or
                        ([event["error"]] if event.get("error") else []), "reply": None, "status": None,
-                       "delivery": "unsent"}
+                       "delivery": "unsent", "relays": 0}
             found.append(current)
         elif event["kind"] == "t3_call_reply" and current is not None:
             current["reply"], current["status"] = event.get("text"), event.get("status")
+            current["relays"] += 1
         elif event["kind"] == "t3_delivery" and current is not None:
             current["delivery"] = event.get("delivery")
     return found
+
+
+def forecast_highs(record):
+    """The high temperature of each weather lookup that answered in this turn, as the digits a reply would say."""
+    highs = []
+    for execution in (record.get("executions") or {}).values():
+        summary, tool = execution.get("result_summary") or "", execution.get("tool") or {}
+        if tool.get("tool") == "weather" and tool.get("outcome") == "ok" and "a high of " in summary:
+            highs.append(summary.split("a high of ", 1)[1].split()[0])
+    return highs
+
+
+def free_lines(row):
+    """What the caller heard in a turn that was not a checked T3 line."""
+    return [text for kind, delivery, text in row["replies"]
+            if kind not in ("t3", "t3_update") and delivery in (None, "sent") and text]
+
+
+def naming_a_thread(row):
+    """The heard lines outside a checked T3 line that name a thread, for reading: code cannot tell what they say
+    about it, and a word check can only flag them."""
+    return [text for text in free_lines(row) if "thread" in text.lower()]
+
+
+def mixed_turn(row):
+    """How a turn with both a lookup and a T3 line went: the T3 line said on its first relay, a reply said the
+    lookup's forecast high (in the reply or the turn's late update), and the heard lines outside the checked T3 line
+    that name a thread. None for any other turn."""
+    if not row["highs"] or not row["t3"]:
+        return None
+    said = any(e["delivery"] == "sent" for e in row["t3"])
+    heard = any(high in text for high in row["highs"] for text in free_lines(row))
+    first = row["t3"][0]
+    return {"path": row["path"], "first_relay_recited": first["delivery"] == "sent" and first["relays"] == 1,
+            "t3_said": said, "lookup_heard": heard, "both_heard": heard and said,
+            "free_lines_naming_a_thread": naming_a_thread(row)}
 
 
 MATCH = 0.75  # How much of the request a launch's payload must carry to be this call's request.
@@ -329,6 +391,9 @@ def summarize(out):
         rows.append({"call": call, "turn": number, "idle": bool(record.get("idle")), "said": record.get("final_transcript"),
                      "replies": replies, "first_audio_after_speech_end_s": live.get("speech_end_to_first_audio_sent_s"),
                      "held": [r for r in replies if r[1] not in (None, "sent")], "t3": entries(record),
+                     "highs": forecast_highs(record),
+                     "repeats": [e["reply"] for e in record.get("timeline", [])
+                                 if e.get("kind") == "fact_check" and e.get("repeated")],
                      "fact_checks": sum(e.get("kind") == "fact_check" for e in record.get("timeline", [])),
                      "error": record.get("error"), "path": path.name})
     launches = out / "seam-calls.json"
@@ -353,6 +418,7 @@ def main():
     parser.add_argument("--lfm-port", type=int, default=8095)
     parser.add_argument("--max-minutes", type=float, default=13.5)
     parser.add_argument("--cpu", action="store_true", help="smoke test on the CPU: no GPU layers")
+    parser.add_argument("--mixed", action="store_true", help="the mixed calls: a lookup and a T3 request in one breath")
     argv = sys.argv[1:]
     head, rest = (argv[:argv.index("--")], argv[argv.index("--") + 1:]) if "--" in argv else (argv, [])
     args = parser.parse_args(head)
@@ -368,9 +434,17 @@ def main():
         score = {name: {"started": f"{sum(g['started'] for g in gs)} of {len(gs)}",
                         "status_answered": f"{sum(g['status_answered'] for g in gs)} of {len(gs)}",
                         "false_claims": sum(len(g["false_claims"]) for g in gs)} for name, gs in halves.items() if gs}
-        print(json.dumps({"score": score, "first_break_causes": causes, "grades": grades, "rows": rows}, indent=1))
+        mixed = [m for m in map(mixed_turn, rows) if m is not None]
+        if mixed:
+            score["mixed_turns"] = {key: f"{sum(bool(m[key]) for m in mixed)} of {len(mixed)}"
+                                    for key in ("first_relay_recited", "t3_said", "lookup_heard", "both_heard",
+                                                "free_lines_naming_a_thread")}
+        score["free_lines_naming_a_thread_in_any_turn"] = [line for row in rows for line in naming_a_thread(row)]
+        score["replies_repeating_an_earlier_one"] = [line for row in rows for line in row["repeats"]]
+        print(json.dumps({"score": score, "first_break_causes": causes, "mixed_turns": mixed, "grades": grades,
+                          "rows": rows}, indent=1))
     else:
-        serve(args, rest) if args.mode == "serve" else run_drive(args)
+        serve(args, rest) if args.mode == "serve" else run_drive(args, rest)
 
 
 if __name__ == "__main__":

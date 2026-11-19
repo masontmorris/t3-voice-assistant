@@ -159,6 +159,10 @@ _NOT_SPEECH = re.compile(r"^[\[{]|```|`|\*\*|https?://|\||\.\.\.|\N{HORIZONTAL E
 # Shell syntax, a flag, a path or a backslash: what a raw command reads like, which no spoken line holds.
 _CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?\.{0,2}/\w|\w/[\w.-]+\.\w+|\\\w")
 MAX_SENTENCES_PER_ACT = 2
+# A thread or project name in quote marks. The call's voice answers a question that quotes its subject ("Yes, it
+# is.") in place of saying it, in 9 of 9 rehearsed relays, and says the same question without the marks.
+_NAMES = ("thread", "project", "candidates", "available")
+_QUOTE = "[\"\N{LEFT DOUBLE QUOTATION MARK}\N{RIGHT DOUBLE QUOTATION MARK}]"
 
 
 _TOKEN = re.compile(r"\d+(?:[.,:/]\d+)*|[%$€£]|\w+(?:'\w+)*")
@@ -227,6 +231,9 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
         problems.append("reads code")
     if len(_SENTENCE.findall(form if form[-1] in ".!?" else form + ".")) > MAX_SENTENCES_PER_ACT * len(acts):
         problems.append("too long")
+    names = [v for a in acts for name in _NAMES if name in a.slots for v in _named_values(a.slots[name])]
+    if any(re.search(f"{_QUOTE}{re.escape(name)}{_QUOTE}", text, re.IGNORECASE) for name in names):
+        problems.append("quotes around a name")
     expects_question = any(a.kind in QUESTIONS for a in acts)
     if expects_question and not text.endswith("?"):
         problems.append("not a question")

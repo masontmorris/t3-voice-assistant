@@ -241,6 +241,97 @@ class Decider:
             return Reading(None, error=f"decider status {record.get('status')}")
         return judge_reading((record.get("response") or {}).get("answers"), options)
 
+    def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None) -> Picked:
+        """Which of `threads` the words `request` mean, with how sure it is. `recent` is the title the call was just
+        about. A timeout or any error picks nothing, and nothing is always asked about."""
+        if not threads:
+            return Picked(NONE, shares={NONE: 1.0})
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", pick_request(request, threads, recent), label="t3_pick")
+        except Exception as exc:
+            return Picked(None, error=f"{type(exc).__name__}: {exc}")
+        if record.get("status") != 200:
+            return Picked(None, error=f"decider status {record.get('status')}")
+        return judge_pick((record.get("response") or {}).get("answers"), threads)
+
+
+NONE, UNCLEAR = "none", "unclear"
+# A thread with at least this share of the choice is one the words may mean: it is confirmed, or offered in "which".
+# On 27 probe requests over 12 and over 40 threads (d1.2), a request that fits several threads gave each 0.07 to 0.32
+# and "unclear" the most; a request naming one thread, even misheard, gave it 0.72 to 0.99.
+PICK_FLOOR = 0.1
+PICK_CONFIRM = 0.5
+# A thread with this much is one the decider is sure of, and a question about it is answered without first asking
+# "do you mean this thread". A thread named plainly got 0.95 to 0.99; a misheard name, "it" for the thread just
+# spoken about, and "the one waiting on me" got 0.72 to 0.88, and are confirmed.
+PICK_SURE = 0.9
+
+
+@dataclass(frozen=True)
+class Listed:
+    """One thread the decider may pick, as the listing describes it."""
+
+    thread_id: str
+    title: str
+    project: str = ""
+    activity: str = ""
+
+
+@dataclass(frozen=True)
+class Picked:
+    """The decider's pick of a thread. `choice` is a thread id, NONE for a thread that is not listed, UNCLEAR when the
+    words do not settle on one, and None when there was no answer. `shares` is each thread id's share of the choice."""
+
+    choice: str | None
+    shares: dict[str, float] = field(default_factory=dict)
+    error: str | None = None
+
+    @property
+    def thread(self) -> str | None:
+        """The one thread the words mean, when it has most of the weight."""
+        picked = self.choice not in (None, NONE, UNCLEAR) and self.shares.get(self.choice, 0.0) >= PICK_CONFIRM
+        return self.choice if picked else None
+
+    @property
+    def sure(self) -> bool:
+        return self.thread is not None and self.shares[self.thread] >= PICK_SURE
+
+    @property
+    def candidates(self) -> tuple[str, ...]:
+        """The threads the words may mean, likeliest first."""
+        fits = [(share, thread) for thread, share in self.shares.items()
+                if thread not in (NONE, UNCLEAR) and share >= PICK_FLOOR]
+        return tuple(thread for _, thread in sorted(fits, key=lambda fit: -fit[0]))
+
+
+def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None) -> dict:
+    """One decisions body asking which listed thread the person's words mean. The threads are the options, so the
+    answer's shares say how sure the pick is and which others the words fit."""
+    criteria = {f"thread_{i:02d}": f"{t.title!r} in the project {t.project!r}, {t.activity.replace('_', ' ')}."
+                for i, t in enumerate(threads, 1)}
+    criteria[NONE] = "It means a thread that is not one of these."
+    criteria[UNCLEAR] = "It does not say which thread, or fits several of these equally well."
+    state = {"request": request, "last_discussed": recent,
+             "context": "A person on a voice call asked their assistant about one of their coding threads. `request` "
+                        "is a transcript of what they said, and may mishear a word."}
+    instructions = ("Which of the person's threads does `request` mean? The options list them, newest first. "
+                    "`last_discussed` is the thread the conversation was just about, when there is one.")
+    return {"model": "d1.2", "state": state,
+            "questions": {"pick": {"type": "choice", "instructions": instructions, "criteria": criteria}}}
+
+
+def judge_pick(answers: Any, threads: tuple[Listed, ...]) -> Picked:
+    """The decider's answer as a Picked. A label that is not an option, or shares that are not numbers from 0 to 1,
+    is no pick at all."""
+    ids = {f"thread_{i:02d}": t.thread_id for i, t in enumerate(threads, 1)}
+    answer = answers.get("pick") if isinstance(answers, dict) else None
+    scores = _scores(answer, {*ids, NONE, UNCLEAR})
+    if scores is None:
+        return Picked(None, error="the decider gave no pick")
+    return Picked(ids.get(answer["choice"], answer["choice"]), {ids.get(k, k): v for k, v in scores.items()})
+
 
 READ_CRITERIA = {
     "yes": "It agrees to exactly what the assistant asked, with nothing added, changed or conditional.",
@@ -257,7 +348,9 @@ OTHER_CEILING = 0.2
 # The two together: a rising "please do" gives them 0.21 of the weight, the most of any recorded yes.
 TOGETHER_CEILING = 0.25
 OPTION_CONFIDENCE = 0.6
-ELSEWHERE_CONFIDENCE = 0.5
+# The recorded replies that ask for something else give it 0.82 and up. One that changes the request, not the target,
+# gave it 0.41 in one recording and 0.57 in the next.
+ELSEWHERE_CONFIDENCE = 0.7
 KEEPS, ELSEWHERE = "keeps", "elsewhere"
 
 
@@ -271,7 +364,17 @@ def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dic
                         "is a transcript of what they said back."}
     questions = {"reading": {"type": "choice", "instructions": "What does the person's reply do about what the "
                                                                "assistant asked?", "criteria": READ_CRITERIA}}
-    if options:
+    if options and said.kind is Kind.ASK_WHICH:
+        # The assistant listed the options aloud, so "the second one" answers by place as well as by name.
+        state["listed"] = list(options)
+        criteria = {KEEPS: "It does not choose one of them."}
+        criteria.update({f"option_{i}": f"It chooses {name!r}, number {i} of the {len(options)} listed."
+                         for i, name in enumerate(options, 1)})
+        criteria[ELSEWHERE] = "It asks for something that is not one of those listed."
+        questions["target"] = {"type": "choice", "criteria": criteria,
+                               "instructions": "The assistant read out `listed`, in that order, and asked which one "
+                                               "the person means. Which does the reply choose?"}
+    elif options:
         state["alternatives"] = list(options)
         criteria = {KEEPS: "It keeps what the assistant proposed, or does not say to change it."}
         criteria.update({f"option_{i}": f"It changes to {name!r}." for i, name in enumerate(options, 1)})

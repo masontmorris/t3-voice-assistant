@@ -72,8 +72,9 @@ With --t3 on, news from a T3 thread the voice started or sent to (it is working,
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
 speaking, and IDLE_GRACE_S since the last of them. Every update carries typed acts. The writer drafts a line, then
 the call's voice session says it. The draft passes the form and decider checks, and the call's reply must be the
-draft's words and no others before the client gets any audio. A turn that has a T3 line says only that line. The
-client can duck or interrupt it, and the record keeps the act's evidence. A line that does not play goes back to wait.
+draft's words and no others before the client gets any audio. A person turn with a T3 line says nothing free about
+the person's words: its lookups follow the T3 line as updates. The client can duck or interrupt it, and the record
+keeps the act's evidence. A line that does not play goes back to wait, a question nobody heard included.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
@@ -1060,7 +1061,7 @@ async def main_async(args):
             stack.callback(poller.stop)
             tools = T3Registry(tools)
             print(f"t3 tasks on: {len(t3.follow.journal.live())} live threads and "
-                  f"{len(t3.follow.journal.held())} held follow-ups resumed, thread picker model "
+                  f"{len(t3.follow.journal.held())} held follow-ups resumed, text model "
                   f"{'on' if t3.model else 'off'}", flush=True)
         live = Live(args, url, decider, tools, out, cloud_lock,
                     eou=eou, secret=secret)
