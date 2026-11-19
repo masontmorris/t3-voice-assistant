@@ -235,6 +235,19 @@ class Hybrid(unittest.TestCase):
         self.assertIn("coding thread", criteria["on"]["request"])
         self.assertIn("not chitchat", criteria["on"]["chitchat"])
 
+    def test_a_thread_request_with_no_project_is_ready_only_when_the_t3_tools_are_offered(self):
+        ready = {}
+        for name, tools in (("off", {"weather": "Weather.", "none": "No tool."}),
+                            ("on", {"t3_start": "Start a thread.", "weather": "Weather.", "none": "No tool."})):
+            decider = FakeDecider()
+            segmenter = HybridSegmenter(decider, name, tools=tools)
+            segmenter.conversation_mode = True
+            segmenter.update(TranscriptUpdate(1, "Could you start a thread for the importer logging?", True))
+            ready[name] = decider.bodies[-1]["questions"]["s1_ready"]["criteria"]
+        self.assertNotIn("names no project", ready["off"]["dispatch_now"])
+        self.assertIn("names no project", ready["on"]["dispatch_now"])
+        self.assertNotIn("names no project", ready["on"]["clarify"])
+
     def test_a_voice_delegate_links_to_its_segment_and_dispatches_once(self):
         seg = stream(["look up tomorrow's weather in seattle", "look up tomorrow's weather in seattle and um",
                       "look up tomorrow's weather in seattle and um what time does the ferry leave",

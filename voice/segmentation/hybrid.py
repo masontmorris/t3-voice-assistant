@@ -35,6 +35,11 @@ from voice.tools.registry import T3_TOOLS
 T3_REQUEST = (" Asking how a coding thread or other work outside this call is going, or asking to start one, "
               "pass it a message, or stop it, is external work.")
 T3_CHITCHAT = " A question about a thread's progress is not chitchat."
+# Left alone, the decider called 5 of 10 long hesitant "start a thread" requests ambiguous because they name no project,
+# so they waited for a clarification the T3 service asks for itself (measured: 15 of 30 draws dispatched, 27 of 30 with
+# this line; docs/voice/spoken-acts.md).
+T3_READY = (" A request to start, ask about, tell or stop a coding thread is complete when it says what the thread is "
+            "for, even if it names no project or thread: the assistant works that out and asks the speaker back.")
 I_MEAN = re.compile(r"\bi mean\b", re.IGNORECASE)
 MAX_DRAIN = 4
 QUIET = (0, (), ())
@@ -327,6 +332,9 @@ class HybridSegmenter:
                     question["criteria"]["true"] += " Sending or writing anything is a side effect."
                     question["criteria"]["false"] += (" Reading or searching stored data, such as email, files or "
                                                        "a calendar, without changing it is a lookup.")
+                if name.endswith("_ready") and T3_TOOLS & set(self.tool_choices or ()):
+                    question["criteria"] = dict(question["criteria"])
+                    question["criteria"]["dispatch_now"] += T3_READY
                 if name.endswith("_kind"):
                     question["criteria"]["request"] = ("The speaker asks for work requiring an external lookup, tool, "
                                                         "agent, or action. Questions answerable from this conversation "
