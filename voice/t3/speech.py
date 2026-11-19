@@ -553,7 +553,7 @@ def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), at
     prompt += "\n\nThese examples show how to turn a record into speech. Use the facts from the new record."
     for kind in kinds:
         example, reply = READER_EXAMPLES[kind]
-        prompt += f'\n\nRecord: {json.dumps({"kind": kind.value, **example})}\nReply: {reply}'
+        prompt += f'\n\nExample record: {json.dumps({"kind": kind.value, **example})}\nExample reply: {reply}'
     prompt += "\n\nRespond with interleaved text and audio."
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]
     body = records[0] if len(records) == 1 else {"acts": records}
@@ -563,4 +563,6 @@ def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), at
         body["refused wordings"] = list(refused)
     if attempt:
         body["attempt"] = attempt + 1
-    return [{"role": "system", "content": prompt}, {"role": "user", "content": json.dumps(body)}]
+    # Unlabelled, the new record read as one more example: beside a long start request, 6 of 10 confirm_launch drafts
+    # were the example's reply with the example's project, and with the labels 0 of 10 (CPU, writer greedy).
+    return [{"role": "system", "content": prompt}, {"role": "user", "content": "New record: " + json.dumps(body)}]

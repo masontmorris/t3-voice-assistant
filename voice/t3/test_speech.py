@@ -277,7 +277,7 @@ class RenderTest(unittest.TestCase):
                 system, user = reader_messages((act(Kind.CONFIRM_THREAD, thread=title),))
                 self.assertIn("existing thread named in thread", system["content"])
                 self.assertNotIn(title, system["content"])
-                self.assertEqual(json.loads(user["content"]), {"kind": "confirm_thread", "thread": title})
+                self.assertEqual(json.loads(user["content"].removeprefix("New record: ")), {"kind": "confirm_thread", "thread": title})
 
 
     def test_known_and_example_titles_are_rejected_in_the_draft_and_the_call_may_say_only_the_draft(self):

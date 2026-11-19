@@ -15,6 +15,7 @@ import json
 import time
 from pathlib import Path
 
+from voice.live.rehearse import REQUESTS
 from voice.live.server import LIVE_HOME, load_persona
 from voice.live.t3_tasks import T3Tasks, Words, update_entry
 from voice.prototype.realtime import Server, Session
@@ -26,8 +27,6 @@ from voice.t3.journal import T3Journal
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import default_decider
 
-REMARK = ("So, uh, I want to get some work going on, uhm, a small project, a tool that converts audio presets into the "
-          "format the editor wants, and, uhm, could you start a thread for that and, you know, keep it organized?")
 T = "Trim unused icons from the build"
 P = "Voice sandbox"
 SLOTS = {
@@ -94,12 +93,13 @@ async def one(url, t3, persona, kind):
 
 
 async def drafts(t3, kind, count, remark=True):
-    """`count` fresh drafts of one act kind, each from a new update, and how many passed the form and decider checks."""
+    """`count` fresh drafts of one act kind, each from a new update with a different long request as the person's last
+    remark (the writer is greedy, so one remark twice is one sample), and how many passed the form and decider checks."""
     outcomes = []
-    for _ in range(count):
+    for i in range(count):
         update = L.Update(f"conv:{kind.value}", (act(kind, **SLOTS[kind]),), "completed", "act")
         entry = update_entry(update, "conv_rehearsal")
-        turns = [{"user": REMARK, "assistant": []}] if remark else []
+        turns = [{"user": REQUESTS[i % len(REQUESTS)], "assistant": []}] if remark else []
         rendered = await asyncio.to_thread(Words(t3, lambda _: update).say, entry, turns)
         outcomes.append({"line": rendered.raw, "passed": rendered.line is not None,
                          "problems": rendered.problems or ([rendered.error] if rendered.error else [])})
@@ -117,6 +117,15 @@ async def main_async(args):
             follow = L.Follow(T3Journal(args.out / "journal.json"), F.Connector(F.FakeSeam()))
             t3 = T3Tasks(follow, None, default_decider(), writer=writer)
             if args.drafts:
+                held = []
+                if args.busy:
+                    # What a live turn has open while it drafts: the call's voice session and the turn's ASR session.
+                    voice = await Session.open(url, "voice", time.perf_counter)
+                    await voice.wait_for("session.created")
+                    await update_session(voice, {"type": "realtime", "instructions": persona + T3_RELAY,
+                                                 "output_modalities": ["text", "audio"]})
+                    asr = await Session.open(url + "?intent=transcription", "asr", time.perf_counter)
+                    held = [voice, asr]
                 for kind in (Kind(k) for k in args.kinds) if args.kinds else Kind:
                     outcomes = await drafts(t3, kind, args.drafts)
                     rows.append({"kind": kind.value, "outcomes": outcomes})
@@ -125,6 +134,8 @@ async def main_async(args):
                         if not o["passed"]:
                             print("   refused:", o["line"], "|", o["problems"][:1], flush=True)
                 (args.out / "drafts.json").write_text(json.dumps(rows, indent=1), encoding="utf-8")
+                for session in held:
+                    await session.close()
                 return
             for kind in (Kind(k) for k in args.kinds) if args.kinds else Kind:
                 row = {**await one(url, t3, persona, kind), "persona": label}
@@ -142,6 +153,7 @@ def main():
     parser.add_argument("--port", type=int, default=8096)
     parser.add_argument("--kinds", nargs="+", choices=[k.value for k in Kind], help="only these act kinds")
     parser.add_argument("--drafts", type=int, help="only draft each kind this many times, with no relay")
+    parser.add_argument("--busy", action="store_true", help="with --drafts, hold a voice and an ASR session open, as a turn does")
     parser.add_argument("--cpu", action="store_true", help="smoke test on the CPU: no GPU layers")
     asyncio.run(main_async(parser.parse_args()))
 
