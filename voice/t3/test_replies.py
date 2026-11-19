@@ -81,7 +81,8 @@ class Reads(unittest.TestCase):
             self.assertIn(type(error).__name__, reading.error)
 
     def test_malformed_answers_are_no_reading_and_never_an_exception(self):
-        for answer in ({"choice": "maybe", "probabilities": {"yes": 0.9}},
+        for answer in ({"choice": ["yes"], "probabilities": {"yes": 0.9}},
+                       {"choice": "maybe", "probabilities": {"yes": 0.9}},
                        {"choice": "yes", "probabilities": {"yes": "high"}},
                        {"choice": "yes", "probabilities": {"yes": float("nan")}},
                        {"choice": "yes", "probabilities": {"yes": 1.7}},

@@ -287,7 +287,8 @@ def judge_reading(answers: Any) -> Reading:
     is no reading at all, never an error."""
     answer = answers.get("reading") if isinstance(answers, dict) else None
     probabilities = answer.get("probabilities") if isinstance(answer, dict) else None
-    if (not isinstance(probabilities, dict) or answer.get("choice") not in READ_CRITERIA
+    choice = answer.get("choice") if isinstance(answer, dict) else None
+    if (not isinstance(probabilities, dict) or not isinstance(choice, str) or choice not in READ_CRITERIA
             or not set(probabilities) <= set(READ_CRITERIA)):
         return Reading(None, error="the decider gave no reading")
     scores = {}
