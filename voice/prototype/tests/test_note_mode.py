@@ -46,13 +46,18 @@ class TaskNoteTest(unittest.TestCase):
         self.assertNotIn("right now", note, "the person's own words stay out of the note")
 
     def test_a_finished_lookup_carries_its_result(self):
-        note = prototype.task_note({"status": "completed", "capability": "weather", "arguments": {"place": "Durham"},
-                                    "result_summary": "Forecast for Durham: a high of 57 degrees Fahrenheit."})
-        self.assertIn("Result: Forecast for Durham: a high of 57 degrees Fahrenheit.", note)
+        note = prototype.task_note({"status": "completed", "capability": "weather", "arguments": {"place": "Lisbon"},
+                                    "result_summary": "Forecast for Lisbon: a high of 57 degrees Fahrenheit."})
+        self.assertIn("Result: Forecast for Lisbon: a high of 57 degrees Fahrenheit.", note)
 
     def test_the_general_worker_is_named_as_a_lookup(self):
         note = prototype.task_note({"status": "running", "capability": "agent", "arguments": {}})
         self.assertIn("the lookup is running", note)
+
+    def test_a_t3_segment_with_no_line_of_its_own_gets_no_note(self):
+        """One request cut into several launch segments asks one question, so the later segments carry no acts."""
+        self.assertIsNone(prototype.task_note({"status": "completed", "capability": "t3_start", "arguments": {},
+                                               "result_summary": None}))
 
     def test_a_task_that_has_not_run_gets_no_note(self):
         for status in ("pending", "needs_clarification", "held_for_confirmation"):
@@ -202,6 +207,21 @@ class T3SnapshotService(MockTaskService):
         pass
 
 
+LOOKUP = {"task_id": "task_1", "status": "completed", "capability": "weather", "arguments": {"place": "Lisbon"},
+          "result_summary": "Forecast for Lisbon: a high of 57 degrees Fahrenheit."}
+
+
+def asked_in_order(*entries):
+    """A T3 service whose turn asked for `entries`, in that order."""
+    class Ordered(T3SnapshotService):
+        def snapshot(self, *args, **kwargs):
+            return {**MockTaskService.snapshot(self, *args, **kwargs), "tasks": [dict(entry) for entry in entries]}
+    return Ordered
+
+
+T3_ENTRY = {"task_id": "t3_1", "status": "completed", "acts": [STOP.to_json()]}
+
+
 class Streaming(Scripted):
     """A voice session that streams each reply a word at a time and ends it where a `response.cancel` arrives, as
     llama.cpp does: the words it generated before the cancel stay in the conversation."""
@@ -244,33 +264,65 @@ class T3TurnTest(NoteTurn):
         self.spoken.append(line.text)
         return pcm, CLOCK
 
-    async def test_a_held_t3_reply_does_not_fall_through_to_ordinary_speech(self):
-        class Mixed(T3SnapshotService):
-            draft = "I stopped the clamp helper thread."
+    async def test_a_mixed_turn_speaks_only_the_t3_line_and_then_the_lookup_as_an_update(self):
+        for order in ((LOOKUP, T3_ENTRY), (T3_ENTRY, LOOKUP)):
+            with self.subTest(first=order[0]["task_id"]):
+                self.spoken.clear()
+                self.voice.sent.clear()
+                record = await self.turn(["I can't start a thread.", DRAFT, "Lisbon will reach 57 degrees."],
+                                         task_service=asked_in_order(*order), send_checked=self.send_checked)
+                created = [e for e in self.voice.sent if e.get("type") == "response.create"]
+                self.assertEqual(created[0]["response"], {"output_modalities": ["text"]},
+                                 "the audio is answered in text first")
+                self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT), prototype.task_note(LOOKUP)])
+                self.assertEqual([(r["kind"], r.get("delivery", "sent")) for r in record["replies"]],
+                                 [("t3", "sent"), ("update", "sent")])
+                self.assertEqual(self.spoken, [DRAFT, "Lisbon will reach 57 degrees."],
+                                 "the text answer is never heard")
 
-            def snapshot(self, *args, **kwargs):
-                snapshot = super().snapshot(*args, **kwargs)
-                snapshot["tasks"].append({"task_id": "task_2", "status": "running"})
-                return snapshot
+    async def test_a_t3_turn_with_no_lookup_to_speak_about_answers_nothing_in_text(self):
+        segment = {"task_id": "task_2", "status": "completed", "capability": "t3_start", "arguments": {},
+                   "result_summary": None}
+        await self.turn([DRAFT], task_service=asked_in_order(T3_ENTRY, segment), send_checked=self.send_checked)
+        created = [e for e in self.voice.sent if e.get("type") == "response.create"]
+        self.assertEqual(len(created), 1, "only the relay: the audio needs no answer of its own")
+        self.assertEqual(self.spoken, [DRAFT])
 
-        record = await self.turn(["I'll check."], task_service=Mixed, send_checked=self.send_checked)
-        self.assertEqual([(r["kind"], r.get("delivery")) for r in record["replies"]], [("t3", "unsent")])
-        self.assertEqual(self.spoken, [])
+    async def test_words_that_answered_a_t3_question_say_only_the_t3_line(self):
+        asking = dict(LOOKUP, status="needs_clarification", needs=["place"])
 
-    async def test_a_turn_with_a_t3_line_takes_no_late_updates_and_says_nothing_more(self):
+        class Answered(asked_in_order(asking, T3_ENTRY)):
+            def open_question(self):
+                return {"t3": True}
+
+            def answer(self, waiting, instruction, now):
+                return [{"task_id": "t3_1", "event": "completed", "instruction": instruction}]
+
+        record = await self.turn([DRAFT], task_service=Answered, send_checked=self.send_checked)
+        self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT)],
+                         "a lookup read from the same words is not asked about")
+        self.assertEqual([r["kind"] for r in record["replies"]], ["t3"])
+
+    async def test_a_held_t3_line_does_not_fall_through_to_ordinary_speech_and_the_lookup_is_still_said(self):
+        record = await self.turn(["Sure.", "I'll check.", "I'll check.", "Lisbon will reach 57 degrees."],
+                                 task_service=asked_in_order(LOOKUP, T3_ENTRY), send_checked=self.send_checked)
+        self.assertEqual([(r["kind"], r.get("delivery", "sent")) for r in record["replies"]],
+                         [("t3", "unsent"), ("update", "sent")])
+        self.assertEqual(self.spoken, ["Lisbon will reach 57 degrees."])
+
+    async def test_a_turn_with_a_t3_line_takes_its_lookups_late_updates_and_never_t3_news(self):
         taken = []
 
         class Late(T3SnapshotService):
             def take_task_updates(self):
                 taken.append(True)
-                return [{"type": "task_update", "task_id": "task_2", "status": "completed", "result_summary": "Sunny.",
-                         "description": "weather"}]
+                return []
 
             def take_updates(self):
                 raise AssertionError("a turn never takes T3 news with its updates")
 
         record = await self.turn([DRAFT], task_service=Late, send_checked=self.send_checked)
-        self.assertEqual(([r["kind"] for r in record["replies"]], self.voice.asked, taken), (["t3"], 1, []))
+        self.assertEqual(([r["kind"] for r in record["replies"]], self.voice.asked, taken), (["t3"], 1, [True]))
         self.assertEqual(self.spoken, [DRAFT])
 
     async def test_an_ordinary_turn_takes_its_own_updates_and_never_t3_news(self):

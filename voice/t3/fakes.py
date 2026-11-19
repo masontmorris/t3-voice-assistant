@@ -6,8 +6,10 @@ from collections import deque
 from typing import Any
 
 from voice.t3 import types as T
+from voice.t3.acts import Kind
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable
-from voice.t3.verify import Reading, Verdict
+from voice.t3.pick.prefilter import prefilter
+from voice.t3.verify import ELSEWHERE, NONE, UNCLEAR, Picked, Reading, Verdict
 
 
 def hello(max_watches: int = 16, projects=(("p1", "Voice sandbox", ("sandbox", "voice sandbox")),)) -> T.Hello:
@@ -177,15 +179,47 @@ class Agree:
 
 
 class Reader(Agree):
-    """A decider whose reading of each reply is the test's own: reply to label, or to (label, the option it asks for).
-    A reply the test did not script reads as unrelated. What d1.2 really reads is in voice/t3/test_replies.py."""
+    """A decider whose reading of each reply is the test's own: reply to label, or to (label, the option it asks for),
+    where the option `ELSEWHERE` is something that was not offered. A reply the test did not script reads as
+    unrelated, except one that names a thread it was asked to choose. What d1.2 really reads is in
+    voice/t3/test_replies.py."""
 
-    def __init__(self, readings: dict):
+    def __init__(self, readings: dict, picking: dict | None = None):
         self.readings, self.asked = readings, []
+        self.picking, self.picked = picking or {}, []
+
+    def picks(self, request, threads, recent=None):
+        """The test's pick for `request`: a thread id, NONE or UNCLEAR, or each thread's share. A request the test
+        did not script is picked by matching its words against the titles, and leans (0.8) to a lone match, so it is
+        confirmed. What d1.2 really picks is in voice/t3/test_picks.py."""
+        self.picked.append((request, tuple(threads), recent))
+        scripted = self.picking.get(request)
+        if isinstance(scripted, dict):
+            return Picked(max(scripted, key=scripted.get), dict(scripted))
+        if scripted is not None:
+            return Picked(scripted, {scripted: 0.8})
+        match = prefilter(request, [{"threadId": t.thread_id, "title": t.title, "projectId": t.project,
+                                     "activity": t.activity} for t in threads], {t.project: t.project for t in threads})
+        hits = match.candidates
+        if len(hits) == 1:
+            return Picked(hits[0], {hits[0]: 0.8})
+        if hits:
+            return Picked(UNCLEAR, {UNCLEAR: 0.4, **{hit: 0.6 / len(hits) for hit in hits}})
+        about = next((t.thread_id for t in threads if not match.words and t.title == recent), None)
+        if about is not None:
+            return Picked(about, {about: 0.8})
+        return Picked(NONE, {NONE: 0.9}) if match.words and not match.state_only else Picked(UNCLEAR, {UNCLEAR: 0.9})
 
     def reads(self, said, reply, options=()):
         self.asked.append((said, reply, tuple(options)))
         label, target = (self.readings.get(reply, "unrelated"), None)
         if isinstance(label, tuple):
             label, target = label
+        elif reply not in self.readings and said.kind is Kind.ASK_WHICH and said.slots.get("of") == "thread":
+            # An unscripted reply to "which thread" chooses the one title its words fit, as d1.2 does by name.
+            named = prefilter(reply, [{"threadId": title, "title": title, "projectId": ""} for title in options])
+            if len(named.candidates) == 1:
+                label, target = "yes", named.candidates[0]
+        if target == ELSEWHERE:
+            return Reading(label, {label: 1.0}, elsewhere=True)
         return Reading(label, {label: 1.0}, target=target)

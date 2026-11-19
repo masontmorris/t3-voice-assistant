@@ -63,12 +63,18 @@ CASES += [(LAUNCH, r, TWO, False, target) for r, target in (("The other one.", E
                                                             ("Not that one.", ELSEWHERE), ("Yes.", None))]
 CASES[-1] = (*CASES[-1][:3], True, None)
 PROJECT = act(Kind.ASK_WHICH, of="project", candidates=list(TWO))
-THREAD = act(Kind.ASK_WHICH, of="thread", candidates=["Add a clamp helper", "Fix the flaky ASR test"])
+THREADS = ("Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper")
+THREAD = act(Kind.ASK_WHICH, of="thread", candidates=list(THREADS))
 CASES += [(PROJECT, r, TWO, False, target) for r, target in (("Voice server.", "Voice server"),
     ("Docs site.", "Docs site"), ("The first one.", "Voice server"), ("The second.", "Docs site"),
-    ("Never mind.", None), ("Neither.", ELSEWHERE))]
-CASES += [(THREAD, r, (), False, None) for r in ("Never mind.", "No, cancel that.", "The clamp one.",
-    "Neither.", "What are they again?")]
+    ("Never mind.", None), ("Neither.", None))]
+# A listed choice is answered by name or by place. A thread that was not listed is "elsewhere", and is looked up.
+CASES += [(THREAD, r, THREADS, False, target) for r, target in (("Never mind.", None), ("No, cancel that.", None),
+    ("The clamp one.", THREADS[0]), ("The second one.", THREADS[1]), ("Um, the first.", THREADS[0]),
+    ("The last one.", THREADS[2]), ("The one about the flaky test.", THREADS[1]), ("The sum helper.", THREADS[2]),
+    ("What are they again?", None), ("Hold on a second.", None), ("None of those.", None),
+    ("Oh, I was after the checkout button one.", ELSEWHERE),
+    ("Look at the one that adds a checkout button.", ELSEWHERE))]
 CASES += [(a, r, (), False, None) for a in (STOP, TELL) for r in ("Never mind.", "No, cancel that.", "Neither.")]
 
 
@@ -80,7 +86,8 @@ def main() -> int:
     rows, took = [], []
     for said, reply, options, must_act, target in CASES:
         key = (json.dumps(said.to_json()), reply, tuple(options))
-        if key in old:
+        asked = reading_request(said, reply, options)["questions"].get("target", {}).get("instructions")
+        if key in old and old[key].get("asked") == asked:
             rows.append({**old[key], "must_act": must_act, "expected_target": target})
             continue
         record = client.call("decisions", reading_request(said, reply, options), label="t3_reply_fixture", fresh=True,
@@ -92,7 +99,8 @@ def main() -> int:
         if target_answer is not None:
             target_answer = {"choice": target_answer.get("choice"),
                              "probabilities": {k: round(v, 3) for k, v in target_answer["probabilities"].items()}}
-        rows.append({"act": said.to_json(), "reply": reply, "options": list(options), "must_act": must_act,
+        rows.append({"act": said.to_json(), "reply": reply, "options": list(options), "asked": asked,
+                     "must_act": must_act,
                      "expected_target": target, "target_answer": target_answer, "choice": answer.get("choice"),
                      "p": {k: round(v, 3) for k, v in answer["probabilities"].items()}})
         took.append(record["timing"]["ms"])

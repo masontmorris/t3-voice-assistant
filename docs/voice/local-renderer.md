@@ -8,7 +8,7 @@ All numbers come from one GPU run on 2026-11-18, `python -m voice.research.local
 
 ## Choose the renderer
 
-`$VOICE_RENDERER` picks the lane's model (`voice/t3/speech.py`, `text_model`). The lane carries the picker as well as the renderer and the summaries, so all three move together.
+`$VOICE_RENDERER` picks the lane's model (`voice/t3/speech.py`, `text_model`). The lane carries the renderer and the summaries, so both move together.
 
 - `particle-1`, the default, is the free cloud model.
 - `local` is `LocalText`, a llama-server's OpenAI-compatible `/v1/chat/completions` at `$VOICE_RENDERER_URL` (default `http://127.0.0.1:8098`). No `:free` rule applies to it, since no request leaves the machine.
@@ -21,25 +21,25 @@ LFM3 reasons by default. With the chat template's `enable_thinking` set to false
 
 The bar was written before the run.
 
-| Bar | Result | Met |
-| --- | --- | --- |
-| VRAM fits the 12 GB card with headroom | 5,949 MiB in use with all three models loaded | yes |
-| LFM3-Audio first audio no more than 50 ms worse at the median | 1.7B idle: 6 ms faster per clip, no measurable difference. 1.7B rendering back to back: 136 ms slower | idle yes, rendering no |
-| Summaries at least as true as particle-1 (28 of 29) and at least 27 of 30 useful | 0 of 30 spoken. The gists alone: 21 of 30 true, 28 of 30 useful | no |
-| The act eval passes both checks in at least 36 of 40 | 11 of 40 | no |
-| Render p95 under 700 ms | 659 ms | yes |
+| Bar                                                                              | Result                                                                                                | Met                    |
+| -------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------- |
+| VRAM fits the 12 GB card with headroom                                           | 5,949 MiB in use with all three models loaded                                                         | yes                    |
+| LFM3-Audio first audio no more than 50 ms worse at the median                    | 1.7B idle: 6 ms faster per clip, no measurable difference. 1.7B rendering back to back: 136 ms slower | idle yes, rendering no |
+| Summaries at least as true as particle-1 (28 of 29) and at least 27 of 30 useful | 0 of 30 spoken. The gists alone: 21 of 30 true, 28 of 30 useful                                       | no                     |
+| The act eval passes both checks in at least 36 of 40                             | 11 of 40                                                                                              | no                     |
+| Render p95 under 700 ms                                                          | 659 ms                                                                                                | yes                    |
 
 ## Memory
 
 Total GPU memory, measured with `nvidia-smi` after each load. Per-process figures read N/A under WDDM.
 
-| Loaded | MiB |
-| --- | --- |
-| Nothing (other lanes' baseline) | 821 |
+| Loaded                                                             | MiB   |
+| ------------------------------------------------------------------ | ----- |
+| Nothing (other lanes' baseline)                                    | 821   |
 | LFM3-Audio-2B, `-c 32768 -kvu`, 3 slots (the live call's settings) | 3,181 |
-| Plus d1-2B, `-ub 2048`, 1 slot | 4,592 |
-| Plus LFM3-1.7B Q4_K_M, `-c 8192 -fa on`, 1 slot | 5,949 |
-| Peak during the evals | 5,959 |
+| Plus d1-2B, `-ub 2048`, 1 slot                                     | 4,592 |
+| Plus LFM3-1.7B Q4_K_M, `-c 8192 -fa on`, 1 slot                    | 5,949 |
+| Peak during the evals                                              | 5,959 |
 
 The 1.7B adds 1,357 MiB and starts in 1.4 s (measured). That leaves about 6,300 MiB free on the card's 12,288 (measured peak 5,959 MiB).
 
@@ -47,11 +47,11 @@ The 1.7B adds 1,357 MiB and starts in 1.4 s (measured). That leaves about 6,300 
 
 The bench streams each of the 10 synthetic clips from the m1 dress rehearsal (LFM3's own TTS) into an LFM3-Audio realtime session and times `response.create` to the first audio delta. It runs each clip once with the 1.7B not loaded, then twice idle and twice rendering, alternating clip by clip, then once more with the 1.7B stopped. "Rendering" means the 1.7B answers recorded render and summary prompts back to back for the whole reply. That load is the lane's worst case, since the voice calls the renderer only when it has T3 news to say.
 
-| Condition | Trials | Median first audio | Range |
-| --- | --- | --- | --- |
-| 1.7B not loaded, before and after | 19 | 180 ms | 121 to 307 ms |
-| 1.7B loaded, idle | 20 | 185 ms | 65 to 328 ms |
-| 1.7B rendering back to back | 20 | 327 ms | 150 to 407 ms |
+| Condition                         | Trials | Median first audio | Range         |
+| --------------------------------- | ------ | ------------------ | ------------- |
+| 1.7B not loaded, before and after | 19     | 180 ms             | 121 to 307 ms |
+| 1.7B loaded, idle                 | 20     | 185 ms             | 65 to 328 ms  |
+| 1.7B rendering back to back       | 20     | 327 ms             | 150 to 407 ms |
 
 - The first trial of the run took 4.1 s while LFM3 warmed up, so it is left out of the first row (measured).
 - **Idle costs nothing.** Per clip, idle ran a median 6 ms faster than not loaded, and the not-loaded runs drifted 5 ms between before and after (measured). That is no measurable difference.
@@ -62,10 +62,10 @@ The bench streams each of the 10 synthetic clips from the m1 dress rehearsal (LF
 
 The 1.7B answered 100 requests in the evals with LFM3-Audio and d1 loaded but quiet: median 318 ms, p95 659 ms, max 871 ms (measured).
 
-| Request | Median | p95 |
-| --- | --- | --- |
-| Act renders (40) | 220 ms | 322 ms |
-| Summaries (30) | 411 ms | 711 ms |
+| Request             | Median | p95    |
+| ------------------- | ------ | ------ |
+| Act renders (40)    | 220 ms | 322 ms |
+| Summaries (30)      | 411 ms | 711 ms |
 | Status renders (30) | 448 ms | 666 ms |
 
 A least-squares fit over the 100 calls gives 19 ms, plus 0.13 ms per prompt token, plus 5.2 ms per output token (measured). The median call read 346 prompt tokens and wrote 48 output tokens, so writing output takes about 250 of its 318 ms (inferred from the fit). Decoding bounds the latency, and the 1.7B writes long lines. A line of particle-1's length, 9 to 25 tokens in the rehearsal, would take about 110 to 190 ms by the same fit (inferred).
@@ -82,10 +82,10 @@ Both evals reused unit 11's frozen inputs, its code slot check and its decider c
 
 ### Acts: 11 of 40
 
-| Refused by | Lines |
-| --- | --- |
-| Code's slot check | 19 |
-| The decider alone | 10 |
+| Refused by        | Lines |
+| ----------------- | ----- |
+| Code's slot check | 19    |
+| The decider alone | 10    |
 
 Of the 19 that code refused, 16 were too long and 9 left out a slot. Several did both (measured). The 1.7B narrates the request back ("I see you want to stop the work..."), paraphrases names (it turned a title of the form "X: A vs B" into "X about A versus B"), and invents ("I can't reach you on the T3 clamp thread" for `unreachable`) (measured).
 

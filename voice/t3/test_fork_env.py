@@ -606,7 +606,7 @@ class StaleRuntimeTest(unittest.TestCase):
                                                      stderr=""))
             seen = []
 
-            def spawn(repo, spawned_paths, port):
+            def spawn(repo, spawned_paths, port, share=False):
                 seen.append(runtime.exists())
                 return FakeProc()
 

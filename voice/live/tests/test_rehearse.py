@@ -53,6 +53,22 @@ class Scoring(unittest.TestCase):
         none = R.grade(self.turns(line(["thread_status"], f"{R.THREADS[0]} is still working.")), 0, [])
         self.assertEqual((none["status_answered"], len(none["false_claims"])), (False, 1))
 
+    def test_a_mixed_turn_counts_the_lookup_heard_only_when_a_reply_says_its_forecast_high(self):
+        record = {"executions": {"task_1": {"result_summary": "Forecast for Denver. Friday: a high of 47 degrees.",
+                                            "tool": {"tool": "weather", "outcome": "ok"}}}}
+        asked = dict(line(["confirm_launch"], "Should I start a new coding thread in Voice sandbox?"), relays=1)
+        row = {"path": "turn_003.json", "highs": R.forecast_highs(record), "t3": [asked],
+               "replies": [("snapshot", None, "Tomorrow in Denver it will reach 47 degrees."), ("t3", "sent", "...")]}
+        self.assertEqual(R.mixed_turn(row), {"path": "turn_003.json", "first_relay_recited": True, "t3_said": True,
+                                             "lookup_heard": True, "both_heard": True,
+                                             "free_lines_naming_a_thread": []})
+        unheard = {**row, "replies": [("snapshot", None, "I can't start a thread."), ("t3", "sent", "...")],
+                   "t3": [dict(asked, relays=2)]}
+        self.assertEqual({k: v for k, v in R.mixed_turn(unheard).items() if k != "path"},
+                         {"first_relay_recited": False, "t3_said": True, "lookup_heard": False, "both_heard": False,
+                          "free_lines_naming_a_thread": ["I can't start a thread."]})
+        self.assertIsNone(R.mixed_turn({**row, "t3": []}), "a turn with no T3 line is not a mixed turn")
+
     def test_the_seam_knows_no_thread_until_a_launch_makes_one(self):
         with tempfile.TemporaryDirectory() as tmp:
             seam = R.ScriptedSeam(Path(tmp) / "launches.json")

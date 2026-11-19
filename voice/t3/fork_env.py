@@ -617,8 +617,9 @@ def vp_node_path(repo: Path) -> str:
     return os.pathsep.join(entries)
 
 
-def spawn_dev_server(repo: Path, paths: EnvPaths, port: int):
-    """Start the dev server detached, logging to the fork home. Returns the process.
+def spawn_dev_server(repo: Path, paths: EnvPaths, port: int, share: bool = False):
+    """Start the dev server detached, logging to the fork home. Returns the process. `share` serves the web client
+    on the tailnet, so a pairing link opens from another machine.
 
     Node runs the vp entry point directly, so the recorded pid owns the whole
     dev session. A cmd wrapper would exit and orphan it.
@@ -644,6 +645,7 @@ def spawn_dev_server(repo: Path, paths: EnvPaths, port: int):
             "--no-seed",
             "--port",
             str(port),
+            *(["--share"] if share else []),
         ],
         cwd=str(repo),
         stdout=log,
@@ -773,7 +775,7 @@ def validate_home(home: Path) -> str | None:
     return None
 
 
-def cmd_up(repo: Path, paths: EnvPaths) -> int:
+def cmd_up(repo: Path, paths: EnvPaths, share: bool = False) -> int:
     """Start the environment. A second up starts nothing new."""
     live = environment_up(paths)
     if live is not None:
@@ -793,7 +795,7 @@ def cmd_up(repo: Path, paths: EnvPaths) -> int:
     if not any(made[key] for key in ("sandbox_created", "project_created", "seam_created", "model_set")):
         print("fork_env: setup already done, created nothing")
     clear_runtime_files(paths)
-    proc = spawn_dev_server(repo, paths, FORK_PORT)
+    proc = spawn_dev_server(repo, paths, FORK_PORT, share)
     assert proc.pid is not None
     if not record_server_identity(paths, proc.pid):
         print(
@@ -965,6 +967,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Bring the fork's T3 environment up and down.")
     parser.add_argument("--home", default=None, help="Fork T3 home (default VOICE_HOME/t3-fork-home).")
     parser.add_argument("--sandbox", default=None, help="Sandbox repo dir (default VOICE_HOME/t3-fork-sandbox).")
+    parser.add_argument("--share", action="store_true",
+                        help="for up: serve the web client on the tailnet, so pairing works from another machine.")
     parser.add_argument("command", choices=["up", "status", "down", "token", "pair", "model"])
     parser.add_argument("selection", nargs="?",
                         help="for model: <provider instance>/<model>, such as devReplay/showcase")
@@ -989,7 +993,7 @@ def main(argv: list[str] | None = None) -> int:
     paths = EnvPaths.from_home(home, sandbox)
     repo = repo_root()
     if args.command == "up":
-        return cmd_up(repo, paths)
+        return cmd_up(repo, paths, args.share)
     if args.command == "down":
         return cmd_down(paths)
     if args.command == "status":

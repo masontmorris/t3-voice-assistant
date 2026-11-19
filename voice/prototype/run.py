@@ -218,23 +218,24 @@ def task_note(entry):
     not. A task that is pending or needs clarification gets no note, so the model answers the person's own words,
     unless the task names what it is waiting for: then the note asks them for it, and the next turn's answer
     completes the task (`MockTaskService.answer`). A T3 entry gets no note here: its acts are worded by `say_acts`."""
-    if entry.get("acts"):
+    if entry.get("acts") or entry.get("capability") in T3_TOOLS:
         return None
     status, name = entry["status"], lookup_name(entry)
     if status == "running":
-        return f"{NOTE_OPEN}{name} is running and has no answer yet. Tell them you're checking, in a few words.]"
-    if status == "completed":
-        return (f"{NOTE_OPEN}{name} finished. Result: {entry['result_summary']} "
-                "Tell them this result in one or two sentences.]")
-    if status == "failed":
-        return f"{NOTE_OPEN}{name} could not be done. Tell them briefly that you couldn't check that.]"
-    if status == "cancelled":
-        return f"{NOTE_OPEN}{name} was dropped, as they asked. Tell them so in a few words.]"
-    if status == "needs_clarification" and entry.get("needs"):
+        body = f"{name} is running and has no answer yet. Tell them you're checking, in a few words."
+    elif status == "completed":
+        body = f"{name} finished. Result: {entry['result_summary']} Tell them this result in one or two sentences."
+    elif status == "failed":
+        body = f"{name} could not be done. Tell them briefly that you couldn't check that."
+    elif status == "cancelled":
+        body = f"{name} was dropped, as they asked. Tell them so in a few words."
+    elif status == "needs_clarification" and entry.get("needs"):
         asked = " and ".join(NEEDS_ASK.get(field, f"the {field}") for field in entry["needs"])
-        return (f"{NOTE_OPEN}{name} has not started because they have not said {asked}. Ask them in one short "
-                "sentence, and don't guess one.]")
-    return None
+        body = (f"{name} has not started because they have not said {asked}. Ask them in one short sentence, and "
+                "don't guess one.")
+    else:
+        return None
+    return f"{NOTE_OPEN}{body}]"
 
 
 def task_notes(entries):
@@ -373,6 +374,15 @@ async def answer(session, rate, since, sources, log, speak=None, previous=(), **
     if speak is not None and pcm:
         speak(reply["text"], b"", True)
     return {**reply, "speech_s": len(pcm) / 2 / rate}, bytes(pcm)
+
+
+async def answer_unheard(session, rate, since, log):
+    """A text-only reply to the turn's audio, which is never spoken and never reaches the caller. It is there so the
+    audio has an answer in the session before a relay: llama.cpp takes no assistant item
+    (`server-realtime.cpp`, `on_item_create`), so the model writes it."""
+    reply, _ = await respond(session, rate, since, output_modalities=["text"])
+    log("unheard_answer", text=reply["text"], status=reply["status"])
+    return reply
 
 
 async def speak_note(session, rate, since, note, sources, log, speak=None, previous=(), **response):
@@ -696,8 +706,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     general agent, as `ConversationLedger.context` gives it, and `prior_results` is every lookup result the call has
     had, which the record counts as said. `prior_replies` is what the assistant already said in this call.
 
-    T3 entries go through the draft check and then the call's own voice, and a turn with one says only that: the
-    ordinary snapshot reply and its notes are left out, so a turn has one reply about the same event.
+    T3 entries go through the draft check and then the call's own voice. In note mode a turn that also has a lookup
+    to speak about says the lookup's reply and then the T3 line. A turn whose words answered a T3 question, and a turn
+    in any other mode, says only its T3 line.
 
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
     audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply.
@@ -833,7 +844,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             voice.config = session
         worker = asyncio.create_task(segment_worker())
 
-        replies, tool_turn, injection, answered, t3_turn = [], None, [], None, False
+        replies, tool_turn, injection, answered, t3_only, owed = [], None, [], None, False, []
         record_delivery = getattr(service, "record_delivery", None)
 
         async def say_t3(entries, kind, since):
@@ -913,19 +924,29 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             log("snapshot_after_tools", snapshot=answered)
             t3_entries = [entry for entry in answered["tasks"] if entry.get("acts")]
             ordinary = {**answered, "tasks": [entry for entry in answered["tasks"] if not entry.get("acts")]}
-            t3_only = t3_turn = bool(t3_entries)
-            await say_t3(t3_entries, "t3", audio_end)
-            item = None if t3_only else shown(ordinary, snapshot_mode, adapter.text())
+            # A turn with a T3 line speaks nothing free about the person's words: what it says about T3 work is the
+            # checked line, and its lookups are said after it as updates. When it has a lookup to speak about, the
+            # audio is first answered in text nobody hears, since the call's voice refuses a relay that comes straight
+            # after that audio (docs/voice/spoken-acts.md). Words that answered a T3 question are only that answer,
+            # and the modes no live call uses keep a T3 turn to its T3 line.
+            t3_only = bool(t3_entries) and (not noted or bool(closed.get("answered")))
+            owed = [entry for entry in ordinary["tasks"] if task_note(entry)] if t3_entries and not t3_only else []
+            if t3_entries:
+                if owed:
+                    await answer_unheard(voice, out_rate, audio_end, log)
+                await say_t3(t3_entries, "t3", audio_end)
+            item = None if t3_entries else shown(ordinary, snapshot_mode, adapter.text())
             if item is not None and prior_utterances:
                 item = with_call_turns(item, prior_utterances)
                 log("history", turn_count=len(item["call_turns"]), omitted=item["omitted_turns"])
             if item is not None:
                 injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, item)))
-            note = recall_note(adapter.text(), prior_utterances) if recall == "note" and not noted and not t3_only else None
+            note = (recall_note(adapter.text(), prior_utterances)
+                    if recall == "note" and not noted and not t3_entries else None)
             if note is not None:
                 injection.append(await create_item(voice, plain_text(note)))
                 log("recall_note", note=note)
-            if noted:
+            if noted and not t3_entries:
                 asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
                 item = ASK_NOTE if asks else task_notes(ordinary["tasks"])
                 if item is not None:
@@ -936,7 +957,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             sources = [adapter.text(), *prior_utterances, *given_results(prior_results, noted, tasks), read_before,
                        item]
 
-            if t3_only:
+            if t3_entries:
                 reply = None
             elif noted:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, speak=speak,
@@ -982,23 +1003,27 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if reply_pcm:
                 write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
 
-        # A turn that said a T3 line says nothing more, and T3 news never rides on a turn: it waits for a quiet moment
-        # (the live server's idle path), so a turn has one reply about the same thing.
+        # A turn kept to its T3 line says nothing more, and T3 news never rides on a turn: it waits for a quiet moment
+        # (the live server's idle path).
         task_updates = []
-        while not t3_turn and (due := service.next_due()) is not None:
+        while not t3_only and (due := service.next_due()) is not None:
             await wait_for_work(service, due - clock())
             for task_id in service.poll(clock()):
                 log("service", task_id=task_id, event=service.executions[task_id].state.value)
-        if not t3_turn:
+        if owed:
+            now = {entry["task_id"]: entry for entry in service.snapshot("utt_1", adapter.text(), unreviewed)["tasks"]}
+            owed = [now.get(entry["task_id"], entry) for entry in owed]
+        if not t3_only:
             task_updates = getattr(service, "take_task_updates", service.take_updates)()
         ordinary_updates = [entry for entry in task_updates if not entry.get("acts")]
         updates = None
-        if ordinary_updates:
-            updates = (task_notes(service.update_entries(ordinary_updates)) if snapshot_mode == "note"
-                       else shown({"updates": ordinary_updates}, snapshot_mode, adapter.text(), update=True))
+        if snapshot_mode == "note" and (owed or ordinary_updates):
+            updates = task_notes([*owed, *service.update_entries(ordinary_updates)])
+        elif ordinary_updates:
+            updates = shown({"updates": ordinary_updates}, snapshot_mode, adapter.text(), update=True)
         if updates is not None:
             boundary = clock()
-            log("task_updates", updates=task_updates)
+            log("task_updates", updates=task_updates, owed=owed)
             said = (*prior_replies, *[r["text"] for r in replies if r.get("text") and r.get("delivery", "sent") == "sent"])
             if snapshot_mode == "note":
                 injection_update, update_reply, update_pcm = await speak_note(

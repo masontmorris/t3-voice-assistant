@@ -9,7 +9,7 @@ a done, or a need. It reads the thread through the seam (status and need come fr
 writes a gist into the act's `summary` slot, and is cached per thread, read sequence and question. A speculative
 start may begin it while Mason is still asking.
 
-The picker and summaries share the text-model lane. The live renderer uses a separate text-only realtime lane
+The summaries use the text-model lane. The live renderer uses a separate text-only realtime lane
 by default, with the text model available as an override.
 """
 
@@ -58,6 +58,9 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Say the message exactly as given, in quotes, "
                         "leaving words like my and I as they are. Nothing is sent yet.",
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
+    Kind.SAME_TITLE: "More than one of their threads has this name, so you cannot tell which one they mean and did "
+                     "nothing. `op` is what they asked for: tell (send it a message) or stop. They can do it in the "
+                     "app.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
@@ -195,7 +198,7 @@ def text_model(name: str | None = None, cloud: Callable[[], Any] | None = None):
 
 
 class Lane:
-    """One model request in flight for every voice caller: the picker, the renderer, and the summaries."""
+    """One model request in flight for every voice caller: the renderer and the summaries."""
 
     def __init__(self, client):
         self._check(client)
@@ -223,15 +226,6 @@ class Lane:
             # A queued request is dropped; one already running keeps the slot until its HTTP call returns.
             future.cancel()
             raise TimeoutError("the voice text model did not answer in time") from None
-
-    def picker(self, timeout: float) -> Any:
-        lane = self
-
-        class Picker:
-            def complete(self, messages):
-                return lane.call(messages, timeout)
-
-        return Picker()
 
 
 def _turns(turns: Iterable[dict]) -> list[dict]:
@@ -489,10 +483,13 @@ READER_EXAMPLES = {
     Kind.LAUNCH_UNCONFIRMED: ({"project": "Example Reef Cards"},
                               "T3 never confirmed the start in Example Reef Cards. You can check in the app."),
     Kind.NO_THREAD: ({"recent": 19}, "I checked 19 recent threads and couldn't find a match."),
-    Kind.CONFIRM_THREAD: ({"thread": "Example Polish Checkout Layout"}, "Is Example Polish Checkout Layout the thread you mean?"),
+    Kind.CONFIRM_THREAD: ({"thread": "Example Polish Checkout Layout"}, "Do you mean the thread called Example Polish Checkout Layout?"),
     Kind.CONFIRM_TELL: ({"thread": "Example Trim Image Margins", "message": "keep the captions"},
                         "Should I send 'keep the captions' to Example Trim Image Margins as a follow-up?"),
     Kind.CONFIRM_STOP: ({"thread": "Example Split Export Files"}, "Should I stop Example Split Export Files?"),
+    Kind.SAME_TITLE: ({"thread": "Example Sort Photo Albums", "op": "stop"},
+                      "More than one thread is called Example Sort Photo Albums, so I can't tell which to stop. You "
+                      "can stop it in the app."),
     Kind.CANCELLED: ({"op": "start"}, "I won't start the thread."),
     Kind.THREAD_STATUS: ({"thread": "Example Tune Audio Levels", "status": "working", "summary": "It says playback is stable."},
                          "Example Tune Audio Levels is still working and reports that playback is stable."),
