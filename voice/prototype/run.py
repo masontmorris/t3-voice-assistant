@@ -355,7 +355,7 @@ async def answer(session, rate, since, sources, log, speak=None, previous=(), **
 
     Nothing holds, cuts, mutes or regenerates it. `fact_check` reads the finished text against `sources`, which is the
     person's words in this call and the newest machine note, and the timeline records what it would have refused. It
-    asks the model nothing (Mason, 2026-11-18: [live-fact-check.md](../../docs/voice/live-fact-check.md)). `previous`
+    asks the model nothing ([live-fact-check.md](../../docs/voice/live-fact-check.md)). `previous`
     is what the assistant already said in this call, for the same record. `speak(text, pcm, done)` gets each piece of
     audio with the text so far, then one call with `done` set once the reply is over; it is never called for a reply
     with no audio."""

@@ -2,7 +2,7 @@
 
 Written 2026-11-16, rewritten 2026-11-18. Every number below is measured from records under `$VOICE_HOME/evidence/live/` except where it says inferred or guess.
 
-**The check is a log. It never holds, cuts, mutes or regenerates an ordinary reply, and never asks the model again** (Mason, 2026-11-18). It reads each finished reply and the turn's record keeps what it would have refused. Measured on a live call (`$VOICE_HOME/evidence/live/20261118-175037`, turn 3): a legitimate reply that named a project was cut after "but I", because the project's name read as a place no one had said (`ungrounded: ["place Voice"]`), after a first attempt had been refused and asked again. First audio came 4.4 s after the speech ended.
+**The check is a log. It never holds, cuts, mutes or regenerates an ordinary reply, and never asks the model again.** It reads each finished reply and the turn's record keeps what it would have refused. Measured on a live call (`$VOICE_HOME/evidence/live/20261118-175037`, turn 3): a legitimate reply that named a project was cut after "but I", because the project's name read as a place no one had said (`ungrounded: ["place Voice"]`), after a first attempt had been refused and asked again. First audio came 4.4 s after the speech ended.
 
 The check was added on 2026-11-16 because the assistant invented a day. The rest of this note is that history: the failure, how often it happened, what the check reads, and two fixes that did not remove the cause. T3 lines are a separate path with their own gate: the draft is checked against its act, and the call's reply must say the draft's words and no others ([Spoken acts](spoken-acts.md)).
 

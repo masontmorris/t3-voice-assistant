@@ -66,7 +66,7 @@ slot is in docs/voice/live-call3-fix.md.
 A reply is heard while it is generated: each piece of audio goes to the client the moment the model makes it. After
 the reply, `voice/live/facts.py` reads the days, dates, times, numbers and places in it and asks whether the person
 said them in this call or a lookup gave them, and the turn's record keeps what that check would have refused. It is
-a log and nothing else: it never holds, cuts, mutes or regenerates a reply (Mason, 2026-11-18; docs/voice/live-fact-check.md).
+a log and nothing else: it never holds, cuts, mutes or regenerates a reply (docs/voice/live-fact-check.md).
 
 With --t3 on, news from a T3 thread the voice started or sent to (it is working, its reply, it finished) is spoken
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
