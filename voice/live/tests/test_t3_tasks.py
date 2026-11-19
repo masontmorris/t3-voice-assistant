@@ -868,19 +868,24 @@ class Service(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(service.executions["task_1"].state.value, "completed")
         self.assertEqual((seam.ops("launch"), seam.ops("interrupt")), ([], []))
 
-    def test_one_request_cut_into_several_launch_segments_asks_one_question(self):
+    def test_one_request_cut_into_several_launch_segments_asks_one_question_and_launches_all_of_it(self):
+        said_whole = ("Start a thread for the importer logging. Can you kick that off? Keep it under an hour, and use "
+                      "my old config as the base. Also look at the retry counts.")
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
         service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
-                                    self.record("task_2", "Can you kick that off?", START)])
+                                    self.record("task_2", "Can you kick that off?", START),
+                                    self.record("task_3", "Also look at the retry counts.", START)])
         service.sync(0)
-        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
+        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", said_whole)["tasks"]}
         self.assertEqual([a["kind"] for a in tasks["task_1"]["acts"]], ["confirm_launch"])
         self.assertNotIn("acts", tasks["task_2"], "the second segment is the same request, already asked")
-        self.assertEqual(service.executions["task_2"].state.value, "completed")
+        self.assertNotIn("acts", tasks["task_3"])
         service.record_delivery(tasks["task_1"], "sent")
         self.assertEqual(said(t3.answer("yes", 1)), [("launched", "Voice sandbox")])
-        self.assertEqual(len(seam.ops("launch")), 1)
+        launch, = seam.ops("launch")
+        self.assertEqual(launch[2:], ("p1", said_whole), "the launch carries every constraint and the second request")
+        self.assertEqual(t3.follow.journal.tasks[next(iter(t3.follow.journal.tasks))].instruction, said_whole)
 
     def test_a_launch_question_from_an_earlier_turn_does_not_swallow_a_new_request(self):
         t3 = tasks_over(self, F.FakeSeam())
