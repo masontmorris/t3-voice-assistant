@@ -579,7 +579,7 @@ class T3Tasks:
             return self._ask_back(replace(base, candidates=(thread,)), evidence)
 
     def names_thread(self, instruction: str, now: float) -> bool:
-        """Whether a message's words pick a thread there is, by the decider. Off the lock."""
+        """Whether a message's words mean a thread there is, or may mean several, by the decider. Off the lock."""
         with self.lock:
             if self._down("", now) is not None:
                 return False
@@ -587,7 +587,8 @@ class T3Tasks:
             if isinstance(listing, L.Update) or listing is None or not listing.threads:
                 return False
             options, _ = self._options(listing.threads)
-        return self._picked(tell_parts(instruction)[0], options, None).thread is not None
+        picked = self._picked(tell_parts(instruction)[0], options, None)
+        return picked.thread is not None or bool(picked.candidates)
 
     def _options(self, listed) -> tuple[tuple[Listed, ...], frozenset[str]]:
         """The threads the decider chooses among, newest first, and those whose title another thread has too. Threads

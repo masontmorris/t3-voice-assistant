@@ -1066,6 +1066,16 @@ class Service(unittest.IsolatedAsyncioTestCase):
         tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
         self.assertEqual([a["kind"] for a in tasks["task_2"]["acts"]], ["confirm_tell"])
 
+    def test_a_message_that_may_mean_several_threads_is_asked_about_beside_a_launch(self):
+        seam = F.FakeSeam()
+        seam.listing = listing(("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
+                                    self.record("task_2", "Tell the flaky test thread to retry.", TELL)])
+        service.sync(0)
+        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
+        self.assertEqual([a["kind"] for a in tasks["task_2"]["acts"]], ["ask_which"])
+
     def test_a_launch_question_from_an_earlier_turn_does_not_swallow_a_new_request(self):
         t3 = tasks_over(self, F.FakeSeam())
         t3.start("conv_turn_000:task_1", "Start a thread for the importer logging.", 0)
