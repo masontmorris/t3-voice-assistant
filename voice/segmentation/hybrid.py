@@ -43,9 +43,11 @@ T3_DEPENDS = (" A request to start a coding thread depends on an earlier segment
 T3_CORRECTS = " Later words that add detail to or restate the same request do not change or withdraw it."
 # Left alone, the decider called 5 of 10 long hesitant "start a thread" requests ambiguous because they name no project,
 # so they waited for a clarification the T3 service asks for itself (measured: 15 of 30 draws dispatched, 27 of 30 with
-# this line; docs/voice/spoken-acts.md).
-T3_READY = (" A request to start, ask about, tell or stop a coding thread is complete when it says what the thread is "
-            "for, even if it names no project or thread: the assistant works that out and asks the speaker back.")
+# the first wording of this line; docs/voice/spoken-acts.md). The last sentence is there because without it weather and
+# time requests reached their tool 51 of 60 samples instead of 59 of 60 (d1.2, the tool-pick eval's controls).
+T3_READY = (" For a request about a coding thread, one that says what the thread is for is complete even if it names no "
+            "project or thread: the assistant works that out and asks the speaker back. This does not change how any "
+            "other request is judged.")
 I_MEAN = re.compile(r"\bi mean\b", re.IGNORECASE)
 MAX_DRAIN = 4
 QUIET = (0, (), ())
