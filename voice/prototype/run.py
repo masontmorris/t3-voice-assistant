@@ -820,7 +820,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             voice.config = session
         worker = asyncio.create_task(segment_worker())
 
-        replies, tool_turn, injection, answered = [], None, [], None
+        replies, tool_turn, injection, answered, t3_turn = [], None, [], None, False
         record_delivery = getattr(service, "record_delivery", None)
 
         async def say_t3(entries, kind, since):
@@ -900,7 +900,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             log("snapshot_after_tools", snapshot=answered)
             t3_entries = [entry for entry in answered["tasks"] if entry.get("acts")]
             ordinary = {**answered, "tasks": [entry for entry in answered["tasks"] if not entry.get("acts")]}
-            t3_only = bool(t3_entries)
+            t3_only = t3_turn = bool(t3_entries)
             await say_t3(t3_entries, "t3", audio_end)
             item = None if t3_only else shown(ordinary, snapshot_mode, adapter.text())
             if item is not None and prior_utterances:
@@ -969,16 +969,16 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if reply_pcm:
                 write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
 
-        while (due := service.next_due()) is not None:
+        # A turn that said a T3 line says nothing more, and T3 news never rides on a turn: it waits for a quiet moment
+        # (the live server's idle path), so a turn has one reply about the same thing.
+        task_updates = []
+        while not t3_turn and (due := service.next_due()) is not None:
             await wait_for_work(service, due - clock())
             for task_id in service.poll(clock()):
                 log("service", task_id=task_id, event=service.executions[task_id].state.value)
-        task_updates = service.take_updates()
-        t3_news = [entry for entry in task_updates if entry.get("acts")]
+        if not t3_turn:
+            task_updates = getattr(service, "take_task_updates", service.take_updates)()
         ordinary_updates = [entry for entry in task_updates if not entry.get("acts")]
-        if t3_news:
-            log("task_updates", updates=t3_news)
-            await say_t3(t3_news, "t3_update", clock())
         updates = None
         if ordinary_updates:
             updates = (task_notes(service.update_entries(ordinary_updates)) if snapshot_mode == "note"

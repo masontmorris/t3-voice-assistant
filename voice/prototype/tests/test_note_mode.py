@@ -249,6 +249,33 @@ class T3TurnTest(NoteTurn):
         self.assertEqual([(r["kind"], r.get("delivery")) for r in record["replies"]], [("t3", "unsent")])
         self.assertEqual(self.spoken, [])
 
+    async def test_a_turn_with_a_t3_line_takes_no_late_updates_and_says_nothing_more(self):
+        taken = []
+
+        class Late(T3SnapshotService):
+            def take_task_updates(self):
+                taken.append(True)
+                return [{"type": "task_update", "task_id": "task_2", "status": "completed", "result_summary": "Sunny.",
+                         "description": "weather"}]
+
+            def take_updates(self):
+                raise AssertionError("a turn never takes T3 news with its updates")
+
+        record = await self.turn([DRAFT], task_service=Late, send_checked=self.send_checked)
+        self.assertEqual(([r["kind"] for r in record["replies"]], self.voice.asked, taken), (["t3"], 1, []))
+        self.assertEqual(self.spoken, [DRAFT])
+
+    async def test_an_ordinary_turn_takes_its_own_updates_and_never_t3_news(self):
+        class Plain(MockTaskService):
+            def take_task_updates(self):
+                return []
+
+            def take_updates(self):
+                raise AssertionError("a turn never takes T3 news with its updates")
+
+        record = await self.turn(["Glad to hear it."], task_service=Plain)
+        self.assertEqual([r["kind"] for r in record["replies"]], ["snapshot"])
+
     async def test_a_t3_reply_with_an_appended_sentence_is_held(self):
         record = await self.turn([DRAFT + " Ready?"], task_service=T3SnapshotService, send_checked=self.send_checked)
         self.assertEqual(self.spoken, [])

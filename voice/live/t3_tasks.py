@@ -897,6 +897,10 @@ class T3TaskService(MockTaskService):
                 entry["evidence"] = update.evidence()
         return snapshot
 
+    def take_task_updates(self):
+        """The ordinary tasks' updates only. T3 news is said on its own, when the call is quiet."""
+        return super().take_updates()
+
     def take_updates(self):
         entries = super().take_updates()
         for update in self.t3.reserve_news():
