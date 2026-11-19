@@ -72,7 +72,7 @@ _WORD = re.compile(r"[a-z']+")
 _QUESTION = re.compile(r"\?|\b(?:what|when|where|which|who|whom|whose|why|how)\b", re.IGNORECASE)
 _OTHER_PROJECT = re.compile(r"\b(?:in|for) (?:the )?other project(?:,? please)?[.! ]*$", re.IGNORECASE)
 YES = frozenset({"yes", "yeah", "yep", "yup", "sure", "ok", "okay", "affirmative", "correct", "right", "exactly"})
-YES_PHRASES = {("do", "it"), ("please", "do"), ("go", "ahead"), ("that", "one"), ("that's", "it"), ("that's", "right"),
+YES_PHRASES = {("do", "it"), ("go", "ahead"), ("that", "one"), ("that's", "it"), ("that's", "right"),
                ("that's", "the", "one")}
 # The words that carry out each op. "stop" refuses a launch or a follow-up, but it is the yes to "Stop the X thread?".
 OP_PHRASES = {START: {("start", "it")}, ASK: set(), TELL: {("send", "it"), ("tell", "it"), ("pass", "it", "on")},
@@ -336,11 +336,38 @@ class T3Tasks:
         return L.Update(question.key, (said,), "needs_clarification", "pick",
                         sequences=(self.follow.seam.hello.latest_sequence,), project_id=project_id)
 
+    def pending_act(self, question: Question) -> Act | None:
+        """The yes or no question the voice asked, as the act it said, or None when the open question is a choice."""
+        if question.kind == "confirm":
+            seam = self.follow.seam
+            names = {p.project_id: p.name for p in seam.hello.projects} if seam is not None else {}
+            name = names.get(question.candidates[0])
+            return act(Say.CONFIRM_LAUNCH, project=name) if name else None
+        if question.kind == "thread_confirm":
+            return confirm_act(question.op, question.titles[question.candidates[0]], question.message)
+        return None
+
+    def read_reply(self, text: str, question: Question | None) -> str | None:
+        """"yes", "no" or None for a reply to a pending confirmation. Code's own words are the floor: a no word is a
+        no. Where they read nothing, the decider is asked what the reply does, and only a confident yes acts, so a
+        rising "please do" that a transcript ends with a question mark still starts the thread. Off the lock, since the
+        decider is a network call."""
+        kind = reply_kind(text, question.op if question is not None else START)
+        reads = getattr(self.decider, "reads", None)
+        if kind is None and question is not None and reads is not None:
+            said = self.pending_act(question)
+            if said is not None and reads(said, _plain(text)).yes:
+                return "yes"
+        return kind
+
     def answer(self, text: str, now: float) -> L.Update | None:
         """The next utterance, read as the answer to the open question, or as taking back a held follow-up."""
         with self.lock:
+            question = self.question
+        kind = self.read_reply(text, question) if question is not None else None
+        with self.lock:
             if self.question is not None and self.unasked is not None and self.question.key == self.unasked.task_id:
-                if reply_kind(text, self.question.op) == "yes" or utterance_intent(text).intent != Intent.REQUEST:
+                if kind == "yes" or utterance_intent(text).intent != Intent.REQUEST:
                     return self.unasked
                 self.question = self.unasked = None
                 return None
@@ -351,8 +378,7 @@ class T3Tasks:
             if question.kind == "thread":
                 return self._answer_thread(question, text, now)
             if question.kind == "thread_confirm":
-                return self._answer_thread_confirm(question, text, now)
-            kind = reply_kind(text)
+                return self._answer_thread_confirm(question, text, kind, now)
             if kind == "no":
                 return L.Update(question.key, (act(Say.CANCELLED, op="start"),), "cancelled", "pick")
             down = self._down(question.key, now)
@@ -475,8 +501,7 @@ class T3Tasks:
         said = act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
         return L.Update(question.key, (said,), "needs_clarification", "pick", sequences=evidence)
 
-    def _answer_thread_confirm(self, question: Question, text: str, now: float) -> L.Update | None:
-        kind = reply_kind(text, question.op)
+    def _answer_thread_confirm(self, question: Question, text: str, kind: str | None, now: float) -> L.Update | None:
         thread = question.candidates[0]
         if kind == "yes":
             down = self._down(question.key, now)

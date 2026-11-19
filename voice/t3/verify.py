@@ -228,6 +228,61 @@ class Decider:
         passed, answers, failed, problems = judge(acts, (record.get("response") or {}).get("answers"))
         return Verdict(passed, answers, failed, _ms(started), problems=problems)
 
+    def reads(self, said: Act, reply: str) -> Reading:
+        """What `reply` does about the question `said` asked. A timeout or any error reads as nothing, so code's own
+        reading of the reply decides."""
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", reading_request(said, reply), label="t3_reply")
+        except Exception as exc:
+            return Reading(None, error=f"{type(exc).__name__}: {exc}")
+        if record.get("status") != 200:
+            return Reading(None, error=f"decider status {record.get('status')}")
+        return judge_reading((record.get("response") or {}).get("answers"))
+
+
+READ_CRITERIA = {
+    "yes": "It agrees to what the assistant asked, in any words, whatever its punctuation.",
+    "no": "It declines what the assistant asked, or takes it back.",
+    "question": "It asks the assistant something instead of answering.",
+    "other": "It names a different project or thread than the one asked about, or asks for something else.",
+    "unrelated": "It does not answer what the assistant asked.",
+}
+YES_CONFIDENCE = 0.7
+
+
+def reading_request(said: Act, reply: str) -> dict:
+    """One decisions body asking what the person's reply does about the question `said` asked them. `reply` is the
+    transcript, whose punctuation need not match how they said it: a rising "please do" arrives with a question mark."""
+    state = {"assistant_asked": _fill(MEANS[said.kind], said.slots), "reply": reply,
+             "context": "A voice assistant asked the person a yes or no question about their coding threads. `reply` "
+                        "is a transcript of what they said back."}
+    question = {"type": "choice", "instructions": "What does the person's reply do about what the assistant asked?",
+                "criteria": READ_CRITERIA}
+    return {"model": "d1.2", "state": state, "questions": {"reading": question}}
+
+
+@dataclass(frozen=True)
+class Reading:
+    """What a reply does about a pending question, by the decider. Only a confident yes ever acts."""
+
+    label: str | None
+    probabilities: dict[str, float] = field(default_factory=dict)
+    error: str | None = None
+
+    @property
+    def yes(self) -> bool:
+        return self.label == "yes" and self.probabilities.get("yes", 0.0) >= YES_CONFIDENCE
+
+
+def judge_reading(answers: Any) -> Reading:
+    answer = answers.get("reading") if isinstance(answers, dict) else None
+    probabilities = answer.get("probabilities") if isinstance(answer, dict) else None
+    if not isinstance(probabilities, dict) or answer.get("choice") not in READ_CRITERIA:
+        return Reading(None, error="the decider gave no reading")
+    return Reading(answer["choice"], {k: float(v) for k, v in probabilities.items()})
+
 
 def _ms(started: float) -> float:
     return round((time.perf_counter() - started) * 1000, 1)

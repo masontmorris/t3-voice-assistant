@@ -24,6 +24,8 @@ from voice.t3.acts import QUESTIONS, RULES, Act, act, check
 from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
+from voice.t3.test_replies import Recorded
+from voice.t3.verify import Decider
 from voice.segmentation.gate import PLAN_A
 from voice.tools import registry as tool_registry
 
@@ -33,12 +35,23 @@ THREADS = (("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"), ("t7"
            ("t8", "Write the release notes"))
 
 
-def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path | None = None) -> T3Tasks:
+class Reading(F.Agree):
+    """The speech decider, with reply readings replayed from the recorded d1.2 answers (voice/t3/test_replies.py)."""
+
+    def __init__(self):
+        self.reader = Decider(Recorded())
+
+    def reads(self, said, reply):
+        return self.reader.reads(said, reply)
+
+
+def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path | None = None,
+               decider=None) -> T3Tasks:
     if path is None:
         tmp = tempfile.TemporaryDirectory()
         test.addCleanup(tmp.cleanup)
         path = Path(tmp.name) / "journal.json"
-    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model, F.Agree())
+    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model, decider or F.Agree())
 
 
 def said(update) -> list[tuple]:
@@ -130,7 +143,7 @@ def held_follow_up(test, seam, path=None) -> T3Tasks:
 class TwinA(unittest.TestCase):
     def test_a_launch_without_a_named_project_defaults_to_a_confirmation(self):
         seam = F.FakeSeam()
-        t3 = tasks_over(self, seam)
+        t3 = tasks_over(self, seam, decider=Reading())
         request = "Start a thread to fix the flaky test"
         asked = t3.start("k1", request, 0)
         self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
@@ -144,11 +157,11 @@ class TwinA(unittest.TestCase):
         """The 2026-11-18 call: the request said "project" but named none, and the voice only stated that nothing
         matched, so the person's "please do" had nothing to answer."""
         seam = F.FakeSeam()
-        t3 = tasks_over(self, seam)
+        t3 = tasks_over(self, seam, decider=Reading())
         asked = t3.start("k1", self.UNLISTED, 0)
         self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
         self.assertEqual(seam.ops("launch"), [])
-        self.assertEqual(said(t3.answer("Please do.", 1)), [("launched", "Voice sandbox")])
+        self.assertEqual(said(t3.answer("Please do?", 1)), [("launched", "Voice sandbox")])
         self.assertEqual(seam.ops("launch")[0][2:], ("p1", self.UNLISTED))
 
     def test_a_no_to_the_only_available_project_starts_nothing(self):
@@ -185,6 +198,43 @@ class TwinA(unittest.TestCase):
         self.assertEqual(([a.kind.value for a in update.acts], update.status), (["no_project"], "failed"))
         self.assertEqual(update.acts[0].slots, {})
         self.assertIsNone(t3.question)
+
+    def test_the_decider_reads_the_shapes_of_yes_and_code_stays_the_floor(self):
+        yes = ["Please do.", "Please do?", "Yeah, go ahead.", "Sure.", "Yes, do it.", "Go for it.", "Yep."]
+        never = ["No.", "Wait.", "What do you mean?", "How long will it take?", "Start it in the voice server instead.",
+                 "Yes, but in the server project.", "What's the weather like?", "Maybe later.", "Thanks."]
+        for reply, launches in [(r, True) for r in yes] + [(r, False) for r in never]:
+            with self.subTest(reply=reply):
+                seam = F.FakeSeam()
+                t3 = tasks_over(self, seam, decider=Reading())
+                t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+                t3.answer(reply, 1)
+                self.assertEqual(len(seam.ops("launch")), int(launches))
+
+    def test_a_no_word_still_wins_over_a_decider_that_says_yes(self):
+        class AlwaysYes(F.Agree):
+            def reads(self, said, reply):
+                from voice.t3.verify import Reading as Read
+                return Read("yes", {"yes": 0.99})
+
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=AlwaysYes())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        self.assertEqual(said(t3.answer("No, don't.", 1)), [("cancelled", "start")])
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_with_no_reading_the_phrase_table_still_decides(self):
+        class Silent(F.Agree):
+            def reads(self, said, reply):
+                from voice.t3.verify import Reading as Read
+                return Read(None, error="TimeoutError: timed out")
+
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=Silent())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        t3.answer("Please do?", 1)
+        self.assertEqual(seam.ops("launch"), [], "a reply the table cannot read waits for the next turn")
+        self.assertEqual(said(t3.answer("Yes, go ahead.", 2)), [("launched", "Voice sandbox")])
 
     def test_a_lone_match_is_asked_back_before_any_launch(self):
         seam = F.FakeSeam()
@@ -992,7 +1042,7 @@ class ReplyWords(unittest.TestCase):
             "sure, go ahead": "yes",
             "yes please": "yes",
             "please": "yes",
-            "please do": "yes",
+            "please do": None,
             "Please do?": None,
             "do it": "yes",
             "start it": "yes",
