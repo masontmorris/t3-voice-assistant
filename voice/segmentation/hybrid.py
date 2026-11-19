@@ -38,8 +38,8 @@ T3_CHITCHAT = " A question about a thread's progress is not chitchat."
 # One request is cut into fragments at every pause and hesitation, and the decider then read "for that" as needing an
 # earlier fragment's result and "the part that writes slots" as replacing the request: 2 of 10 rehearsal calls never
 # dispatched (measured: 17 of 24 draws dispatched, 23 of 24 with these lines; docs/voice/spoken-acts.md).
-T3_DEPENDS = (" A request to start a coding thread does not wait for an earlier segment: words before it such as "
-              "\"for that\" are its subject, not a result it needs.")
+T3_DEPENDS = (" A request to start a coding thread depends on an earlier segment only when it needs something that "
+              "segment would return. Words that point back at what was just said name its subject, not a result.")
 T3_CORRECTS = " Later words that add detail to or restate the same request do not change or withdraw it."
 # Left alone, the decider called 5 of 10 long hesitant "start a thread" requests ambiguous because they name no project,
 # so they waited for a clarification the T3 service asks for itself (measured: 15 of 30 draws dispatched, 27 of 30 with

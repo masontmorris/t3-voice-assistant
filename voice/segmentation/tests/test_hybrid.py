@@ -260,7 +260,7 @@ class Hybrid(unittest.TestCase):
             criteria[name] = decider.bodies[-1]["questions"]
         for name, suffix in (("off", "_depends"), ("on", "_depends")):
             question = next(q for key, q in criteria[name].items() if key.endswith(suffix))
-            self.assertEqual("for that" in question["criteria"]["none"], name == "on")
+            self.assertEqual("only when it needs something" in question["criteria"]["none"], name == "on")
         question = next(q for key, q in criteria["on"].items() if key.endswith("_corrects"))
         self.assertIn("do not change or withdraw", question["criteria"]["none"])
 
