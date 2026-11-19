@@ -26,6 +26,8 @@ from voice.t3.journal import T3Journal
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import default_decider
 
+REMARK = ("So, uh, I want to get some work going on, uhm, a small project, a tool that converts audio presets into the "
+          "format the editor wants, and, uhm, could you start a thread for that and, you know, keep it organized?")
 T = "Trim unused icons from the build"
 P = "Voice sandbox"
 SLOTS = {
@@ -91,6 +93,19 @@ async def one(url, t3, persona, kind):
         await session.close()
 
 
+async def drafts(t3, kind, count, remark=True):
+    """`count` fresh drafts of one act kind, each from a new update, and how many passed the form and decider checks."""
+    outcomes = []
+    for _ in range(count):
+        update = L.Update(f"conv:{kind.value}", (act(kind, **SLOTS[kind]),), "completed", "act")
+        entry = update_entry(update, "conv_rehearsal")
+        turns = [{"user": REMARK, "assistant": []}] if remark else []
+        rendered = await asyncio.to_thread(Words(t3, lambda _: update).say, entry, turns)
+        outcomes.append({"line": rendered.raw, "passed": rendered.line is not None,
+                         "problems": rendered.problems or ([rendered.error] if rendered.error else [])})
+    return outcomes
+
+
 async def main_async(args):
     args.out.mkdir(parents=True, exist_ok=True)
     persona, label = load_persona(LIVE_HOME / "prompt.txt", NOTE_PERSONA)
@@ -101,6 +116,16 @@ async def main_async(args):
         async with RealtimeWriter(url) as writer:
             follow = L.Follow(T3Journal(args.out / "journal.json"), F.Connector(F.FakeSeam()))
             t3 = T3Tasks(follow, None, default_decider(), writer=writer)
+            if args.drafts:
+                for kind in (Kind(k) for k in args.kinds) if args.kinds else Kind:
+                    outcomes = await drafts(t3, kind, args.drafts)
+                    rows.append({"kind": kind.value, "outcomes": outcomes})
+                    print(kind.value, f"{sum(o['passed'] for o in outcomes)} of {len(outcomes)} drafts passed", flush=True)
+                    for o in outcomes:
+                        if not o["passed"]:
+                            print("   refused:", o["line"], "|", o["problems"][:1], flush=True)
+                (args.out / "drafts.json").write_text(json.dumps(rows, indent=1), encoding="utf-8")
+                return
             for kind in (Kind(k) for k in args.kinds) if args.kinds else Kind:
                 row = {**await one(url, t3, persona, kind), "persona": label}
                 rows.append(row)
@@ -116,6 +141,7 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=8096)
     parser.add_argument("--kinds", nargs="+", choices=[k.value for k in Kind], help="only these act kinds")
+    parser.add_argument("--drafts", type=int, help="only draft each kind this many times, with no relay")
     parser.add_argument("--cpu", action="store_true", help="smoke test on the CPU: no GPU layers")
     asyncio.run(main_async(parser.parse_args()))
 

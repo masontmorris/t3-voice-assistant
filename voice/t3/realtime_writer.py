@@ -16,9 +16,11 @@ class RealtimeWriter:
         self.url = url
         self._loop = None
         self._sessions: set[asyncio.Task] = set()
+        self._slots: asyncio.Semaphore | None = None
 
     async def __aenter__(self):
         self._loop = asyncio.get_running_loop()
+        self._slots = asyncio.Semaphore(MAX_SESSIONS)
         return self
 
     async def __aexit__(self, *_):
@@ -34,13 +36,18 @@ class RealtimeWriter:
     async def _submit(self, messages) -> dict:
         if self._loop is None:
             raise RuntimeError("T3 writer is stopping")
-        if len(self._sessions) >= MAX_SESSIONS:
-            raise RuntimeError("T3 writer sessions are busy")
+        # A draft asked for while the last two sessions are still closing waits for one, as a request waits its turn on
+        # the lane; failing it left the act unspoken until the next retry (6 of 10 rehearsal calls had one).
+        await self._slots.acquire()
         draft = self._loop.create_future()
         task = asyncio.create_task(self._write(messages, draft))
         self._sessions.add(task)
-        task.add_done_callback(self._sessions.discard)
+        task.add_done_callback(self._release)
         return await draft
+
+    def _release(self, task: asyncio.Task) -> None:
+        self._sessions.discard(task)
+        self._slots.release()
 
     async def _write(self, messages, draft: asyncio.Future) -> None:
         from voice.prototype.realtime import MODEL_RATE, Session
