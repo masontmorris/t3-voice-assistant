@@ -1,8 +1,8 @@
-"""Streamed release: reply audio reaches the speaker while the reply is generated, never ahead of the screens.
+"""Streamed reply: reply audio reaches the speaker the moment the model makes it, and the fact check never holds it.
 
 The fake session answers like LFM3-Audio: a run of text deltas, then that block's audio frames, then the next run.
 Every frame holds its block's number, so a test reads back exactly which blocks the speaker got. These stand in for
-llama.cpp: they pin what the turn releases and asks, not what the model says.
+llama.cpp: they pin what the turn sends and asks, not what the model says.
 """
 
 import asyncio
@@ -12,7 +12,6 @@ import unittest
 import numpy as np
 
 from voice.prototype import run as prototype
-from voice.prototype.release import Release, whole_words
 from voice.prototype.tests.test_run_shared_session import CLOCK, FakeSession
 
 FRAME_BYTES = 480
@@ -67,60 +66,6 @@ class Speaker:
         return [b for call in self.calls for b in call["blocks"]]
 
 
-class ReleaseGateTest(unittest.TestCase):
-    """The gate on its own, fed one response's deltas."""
-
-    def feed(self, runs, passes, finish=True):
-        out = []
-        gate = Release(passes, lambda text, pcm: out.append((text, blocks_in(pcm))))
-        for block, run in enumerate(runs):
-            for word in run:
-                gate.on_text(word)
-            for _ in range(2):
-                gate.on_audio(frame(block), float(block))
-        if finish:
-            gate.finish(9.0)
-        return gate, out
-
-    def test_a_block_is_released_once_the_next_runs_text_has_passed(self):
-        gate, out = self.feed([["It's", " sunny"], [" in", " Denver"], [" today", "."]], lambda t, f: True,
-                              finish=False)
-        self.assertEqual([blocks for _, blocks in out], [[0], [1]], "block 2 waits for a run that never came")
-        self.assertEqual(out[0][0], "It's sunny in ", "block 0 went out on the whole words of run 1")
-
-    def test_no_audio_for_text_that_has_not_passed(self):
-        screened = []
-
-        def passes(text, final):
-            screened.append(text)
-            return "Sunday" not in text
-
-        gate, out = self.feed([["I'm", " checking"], [" Denver", " for"], [" Sunday", " now"], [" okay", "."]],
-                              passes)
-        self.assertEqual([b for _, blocks in out for b in blocks], [0], "only block 0, screened with run 1 after it")
-        self.assertFalse(gate.passed)
-        self.assertEqual(gate.heard(), "I'm checking")
-        for text, blocks in out:
-            self.assertNotIn("Sunday", text)
-
-    def test_a_word_still_arriving_is_not_screened(self):
-        screened = []
-        self.feed([["The", " weather", " in", " Ral"], ["eigh", " today"], ["."]],
-                  lambda t, f: screened.append(t) or True)
-        self.assertNotIn("Ral", " ".join(screened[:1]), "the half word stays out of the first screen")
-        self.assertEqual(whole_words("The weather in Ral"), "The weather in ")
-
-    def test_a_prefix_that_fails_and_then_passes_releases_again(self):
-        gate, out = self.feed([["It's", " sunny"], [" in", " New", " "], ["York", " and"], [" warm", "."]],
-                              lambda t, f: not t.rstrip().endswith("New"))
-        self.assertEqual([blocks for _, blocks in out], [[0, 1], [2], [3]], "held at 'in New', released at 'York'")
-
-    def test_a_whole_reply_that_fails_releases_nothing_more(self):
-        gate, out = self.feed([["Sure", "."]], lambda t, f: not f)
-        self.assertEqual(out, [])
-        self.assertEqual(gate.heard(), "")
-
-
 class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self):
         self.voice = await Blocks.open("ws://unused", "voice", lambda: CLOCK)
@@ -131,152 +76,43 @@ class StreamedAnswerTest(unittest.IsolatedAsyncioTestCase):
         return await prototype.answer(self.voice, 24_000, CLOCK, [PERSON], lambda kind, **d: self.timeline.append(
             {"kind": kind, **d}), speak=self.speaker, **more)
 
-    def notes(self):
-        return [event["item"]["content"][0]["text"] for event in self.voice.sent
-                if event.get("type") == "conversation.item.create"]
-
     def asks(self):
         return sum(event.get("type") == "response.create" for event in self.voice.sent)
 
-    async def test_audio_reaches_the_speaker_before_the_reply_is_done(self):
+    async def test_each_block_reaches_the_speaker_as_it_arrives_with_no_lookahead(self):
         reply, pcm = await self.answer([["It's", " sunny"], [" in", " Denver"], [" tomorrow", "."]])
         first = self.speaker.calls[0]
         self.assertEqual(first["responses_done"], 0, "the first block went out while the reply was generating")
-        self.assertEqual(self.speaker.blocks(), [0, 1, 2])
-        self.assertEqual([call["done"] for call in self.speaker.calls], [False, False, False, True])
+        self.assertEqual(first["blocks"], [0], "the first block is out before the second block's text arrives")
+        self.assertEqual(first["text"], "It's sunny", "with only the text that came before it")
+        self.assertEqual(sorted(set(self.speaker.blocks())), [0, 1, 2])
+        self.assertEqual([call["done"] for call in self.speaker.calls], [False, False, False, False, False, False, True])
         self.assertEqual(reply["text"], "It's sunny in Denver tomorrow.")
         self.assertEqual(blocks_in(pcm), [0, 1, 2])
+        self.assertEqual(reply["speech_s"], len(pcm) / 2 / 24_000)
 
-    async def test_a_late_failure_stops_at_the_last_boundary_that_passed_and_goes_on_without_repeating(self):
+    async def test_fact_logging_never_stops_or_reasks_the_reply(self):
         reply, pcm = await self.answer(
             [["It's", " sunny"], [" in", " Denver"], [" tomorrow", " and"], [" on", " Sunday"], [" too", "."]],
-            [[" I", " don't"], [" have", " the"], [" rest", " yet."]])
-        self.assertEqual(self.asks(), 2, "asked again once")
-        note, = self.notes()
-        self.assertIn('they heard only the start of your last reply, "It\'s sunny in Denver tomorrow and"', note)
-        self.assertIn("nothing gave you Sunday", note)
-        self.assertIn("without saying again what they heard", note)
-        first_blocks = [b for call in self.speaker.calls if call["responses_done"] == 0 for b in call["blocks"]]
-        self.assertEqual(first_blocks, [0, 1, 2], "block 3, whose text runs into Sunday, never went out")
-        self.assertEqual(reply["text"], "It's sunny in Denver tomorrow and I don't have the rest yet.")
-        self.assertNotIn("Sunday", " ".join(call["text"] for call in self.speaker.calls))
-        self.assertEqual([call["done"] for call in self.speaker.calls].count(True), 1, "one reply, ended once")
-        stop, = [e for e in self.timeline if e["kind"] == "fact_check"]
-        self.assertEqual(stop["heard"], "It's sunny in Denver tomorrow and")
+            [[" I", " don't"], [" know", "."]])
+        self.assertEqual(blocks_in(pcm), [0, 1, 2, 3, 4])
+        self.assertEqual(reply["text"], "It's sunny in Denver tomorrow and on Sunday too.")
+        self.assertEqual(self.asks(), 1)
+        check, = [event for event in self.timeline if event["kind"] == "fact_check"]
+        self.assertEqual(check["ungrounded"], ["weekday Sunday"])
 
-    async def test_the_continuation_quotes_what_the_released_audio_said_not_what_it_was_released_on(self):
-        """The audio lags the text it is released on (measured: 7 words at the median), so the note quotes the
-        transcript of the released audio, matched back to the reply's own words."""
-        heard_audio = []
+    async def test_a_place_the_call_never_named_is_not_cut(self):
+        """The 2026-11-18 call: the second reply was cut after "but I" because "Voice sandbox" read as a place."""
+        reply, pcm = await self.answer([["I couldn't", " find a project"], [" matching that,", " but I"],
+                                        [" can start a", " thread in Voice sandbox."]])
+        self.assertEqual(blocks_in(pcm), [0, 1, 2])
+        self.assertEqual(self.asks(), 1)
+        self.assertEqual(reply["text"], "I couldn't find a project matching that, but I can start a thread in Voice sandbox.")
 
-        async def transcribe(pcm):
-            heard_audio.append(blocks_in(pcm))
-            return "it's sunny in"
-
-        await self.answer(
-            [["It's", " sunny"], [" in", " Denver"], [" tomorrow", " and"], [" on", " Sunday"], [" too", "."]],
-            [[" Denver", " has"], [" no", " more"], [" yet", "."]], transcribe=transcribe)
-        self.assertEqual(heard_audio, [[0, 1, 2]], "the transcript is of the audio that went out")
-        note, = self.notes()
-        self.assertIn('they heard only the start of your last reply, "It\'s sunny in"', note)
-
-    async def test_a_fragment_the_ear_cannot_read_is_still_continued_not_restarted(self):
-        """Measured on the after replay, turns 20 to 22: a one-block fragment transcribed empty, the retry went out
-        from the top, and the person heard a second opening."""
-        async def transcribe(pcm):
-            return ""
-
-        await self.answer(
-            [["It's", " sunny"], [" in", " Denver"], [" on", " Sunday"], [" too", "."]],
-            [[" and", " warm"], ["."]], transcribe=transcribe,
-            retry_item=lambda found, repeats=False: prototype.plain_text(prototype.RETRY_NOTE))
-        note, = self.notes()
-        self.assertIn('they heard only the start of your last reply, "It\'s sunny in Denver"', note)
-
-    def test_a_stop_while_the_lookup_runs_says_it_is_running_and_names_no_old_value(self):
-        """Demo call 20261117-013438, turn 004: the stop note told the model nothing gave it the earlier Raleigh
-        forecast, and it then said it didn't know the weather in Raleigh for four turns."""
-        found = {"ungrounded": ["weekday Tuesday", "date November 17", "number 59"]}
-        note = prototype.continue_note("Why don't scientists trust atoms", found, running=True)
-        self.assertIn("because the lookup is still running and has no answer yet", note)
-        self.assertNotIn("nothing gave you", note)
-        self.assertNotIn("59", note)
-
-    def test_heard_prefix_is_never_past_the_last_word_matched(self):
-        self.assertEqual(prototype.heard_prefix("The weather in Raleigh today is a high of 57 degrees.",
-                                                "the weather in raleigh today"), "The weather in Raleigh today")
-        self.assertEqual(prototype.heard_prefix("It's sunny.", ""), "")
-
-    async def test_a_continuation_that_says_the_heard_part_again_is_not_spoken(self):
-        reply, _ = await self.answer(
-            [["It's", " sunny"], [" in", " Denver"], [" on", " Sunday"], [" too", "."]],
-            [["It's", " sunny"], [" in", " Denver"], [" tomorrow", "."]])
-        self.assertEqual(self.asks(), 2, "no third ask")
-        self.assertEqual(reply["text"], "It's sunny in Denver", "only what the first reply released is heard")
-        self.assertEqual(reply["blocked"]["restated"], ["it", "is", "sunny", "in"])
-        self.assertEqual(self.speaker.calls[-1]["done"], True)
-
-    async def test_a_reply_refused_before_any_audio_is_asked_again_from_the_top(self):
-        reply, _ = await self.answer([["The", " user"], [" wants", " Sunday"], ["."]],
-                                     [["It's", " sunny"], [" tomorrow", "."]],
-                                     retry_item=lambda found, repeats=False: prototype.plain_text(prototype.RETRY_NOTE))
-        self.assertEqual(self.notes(), [prototype.RETRY_NOTE], "nothing was heard, so there is nothing to continue")
-        self.assertEqual(reply["text"], "It's sunny tomorrow.")
-        self.assertEqual(self.speaker.blocks(), [0, 1], "only the retry's blocks were spoken")
-
-    async def test_the_fixed_line_plays_only_when_the_turn_said_nothing(self):
-        fallback = prototype.Fallback(frame(7))
-        reply, _ = await self.answer([["It's", " sunny"], [" in", " Denver"], [" on", " Sunday"], ["."]],
-                                     [["On", " Sunday"], ["."]], fallback=fallback)
-        self.assertNotIn(prototype.FALLBACK_LINE, reply["text"])
-        self.assertFalse(fallback.spoken)
-        self.voice.sent.clear()
-        self.speaker.calls.clear()
-        reply, _ = await self.answer([["Sunday", "."]], [["Sunday", " again."]], fallback=fallback)
-        self.assertEqual(reply["text"], prototype.FALLBACK_LINE)
-        self.assertEqual(self.speaker.blocks(), [7])
-
-    async def test_the_question_for_a_missing_place_streams_and_a_guessed_city_stops_it(self):
-        """The follow-ups' clarification reply is an ordinary reply: asked block by block, and a city the model
-        guesses instead of asking is never heard."""
-        note = prototype.task_note({"status": "needs_clarification", "capability": "weather", "arguments": {},
-                                    "needs": ["place"]})
-        self.voice.script = [[["Which", " city"], [" do", " you"], [" mean", "?"]]]
-        reply, _ = await prototype.answer(self.voice, 24_000, CLOCK, ["What's the weather tomorrow?", note],
-                                          lambda kind, **d: None, speak=self.speaker)
-        self.assertEqual(reply["text"], "Which city do you mean?")
-        self.assertEqual(self.speaker.calls[0]["responses_done"], 0, "the question went out while generating")
-        self.speaker.calls.clear()
-        self.voice.script = [[["Do", " you"], [" mean", " in"], [" Boston", "?"]], [["Which", " city"], ["?"]]]
-        reply, _ = await prototype.answer(self.voice, 24_000, CLOCK, ["What's the weather tomorrow?", note],
-                                          lambda kind, **d: None, speak=self.speaker)
-        self.assertNotIn("Boston", " ".join(call["text"] for call in self.speaker.calls))
-
-    STALE = "Hello! I'm checking the weather in a city on the East Coast. Which one?"
-
-    async def test_a_stale_repeat_releases_nothing_before_it_is_asked_again(self):
-        """The stale line of tool-pick arm 1, generated block by block: every prefix could still be the old line,
-        so none of it is released, and the retry is told it repeated itself."""
-        reply, _ = await self.answer(
-            [["Hello!", " I'm"], [" checking", " the"], [" weather", " in"], [" a", " city"], [" on", " the"],
-             [" East", " Coast."], [" Which", " one?"]],
-            [["I", " can"], [" hear", " you"], [" fine", "."]],
-            previous=(self.STALE,),
-            retry_item=lambda found, repeats=False: prototype.plain_text(
-                prototype.REPEAT_NOTE if repeats else prototype.RETRY_NOTE))
-        self.assertEqual([call for call in self.speaker.calls if call["responses_done"] == 0], [],
-                         "nothing of the stale line reached the speaker")
-        self.assertEqual(self.notes(), [prototype.REPEAT_NOTE])
-        self.assertEqual(reply["text"], "I can hear you fine.")
-
-    async def test_a_reply_that_opens_like_an_earlier_line_streams_once_it_differs(self):
-        reply, _ = await self.answer(
-            [["Hello!", " I'm"], [" checking", " the"], [" news", " for"], [" you", " now"], ["."]],
-            previous=(self.STALE,))
-        held = self.speaker.calls[0]
-        self.assertEqual(held["responses_done"], 0, "released while generating, once 'news' parted from the old line")
-        self.assertEqual(held["blocks"], [0, 1])
-        self.assertEqual(reply["text"], "Hello! I'm checking the news for you now.")
+    async def test_a_reply_with_no_audio_never_calls_the_speaker(self):
+        self.voice.script = [[]]
+        await prototype.answer(self.voice, 24_000, CLOCK, [PERSON], lambda kind, **d: None, speak=self.speaker)
+        self.assertEqual(self.speaker.calls, [])
 
 
 if __name__ == "__main__":

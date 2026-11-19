@@ -277,10 +277,10 @@ class RenderTest(unittest.TestCase):
                 system, user = reader_messages((act(Kind.CONFIRM_THREAD, thread=title),))
                 self.assertIn("existing thread named in thread", system["content"])
                 self.assertNotIn(title, system["content"])
-                self.assertEqual(json.loads(user["content"]), {"kind": "confirm_thread", "thread": title})
+                self.assertEqual(json.loads(user["content"].removeprefix("New record: ")), {"kind": "confirm_thread", "thread": title})
 
 
-    def test_known_and_example_titles_are_rejected_at_both_checks(self):
+    def test_known_and_example_titles_are_rejected_in_the_draft_and_the_call_may_say_only_the_draft(self):
         acts = (act(Kind.CONFIRM_THREAD, thread="Current Thread Notes"),)
         titles = frozenset({"Current Thread", "Archived Project"})
         legitimate = "Is Current Thread Notes the thread you mean?"
@@ -292,8 +292,8 @@ class RenderTest(unittest.TestCase):
                 text = f"Is Current Thread Notes or {title} the thread you mean?"
                 wrong = Speech(Lane(Text(text)), Reads(), F.Agree()).render(acts, known_names=titles)
                 self.assertEqual(wrong.problems, [f"unlisted title: {title}"])
-                call = speech.accept(draft.acts, text, "call", known_names=draft.known_names)
-                self.assertEqual(call.problems, wrong.problems)
+                call = speech.recite(draft, text)
+                self.assertIsNone(call.line, "the call may say only the checked draft")
 
 
 class WriterSession(FakeSession):
@@ -326,6 +326,29 @@ class WriterSession(FakeSession):
 class RealtimeWriterTest(unittest.IsolatedAsyncioTestCase):
     messages = reader_messages((act(Kind.CONFIRM_THREAD, thread="Rotate Signing Keys"),))
 
+    async def test_a_third_draft_waits_for_a_closing_session_instead_of_failing(self):
+        writer = RealtimeWriter("ws://unused")
+        sessions = []
+
+        async def capture_session(url, name, clock):
+            session = await WriterSession.open(url, name, clock)
+            sessions.append(session)
+            return session
+
+        with patch.object(Session, "open", new=capture_session):
+            async with writer:
+                for _ in range(2):
+                    await asyncio.to_thread(writer.complete, self.messages)
+                third = asyncio.create_task(asyncio.to_thread(writer.complete, self.messages))
+                for session in sessions:
+                    await session.closing.wait()
+                self.assertEqual(len(sessions), 2, "two sessions are still closing, so the third has none to open")
+                sessions[0].allow_close.set()
+                self.assertEqual((await third)["text"], "Is Rotate Signing Keys the thread?")
+                for session in sessions:
+                    session.allow_close.set()
+        self.assertEqual(len(sessions), 3)
+
     async def test_drafts_return_on_fresh_sessions_before_close_and_shutdown_drains(self):
         drafts_ready = asyncio.Event()
         writer = RealtimeWriter("ws://unused")
@@ -340,8 +363,6 @@ class RealtimeWriterTest(unittest.IsolatedAsyncioTestCase):
             async with writer:
                 for _ in range(2):
                     results.append(await asyncio.to_thread(writer.complete, self.messages))
-                with self.assertRaises(RuntimeError):
-                    await asyncio.to_thread(writer.complete, self.messages)
                 drafts_ready.set()
 
         with patch.object(Session, "open", new=capture_session):

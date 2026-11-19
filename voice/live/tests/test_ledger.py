@@ -59,15 +59,13 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(ledger.snapshot, {"tasks": []})
         self.assertEqual(ledger.turns[1].error, "network failed")
 
-    def test_the_chosen_place_and_every_spoken_reply_reach_the_next_turn(self):
+    def test_every_spoken_reply_reaches_the_next_turn(self):
         ledger = ConversationLedger()
-        picked = record("turn_001", "Pick a city on the east coast.", "Let's check the weather in Boston.")
-        picked["established"] = ["Boston"]
-        ledger.record(picked, muted=False)
+        ledger.record(record("turn_001", "Pick a city on the east coast.", "Let's check the weather in Boston."),
+                      muted=False)
         ledger.record(record("turn_002", "Do I need a jacket?", ""), muted=False)
-        self.assertEqual(ledger.established(), ["Boston"])
         self.assertEqual(ledger.replies(), ["Let's check the weather in Boston."],
-                         "a turn that said nothing adds no reply to screen against")
+                         "a turn that said nothing adds no reply to check against")
 
 
 if __name__ == "__main__":

@@ -640,7 +640,7 @@ def _read_sent(f: Follow, name, row, task, now, result):
 def _started(f: Follow, name, task, sequence):
     task.status = Status.LIVE
     if not task.announced:
-        said = act(Say.LAUNCHED, request=task.instruction) if task.kind is Kind.START else act(Say.SENT_FOLLOWUP)
+        said = act(Say.LAUNCHED) if task.kind is Kind.START else act(Say.SENT_FOLLOWUP)
         f.speak(task, said, name, (sequence,))
         task.announced = True
     f.journal.save()

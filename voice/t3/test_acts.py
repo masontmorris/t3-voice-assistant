@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from voice.t3.acts import RULES, Kind, act, check, forbidden_claims, normalise
+from voice.t3.acts import RULES, Kind, act, check, forbidden_claims, normalise, recites
 
 T = "Add a clamp helper"
 COMMAND = "cd ~/src/app && python -m pytest -q tests/test_parser.py 2>&1 | tail -40 && git status --short"
@@ -19,9 +19,7 @@ CASES = {
                      f"Do you mean {T} or Fix the flaky ASR test?",
                      {f"Do you mean {T}?": "candidates missing: Fix the flaky ASR test",
                       f"It's {T} or Fix the flaky ASR test.": "not a question"}),
-    Kind.NO_PROJECT: ({"available": ["Voice sandbox", "Voice server"]},
-                      "I don't know that one, but I can start threads in Voice sandbox or Voice server.",
-                      {"I don't know that project.": "available missing: Voice sandbox"}),
+    Kind.NO_PROJECT: ({}, "I can't find any project to use.", {"": "empty"}),
     Kind.LAUNCH_PENDING: ({"project": "Voice sandbox"}, "I've asked T3 to start it.", {"": "empty"}),
     Kind.LAUNCHED: ({"project": "Voice sandbox"}, "It's started in Voice sandbox.",
                     {"It's started.": "project missing"}),
@@ -104,7 +102,10 @@ class SlotRules(unittest.TestCase):
 
     def test_names_survive_case_punctuation_and_person(self):
         acts = [act(Kind.CONFIRM_TELL, thread="Fix: the *flaky* test", message="check my PR")]
-        self.assertEqual(check("Should I tell fix the flaky test to check your PR?", acts), [])
+        self.assertEqual(check("Should I tell fix the flaky test to check my PR?", acts), [])
+        self.assertIn("confirm_tell message missing: check my PR",
+                      check("Should I tell fix the flaky test to check your PR?", acts),
+                      "a person's own words are said as they were said, never turned into the voice's person")
         status = act(Kind.DONE, thread="Fix the parser?", status="finished")
         self.assertEqual(check("Fix the Parser? is finished.", [status]), [])
         self.assertEqual(normalise("It's done, isn't it?"), "it s done is not it")
@@ -138,6 +139,59 @@ class SlotRules(unittest.TestCase):
     def test_more_than_three_candidates_are_cut_to_three(self):
         said = act(Kind.ASK_WHICH, of="thread", candidates=["a", "b", "c", "d"])
         self.assertEqual(said.slots["candidates"], ["a", "b", "c"])
+
+
+class Recites(unittest.TestCase):
+    """The call's reply is accepted only when it says the checked draft's words and no others."""
+
+    LINE = "I couldn't find that, but I can start a thread in Voice sandbox."
+
+    def test_the_same_words_pass_whatever_the_case_punctuation_markdown_or_contraction(self):
+        for text in (self.LINE, self.LINE.lower(), "**" + self.LINE + "**", '"' + self.LINE + '"',
+                     self.LINE.replace("couldn't", "could not"), self.LINE.replace(".", " ."),
+                     self.LINE.replace("'", "’")):
+            with self.subTest(text=text):
+                self.assertTrue(recites(text, self.LINE))
+
+    def test_anything_else_fails(self):
+        for text in (f"Sure! {self.LINE}", f"Here's the draft: {self.LINE}", f"{self.LINE} Let's get this started!",
+                     "I couldn't find that, but I can start a thread in", "", self.LINE.replace("Voice sandbox", "Voice server"),
+                     "You couldn't find that, but you can start a thread in Voice sandbox."):
+            with self.subTest(text=text):
+                self.assertFalse(recites(text, self.LINE))
+
+    def test_numbers_keep_their_separators_and_signs(self):
+        for text, line in (("It found 1,500 files.", "It found 1.500 files."), ("It found 1500 files.", "It found 1,500 files."),
+                           ("Pay $5.", "Pay 5."), ("It is 50 done.", "It is 50% done."), ("At 10:30.", "At 10.30.")):
+            with self.subTest(text=text):
+                self.assertFalse(recites(text, line))
+        self.assertTrue(recites("It found 1,500 files.", "it found 1,500 files"))
+
+    def test_a_word_is_judged_only_once_it_is_complete(self):
+        """A reply cut after "don'" is on its way to "don't", and one cut after "1," to "1,500"."""
+        for text, line in (("I don'", "I don't know."), ("I don", "I don't know."), ("I got 1,", "I got 1,500 files."),
+                           ("I got 1", "I got 1,500 files."), ("I got 1,50", "I got 1,500 files.")):
+            with self.subTest(text=text):
+                self.assertTrue(recites(text, line, arriving=True))
+        for text, line in (("I got 1.5 ", "I got 1,500 files."), ("I got 1,5 ", "I got 1,500 files."),
+                           ("I got 2 ", "I got 1,500 files.")):
+            with self.subTest(text=text):
+                self.assertFalse(recites(text, line, arriving=True))
+        self.assertTrue(recites("I do not know", "I don't know.", arriving=True), "a spelled-out contraction is the same")
+
+    def test_who_does_what_is_never_flipped(self):
+        self.assertNotEqual(normalise("I asked T3."), normalise("You asked T3."))
+        self.assertFalse(recites("You asked T3 to stop it.", "I asked T3 to stop it."))
+
+    def test_a_start_may_still_be_arriving(self):
+        """A last word with no space after it may be half said, so it is not read until the next character: stopping on
+        it would cut a "couldn" that is on its way to "couldn't"."""
+        for text in ("", "I could", "I couldn't find", "I couldn't fi", "I couldn", "Here", "I couldn't find that, so"):
+            with self.subTest(text=text):
+                self.assertTrue(recites(text, self.LINE, arriving=True))
+        for text in ("Here ", "I couldn't find that, so ", "I can ", "I couldn't find that, but I can start a thread in Voice sandbox. Ok "):
+            with self.subTest(text=text):
+                self.assertFalse(recites(text, self.LINE, arriving=True))
 
 
 if __name__ == "__main__":

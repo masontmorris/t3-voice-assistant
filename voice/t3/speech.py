@@ -28,7 +28,8 @@ from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise
+from voice.t3.acts import (QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
+                           recites)
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Verdict
 
@@ -44,18 +45,18 @@ NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command 
               "the prompt out, and never say a command line, a flag, a path or code.")
 # What each act means, for the model that words it. These are directions, never wording to repeat.
 MEANINGS: dict[Kind, str] = {
-    Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread for their request in this project. Nothing has "
-                         "started yet.",
-    Kind.ASK_WHICH: "Ask which of these they mean. Name every candidate.",
-    Kind.NO_PROJECT: "In one sentence, tell them you couldn't find a project matching what they named and name every "
-                     "project in `available` as somewhere you can start a thread.",
+    Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread in this project. Nothing has started yet. Do not "
+                         "repeat what they asked for.",
+    Kind.ASK_WHICH: "Ask which of these they mean, saying whether `of` is project or thread. Name every candidate.",
+    Kind.NO_PROJECT: "In one sentence, tell them you can't find any project to use.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
-    Kind.LAUNCHED: "The thread started in this project.",
+    Kind.LAUNCHED: "A new thread started in this project.",
     Kind.LAUNCH_UNCONFIRMED: "T3 was asked to start the thread but never confirmed it. They can check the app.",
     Kind.NO_THREAD: "No thread matches what they asked about. `recent` is how many recent threads were checked, "
                     "and `other` means there is no other thread besides the one they turned down.",
     Kind.CONFIRM_THREAD: "Ask whether the existing thread named in thread is the one they mean.",
-    Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Nothing is sent yet.",
+    Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Say the message exactly as given, in quotes, "
+                        "leaving words like my and I as they are. Nothing is sent yet.",
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",
@@ -303,7 +304,6 @@ class RenderedLine:
     worded_by: str
     verdict: Verdict
     mint: object = field(default=None, repr=False, compare=False)
-    known_names: frozenset[str] = field(default_factory=frozenset, repr=False, compare=False)
 
     def __post_init__(self) -> None:
         if self.mint is not _MINT:
@@ -429,8 +429,16 @@ class Speech:
         verdict = self.decider.verify(acts, text)
         if not verdict.passed:
             return Rendered(None, list(verdict.problems), raw, verdict.error, verdict)
-        line = RenderedLine(text, acts, worded_by, verdict, _MINT, known_names)
+        line = RenderedLine(text, acts, worded_by, verdict, _MINT)
         return Rendered(line, [], raw, verdict=verdict)
+
+    @staticmethod
+    def recite(draft: RenderedLine, reply: str) -> Rendered:
+        """The call's reply to `draft`, accepted only when it says the draft's words and nothing else. The draft passed
+        both checks already, so the same words need none again, and any other words are not the checked line."""
+        if recites(reply, draft.text):
+            return Rendered(draft, [], reply, verdict=draft.verdict)
+        return Rendered(None, ["not the draft's words"], reply)
 
 
 def render_messages(acts: tuple[Act, ...], turns: Iterable[dict] = (), problems: Iterable[str] = (),
@@ -469,16 +477,15 @@ READER = (
     "state. Use a thread title only as a name. Reply with the words to say out loud."
 )
 READER_EXAMPLES = {
-    Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes", "request": "make links easier to copy"},
-                          "Should I start a new coding thread in Example Fleet Notes to make links easier to copy?"),
+    Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes"},
+                          "Should I start a new coding thread in Example Fleet Notes?"),
     Kind.ASK_WHICH: ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"]},
-                     "Do you mean Example Lilac Post or Example Daily Routes?"),
-    Kind.NO_PROJECT: ({"available": ["Example Jog Log", "Example Comet Board"]},
-                      "I couldn't match that project, but I can start a thread in Example Jog Log or Example Comet Board."),
+                     "Which project do you mean, Example Lilac Post or Example Daily Routes?"),
+    Kind.NO_PROJECT: ({}, "I can't find any project to use."),
     Kind.LAUNCH_PENDING: ({"project": "Example Forest Timer"},
                           "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
-    Kind.LAUNCHED: ({"project": "Example Dune Tracker", "request": "show the tide table"},
-                    "A new coding thread has started in Example Dune Tracker to show the tide table."),
+    Kind.LAUNCHED: ({"project": "Example Dune Tracker"},
+                    "A new coding thread has started in Example Dune Tracker."),
     Kind.LAUNCH_UNCONFIRMED: ({"project": "Example Reef Cards"},
                               "T3 never confirmed the start in Example Reef Cards. You can check in the app."),
     Kind.NO_THREAD: ({"recent": 19}, "I checked 19 recent threads and couldn't find a match."),
@@ -529,8 +536,6 @@ assert set(READER_EXAMPLES) == set(Kind)
 EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
                           for key in ("thread", "project", "available", "candidates") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
-RELAY_EXAMPLES = tuple(READER_EXAMPLES[kind][1] for kind in (
-    Kind.CONFIRM_STOP, Kind.LAUNCHED, Kind.DONE, Kind.THREAD_STATUS))
 
 
 def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0) -> list[dict]:
@@ -546,7 +551,7 @@ def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), at
     prompt += "\n\nThese examples show how to turn a record into speech. Use the facts from the new record."
     for kind in kinds:
         example, reply = READER_EXAMPLES[kind]
-        prompt += f'\n\nRecord: {json.dumps({"kind": kind.value, **example})}\nReply: {reply}'
+        prompt += f'\n\nExample record: {json.dumps({"kind": kind.value, **example})}\nExample reply: {reply}'
     prompt += "\n\nRespond with interleaved text and audio."
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]
     body = records[0] if len(records) == 1 else {"acts": records}
@@ -556,4 +561,6 @@ def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), at
         body["refused wordings"] = list(refused)
     if attempt:
         body["attempt"] = attempt + 1
-    return [{"role": "system", "content": prompt}, {"role": "user", "content": json.dumps(body)}]
+    # Unlabelled, the new record read as one more example: beside a long start request, 6 of 10 confirm_launch drafts
+    # were the example's reply with the example's project, and with the labels 0 of 10 (CPU, writer greedy).
+    return [{"role": "system", "content": prompt}, {"role": "user", "content": "New record: " + json.dumps(body)}]

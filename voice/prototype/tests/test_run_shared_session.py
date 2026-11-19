@@ -15,7 +15,6 @@ from unittest import mock
 
 from voice.prototype import run as prototype
 from voice.prototype.tests import isolate_decider_cache
-from voice.live.facts import names_machinery, ungrounded
 from voice.prototype.transcript import COMPLETED
 
 CLOCK = 0.0
@@ -388,16 +387,9 @@ class Delegating(FakeSession):
         await super().send(**event)
 
 
-MACHINERY_WORDS = ("fact check", "snapshot", "machine note", "machine-generated", "task description", "task update",
-                   "note", "lookup", "no answer yet")
-
-
-def spelled_out(text):
-    return [(word, text.lower().count(word)) for word in MACHINERY_WORDS if word in text.lower()]
-
-
-class FactCheckTest(unittest.IsolatedAsyncioTestCase):
-    """The three turns of the demo call, with the voice session scripted to answer as the model did on turn 3."""
+class FactCheckLogTest(unittest.IsolatedAsyncioTestCase):
+    """The three turns of the demo call, with the voice session scripted to answer as the model did on turn 3. The
+    check reports what it would have refused and changes nothing."""
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -417,63 +409,51 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
         self.spoken = []
         self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
 
-    async def turn(self, script, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480):
+    async def turn(self, script, snapshot_mode="reply-no-utterance"):
         self.voice.script = script
         self.voice.asked = 0
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
-            voice=self.voice, snapshot_mode=snapshot_mode, fallback_pcm=fallback_pcm,
+            voice=self.voice, snapshot_mode=snapshot_mode,
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
             speak=heard_by(self.spoken, with_bytes=True))
 
-    async def test_weekday_invented_from_correction_is_asked_again(self):
-        """Sunday is not in the call, so the model's first answer is dropped and the turn asks again."""
+    def notes(self):
+        return [event["item"] for event in self.voice.sent if event.get("type") == "conversation.item.create"]
+
+    async def test_an_invented_weekday_is_spoken_once_and_only_logged(self):
+        """Sunday is not in the call. The reply is still spoken whole, the model is not asked again, and the record
+        says what the check would have refused."""
         record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
                                   "I don't have the day for that yet."])
-        self.assertEqual(self.voice.asked, 2, "the bad reply, and the one re-ask")
-        self.assertEqual(self.spoken[0][0], "I don't have the day for that yet.")
-        self.assertEqual([reply["text"] for reply in record["replies"]], ["I don't have the day for that yet."],
-                         "the record says what was spoken, not what the model first wrote")
-        notes = [item["content"][0]["text"] for item in [event["item"] for event in self.voice.sent
-                                                        if event.get("type") == "conversation.item.create"]
-                 if item["content"][0]["text"].startswith(prototype.FACT_CHECK_PREFIX)]
-        self.assertEqual(len(notes), 1, "one machine note says the value is not available, and it names no value")
-        self.assertNotIn("Sunday", notes[0])
-        checks = [entry for entry in record["timeline"] if entry["kind"] == "fact_check"]
-        self.assertEqual(checks[0]["ungrounded"], ["weekday Sunday"])
-        self.assertTrue(checks[0]["asked_again"])
+        self.assertEqual(self.voice.asked, 1, "one reply, with no re-ask")
+        self.assertEqual([text for text, _ in self.spoken], ["I'm running the task to get the weather in Denver for Sunday."])
+        self.assertGreater(self.spoken[0][1], 0)
+        self.assertEqual([reply["text"] for reply in record["replies"]],
+                         ["I'm running the task to get the weather in Denver for Sunday."])
+        self.assertTrue(all(note["content"][0]["text"].startswith(prototype.SNAPSHOT_PREFIX) for note in self.notes()),
+                        "no machine note follows a reply the check disliked")
+        check, = [entry for entry in record["timeline"] if entry["kind"] == "fact_check"]
+        self.assertEqual(check["ungrounded"], ["weekday Sunday"])
+        self.assertEqual(sorted(set(check) - {"t", "kind", "reply"}),
+                         ["machinery", "repeated", "third_person", "ungrounded"],
+                         "it reports and carries no verdict: nothing asked again, blocked or substituted")
 
-    async def test_a_second_bad_reply_is_not_spoken_and_the_turn_says_one_line(self):
-        """If the re-ask invents again, the turn says the fixed line rather than a different wrong day."""
-        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I'm running the task to get the weather in Denver for Monday."])
-        self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE],
-                         "one short line reaches the speaker, not the invented day")
-        self.assertGreater(self.spoken[0][1], 0, "and it has audio, so the turn is not silent")
-        self.assertEqual([reply["text"] for reply in record["replies"]], [prototype.FALLBACK_LINE])
-        self.assertEqual(record["replies"][0]["blocked"]["ungrounded"], ["weekday Monday"],
-                         "the record keeps the text it refused to say")
-        self.assertTrue([entry for entry in record["timeline"] if entry.get("blocked")])
+    async def test_a_reply_that_names_the_check_is_spoken_and_logged(self):
+        record = await self.turn(["I do not have the information needed to answer the fact check."])
+        self.assertEqual(self.voice.asked, 1)
+        self.assertEqual([text for text, _ in self.spoken], ["I do not have the information needed to answer the fact check."])
+        check, = [entry for entry in record["timeline"] if entry["kind"] == "fact_check"]
+        self.assertEqual(check["machinery"], ["fact check"])
 
-    async def test_a_reply_that_names_the_check_is_replaced_by_the_line(self):
-        """The recorded pair: the invented day, then an answer about the check itself. Neither is said."""
-        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I do not have the information needed to answer the fact check."])
-        self.assertEqual(self.voice.asked, 2, "the bad reply, and the one re-ask")
-        self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE])
-        self.assertEqual(spelled_out(self.spoken[0][0]), [], "the spoken line names no machinery")
-        self.assertEqual(record["replies"][0]["blocked"]["machinery"], ["fact check"],
-                         "the record says why the second answer was refused")
+    async def test_a_place_the_call_never_named_is_spoken_whole(self):
+        """The 2026-11-18 call: "Voice sandbox" read as an ungrounded place and the reply was cut after "but I"."""
+        record = await self.turn(["I couldn't find a project matching that, but I can start a thread in Voice sandbox."])
+        self.assertEqual(self.spoken[0][0], "I couldn't find a project matching that, but I can start a thread in Voice sandbox.")
+        check, = [entry for entry in record["timeline"] if entry["kind"] == "fact_check"]
+        self.assertEqual(check["ungrounded"], ["place Voice"])
 
-    async def test_no_spoken_text_names_the_machinery(self):
-        """Every line this turn speaks is clean, whatever the model wrote on the way there."""
-        await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                         "This snapshot says the task description was not available, so check the note."])
-        self.assertTrue(self.spoken, "the turn still says something")
-        for text, _ in self.spoken:
-            self.assertEqual(spelled_out(text), [], f"{text!r} names the machinery")
-
-    async def test_a_grounded_reply_is_spoken_once(self):
+    async def test_a_grounded_reply_is_spoken_once_and_logs_nothing(self):
         record = await self.turn(["I'm running the task to get the weather in Denver for Saturday."])
         self.assertEqual(self.voice.asked, 1, "one reply, with no re-ask")
         self.assertEqual(self.spoken[0][0], "I'm running the task to get the weather in Denver for Saturday.")
@@ -481,28 +461,14 @@ class FactCheckTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([reply["text"] for reply in record["replies"]],
                          ["I'm running the task to get the weather in Denver for Saturday."])
 
-    def test_a_refusal_is_refused_only_while_a_task_is_running(self):
-        refusal = "I don't have access to real-time weather data. You might want to check a weather app."
-        self.assertTrue(prototype.refused(refusal, [], running=True)["contradicts"])
-        self.assertFalse(prototype.refused(refusal, [], running=False).get("contradicts", []),
-                         "a task that already failed may be refused")
-        self.assertFalse(prototype.refused("I'm checking the weather in Denver for tomorrow.", [], running=True)
-                         .get("contradicts", []), "an acknowledgement is not a refusal")
-
-    def test_is_running_reads_the_snapshot_status(self):
-        self.assertTrue(prototype.is_running({"tasks": [{"status": "running"}]}))
-        self.assertFalse(prototype.is_running({"tasks": [{"status": "completed"}]}))
-        self.assertFalse(prototype.is_running(None))
-
-    def test_unavailable_request_may_be_reported_while_another_task_runs(self):
-        snapshot = {"tasks": [{"status": "running"}, {"status": "failed"}]}
-        self.assertFalse(prototype.is_running(snapshot))
-        self.assertFalse(prototype.refused("I can't access your email while I check the weather.", [],
-                                           running=prototype.is_running(snapshot)).get("contradicts", []))
+    def test_a_reply_that_says_a_line_the_call_already_said_is_logged_as_a_repeat(self):
+        line = "I'm checking the weather in Denver for tomorrow, one moment please."
+        self.assertTrue(prototype.fact_check(line, [], previous=[line])["repeated"])
+        self.assertFalse(prototype.fact_check(line, [], previous=["Something else entirely, said earlier."])["repeated"])
 
 
 class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
-    """A turn that ends with a task update of its own, so the reply and the update can each lose the check."""
+    """A turn that ends with a task update of its own, so the reply and the update are each spoken."""
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -525,42 +491,22 @@ class TurnNoteTest(unittest.IsolatedAsyncioTestCase):
         self.spoken = []
         self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
 
-    async def turn(self, script, fallback_pcm=b"\x01\x00" * 480):
+    async def turn(self, script):
         self.voice.script = script
         self.voice.asked = 0
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.05, Path(self.tmp.name), {}, "hybrid", None, "gated",
-            voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=fallback_pcm,
+            voice=self.voice, snapshot_mode="reply-no-utterance",
             prior_utterances=("What's the weather in Denver tomorrow?", "And what about Saturday?"),
             speak=heard_by(self.spoken, with_bytes=True))
 
-    async def test_blocked_replies_without_fallback_audio_are_not_recorded_as_spoken(self):
-        record = await self.turn(["Sunday will be sunny.", "Monday will be sunny.",
-                                  "Tuesday will be sunny.", "Wednesday will be sunny."], fallback_pcm=b"")
-        self.assertEqual(self.spoken, [])
-        self.assertTrue(record["replies"])
-        self.assertTrue(all(not reply["text"] and reply["speech_s"] == 0 for reply in record["replies"]))
-
-    async def test_a_reply_and_an_update_that_both_fail_say_one_line(self):
+    async def test_the_reply_and_the_update_are_each_spoken_whatever_the_check_logs(self):
         record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I do not have the information needed to answer the fact check.",
-                                  "The task to get the weather in Denver for Monday has been completed.",
-                                  "I cannot read the task description in the note."])
-        self.assertEqual(self.voice.asked, 4, "two bad answers and two re-asks")
-        self.assertEqual([text for text, _ in self.spoken], [prototype.FALLBACK_LINE],
-                         "the turn says the line once, not once per failed reply")
-        self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"],
-                         "both replies are still in the record")
-        self.assertEqual([reply["text"] for reply in record["replies"]],
-                         [prototype.FALLBACK_LINE, ""], "the update is dropped, the line already went out")
-
-    async def test_a_failed_reply_and_a_clean_update_say_the_line_and_the_update(self):
-        record = await self.turn(["I'm running the task to get the weather in Denver for Sunday.",
-                                  "I do not have the information needed to answer the fact check.",
-                                  "The task to get the weather in Denver for Saturday is done."])
+                                  "The task to get the weather in Denver for Monday has been completed."])
+        self.assertEqual(self.voice.asked, 2, "one reply and one update, and no re-ask")
         self.assertEqual([text for text, _ in self.spoken],
-                         [prototype.FALLBACK_LINE, "The task to get the weather in Denver for Saturday is done."],
-                         "the line comes once, and the update still reaches the speaker")
+                         ["I'm running the task to get the weather in Denver for Sunday.",
+                          "The task to get the weather in Denver for Monday has been completed."])
         self.assertEqual([reply["kind"] for reply in record["replies"]], ["snapshot", "update"])
 
 
@@ -615,15 +561,6 @@ class SharedVoiceSessionTest(unittest.IsolatedAsyncioTestCase):
         voice = next(s for s in self.opened if s.name == "voice")
         self.assertTrue(voice.closed, "a turn that opened the session still closes it, as the prototype needs")
         self.assertEqual([r["text"] for r in record["replies"]], ["Sunny."])
-
-
-class FallbackLineTest(unittest.TestCase):
-    """The one line a failed turn says, judged by the reply rules it has to meet."""
-
-    def test_it_is_short_persona_speech(self):
-        self.assertLess(len(prototype.FALLBACK_LINE.split()), 8, "under eight words")
-        self.assertEqual(names_machinery(prototype.FALLBACK_LINE), [], "it names no machinery")
-        self.assertEqual(ungrounded(prototype.FALLBACK_LINE, []), [], "it names no fact")
 
 
 if __name__ == "__main__":

@@ -35,6 +35,19 @@ from voice.tools.registry import T3_TOOLS
 T3_REQUEST = (" Asking how a coding thread or other work outside this call is going, or asking to start one, "
               "pass it a message, or stop it, is external work.")
 T3_CHITCHAT = " A question about a thread's progress is not chitchat."
+# One request is cut into fragments at every pause and hesitation, and the decider then read "for that" as needing an
+# earlier fragment's result and "the part that writes slots" as replacing the request: 2 of 10 rehearsal calls never
+# dispatched (measured: 17 of 24 draws dispatched, 23 of 24 with these lines; docs/voice/spoken-acts.md).
+T3_DEPENDS = (" A request to start a coding thread depends on an earlier segment only when it needs something that "
+              "segment would return. Words that point back at what was just said name its subject, not a result.")
+T3_CORRECTS = " Later words that add detail to or restate the same request do not change or withdraw it."
+# Left alone, the decider called 5 of 10 long hesitant "start a thread" requests ambiguous because they name no project,
+# so they waited for a clarification the T3 service asks for itself (measured: 15 of 30 draws dispatched, 27 of 30 with
+# the first wording of this line; docs/voice/spoken-acts.md). The last sentence is there because without it weather and
+# time requests reached their tool 51 of 60 samples instead of 59 of 60 (d1.2, the tool-pick eval's controls).
+T3_READY = (" For a request about a coding thread, one that says what the thread is for is complete even if it names no "
+            "project or thread: the assistant works that out and asks the speaker back. This does not change how any "
+            "other request is judged.")
 I_MEAN = re.compile(r"\bi mean\b", re.IGNORECASE)
 MAX_DRAIN = 4
 QUIET = (0, (), ())
@@ -327,6 +340,12 @@ class HybridSegmenter:
                     question["criteria"]["true"] += " Sending or writing anything is a side effect."
                     question["criteria"]["false"] += (" Reading or searching stored data, such as email, files or "
                                                        "a calendar, without changing it is a lookup.")
+                if T3_TOOLS & set(self.tool_choices or ()):
+                    for suffix, key, line in (("_ready", "dispatch_now", T3_READY), ("_depends", "none", T3_DEPENDS),
+                                              ("_corrects", "none", T3_CORRECTS)):
+                        if name.endswith(suffix):
+                            question["criteria"] = dict(question["criteria"])
+                            question["criteria"][key] += line
                 if name.endswith("_kind"):
                     question["criteria"]["request"] = ("The speaker asks for work requiring an external lookup, tool, "
                                                         "agent, or action. Questions answerable from this conversation "

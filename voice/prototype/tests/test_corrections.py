@@ -181,7 +181,7 @@ class FollowUpTest(Call):
 
 
 class ThirdPersonTest(unittest.IsolatedAsyncioTestCase):
-    """A reply that talks about the person instead of to them is refused, asked again once, then replaced."""
+    """A reply that talks about the person instead of to them is spoken and logged, never asked again."""
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -203,22 +203,15 @@ class ThirdPersonTest(unittest.IsolatedAsyncioTestCase):
         self.voice.script, self.voice.asked = list(script), 0
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
-            voice=self.voice, snapshot_mode="reply-no-utterance", fallback_pcm=b"\x01\x00" * 480,
+            voice=self.voice, snapshot_mode="reply-no-utterance",
             speak=heard_by(self.spoken))
 
-    async def test_the_user_is_refused_and_asked_again(self):
+    async def test_the_user_is_spoken_and_logged(self):
         record = await self.turn(["The user wants the weather in Denver.", "I'm checking the weather in Denver."])
-        self.assertEqual(self.voice.asked, 2, "the third-person reply, and the one re-ask")
-        self.assertEqual(self.spoken, ["I'm checking the weather in Denver."])
+        self.assertEqual(self.voice.asked, 1, "one reply, with no re-ask")
+        self.assertEqual(self.spoken, ["The user wants the weather in Denver."])
         check = next(e for e in record["timeline"] if e["kind"] == "fact_check")
         self.assertEqual(check["third_person"], ["the user"])
-
-    async def test_the_person_is_refused_and_a_second_one_gets_the_fixed_line(self):
-        record = await self.turn(["The person asked for the weather in Denver.",
-                                  "The person wants to know about Denver."])
-        self.assertEqual(self.voice.asked, 2)
-        self.assertEqual(self.spoken, [prototype.FALLBACK_LINE], "neither third-person reply is spoken")
-        self.assertEqual(record["replies"][0]["blocked"]["third_person"], ["the person"])
 
     async def test_a_reply_to_the_person_passes(self):
         record = await self.turn(["I'm checking the weather in Denver for you."])

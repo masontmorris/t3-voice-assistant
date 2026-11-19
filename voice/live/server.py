@@ -63,27 +63,17 @@ restarts was wrong: turn 10 answered the first line of the seed, and turns 17 an
 when the call's first turn starts and a changed prompt file applies from the next call. How many turns fit in the
 slot is in docs/voice/live-call3-fix.md.
 
-A reply is checked before it is heard, and heard while it is generated. `voice/live/facts.py` reads the days, dates,
-times, numbers and places in the reply and asks whether the person said them in this call or a lookup gave them; the
-assistant's own earlier replies do not count, except a place it chose when the person asked it to choose. The turn
-screens the reply's text as it arrives and sends each block of audio once the text up to the block after it has
-passed (`voice/prototype/release.py`), so the first audio goes out about 0.2 s after the model starts speaking instead
-of after the whole reply. A reply that fails, that talks about the note, that speaks of the person or of itself in the
-third person, or that repeats a line the assistant already said in this call, stops at the last block that passed;
-a reply that could still turn into a repeat releases nothing until it is clear. The turn says so in its record,
-sends one short note, and asks again once. A reply stopped part way is asked to go on from what the person heard,
-without saying it again. In note mode a turn that has still said nothing gets one last ask for a short reply with no
-facts in it, and only then is it silent, recorded as blocked. No fixed line is played, because a line rendered by the
-TTS endpoint is a different voice from the call's (measured: turns 22 and 26 of the recorded call, after which the
-person asked why it sounded different). When the registry has a general worker (`voice/tools/agent.py`,
-VOICE_AGENT=on), a reply that states a fact nothing gave it starts a lookup for the person's words in place of the
-retry.
+A reply is heard while it is generated: each piece of audio goes to the client the moment the model makes it. After
+the reply, `voice/live/facts.py` reads the days, dates, times, numbers and places in it and asks whether the person
+said them in this call or a lookup gave them, and the turn's record keeps what that check would have refused. It is
+a log and nothing else: it never holds, cuts, mutes or regenerates a reply (docs/voice/live-fact-check.md).
 
 With --t3 on, news from a T3 thread the voice started or sent to (it is working, its reply, it finished) is spoken
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
 speaking, and IDLE_GRACE_S since the last of them. Every update carries typed acts. The writer drafts a line, then
-the call's voice session says it. Both texts pass the same checks before the client gets any audio. The client can
-duck or interrupt it, and the record keeps the act's evidence. A line that does not play goes back to wait.
+the call's voice session says it. The draft passes the form and decider checks, and the call's reply must be the
+draft's words and no others before the client gets any audio. A turn that has a T3 line says only that line. The
+client can duck or interrupt it, and the record keeps the act's evidence. A line that does not play goes back to wait.
 
 The persona comes from --prompt (default $VOICE_HOME/live/prompt.txt), read when a call's first turn starts. When
 the file is missing, note mode uses `NOTE_PERSONA` and the older modes the prototype's built-in persona.
@@ -121,7 +111,7 @@ from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, S
 from voice.live.overlap import Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe
 from voice.local_decider.client import decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, T3_RELAY, by_ear, create_item,
+from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, create_item,
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
@@ -782,8 +772,6 @@ class Conversation:
         self.persona, self.prompt_source = load_persona(live.prompt_file, NOTE_PERSONA if noted else PERSONA)
         if not noted:
             self.persona += CALL_RULES
-        if live.t3 is not None:
-            self.persona += T3_RELAY
         voice = await Session.open(live.url, "voice", self.voice_clock, on_event=self.on_voice_event)
         try:
             created = await voice.wait_for("session.created")
@@ -829,7 +817,6 @@ class Conversation:
                                     recall=live.args.recall, context=self.ledger.context(),
                                     prior_results=tuple(self.ledger.results()),
                                     prior_replies=tuple(self.ledger.replies()),
-                                    established=tuple(self.ledger.established()),
                                     task_service=live.task_service,
                                     send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm),
                                     is_muted=lambda: turn.muted)
@@ -886,6 +873,7 @@ class Conversation:
                     def delivered(state):
                         if state == "sent":
                             live.t3.ack_news(unsent.pop(id(update)))
+                            live.t3.spoke(update)
 
                     reply, _ = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
@@ -994,11 +982,15 @@ class Live:
             await ws.close(1013, "another client is connected")
             return
         self.active = conversation
+        if self.t3 is not None:
+            self.t3.begin_call()
         print(f"client connected from {ws.remote_address[0]}", flush=True)
         try:
             await conversation.run()
         finally:
             self.active = None
+            if self.t3 is not None:
+                self.t3.end_call()
             print("client disconnected", flush=True)
 
 

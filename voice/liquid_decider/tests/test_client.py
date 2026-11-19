@@ -145,6 +145,27 @@ class Ledger(LiquidCase):
         self.assertIsNot(first, second)
         self.assertEqual(liquid.cached("decisions", body())["timing"], first["timing"])
 
+    def test_a_failed_call_is_never_kept_so_the_same_request_is_asked_again(self):
+        one_try = liquid.LiquidClient(f"http://127.0.0.1:{self.server.server_port}", max_attempts=1)
+        self.addCleanup(one_try.close)
+        Handler.scripted = [(503, {}, {"error": "unavailable"})]
+        failed = one_try.call("decisions", body(), label="u:r1")
+        self.assertEqual(failed["status"], 503)
+        self.assertIsNone(liquid.cached("decisions", body()), "a failure is not written to the cache")
+        again = one_try.call("decisions", body(), label="u:r1")
+        self.assertEqual((again["status"], len(Handler.seen)), (200, 2), "the identical request is sent again")
+        self.assertEqual(one_try.call("decisions", body(), label="u:r1")["status"], 200)
+        self.assertEqual(len(Handler.seen), 2, "and a success is kept as before")
+
+    def test_a_200_that_leaves_a_question_unanswered_is_never_kept(self):
+        Handler.scripted = [(200, {}, {"model": "d1.2", "answers": {}, "usage": {}})]
+        empty = self.client.call("decisions", body(), label="u:r1")
+        self.assertEqual(empty["response"]["answers"], {})
+        self.assertIsNone(liquid.cached("decisions", body()))
+        again = self.client.call("decisions", body(), label="u:r1")
+        self.assertTrue(again["response"]["answers"])
+        self.assertEqual(len(Handler.seen), 2, "the identical request is sent again")
+
     def test_an_uncached_call_keeps_spend_in_the_ledger(self):
         record = self.client.call("decisions", body(), label="u:r1", fresh=True, cache_record=False)
         self.assertEqual(record["status"], 200)

@@ -29,7 +29,7 @@ YES = 0.5
 MEANS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "whether to start a new coding thread in {project}",
     Kind.ASK_WHICH: "which one they mean of: {candidates}",
-    Kind.NO_PROJECT: "no project matches what they named, and which projects a thread can start in",
+    Kind.NO_PROJECT: "the assistant cannot find any project to use",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet",
     Kind.LAUNCHED: "a new coding thread started in {project}",
     Kind.LAUNCH_UNCONFIRMED: "T3 never confirmed that the thread started",
@@ -175,9 +175,12 @@ def asked_claims(acts: Iterable[Act]) -> dict[str, str]:
 
 
 def request(acts: Iterable[Act], line: str) -> dict:
-    """One decisions body: the line and its acts' facts as state, and a noul question per Ask."""
+    """One decisions body: the line and its acts' facts as state, and a noul question per Ask. An act with no thread
+    carries what it means ("says"), because the unsupported-claim question is about a thread and refused "Should I
+    start a new coding thread in Voice sandbox?" three times in three on the 2026-11-18 rehearsal."""
     acts = list(acts)
-    state = {"line": line, "facts": [{"act": a.kind.value, **a.slots} for a in acts],
+    state = {"line": line, "facts": [{"act": a.kind.value, **a.slots, **({} if "thread" in a.slots else {"says": _fill(MEANS[a.kind], a.slots)})}
+                         for a in acts],
              "context": "A voice assistant is about to say `line` to the person it is talking to, about their coding "
                         "threads in an app called T3. `facts` is everything it may say."}
     questions = {ask.name: {"type": "noul", "instructions": ask.question,
@@ -224,6 +227,76 @@ class Decider:
             return Verdict(False, ms=_ms(started), error=f"decider status {record.get('status')}")
         passed, answers, failed, problems = judge(acts, (record.get("response") or {}).get("answers"))
         return Verdict(passed, answers, failed, _ms(started), problems=problems)
+
+    def reads(self, said: Act, reply: str) -> Reading:
+        """What `reply` does about the question `said` asked. A timeout or any error reads as nothing, so code's own
+        reading of the reply decides."""
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", reading_request(said, reply), label="t3_reply")
+        except Exception as exc:
+            return Reading(None, error=f"{type(exc).__name__}: {exc}")
+        if record.get("status") != 200:
+            return Reading(None, error=f"decider status {record.get('status')}")
+        return judge_reading((record.get("response") or {}).get("answers"))
+
+
+READ_CRITERIA = {
+    "yes": "It agrees to exactly what the assistant asked, with nothing added, changed or conditional.",
+    "no": "It declines what the assistant asked, or takes it back.",
+    "question": "It asks the assistant something, or asks about what was proposed, instead of answering.",
+    "other": "It agrees but changes the project, thread or terms, adds a condition, or names something else.",
+    "unrelated": "It does not answer what the assistant asked.",
+}
+YES_CONFIDENCE = 0.7
+# A reply that is any share a question or another target is not an unconditional yes, however much of it says yes.
+OTHER_CEILING = 0.2
+
+
+def reading_request(said: Act, reply: str) -> dict:
+    """One decisions body asking what the person's reply does about the question `said` asked them. `reply` is the
+    transcript, whose punctuation need not match how they said it: a rising "please do" arrives with a question mark."""
+    state = {"assistant_asked": _fill(MEANS[said.kind], said.slots), "reply": reply,
+             "context": "A voice assistant asked the person a yes or no question about their coding threads. `reply` "
+                        "is a transcript of what they said back."}
+    question = {"type": "choice", "instructions": "What does the person's reply do about what the assistant asked?",
+                "criteria": READ_CRITERIA}
+    return {"model": "d1.2", "state": state, "questions": {"reading": question}}
+
+
+@dataclass(frozen=True)
+class Reading:
+    """What a reply does about a pending question, by the decider. Only a confident yes ever acts."""
+
+    label: str | None
+    probabilities: dict[str, float] = field(default_factory=dict)
+    error: str | None = None
+
+    @property
+    def yes(self) -> bool:
+        """An unconditional yes: the reply's own label, confident, with no real share of a question, a changed target
+        or a condition. Anything short of that is not a yes."""
+        p = self.probabilities
+        return (self.label == "yes" and p.get("yes", 0.0) >= YES_CONFIDENCE
+                and max(p.get("other", 0.0), p.get("question", 0.0)) <= OTHER_CEILING)
+
+
+def judge_reading(answers: Any) -> Reading:
+    """The decider's answer as a Reading. A label that is not an option, or a score that is not a number from 0 to 1,
+    is no reading at all, never an error."""
+    answer = answers.get("reading") if isinstance(answers, dict) else None
+    probabilities = answer.get("probabilities") if isinstance(answer, dict) else None
+    choice = answer.get("choice") if isinstance(answer, dict) else None
+    if (not isinstance(probabilities, dict) or not isinstance(choice, str) or choice not in READ_CRITERIA
+            or not set(probabilities) <= set(READ_CRITERIA)):
+        return Reading(None, error="the decider gave no reading")
+    scores = {}
+    for label, value in probabilities.items():
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= value <= 1.0:
+            return Reading(None, error="the decider gave no reading")
+        scores[label] = float(value)
+    return Reading(answer["choice"], scores)
 
 
 def _ms(started: float) -> float:

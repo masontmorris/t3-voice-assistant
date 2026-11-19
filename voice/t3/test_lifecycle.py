@@ -87,7 +87,7 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(h.seam.ops("watch"), [("watch", "t1", 93, "r1")])
         self.assertEqual(task.status, Status.LIVE)
         self.assertEqual(h.follow.outbox[0].sequences, (93,))
-        self.assertEqual(h.acts(), [Act(S.LAUNCHED, {"project": "Voice sandbox", "request": "Fix the flaky test"})])
+        self.assertEqual(h.acts(), [Act(S.LAUNCHED, {"project": "Voice sandbox"})])
 
     def test_launch_replayed(self):
         seam = F.FakeSeam(read=F.state(as_of=120, pending=F.need()))

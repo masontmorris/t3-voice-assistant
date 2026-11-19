@@ -305,18 +305,18 @@
     "answers": {
       "a1_means": {
         "type": "noul",
-        "noul": 0.8373797778803463
+        "noul": 0.8606807857128962
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.9695225305731777
+        "noul": 0.9603296605528561
       },
       "invents": {
         "type": "noul",
-        "noul": 0.5566604458146516
+        "noul": 0.5113790087418442
       }
     },
-    "ms": 267.7
+    "ms": 133.7
   },
   {
     "case": "claim confirm_launch",
@@ -340,18 +340,18 @@
     "answers": {
       "a1_means": {
         "type": "noul",
-        "noul": 0.9667140835980951
+        "noul": 0.9667140842965979
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.07247096282023428
+        "noul": 0.09311378512570884
       },
       "invents": {
         "type": "noul",
-        "noul": 0.2776794097367506
+        "noul": 0.2869020524032132
       }
     },
-    "ms": 148.7
+    "ms": 141.9
   },
   {
     "case": "claim confirm_tell",
@@ -1697,26 +1697,26 @@
     "answers": {
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.10530489666937504
+        "noul": 0.06658404149465125
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.013663812652560729
+        "noul": 0.016348256796654023
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.32554980551960294
+        "noul": 0.2107861869955195
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.8903283226572417
+        "noul": 0.885803572091694
       },
       "invents": {
         "type": "noul",
-        "noul": 0.9766369572421396
+        "noul": 0.9776534468298652
       }
     },
-    "ms": 158.5
+    "ms": 127.2
   },
   {
     "case": "claim refused",
@@ -1744,26 +1744,26 @@
     "answers": {
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.011415053383157682
+        "noul": 0.007270879481855711
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9885849467087036
+        "noul": 0.9786266912324265
       },
       "claims_sent": {
         "type": "noul",
-        "noul": 0.03185177615498709
+        "noul": 0.02336304802046876
       },
       "claims_started": {
         "type": "noul",
-        "noul": 0.0332859239108094
+        "noul": 0.030477470789851805
       },
       "invents": {
         "type": "noul",
-        "noul": 0.15651581300595324
+        "noul": 0.17540243440096373
       }
     },
-    "ms": 143.1
+    "ms": 116.5
   },
   {
     "case": "smoke replied",
@@ -2636,18 +2636,18 @@
     "answers": {
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.7736689364739433
+        "noul": 0.8434841826953587
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9766369534654443
+        "noul": 0.9506896287878772
       },
       "invents": {
         "type": "noul",
-        "noul": 0.18896265192781866
+        "noul": 0.13394957492739837
       }
     },
-    "ms": 111.8
+    "ms": 109.7
   },
   {
     "case": "unsolicited question launched",
@@ -2672,18 +2672,18 @@
     "answers": {
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.17540243440096373
+        "noul": 0.05612133477779093
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9766369549513574
+        "noul": 0.9305301713587724
       },
       "invents": {
         "type": "noul",
-        "noul": 0.28690204796209484
+        "noul": 0.15651581014016117
       }
     },
-    "ms": 204.3
+    "ms": 112.1
   },
   {
     "case": "unsolicited question stopping",

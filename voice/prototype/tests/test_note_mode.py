@@ -1,4 +1,4 @@
-"""Live mode's "note" turn: what text the voice session is given, and what a refused reply does.
+"""Live mode's "note" turn: what text the voice session is given, and that no reply is held back.
 
 The recorded call these stand for is 20261116-152653. Its voice session was given a JSON list of the person's
 earlier turns before every reply, and the model answered the last line of that list instead of the audio. These
@@ -68,7 +68,7 @@ class TaskNoteTest(unittest.TestCase):
         self.assertNotIn("today", note, "an argument the words did not say is not handed to the model")
 
     def test_every_note_says_who_it_is_for(self):
-        for note in (prototype.RETRY_NOTE, prototype.STILL_RUNNING_NOTE, prototype.ASK_NOTE):
+        for note in (prototype.ASK_NOTE,):
             self.assertTrue(note.startswith("[Note for you, not said by the person: "))
             self.assertTrue(note.endswith("]"))
 
@@ -96,7 +96,7 @@ class NoteTurn(unittest.IsolatedAsyncioTestCase):
         return await prototype.run_clip(
             Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode="note", prior_utterances=EARLIER, final_decider=True, recall="note",
-            fallback_pcm=b"\x01\x00" * 480, speak=heard_by(self.spoken), **more)
+            speak=heard_by(self.spoken), **more)
 
 
 class NoteTurnTest(NoteTurn):
@@ -112,172 +112,40 @@ class NoteTurnTest(NoteTurn):
         self.assertNotIn("decent results", sent)
         self.assertNotIn("call_turns", sent)
 
-    async def test_a_refused_reply_is_asked_again_with_one_short_note(self):
-        await self.turn(["The assistant responds with a greeting.", "Glad to hear it."])
-        self.assertEqual(texts(self.voice), [prototype.RETRY_NOTE])
-        self.assertEqual(self.spoken, ["Glad to hear it."])
+    async def test_a_reply_the_check_dislikes_is_spoken_once_and_the_model_is_not_asked_again(self):
+        record = await self.turn(["The assistant responds with a greeting.", "Glad to hear it."])
+        self.assertEqual(texts(self.voice), [])
+        self.assertEqual(self.voice.asked, 1)
+        self.assertEqual(self.spoken, ["The assistant responds with a greeting."])
+        self.assertEqual([event["kind"] for event in record["timeline"] if event["kind"] == "fact_check"],
+                         ["fact_check"])
 
-    async def test_a_reply_refused_twice_is_asked_one_last_time_and_a_third_refusal_is_silent(self):
-        record = await self.turn(["The user wants the weather.", "The user asked about results.",
-                                  "The user is still asking."])
-        self.assertEqual(self.spoken, [])
-        self.assertEqual(record["replies"][0]["text"], "")
-        self.assertIn("blocked", record["replies"][0])
+    async def test_a_third_person_reply_is_spoken_and_logged(self):
+        record = await self.turn(["The user wants the weather."])
+        self.assertEqual(self.spoken, ["The user wants the weather."])
+        self.assertEqual(record["replies"][0]["text"], "The user wants the weather.")
+        self.assertNotIn("blocked", record["replies"][0])
         self.assertNotIn("fallback", [event["kind"] for event in record["timeline"]])
 
-    async def test_the_last_ask_gives_a_turn_that_would_be_silent_one_short_line(self):
-        record = await self.turn(["The user wants the weather.", "The user asked about results.",
-                                  "I'm not sure what you mean."])
-        self.assertEqual(self.spoken, ["I'm not sure what you mean."])
-        self.assertEqual(record["replies"][0]["text"], "I'm not sure what you mean.")
-
-    async def test_a_refused_value_is_named_in_the_retry(self):
-        await self.turn(["George Washington was born on February 22, 1732.", "I can't look that up."])
-        note, = texts(self.voice)
-        self.assertIn("nothing gave you February 22, 1732", note)
-        self.assertEqual(self.spoken, ["I can't look that up."])
+    async def test_a_value_nothing_gave_is_spoken_and_logged(self):
+        record = await self.turn(["George Washington was born on February 22, 1732."])
+        self.assertEqual(self.spoken, ["George Washington was born on February 22, 1732."])
+        check, = [event for event in record["timeline"] if event["kind"] == "fact_check"]
+        self.assertIn("date February 22", check["ungrounded"])
 
     async def test_an_earlier_lookup_result_may_be_said_again(self):
         result = "Forecast for Raleigh. Monday, November 16: a high of 56 degrees Fahrenheit."
-        await self.turn(["It was a high of 56 degrees in Raleigh."], prior_results=(result,))
+        record = await self.turn(["It was a high of 56 degrees in Raleigh."], prior_results=(result,))
         self.assertEqual(self.spoken, ["It was a high of 56 degrees in Raleigh."])
+        self.assertEqual([event for event in record["timeline"] if event["kind"] == "fact_check"], [])
 
-
-class PickedPlaceTest(NoteTurn):
-    """A turn where the person asked the assistant to choose. The measured call is 20261116-152653 turn 25:
-    "Pick a city on the east coast to check the weather for." The model chose Boston, nothing in the call states
-    Boston, so both replies were refused and turns 27 and 28 then said nothing at all."""
-
-    PICK = "Pick a city on the east coast to check the weather for."
-
-    async def test_the_place_the_person_asked_the_assistant_to_choose_is_spoken(self):
-        FakeSession.transcript = self.PICK
-        record = await self.turn(["Let's check the weather in Boston."])
-        self.assertEqual(self.spoken, ["Let's check the weather in Boston."])
-        self.assertEqual(record["established"], ["Boston"], "the chosen place is the call's from now on")
-
-    async def test_a_chosen_place_still_grounds_the_next_turns(self):
-        FakeSession.transcript = "Do I need to wear a jacket?"
-        await self.turn(["I couldn't check the weather in Boston, so I can't say if you need a jacket."],
-                        established=("Boston",))
-        self.assertEqual(self.spoken, ["I couldn't check the weather in Boston, so I can't say if you need a jacket."])
-
-    async def test_a_place_with_no_pick_request_is_still_refused(self):
-        record = await self.turn(["Let's check the weather in Boston.", "I can't look that up."])
-        note, = texts(self.voice)
-        self.assertIn("nothing gave you Boston", note)
-        self.assertEqual(record["established"], [])
-        self.assertEqual(self.spoken, ["I can't look that up."])
-
-
-class StaleReplyTest(NoteTurn):
-    """The measured failure is tool-pick arm 1 (`$VOICE_HOME/evidence/toolpick/toolpick-real`): turns 25 and 26 said
-    "Hello! I'm checking the weather in a city on the East Coast. Which one?" and turns 28 to 37 said it again."""
-
-    STALE = "Hello! I'm checking the weather in a city on the East Coast. Which one?"
-
-    async def test_a_line_the_assistant_already_said_is_asked_again(self):
-        await self.turn([self.STALE])
-        self.assertEqual(self.spoken, [self.STALE])
-        record = await self.turn([self.STALE, "I can hear you fine."], prior_replies=(self.STALE,))
-        note = [text for text in texts(self.voice) if text == prototype.REPEAT_NOTE]
-        self.assertEqual(note, [prototype.REPEAT_NOTE], "the retry is told it repeated itself")
-        self.assertEqual(self.spoken[-1], "I can hear you fine.")
-        self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
-
-    async def test_a_stale_retry_is_asked_once_more_with_the_old_answer_set_aside(self):
-        record = await self.turn([self.STALE, self.STALE, "I can hear you fine."], prior_replies=(self.STALE,))
-        notes = [text for text in texts(self.voice) if text in (prototype.REPEAT_NOTE, prototype.NEW_WORDS_NOTE)]
-        self.assertEqual(notes, [prototype.REPEAT_NOTE, prototype.NEW_WORDS_NOTE])
-        self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
-
-    async def test_a_stale_line_that_survives_every_ask_is_spoken_not_dropped(self):
-        record = await self.turn([self.STALE, self.STALE, self.STALE], prior_replies=(self.STALE,))
-        self.assertEqual(self.spoken, [self.STALE], "silence after the person speaks is worse than a stale line")
-        self.assertEqual(record["replies"][0]["text"], self.STALE)
-        self.assertIn("repeat", [event["kind"] for event in record["timeline"]])
-
-    async def test_a_repeated_forecast_is_asked_again(self):
-        forecast = "The weather in Durham today is a high of 57 degrees Fahrenheit with a 0% chance."
-        given = "Forecast for Durham: a high of 57 degrees Fahrenheit with a 0 percent chance."
-        record = await self.turn([forecast, "Both forecasts agree on a high of 57 degrees."],
-                                 prior_replies=(forecast,), prior_results=(given,))
-        self.assertEqual(self.spoken, ["Both forecasts agree on a high of 57 degrees."],
-                         "the same forecast again is a stale reply, so the model answers in new words")
-        self.assertEqual([text for text in texts(self.voice) if text == prototype.REPEAT_NOTE], [prototype.REPEAT_NOTE])
-        self.assertEqual(record["replies"][0]["text"], "Both forecasts agree on a high of 57 degrees.")
-
-    async def test_a_stale_line_that_grows_a_sentence_is_still_stale(self):
-        record = await self.turn([self.STALE + " You likely won't need a jacket.", "I can hear you fine."],
-                                 prior_replies=(self.STALE,))
-        self.assertEqual(record["replies"][0]["text"], "I can hear you fine.")
-
-
-class AskRegistry:
-    """A registry whose general worker answers at once."""
-
-    timeout_s = 5.0
-
-    def __init__(self, agent=True):
-        self.agent, self.asked = agent, []
-
-    def ask(self, instruction, context=None):
-        self.asked.append((instruction, context))
-        return ToolCall("agent", {"instruction": instruction, "context": context or []}) if self.agent else None
-
-    def timeout_for(self, call):
-        return 12.0
-
-    def run(self, call):
-        class Result:
-            outcome, summary = "ok", "George Washington was born on February 22, 1732."
-
-            def record(self):
-                return {"tool": "agent", "arguments": call.arguments, "outcome": "ok", "summary": self.summary}
-        return Result()
-
-
-class Segmenter:
-    """The service's record source for a lookup it starts itself: `orch` holds the tasks, and this one holds none."""
-
-    dispatch_log = []
-
-    def __init__(self):
-        self.orch = Orchestrator()
-
-    def records(self):
-        return []
-
-
-class AskTest(unittest.TestCase):
-    def test_a_lookup_outside_the_segmenter_runs_and_reports_once(self):
-        registry = AskRegistry()
-        service = MockTaskService(Segmenter(), "conv", tools=registry, context=[{"user": "Hi"}])
-        events = service.ask("what day was George Washington born on?", 1.0)
-        self.assertEqual([event["event"] for event in events], ["running"])
-        self.assertEqual(registry.asked[0][1], [{"user": "Hi"}])
-        for call in service.pending_calls():
-            call.result(timeout=5)
-        self.assertEqual(service.poll(2.0), ["ask_1"])
-        update, = service.take_updates()
-        self.assertEqual(update["result_summary"], "George Washington was born on February 22, 1732.")
-        entry, = service.update_entries([update])
-        self.assertEqual(entry["capability"], "agent")
-        self.assertEqual(service.take_updates(), [])
-        service.close()
-
-    def test_no_worker_means_no_lookup(self):
-        service = MockTaskService(Segmenter(), "conv", tools=AskRegistry(agent=False))
-        self.assertEqual(service.ask("anything", 1.0), [])
-        self.assertEqual(service.executions, {})
-        service.close()
-
-    def test_the_workers_arguments_stay_out_of_the_snapshot(self):
-        service = MockTaskService(Segmenter(), "conv", tools=AskRegistry(), context=[{"user": "secret words"}])
-        service.ask("do I need a jacket?", 1.0)
-        task, = service.snapshot("utt_1", "do I need a jacket?")["tasks"]
-        self.assertEqual(task["arguments"], {})
-        service.close()
+    async def test_a_line_the_assistant_already_said_is_spoken_again_and_logged_as_a_repeat(self):
+        stale = "Hello! I'm checking the weather in a city on the East Coast. Which one?"
+        await self.turn([stale])
+        record = await self.turn([stale, "I can hear you fine."], prior_replies=(stale,))
+        self.assertEqual(self.spoken, [stale, stale])
+        check, = [event for event in record["timeline"] if event["kind"] == "fact_check"]
+        self.assertTrue(check["repeated"])
 
 
 class PlaceTest(unittest.TestCase):
@@ -312,23 +180,6 @@ class EarlierResultsTest(unittest.TestCase):
         self.assertEqual(prototype.given_results((self.RESULT,), True, []), (self.RESULT,))
 
 
-class MayChooseTest(unittest.TestCase):
-    PICK = "Pick a city on the east coast to check the weather for."
-
-    def test_a_pick_with_no_lookup_place_is_the_assistants(self):
-        self.assertTrue(prototype.may_choose(self.PICK, [{"status": "running", "capability": "weather",
-                                                          "arguments": {"place": None, "when": "today"}}]))
-        self.assertTrue(prototype.may_choose(self.PICK, []))
-
-    def test_a_lookup_that_already_has_a_place_made_the_choice(self):
-        """callfix3 replay fix2, turn 025: the lookup ran for San Diego and the reply chose Boston."""
-        tasks = [{"status": "running", "capability": "weather", "arguments": {"place": "San Diego", "when": "today"}}]
-        self.assertFalse(prototype.may_choose(self.PICK, tasks))
-
-    def test_no_pick_request_is_no_choice(self):
-        self.assertFalse(prototype.may_choose("What's the weather in Boston?", []))
-
-
 STOP = act(S.CONFIRM_STOP, thread="clamp helper")
 DRAFT = "Should I stop the clamp helper thread?"
 
@@ -345,16 +196,111 @@ class T3SnapshotService(MockTaskService):
         return CHECKED.accept((STOP,), self.draft, "text_model")
 
     def accept(self, entry, text, draft):
-        return CHECKED.accept((STOP,), text, "call")
+        return CHECKED.recite(draft, text)
 
     def refuse(self, entry, rendered):
         pass
+
+
+class Streaming(Scripted):
+    """A voice session that streams each reply a word at a time and ends it where a `response.cancel` arrives, as
+    llama.cpp does: the words it generated before the cancel stay in the conversation."""
+
+    async def send(self, **event):
+        if event.get("type") == "response.cancel":
+            self.sent.append(event)
+            self.cancelled = True
+        elif event.get("type") == "response.create":
+            self.sent.append(event)
+            self.asked += 1
+            self.cancelled = False
+            self.generating = asyncio.create_task(self.generate(self.script.pop(0)))
+        else:
+            await FakeSession.send(self, **event)
+
+    async def wait_for(self, *types, after=0, timeout=120):
+        if (drained := getattr(self, "drained", None)) is not None:
+            drained.set()
+        return await super().wait_for(*types, after=after, timeout=timeout)
+
+    async def generate(self, text):
+        """One word at a time, and the next only once the turn has read this one and gone back to waiting, so a cancel
+        sent on a word reaches the session before the next word does."""
+        self.drained = asyncio.Event()
+        for word in text.split(" "):
+            for event in ({"type": "response.output_text.delta", "delta": word + " "},
+                          {"type": "response.output_audio.delta", "delta": "AQA="}):
+                self.drained.clear()
+                await self.push(event)
+                await self.drained.wait()
+            if self.cancelled:
+                break
+        await self.push({"type": "response.done",
+                         "response": {"status": "cancelled" if self.cancelled else "completed", "output": []}})
 
 
 class T3TurnTest(NoteTurn):
     async def send_checked(self, line, pcm):
         self.spoken.append(line.text)
         return pcm, CLOCK
+
+    async def test_a_held_t3_reply_does_not_fall_through_to_ordinary_speech(self):
+        class Mixed(T3SnapshotService):
+            draft = "I stopped the clamp helper thread."
+
+            def snapshot(self, *args, **kwargs):
+                snapshot = super().snapshot(*args, **kwargs)
+                snapshot["tasks"].append({"task_id": "task_2", "status": "running"})
+                return snapshot
+
+        record = await self.turn(["I'll check."], task_service=Mixed, send_checked=self.send_checked)
+        self.assertEqual([(r["kind"], r.get("delivery")) for r in record["replies"]], [("t3", "unsent")])
+        self.assertEqual(self.spoken, [])
+
+    async def test_a_turn_with_a_t3_line_takes_no_late_updates_and_says_nothing_more(self):
+        taken = []
+
+        class Late(T3SnapshotService):
+            def take_task_updates(self):
+                taken.append(True)
+                return [{"type": "task_update", "task_id": "task_2", "status": "completed", "result_summary": "Sunny.",
+                         "description": "weather"}]
+
+            def take_updates(self):
+                raise AssertionError("a turn never takes T3 news with its updates")
+
+        record = await self.turn([DRAFT], task_service=Late, send_checked=self.send_checked)
+        self.assertEqual(([r["kind"] for r in record["replies"]], self.voice.asked, taken), (["t3"], 1, []))
+        self.assertEqual(self.spoken, [DRAFT])
+
+    async def test_an_ordinary_turn_takes_its_own_updates_and_never_t3_news(self):
+        class Plain(MockTaskService):
+            def take_task_updates(self):
+                return []
+
+            def take_updates(self):
+                raise AssertionError("a turn never takes T3 news with its updates")
+
+        record = await self.turn(["Glad to hear it."], task_service=Plain)
+        self.assertEqual([r["kind"] for r in record["replies"]], ["snapshot"])
+
+    async def test_a_draft_that_fails_is_worded_again_in_the_same_turn(self):
+        class Retries(T3SnapshotService):
+            attempts = 0
+
+            def say(self, entry, turns=()):
+                Retries.attempts += 1
+                return (CHECKED.accept((STOP,), "I stopped the clamp helper thread.", "text_model")
+                        if Retries.attempts == 1 else CHECKED.accept((STOP,), DRAFT, "text_model"))
+
+        record = await self.turn([DRAFT], task_service=Retries, send_checked=self.send_checked)
+        self.assertEqual((Retries.attempts, self.spoken), (2, [DRAFT]))
+        self.assertEqual([e["attempt"] for e in record["timeline"] if e["kind"] == "t3_words"], [1, 2])
+
+    async def test_a_t3_reply_with_an_appended_sentence_is_held(self):
+        record = await self.turn([DRAFT + " Ready?"], task_service=T3SnapshotService, send_checked=self.send_checked)
+        self.assertEqual(self.spoken, [])
+        self.assertEqual(record["replies"][0]["delivery"], "unsent")
 
     async def test_a_t3_entry_uses_the_same_call_session_in_each_snapshot_mode(self):
         for mode in ("note", "reply", "before-audio", "off"):
@@ -366,7 +312,7 @@ class T3TurnTest(NoteTurn):
                     voice=self.voice, snapshot_mode=mode, final_decider=True, task_service=T3SnapshotService,
                     send_checked=self.send_checked)
                 self.assertEqual(self.voice.asked, 1)
-                self.assertEqual(texts(self.voice), [prototype.T3_DRAFT_NOTE + DRAFT])
+                self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT)])
                 self.assertEqual([(r["kind"], r["delivery"]) for r in record["replies"]], [("t3", "sent")])
         self.assertEqual(self.spoken, [DRAFT] * 4)
 
@@ -380,7 +326,7 @@ class T3TurnTest(NoteTurn):
         self.assertEqual(self.spoken, [])
         self.assertEqual(record["replies"][0]["delivery"], "unsent")
 
-    async def test_call_audio_waits_for_response_done_and_the_second_check(self):
+    async def test_call_audio_waits_for_response_done_and_the_reply_check(self):
         generating, finish = asyncio.Event(), asyncio.Event()
 
         class Held(Scripted):
@@ -404,14 +350,52 @@ class T3TurnTest(NoteTurn):
         await task
         self.assertEqual(self.spoken, [DRAFT])
 
-    async def test_a_call_reply_rejected_by_the_decider_releases_no_audio(self):
-        class Refused(T3SnapshotService):
-            def accept(self, entry, text, draft):
-                return Speech(None, lambda _: None, Decider(Failing(socket.timeout("timed out")))).accept(
-                    (STOP,), text, "call")
+    async def test_a_reply_that_is_not_the_drafts_words_releases_no_audio_and_leaves_no_discard_note(self):
+        call_shapes = ("I can start that for you. Here's the draft: " + DRAFT + " Let's get this started!",
+                       "Here's the draft: " + DRAFT, DRAFT + " Let's get this started!", "Should you stop the clamp helper thread?",
+                       "Should I stop the clamp helper?")
+        for reply in call_shapes:
+            with self.subTest(reply=reply):
+                self.spoken.clear()
+                self.voice.sent.clear()
+                record = await self.turn([reply, reply], task_service=T3SnapshotService, send_checked=self.send_checked)
+                self.assertEqual(self.spoken, [])
+                self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT)] * 2,
+                                 "the words went in twice, the second time as the same note, and no note about a reply "
+                                 "that did not play follows either")
+                self.assertEqual(record["replies"][0]["delivery"], "unsent")
+                self.assertEqual(record["replies"][0]["text"], reply)
 
-        record = await self.turn([DRAFT], task_service=Refused, send_checked=self.send_checked)
-        self.assertEqual(self.spoken, [])
-        self.assertEqual(texts(self.voice), [prototype.T3_DRAFT_NOTE + DRAFT, prototype.T3_DISCARD])
-        self.assertEqual(record["replies"][0]["delivery"], "unsent")
-        self.assertIn("TimeoutError", record["replies"][0]["decider"]["error"])
+    async def test_the_drafts_words_pass_whatever_the_case_punctuation_or_markdown(self):
+        for reply in (DRAFT, DRAFT.lower(), "**" + DRAFT + "**", DRAFT.replace("?", " ?"), '"' + DRAFT + '"'):
+            with self.subTest(reply=reply):
+                self.spoken.clear()
+                await self.turn([reply], task_service=T3SnapshotService, send_checked=self.send_checked)
+                self.assertEqual(self.spoken, [DRAFT])
+
+    async def test_a_reply_that_leaves_the_draft_is_stopped_at_the_first_other_word(self):
+        """llama.cpp cannot remove an item, so what a held reply generated stays in the call. The turn stops the
+        response at the first word that is not the draft's, so only its start is left."""
+        self.voice = await Streaming.open("ws://unused", "voice", lambda: CLOCK)
+        reply = "I can stop that for you. Here's the draft: " + DRAFT + " Let's get this started!"
+        record = await self.turn([reply, reply], task_service=T3SnapshotService, send_checked=self.send_checked)
+        said = [e.get("delta", "").strip() for e in self.voice.events if e["type"] == "response.output_text.delta"]
+        self.assertEqual(said, ["I", "I"], "each try was stopped at the first word the draft does not start with")
+        self.assertEqual(sum(e.get("type") == "response.cancel" for e in self.voice.sent), 2)
+        self.assertEqual(record["replies"][0]["status"], "cancelled")
+        self.assertEqual((self.spoken, record["replies"][0]["delivery"]), ([], "unsent"))
+
+    async def test_a_voice_that_goes_off_the_words_is_asked_once_more_and_the_second_try_is_said(self):
+        self.voice = await Streaming.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn(["Great! Let's get started.", DRAFT], task_service=T3SnapshotService,
+                                 send_checked=self.send_checked)
+        self.assertEqual((self.spoken, record["replies"][0]["delivery"]), ([DRAFT], "sent"))
+        self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT)] * 2)
+        attempts = [(e["attempt"], e["status"]) for e in record["timeline"] if e["kind"] == "t3_call_reply"]
+        self.assertEqual(attempts, [(1, "cancelled"), (2, "completed")])
+
+    async def test_a_reply_that_says_the_draft_is_never_stopped(self):
+        self.voice = await Streaming.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn([DRAFT], task_service=T3SnapshotService, send_checked=self.send_checked)
+        self.assertEqual(sum(e.get("type") == "response.cancel" for e in self.voice.sent), 0)
+        self.assertEqual((self.spoken, record["replies"][0]["delivery"]), ([DRAFT], "sent"))

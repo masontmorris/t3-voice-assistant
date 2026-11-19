@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (ASK, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
+from voice.live.t3_tasks import (ASK, CONFIRM_TTL_S, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
                                  T3Tasks, reply_kind, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
@@ -24,6 +24,8 @@ from voice.t3.acts import QUESTIONS, RULES, Act, act, check
 from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
+from voice.t3.test_replies import Recorded
+from voice.t3.verify import Decider
 from voice.segmentation.gate import PLAN_A
 from voice.tools import registry as tool_registry
 
@@ -33,12 +35,23 @@ THREADS = (("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"), ("t7"
            ("t8", "Write the release notes"))
 
 
-def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path | None = None) -> T3Tasks:
+class Reading(F.Agree):
+    """The speech decider, with reply readings replayed from the recorded d1.2 answers (voice/t3/test_replies.py)."""
+
+    def __init__(self):
+        self.reader = Decider(Recorded())
+
+    def reads(self, said, reply):
+        return self.reader.reads(said, reply)
+
+
+def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path | None = None,
+               decider=None) -> T3Tasks:
     if path is None:
         tmp = tempfile.TemporaryDirectory()
         test.addCleanup(tmp.cleanup)
         path = Path(tmp.name) / "journal.json"
-    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model, F.Agree())
+    return T3Tasks(L.Follow(T3Journal(path), F.Connector(seam)), model, decider or F.Agree())
 
 
 def said(update) -> list[tuple]:
@@ -128,6 +141,118 @@ def held_follow_up(test, seam, path=None) -> T3Tasks:
 
 
 class TwinA(unittest.TestCase):
+    def test_a_launch_without_a_named_project_defaults_to_a_confirmation(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=Reading())
+        request = "Start a thread to fix the flaky test"
+        asked = t3.start("k1", request, 0)
+        self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertEqual(said(t3.answer("Please do.", 1)), [("launched", "Voice sandbox")])
+        self.assertEqual(seam.ops("launch")[0][2:], ("p1", request))
+
+    UNLISTED = "Start a thread for a little project that makes game exports cleaner, with long pauses and hedging."
+
+    def test_an_unmatched_project_with_one_available_is_asked_as_a_yes_or_no(self):
+        """The 2026-11-18 call: the request said "project" but named none, and the voice only stated that nothing
+        matched, so the person's "please do" had nothing to answer."""
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=Reading())
+        asked = t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertEqual(said(t3.answer("Please do?", 1)), [("launched", "Voice sandbox")])
+        self.assertEqual(seam.ops("launch")[0][2:], ("p1", self.UNLISTED))
+
+    def test_a_no_to_the_only_available_project_starts_nothing(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual(said(t3.answer("No, never mind.", 1)), [("cancelled", "start")])
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertIsNone(t3.question)
+
+    def test_an_unrelated_reply_to_the_only_available_project_drops_the_question_without_asking_again(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        t3.start("k1", self.UNLISTED, 0)
+        self.assertIsNone(t3.answer("What's the weather like?", 1))
+        self.assertIsNone(t3.question)
+        self.assertIsNone(t3.answer("Yes, please do.", 2), "a yes after an unrelated turn answers nothing")
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_an_unmatched_project_with_several_available_asks_which_and_the_answer_is_confirmed(self):
+        seam = F.FakeSeam(projects=TWO_PROJECTS)
+        t3 = tasks_over(self, seam)
+        asked = t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual((said(asked), asked.status),
+                         ([("ask_which", ["Voice sandbox", "Voice server"])], "needs_clarification"))
+        self.assertEqual(said(t3.answer("The voice server.", 1)), [("confirm_launch", "Voice server")])
+        self.assertEqual(seam.ops("launch"), [])
+        self.assertEqual(said(t3.answer("Yes.", 2)), [("launched", "Voice server")])
+        self.assertEqual(seam.ops("launch")[0][2:], ("p2", self.UNLISTED))
+
+    def test_an_unmatched_project_with_none_available_says_so_and_waits_for_nothing(self):
+        t3 = tasks_over(self, F.FakeSeam(projects=()))
+        update = t3.start("k1", self.UNLISTED, 0)
+        self.assertEqual(([a.kind.value for a in update.acts], update.status), (["no_project"], "failed"))
+        self.assertEqual(update.acts[0].slots, {})
+        self.assertIsNone(t3.question)
+
+    def test_the_decider_reads_the_shapes_of_yes_and_code_stays_the_floor(self):
+        yes = ["Please do.", "Please do?", "Yeah, go ahead.", "Sure.", "Yes, do it.", "Go for it.", "Yep."]
+        never = ["No.", "Wait.", "What do you mean?", "How long will it take?", "Start it in the voice server instead.",
+                 "Yes, but in the server project.", "What's the weather like?", "Maybe later.", "Thanks."]
+        for reply, launches in [(r, True) for r in yes] + [(r, False) for r in never]:
+            with self.subTest(reply=reply):
+                seam = F.FakeSeam()
+                t3 = tasks_over(self, seam, decider=Reading())
+                t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+                t3.answer(reply, 1)
+                self.assertEqual(len(seam.ops("launch")), int(launches))
+
+    def test_a_yes_with_a_changed_target_is_not_a_yes_and_never_launches_the_old_project(self):
+        seam = F.FakeSeam(projects=TWO_PROJECTS)
+        t3 = tasks_over(self, seam, decider=Reading())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        again = t3.answer("Yes, but in the other project.", 1)
+        self.assertEqual(seam.ops("launch"), [], "the old project was not committed before the target was chosen")
+        self.assertEqual(said(again), [("confirm_launch", "Voice server")], "the retarget asks its own question")
+
+    def test_a_conditional_yes_launches_nothing(self):
+        for reply in ("Yes, but only after the tests pass.", "Okay, if it's quick.", "Yeah, but make it about the build instead."):
+            with self.subTest(reply=reply):
+                seam = F.FakeSeam()
+                t3 = tasks_over(self, seam, decider=Reading())
+                t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+                self.assertIsNone(t3.answer(reply, 1))
+                self.assertEqual(seam.ops("launch"), [])
+
+    def test_a_no_word_still_wins_over_a_decider_that_says_yes(self):
+        class AlwaysYes(F.Agree):
+            def reads(self, said, reply):
+                from voice.t3.verify import Reading as Read
+                return Read("yes", {"yes": 0.99})
+
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=AlwaysYes())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        self.assertEqual(said(t3.answer("No, don't.", 1)), [("cancelled", "start")])
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_with_no_reading_the_phrase_table_still_decides(self):
+        class Silent(F.Agree):
+            def reads(self, said, reply):
+                from voice.t3.verify import Reading as Read
+                return Read(None, error="TimeoutError: timed out")
+
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=Silent())
+        t3.start("k1", "Add a clamp helper in the sandbox project", 0)
+        self.assertIsNone(t3.answer("Please do?", 1))
+        self.assertEqual(seam.ops("launch"), [], "a reply nothing can read answers nothing, and the question is gone")
+        self.assertIsNone(t3.answer("Yes, go ahead.", 2))
+
     def test_a_lone_match_is_asked_back_before_any_launch(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
@@ -150,17 +275,12 @@ class TwinA(unittest.TestCase):
         self.assertEqual(seam.ops("launch"), [])
         self.assertIsNone(t3.question)
 
-    def test_an_unclear_reply_reasks_once_then_drops_the_request(self):
+    def test_an_unclear_reply_drops_the_request_and_is_never_asked_again(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)
         t3.start("k1", "Add a clamp helper in the sandbox project", 0)
-
-        again = t3.answer("What do you mean?", 1)
-        self.assertEqual((said(again), again.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
-        self.assertEqual(seam.ops("launch"), [])
-        dropped = t3.answer("I'm thinking about it.", 2)
-        self.assertEqual((said(dropped), dropped.status), ([("cancelled", "start")], "cancelled"))
-        self.assertIsNone(t3.answer("yes", 3))
+        self.assertIsNone(t3.answer("What do you mean?", 1))
+        self.assertIsNone(t3.answer("yes", 2))
         self.assertEqual(seam.ops("launch"), [])
 
     def test_a_confirmation_can_be_retargeted_but_still_needs_a_yes(self):
@@ -588,7 +708,7 @@ class ExplicitYes(unittest.TestCase):
                     t3 = tasks_over(self, seam)
                     t3.about("k1", op, words, 0)
                     statuses = [getattr(t3.answer(reply, n), "status", None) for n in (1, 2)]
-                    self.assertIn(statuses, (["needs_clarification", "cancelled"], ["cancelled", None]))
+                    self.assertIn(statuses, ([None, None], ["cancelled", None]), "a reply that is not a yes drops it")
                     self.assertIsNone(t3.answer("yes", 3))
                     self.assertEqual((seam.ops("send"), seam.ops("interrupt")), ([], []))
 
@@ -616,6 +736,133 @@ class ExplicitYes(unittest.TestCase):
         return seam
 
 
+class Authorization(unittest.TestCase):
+    """A yes authorizes the one prompt the person heard, in this call, on the very next turn, before it expires."""
+
+    def turn(self, t3, n, records=()):
+        segmenter = SimpleNamespace(records=lambda: list(records),
+                                    dispatch_log=[{"task_id": r["task_id"], "instruction": r["instruction"]}
+                                                  for r in records])
+        return T3TaskService(segmenter, f"conv_turn_{n:03d}", 0.0, None, holds_side_effects=False, t3=t3)
+
+    def ask(self, t3, n, tool, words, deliver=True):
+        record = {"task_id": "task_1", "instruction": words, "status": "dispatched", "depends_on": [],
+                  "side_effect": True, "sources": ["orchestrator"], "history": [], "tool": {"tool": tool, "confidence": 0.9}}
+        service = self.turn(t3, n, [record])
+        service.sync(0)
+        entry = service.snapshot("utt_1", words)["tasks"][0]
+        if deliver:
+            service.record_delivery(entry, "sent")
+        service.close()
+        return service
+
+    def say_yes(self, t3, n, reply="Yes."):
+        service = self.turn(t3, n)
+        waiting = service.open_question()
+        events = service.answer(waiting, reply, 1) if waiting is not None else []
+        service.close()
+        return events
+
+    def stop_setup(self):
+        seam = busy_seam().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam, decider=Reading())
+        t3.begin_call()
+        return seam, t3
+
+    def test_a_heard_prompt_is_answered_by_the_next_turn(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        self.assertEqual(len(self.say_yes(t3, 2, "Yes, stop it.")), 1)
+        self.assertEqual(len(seam.ops("interrupt")), 1)
+
+    def test_a_prompt_from_a_call_that_ended_cannot_be_answered_on_the_next_one(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        t3.end_call()
+        t3.begin_call()
+        self.assertEqual(self.say_yes(t3, 2, "Yeah, stop it."), [])
+        self.assertEqual(seam.ops("interrupt"), [])
+
+    def test_hanging_up_drops_the_question_even_if_nobody_reconnects(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        t3.end_call()
+        self.assertIsNone(t3.question)
+
+    def test_an_unrelated_turn_between_drops_the_question(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        self.assertEqual(self.say_yes(t3, 2, "What's the weather like?"), [])
+        self.assertEqual(self.say_yes(t3, 3, "Yes, stop it."), [])
+        self.assertEqual(seam.ops("interrupt"), [])
+
+    def test_a_turn_that_ended_without_answering_expires_it(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        self.turn(t3, 2).close()
+        self.assertEqual(self.say_yes(t3, 3, "Yes, stop it."), [])
+        self.assertEqual(seam.ops("interrupt"), [])
+
+    def test_a_question_expires_after_its_time(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        t3.question.heard_at -= 2 * CONFIRM_TTL_S
+        self.assertEqual(self.say_yes(t3, 2, "Yes, stop it."), [])
+        self.assertEqual(seam.ops("interrupt"), [])
+
+    def test_a_question_replaced_while_the_decider_reads_the_reply_is_not_answered_by_it(self):
+        from voice.t3.verify import Reading as Read
+
+        class HangsUpMidRead(F.Agree):
+            def reads(self, said, reply):
+                def elsewhere():
+                    free.append(t3.lock.acquire(blocking=False))
+                    if free[-1]:
+                        t3.lock.release()
+                    t3.end_call()
+                    t3.begin_call()
+                    test.ask(t3, 9, STOP, "Stop the flaky ASR test thread.")
+
+                other = threading.Thread(target=elsewhere)
+                other.start()
+                other.join()
+                return Read("yes", {"yes": 0.99})
+
+        free, test = [], self
+        seam = busy_seam().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam, decider=HangsUpMidRead())
+        t3.begin_call()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        self.assertEqual(self.say_yes(t3, 2, "Please do?"), [], "the yes was read for a prompt that has gone")
+        self.assertEqual(free, [True], "the T3 lock is free while the decider is asked")
+        self.assertEqual(seam.ops("interrupt"), [])
+
+    def test_a_prompt_that_was_never_heard_is_asked_again_and_not_acted_on(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.", deliver=False)
+        events = self.say_yes(t3, 2, "Yes, stop it.")
+        self.assertEqual(seam.ops("interrupt"), [])
+        self.assertEqual([e["event"] for e in events], ["completed"], "the question comes back to be asked again")
+
+    def test_two_prompts_queued_in_a_turn_leave_only_the_last_one_heard(self):
+        seam, t3 = self.stop_setup()
+        records = [{"task_id": "task_1", "instruction": "Stop the clamp helper thread.", "status": "dispatched",
+                    "depends_on": [], "side_effect": True, "sources": ["orchestrator"], "history": [],
+                    "tool": {"tool": STOP, "confidence": 0.9}},
+                   {"task_id": "task_2", "instruction": "Tell the clamp helper thread to add a test.",
+                    "status": "dispatched", "depends_on": [], "side_effect": True, "sources": ["orchestrator"],
+                    "history": [], "tool": {"tool": TELL, "confidence": 0.9}}]
+        service = self.turn(t3, 1, records)
+        service.sync(0)
+        first, second = service.snapshot("utt_1", "...")["tasks"]
+        service.record_delivery(first, "sent")
+        self.assertEqual(t3.question.key, "conv_turn_001:task_2", "the later prompt replaced the first")
+        self.assertFalse(t3.question.heard, "so a yes cannot reach the one that was heard first")
+        service.close()
+        self.say_yes(t3, 2, "Yes, stop it.")
+        self.assertEqual((seam.ops("interrupt"), seam.ops("send")), ([], []))
+
+
 class Service(unittest.IsolatedAsyncioTestCase):
     def service(self, t3, records):
         segmenter = SimpleNamespace(records=lambda: records,
@@ -639,8 +886,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         service.sync(0)
         snapshot = service.snapshot("utt_1", "...")
         by_id = {t["task_id"]: t for t in snapshot["tasks"]}
-        self.assertEqual(by_id["task_1"]["acts"], [act(S.CONFIRM_LAUNCH, project="Voice sandbox",
-                                                       request="Add a clamp helper in the sandbox project").to_json()])
+        self.assertEqual(by_id["task_1"]["acts"], [act(S.CONFIRM_LAUNCH, project="Voice sandbox").to_json()])
         self.assertEqual(by_id["task_1"]["evidence"], {"thread_id": None, "project_id": "p1", "sequences": [1]})
         self.assertEqual(by_id["task_2"]["status"], "running")
         self.assertNotIn("acts", by_id["task_2"])
@@ -648,6 +894,33 @@ class Service(unittest.IsolatedAsyncioTestCase):
         self.assertIs(service.open_question(), T3_WAITING)
         self.assertEqual(service.executions["task_1"].state.value, "completed")
         self.assertEqual((seam.ops("launch"), seam.ops("interrupt")), ([], []))
+
+    def test_one_request_cut_into_several_launch_segments_asks_one_question_and_launches_all_of_it(self):
+        said_whole = ("Start a thread for the importer logging. Can you kick that off? Keep it under an hour, and use "
+                      "my old config as the base. Also look at the retry counts.")
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
+                                    self.record("task_2", "Can you kick that off?", START),
+                                    self.record("task_3", "Also look at the retry counts.", START)])
+        service.sync(0)
+        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", said_whole)["tasks"]}
+        self.assertEqual([a["kind"] for a in tasks["task_1"]["acts"]], ["confirm_launch"])
+        self.assertNotIn("acts", tasks["task_2"], "the second segment is the same request, already asked")
+        self.assertNotIn("acts", tasks["task_3"])
+        service.record_delivery(tasks["task_1"], "sent")
+        self.assertEqual(said(t3.answer("yes", 1)), [("launched", "Voice sandbox")])
+        launch, = seam.ops("launch")
+        self.assertEqual(launch[2:], ("p1", said_whole), "the launch carries every constraint and the second request")
+        self.assertEqual(t3.follow.journal.tasks[next(iter(t3.follow.journal.tasks))].instruction, said_whole)
+
+    def test_a_launch_question_from_an_earlier_turn_does_not_swallow_a_new_request(self):
+        t3 = tasks_over(self, F.FakeSeam())
+        t3.start("conv_turn_000:task_1", "Start a thread for the importer logging.", 0)
+        service = self.service(t3, [self.record("task_1", "Start a thread for the save slot writer.", START)])
+        service.sync(0)
+        entry = service.snapshot("utt_1", "...")["tasks"][0]
+        self.assertEqual([a["kind"] for a in entry["acts"]], ["confirm_launch"])
 
     def test_the_next_turn_answers_and_later_news_arrives_as_updates(self):
         seam = F.FakeSeam()
@@ -675,7 +948,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
     async def test_unspoken_stop_confirmation_is_reasked_before_a_yes_can_act(self):
         seam = F.FakeSeam()
         seam.listing = listing(*THREADS)
-        t3 = worded(tasks_over(self, seam), FakeText())
+        t3 = worded(tasks_over(self, seam), FakeText("Should I stop Add a clamp helper?"))
         first = self.service(t3, [self.record("task_1", "Stop the clamp helper thread.", STOP)])
         first.sync(0)
         entry = first.snapshot("utt_1", "...")["tasks"][0]
@@ -913,6 +1186,8 @@ class ReplyWords(unittest.TestCase):
             "sure, go ahead": "yes",
             "yes please": "yes",
             "please": "yes",
+            "please do": None,
+            "Please do?": None,
             "do it": "yes",
             "start it": "yes",
             "go ahead": "yes",

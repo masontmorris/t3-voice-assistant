@@ -13,6 +13,10 @@ question, and no T3 pass in the gate. It reproduces the old request bodies byte 
 check: a recorded answer is reused only when its request equals the body sent now.
 
     VOICE_ENV_FILE=<env file with OPENROUTER_API_KEY> python -m voice.t3.tool_pick_eval --text after --gate
+    VOICE_ENV_FILE=<env file with LIQUID_API_KEY> python -m voice.t3.tool_pick_eval --text nofragments --decider liquid
+
+`--text nofragments` is `after` without the three lines for a request cut into fragments (`T3_READY`, `T3_DEPENDS` and
+`T3_CORRECTS`), to see whether they move any control. `--decider liquid` asks d1.2 instead of the free decider.
 
 Every call goes to the free decider, one at a time, cached under `$VOICE_HOME/evals/t3-tool-pick`, so a rerun scores
 the recorded answers and calls nothing. The place and day questions stay off: the free decider refuses their `text`
@@ -39,7 +43,7 @@ from voice.tools import registry
 CASES = Path(__file__).resolve().parent / "eval" / "tool_pick.jsonl"
 GATE_CASES = live_gate_eval.EVAL
 OUT = Path(os.environ.get("VOICE_HOME", Path.home() / "voice")) / "evals" / "t3-tool-pick"
-CALLS = {"before": OUT / "calls", "after": OUT / "calls-after"}
+CALLS = {"before": OUT / "calls", "after": OUT / "calls-after", "nofragments": OUT / "calls-nofragments"}
 TOOLS = T3Registry(registry.build(None, None, None)).choices()
 NOT_ASKED = "not asked"
 
@@ -70,6 +74,14 @@ def decider_text(which):
     """`before` puts back the unit 9 text and gate for the length of a run; `after` is the shipped code."""
     if which == "after":
         yield
+        return
+    if which == "nofragments":
+        saved = hybrid.T3_READY, hybrid.T3_DEPENDS, hybrid.T3_CORRECTS
+        hybrid.T3_READY = hybrid.T3_DEPENDS = hybrid.T3_CORRECTS = ""
+        try:
+            yield
+        finally:
+            hybrid.T3_READY, hybrid.T3_DEPENDS, hybrid.T3_CORRECTS = saved
         return
     saved = hybrid.T3_REQUEST, hybrid.T3_CHITCHAT, live_gate_eval.PLAN_A
     hybrid.T3_REQUEST = hybrid.T3_CHITCHAT = ""
@@ -102,9 +114,9 @@ def cases(gate: bool) -> list[dict]:
     return rows
 
 
-def run_case(client, case, sample, calls) -> dict:
+def run_case(client, case, sample, calls, paid=False) -> dict:
     item = {"split": "t3", "category": case["tool"], "expect": case.get("expect", case["tool"]), **case}
-    recording = StrictRecording(client, f"{item['id']}.r{sample}", calls=calls)
+    recording = StrictRecording(client, f"{item['id']}.r{sample}", calls=calls, paid=paid)
     trace, _ = live_gate_eval.run_item(client, item, sample, False, tools=TOOLS, recording=recording)
     pick, confidence = picked(trace)
     return {"id": case["id"], "set": case["set"], "sample": sample, "label": case["tool"], "pick": pick,
@@ -156,6 +168,9 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--text", choices=sorted(CALLS), default="after",
                         help="the decider text and gate to score: before or after seam unit 10 (default after)")
+    parser.add_argument("--decider", choices=["cloud", "liquid"], default="cloud",
+                        help="cloud is the free OpenRouter decider the recorded runs used; liquid is d1.2, whose answers "
+                             "are recorded beside them under a -liquid suffix")
     parser.add_argument("--samples", type=int, default=3, help="samples per case (default 3)")
     parser.add_argument("--gate", action="store_true", help="add the live gate eval's weather and time items")
     parser.add_argument("--only", help="comma-separated case ids")
@@ -168,12 +183,13 @@ def main(argv=None) -> int:
     use_decider_cache(OUT / "ledger", args.budget)
     before = live_calls()
     rows = []
-    with decider_text(args.text), make_decider("cloud") as client:
+    calls = CALLS[args.text].with_name(CALLS[args.text].name + ("" if args.decider == "cloud" else "-liquid"))
+    with decider_text(args.text), make_decider(args.decider) as client:
         for case in chosen:
             for sample in range(1, args.samples + 1):
-                rows.append(run_case(client, case, sample, CALLS[args.text]))
+                rows.append(run_case(client, case, sample, calls, paid=args.decider == "liquid"))
                 print(json.dumps(rows[-1]), flush=True)
-    name = f"results-{args.text}.jsonl" if not args.only else f"results-{args.text}-only.jsonl"
+    name = f"results-{args.text}-{args.decider}.jsonl" if not args.only else f"results-{args.text}-{args.decider}-only.jsonl"
     (OUT / name).write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     print(f"\n{live_calls() - before} ledger attempts this run, {args.samples} samples per case\n")
     print(summary(rows) + "\n")

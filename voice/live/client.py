@@ -119,6 +119,36 @@ def echo_canceller(args):
     return EchoCanceller(tail_ms=getattr(args, "echo_tail_ms", 256)) if enabled else None
 
 
+NULL_OUTPUT = "null"
+
+
+class NullStream:
+    """An output stream that plays to nothing: a thread asks `callback` for each frame at real-time pace, so a rehearsal
+    drains replies exactly as long as speakers would, and no sound is made."""
+
+    def __init__(self, callback, rate):
+        self.callback, self.rate, self.latency = callback, rate, 0.0
+        self.stopped = threading.Event()
+        self.thread = threading.Thread(target=self._run, name="null-output", daemon=True)
+
+    def start(self):
+        self.thread.start()
+
+    def _run(self):
+        frames = self.rate * FRAME_MS // 1000
+        out, due = bytearray(frames * 2), time.perf_counter()
+        while not self.stopped.is_set():
+            self.callback(out, frames, None, None)
+            due += FRAME_MS / 1000
+            self.stopped.wait(max(0.0, due - time.perf_counter()))
+
+    def stop(self):
+        self.stopped.set()
+
+    def close(self):
+        self.thread.join(timeout=1)
+
+
 class Player:
     """Plays reply PCM16 through one output stream, after `prebuffer_ms` is queued or the reply ends."""
 
@@ -137,8 +167,12 @@ class Player:
         if self.rate == rate:
             return
         self.close()
-        import sounddevice as sd
         self.rate = rate
+        if self.output == NULL_OUTPUT:
+            self.stream = NullStream(self._callback, rate)
+            self.stream.start()
+            return
+        import sounddevice as sd
         self.stream = sd.RawOutputStream(samplerate=rate, channels=1, dtype="int16", device=self.output,
                                          blocksize=rate * FRAME_MS // 1000, latency="low", callback=self._callback)
         self.stream.start()
@@ -539,7 +573,8 @@ def main():
     parser.add_argument("--server", default=config.get("server"), help="ws://HOST:PORT; config.json gives it")
     parser.add_argument("--secret-file", type=Path, default=HERE / "secret")
     parser.add_argument("--input", help="microphone: device index or part of its name (see --list-devices)")
-    parser.add_argument("--output", help="speakers or headphones: device index or part of its name (default: the Windows default output)")
+    parser.add_argument("--output", help="speakers or headphones: device index or part of its name (default: the Windows default output), or "
+                             "\"null\" to play to nothing at real-time pace")
     parser.add_argument("--list-devices", action="store_true")
     parser.add_argument("--ptt", action="store_true", help="push-to-talk with Enter instead of silence detection")
     parser.add_argument("--wav", type=Path, nargs="+",

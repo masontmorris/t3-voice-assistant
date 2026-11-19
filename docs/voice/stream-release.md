@@ -1,5 +1,7 @@
 # Releasing reply audio while it is generated
 
+**Superseded 2026-11-18.** The screening gate described here (`voice/prototype/release.py`) is gone: the fact check became a log, so each piece of reply audio now goes to the speaker the moment the model makes it, with no block of lookahead ([live-fact-check.md](live-fact-check.md)). What stays true below is the measured block structure of LFM3-Audio replies and the cost of holding a whole reply.
+
 Written 2026-11-16. Every number carries a label: **measured** (from a record or a run on this machine), **inferred**
 (arithmetic or code reading on measured numbers) or **guess**.
 
