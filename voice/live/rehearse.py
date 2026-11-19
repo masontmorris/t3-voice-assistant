@@ -124,6 +124,20 @@ def serve(args, rest):
 
     server.T3Tasks.open = classmethod(open_t3)
     server.default_model = lambda: None
+    handler = server.Live.handler
+
+    async def one_call(live, ws):
+        """Each call starts with no news, question or recent thread left from the one before it."""
+        t3 = live.t3
+        with t3.lock:
+            t3.follow.outbox = []
+            t3.follow.journal.pending_lines.clear()
+            t3.follow.journal.save()
+            t3.question = t3.unasked = t3.recent = None
+            t3.just_held = False
+        return await handler(live, ws)
+
+    server.Live.handler = one_call
     if args.cpu:
         real = server.Server
         server.Server = lambda port, log, extra, slots: real(port, log, (*extra, "-ngl", "0", "--no-mmproj-offload"), slots)
