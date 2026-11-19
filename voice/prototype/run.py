@@ -194,7 +194,17 @@ def reply_summary(session, mark, since, rate):
     }, pcm
 
 
+async def floor_free(session):
+    """Wait while the live server holds the floor: the person made a sound after their turn ended that is not yet
+    known to be words or not (`Session.floor`). A response or note made now could answer a request that is still
+    growing, and a note stays in the session even when its turn is then cancelled."""
+    floor = getattr(session, "floor", None)
+    if floor is not None:
+        await floor.wait()
+
+
 async def respond(session, rate, since, **response):
+    await floor_free(session)
     mark = len(session.events)
     await session.send(type="response.create", **({"response": response} if response else {}))
     await session.wait_for("response.done", "error", after=mark)
@@ -294,6 +304,7 @@ async def stream_reply(session, rate, since, out=None, stop=None, **response):
     cancels the response where it is: llama.cpp keeps every token a response generated in the session
     (server-realtime.cpp: a cancel ends the response at the token it reached, and no event removes an item), so
     stopping early is the only way to leave less of a reply behind. Returns the response's summary and audio."""
+    await floor_free(session)
     mark = len(session.events)
     await session.send(type="response.create", **({"response": response} if response else {}))
     seen, audio_at, text, stopping = mark, bisect.bisect_left(session.audio, (mark,)), "", False
@@ -435,7 +446,7 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     spoken = None
     if draft.line is not None and not is_muted():
         for attempt in range(MAX_RELAYS):
-            reply, pcm = await relay_draft(session, rate, since, draft.line)
+            reply, pcm = await relay_draft(session, rate, since, draft.line, abandoned=is_muted)
             if reply["status"] == "completed" and not reply["function_calls"] and pcm:
                 spoken = words.accept(entry, reply["text"], draft.line)
                 if spoken.line is not None:
@@ -465,21 +476,28 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     }, sent
 
 
-async def relay_draft(session, rate, since, line):
+async def relay_draft(session, rate, since, line, abandoned=lambda: False):
     """The call's own voice says the checked draft. The response stops at the first word that is not the draft's, so
-    a reply that goes off the words leaves only its start in the session."""
+    a reply that goes off the words leaves only its start in the session. `abandoned()` is true once the turn is
+    cancelled or muted; a relay that finds it so after the floor opens makes no response."""
     text = speakable(line, "relay_draft").text
 
     async def generate():
         try:
             item = await create_item(session, plain_text(relay_note(text)))
             if item["accepted"] is True:
+                # The floor can close while the note is acknowledged, and the sound can then continue the turn.
+                await floor_free(session)
+                if abandoned():
+                    return {**fixed_reply("", b"", rate, 0), "status": "abandoned"}, b""
                 return await stream_reply(session, rate, since, stop=lambda said: not recites(said, text, arriving=True))
             status = item["answer"]
         except (OSError, SessionRefused, WebSocketException) as exc:
             status = str(exc)
         return {**fixed_reply("", b"", rate, 0), "status": status}, b""
 
+    # Outside the shield: a turn cancelled while the floor is held has sent nothing, and must not send it later.
+    await floor_free(session)
     response = asyncio.create_task(generate())
     try:
         return await asyncio.shield(response)
@@ -497,7 +515,9 @@ def fixed_reply(line, pcm, rate, after_s):
 
 
 async def create_item(session, item):
-    """Sends one item and returns what the server answered: the added item or an error."""
+    """Sends one item and returns what the server answered: the added item or an error. A note sent while the floor
+    is held would stay in the session if the sound turns out to continue the turn, so it waits too."""
+    await floor_free(session)
     mark = len(session.events)
     await session.send(type="conversation.item.create", item=item)
     try:

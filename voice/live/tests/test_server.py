@@ -101,7 +101,8 @@ async def fake_run_clip(source, *args, persona, voice=None, speak=None, prior_ut
     voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
     await asyncio.sleep(0.3)
-    speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE * 2), True)
+    await prototype_run.floor_free(voice)
+    speak(f"reply to {source.name}",b"\x01\x00" * (OUT_RATE * 2), True)
     return {"clip": source.name, "final_transcript": f"words in {source.name}",
             "replies": [{"text": f"reply to {source.name}"}], "metrics": {},
             "snapshot": {"final_transcript": f"state after {source.name}"}}
@@ -641,16 +642,106 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn("barge_in", log, "nothing was playing any more")
         await ws.close()
 
-    async def test_speech_before_the_reply_continues_the_turn(self):
+    async def test_words_before_the_reply_continue_the_turn(self):
         ws = await self.connect()
         log = []
         await self.send(ws, noise(500) + tone(600) + noise(720, seed=1))
         await self.until(ws, "turn_end", log)
-        await self.send(ws, tone(300))
+        await self.send(ws, tone(300) + noise(900, seed=2))
         started = await self.until(ws, "turn_start", log)
         self.assertEqual(started["turn"], 2)
         self.assertGreater(started["carried_audio_s"], 1.0, "turn 2 starts with turn 1's audio")
+        self.assertNotIn("reply_start", log, "turn 1 made no reply while the sound was undecided")
         self.assertNotIn("barge_in", log)
+        self.assertEqual([o["verdict"] for o in self.overlaps()], ["turn"])
+        await ws.close()
+
+    async def test_words_join_the_turn_even_when_its_reply_was_already_on_its_way(self):
+        async def in_flight(source, *args, persona, voice=None, speak=None, **kwargs):
+            voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+            await source.stream(FakeSession(), FakeSession())
+            await asyncio.sleep(0.3)
+            speak(f"reply to {source.name}", bytes(OUT_RATE * 4), True)
+            return {"clip": source.name, "final_transcript": "", "replies": [], "metrics": {}}
+
+        with mock.patch.object(server, "run_clip", in_flight):
+            ws = await self.connect()
+            log = []
+            await self.send(ws, noise(500) + tone(600) + noise(720, seed=1))
+            await self.until(ws, "turn_end", log)
+            await self.send(ws, tone(300))
+            await asyncio.sleep(0.6)
+            await self.send(ws, noise(900, seed=2))
+            started = await self.until(ws, "turn_start", log)
+            self.assertEqual(started["turn"], 2)
+            self.assertGreater(started["carried_audio_s"], 1.0, "turn 2 starts with turn 1's audio")
+            self.assertNotIn("reply_start", log, "turn 1's reply was parked, and dropped with turn 1")
+            await ws.close()
+
+    async def test_a_short_word_before_the_reply_is_transcribed_and_continues_the_turn(self):
+        self.heard("And the second one.")
+        ws = await self.connect()
+        log = []
+        await self.send(ws, noise(500) + tone(600) + noise(720, seed=1))
+        await self.until(ws, "turn_end", log)
+        await self.send(ws, tone(140) + noise(900, seed=2))
+        started = await self.until(ws, "turn_start", log)
+        self.assertEqual(started["turn"], 2, "the word continued the turn")
+        self.assertTrue(self.transcribed, "and was transcribed, though most of it came with the start")
+        await ws.close()
+
+    async def test_talking_on_while_a_held_turn_speaks_again_stops_that_reply_before_they_finish(self):
+        """The turn had spoken and was quiet between two replies when the person started; its second reply then
+        played over them."""
+        async def two_replies(source, *args, persona, voice=None, speak=None, **kwargs):
+            voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+            await source.stream(FakeSession(), FakeSession())
+            speak("first reply", bytes(OUT_RATE // 5 * 2), True)
+            await asyncio.sleep(1.0)
+            speak("second reply", bytes(OUT_RATE * 4 * 2), True)
+            await asyncio.sleep(4)
+            return {"clip": source.name, "final_transcript": "", "replies": [], "metrics": {}}
+
+        self.heard("Wait, stop, that is not what I asked about.")
+        with mock.patch.object(server, "run_clip", two_replies):
+            ws = await self.connect()
+            log = []
+            await self.send(ws, noise(500) + tone(600) + noise(720, seed=1))
+            await self.until(ws, "reply_end", log)
+            await asyncio.sleep(0.6)
+            await self.send(ws, tone(2500))
+            barge = await self.until(ws, "barge_in", log)
+            self.assertEqual(barge["turn"], 1, "the second reply stopped while they were still talking")
+            self.assertIn("duck", log, "and was ducked while the sound was judged")
+            await ws.close()
+
+    async def test_the_reply_goes_while_wordless_sound_is_still_going(self):
+        self.heard("")
+        ws = await self.connect()
+        log = []
+        await self.send(ws, noise(500) + tone(600) + noise(720, seed=1))
+        await self.until(ws, "turn_end", log)
+        await self.send(ws, tone(4000))
+        start = await self.until(ws, "reply_start", log)
+        self.assertEqual(start["turn"], 1, "the reply came while the sound had not ended")
+        self.assertEqual(log.count("turn_start"), 1)
+        duck = await self.until(ws, "duck", log)
+        self.assertEqual(duck["turn"], 1, "and plays ducked under the sound")
+        await ws.close()
+
+    async def test_sound_with_no_words_before_the_reply_cancels_nothing_and_the_reply_comes(self):
+        self.heard("")
+        ws = await self.connect()
+        log = []
+        await self.send(ws, noise(500) + tone(600) + noise(720, seed=1))
+        await self.until(ws, "turn_end", log)
+        await self.send(ws, tone(300) + noise(900, seed=2))
+        done = await self.until(ws, "turn_done", log)
+        self.assertEqual((done["turn"], done["metrics"]["cancelled"]), (1, None))
+        self.assertIn("reply_start", log)
+        self.assertEqual(log.count("turn_start"), 1, "the sound started no turn")
+        self.assertNotIn("duck", log, "nothing was playing to duck")
+        self.assertEqual([o["verdict"] for o in self.overlaps()], ["noise"])
         await ws.close()
 
     async def test_speech_after_the_reply_has_played_is_a_plain_turn(self):

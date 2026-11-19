@@ -120,6 +120,9 @@ class Overlap:
     started: float = field(default_factory=time.perf_counter)
     voiced_ms: int = 0
     task: asyncio.Task | None = None
+    before_reply: bool = False
+    reply_heard: bool = False
+    early: asyncio.Task | None = None
 
     def feed(self, pcm, level_dbfs, noise_dbfs):
         """Adds one frame. True once the overlap holds enough voiced audio to be a barge-in."""
@@ -130,12 +133,15 @@ class Overlap:
 
     def record(self, verdict, how, now, transcript=None):
         return {"turn": self.turn, "verdict": str(verdict), "how": how, "voiced_ms": self.voiced_ms,
+                "before_reply": self.before_reply, "reply_heard": self.reply_heard,
                 "audio_s": round(len(self.pcm) / 2 / RATE, 3), "transcript": transcript,
                 "start_to_verdict_s": round(now - self.started, 3)}
 
 
 async def transcribe(url, pcm, session_cls, timeout_s=5.0):
-    """One-shot transcript of a short clip on llama-server's transcription session."""
+    """One-shot transcript of a short clip on llama-server's transcription session. The whole of it is bounded by
+    `timeout_s`, opening the session included: held sound waits on this answer, and a hang would hold the call's
+    reply with it."""
     from voice.prototype.transcript import TranscriptAdapter
 
     adapter, done = TranscriptAdapter(), asyncio.Event()
@@ -145,16 +151,20 @@ async def transcribe(url, pcm, session_cls, timeout_s=5.0):
         if update is not None and update.is_final:
             done.set()
 
-    session = await session_cls.open(url + "?intent=transcription", "overlap", time.perf_counter, on_event=on_event)
-    try:
-        await session.wait_for("session.created")
-        step = RATE // 10 * 2
-        for offset in range(0, len(pcm), step):
-            await session.send(type="input_audio_buffer.append",
-                               audio=base64.b64encode(bytes(pcm[offset:offset + step])).decode())
-        adapter.end_input()
-        await session.send(type="input_audio_buffer.commit", final=True)
-        await asyncio.wait_for(done.wait(), timeout_s)
-        return adapter.text()
-    finally:
-        await session.close()
+    async def run():
+        session = await session_cls.open(url + "?intent=transcription", "overlap", time.perf_counter,
+                                         on_event=on_event)
+        try:
+            await session.wait_for("session.created")
+            step = RATE // 10 * 2
+            for offset in range(0, len(pcm), step):
+                await session.send(type="input_audio_buffer.append",
+                                   audio=base64.b64encode(bytes(pcm[offset:offset + step])).decode())
+            adapter.end_input()
+            await session.send(type="input_audio_buffer.commit", final=True)
+            await done.wait()
+            return adapter.text()
+        finally:
+            await session.close()
+
+    return await asyncio.wait_for(run(), timeout_s)

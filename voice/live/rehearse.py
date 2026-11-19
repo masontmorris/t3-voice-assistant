@@ -4,6 +4,7 @@
     python -m voice.live.rehearse summary --out DIR
     python -m voice.live.rehearse drive --mixed --out DIR [--calls 5] [-- extra server arguments]
     python -m voice.live.rehearse drive --which --out DIR [--calls 5]
+    python -m voice.live.rehearse drive --noise --out DIR [--calls 5]
 
 The score is threads started, of N calls shaped like the call this lane is fixing. `drive` starts `serve` as a child,
 renders each call's turns with the server's own TTS, and sends them with the WAV client (to a null output, so nothing plays), one call
@@ -38,6 +39,14 @@ second one."), then asks about the third thread by name, and closes. The thread 
 thread are both interrupted with no last reply, so a by-place answer and a direct question get the same kind of status
 line. `summary` adds, per call, whether the which question was asked and whether each status line was said on its
 first relay.
+
+`--noise` runs calls about two threads that already exist, with sound the endpointer takes for speech. After a chat
+turn, a status question about the first thread is followed by a burst of road-like noise in the gap where the reply is
+being made: brown noise, low-passed, swelling and fading, generated here at a level relative to the question's own
+speech (no recorded audio). Then a question about the second thread comes in two parts with a pause between, which
+must still be joined into one turn, and an acknowledgement. `summary` adds, per call, whether the first thread's
+status line was said, how many turns were cancelled as continued, and whether the two-part question became one turn
+whose status line was said.
 
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
 are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made.
@@ -175,6 +184,70 @@ WHICH = (
      "How's the mute toggle thread going?", "The second one.", "And how is the crash on exit thread going?"))
 
 
+# The noise calls: (thread asked about before the noise, its question, gap after speech before the noise starts in s,
+# noise length in s, noise level in dB against the question's speech, thread asked about in two parts, first part,
+# second part). Written once, before any run of them.
+NOISY = (
+    ("Tidy the Shader Cache", "How is the shader cache thread going?", 1.0, 4.4, -6.0,
+     "Fix the Footstep Sounds", "How is the footstep sounds thread going,", "and is it close to done?"),
+    ("Speed Up the Map Loader", "How is the map loader thread going?", 1.2, 3.0, -9.0,
+     "Add a Photo Mode", "What is the photo mode thread up to,", "and has it saved anything yet?"),
+    ("Clean Up the Save Format", "What's the save format thread up to?", 1.1, 2.5, -4.0,
+     "Fix the Minimap Zoom", "How is the minimap zoom thread doing,", "now that it has been a while?"),
+    ("Profile the Audio Mixer", "How is the audio mixer thread going?", 1.3, 3.6, -12.0,
+     "Add Controller Remapping", "Is the controller remapping thread done,", "or is it still going?"),
+    ("Trim the Intro Video", "How's the intro video thread doing?", 1.0, 2.0, -6.0,
+     "Fix the Pause Screen Blur", "How is the pause screen blur thread going,", "and did it find the cause?"))
+PAUSE_S = 0.9  # past the endpointer's 700 ms of silence, so the first part ends a turn and the second continues it
+
+
+def noise_threads():
+    return {f"n{call + 1}_{n + 1}": (title, T.ThreadActivity.WORKING)
+            for call, row in enumerate(NOISY) for n, title in enumerate((row[0], row[5]))}
+
+
+def road_noise(seconds, rate, rms, seed):
+    """Road-like noise: brown noise, low-passed and centred, under a slow swell, at `rms` (int16 scale)."""
+    import numpy as np
+
+    rng = np.random.default_rng(seed)
+    n = int(seconds * rate)
+    brown = np.cumsum(rng.standard_normal(n))
+    brown -= np.convolve(brown, np.ones(rate // 10) / (rate // 10), mode="same")
+    smooth = np.convolve(brown, np.ones(8) / 8, mode="same")
+    swell = np.sin(np.linspace(0, np.pi, n)) ** 0.5
+    out = smooth * swell
+    out *= rms / max(np.sqrt(np.mean(out ** 2)), 1e-9)
+    return np.clip(out, -32767, 32767).astype("<i2")
+
+
+def noise_pieces(call):
+    """The lines the TTS renders for one noise call, in order."""
+    _, ask, *_, first, second = NOISY[call]
+    return [CHAT[call][0], ask, first, second, "Okay, thanks."]
+
+
+def compose_noise_call(call, clips, out):
+    """The call's turns from the rendered pieces: the chat line, the question with silence then noise after it, the
+    two-part question with a pause, and the acknowledgement. Written as WAVs in `out`, in order."""
+    import numpy as np
+    import soundfile as sf
+
+    _, _, gap_s, noise_s, level_db, *_ = NOISY[call]
+    pieces = [sf.read(str(path), dtype="int16") for path in clips]
+    rate = pieces[0][1]
+    chat, ask, first, second, thanks = (np.asarray(pcm).reshape(-1) for pcm, _ in pieces)
+    speech_rms = float(np.sqrt(np.mean(ask.astype(np.float64) ** 2)))
+    burst = road_noise(noise_s, rate, speech_rms * 10 ** (level_db / 20), seed=call)
+    quiet = np.zeros(int(gap_s * rate), dtype="<i2")
+    pause = np.zeros(int(PAUSE_S * rate), dtype="<i2")
+    turns = [chat, np.concatenate([ask, quiet, burst]), np.concatenate([first, pause, second]), thanks]
+    out.mkdir(parents=True, exist_ok=True)
+    for n, pcm in enumerate(turns, 1):
+        sf.write(str(out / f"turn_{n:03d}.wav"), pcm, rate, subtype="PCM_16")
+    return sorted(out.glob("turn_*.wav"))
+
+
 def which_threads():
     """The seam's threads for the which calls, as id to (title, activity): the thread the answer picks and the third
     thread are interrupted, the other twin is working."""
@@ -187,8 +260,10 @@ def which_threads():
     return threads
 
 
-def turns(call, tail=True, mixed=False, which=False):
-    """One call's turns as text, in the order the person says them."""
+def turns(call, tail=True, mixed=False, which=False, noisy=False):
+    """One call's turns as text, in the order the person says them (for the noise calls, the pieces rendered)."""
+    if noisy:
+        return noise_pieces(call)
     if which:
         *_, ask, answer, direct = WHICH[call]
         return [*CHAT[call], ask, answer, direct, "Okay, thanks."]
@@ -257,7 +332,7 @@ class ScriptedSeam(F.FakeSeam):
 def serve(args, rest):
     """The live server with its T3 seam replaced and no T3 text model."""
     seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS,
-                        which_threads() if args.which else None)
+                        which_threads() if args.which else noise_threads() if args.noise else None)
 
     def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, *, writer=None):
         return cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, writer=writer)
@@ -278,7 +353,7 @@ def run_drive(args, rest=()):
     stop = out / "STOP"
     command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out),
                *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []),
-               *(["--which"] if args.which else []), "--",
+               *(["--which"] if args.which else []), *(["--noise"] if args.noise else []), "--",
                "--host", "127.0.0.1", "--port", str(args.port), "--t3", "on", "--snapshot", "note",
                "--max-minutes", str(args.max_minutes), "--out", str(out / "server"), "--stop-file", str(stop),
                "--decider-cache", str(out / "decider-cache"), *rest]
@@ -303,12 +378,15 @@ def run_drive(args, rest=()):
         client = VOICE / "venv-live-client/Scripts/python.exe"
         for call in args.only or range(args.calls):
             text = out / f"call{call + 1}.txt"
-            text.write_text("\n".join(turns(call, not args.no_tail, args.mixed, args.which)) + "\n", encoding="utf-8")
+            lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise)
+            text.write_text("\n".join(lines) + "\n", encoding="utf-8")
             clips = out / f"clips{call + 1}"
             subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text), "--out", str(clips),
                             "--server", f"http://127.0.0.1:{args.lfm_port}"], env=env, check=True,
                            stdout=(out / f"clips{call + 1}.out").open("w"), stderr=subprocess.STDOUT)
             wavs = sorted(clips.glob("turn_*.wav"))
+            if args.noise:
+                wavs = compose_noise_call(call, wavs, out / f"composed{call + 1}")
             started = time.time()
             subprocess.run([str(client), "-m", "voice.live.client", "--server", f"ws://127.0.0.1:{args.port}",
                             "--secret-file", str(VOICE / "live/secret"), "--log-dir", str(out / f"client{call + 1}"),
@@ -405,6 +483,25 @@ def which_call(call_rows, call):
             "by_place": status(by_place), "by_name": status(by_name)}
 
 
+def noise_call(call_rows, call):
+    """How one noise call went: the first thread's status line said, the turns cancelled as continued, and the
+    two-part question joined into one turn whose status line was said. `call` is its index from 0."""
+    first, ask, _, _, _, second, part_one, part_two = NOISY[call]
+    lines = [e for row in call_rows for e in row["t3"]]
+
+    def said(title):
+        return any("thread_status" in e["kinds"] and e["delivery"] == "sent"
+                   and title.lower() in (e["draft"] or "").lower() for e in lines)
+
+    joined = [row for row in call_rows if overlap(part_one, row["said"] or "") >= 0.6
+              and overlap(part_two, row["said"] or "") >= 0.6]
+    alone = [row for row in call_rows if overlap(part_one, row["said"] or "") >= 0.6
+             and overlap(part_one, row["said"] or "") > overlap(ask, row["said"] or "")
+             and overlap(part_two, row["said"] or "") < 0.6 and any(r[1] in (None, "sent") for r in row["replies"])]
+    return {"first_said": said(first), "continued": sum(row["cancelled"] == "continued" for row in call_rows),
+            "joined": bool(joined), "second_said": said(second), "first_part_answered_alone": bool(alone)}
+
+
 MATCH = 0.75  # How much of the request a launch's payload must carry to be this call's request.
 
 
@@ -458,7 +555,7 @@ def summarize(out):
         rows.append({"call": call, "turn": number, "idle": bool(record.get("idle")), "said": record.get("final_transcript"),
                      "replies": replies, "first_audio_after_speech_end_s": live.get("speech_end_to_first_audio_sent_s"),
                      "held": [r for r in replies if r[1] not in (None, "sent")], "t3": entries(record),
-                     "highs": forecast_highs(record),
+                     "highs": forecast_highs(record), "cancelled": live.get("cancelled"),
                      "repeats": [e["reply"] for e in record.get("timeline", [])
                                  if e.get("kind") == "fact_check" and e.get("repeated")],
                      "fact_checks": sum(e.get("kind") == "fact_check" for e in record.get("timeline", [])),
@@ -486,6 +583,8 @@ def main():
     parser.add_argument("--max-minutes", type=float, default=13.5)
     parser.add_argument("--cpu", action="store_true", help="smoke test on the CPU: no GPU layers")
     parser.add_argument("--mixed", action="store_true", help="the mixed calls: a lookup and a T3 request in one breath")
+    parser.add_argument("--noise", action="store_true",
+                        help="the noise calls: a noise burst after a question, and a question in two parts")
     parser.add_argument("--which", action="store_true",
                         help="the which calls: a which-thread question answered by place")
     argv = sys.argv[1:]
@@ -503,6 +602,16 @@ def main():
         score = {name: {"started": f"{sum(g['started'] for g in gs)} of {len(gs)}",
                         "status_answered": f"{sum(g['status_answered'] for g in gs)} of {len(gs)}",
                         "false_claims": sum(len(g["false_claims"]) for g in gs)} for name, gs in halves.items() if gs}
+        if args.noise:
+            graded = [noise_call([r for r in rows if r["call"] == order], window["call"] - 1)
+                      for order, window in enumerate(json.loads((args.out / "windows.json").read_text("utf-8")), 1)]
+            score["noise"] = {key: f"{sum(bool(g[key]) for g in graded)} of {len(graded)}"
+                              for key in ("first_said", "joined", "second_said", "first_part_answered_alone")}
+            score["noise"]["turns_cancelled_as_continued"] = sum(g["continued"] for g in graded)
+            score["noise_calls"] = graded
+            path = args.out / "server" / "overlaps.jsonl"
+            score["held_sound"] = ([json.loads(line) for line in path.read_text("utf-8").splitlines()]
+                                   if path.is_file() else [])
         if args.which:
             graded = [which_call([r for r in rows if r["call"] == order], window["call"] - 1)
                       for order, window in enumerate(json.loads((args.out / "windows.json").read_text("utf-8")), 1)]

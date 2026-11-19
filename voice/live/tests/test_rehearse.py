@@ -79,6 +79,21 @@ class Scoring(unittest.TestCase):
         self.assertEqual((graded["asked_said"], graded["by_place"]["said"], graded["by_name"]["first_relay"]),
                          (True, False, True), "the question's order decides which thread is second, not the table's")
 
+    def test_a_noise_call_counts_the_continued_question_joined_only_when_one_turn_holds_both_parts(self):
+        first, ask, _, _, _, second, part_one, part_two = R.NOISY[0]
+        status = dict(line(["thread_status"], f"The {first} thread is working."), relays=1)
+        joined = dict(line(["thread_status"], f"The {second} thread is working."), relays=1)
+        rows = [{"said": ask, "t3": [status], "replies": [("t3", "sent", "...")], "cancelled": None},
+                {"said": "", "t3": [], "replies": [], "cancelled": "continued"},
+                {"said": f"{part_one} {part_two}", "t3": [joined], "replies": [("t3", "sent", "...")],
+                 "cancelled": None}]
+        self.assertEqual(R.noise_call(rows, 0), {"first_said": True, "continued": 1, "joined": True,
+                                                 "second_said": True, "first_part_answered_alone": False})
+        apart = [rows[0], {"said": part_one, "t3": [], "replies": [("snapshot", None, "...")], "cancelled": None},
+                 {"said": part_two, "t3": [], "replies": [], "cancelled": None}]
+        graded = R.noise_call(apart, 0)
+        self.assertEqual((graded["joined"], graded["first_part_answered_alone"]), (False, True))
+
     def test_the_seam_knows_no_thread_until_a_launch_makes_one(self):
         with tempfile.TemporaryDirectory() as tmp:
             seam = R.ScriptedSeam(Path(tmp) / "launches.json")
