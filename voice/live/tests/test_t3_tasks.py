@@ -706,6 +706,28 @@ class Service(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(service.executions["task_1"].state.value, "completed")
         self.assertEqual((seam.ops("launch"), seam.ops("interrupt")), ([], []))
 
+    def test_one_request_cut_into_several_launch_segments_asks_one_question(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
+                                    self.record("task_2", "Can you kick that off?", START)])
+        service.sync(0)
+        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
+        self.assertEqual([a["kind"] for a in tasks["task_1"]["acts"]], ["confirm_launch"])
+        self.assertNotIn("acts", tasks["task_2"], "the second segment is the same request, already asked")
+        self.assertEqual(service.executions["task_2"].state.value, "completed")
+        service.record_delivery(tasks["task_1"], "sent")
+        self.assertEqual(said(t3.answer("yes", 1)), [("launched", "Voice sandbox")])
+        self.assertEqual(len(seam.ops("launch")), 1)
+
+    def test_a_launch_question_from_an_earlier_turn_does_not_swallow_a_new_request(self):
+        t3 = tasks_over(self, F.FakeSeam())
+        t3.start("conv_turn_000:task_1", "Start a thread for the importer logging.", 0)
+        service = self.service(t3, [self.record("task_1", "Start a thread for the save slot writer.", START)])
+        service.sync(0)
+        entry = service.snapshot("utt_1", "...")["tasks"][0]
+        self.assertEqual([a["kind"] for a in entry["acts"]], ["confirm_launch"])
+
     def test_the_next_turn_answers_and_later_news_arrives_as_updates(self):
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam)

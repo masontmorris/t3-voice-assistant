@@ -295,6 +295,13 @@ class T3Tasks:
         except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
             return None
 
+    def asking_start(self, prefix: str) -> bool:
+        """Whether a launch question that a task with this key prefix (one turn's) asked is still open."""
+        with self.lock:
+            question = self.question
+            return (question is not None and question.op == START and question.kind in ("confirm", "project")
+                    and question.key.startswith(prefix))
+
     def projects(self) -> list[dict]:
         return [{"projectId": p.project_id, "name": p.name, "spokenNames": list(p.spoken_names)}
                 for p in self.follow.seam.hello.projects]
@@ -709,6 +716,10 @@ class T3TaskService(MockTaskService):
         if choice is None or choice.tool not in T3_TOOLS or choice.confidence < self._threshold():
             return super()._start(task_id, instruction, side_effect, now, choice)
         key = f"{self.conversation_id}:{task_id}"
+        if choice.tool == START and self.t3.asking_start(f"{self.conversation_id}:"):
+            # One long request is cut into several segments that each read as a launch. The first already asked.
+            return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
+                             tool={"tool": START, "arguments": {}})
         update = (self.t3.start(key, instruction, now) if choice.tool == START
                   else self.t3.about(key, choice.tool, instruction, now))
         return self._execution(task_id, update, now, choice.tool)
