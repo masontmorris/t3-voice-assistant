@@ -81,11 +81,20 @@ class Reads(unittest.TestCase):
                 self.assertEqual(reading.label, "other")
 
     def test_a_label_that_says_yes_with_a_real_share_of_other_or_question_is_not_a_yes(self):
-        for shares in ({"yes": 0.8, "other": 0.3}, {"yes": 0.75, "question": 0.25}):
+        for shares in ({"yes": 0.7, "other": 0.3}, {"yes": 0.75, "question": 0.25},
+                       {"yes": 0.59, "other": 0.2, "question": 0.2}, {"yes": 0.7, "no": 0.3}):
             reading = judge_reading({"reading": {"choice": "yes", "probabilities": shares}})
             self.assertEqual(reading.label, "yes")
             self.assertFalse(reading.yes, shares)
         self.assertTrue(judge_reading({"reading": {"choice": "yes", "probabilities": {"yes": 0.9, "other": 0.1}}}).yes)
+
+    def test_a_yes_read_beside_a_change_of_target_is_not_a_yes(self):
+        yes = {"choice": "yes", "probabilities": {"yes": 0.95, "other": 0.05}}
+        for choice in ("option_1", "elsewhere"):
+            target = {"choice": choice, "probabilities": {choice: 0.9, "keeps": 0.1}}
+            self.assertFalse(judge_reading({"reading": yes, "target": target}, ("Voice server",)).yes, choice)
+        keeps = {"choice": "keeps", "probabilities": {"keeps": 0.9, "option_1": 0.1}}
+        self.assertTrue(judge_reading({"reading": yes, "target": keeps}, ("Voice server",)).yes)
 
     def test_a_rising_please_do_with_its_question_mark_is_a_yes(self):
         row = next(r for r in ROWS if r["reply"] == "Please do?")
@@ -108,6 +117,7 @@ class Reads(unittest.TestCase):
                        {"choice": "yes", "probabilities": {"yes": "high"}},
                        {"choice": "yes", "probabilities": {"yes": float("nan")}},
                        {"choice": "yes", "probabilities": {"yes": 1.7}},
+                       {"choice": "yes", "probabilities": {"yes": 0.51, "no": 0.99}},
                        {"choice": "yes", "probabilities": {"yes": True}},
                        {"choice": "yes", "probabilities": {"sure": 0.9}},
                        {"choice": "yes", "probabilities": None}, {"choice": "yes"}, "yes", None):

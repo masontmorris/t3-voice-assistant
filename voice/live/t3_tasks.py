@@ -33,8 +33,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from voice.prototype.tasks import Execution, MockTaskService, Run
-from voice.segmentation.contract import Intent
-from voice.segmentation.intent import utterance_intent
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.acts import Act, act
@@ -436,7 +434,7 @@ class T3Tasks:
             if self.question is not None and (unheard or (self.unasked is not None
                                                            and self.question.key == self.unasked.task_id)):
                 # The person never heard this question, so nothing they said answers it: it is asked again.
-                if (kind == "yes" or utterance_intent(text).intent != Intent.REQUEST) and self.unasked is not None:
+                if reading is not None and reading.label not in (None, "unrelated") and self.unasked is not None:
                     return self.unasked
                 self._drop_question()
                 return None

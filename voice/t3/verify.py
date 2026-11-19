@@ -254,6 +254,8 @@ READ_CRITERIA = {
 YES_CONFIDENCE = 0.5
 # A reply that is any share a question or another target is not an unconditional yes, however much of it says yes.
 OTHER_CEILING = 0.2
+# The two together: a rising "please do" gives them 0.21 of the weight, the most of any recorded yes.
+TOGETHER_CEILING = 0.25
 OPTION_CONFIDENCE = 0.6
 ELSEWHERE_CONFIDENCE = 0.5
 KEEPS, ELSEWHERE = "keeps", "elsewhere"
@@ -295,11 +297,13 @@ class Reading:
 
     @property
     def yes(self) -> bool:
-        """An unconditional yes: the reply's own label, confident, with no real share of a question, a changed target
-        or a condition. Anything short of that is not a yes."""
+        """An unconditional yes: the reply's own label, confident, with no real share of a no, or of a question, a
+        changed target or a condition together, and no change of target read beside it. Anything short is not a yes."""
         p = self.probabilities
-        return (self.label == "yes" and p.get("yes", 0.0) >= YES_CONFIDENCE
-                and max(p.get("other", 0.0), p.get("question", 0.0)) <= OTHER_CEILING)
+        return (self.label == "yes" and p.get("yes", 0.0) >= YES_CONFIDENCE and p.get("no", 0.0) <= OTHER_CEILING
+                and max(p.get("other", 0.0), p.get("question", 0.0)) <= OTHER_CEILING
+                and p.get("other", 0.0) + p.get("question", 0.0) < TOGETHER_CEILING
+                and self.target is None and not self.elsewhere)
 
     @property
     def kind(self) -> str | None:
@@ -308,7 +312,8 @@ class Reading:
 
 
 def _scores(answer: Any, labels) -> dict[str, float] | None:
-    """A choice answer's shares when its label is one of `labels` and every share is a number from 0 to 1."""
+    """A choice answer's shares when its label is one of `labels`, every share is a number from 0 to 1, and together
+    they are shares of one whole."""
     probabilities = answer.get("probabilities") if isinstance(answer, dict) else None
     choice = answer.get("choice") if isinstance(answer, dict) else None
     if (not isinstance(probabilities, dict) or not isinstance(choice, str) or choice not in labels
@@ -317,6 +322,8 @@ def _scores(answer: Any, labels) -> dict[str, float] | None:
     for value in probabilities.values():
         if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= value <= 1.0:
             return None
+    if sum(probabilities.values()) > 1.05:
+        return None
     return {label: float(value) for label, value in probabilities.items()}
 
 
