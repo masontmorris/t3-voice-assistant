@@ -12,6 +12,12 @@ Nothing the voice says about T3 work is a hard-coded string (Mason, 2026-11-18).
 
 When a launch names no project, the voice asks rather than states: with one project available it asks whether to start the thread there, and a yes starts it with the original request; with several it asks which one, naming them; with none it says so. Both questions are the ordinary pending ones, so a different project named in the answer, a no and an unrelated reply are read as they are for any launch confirmation.
 
+## The relay wording, measured
+
+`python -m voice.t3.eval.relay_eval` sends 22 call-shaped relays per wording (two chat turns, a long hesitant request as audio, then the note) and scores each reply with the check the live turn uses. Measured on 2026-11-18, GPU, synthetic voice: the wording that shipped on voice/main said the draft's words and no others on 13 of 22 and, on a second run, 15 of 22 (run-to-run spread of 2); with four examples 20 of 22; with no examples 7 of 22; with one example 21 of 22. The failures of the old wording were the call's own: "The draft is: ...", a lead-in sentence, an appended closing line, and a reply that ignored the draft. The remaining failures of the shipped wording swap the draft's names for the person's request, which the exact-words check holds. A second pass sends 12 requests and counts ordinary replies that carry the relay's words: the old wording leaked an example line in 2 of 12, four examples in 2 of 12, one example in 0 of 12. A one-example persona is also why the voice stopped reading an example line back as its own reply in that pass; it still did once in 30 rehearsal turns (measured, `Should I stop Example Split Export Files?` as the answer to a bare greeting), so the example stays the first thing to remove if it recurs.
+
+The checker needs what a thread-less act means. Launch acts carry no thread, and the decider's unsupported-claim question answered yes to "Should I start a new coding thread in Voice sandbox?" in 3 of 3 calls, so each such draft waited. The request is no longer a slot of `confirm_launch` and `launched` either: the writer copied its reader example's request instead of a 40-word hesitant one. An act with no thread now sends its meaning to the checker as `says` (voice/t3/verify.py).
+
 ## Summaries
 
 The thread picker and the summarizer still use the configured text model. The separate LFM3 writer only drafts what the voice will say.

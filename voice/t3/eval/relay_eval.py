@@ -40,14 +40,14 @@ BEFORE_RELAY = (
     '\n\nHere are examples of a note and a good reply to it. The threads, projects and numbers in them are only examples.'
     + "".join(f"\n\nNote: Draft of what to tell them now: {line}\nReply: {line}" for line in FOUR_EXAMPLES))
 
-CHAT = (("Hey, how's it going?", "I'm okay, how are you?"), ("Hello there.", "Not bad, just getting set up for the day."),
+CHAT = (("Hey there, how are things?", "Pretty good, how about you?"), ("Hello there.", "Not bad, just getting set up for the day."),
         ("Hi, can you hear me?", "Great, how has your morning been?"), ("Hey!", "Doing fine, thanks. And you?"),
         ("Good morning.", "Pretty good, a bit tired honestly."))
 # Long hesitant requests, by what the person asks for. The act kinds in PLAN are what each one really produces.
 REQUESTS = {
     "start": (
         "Uhm, I was wondering if you could start a thread to get work going on, uhm, a little project to make, uhm, "
-        "textures export into the game engine cleanly? Could you start that thread like a project manager?",
+        "textures export into the game engine cleanly? Can you kick that off and keep it tidy?",
         "So, uh, I want to get some work going on, uhm, a small tool that converts audio presets into the format the "
         "editor wants, and, uhm, could you start a thread for that and, you know, keep it organized?",
         "Okay, so, uhm, I was thinking, uh, maybe we could have a thread that works out why the nightly build is so "
