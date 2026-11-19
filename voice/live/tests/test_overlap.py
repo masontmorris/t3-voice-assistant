@@ -89,3 +89,19 @@ class OverlapTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TranscribeTest(unittest.IsolatedAsyncioTestCase):
+    async def test_a_session_that_never_opens_is_given_up_on(self):
+        """Held sound waits on this transcript, so a hang before the audio is sent must not hold the reply forever."""
+        import asyncio
+
+        from voice.live.overlap import transcribe
+
+        class Hanging:
+            @classmethod
+            async def open(cls, *args, **kwargs):
+                await asyncio.Event().wait()
+
+        with self.assertRaises(asyncio.TimeoutError):
+            await transcribe("ws://unused", b"\0" * 320, Hanging, timeout_s=0.05)

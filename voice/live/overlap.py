@@ -139,7 +139,9 @@ class Overlap:
 
 
 async def transcribe(url, pcm, session_cls, timeout_s=5.0):
-    """One-shot transcript of a short clip on llama-server's transcription session."""
+    """One-shot transcript of a short clip on llama-server's transcription session. The whole of it is bounded by
+    `timeout_s`, opening the session included: held sound waits on this answer, and a hang would hold the call's
+    reply with it."""
     from voice.prototype.transcript import TranscriptAdapter
 
     adapter, done = TranscriptAdapter(), asyncio.Event()
@@ -149,16 +151,20 @@ async def transcribe(url, pcm, session_cls, timeout_s=5.0):
         if update is not None and update.is_final:
             done.set()
 
-    session = await session_cls.open(url + "?intent=transcription", "overlap", time.perf_counter, on_event=on_event)
-    try:
-        await session.wait_for("session.created")
-        step = RATE // 10 * 2
-        for offset in range(0, len(pcm), step):
-            await session.send(type="input_audio_buffer.append",
-                               audio=base64.b64encode(bytes(pcm[offset:offset + step])).decode())
-        adapter.end_input()
-        await session.send(type="input_audio_buffer.commit", final=True)
-        await asyncio.wait_for(done.wait(), timeout_s)
-        return adapter.text()
-    finally:
-        await session.close()
+    async def run():
+        session = await session_cls.open(url + "?intent=transcription", "overlap", time.perf_counter,
+                                         on_event=on_event)
+        try:
+            await session.wait_for("session.created")
+            step = RATE // 10 * 2
+            for offset in range(0, len(pcm), step):
+                await session.send(type="input_audio_buffer.append",
+                                   audio=base64.b64encode(bytes(pcm[offset:offset + step])).decode())
+            adapter.end_input()
+            await session.send(type="input_audio_buffer.commit", final=True)
+            await done.wait()
+            return adapter.text()
+        finally:
+            await session.close()
+
+    return await asyncio.wait_for(run(), timeout_s)

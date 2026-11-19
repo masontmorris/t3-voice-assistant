@@ -645,6 +645,9 @@ class Conversation:
     async def classify_overlap(self, overlap, trailing_ms):
         try:
             text = await self.live.transcribe(bytes(overlap.pcm))
+            if overlap.before_reply:
+                # A reply may have become audible while this transcript was coming, with no frame left to notice it.
+                self.note_reply(overlap)
             if overlap.before_reply and not overlap.reply_heard:
                 # Before any reply, sound is either words that go on with the request, or nothing to act on.
                 verdict, how = (None if words(text) else Verdict.NOISE), "words"
