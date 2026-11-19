@@ -19,7 +19,7 @@ CASES = {
                      f"Do you mean {T} or Fix the flaky ASR test?",
                      {f"Do you mean {T}?": "candidates missing: Fix the flaky ASR test",
                       f"It's {T} or Fix the flaky ASR test.": "not a question"}),
-    Kind.NO_PROJECT: ({}, "I don't see a project to start a thread in.", {"": "empty"}),
+    Kind.NO_PROJECT: ({}, "I can't find any project to use.", {"": "empty"}),
     Kind.LAUNCH_PENDING: ({"project": "Voice sandbox"}, "I've asked T3 to start it.", {"": "empty"}),
     Kind.LAUNCHED: ({"project": "Voice sandbox"}, "It's started in Voice sandbox.",
                     {"It's started.": "project missing"}),

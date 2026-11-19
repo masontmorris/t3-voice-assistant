@@ -391,7 +391,7 @@ T3_RELAY = (
     'have not heard them yet. Say exactly those words and nothing else, as "I" to "you". Begin with the first word of '
     'them and end with the last: no lead-in, no remark about what you are about to say, and no closing line. Do not '
     'repeat the news unless a new note arrives.'
-    '\n\nHere are examples of a note and the reply to it. The threads, projects and numbers in them are only examples.'
+    '\n\nHere is an example of a note and the reply to it. The names in it are only an example.'
 )
 T3_RELAY += "".join(f"\n\nNote: {T3_NOTE}{line}]\nReply: {line}" for line in RELAY_EXAMPLES)
 

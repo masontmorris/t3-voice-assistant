@@ -47,8 +47,8 @@ NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command 
 MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread for their request in this project. Nothing has "
                          "started yet.",
-    Kind.ASK_WHICH: "Ask which of these they mean. Name every candidate.",
-    Kind.NO_PROJECT: "In one sentence, tell them there is no project to start a thread in.",
+    Kind.ASK_WHICH: "Ask which of these they mean, saying whether `of` is project or thread. Name every candidate.",
+    Kind.NO_PROJECT: "In one sentence, tell them you can't find any project to use.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
     Kind.LAUNCHED: "The thread started in this project.",
     Kind.LAUNCH_UNCONFIRMED: "T3 was asked to start the thread but never confirmed it. They can check the app.",
@@ -479,8 +479,8 @@ READER_EXAMPLES = {
     Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes", "request": "make links easier to copy"},
                           "Should I start a new coding thread in Example Fleet Notes to make links easier to copy?"),
     Kind.ASK_WHICH: ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"]},
-                     "Do you mean Example Lilac Post or Example Daily Routes?"),
-    Kind.NO_PROJECT: ({}, "I don't see a project to start a thread in."),
+                     "Which project do you mean, Example Lilac Post or Example Daily Routes?"),
+    Kind.NO_PROJECT: ({}, "I can't find any project to use."),
     Kind.LAUNCH_PENDING: ({"project": "Example Forest Timer"},
                           "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
     Kind.LAUNCHED: ({"project": "Example Dune Tracker", "request": "show the tide table"},
@@ -535,8 +535,9 @@ assert set(READER_EXAMPLES) == set(Kind)
 EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
                           for key in ("thread", "project", "available", "candidates") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
-RELAY_EXAMPLES = tuple(READER_EXAMPLES[kind][1] for kind in (
-    Kind.CONFIRM_STOP, Kind.LAUNCHED, Kind.DONE, Kind.THREAD_STATUS))
+# One example: the call's voice read four of them back as its own replies (2 of 12 ordinary replies on a request, 0 of 12
+# with one), and recited the draft on 21 of 22 relays either way (docs/voice/spoken-acts.md).
+RELAY_EXAMPLES = (READER_EXAMPLES[Kind.CONFIRM_STOP][1],)
 
 
 def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0) -> list[dict]:

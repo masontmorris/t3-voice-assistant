@@ -24,9 +24,12 @@ from voice.live.script import SHAPES, render, voices
 from voice.live.server import LIVE_HOME, load_persona
 from voice.prototype.realtime import Server, Session
 from voice.prototype.run import FORMAT_LINES, NOTE_PERSONA, T3_NOTE, T3_RELAY, create_item, plain_text, update_session
-from voice.t3.acts import Kind, recites
-from voice.t3.speech import READER_EXAMPLES, RELAY_EXAMPLES
+from voice.live.facts import names_machinery
+from voice.t3.acts import Kind, normalise, recites
+from voice.t3.speech import READER_EXAMPLES
 
+FOUR_EXAMPLES = tuple(READER_EXAMPLES[kind][1] for kind in (Kind.CONFIRM_STOP, Kind.LAUNCHED, Kind.DONE,
+                                                             Kind.THREAD_STATUS))
 BEFORE_NOTE = "Private note for you (not said by the person): Draft of what to tell them now: "
 BEFORE_RELAY = (
     '\n\nSometimes a private note arrives from a colleague about their '
@@ -35,7 +38,7 @@ BEFORE_RELAY = (
     'now exactly as written, word for word, as "I" to "you". If a note says a reply did not play, '
     'set that draft and reply aside. Do not repeat the news unless a new draft arrives.'
     '\n\nHere are examples of a note and a good reply to it. The threads, projects and numbers in them are only examples.'
-    + "".join(f"\n\nNote: Draft of what to tell them now: {line}\nReply: {line}" for line in RELAY_EXAMPLES))
+    + "".join(f"\n\nNote: Draft of what to tell them now: {line}\nReply: {line}" for line in FOUR_EXAMPLES))
 
 CHAT = (("Hey, how's it going?", "I'm okay, how are you?"), ("Hello there.", "Not bad, just getting set up for the day."),
         ("Hi, can you hear me?", "Great, how has your morning been?"), ("Hey!", "Doing fine, thanks. And you?"),
@@ -77,7 +80,19 @@ PLAN = (("start", Kind.CONFIRM_LAUNCH), ("start", Kind.NO_PROJECT), ("start", Ki
         ("tell", Kind.CONFIRM_TELL), ("tell", Kind.TELL_PENDING), ("tell", Kind.HELD_FOLLOWUP),
         ("tell", Kind.SENT_FOLLOWUP), ("stop", Kind.CONFIRM_STOP), ("stop", Kind.STOPPING),
         ("stop", Kind.STOP_UNCONFIRMED), ("idle", Kind.DONE), ("idle", Kind.NEEDS_YOU), ("idle", Kind.REPLIED))
-VARIANTS = {"before": (BEFORE_RELAY, BEFORE_NOTE, ""), "after": (T3_RELAY, T3_NOTE, "]")}
+HEAD = T3_RELAY.split("Here are examples")[0]
+
+
+def with_examples(header, lines):
+    return HEAD + header + "".join(f"\n\nNote: {T3_NOTE}{line}]\nReply: {line}" for line in lines)
+
+
+VARIANTS = {
+    "before": (BEFORE_RELAY, BEFORE_NOTE, ""),
+    "after": (T3_RELAY, T3_NOTE, "]"),
+    "noex": (HEAD.rstrip(), T3_NOTE, "]"),
+    "four_ex": (with_examples("Here are examples of a note and the reply to it. The threads, projects and numbers in "
+                              "them are only examples.", FOUR_EXAMPLES), T3_NOTE, "]")}
 
 
 def render_turns(server, texts):
@@ -123,7 +138,7 @@ def scenarios(count):
     return found
 
 
-async def one(url, rendered, name, scenario, persona, relay, note, close):
+async def one(url, rendered, name, scenario, persona, relay, note, close, leak=False):
     context, draft = scenario["context"], scenario["draft"]
     started = time.perf_counter()
     session = await Session.open(url, "eval", time.perf_counter)
@@ -136,8 +151,12 @@ async def one(url, rendered, name, scenario, persona, relay, note, close):
         replies = []
         for position, text in enumerate(context):
             pcm, rate = rendered[text]
-            reply, _ = await say(session, pcm, rate, reply=position < len(context) - 1 or scenario["shape"] == "idle")
+            reply, _ = await say(session, pcm, rate, reply=position < len(context) - 1 or scenario["shape"] == "idle" or leak)
             replies.append(reply)
+        if leak:
+            return {"variant": name, "shape": scenario["shape"], "context": list(context), "context_replies": replies,
+                    "leaked": bool(names_machinery(replies[-1])) or any(
+                        normalise(line) in normalise(replies[-1]) for _, line in READER_EXAMPLES.values())}
         item = await create_item(session, plain_text(f"{note}{draft}{close}"))
         mark = len(session.events)
         sent = time.perf_counter()
@@ -159,6 +178,8 @@ async def main_async(args):
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
     plan = scenarios(args.scenarios)
+    if args.leak:
+        plan = [p for p in plan if p["shape"] != "idle"]
     persona, persona_label = load_persona(LIVE_HOME / "prompt.txt", NOTE_PERSONA)
     extra = ("-c", "32768", *(("-ngl", "0", "--no-mmproj-offload") if args.cpu else ()))
     with Server(args.port, out / "llama-server.log", extra, 2):
@@ -170,13 +191,17 @@ async def main_async(args):
             relay, note, close = VARIANTS[name]
             for scenario in plan:
                 row = await one(f"ws://127.0.0.1:{args.port}/v1/realtime", rendered, name, scenario, persona, relay, note,
-                                close)
+                                close, args.leak)
                 rows.append({**row, "persona": persona_label})
-                print(name, row["same_words"], repr(row["reply"][:90]), flush=True)
+                print(name, row.get("same_words", row.get("leaked")), repr((row.get("reply") or row["context_replies"][-1])[:90]),
+                      flush=True)
                 (out / "rows.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
     for name in args.variants:
         mine = [r for r in rows if r["variant"] == name]
-        print(f"{name}: {sum(r['same_words'] for r in mine)} of {len(mine)} say the draft's words and no others")
+        if args.leak:
+            print(f"{name}: {sum(r['leaked'] for r in mine)} of {len(mine)} ordinary replies carry the relay's words")
+        else:
+            print(f"{name}: {sum(r['same_words'] for r in mine)} of {len(mine)} say the draft's words and no others")
 
 
 def main():
@@ -185,6 +210,8 @@ def main():
     parser.add_argument("--variants", nargs="+", choices=sorted(VARIANTS), default=["before", "after"])
     parser.add_argument("--scenarios", type=int, default=len(PLAN))
     parser.add_argument("--port", type=int, default=8097)
+    parser.add_argument("--leak", action="store_true",
+                        help="instead of the relay, count ordinary replies to the request that carry the relay's words")
     parser.add_argument("--cpu", action="store_true", help="smoke test the script on the CPU, no GPU layers")
     asyncio.run(main_async(parser.parse_args()))
 

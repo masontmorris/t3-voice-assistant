@@ -8,7 +8,8 @@ project, "please do", a question about the thread it started, and a yes to the t
 the real one (voice/live/server.py: LFM3, the segmenter and decider, the T3 task service, the call-voice relay, the
 checks); only the seam it reads T3 through is scripted (voice/t3/fakes.py), so a launch starts nothing and costs
 nothing. Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out.
-The turns are synthetic speech; the thread picker's cloud model is off, so no OpenRouter call is made.
+The turns are synthetic speech; the thread picker's cloud model and the general agent are off, so no OpenRouter call
+is made.
 """
 
 import argparse
@@ -105,7 +106,7 @@ def serve(args, rest):
 def run_drive(args):
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, VOICE_T3_JOURNAL=str(out / "t3-journal.json"), PYTHONIOENCODING="utf-8")
+    env = dict(os.environ, VOICE_T3_JOURNAL=str(out / "t3-journal.json"), VOICE_AGENT="off", PYTHONIOENCODING="utf-8")
     stop = out / "STOP"
     command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out),
                *(["--cpu"] if args.cpu else []), "--",
