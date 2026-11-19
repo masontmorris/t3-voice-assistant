@@ -29,11 +29,11 @@ from voice.t3.verify import default_decider
 T = "Trim unused icons from the build"
 P = "Voice sandbox"
 SLOTS = {
-    Kind.CONFIRM_LAUNCH: {"project": P, "request": "make the settings screen remember window sizes"},
+    Kind.CONFIRM_LAUNCH: {"project": P},
     Kind.ASK_WHICH: {"of": "project", "candidates": [P, "Voice server"]},
     Kind.NO_PROJECT: {},
     Kind.LAUNCH_PENDING: {"project": P},
-    Kind.LAUNCHED: {"project": P, "request": "make the settings screen remember window sizes"},
+    Kind.LAUNCHED: {"project": P},
     Kind.LAUNCH_UNCONFIRMED: {"project": P},
     Kind.NO_THREAD: {"recent": 14},
     Kind.CONFIRM_THREAD: {"thread": T},
@@ -101,7 +101,7 @@ async def main_async(args):
         async with RealtimeWriter(url) as writer:
             follow = L.Follow(T3Journal(args.out / "journal.json"), F.Connector(F.FakeSeam()))
             t3 = T3Tasks(follow, None, default_decider(), writer=writer)
-            for kind in Kind:
+            for kind in (Kind(k) for k in args.kinds) if args.kinds else Kind:
                 row = {**await one(url, t3, persona, kind), "persona": label}
                 rows.append(row)
                 ok = "said" if row["delivery"] == "sent" else "held"
@@ -115,6 +115,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=8096)
+    parser.add_argument("--kinds", nargs="+", choices=[k.value for k in Kind], help="only these act kinds")
     parser.add_argument("--cpu", action="store_true", help="smoke test on the CPU: no GPU layers")
     asyncio.run(main_async(parser.parse_args()))
 

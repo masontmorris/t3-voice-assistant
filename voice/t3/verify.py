@@ -175,9 +175,12 @@ def asked_claims(acts: Iterable[Act]) -> dict[str, str]:
 
 
 def request(acts: Iterable[Act], line: str) -> dict:
-    """One decisions body: the line and its acts' facts as state, and a noul question per Ask."""
+    """One decisions body: the line and its acts' facts as state, and a noul question per Ask. An act with no thread
+    carries what it means ("says"), because the unsupported-claim question is about a thread and refused "Should I
+    start a new coding thread in Voice sandbox?" three times in three on the 2026-11-18 rehearsal."""
     acts = list(acts)
-    state = {"line": line, "facts": [{"act": a.kind.value, **a.slots} for a in acts],
+    state = {"line": line, "facts": [{"act": a.kind.value, **a.slots, **({} if "thread" in a.slots else {"says": _fill(MEANS[a.kind], a.slots)})}
+                         for a in acts],
              "context": "A voice assistant is about to say `line` to the person it is talking to, about their coding "
                         "threads in an app called T3. `facts` is everything it may say."}
     questions = {ask.name: {"type": "noul", "instructions": ask.question,

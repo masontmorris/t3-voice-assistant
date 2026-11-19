@@ -697,8 +697,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         service.sync(0)
         snapshot = service.snapshot("utt_1", "...")
         by_id = {t["task_id"]: t for t in snapshot["tasks"]}
-        self.assertEqual(by_id["task_1"]["acts"], [act(S.CONFIRM_LAUNCH, project="Voice sandbox",
-                                                       request="Add a clamp helper in the sandbox project").to_json()])
+        self.assertEqual(by_id["task_1"]["acts"], [act(S.CONFIRM_LAUNCH, project="Voice sandbox").to_json()])
         self.assertEqual(by_id["task_1"]["evidence"], {"thread_id": None, "project_id": "p1", "sequences": [1]})
         self.assertEqual(by_id["task_2"]["status"], "running")
         self.assertNotIn("acts", by_id["task_2"])

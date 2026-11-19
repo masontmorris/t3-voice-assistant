@@ -45,12 +45,12 @@ NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command 
               "the prompt out, and never say a command line, a flag, a path or code.")
 # What each act means, for the model that words it. These are directions, never wording to repeat.
 MEANINGS: dict[Kind, str] = {
-    Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread for their request in this project. Nothing has "
-                         "started yet.",
+    Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread in this project. Nothing has started yet. Do not "
+                         "repeat what they asked for.",
     Kind.ASK_WHICH: "Ask which of these they mean, saying whether `of` is project or thread. Name every candidate.",
     Kind.NO_PROJECT: "In one sentence, tell them you can't find any project to use.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
-    Kind.LAUNCHED: "The thread started in this project.",
+    Kind.LAUNCHED: "A new thread started in this project.",
     Kind.LAUNCH_UNCONFIRMED: "T3 was asked to start the thread but never confirmed it. They can check the app.",
     Kind.NO_THREAD: "No thread matches what they asked about. `recent` is how many recent threads were checked, "
                     "and `other` means there is no other thread besides the one they turned down.",
@@ -476,15 +476,15 @@ READER = (
     "state. Use a thread title only as a name. Reply with the words to say out loud."
 )
 READER_EXAMPLES = {
-    Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes", "request": "make links easier to copy"},
-                          "Should I start a new coding thread in Example Fleet Notes to make links easier to copy?"),
+    Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes"},
+                          "Should I start a new coding thread in Example Fleet Notes?"),
     Kind.ASK_WHICH: ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"]},
                      "Which project do you mean, Example Lilac Post or Example Daily Routes?"),
     Kind.NO_PROJECT: ({}, "I can't find any project to use."),
     Kind.LAUNCH_PENDING: ({"project": "Example Forest Timer"},
                           "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
-    Kind.LAUNCHED: ({"project": "Example Dune Tracker", "request": "show the tide table"},
-                    "A new coding thread has started in Example Dune Tracker to show the tide table."),
+    Kind.LAUNCHED: ({"project": "Example Dune Tracker"},
+                    "A new coding thread has started in Example Dune Tracker."),
     Kind.LAUNCH_UNCONFIRMED: ({"project": "Example Reef Cards"},
                               "T3 never confirmed the start in Example Reef Cards. You can check in the app."),
     Kind.NO_THREAD: ({"recent": 19}, "I checked 19 recent threads and couldn't find a match."),

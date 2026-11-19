@@ -325,7 +325,7 @@ class T3Tasks:
     def _confirm(self, question: Question, names: dict[str, str]) -> L.Update:
         self.question = question
         project_id = question.candidates[0]
-        said = act(Say.CONFIRM_LAUNCH, project=names[project_id], request=question.instruction)
+        said = act(Say.CONFIRM_LAUNCH, project=names[project_id])
         return L.Update(question.key, (said,), "needs_clarification", "pick",
                         sequences=(self.follow.seam.hello.latest_sequence,), project_id=project_id)
 
