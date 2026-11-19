@@ -5,6 +5,7 @@
     python -m voice.live.rehearse drive --mixed --out DIR [--calls 5] [-- extra server arguments]
     python -m voice.live.rehearse drive --which --out DIR [--calls 5]
     python -m voice.live.rehearse drive --noise --out DIR [--calls 5]
+    python -m voice.live.rehearse drive --follow --out DIR [--calls 5]
 
 The score is threads started, of N calls shaped like the call this lane is fixing. `drive` starts `serve` as a child,
 renders each call's turns with the server's own TTS, and sends them with the WAV client (to a null output, so nothing plays), one call
@@ -47,6 +48,12 @@ speech (no recorded audio). Then a question about the second thread comes in two
 must still be joined into one turn, and an acknowledgement. `summary` adds, per call, whether the first thread's
 status line was said, how many turns were cancelled as continued, and whether the two-part question became one turn
 whose status line was said.
+
+`--follow` runs calls about one of two threads that already exist. After a chat turn, a status question names the
+thread; the follow-ups after it do not name it ("Is it done yet?", "Tell it to also add tests."), and a lookup or a
+thanks between them is about nothing in T3. `summary` adds, per follow-up about the thread, whether its turn said a
+checked T3 line of the right kind about that thread, per other turn whether T3 said anything in it, and per status
+said again whether its act said that nothing is new.
 
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
 are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made.
@@ -198,6 +205,37 @@ NOISY = (
      "Add Controller Remapping", "Is the controller remapping thread done,", "or is it still going?"),
     ("Trim the Intro Video", "How's the intro video thread doing?", 1.0, 2.0, -6.0,
      "Fix the Pause Screen Blur", "How is the pause screen blur thread going,", "and did it find the cause?"))
+# The follow-up calls: (the thread asked about, the other thread, its last reply, the turns after the chat line, each
+# with what it is: a T3 tool, "yes" to the question before it, or "none" for a turn about nothing in T3). The first
+# turn names the thread; no later one does. Written once, before any run of them.
+FOLLOW = (
+    ("Tidy the Save Slots", "Add a Night Mode", "I merged the slot list and I'm writing the migration now.",
+     (("How is the save slots thread going?", "t3_ask"), ("Give me more detail on that.", "t3_ask"),
+      ("Tell it to also add tests.", "t3_tell"), ("Yes, send it.", "yes"), ("Okay, thanks.", "none"))),
+    ("Fix the Jump Timing", "Clean Up the Input Code", "The jump now uses the fixed step. I'm checking the slopes.",
+     (("What's the jump timing thread up to?", "t3_ask"), ("Is it done yet?", "t3_ask"),
+      ("What's the weather in Denver tomorrow?", "none"), ("Thanks, that's all.", "none"))),
+    ("Speed Up Level Loading", "Fix the Pause Screen", "Loading the second level dropped from four seconds to two.",
+     (("How is the level loading thread going?", "t3_ask"), ("What did it say?", "t3_ask"), ("Stop it.", "t3_stop"),
+      ("Yes, stop it.", "yes"), ("Okay, great.", "none"))),
+    ("Add Controller Rumble", "Trim the Credits Scroll", "Rumble works on the first controller. I'm adding the second.",
+     (("How's the controller rumble thread doing?", "t3_ask"), ("How's that one going now?", "t3_ask"),
+      ("Ask it to make the rumble a bit softer.", "t3_tell"), ("Yes please.", "yes"), ("Cool, thank you.", "none"))),
+    ("Clean Up the Audio Settings", "Fix the Map Markers", "I removed the unused sliders and I'm renaming the rest.",
+     (("How is the audio settings thread going?", "t3_ask"), ("Any update on that?", "t3_ask"),
+      ("How are you doing today?", "none"), ("Did it finish?", "t3_ask"), ("Thanks.", "none"))),
+    # Calls 6 and 7 answer the question back and then ask for more than the status said, written after run 1 had shown
+    # that a follow-up is confirmed back, and before any run of them.
+    ("Polish the Main Menu", "Fix the Shadow Flicker", "I moved the buttons into one column and I'm fixing the focus order.",
+     (("How is the main menu thread going?", "t3_ask"), ("Fill me in on the rest of it.", "t3_ask"), ("Yes.", "yes"),
+      ("Anything else new with it?", "t3_ask"), ("Yes, that one.", "yes"), ("Okay, thanks.", "none"))),
+    ("Batch the Sprite Draws", "Add a Replay Camera", "Draw calls are down by half on the forest level.",
+     (("What's the sprite draws thread up to?", "t3_ask"), ("What else has it done?", "t3_ask"), ("Yes.", "yes"),
+      ("Is there any more news on it?", "t3_ask"), ("Yes.", "yes"), ("Great, thank you.", "none"))))
+# The T3 lines that answer each kind of turn about the thread.
+ANSWERS = {"t3_ask": {"thread_status", "confirm_thread"}, "t3_tell": {"confirm_tell"}, "t3_stop": {"confirm_stop"},
+           "yes": {"sent_followup", "held_followup", "tell_pending", "tell_unconfirmed", "stopping", "nothing_running",
+                   "stop_unconfirmed", "thread_status"}}
 PAUSE_S = 0.9  # past the endpointer's 700 ms of silence, so the first part ends a turn and the second continues it
 
 
@@ -248,6 +286,12 @@ def compose_noise_call(call, clips, out):
     return sorted(out.glob("turn_*.wav"))
 
 
+def follow_threads():
+    """The seam's threads for the follow-up calls, as id to (title, activity, last reply): both working."""
+    return {f"f{call + 1}_{n + 1}": (title, T.ThreadActivity.WORKING, reply if n == 0 else None)
+            for call, (first, other, reply, _) in enumerate(FOLLOW) for n, title in enumerate((first, other))}
+
+
 def which_threads():
     """The seam's threads for the which calls, as id to (title, activity): the thread the answer picks and the third
     thread are interrupted, the other twin is working."""
@@ -260,8 +304,10 @@ def which_threads():
     return threads
 
 
-def turns(call, tail=True, mixed=False, which=False, noisy=False):
+def turns(call, tail=True, mixed=False, which=False, noisy=False, follow=False):
     """One call's turns as text, in the order the person says them (for the noise calls, the pieces rendered)."""
+    if follow:
+        return [CHAT[call][0], *(said for said, _ in FOLLOW[call][3])]
     if noisy:
         return noise_pieces(call)
     if which:
@@ -295,8 +341,10 @@ class ScriptedSeam(F.FakeSeam):
         super().__init__()
         self.log_path, self.requests = log_path, requests
         self.launches = []
-        self.threads = {tid: title for tid, (title, _) in (threads or {}).items()}
-        self.activity = {tid: activity for tid, (_, activity) in (threads or {}).items()}
+        self.threads = {tid: title for tid, (title, *_) in (threads or {}).items()}
+        self.activity = {tid: activity for tid, (_, activity, *_) in (threads or {}).items()}
+        self.replies = {tid: T.LastReply(rest[0], f"m_{tid}", None, f"r_{tid}", "2026-11-18T10:00:00Z")
+                        for tid, (_, _, *rest) in (threads or {}).items() if rest and rest[0]}
 
     @property
     def listing(self):
@@ -312,7 +360,16 @@ class ScriptedSeam(F.FakeSeam):
     def read_thread(self, thread_id):
         self.calls.append(("read", thread_id))
         return F.state(thread=thread_id, title=self.threads[thread_id], as_of=210,
-                       activity=self.activity.get(thread_id, T.ThreadActivity.WORKING))
+                       activity=self.activity.get(thread_id, T.ThreadActivity.WORKING),
+                       last_reply=self.replies.get(thread_id))
+
+    def send(self, request_id, thread_id, text):
+        self.calls.append(("send", request_id, thread_id, text))
+        return F.sent(thread=thread_id, sequence=211)
+
+    def interrupt(self, request_id, thread_id):
+        self.calls.append(("interrupt", request_id, thread_id))
+        return F.requested(sequence=211)
 
     def drain(self, timeout=None):
         time.sleep(min(timeout or 0.5, 0.5))
@@ -332,7 +389,8 @@ class ScriptedSeam(F.FakeSeam):
 def serve(args, rest):
     """The live server with its T3 seam replaced and no T3 text model."""
     seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS,
-                        which_threads() if args.which else noise_threads() if args.noise else None)
+                        which_threads() if args.which else noise_threads() if args.noise
+                        else follow_threads() if args.follow else None)
 
     def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, *, writer=None):
         return cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, writer=writer)
@@ -353,7 +411,8 @@ def run_drive(args, rest=()):
     stop = out / "STOP"
     command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out),
                *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []),
-               *(["--which"] if args.which else []), *(["--noise"] if args.noise else []), "--",
+               *(["--which"] if args.which else []), *(["--noise"] if args.noise else []),
+               *(["--follow"] if args.follow else []), "--",
                "--host", "127.0.0.1", "--port", str(args.port), "--t3", "on", "--snapshot", "note",
                "--max-minutes", str(args.max_minutes), "--out", str(out / "server"), "--stop-file", str(stop),
                "--decider-cache", str(out / "decider-cache"), *rest]
@@ -378,7 +437,7 @@ def run_drive(args, rest=()):
         client = VOICE / "venv-live-client/Scripts/python.exe"
         for call in args.only or range(args.calls):
             text = out / f"call{call + 1}.txt"
-            lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise)
+            lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise, args.follow)
             text.write_text("\n".join(lines) + "\n", encoding="utf-8")
             clips = out / f"clips{call + 1}"
             subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text), "--out", str(clips),
@@ -414,7 +473,9 @@ def entries(record):
     for event in record.get("timeline", []):
         if event["kind"] == "t3_words":
             kinds = [a["kind"] for a in event.get("acts") or ()]
-            current = {"kinds": kinds, "draft": event.get("line"), "draft_problems": event.get("problems") or
+            current = {"kinds": kinds, "nothing_new": any((a.get("slots") or {}).get("since_last_asked")
+                                                          for a in event.get("acts") or ()),
+                       "draft": event.get("line"), "draft_problems": event.get("problems") or
                        ([event["error"]] if event.get("error") else []), "reply": None, "status": None,
                        "delivery": "unsent", "relays": 0}
             found.append(current)
@@ -502,6 +563,29 @@ def noise_call(call_rows, call):
             "joined": bool(joined), "second_said": said(second), "first_part_answered_alone": bool(alone)}
 
 
+def follow_call(call_rows, call):
+    """How one follow-up call went, per scripted turn after the chat line: the turn it became (the one with most of
+    its words), whether it said a checked T3 line of the kind the turn wants about the call's thread, or for a turn
+    about nothing in T3 whether T3 said anything in it, and for a status whether its act said nothing is new. `call`
+    is its index from 0."""
+    title, *_, scripted = FOLLOW[call]
+    spoken = [row for row in call_rows if not row["idle"]]
+    graded = []
+    for n, (said, want) in enumerate(scripted):
+        row = max(spoken, key=lambda r: overlap(said, r["said"] or ""), default=None)
+        found = row is not None and overlap(said, row["said"] or "") >= 0.6
+        entry = {"said": said, "want": want, "named": n == 0, "turn": row["path"] if found else None}
+        if found and want == "none":
+            entry["pulled_into_t3"] = bool(row["t3"])
+        elif found:
+            right = [e for e in row["t3"] if e["delivery"] == "sent" and ANSWERS[want] & set(e["kinds"])
+                     and (want == "yes" or title.lower() in (e["draft"] or "").lower())]
+            entry.update(checked_line=bool(right), kinds=[e["kinds"] for e in row["t3"]],
+                         nothing_new=any(e["nothing_new"] for e in right), replies=[e["reply"] for e in right])
+        graded.append(entry)
+    return graded
+
+
 MATCH = 0.75  # How much of the request a launch's payload must carry to be this call's request.
 
 
@@ -587,6 +671,8 @@ def main():
                         help="the noise calls: a noise burst after a question, and a question in two parts")
     parser.add_argument("--which", action="store_true",
                         help="the which calls: a which-thread question answered by place")
+    parser.add_argument("--follow", action="store_true",
+                        help="the follow-up calls: questions about a thread just discussed that do not name it")
     argv = sys.argv[1:]
     head, rest = (argv[:argv.index("--")], argv[argv.index("--") + 1:]) if "--" in argv else (argv, [])
     args = parser.parse_args(head)
@@ -619,6 +705,26 @@ def main():
                               **{f"{kind}_{key}": f"{sum(g[kind][key] for g in graded)} of {len(graded)}"
                                  for kind in ("by_place", "by_name") for key in ("drafted", "first_relay", "said")}}
             score["which_calls"] = graded
+        if args.follow:
+            graded = [t for order, window in enumerate(json.loads((args.out / "windows.json").read_text("utf-8")), 1)
+                      for t in follow_call([r for r in rows if r["call"] == order], window["call"] - 1)]
+
+            def count(chosen, key):
+                return f"{sum(bool(t.get(key)) for t in chosen)} of {len(chosen)}"
+
+            score["follow"] = {
+                "named_status_answered": count([t for t in graded if t["named"]], "checked_line"),
+                "follow_ups_answered_with_a_checked_line":
+                    count([t for t in graded if t["want"].startswith("t3_") and not t["named"]], "checked_line"),
+                "yes_answered": count([t for t in graded if t["want"] == "yes"], "checked_line"),
+                "other_turns_pulled_into_t3": count([t for t in graded if t["want"] == "none"], "pulled_into_t3"),
+                "statuses_said_again": count([t for t in graded if not t["named"] and t.get("checked_line")
+                                              and ["thread_status"] in t.get("kinds", [])], "checked_line"),
+                "statuses_said_again_told_nothing_is_new":
+                    count([t for t in graded if not t["named"] and t.get("checked_line")
+                           and ["thread_status"] in t.get("kinds", [])], "nothing_new"),
+                "turns_not_found": sum(t["turn"] is None for t in graded)}
+            score["follow_turns"] = graded
         mixed = [m for m in map(mixed_turn, rows) if m is not None]
         if mixed:
             score["mixed_turns"] = {key: f"{sum(bool(m[key]) for m in mixed)} of {len(mixed)}"

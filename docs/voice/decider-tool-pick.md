@@ -70,8 +70,9 @@ hand before any run, and the fourteen items that name a place and a day carry th
 
 The eval records each segment's tool answer whether or not the gate made a task, so the comparison does not depend on
 the gate. The label for a correction item is the tool the corrected task would need. The decider is asked nothing on a
-correction turn (measured: `close_with_decider` calls the decider only when the utterance's intent is a request), so
+correction turn whose words change a value of the call's newest task (`turn_intent` in `voice/prototype/run.py`), so
 those items score the registry on both sides: since the polish round, a correction runs the corrected task's own tool.
+A turn worded as a correction that changes nothing there is asked of the decider like a request.
 
 | Split | n | Word rules, before | Word rules, after | Decider, sample 1 | Decider, sample 2 | Decider, sample 3 |
 | --- | --- | --- | --- | --- | --- | --- |

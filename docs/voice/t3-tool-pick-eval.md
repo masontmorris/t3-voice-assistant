@@ -57,7 +57,7 @@ The 3 `t3_stop` picks on `none` are "Stop, I was talking to someone else.", at 0
 
 ## What this eval cannot see
 
-- Single-utterance turns. "Tell it ..." and "Stop that thread." carry no earlier turn. The voice resolves "it" from its own journal (`T3Tasks._recent`).
+- Earlier turns. Every case is one utterance with no earlier turn. Follow-ups about the thread a call just spoke of have their own cases (`voice/t3/eval/record_followups.py`, [spoken acts](spoken-acts.md#a-follow-up-about-the-thread-just-discussed)).
 - The place and day questions. The free decider refuses their `text` type with a 400, so they are off for it (`decider_arguments`).
 - The billed Liquid decider, live mode's default.
 - The voice. T3 lines are spoken word for word in the server's TTS voice, because LFM3 reworded them into claims no record makes in the integrated pass's runs 2 and 3. The seam unit 10 PR has those runs.

@@ -109,7 +109,8 @@ RULES: dict[Kind, Rule] = {
     Kind.CONFIRM_STOP: Rule(("thread",), ("thread",), True, ("stopped",)),
     Kind.SAME_TITLE: Rule(("thread", "op"), ("thread",), forbids=("sent", "stopped")),
     Kind.CANCELLED: Rule(("op", "thread"), ("thread",)),
-    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "need", "pending", "waiting_for", "asked"), ("thread",),
+    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "need", "pending", "waiting_for", "asked",
+                              "since_last_asked"), ("thread",),
                              plain=True),
     Kind.TELL_PENDING: Rule(("thread",), ("thread",), forbids=("sent",)),
     Kind.SENT_FOLLOWUP: Rule(("thread",), ("thread",)),
@@ -134,6 +135,9 @@ RULES: dict[Kind, Rule] = {
     Kind.LEGACY_UPDATE: Rule(("thread", "text")),
 }
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
+# A status asked again on a call with nothing new in T3's record since the last one was said: the line says so rather
+# than offering the same status as news.
+NOTHING_NEW = "nothing new since they last heard its status"
 # The acts whose words come from a read of the thread: the voice summarises it before it speaks them.
 SUMMARISED = frozenset({Kind.THREAD_STATUS, Kind.DONE, Kind.NEEDS_YOU})
 MAX_NAMED = 3

@@ -243,3 +243,22 @@ class AmendedTest(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TurnIntentTest(unittest.TestCase):
+    """A correction can only change a value of the call's newest task; one that changes nothing there is a request."""
+
+    def test_a_request_worded_as_a_correction_with_nothing_to_amend_is_asked_of_the_decider(self):
+        earlier = ({"ref": "turn_002:task_1", "instruction": "What's the weather in Denver tomorrow?",
+                    "side_effect": False, "call": None},)
+        for prior in ((), earlier):
+            with self.subTest(prior=bool(prior)):
+                intent = prototype.turn_intent("I wanted an update on the thread from before.", prior)
+                self.assertEqual(intent.intent.value, "request")
+
+    def test_a_correction_that_changes_the_newest_task_stays_one_and_a_bare_one_too(self):
+        earlier = ({"ref": "turn_002:task_1", "instruction": "What's the weather in Denver on Friday?",
+                    "side_effect": False, "call": None},)
+        intent = prototype.turn_intent("I meant Saturday.", earlier)
+        self.assertEqual((intent.intent.value, intent.replacement), ("correction", "Saturday"))
+        self.assertEqual(prototype.turn_intent("That's not what I meant.", earlier).intent.value, "correction")

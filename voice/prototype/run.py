@@ -76,8 +76,8 @@ from voice.t3.speech import Rendered, speakable
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
-from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskService
-from voice.segmentation.contract import Intent
+from voice.prototype.tasks import ASK_INSTEAD_LINE, ASK_WHAT_CHANGED, MockTaskService, amends
+from voice.segmentation.contract import Intent, UtteranceIntent
 from voice.segmentation.gate import PLAN_A
 from voice.segmentation.intent import utterance_intent
 from voice.prototype.stagger import StaggeredAsr, StaggeredTranscript
@@ -666,14 +666,37 @@ def segmenter_for(name, decider, label, tools):
                             arguments=decider_arguments(decider, t3_enabled=bool(T3_TOOLS & choices.keys())))
 
 
-def close_with_decider(segmenter, update):
+def with_thread(resolved, thread):
+    """The earlier tasks a follow-up can continue, with the thread the call last spoke about as the newest of them.
+    A T3 task has no lookup result to carry, so without this the decider judged a follow-up right after a thread's
+    status with no thread in view: chat that needs clarifying, though it picked the T3 tool."""
+    if not thread:
+        return tuple(resolved)
+    asked = {"ref": "thread", "instruction": f"the coding thread {thread}", "side_effect": False,
+             "call": {"tool": "t3_ask", "arguments": {"thread": thread}}}
+    return (*tuple(resolved)[-2:], asked)
+
+
+def turn_intent(text, prior_tasks=()):
+    """What the whole utterance is, as `utterance_intent` reads it, except that one worded as a correction whose words
+    change nothing in the call's newest task is a request: "I wanted an update on the thread from before" after a status
+    line is asked of the decider, not answered with "what did you want instead?"."""
+    intent = utterance_intent(text)
+    if intent.intent == Intent.CORRECTION and intent.replacement and not amends(prior_tasks, intent.replacement):
+        return UtteranceIntent(Intent.REQUEST)
+    return intent
+
+
+def close_with_decider(segmenter, update, prior_tasks=()):
     decision, error = None, None
-    if utterance_intent(update.text).intent == Intent.REQUEST:
+    intent = turn_intent(update.text, prior_tasks)
+    if intent.intent == Intent.REQUEST:
         try:
             decision = segmenter.update(update)
         except Exception as exc:
             error = repr(exc)
     close = segmenter.close(update, settle=False)
+    close["intent"] = intent
     close["final_decision"] = decision
     close["final_decision_error"] = error
     return close
@@ -762,6 +785,9 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         earlier=next((ToolCall(**t["call"]) for t in reversed(prior_tasks) if t.get("call")), None),
         simulate=simulate_tasks, context=list(context))
     waiting = service.open_question() or next((t for t in reversed(prior_tasks) if t.get("waiting")), None)
+    if segmenter_name == "hybrid":
+        segmenter.prior_resolved_tasks = with_thread(segmenter.prior_resolved_tasks,
+                                                     getattr(service, "recent_thread", lambda: None)())
     adapter = StaggeredTranscript(asr_stagger) if asr_stagger > 1 else TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -835,7 +861,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             point = segmenter.close(update, settle=False)
             point["answered"] = answered
             return point
-        return close_with_decider(segmenter, update) if final_decider else segmenter.close(update, settle=False)
+        return (close_with_decider(segmenter, update, prior_tasks) if final_decider
+                else segmenter.close(update, settle=False))
 
     tool_session = (await Session.open(url, "tools", clock) if eou in TOOL_SESSIONS and not final_decider
                     else None)
