@@ -53,6 +53,12 @@ def canned_result(instruction):
     return next((result for words, result in CANNED if all(w in text for w in words)), DEFAULT_RESULT)
 
 
+def amends(prior_tasks, replacement):
+    """Whether `replacement` changes a value of the call's newest task: what a correction can do to it."""
+    target = prior_tasks[-1] if prior_tasks else None
+    return bool(target and replacement and amended(target["instruction"], replacement))
+
+
 def amended(instruction, replacement):
     """`instruction` with its day, date, time, number or place changed to the one `replacement` states, plus the old
     and new values. None when `replacement` states no such value, or `instruction` has none of that kind or the same

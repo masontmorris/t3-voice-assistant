@@ -35,7 +35,7 @@ from pathlib import Path
 from voice.prototype.tasks import Execution, MockTaskService, Run
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
-from voice.t3.acts import Act, act
+from voice.t3.acts import NOTHING_NEW, Act, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
@@ -164,6 +164,9 @@ class T3Tasks:
     just_held: bool = False
     lock: threading.RLock = field(default_factory=threading.RLock)
     unasked: L.Update | None = field(default=None, init=False)
+    spoken_of: str | None = field(default=None, init=False)
+    spoken_id: str | None = field(default=None, init=False)
+    told: dict[str, int] = field(default_factory=dict, init=False)
     call: int = field(default=0, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
@@ -291,6 +294,8 @@ class T3Tasks:
         """A new call starts: nothing asked on an earlier one can be answered on it."""
         with self.lock:
             self.call += 1
+            self.spoken_of = self.spoken_id = None
+            self.told.clear()
             self._drop_question()
 
     def end_call(self) -> None:
@@ -322,8 +327,19 @@ class T3Tasks:
 
     def spoke(self, update: L.Update) -> None:
         """`update` was said aloud, whole. If it is the open question, the person has heard it and the next turn may
-        answer it. Anything else said after it moves the conversation on, so the question is dropped."""
+        answer it. Anything else said after it moves the conversation on, so the question is dropped. A line about one
+        thread makes it the thread the call last spoke about (`spoken_about`)."""
         with self.lock:
+            titles = [a.slots["thread"] for a in update.acts if isinstance(a.slots.get("thread"), str)]
+            started = next((a.slots["project"] for a in update.acts
+                            if a.kind in (Say.LAUNCHED, Say.LAUNCH_PENDING) and isinstance(a.slots.get("project"), str)),
+                           None)
+            if titles or started:
+                self.recent = update.thread_id or self.recent
+                self.spoken_of = titles[0] if titles else f"the new thread in {started}"
+                self.spoken_id = update.thread_id
+            if update.thread_id is not None and update.sequences and any(a.kind is Say.THREAD_STATUS for a in update.acts):
+                self.told[update.thread_id] = max(update.sequences)
             question = self.question
             if question is None:
                 return
@@ -340,6 +356,12 @@ class T3Tasks:
             question = self.question
             if question is not None and question.owner is not None and question.owner is not owner:
                 question.expired = True
+
+    def spoken_about(self) -> str | None:
+        """The thread this call last said something about, by title, or as the new thread in its project when the
+        voice has only started it. What "it" and "that one" can mean to the decider."""
+        with self.lock:
+            return self.spoken_of
 
     def bind_request(self, prefix: str, transcript: str) -> None:
         """The launch carries everything the person said in the turn that asked, not the fragment that asked."""
@@ -574,7 +596,9 @@ class T3Tasks:
             if thread is None:
                 candidates = picked.candidates[:3] or tuple(t.thread_id for t in listed[:3])
                 return self._which(replace(base, kind="thread", candidates=candidates), evidence)
-            if asked.op == ASK and picked.sure and thread not in shared:
+            # Asking back "do you mean X?" about the thread this call just spoke of adds a question and no safety: an
+            # ask only reads, and its answer names the thread.
+            if asked.op == ASK and (picked.sure or thread == self.spoken_id) and thread not in shared:
                 return self._act(base, thread, now)
             return self._ask_back(replace(base, candidates=(thread,)), evidence)
 
@@ -679,7 +703,8 @@ class T3Tasks:
                               (listing.as_of_sequence,))
 
     def _act(self, question: Question, thread: str, now: float) -> L.Update:
-        self.recent = thread
+        # The thread becomes the one the call last spoke about when its line is heard (`spoke`), not here: a read
+        # that fails or a line that never plays must not change what "it" means to the caller.
         if question.op == ASK:
             return self._read(question.key, thread, question.instruction)
         project = question.projects.get(thread)
@@ -710,7 +735,11 @@ class T3Tasks:
         except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
             return L.Update(key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
         self.speech.remember(state)
-        return L.Update(key, (status_act(state, asked),), "completed", "ask", thread_id, (state.as_of_sequence,))
+        status = status_act(state, asked)
+        with self.lock:
+            if self.told.get(thread_id) == state.as_of_sequence:
+                status = status.with_slots(since_last_asked=NOTHING_NEW)
+        return L.Update(key, (status,), "completed", "ask", thread_id, (state.as_of_sequence,))
 
     def prefetch(self, instruction: str) -> None:
         """The speculative start of a t3_ask the decider marked mid-utterance: when the words so far already pick one
@@ -937,6 +966,9 @@ class T3TaskService(MockTaskService):
                 entry["acts"] = [a.to_json() for a in update.acts]
                 entry["evidence"] = update.evidence()
         return snapshot
+
+    def recent_thread(self):
+        return self.t3.spoken_about()
 
     def take_task_updates(self):
         """The ordinary tasks' updates only. T3 news is said on its own, when the call is quiet."""

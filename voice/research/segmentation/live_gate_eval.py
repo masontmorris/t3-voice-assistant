@@ -24,6 +24,7 @@ import statistics
 from pathlib import Path
 
 from voice.local_decider.client import decider as make_decider
+from voice.prototype.run import turn_intent
 from voice.prototype.segmenter import use_decider_cache
 from voice.prototype.tasks import amended
 from voice.segmentation.contract import Intent, TranscriptUpdate
@@ -120,7 +121,7 @@ def run_item(client, item, repeat, fresh, paid=False, calls=None, tools=None, ar
     segmenter.prior_resolved_tasks = tuple(item["context"].get("resolved") or ())
     segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, True
     update = TranscriptUpdate(1, item["utterance"], True)
-    intent = utterance_intent(update.text)
+    intent = turn_intent(update.text, segmenter.prior_resolved_tasks)
     if intent.intent == Intent.REQUEST:
         segmenter.update(update)
     segmenter.close(update, settle=False)

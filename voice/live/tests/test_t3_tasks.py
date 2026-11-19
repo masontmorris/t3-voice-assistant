@@ -625,8 +625,11 @@ class DeciderPick(unittest.TestCase):
         seam = self.seam()
         t3 = self.over(seam)
         t3.about("k3", ASK, self.MISS, 0)
-        t3.answer("Yes.", 1)
-        asked = t3.about("k4", STOP, "Stop it.", 2)
+        status = t3.answer("Yes.", 1)
+        t3.about("k4", STOP, "Stop it.", 2)
+        self.assertIsNone(t3.decider.picked[-1][2], "a status the caller never heard does not become 'it'")
+        t3.spoke(status)
+        asked = t3.about("k5", STOP, "Stop it.", 3)
         self.assertEqual(t3.decider.picked[-1][2], "Add a clamp helper")
         self.assertEqual(said(asked), [("confirm_stop", "Add a clamp helper")])
 
@@ -1314,7 +1317,6 @@ class WholeDialogue(unittest.TestCase):
             for update in t3.take():
                 script.show("watch", None, update)
             script.tool("b1", ASK, "How is the clamp helper thread going?")
-            script.reply("b1", "yes")
             seam.answer("send", F.sent(thread="t1"))
             script.tool("c1", TELL, "Tell the clamp helper thread to also add a test.")
             script.reply("c1", "Yes, send it.")
@@ -1326,7 +1328,7 @@ class WholeDialogue(unittest.TestCase):
         self.assertEqual([row for row in spoken if row["line"] is None], [], "nothing waits")
         self.assertEqual([a["kind"] for row in spoken for a in row["acts"]],
                          ["confirm_launch", "launched", "run_update", "replied", "needs_you", "need_resolved",
-                          "done", "confirm_thread", "thread_status", "confirm_tell", "sent_followup", "confirm_stop",
+                          "done", "thread_status", "confirm_tell", "sent_followup", "confirm_stop",
                           "stopping"])
         for row in spoken:
             acts = [Act.from_json(a) for a in row["acts"]]
@@ -1356,3 +1358,46 @@ class ReplyWords(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class SpokenAbout(unittest.TestCase):
+    """The thread a line was about is what "it" means on the next turn, whoever's line it was: an answer, a launch,
+    a message or news."""
+
+    def test_the_last_line_about_a_thread_names_it_and_a_new_call_forgets_it(self):
+        t3 = tasks_over(self, F.FakeSeam())
+        t3.begin_call()
+        self.assertIsNone(t3.spoken_about())
+        t3.spoke(L.Update("conv_turn_001:task_1", (act(S.LAUNCHED, project="Voice sandbox"),), "completed", "launch"))
+        self.assertEqual(t3.spoken_about(), "the new thread in Voice sandbox")
+        t3.spoke(L.Update("conv_turn_003:task_1", (act(S.THREAD_STATUS, thread="Add a Retry Button", status="working"),),
+                          "completed", "ask", "thread-7"))
+        self.assertEqual((t3.spoken_about(), t3.recent), ("Add a Retry Button", "thread-7"))
+        t3.spoke(L.Update("conv_turn_004:task_1", (act(S.NO_THREAD, recent=3),), "completed", "ask"))
+        self.assertEqual(t3.spoken_about(), "Add a Retry Button", "a line about no thread changes nothing")
+        t3.begin_call()
+        self.assertIsNone(t3.spoken_about())
+
+    def test_a_status_asked_again_with_nothing_new_says_so(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
+        seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+
+        def ask(n):
+            update = t3.about(f"k{n}", ASK, "How is the clamp helper thread going?", n)
+            if update.acts[0].kind is S.CONFIRM_THREAD:
+                t3.spoke(update)
+                update = t3.answer("yes", n)
+            t3.spoke(update)
+            return update.acts[0].slots.get("since_last_asked")
+
+        self.assertIsNone(ask(1))
+        self.assertIsNotNone(ask(2), "the same read as the status just said")
+        again = t3.about("k9", ASK, "How is it doing?", 9)
+        self.assertEqual(said(again), [("thread_status", "Add a clamp helper", "working")],
+                         "a leaning pick of the thread just spoken about is not asked back")
+        seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=141)
+        self.assertIsNone(ask(3), "the thread reported something since")
+        t3.begin_call()
+        self.assertIsNone(ask(4), "a new call has heard nothing yet")

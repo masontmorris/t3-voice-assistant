@@ -28,7 +28,7 @@ from typing import Any, Callable, Iterable
 
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import (QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
+from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
                            recites)
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Verdict
@@ -64,7 +64,9 @@ MEANINGS: dict[Kind, str] = {
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
-                        "asked. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
+                        "asked. When `since_last_asked` is set, say first that there is nothing new since they last "
+                        "heard, and do not offer the status as news. When `need` is set, the thread is waiting on "
+                        "them: " + NEED_WORDS,
     Kind.TELL_PENDING: "T3 was asked to pass the message on and has not confirmed it yet.",
     Kind.SENT_FOLLOWUP: "The message reached the thread.",
     Kind.TELL_UNCONFIRMED: "T3 was asked to pass the message on but never confirmed it arrived. They can check the "
@@ -532,6 +534,10 @@ READER_EXAMPLES = {
 
 
 assert set(READER_EXAMPLES) == set(Kind)
+# With only the example above, every status asked again with nothing new was worded as that example's news (4 of 4,
+# GPU rehearsal, 2026-11-19).
+SAID_AGAIN_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "working", "since_last_asked": NOTHING_NEW},
+                      "There's nothing new from Example Tune Audio Levels since I last told you. It's still working.")
 EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
                           for key in ("thread", "project", "available", "candidates") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
@@ -548,8 +554,9 @@ def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), at
     if remark:
         prompt += f"\n\nTheir last remark on the call, already answered: {json.dumps(remark)}"
     prompt += "\n\nThese examples show how to turn a record into speech. Use the facts from the new record."
+    again = any(a.slots.get("since_last_asked") for a in acts)
     for kind in kinds:
-        example, reply = READER_EXAMPLES[kind]
+        example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else READER_EXAMPLES[kind]
         prompt += f'\n\nExample record: {json.dumps({"kind": kind.value, **example})}\nExample reply: {reply}'
     prompt += "\n\nRespond with interleaved text and audio."
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]
