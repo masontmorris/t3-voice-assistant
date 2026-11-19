@@ -491,8 +491,10 @@ READER_EXAMPLES = {
                       "More than one thread is called Example Sort Photo Albums, so I can't tell which to stop. You "
                       "can stop it in the app."),
     Kind.CANCELLED: ({"op": "start"}, "I won't start the thread."),
+    # "The ... thread" and not the bare title first: after "the second one", the call's voice said a line that opens
+    # with the title as its answer to the choice and stopped there (0 of 5 relays said), and this form 5 of 5.
     Kind.THREAD_STATUS: ({"thread": "Example Tune Audio Levels", "status": "working", "summary": "It says playback is stable."},
-                         "Example Tune Audio Levels is still working and reports that playback is stable."),
+                         "The Example Tune Audio Levels thread is still working and reports that playback is stable."),
     Kind.TELL_PENDING: ({"thread": "Example Clean Tag Names"},
                         "I asked T3 to send your message to Example Clean Tag Names and am waiting for confirmation."),
     Kind.SENT_FOLLOWUP: ({"thread": "Example Adjust Print View"}, "Your follow-up reached Example Adjust Print View."),

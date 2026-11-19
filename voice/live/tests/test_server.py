@@ -1105,7 +1105,7 @@ class ChunkTest(unittest.IsolatedAsyncioTestCase):
 
 
 class DefaultsTest(unittest.TestCase):
-    def test_live_writer_defaults_to_realtime_and_keeps_the_paid_opt_in(self):
+    def test_the_local_session_words_t3_lines_whichever_model_writes_the_summaries(self):
         from voice.live import t3_tasks
         from voice.t3.realtime_writer import RealtimeWriter
 
@@ -1113,8 +1113,10 @@ class DefaultsTest(unittest.TestCase):
             self.assertIsInstance(server.live_writer("ws://unused"), RealtimeWriter)
             with mock.patch.dict("os.environ", {"VOICE_PAID_TEXT_MODEL": "paid/model", "VOICE_ENV_FILE": "unused"}), \
                     mock.patch.object(t3_tasks, "LiveClient") as cloud:
-                self.assertIsNone(server.live_writer("ws://unused"))
+                self.assertIsInstance(server.live_writer("ws://unused"), RealtimeWriter)
                 self.assertIs(server.default_model(), cloud.return_value)
+            with mock.patch.dict("os.environ", {"VOICE_RENDERER": "particle-1"}):
+                self.assertIsNone(server.live_writer("ws://unused"))
 
     def test_live_speech_has_no_tts_mode_dependency(self):
         from voice.t3 import realtime_writer

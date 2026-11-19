@@ -152,7 +152,7 @@ class Lookup:
 
 @dataclass
 class T3Tasks:
-    """The picker and summarizer share `model`. A live `writer` overrides the text model only for drafting acts.
+    """The summarizer uses `model`. A live `writer` overrides the text model only for drafting acts.
     The decider checks both model outputs before the voice can send audio."""
 
     follow: L.Follow
@@ -994,7 +994,10 @@ def default_journal() -> Path:
 
 
 def live_writer(url: str) -> RealtimeWriter | None:
-    if os.environ.get("VOICE_RENDERER") or os.environ.get("VOICE_PAID_TEXT_MODEL"):
+    """The local session that words T3 lines, unless VOICE_RENDERER hands that to the text model. A paid model named
+    in VOICE_PAID_TEXT_MODEL only writes the thread summaries: on a live call it once worded the lines too, timed out
+    once, and its cooldown left nine turns with no T3 line."""
+    if os.environ.get("VOICE_RENDERER"):
         return None
     return RealtimeWriter(url)
 

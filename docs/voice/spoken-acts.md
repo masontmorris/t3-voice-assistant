@@ -56,6 +56,21 @@ What is open: a "Yes." that answers nothing, on the turn after an update, re-sai
 
 Repeats on the 2026-11-19 call (turns 015 and 016 re-said a status line and the weather) had no item behind them: the voice was given only the audio (measured). A T3 turn then left its lookup's note in the session with no reply, and later turns answered it: a greeting on the next turn got the weather. That path is gone, since a T3 turn sends its lookup's note only as the update it speaks. What remains is the model saying its own last reply again on a turn with nothing new (inferred from the probe and the rehearsal repeats).
 
+## A thread picked by place
+
+When a status question fits several threads, the voice asks which, and the decider reads the answer by name or by place ("the second one"). After an answer by place, the call's voice said a status line that opens with the thread's bare title as its answer to the choice: it said the title, ended the reply there, and said the same on the second relay, so nothing was sent (3 of 3 on the 2026-11-19 afternoon call). The writer copies the form of its example, so the `thread_status` example names the thread as "The ... thread" (`READER_EXAMPLES`).
+
+Measured, GPU, synthetic voice. In a probe of that turn (five calls, the which line relayed, then "The second one." or "The first one."), the same draft opening with the bare title was said in 0 of 5 after the answer by place and 5 of 5 after a direct question about the same thread; "The X thread is interrupted." was said in 5 of 5 after the answer by place, on the first relay; "That one, X, is interrupted." in 0 of 5; and a text-only answer to the audio first, as on a mixed turn, made it worse ("I can't help", 0 of 5). `python -m voice.live.rehearse drive --which` runs five calls with three seeded threads each, two of them named alike: a status question the decider asks which about, an answer by place, a status question about the third thread by name, and an acknowledgement. The decider asked which in all 20 calls below.
+
+| Run | Picked by place, said on the first relay | Asked by name, said on the first relay |
+| --- | --- | --- |
+| Before, run 1 | 0 of 5 | 4 of 5 |
+| Before, run 2 | 1 of 5 | 4 of 5 |
+| After, run 1 | 5 of 5 | 5 of 5 |
+| After, run 2 | 5 of 5 | 5 of 5 |
+
+The one line said before was a "working" line; the misses by name followed a by-place miss in the same call. On the start and mixed calls the change scored the same as before it: every status line was said on its first relay in both (start 4 of 4 before and 2 of 2 after; mixed 5 of 5 in both), and the mixed calls' counts matched exactly.
+
 ## Starting a thread by voice, measured
 
 `python -m voice.live.rehearse` is the score: threads started, of calls shaped like the 2026-11-18 one (two chat turns, a long hesitant request, a yes, a question about the thread, a yes), through the real live server with a scripted T3. Calls 1 to 5 are the visible half; 6 to 10, 11 to 15 and 16 to 20 are three held-out halves (A, B, C), each written once, C after B had run. Measured on 2026-11-18, GPU, synthetic voice:
@@ -83,7 +98,7 @@ The person is never flipped in a line: the writer quotes a person's message as t
 
 ## Summaries
 
-The thread picker and the summarizer still use the configured text model. The separate LFM3 writer only drafts what the voice will say.
+The summarizer uses the configured text model, and the decider picks the thread. The separate LFM3 writer drafts what the voice will say, unless `VOICE_RENDERER` hands that to the text model. A summary that fails, or meets a client cooling down after a failure, leaves the act without a `summary` slot, and the writer still drafts the line; one that hangs holds the line for up to `SUMMARY_TIMEOUT_S` (10 s).
 
 A summary is written only when the voice is about to speak about a thread: an answer to a `t3_ask`, a `done`, or a `needs_you`. `Speech.fill` reads the thread through the seam. The status and the pending need come from code. The summarizer gets the last reply and writes a one-sentence gist into the act's `summary` slot. The thread's title is given as a name only, not as evidence of what was done. A thread with no last reply is summarized from its status and need. The gist is cached per thread, read sequence, and question. A speculative gist from words still being spoken serves only a final question with the same words. When the decider marks a `t3_ask` while Mason is still talking, `T3TaskService.sync` starts the read and the summary at once, and the answer after his yes reuses them.
 

@@ -15,6 +15,7 @@ from voice.prototype.tests.test_run_shared_session import FakeSession
 from voice.t3 import fakes as F
 from voice.t3 import types as T
 from voice.t3.acts import Kind, act
+from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, LocalText, Speech, reader_messages, text_model
 
@@ -43,6 +44,27 @@ class Text:
                     "It added clamp next to sum, and all 12 tests pass."}
         assert messages[0]["content"] == RENDER_SYSTEM
         self.renders += 1
+        return {"text": self.line}
+
+
+class Cooling:
+    """The paid summarizer while `LiveClient` cools down after a failed call."""
+
+    model = "fake/text:free"
+
+    def complete(self, messages):
+        raise ModelFailed("the picker is cooling down after a failed pick")
+
+
+class Writes:
+    """The local writer: it words whatever it is given as `line`."""
+
+    model = "fake/text:free"
+
+    def __init__(self, line):
+        self.line = line
+
+    def complete(self, messages):
         return {"text": self.line}
 
 
@@ -240,6 +262,14 @@ class SummaryTest(unittest.TestCase):
         self.assertEqual((text.bodies[0]["records"]["status"], text.bodies[0]["records"]["pending"]),
                          ("waiting_on_you", "Run pytest?"))
         self.assertIn("summary", filled[0].slots)
+
+    def test_a_summarizer_that_is_cooling_down_still_lets_the_status_line_be_drafted(self):
+        writer = Lane(Writes("Add a clamp helper is finished."))
+        speech = Speech(Lane(Cooling()), Reads(finished(140)), F.Agree(), writer)
+        filled, _ = speech.fill((act(Kind.THREAD_STATUS, status="finished", asked="How is it going?"),), "t5")
+        self.assertEqual(filled[0].slots, {"status": "finished", "asked": "How is it going?",
+                                           "thread": "Add a clamp helper"}, "no summary, and the title still")
+        self.assertEqual(speech.render(filled).text, "Add a clamp helper is finished.")
 
     def test_no_read_means_no_summary(self):
         text = Text()

@@ -3,6 +3,7 @@
     python -m voice.live.rehearse drive --out DIR [--calls 10] [--port 8771]
     python -m voice.live.rehearse summary --out DIR
     python -m voice.live.rehearse drive --mixed --out DIR [--calls 5] [-- extra server arguments]
+    python -m voice.live.rehearse drive --which --out DIR [--calls 5]
 
 The score is threads started, of N calls shaped like the call this lane is fixing. `drive` starts `serve` as a child,
 renders each call's turns with the server's own TTS, and sends them with the WAV client (to a null output, so nothing plays), one call
@@ -29,6 +30,14 @@ request in one breath, a yes, a weather lookup and a question about the thread i
 line, whether the T3 line was said on its first relay, whether a reply said the lookup's forecast high, and whether
 both were heard. A lookup reply that names a thread is listed for reading, since nothing in code can tell what it says
 about one.
+
+`--which` runs calls about threads that already exist, shaped like the 2026-11-19 afternoon call. The seam starts
+with three threads per call: two whose titles are nearly the same and one apart from them. After two chat turns, a
+status question fits both of the near-identical titles, the person answers the question that follows by place ("The
+second one."), then asks about the third thread by name, and closes. The thread chosen by place and the third
+thread are both interrupted with no last reply, so a by-place answer and a direct question get the same kind of status
+line. `summary` adds, per call, whether the which question was asked and whether each status line was said on its
+first relay.
 
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
 are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made.
@@ -150,8 +159,39 @@ MIXED_ASKS = ("What's the weather in Boston tomorrow, and how is the texture exp
               "How is the window sizes thread going, and what's the weather in Nashville tomorrow?")
 
 
-def turns(call, tail=True, mixed=False):
+# The which calls: (near-identical title, its twin, the third thread, the question, the answer by place, the question
+# about the third thread). The answer picks the twin for "second" and the first title for "first". Written once,
+# before any run of them.
+WHICH = (
+    ("Add a Volume Slider", "Add volume slider to the settings page", "Speed Up Shader Warmup",
+     "How is the volume slider thread going?", "The second one.", "And how is the shader warmup thread going?"),
+    ("Fix the Pause Menu", "Fix pause menu in the sandbox project", "Clean Up Log Output",
+     "How's the pause menu thread doing?", "The first one.", "What about the log output thread?"),
+    ("Add a Retry Button", "Add retry button to the error screen", "Profile the Asset Loader",
+     "How is the retry button thread going?", "The second one.", "And how is the asset loader thread going?"),
+    ("Rename the Config Keys", "Rename config keys in the sandbox project", "Trim the Startup Logo",
+     "How is the config keys thread going?", "The first one.", "How is the startup logo thread going?"),
+    ("Add a Mute Toggle", "Add mute toggle next to volume", "Fix the Crash on Exit",
+     "How's the mute toggle thread going?", "The second one.", "And how is the crash on exit thread going?"))
+
+
+def which_threads():
+    """The seam's threads for the which calls, as id to (title, activity): the thread the answer picks and the third
+    thread are interrupted, the other twin is working."""
+    threads = {}
+    for call, (first, twin, third, _, answer, _) in enumerate(WHICH):
+        picked = twin if "second" in answer else first
+        for n, title in enumerate((first, twin, third)):
+            activity = T.ThreadActivity.WORKING if title not in (picked, third) else T.ThreadActivity.INTERRUPTED
+            threads[f"w{call + 1}_{n + 1}"] = (title, activity)
+    return threads
+
+
+def turns(call, tail=True, mixed=False, which=False):
     """One call's turns as text, in the order the person says them."""
+    if which:
+        *_, ask, answer, direct = WHICH[call]
+        return [*CHAT[call], ask, answer, direct, "Okay, thanks."]
     if mixed:
         return [*CHAT[call], MIXED_REQUESTS[call], YES[call], *((MIXED_ASKS[call], "Yes.") if tail else ())]
     return [*CHAT[call], REQUESTS[call], YES[call], *((ASKS[call], "Yes.") if tail else ())]
@@ -176,15 +216,18 @@ class ScriptedSeam(F.FakeSeam):
     """The seam a call reads: one sandbox project, and no thread until a launch makes one. A launch is logged with the
     time it came, its payload, and which call's request that payload is."""
 
-    def __init__(self, log_path: Path, requests=REQUESTS):
+    def __init__(self, log_path: Path, requests=REQUESTS, threads=None):
         super().__init__()
         self.log_path, self.requests = log_path, requests
-        self.launches, self.threads = [], {}
+        self.launches = []
+        self.threads = {tid: title for tid, (title, _) in (threads or {}).items()}
+        self.activity = {tid: activity for tid, (_, activity) in (threads or {}).items()}
 
     @property
     def listing(self):
-        return T.ThreadList(tuple(T.ThreadSummary(tid, "p1", title, T.ThreadActivity.WORKING, "2026-11-18T10:00:00Z",
-                                                  False) for tid, title in self.threads.items()),
+        return T.ThreadList(tuple(T.ThreadSummary(tid, "p1", title, self.activity.get(tid, T.ThreadActivity.WORKING),
+                                                  "2026-11-18T10:00:00Z", False)
+                                  for tid, title in self.threads.items()),
                             len(self.threads), False, 200)
 
     @listing.setter
@@ -193,7 +236,8 @@ class ScriptedSeam(F.FakeSeam):
 
     def read_thread(self, thread_id):
         self.calls.append(("read", thread_id))
-        return F.state(thread=thread_id, title=self.threads[thread_id], as_of=210)
+        return F.state(thread=thread_id, title=self.threads[thread_id], as_of=210,
+                       activity=self.activity.get(thread_id, T.ThreadActivity.WORKING))
 
     def drain(self, timeout=None):
         time.sleep(min(timeout or 0.5, 0.5))
@@ -212,7 +256,8 @@ class ScriptedSeam(F.FakeSeam):
 
 def serve(args, rest):
     """The live server with its T3 seam replaced and no T3 text model."""
-    seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS)
+    seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS,
+                        which_threads() if args.which else None)
 
     def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, *, writer=None):
         return cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, writer=writer)
@@ -232,7 +277,8 @@ def run_drive(args, rest=()):
     env = dict(os.environ, VOICE_T3_JOURNAL=str(out / "t3-journal.json"), VOICE_AGENT="off", PYTHONIOENCODING="utf-8")
     stop = out / "STOP"
     command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out),
-               *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []), "--",
+               *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []),
+               *(["--which"] if args.which else []), "--",
                "--host", "127.0.0.1", "--port", str(args.port), "--t3", "on", "--snapshot", "note",
                "--max-minutes", str(args.max_minutes), "--out", str(out / "server"), "--stop-file", str(stop),
                "--decider-cache", str(out / "decider-cache"), *rest]
@@ -257,7 +303,7 @@ def run_drive(args, rest=()):
         client = VOICE / "venv-live-client/Scripts/python.exe"
         for call in args.only or range(args.calls):
             text = out / f"call{call + 1}.txt"
-            text.write_text("\n".join(turns(call, not args.no_tail, args.mixed)) + "\n", encoding="utf-8")
+            text.write_text("\n".join(turns(call, not args.no_tail, args.mixed, args.which)) + "\n", encoding="utf-8")
             clips = out / f"clips{call + 1}"
             subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text), "--out", str(clips),
                             "--server", f"http://127.0.0.1:{args.lfm_port}"], env=env, check=True,
@@ -336,6 +382,27 @@ def mixed_turn(row):
     return {"path": row["path"], "first_relay_recited": first["delivery"] == "sent" and first["relays"] == 1,
             "t3_said": said, "lookup_heard": heard, "both_heard": heard and said,
             "free_lines_naming_a_thread": naming_a_thread(row)}
+
+
+def which_call(call_rows, call):
+    """How one which call went: the which question asked and said, the first status line after it (the thread the
+    answer picked by place) and the status line for the third thread, asked by name, each said on its first relay.
+    `call` is its index from 0."""
+    third = WHICH[call][2]
+    lines = [e for row in call_rows for e in row["t3"]]
+    asked = next((i for i, e in enumerate(lines) if "ask_which" in e["kinds"]), None)
+    after = lines[asked + 1:] if asked is not None else []
+    by_place = next(([e] for e in after if "thread_status" in e["kinds"]
+                     and third.lower() not in (e["draft"] or "").lower()), [])
+    by_name = [e for e in lines if "thread_status" in e["kinds"] and third.lower() in (e["draft"] or "").lower()][:1]
+
+    def status(said):
+        return {"drafted": bool(said), "first_relay": bool(said) and said[0]["delivery"] == "sent"
+                and said[0]["relays"] == 1, "said": bool(said) and said[0]["delivery"] == "sent",
+                "replies": [e["reply"] for e in said]}
+
+    return {"asked": asked is not None, "asked_said": asked is not None and lines[asked]["delivery"] == "sent",
+            "by_place": status(by_place), "by_name": status(by_name)}
 
 
 MATCH = 0.75  # How much of the request a launch's payload must carry to be this call's request.
@@ -419,6 +486,8 @@ def main():
     parser.add_argument("--max-minutes", type=float, default=13.5)
     parser.add_argument("--cpu", action="store_true", help="smoke test on the CPU: no GPU layers")
     parser.add_argument("--mixed", action="store_true", help="the mixed calls: a lookup and a T3 request in one breath")
+    parser.add_argument("--which", action="store_true",
+                        help="the which calls: a which-thread question answered by place")
     argv = sys.argv[1:]
     head, rest = (argv[:argv.index("--")], argv[argv.index("--") + 1:]) if "--" in argv else (argv, [])
     args = parser.parse_args(head)
@@ -434,6 +503,13 @@ def main():
         score = {name: {"started": f"{sum(g['started'] for g in gs)} of {len(gs)}",
                         "status_answered": f"{sum(g['status_answered'] for g in gs)} of {len(gs)}",
                         "false_claims": sum(len(g["false_claims"]) for g in gs)} for name, gs in halves.items() if gs}
+        if args.which:
+            graded = [which_call([r for r in rows if r["call"] == order], window["call"] - 1)
+                      for order, window in enumerate(json.loads((args.out / "windows.json").read_text("utf-8")), 1)]
+            score["which"] = {"asked": f"{sum(g['asked_said'] for g in graded)} of {len(graded)}",
+                              **{f"{kind}_{key}": f"{sum(g[kind][key] for g in graded)} of {len(graded)}"
+                                 for kind in ("by_place", "by_name") for key in ("drafted", "first_relay", "said")}}
+            score["which_calls"] = graded
         mixed = [m for m in map(mixed_turn, rows) if m is not None]
         if mixed:
             score["mixed_turns"] = {key: f"{sum(bool(m[key]) for m in mixed)} of {len(mixed)}"
