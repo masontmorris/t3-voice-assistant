@@ -174,10 +174,67 @@ async def one(url, rendered, name, scenario, persona, relay, note, close, leak=F
         await session.close()
 
 
+YES_WORDS = ("Yes.", "Yeah, go ahead.", "Please do.", "Sure.")
+NOTES = {
+    "current": T3_NOTE,
+    "handled": "[Private note for you, not said by the person. What they just said is already handled, so do not "
+               "answer it. Say exactly these words to them now: ",
+    "quoted": "[Private note for you, not said by the person. They just said \"{last}\", which is already handled. "
+              "Say exactly these words to them now: ",
+    "no_greeting": "[Private note for you, not said by the person. Do not start with a greeting or an acknowledgement. "
+                   "Say exactly these words to them now: ",
+}
+# The two flows a yes ends: a launch confirmed, and a thread picked for a status question.
+YES_FLOWS = (("start", Kind.CONFIRM_LAUNCH, Kind.LAUNCHED), ("ask", Kind.CONFIRM_THREAD, Kind.THREAD_STATUS))
+
+
+def yes_scenarios(count):
+    """Calls up to the person's yes: two chat turns, a long request, the confirming question, then a short yes."""
+    found, used = [], {"start": 0, "ask": 0}
+    for index in range(count):
+        shape, asked, answered = YES_FLOWS[index % len(YES_FLOWS)]
+        wordings = REQUESTS[shape]
+        request = wordings[used[shape] % len(wordings)]
+        used[shape] += 1
+        found.append({"shape": "yes_" + shape, "kind": answered.value, "asked": READER_EXAMPLES[asked][1],
+                      "context": (*CHAT[index % len(CHAT)], request, YES_WORDS[index % len(YES_WORDS)]),
+                      "draft": READER_EXAMPLES[answered][1]})
+    return found
+
+
+async def after_yes(url, rendered, name, scenario, persona, relay, note, close):
+    """The relay that follows a one-word yes, scored with `recites`. The confirming question before it is relayed too,
+    as it is in a call, and what the voice said then stays in the session."""
+    context = scenario["context"]
+    session = await Session.open(url, "eval", time.perf_counter)
+    try:
+        await session.wait_for("session.created")
+        config = {"type": "realtime", "instructions": persona + relay + FORMAT_LINES["c"],
+                  "output_modalities": ["text", "audio"],
+                  "audio": {"input": {"format": {"type": "audio/pcm", "rate": rendered[context[0]][1]}}}}
+        await update_session(session, config)
+        for position, text in enumerate(context):
+            pcm, rate = rendered[text]
+            if position < 2:
+                await say(session, pcm, rate)
+                continue
+            await say(session, pcm, rate, reply=False)
+            line = scenario["asked"] if position == 2 else scenario["draft"]
+            await create_item(session, plain_text(f"{note.replace('{last}', text)}{line}{close}"))
+            mark = len(session.events)
+            await session.send(type="response.create")
+            await session.wait_for("response.done", "error", after=mark, timeout=60)
+            text_said = "".join(e.get("delta", "") for e in session.events[mark:] if e["type"] == "response.output_text.delta")
+        return {"variant": name, "shape": scenario["shape"], "kind": scenario["kind"], "draft": scenario["draft"],
+                "context": list(context), "reply": text_said, "same_words": recites(text_said, scenario["draft"])}
+    finally:
+        await session.close()
+
+
 async def main_async(args):
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
-    plan = scenarios(args.scenarios)
+    plan = yes_scenarios(args.scenarios) if args.yes else scenarios(args.scenarios)
     if args.leak:
         plan = [p for p in plan if p["shape"] != "idle"]
     persona, persona_label = load_persona(LIVE_HOME / "prompt.txt", NOTE_PERSONA)
@@ -185,11 +242,20 @@ async def main_async(args):
     with Server(args.port, out / "llama-server.log", extra, 2):
         server = f"http://127.0.0.1:{args.port}"
         texts = sorted({text for scenario in plan for text in scenario["context"]})
+        if args.yes:
+            variants = {name: (VARIANTS["after"][0], NOTES[name], "]") for name in args.variants}
         rendered = render_turns(server, texts)
         rows = []
         for name in args.variants:
-            relay, note, close = VARIANTS[name]
+            relay, note, close = variants[name] if args.yes else VARIANTS[name]
             for scenario in plan:
+                if args.yes:
+                    row = await after_yes(f"ws://127.0.0.1:{args.port}/v1/realtime", rendered, name, scenario, persona,
+                                          relay, note, close)
+                    rows.append({**row, "persona": persona_label})
+                    print(name, row["same_words"], repr(row["reply"][:90]), flush=True)
+                    (out / "rows.jsonl").write_text("".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8")
+                    continue
                 row = await one(f"ws://127.0.0.1:{args.port}/v1/realtime", rendered, name, scenario, persona, relay, note,
                                 close, args.leak)
                 rows.append({**row, "persona": persona_label})
@@ -207,7 +273,8 @@ async def main_async(args):
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--variants", nargs="+", choices=sorted(VARIANTS), default=["before", "after"])
+    parser.add_argument("--variants", nargs="+", choices=sorted({*VARIANTS, *NOTES}), default=["before", "after"])
+    parser.add_argument("--yes", action="store_true", help="score the relay after a short yes, with --variants naming notes")
     parser.add_argument("--scenarios", type=int, default=len(PLAN))
     parser.add_argument("--port", type=int, default=8097)
     parser.add_argument("--leak", action="store_true",
