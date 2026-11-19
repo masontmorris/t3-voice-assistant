@@ -810,6 +810,33 @@ class Authorization(unittest.TestCase):
         self.assertEqual(self.say_yes(t3, 2, "Yes, stop it."), [])
         self.assertEqual(seam.ops("interrupt"), [])
 
+    def test_a_question_replaced_while_the_decider_reads_the_reply_is_not_answered_by_it(self):
+        from voice.t3.verify import Reading as Read
+
+        class HangsUpMidRead(F.Agree):
+            def reads(self, said, reply):
+                def elsewhere():
+                    free.append(t3.lock.acquire(blocking=False))
+                    if free[-1]:
+                        t3.lock.release()
+                    t3.end_call()
+                    t3.begin_call()
+                    test.ask(t3, 9, STOP, "Stop the flaky ASR test thread.")
+
+                other = threading.Thread(target=elsewhere)
+                other.start()
+                other.join()
+                return Read("yes", {"yes": 0.99})
+
+        free, test = [], self
+        seam = busy_seam().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam, decider=HangsUpMidRead())
+        t3.begin_call()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        self.assertEqual(self.say_yes(t3, 2, "Please do?"), [], "the yes was read for a prompt that has gone")
+        self.assertEqual(free, [True], "the T3 lock is free while the decider is asked")
+        self.assertEqual(seam.ops("interrupt"), [])
+
     def test_a_prompt_that_was_never_heard_is_asked_again_and_not_acted_on(self):
         seam, t3 = self.stop_setup()
         self.ask(t3, 1, STOP, "Stop the clamp helper thread.", deliver=False)
