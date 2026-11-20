@@ -236,6 +236,7 @@ FOLLOW = (
 ANSWERS = {"t3_ask": {"thread_status", "confirm_thread"}, "t3_tell": {"confirm_tell"}, "t3_stop": {"confirm_stop"},
            "yes": {"sent_followup", "held_followup", "tell_pending", "tell_unconfirmed", "stopping", "nothing_running",
                    "stop_unconfirmed", "thread_status"}}
+CALL_GAP_S = 4.0
 PAUSE_S = 0.9  # past the endpointer's 700 ms of silence, so the first part ends a turn and the second continues it
 
 
@@ -435,14 +436,20 @@ def run_drive(args, rest=()):
         if not ready.wait(180) or not any(line.startswith("live server on ") for line in lines):
             raise SystemExit("the live server did not come up, see server.out")
         client = VOICE / "venv-live-client/Scripts/python.exe"
+        if not client.is_file():
+            client = Path(sys.executable)
         for call in args.only or range(args.calls):
             text = out / f"call{call + 1}.txt"
             lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise, args.follow)
             text.write_text("\n".join(lines) + "\n", encoding="utf-8")
-            clips = out / f"clips{call + 1}"
-            subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text), "--out", str(clips),
-                            "--server", f"http://127.0.0.1:{args.lfm_port}"], env=env, check=True,
-                           stdout=(out / f"clips{call + 1}.out").open("w"), stderr=subprocess.STDOUT)
+            clips = (args.clips_from or out) / f"clips{call + 1}"
+            if args.clips_from is not None:
+                # Rendering gives the server time to close the call before; without it, wait as long.
+                time.sleep(CALL_GAP_S)
+            else:
+                subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text), "--out", str(clips),
+                                "--server", f"http://127.0.0.1:{args.lfm_port}"], env=env, check=True,
+                               stdout=(out / f"clips{call + 1}.out").open("w"), stderr=subprocess.STDOUT)
             wavs = sorted(clips.glob("turn_*.wav"))
             if args.noise:
                 wavs = compose_noise_call(call, wavs, out / f"composed{call + 1}")
@@ -673,6 +680,9 @@ def main():
                         help="the which calls: a which-thread question answered by place")
     parser.add_argument("--follow", action="store_true",
                         help="the follow-up calls: questions about a thread just discussed that do not name it")
+    parser.add_argument("--clips-from", type=Path,
+                        help="send the clips an earlier drive rendered into this directory in place of rendering "
+                             "new ones, so two runs hear the same audio")
     argv = sys.argv[1:]
     head, rest = (argv[:argv.index("--")], argv[argv.index("--") + 1:]) if "--" in argv else (argv, [])
     args = parser.parse_args(head)

@@ -130,6 +130,30 @@ Smaller causes found on the way: the writer copied its example's reply with the 
 
 The person is never flipped in a line: the writer quotes a person's message as they said it, and the check no longer turns "my" into "your".
 
+## The prompt format
+
+Liquid's speech-generation guide gives the spoken-chat system prompt as exactly `Respond with interleaved text and audio.` and says to put further instructions in the user turn. The call's system prompt is the persona followed by that line, so the placement was measured (2026-11-19, laptop GPU, synthetic voice, scripted T3 seam, every arm on the same rendered clips via `rehearse drive --clips-from`). Arms: A, the persona in the system prompt (shipped); B, the exact system prompt and the persona as text opening the first user turn; C, the persona opening every user turn; D, no persona.
+
+| | A | B | C | D |
+| --- | --- | --- | --- | --- |
+| Start calls, threads started | 4 of 5 | 4 of 5 | 4 of 5 | 4 of 5 |
+| Mixed turns, first relay recited | 10 of 10 and 10 of 10 | 6 of 8 | 7 of 10 | 7 of 10 |
+| Mixed calls, status line said on its first relay | 8 of 8 | 2 of 4 | 2 of 5 | 2 of 4 |
+| Follow-ups answered with a checked line | 9 of 9 | 9 of 9 | not run | 9 of 9 |
+| Free replies that refuse ("I can't") | 0 of 80 | 2 of 56 | 0 of 42 | 1 of 56 |
+| Free replies that claim an action | 3 of 80 | 3 of 56 | 7 of 42 | 3 of 56 |
+
+One run per cell except A on the mixed set (two). The free replies were labelled blind to arm by a second reader. No arm read a note aloud or spoke in the third person. The persona stays in the system prompt: out of it, the voice answers a status line on a mixed turn instead of saying it, and nothing else improves. Whether a persona in the first user turn fades over a long call was not measured, since that arm lost on short calls.
+
+What llama.cpp b12428 does with the session, read from `tools/server/server-realtime.cpp`, `tools/mtmd/mtmd-helper-gen.cpp` and the two GGUF files:
+
+- The system prompt is the session's `instructions` and nothing else, because no output voice or language is set. Setting either makes the server put "Speak in LANGUAGE using a VOICE voice." before them.
+- A text item is appended to the open user turn. A note sent after the turn's audio is in the same user turn as the audio, which is the guide's mixed turn, not a turn of its own.
+- A response with text and audio opens with `<|mixed_start|>`, the guide's prefill; a text-only one cannot switch to audio. An assistant item is refused, so the guide's few-shot turns cannot be given: that would take a change to `on_item_create`.
+- Text is sampled greedily, which is what the GGUF asks for (`general.sampling.temp` 0, `top_k` 1). Audio codes are sampled with the projector's settings (temperature 1.0, top-k 128, repetition penalty 1.1 over 4096 frames), the guide's values. `--temp` does not reach them and no session field does. The audio seed is random per response and the sampled frames feed back into the context, so the same input gives different text on another run.
+
+A persona that also said never to claim an action and never to say an earlier answer again was tried on the same clips: the mixed relays stayed 10 of 10 twice, forecasts said again to a bare "Yes." were 3 and 4 against the shipped persona's 4 and 5, and one start call gained a claim. It did not ship.
+
 ## Summaries
 
 The summarizer uses the configured text model, and the decider picks the thread. The separate LFM3 writer drafts what the voice will say, unless `VOICE_RENDERER` hands that to the text model. A summary that fails, or meets a client cooling down after a failure, leaves the act without a `summary` slot, and the writer still drafts the line; one that hangs holds the line for up to `SUMMARY_TIMEOUT_S` (10 s).
