@@ -18,6 +18,7 @@ from voice.t3 import types as T
 from voice.t3.acts import Kind, act
 from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
+from voice.t3.verify import Decider
 from voice.t3.speech import (RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane, LocalText, Speech, reader_messages,
                               text_model)
 
@@ -68,6 +69,19 @@ class Writes:
 
     def complete(self, messages):
         return {"text": self.line}
+
+
+class Answers:
+    """A decider client that answers the reuse question with `p_yes`, or raises it when it is an exception."""
+
+    def __init__(self, p_yes):
+        self.p_yes, self.asked = p_yes, []
+
+    def call(self, route, request, label=""):
+        self.asked.append(request["state"])
+        if isinstance(self.p_yes, Exception):
+            raise self.p_yes
+        return {"status": 200, "response": {"answers": {"answers": {"type": "noul", "noul": self.p_yes}}}}
 
 
 class Reads:
@@ -169,7 +183,7 @@ class LocalTextTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             local.complete([{"role": "user", "content": "{}"}])
 
-    def summariser(self, p_unsupported, held=None):
+    def summariser(self, p_unsupported, held=None, p_reuse=None):
         """A local summariser whose model answers a gist with an extra key and whose gate answers `p_unsupported`,
         or has no server at all when it is None. With `held`, the gate answers only once it is set."""
 
@@ -180,7 +194,8 @@ class LocalTextTest(unittest.TestCase):
                     Local.gated.append(body)
                     if held is not None:
                         held.wait(30)
-                    reply = {"answers": {"unsupported": {"type": "noul", "noul": p_unsupported}}}
+                    name, p = ("answers", p_reuse) if "answers" in body["questions"] else ("unsupported", p_unsupported)
+                    reply = {"answers": {name: {"type": "noul", "noul": p}}}
                 elif self.path == "/v1/chat/completions":
                     body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                     self.bodies.append(body)
@@ -216,6 +231,19 @@ class LocalTextTest(unittest.TestCase):
                          (0.1, 50, 1.1, 60))
         self.assertEqual(sent["response_format"]["json_schema"]["schema"], LS.GIST_SCHEMA)
         self.assertEqual(server.gated[-1]["state"]["gist"], "It says all 12 tests pass.")
+
+    def test_the_local_summariser_asks_its_own_gate_whether_an_earlier_gist_answers(self):
+        local, server = self.summariser(0.02, p_reuse=0.99)
+        speech = Speech(Lane(local), Reads(finished(140)), F.Agree())
+        speech.prefetch("t5", "Did the")
+        for gist in list(speech.summaries.values()):
+            gist.future.result(timeout=5)
+        written = len(server.bodies)
+        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished", asked="Did the tests pass?"),)
+        filled, _ = speech.fill(asked, "t5")
+        self.assertEqual(filled[0].slots["summary"], "It says all 12 tests pass.")
+        self.assertEqual(len(server.bodies), written, "the gist was not written again")
+        self.assertEqual([b["state"].get("question") for b in server.gated], [None, "Did the tests pass?"])
 
     def test_a_gist_the_gate_does_not_pass_leaves_the_status_bare(self):
         for p_unsupported, why in ((0.4, "the gate finds it unsupported"), (None, "no gate answers")):
@@ -305,6 +333,31 @@ class SummaryTest(unittest.TestCase):
         filled, _ = speech.fill(asked, "t5", (140,))
         self.assertEqual(filled[0].slots["summary"], "For How's the clamp thread going?: it added clamp.")
         self.assertEqual(text.summaries, 2)
+
+    def early(self, decider_answer):
+        """A summary started from partial words, written, then the final question, with the reuse question answered
+        by `decider_answer`."""
+        text, answers = Text(echo=True), Answers(decider_answer)
+        speech = Speech(Lane(text), Reads(finished(140)), F.Agree(), reuse=Decider(answers))
+        speech.prefetch("t5", "How's the clamp")
+        for gist in list(speech.summaries.values()):
+            gist.future.result(timeout=2)
+        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
+                     asked="How's the clamp thread going?"),)
+        filled, _ = speech.fill(asked, "t5", (140,))
+        return text, answers, filled[0].slots.get("summary")
+
+    def test_an_earlier_summary_the_decider_says_answers_the_final_question_is_reused(self):
+        text, answers, summary = self.early(0.9)
+        self.assertEqual((summary, text.summaries), ("For How's the clamp: it added clamp.", 1))
+        self.assertEqual((answers.asked[0]["summary_was_for"], answers.asked[0]["question"]),
+                         ("How's the clamp", "How's the clamp thread going?"))
+
+    def test_without_a_confident_yes_the_summary_is_written_again(self):
+        for answer in (0.2, True, None, ValueError("the decider is down")):
+            text, _, summary = self.early(answer)
+            self.assertEqual((summary, text.summaries), ("For How's the clamp thread going?: it added clamp.", 2),
+                             answer)
 
     def test_a_summary_from_the_model_before_a_switch_is_not_reused(self):
         before, after = Text(), Text()

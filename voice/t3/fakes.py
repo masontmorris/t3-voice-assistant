@@ -177,6 +177,9 @@ class Agree:
         self.calls += 1
         return Verdict(True)
 
+    def reuses(self, title, gist, asked, question):
+        return False
+
 
 class Reader(Agree):
     """A decider whose reading of each reply is the test's own: reply to label, or to (label, the option it asks for),

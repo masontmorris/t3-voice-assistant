@@ -120,6 +120,7 @@ from voice.t3.speech import speakable
 from voice.live.t3_tasks import local_summariser, summariser_choices
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
     default_model, default_origin, default_token_file, live_writer
+from voice.t3.verify import VERIFY_TIMEOUT_S
 from voice.t3.verify import Decider as SpeechDecider
 from voice.t3.verify import default_decider as default_speech_decider
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
@@ -1173,8 +1174,12 @@ async def main_async(args):
             # on a second connection: the client keeps one request in flight and the segmenter holds the first.
             speech_decider = (SpeechDecider(D1Client(f"http://{decider.host}:{decider.port}"))
                               if args.decider == "d1" else default_speech_decider())
+            # Whether an earlier summary answers the final question is asked on a connection of its own, bounded like
+            # the hosted decider's, so it always fits inside the status line's wait.
+            reuse = (SpeechDecider(D1Client(f"http://{decider.host}:{decider.port}", timeout_s=VERIFY_TIMEOUT_S))
+                     if args.decider == "d1" else None)
             t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
-                              speech_decider, writer=writer)
+                              speech_decider, writer=writer, reuse=reuse)
             t3.summarisers = summariser_choices(local_text, gate)
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
