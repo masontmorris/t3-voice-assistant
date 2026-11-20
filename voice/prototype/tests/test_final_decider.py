@@ -83,3 +83,12 @@ class DeciderArgumentsTest(unittest.TestCase):
         with mock.patch.dict(os.environ):
             os.environ.pop("VOICE_DECIDER_ARGS", None)
             self.assertFalse(decider_arguments(Client(), t3_enabled=True))
+
+
+class LocalDeciderArguments(unittest.TestCase):
+    def test_the_local_decider_is_never_asked_a_text_question(self):
+        """llama.cpp refuses a request holding one, so nothing in the turn would be decided."""
+        from voice.local_decider.client import D1Client
+        with mock.patch.dict(os.environ, {"VOICE_DECIDER_ARGS": "on"}):
+            self.assertFalse(decider_arguments(D1Client(), t3_enabled=False))
+            self.assertFalse(decider_arguments(D1Client(), t3_enabled=True))

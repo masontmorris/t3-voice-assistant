@@ -650,6 +650,9 @@ def decider_arguments(decider=None, *, t3_enabled=False):
 
     On T3 calls, skip the questions for the free cloud decider, which declares text_questions = False.
     VOICE_DECIDER_ARGS still decides when set."""
+    if getattr(decider, "typed_answers", True) is False:
+        # The local decider cannot answer a text question at all, whatever the setting says.
+        return False
     setting = os.environ.get("VOICE_DECIDER_ARGS")
     if setting is not None:
         return setting.lower() != "off"

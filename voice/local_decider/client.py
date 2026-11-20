@@ -80,6 +80,10 @@ class D1Client:
     happens inside one request, so a packed request is still one request in flight.
     """
 
+    # llama.cpp's /v1/systemone answers choice, score and noul questions only: a text, number or date question makes it
+    # refuse the whole request with a 400, so on a live call no segment was ever decided and nothing was dispatched.
+    typed_answers = False
+
     def __init__(self, url=None, set_size=None):
         parts = urlsplit(url or os.environ.get("VOICE_D1_URL", f"http://127.0.0.1:{DEFAULT_PORT}"))
         self.host, self.port = parts.hostname, parts.port
