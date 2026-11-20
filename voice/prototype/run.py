@@ -416,10 +416,8 @@ MAX_RELAYS = 2
 
 
 def relay_note(text, attempt=0):
-    """The note that has the voice say `text`: the words in quotes, and the note ends on them. Closed with "(Reply with
-    only these words.)" after the words, the voice read the closing out after 5 of 6 thread confirmations, and the
-    retry sent the same note and was read out again (24 of 36 relays recited; 36 of 36 with the words quoted and no
-    closing). The retry puts the instruction before the words instead, so it is a different request."""
+    """The note that has the voice say `text`. It ends on the quoted words: the voice reads out anything that follows
+    them. The retry moves the instruction before the words, since the same note gets the same reply."""
     head = T3_NOTE.replace("The words: ", "Reply with only these words. The words: ") if attempt else T3_NOTE
     return f'{head}"{text}"]'
 

@@ -667,8 +667,8 @@ READER_EXAMPLES = {
 
 
 assert set(READER_EXAMPLES) == set(Kind)
-# A kind whose example is chosen by a slot as well: with only the project example, three thread candidates were
-# worded as a restatement of the task and never named (2026-11-20 call).
+# A kind whose example is chosen by a slot as well: shown only the project example, the writer restates the task for
+# thread candidates and names none.
 READER_VARIANTS = {
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
     (Kind.ASK_WHICH, "thread"): ({"of": "thread", "candidates": ["Example Mend Rail Maps", "Example Mend Rail Labels",
