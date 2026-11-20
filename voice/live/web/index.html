@@ -1,30 +1,40 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Voice call</title>
-<link rel="stylesheet" href="style.css">
-</head>
-<body>
-<h1>Voice call</h1>
-<div class="row">
-  <input id="secret" type="password" autocomplete="off" placeholder="Paste the server secret once" aria-label="Server secret">
-  <button id="save" type="button">Save</button>
-</div>
-<div class="row">
-  <button id="start" type="button">Start</button>
-  <button id="stop" type="button" disabled>Stop</button>
-  <button id="mode-vad" type="button" class="on">VAD</button>
-  <button id="mode-ptt" type="button">PTT</button>
-</div>
-<div class="row">
-  <button id="talk" type="button" hidden>Hold to talk</button>
-</div>
-<div id="line"><span id="status">idle</span><span id="rtt">-- ms</span></div>
-<div id="meter" aria-hidden="true"><div id="meter-fill"></div></div>
-<p class="hint">Wear headphones to keep the reply out of your microphone.</p>
-<div id="log" aria-live="off"></div>
-<script type="module" src="app.js"></script>
-</body>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Voice call</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <h1>Voice call</h1>
+    <div class="row">
+      <input
+        id="secret"
+        type="password"
+        autocomplete="off"
+        placeholder="Paste the server secret once"
+        aria-label="Server secret"
+      />
+      <button id="save" type="button">Save</button>
+    </div>
+    <div class="row">
+      <button id="start" type="button">Start</button>
+      <button id="stop" type="button" disabled>Stop</button>
+      <button id="mode-vad" type="button" class="on">VAD</button>
+      <button id="mode-ptt" type="button">PTT</button>
+    </div>
+    <div class="row">
+      <button id="talk" type="button" hidden>Hold to talk</button>
+    </div>
+    <div class="row">
+      <label for="summariser">Thread summaries by</label>
+      <select id="summariser" disabled></select>
+    </div>
+    <div id="line"><span id="status">idle</span><span id="rtt">-- ms</span></div>
+    <div id="meter" aria-hidden="true"><div id="meter-fill"></div></div>
+    <p class="hint">Wear headphones to keep the reply out of your microphone.</p>
+    <div id="log" aria-live="off"></div>
+    <script type="module" src="app.js"></script>
+  </body>
 </html>

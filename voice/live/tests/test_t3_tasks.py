@@ -537,6 +537,42 @@ class Silent(F.Reader):
         return Picked(None, error="TimeoutError: timed out")
 
 
+class Summarisers(unittest.TestCase):
+    """The model that writes thread summaries can be changed while the server runs."""
+
+    class Text:
+        def __init__(self, model):
+            self.model = model
+
+        def complete(self, messages):
+            return {"text": self.model, "ms": 1, "tokens": {}}
+
+    def test_choosing_one_swaps_the_model_behind_the_lane_and_an_unknown_one_changes_nothing(self):
+        first, second = self.Text("first:free"), self.Text("second:free")
+        t3 = tasks_over(self, F.FakeSeam(), first)
+        t3.summarisers = {"first:free": ("First", lambda: first), "second:free": ("Second", lambda: second)}
+        self.assertEqual(t3.summariser(), "first:free")
+        self.assertTrue(t3.use_summariser("second:free"))
+        self.assertEqual((t3.summariser(), t3.lane.submit([]).result(timeout=2)["text"]), ("second:free", "second:free"))
+        self.assertFalse(t3.use_summariser("third"))
+        self.assertEqual(t3.summariser(), "second:free")
+
+    def test_a_server_that_started_with_no_text_model_gets_one_when_chosen(self):
+        t3 = tasks_over(self, F.FakeSeam())
+        t3.summarisers = {"first:free": ("First", lambda: self.Text("first:free"))}
+        self.assertIsNone(t3.summariser())
+        self.assertTrue(t3.use_summariser("first:free"))
+        self.assertIs(t3.speech.lane, t3.lane)
+        self.assertEqual(t3.summariser(), "first:free")
+
+    def test_the_local_model_is_offered_only_when_its_server_is_up(self):
+        from voice.live.t3_tasks import LOCAL_SUMMARISER, summariser_choices
+
+        with patch.dict("os.environ", {"OPENROUTER_API_KEY": "", "VOICE_ENV_FILE": ""}):
+            self.assertEqual(list(summariser_choices(None)), [])
+            self.assertEqual(list(summariser_choices("http://127.0.0.1:1")), [LOCAL_SUMMARISER])
+
+
 class DeciderPick(unittest.TestCase):
     """The decider picks the thread a request means. No title has to match a word of it."""
 

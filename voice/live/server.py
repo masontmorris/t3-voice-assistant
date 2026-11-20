@@ -117,6 +117,7 @@ from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, cr
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
+from voice.live.t3_tasks import LOCAL_TEXT_MODEL, LOCAL_TEXT_PORT, local_text_server, summariser_choices
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
     default_model, default_origin, default_token_file, live_writer
 from voice.t3.verify import default_decider as default_speech_decider
@@ -714,7 +715,13 @@ class Conversation:
         kind = message.get("type")
         if kind == "hello":
             self.mode = "ptt" if message.get("mode") == "ptt" else "vad"
-            await self.ws.send(json.dumps({"type": "ready", "mode": self.mode, **vars(self.live.settings)}))
+            await self.ws.send(json.dumps({"type": "ready", "mode": self.mode, **vars(self.live.settings),
+                                           **self.live.summarisers()}))
+        elif kind == "summariser":
+            t3 = self.live.t3
+            ok = t3 is not None and await asyncio.to_thread(t3.use_summariser, str(message.get("id")))
+            print(f"summariser {message.get('id')!r}: {'chosen' if ok else 'not offered'}", flush=True)
+            await self.ws.send(json.dumps({"type": "summariser", "ok": bool(ok), **self.live.summarisers()}))
         elif kind == "ping":
             await self.ws.send(json.dumps({"type": "pong", "t": message.get("t")}))
         elif kind == "ptt" and self.mode == "ptt":
@@ -1052,6 +1059,14 @@ class Live:
         reply's text."""
         return await by_ear(self.url, rate)(pcm)
 
+    def summarisers(self):
+        """The summary models this server offers and the one in use, for the page's picker."""
+        t3 = self.t3
+        if t3 is None:
+            return {"summarisers": [], "summariser": None}
+        return {"summarisers": [{"id": key, "label": label} for key, (label, _) in t3.summarisers.items()],
+                "summariser": t3.summariser()}
+
     def log_overlap(self, entry, pcm):
         """One line per overlap in overlaps.jsonl; a dismissed overlap's audio is kept beside it, since no turn holds
         it."""
@@ -1145,12 +1160,21 @@ async def main_async(args):
                   f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
         t3 = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
+        local_text = None
+        wants_local = getattr(args, "local_text", "auto")
+        if getattr(args, "t3", "off") == "on" and (wants_local == "on"
+                                                   or (wants_local == "auto" and LOCAL_TEXT_MODEL.is_file())):
+            text_server = stack.enter_context(local_text_server(out / "text-server.log"))
+            local_text = f"http://127.0.0.1:{LOCAL_TEXT_PORT}"
+            print(f"LFM3-1.7B pid {text_server.proc.pid} on port {LOCAL_TEXT_PORT} after "
+                  f"{text_server.startup_s:.1f} s", flush=True)
         if getattr(args, "t3", "off") == "on":
             writer = live_writer(url)
             if writer is not None:
                 await stack.enter_async_context(writer)
             t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
                               default_speech_decider(), writer=writer)
+            t3.summarisers = summariser_choices(local_text)
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
             stack.callback(poller.stop)
@@ -1180,6 +1204,9 @@ def main():
     parser.add_argument("--port", type=int, default=8770)
     parser.add_argument("--prompt", type=Path, default=PROMPT_FILE, help="persona file, read at each call start")
     parser.add_argument("--silence-ms", type=int, default=700, help="trailing silence that ends a turn")
+    parser.add_argument("--local-text", choices=["auto", "on", "off"], default="auto",
+                        help="keep LFM3-1.7B loaded so the page can choose it for thread summaries "
+                             "(auto: when its model file is present and --t3 is on)")
     parser.add_argument("--eou", choices=["silence", "audio"], default="silence",
                         help="what ends a turn: the trailing silence alone (default), or the local d1-Omni-2B asked "
                              "whether the person finished at 150, 300 and 500 ms of silence, falling back to "

@@ -214,6 +214,12 @@ class Lane:
         if not isinstance(client, (LocalText, RealtimeWriter)):
             assert_free(client.model)
 
+    def use(self, client) -> None:
+        """Swap the model behind the lane. A request already running finishes on the old one."""
+        self._check(client)
+        with self.lock:
+            self.client = client
+
     def submit(self, messages) -> Future:
         self._check(self.client)
         with self.lock:

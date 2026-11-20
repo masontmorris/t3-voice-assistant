@@ -31,6 +31,7 @@ import threading
 import time
 from dataclasses import dataclass, field, replace
 from pathlib import Path
+from typing import Callable
 
 from voice.prototype.tasks import Execution, MockTaskService, Run
 from voice.t3 import lifecycle as L
@@ -39,7 +40,7 @@ from voice.t3.acts import NOTHING_NEW, Act, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
-from voice.t3.pick.model import LiveClient
+from voice.t3.pick.model import FREE_MODEL, PAID_MODEL, LiveClient
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
@@ -158,6 +159,7 @@ class T3Tasks:
     follow: L.Follow
     model: LiveClient | LocalText | None = None
     decider: Decider | None = None
+    summarisers: dict = field(default_factory=dict)
     question: Question | None = None
     keys: dict[str, str] = field(default_factory=dict)
     recent: str | None = None
@@ -763,6 +765,27 @@ class T3Tasks:
 
         threading.Thread(target=run, name="t3-prefetch", daemon=True).start()
 
+    def summariser(self) -> str | None:
+        """The id of the model writing summaries now, as `summariser_choices` names it."""
+        client = self.lane.client if self.lane is not None else None
+        if client is None:
+            return None
+        return LOCAL_SUMMARISER if isinstance(client, LocalText) else client.model
+
+    def use_summariser(self, chosen: str) -> bool:
+        """Switch the model that writes thread summaries, for every call on this server, from the next summary on.
+        False when this server does not offer `chosen`. Summaries already cached stay as they were written."""
+        choice = self.summarisers.get(chosen)
+        if choice is None:
+            return False
+        client = choice[1]()
+        with self.lock:
+            if self.lane is None:
+                self.lane = self.speech.lane = Lane(client)
+            else:
+                self.lane.use(client)
+        return True
+
     def known_names(self) -> frozenset[str]:
         seam = self.follow.seam
         projects = {p.name for p in seam.hello.projects} if seam is not None else set()
@@ -1032,6 +1055,35 @@ def live_writer(url: str) -> RealtimeWriter | None:
     if os.environ.get("VOICE_RENDERER"):
         return None
     return RealtimeWriter(url)
+
+
+LOCAL_SUMMARISER = "lfm3-1.7b"
+LOCAL_TEXT_MODEL = default_voice_home() / "gguf" / "LFM3-1.7B-Q4_K_M.gguf"
+LOCAL_TEXT_PORT = 8099
+# One slot, since the lane keeps one request in flight, and the context the summary bench measured it at.
+LOCAL_TEXT_FLAGS = ("-ngl", "99", "-np", "1", "-c", "8192", "-fa", "on")
+
+
+def local_text_server(log_path: Path, port: int = LOCAL_TEXT_PORT):
+    """LFM3-1.7B on its own llama-server, kept loaded beside the voice model so choosing it never waits on a load."""
+    from voice.local_decider.client import LlamaServer
+
+    return LlamaServer(["-m", str(LOCAL_TEXT_MODEL), *LOCAL_TEXT_FLAGS], port, log_path)
+
+
+def summariser_choices(local_url: str | None = None) -> dict[str, tuple[str, Callable[[], object]]]:
+    """The models that can write thread summaries on this server, as id to (label, how to make its client): the free
+    cloud model, a paid one only when VOICE_PAID_TEXT_MODEL names it, and the local model when its server is up at
+    `local_url`. The T3 lines are not in this choice: the local writer words them."""
+    choices: dict[str, tuple[str, Callable[[], object]]] = {}
+    cache = default_voice_home() / "state" / "t3-pick-cache"
+    if os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE"):
+        choices[FREE_MODEL] = ("particle-1 (cloud)", lambda: LiveClient(model=FREE_MODEL, cache_dir=cache))
+        if PAID_MODEL:
+            choices[PAID_MODEL] = (f"{PAID_MODEL} (cloud, paid)", lambda: LiveClient(model=PAID_MODEL, cache_dir=cache))
+    if local_url:
+        choices[LOCAL_SUMMARISER] = ("LFM3-1.7B (local)", lambda: LocalText(local_url))
+    return choices
 
 
 def default_model() -> LiveClient | LocalText | None:

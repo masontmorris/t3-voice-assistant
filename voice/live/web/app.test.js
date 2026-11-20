@@ -1,12 +1,20 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
+import * as NodeAssert from "node:assert/strict";
+import * as NodeTest from "node:test";
 
 async function openPage(t, search = "") {
   const elements = new Map();
   const worklets = new Map();
   const callbacks = new Map();
   const destination = {};
-  const gain = { gain: { value: 1 }, connect(target) { this.target = target; }, disconnect() { this.target = null; } };
+  const gain = {
+    gain: { value: 1 },
+    connect(target) {
+      this.target = target;
+    },
+    disconnect() {
+      this.target = null;
+    },
+  };
   function bind(name, value) {
     const previous = Object.getOwnPropertyDescriptor(globalThis, name);
     Object.defineProperty(globalThis, name, { value, configurable: true });
@@ -17,9 +25,18 @@ async function openPage(t, search = "") {
   }
   function element() {
     return {
-      children: [], classList: { remove() {} }, style: {},
-      addEventListener(event, fn) { callbacks.set(this, fn); },
-      prepend(line) { this.children.unshift(line); },
+      children: [],
+      classList: { remove() {} },
+      style: {},
+      addEventListener(event, fn) {
+        callbacks.set(this, fn);
+      },
+      prepend(line) {
+        this.children.unshift(line);
+      },
+      replaceChildren(...items) {
+        this.children = items;
+      },
     };
   }
   bind("document", {
@@ -36,31 +53,59 @@ async function openPage(t, search = "") {
     clearInterval() {},
   });
   bind("navigator", { mediaDevices: { getUserMedia: async () => ({ getTracks: () => [] }) } });
-  bind("AudioContext", class {
-    sampleRate = 48000;
-    audioWorklet = { addModule: async () => {} };
-    destination = destination;
-    async resume() {}
-    async suspend() {}
-    createMediaStreamSource() { return { connect() {}, disconnect() {} }; }
-    createGain() { return gain; }
-  });
-  bind("AudioWorkletNode", class {
-    port = { postMessage() {} };
-    constructor(context, name) { worklets.set(name, this); }
-    connect(target) { this.target = target; }
-    disconnect() { this.target = null; }
-  });
+  bind(
+    "AudioContext",
+    class {
+      sampleRate = 48000;
+      audioWorklet = { addModule: async () => {} };
+      destination = destination;
+      async resume() {}
+      async suspend() {}
+      createMediaStreamSource() {
+        return { connect() {}, disconnect() {} };
+      }
+      createGain() {
+        return gain;
+      }
+    },
+  );
+  bind(
+    "AudioWorkletNode",
+    class {
+      port = { postMessage() {} };
+      constructor(context, name) {
+        worklets.set(name, this);
+      }
+      connect(target) {
+        this.target = target;
+      }
+      disconnect() {
+        this.target = null;
+      }
+    },
+  );
   let socketCreated;
-  bind("WebSocket", class {
-    constructor() { socketCreated(this); }
-    send() {}
-    close() {}
-    control(message) { this.onmessage({ data: JSON.stringify(message) }); }
-  });
+  bind(
+    "WebSocket",
+    class {
+      sent = [];
+      constructor() {
+        socketCreated(this);
+      }
+      send(data) {
+        this.sent.push(data);
+      }
+      close() {}
+      control(message) {
+        this.onmessage({ data: JSON.stringify(message) });
+      }
+    },
+  );
   await import(new URL(`./app.js?${t.name}`, import.meta.url));
   async function start() {
-    const created = new Promise((resolve) => { socketCreated = resolve; });
+    const created = new Promise((resolve) => {
+      socketCreated = resolve;
+    });
     callbacks.get(elements.get("start"))();
     return await created;
   }
@@ -68,10 +113,10 @@ async function openPage(t, search = "") {
     socket.onclose({ code, reason });
     await Promise.resolve();
   }
-  return { start, close, elements, worklets, gain, destination };
+  return { start, close, elements, worklets, gain, destination, callbacks };
 }
 
-test("a delayed close from an old socket leaves the current call alone", async (t) => {
+NodeTest.test("a delayed close from an old socket leaves the current call alone", async (t) => {
   const page = await openPage(t);
   const first = await page.start();
   first.onopen();
@@ -80,45 +125,87 @@ test("a delayed close from an old socket leaves the current call alone", async (
   second.onopen();
   first.onclose({ code: 1006, reason: "" });
   await Promise.resolve();
-  assert.equal(page.elements.get("status").textContent, "connected");
-  assert.equal(page.elements.get("stop").disabled, false);
+  NodeAssert.equal(page.elements.get("status").textContent, "connected");
+  NodeAssert.equal(page.elements.get("stop").disabled, false);
 });
 
-test("the call shows wrong secret and the server's busy reason", async (t) => {
+NodeTest.test("the call shows wrong secret and the server's busy reason", async (t) => {
   const page = await openPage(t);
   const first = await page.start();
   await page.close(first, 1008, "bad or missing auth");
-  assert.equal(page.elements.get("status").textContent, "wrong secret");
+  NodeAssert.equal(page.elements.get("status").textContent, "wrong secret");
   const second = await page.start();
   await page.close(second, 1013, "another client is connected");
-  assert.equal(page.elements.get("status").textContent, "another client is connected");
+  NodeAssert.equal(page.elements.get("status").textContent, "another client is connected");
 });
 
-test("capture connects to the destination through a muted gain and disconnects on close", async (t) => {
-  const page = await openPage(t);
-  const socket = await page.start();
-  assert.equal(page.worklets.get("voice-capture").target, page.gain);
-  assert.equal(page.gain.gain.value, 0);
-  assert.equal(page.gain.target, page.destination);
-  await page.close(socket, 1000, "");
-  assert.equal(page.gain.target, null);
-});
+NodeTest.test(
+  "capture connects to the destination through a muted gain and disconnects on close",
+  async (t) => {
+    const page = await openPage(t);
+    const socket = await page.start();
+    NodeAssert.equal(page.worklets.get("voice-capture").target, page.gain);
+    NodeAssert.equal(page.gain.gain.value, 0);
+    NodeAssert.equal(page.gain.target, page.destination);
+    await page.close(socket, 1000, "");
+    NodeAssert.equal(page.gain.target, null);
+  },
+);
 
-test("pong updates the RTT status without adding a log line", async (t) => {
+NodeTest.test(
+  "the picker lists the server's summary models and sends the one chosen",
+  async (t) => {
+    const page = await openPage(t);
+    const socket = await page.start();
+    socket.onopen();
+    const picker = page.elements.get("summariser");
+    const offered = [
+      { id: "cloud-a", label: "A (cloud)" },
+      { id: "local-b", label: "B (local)" },
+    ];
+    socket.control({ type: "ready", mode: "vad", summarisers: offered, summariser: "cloud-a" });
+    NodeAssert.deepEqual(
+      picker.children.map((option) => [option.value, option.textContent]),
+      [
+        ["cloud-a", "A (cloud)"],
+        ["local-b", "B (local)"],
+      ],
+    );
+    NodeAssert.equal(picker.value, "cloud-a");
+    NodeAssert.equal(picker.disabled, false);
+    picker.value = "local-b";
+    page.callbacks.get(picker)();
+    NodeAssert.deepEqual(JSON.parse(socket.sent.at(-1)), { type: "summariser", id: "local-b" });
+    socket.control({ type: "summariser", ok: true, summarisers: offered, summariser: "local-b" });
+    NodeAssert.equal(picker.value, "local-b");
+    socket.control({
+      type: "ready",
+      mode: "vad",
+      summarisers: offered.slice(0, 1),
+      summariser: "cloud-a",
+    });
+    NodeAssert.equal(picker.disabled, true, "one model is nothing to choose between");
+  },
+);
+
+NodeTest.test("pong updates the RTT status without adding a log line", async (t) => {
   const page = await openPage(t);
   const socket = await page.start();
   socket.control({ type: "ready", mode: "vad" });
-  socket.control({ type: "pong", t: performance.now() });
-  assert.match(page.elements.get("rtt").textContent, /^\d+ ms$/);
-  assert.deepEqual(page.elements.get("log").children.map((line) => line.textContent), ["connected, vad mode"]);
+  socket.control({ type: "pong", t: 0 });
+  NodeAssert.match(page.elements.get("rtt").textContent, /^\d+ ms$/);
+  NodeAssert.deepEqual(
+    page.elements.get("log").children.map((line) => line.textContent),
+    ["connected, vad mode"],
+  );
 });
 
-test("debug events are absent by default", async (t) => {
+NodeTest.test("debug events are absent by default", async (t) => {
   await openPage(t);
-  assert.equal(window.voiceDebug, undefined);
+  NodeAssert.equal(window.voiceDebug, undefined);
 });
 
-test("debug events are available with the debug query parameter", async (t) => {
+NodeTest.test("debug events are available with the debug query parameter", async (t) => {
   await openPage(t, "?debug");
-  assert.equal(window.voiceDebug.events.at(-1).status, "secret saved, press Start");
+  NodeAssert.equal(window.voiceDebug.events.at(-1).status, "secret saved, press Start");
 });

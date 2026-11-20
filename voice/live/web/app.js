@@ -14,6 +14,7 @@ const els = {
   modeVad: document.getElementById("mode-vad"),
   modePtt: document.getElementById("mode-ptt"),
   talk: document.getElementById("talk"),
+  summariser: document.getElementById("summariser"),
   status: document.getElementById("status"),
   rtt: document.getElementById("rtt"),
   meter: document.getElementById("meter-fill"),
@@ -170,6 +171,9 @@ function onControl(message) {
   if (message.type === "ready") {
     els.talk.hidden = state.mode !== "ptt";
     setStatus("listening");
+    showSummarisers(message);
+  } else if (message.type === "summariser") {
+    showSummarisers(message);
   } else if (message.type === "turn_start") {
     setStatus("listening");
   } else if (message.type === "turn_end") {
@@ -195,10 +199,28 @@ function onControl(message) {
   }
 }
 
+// The server says which models can write thread summaries and which one is in use; the choice is the server's, so
+// it holds for every device and survives a reload.
+function showSummarisers(message) {
+  const options = message.summarisers || [];
+  els.summariser.replaceChildren(
+    ...options.map((option) => {
+      const el = document.createElement("option");
+      el.value = option.id;
+      el.textContent = option.label;
+      return el;
+    }),
+  );
+  els.summariser.value = message.summariser || "";
+  els.summariser.disabled = options.length < 2;
+}
+
 function describeControl(message) {
   if (message.type === "turn_done") return `turn ${message.turn} done`;
   if (message.type === "reply_start") return `reply at ${message.rate} Hz`;
   if (message.type === "ready") return `connected, ${message.mode} mode`;
+  if (message.type === "summariser")
+    return message.ok ? `summaries by ${message.summariser}` : "that model is not offered";
   return message.type;
 }
 
@@ -260,6 +282,10 @@ els.save.addEventListener("click", () => {
   secret();
   els.secret.value = "";
   setStatus(secret() ? "secret saved" : "idle");
+});
+els.summariser.addEventListener("change", () => {
+  if (!state.ws || state.ws.readyState !== WebSocket.OPEN) return;
+  state.ws.send(JSON.stringify({ type: "summariser", id: els.summariser.value }));
 });
 els.modeVad.addEventListener("click", () => setMode("vad"));
 els.modePtt.addEventListener("click", () => setMode("ptt"));

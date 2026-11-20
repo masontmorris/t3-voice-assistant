@@ -22,7 +22,8 @@ from .project import ProjectPick, question_for_projects
 
 # A paid id runs only when named here: Mason approves each paid model, and the key's own limit caps the spend.
 PAID_MODEL = os.environ.get("VOICE_PAID_TEXT_MODEL") or None
-MODEL = PAID_MODEL or "particle-ai/particle-1:free"
+FREE_MODEL = "particle-ai/particle-1:free"
+MODEL = PAID_MODEL or FREE_MODEL
 ENDPOINT = "https://openrouter.ai/api/v1/chat/completions"
 MAX_ATTEMPTS = 8
 TIMEOUT_S = 30
