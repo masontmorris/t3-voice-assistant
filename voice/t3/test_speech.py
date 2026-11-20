@@ -13,11 +13,13 @@ from unittest.mock import Mock, patch
 from voice.prototype.realtime import Session
 from voice.prototype.tests.test_run_shared_session import FakeSession
 from voice.t3 import fakes as F
+from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.acts import Kind, act
 from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
-from voice.t3.speech import RENDER_SYSTEM, SUMMARY_SYSTEM, Lane, LocalText, Speech, reader_messages, text_model
+from voice.t3.speech import (RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane, LocalText, Speech, reader_messages,
+                              text_model)
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -167,6 +169,74 @@ class LocalTextTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             local.complete([{"role": "user", "content": "{}"}])
 
+    def summariser(self, p_unsupported, held=None):
+        """A local summariser whose model answers a gist with an extra key and whose gate answers `p_unsupported`,
+        or has no server at all when it is None. With `held`, the gate answers only once it is set."""
+
+        class Local(LlamaServer):
+            def do_POST(self):
+                if self.path == "/v1/systemone":
+                    body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                    Local.gated.append(body)
+                    if held is not None:
+                        held.wait(30)
+                    reply = {"answers": {"unsupported": {"type": "noul", "noul": p_unsupported}}}
+                elif self.path == "/v1/chat/completions":
+                    body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                    self.bodies.append(body)
+                    reply = {"choices": [{"message": {"content": json.dumps(
+                        {"gist": "It says all 12 tests pass.", "status": "finished"})}, "finish_reason": "stop"}]}
+                else:
+                    return super().do_POST()
+                data = json.dumps(reply).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+        Local.gated = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Local)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        if held is not None:
+            self.addCleanup(held.set)
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        gate = url if p_unsupported is not None else "http://127.0.0.1:9"
+        return LocalText(url, gate_url=gate), Local
+
+    def test_the_local_summariser_sends_the_measured_request_and_speaks_a_gist_the_gate_passes(self):
+        local, server = self.summariser(0.02)
+        speech = Speech(Lane(local), Reads(finished(140)), F.Agree())
+        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished", asked="Did the tests pass?"),)
+        filled, _ = speech.fill(asked, "t5")
+        self.assertEqual(filled[0].slots["summary"], "It says all 12 tests pass.", "the extra key is ignored")
+        sent = server.bodies[-1]
+        self.assertEqual(sent["messages"], LS.messages(finished(140), "Did the tests pass?"))
+        self.assertEqual((sent["temperature"], sent["top_k"], sent["repeat_penalty"], sent["max_tokens"]),
+                         (0.1, 50, 1.1, 60))
+        self.assertEqual(sent["response_format"]["json_schema"]["schema"], LS.GIST_SCHEMA)
+        self.assertEqual(server.gated[-1]["state"]["gist"], "It says all 12 tests pass.")
+
+    def test_a_gist_the_gate_does_not_pass_leaves_the_status_bare(self):
+        for p_unsupported, why in ((0.4, "the gate finds it unsupported"), (None, "no gate answers")):
+            local, _ = self.summariser(p_unsupported)
+            speech = Speech(Lane(local), Reads(finished(140)), F.Agree())
+            asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished", asked="Is it done?"),)
+            filled, _ = speech.fill(asked, "t5")
+            self.assertNotIn("summary", filled[0].slots, why)
+            self.assertEqual(filled[0].slots["thread"], "Add a clamp helper")
+
+    def test_a_gate_that_does_not_answer_drops_the_gist_before_the_status_line_stops_waiting(self):
+        held = threading.Event()
+        local, server = self.summariser(0.02, held=held)
+        lane = Lane(local)
+        record = lane.summarise(finished(140), "Is it done?").result(timeout=SUMMARY_TIMEOUT_S)
+        self.assertEqual((record["text"], record["gist"]), ("", "It says all 12 tests pass."))
+        held.set()
+        record = lane.summarise(finished(140), "Is it done?").result(timeout=SUMMARY_TIMEOUT_S)
+        self.assertEqual(record["text"], "It says all 12 tests pass.", "the late answer is not read as the next one")
+        self.assertEqual(len(server.gated), 2)
+
     def test_the_renderer_is_chosen_by_name(self):
         self.assertIsInstance(text_model("local"), LocalText)
         self.assertEqual(text_model("particle-1", cloud=lambda: "cloud"), "cloud")
@@ -235,6 +305,34 @@ class SummaryTest(unittest.TestCase):
         filled, _ = speech.fill(asked, "t5", (140,))
         self.assertEqual(filled[0].slots["summary"], "For How's the clamp thread going?: it added clamp.")
         self.assertEqual(text.summaries, 2)
+
+    def test_a_summary_from_the_model_before_a_switch_is_not_reused(self):
+        before, after = Text(), Text()
+        lane = Lane(before)
+        speech = Speech(lane, Reads(finished(140)), F.Agree())
+        speech.remember(finished(140))
+        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished", asked="Is it done?"),)
+        speech.fill(asked, "t5", (140,))
+        lane.use(after)
+        filled, _ = speech.fill(asked, "t5", (140,))
+        self.assertEqual((before.summaries, after.summaries), (1, 1), "the new model writes its own summary")
+        self.assertIn("summary", filled[0].slots)
+
+    def test_a_summary_whose_caller_gave_up_never_runs(self):
+        gate = threading.Event()
+        text = Text(gate=gate)
+        lane = Lane(text)
+        speech = Speech(lane, Reads(), F.Agree())
+        running = speech._summary(finished(140), "Is it done?")
+        self.assertTrue(text.started.wait(2))
+        other = F.state(thread="t6", title="Trim image margins", as_of=7, activity=T.ThreadActivity.FINISHED,
+                        last_reply=REPLY)
+        with patch("voice.t3.speech.SUMMARY_TIMEOUT_S", 0.05):
+            self.assertIsNone(speech.summary(other, "Did it finish?"))
+        gate.set()
+        running.result(timeout=2)
+        lane.pool.shutdown(wait=True)
+        self.assertEqual(text.summaries, 1, "the queued summary its caller gave up on never reached the model")
 
     def test_the_title_is_a_name_and_never_evidence(self):
         text = Text()

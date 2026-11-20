@@ -29,6 +29,7 @@ import os
 import re
 import threading
 import time
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
@@ -1060,6 +1061,7 @@ def live_writer(url: str) -> RealtimeWriter | None:
 LOCAL_SUMMARISER = "lfm3-1.7b"
 LOCAL_TEXT_MODEL = default_voice_home() / "gguf" / "LFM3-1.7B-Q4_K_M.gguf"
 LOCAL_TEXT_PORT = 8099
+SUMMARY_GATE_PORT = 8100
 # One slot, since the lane keeps one request in flight, and the context the summary bench measured it at.
 LOCAL_TEXT_FLAGS = ("-ngl", "99", "-np", "1", "-c", "8192", "-fa", "on")
 
@@ -1071,10 +1073,49 @@ def local_text_server(log_path: Path, port: int = LOCAL_TEXT_PORT):
     return LlamaServer(["-m", str(LOCAL_TEXT_MODEL), *LOCAL_TEXT_FLAGS], port, log_path)
 
 
-def summariser_choices(local_url: str | None = None) -> dict[str, tuple[str, Callable[[], object]]]:
+def summary_gate_server(log_path: Path, port: int = SUMMARY_GATE_PORT):
+    """The local d1-2B that checks LFM3-1.7B's gists, when no local decider already runs one."""
+    from voice.local_decider.client import d1_server
+
+    return d1_server(port=port, log_path=log_path)
+
+
+@contextmanager
+def local_summariser(mode: str, out: Path, shared_gate: str | None = None):
+    """The local summariser's servers for a call: LFM3-1.7B and its gate, a d1-2B of its own unless `shared_gate`
+    names one already running. Yields their URLs, or (None, None) when the local summariser is off. `on` fails loudly
+    if a server cannot start. `auto` leaves the call on the cloud summariser instead, with one log line, so a missing
+    model or a taken port never stops a call."""
+    if mode == "off" or (mode == "auto" and not LOCAL_TEXT_MODEL.is_file()):
+        yield None, None
+        return
+    servers = ExitStack()
+    try:
+        text = servers.enter_context(local_text_server(out / "text-server.log"))
+        print(f"LFM3-1.7B pid {text.proc.pid} on port {LOCAL_TEXT_PORT} after {text.startup_s:.1f} s", flush=True)
+        gate = shared_gate
+        if gate is None:
+            gate_server = servers.enter_context(summary_gate_server(out / "summary-gate.log"))
+            gate = f"http://127.0.0.1:{SUMMARY_GATE_PORT}"
+            print(f"summary gate d1-2B pid {gate_server.proc.pid} on port {SUMMARY_GATE_PORT} after "
+                  f"{gate_server.startup_s:.1f} s", flush=True)
+    except Exception as exc:
+        servers.close()
+        if mode == "on":
+            raise
+        print(f"local summariser off, summaries stay on the cloud model: {exc}", flush=True)
+        yield None, None
+        return
+    with servers:
+        yield f"http://127.0.0.1:{LOCAL_TEXT_PORT}", gate
+
+
+def summariser_choices(local_url: str | None = None,
+                       gate_url: str | None = None) -> dict[str, tuple[str, Callable[[], object]]]:
     """The models that can write thread summaries on this server, as id to (label, how to make its client): the free
     cloud model, a paid one only when VOICE_PAID_TEXT_MODEL names it, and the local model when its server is up at
-    `local_url`. The T3 lines are not in this choice: the local writer words them."""
+    `local_url`, its gists checked by the d1-2B at `gate_url`. The T3 lines are not in this choice: the local
+    writer words them."""
     choices: dict[str, tuple[str, Callable[[], object]]] = {}
     cache = default_voice_home() / "state" / "t3-pick-cache"
     if os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE"):
@@ -1082,7 +1123,7 @@ def summariser_choices(local_url: str | None = None) -> dict[str, tuple[str, Cal
         if PAID_MODEL:
             choices[PAID_MODEL] = (f"{PAID_MODEL} (cloud, paid)", lambda: LiveClient(model=PAID_MODEL, cache_dir=cache))
     if local_url:
-        choices[LOCAL_SUMMARISER] = ("LFM3-1.7B (local)", lambda: LocalText(local_url))
+        choices[LOCAL_SUMMARISER] = ("LFM3-1.7B (local)", lambda: LocalText(local_url, gate_url=gate_url))
     return choices
 
 

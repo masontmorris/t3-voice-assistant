@@ -26,6 +26,7 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
+from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
 from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
@@ -35,6 +36,7 @@ from voice.t3.verify import Verdict
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
+assert LS.CHAT_TIMEOUT_S + LS.GATE_TIMEOUT_S < SUMMARY_TIMEOUT_S
 TURNS = 3
 
 NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command it wants to run), file_change "
@@ -143,22 +145,26 @@ class LocalText:
     """A text model on a local llama-server's OpenAI-compatible chat route, the same `complete(messages)` record as
     the cloud client. No request leaves the machine, so no quota or `:free` rule applies. LFM3 thinks by default, and
     with the template's thinking switch off it still opened `<think>` on render prompts and spent its whole token
-    budget there (measured), so the `<think>` token is banned outright."""
+    budget there (measured), so the `<think>` token is banned outright. As the summariser it writes in the form
+    measured for it (`summarise`), checked by the local d1-2B at `gate_url`."""
 
     model = "local"
 
-    def __init__(self, url: str | None = None, timeout_s: float = RENDER_TIMEOUT_S, max_tokens: int = 200):
+    def __init__(self, url: str | None = None, timeout_s: float = RENDER_TIMEOUT_S, max_tokens: int = 200,
+                 gate_url: str | None = None):
         self.url = (url or os.environ.get("VOICE_RENDERER_URL", "http://127.0.0.1:8098")).rstrip("/")
+        self.gate_url = gate_url or os.environ.get("VOICE_SUMMARY_GATE_URL", "http://127.0.0.1:8100")
         self.timeout_s, self.max_tokens = timeout_s, max_tokens
         self.calls = 0
         self.ledger: list[dict] = []
         self._ban: list | None = None
+        self._gate = None
 
-    def _post(self, path: str, body: dict) -> dict:
+    def _post(self, path: str, body: dict, timeout_s: float | None = None) -> dict:
         request = urllib.request.Request(f"{self.url}{path}", data=json.dumps(body).encode(),
                                          headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+            with urllib.request.urlopen(request, timeout=timeout_s or self.timeout_s) as response:
                 return json.load(response)
         except (urllib.error.URLError, OSError) as exc:
             raise ConnectionError(f"the local text model at {self.url} failed: {exc}") from exc
@@ -172,11 +178,34 @@ class LocalText:
         return self._ban
 
     def complete(self, messages) -> dict:
-        body = {"messages": messages, "temperature": 0, "max_tokens": self.max_tokens,
-                "chat_template_kwargs": {"enable_thinking": False}, "logit_bias": self._think_ban()}
+        return self._chat({"messages": messages, "temperature": 0, "max_tokens": self.max_tokens})
+
+    def summarise(self, state: T.ThreadState, question: str | None) -> dict:
+        """The thread's gist as measured for this model: S11's prompt, JSON out, then the gate. `text` is empty when
+        the model wrote no gist or the gate did not pass it, so the status is said without a summary."""
+        record = self._chat({"messages": LS.messages(state, question), "max_tokens": LS.MAX_TOKENS, **LS.SAMPLING,
+                             "response_format": {"type": "json_schema", "json_schema": {"schema": LS.GIST_SCHEMA}}},
+                            timeout_s=LS.CHAT_TIMEOUT_S)
+        gist = LS.read_gist(record["text"])
+        unsupported = self._unsupported(state, gist) if gist else None
+        kept = unsupported is not None and unsupported < LS.GATE_THRESHOLD
+        return {**record, "text": gist if kept else "", "gist": gist, "unsupported": unsupported}
+
+    def _unsupported(self, state: T.ThreadState, gist: str) -> float | None:
+        """The gate's answer, or None when the local d1-2B cannot give one, which drops the gist."""
+        from voice.local_decider.client import D1Client
+        if self._gate is None:
+            self._gate = D1Client(self.gate_url, timeout_s=LS.GATE_TIMEOUT_S)
+        try:
+            return LS.unsupported(self._gate.call("decisions", LS.gate_request(state, gist), label="summary_gate"))
+        except Exception:
+            return None
+
+    def _chat(self, body: dict, timeout_s: float | None = None) -> dict:
+        body = {**body, "chat_template_kwargs": {"enable_thinking": False}, "logit_bias": self._think_ban()}
         self.calls += 1
         started = time.perf_counter()
-        payload = self._post("/v1/chat/completions", body)
+        payload = self._post("/v1/chat/completions", body, timeout_s)
         ms = round((time.perf_counter() - started) * 1000, 1)
         choice = (payload.get("choices") or [{}])[0]
         usage = payload.get("usage") or {}
@@ -208,6 +237,7 @@ class Lane:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="t3-text")
         self.lock = threading.Lock()
         self.calls = 0
+        self.generation = 0
 
     @staticmethod
     def _check(client) -> None:
@@ -215,10 +245,22 @@ class Lane:
             assert_free(client.model)
 
     def use(self, client) -> None:
-        """Swap the model behind the lane. A request already running finishes on the old one."""
+        """Swap the model behind the lane. A request already running finishes on the old one, and `generation` moves
+        on so nothing the old one wrote is taken for the new one's."""
         self._check(client)
         with self.lock:
             self.client = client
+            self.generation += 1
+
+    def summarise(self, state: T.ThreadState, question: str | None) -> Future:
+        """A thread's summary on the lane: the local model in the form measured for it, any other in the cloud's."""
+        client = self.client
+        self._check(client)
+        with self.lock:
+            self.calls += 1
+        if isinstance(client, LocalText):
+            return self.pool.submit(client.summarise, state, question)
+        return self.pool.submit(client.complete, summary_messages(state, question))
 
     def submit(self, messages) -> Future:
         self._check(self.client)
@@ -357,11 +399,11 @@ class Speech:
     def _summary(self, state: T.ThreadState, question: str | None, partial: bool = False) -> Future | None:
         if self.lane is None:
             return None
-        key = (state.thread_id, state.as_of_sequence, normalise(question or ""))
+        key = (self.lane.generation, state.thread_id, state.as_of_sequence, normalise(question or ""))
         with self.lock:
             gist = self.summaries.get(key)
-            if gist is None or (gist.future.done() and gist.future.exception() is not None):
-                gist = self.summaries[key] = Gist(self.lane.submit(summary_messages(state, question)), partial)
+            if gist is None or gist.future.cancelled() or (gist.future.done() and gist.future.exception() is not None):
+                gist = self.summaries[key] = Gist(self.lane.summarise(state, question), partial)
             elif not partial:
                 gist.partial = False
         return gist.future
@@ -373,6 +415,8 @@ class Speech:
         try:
             record = future.result(timeout=SUMMARY_TIMEOUT_S)
         except Exception:
+            # A summary still queued is dropped, so it never holds the one lane for the next caller.
+            future.cancel()
             return None
         text = _clean(record.get("text", ""))
         return text or None
