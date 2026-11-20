@@ -90,6 +90,41 @@ CASES += [
      f"There's nothing new from {T} since I last told you. It was cancelled after it reported setting up the project."),
 ]
 
+# The summary question must pass a faithful paraphrase of the thread's report and refuse a line that leaves the report
+# out, as the 2026-11-20 call's did ("... as mentioned in the summary."). Each case pairs a wrong line with a
+# paraphrase that says the same thing in other words.
+PARAPHRASES = [
+    ("paraphrase failed build", act(Kind.THREAD_STATUS, thread="Trim the harbour map tiles", status="failed",
+                                    summary="It reports that the build failed on a missing font file.", asked="did it work"),
+     "The Trim the harbour map tiles thread failed, as mentioned in the summary.",
+     "The Trim the harbour map tiles thread failed, and it says the build stopped because a font file was missing."),
+    ("paraphrase halved import", act(Kind.THREAD_STATUS, thread="Speed up the loom importer", status="working",
+                                     summary="It says it cut the import time in half on the sample file."),
+     "Speed up the loom importer is still working and has made good progress.",
+     "Speed up the loom importer is still working, and it says importing the sample file now takes half the time."),
+    ("paraphrase two of five", act(Kind.THREAD_STATUS, thread="Rename the orchard sync job", status="interrupted",
+                                   summary="Its last reply says two of the five renames were done."),
+     "Rename the orchard sync job was interrupted, and it says all five renames were done.",
+     "Rename the orchard sync job was interrupted before it finished, and it says it got through two of the five renames."),
+    ("paraphrase slider", act(Kind.THREAD_STATUS, thread="Lantern app: fix the dimmer slider", status="working",
+                              summary="It says the slider jumps because of a rounding step and it is rewriting that step."),
+     "Lantern app: fix the dimmer slider is still working, and it says the slider now works.",
+     "Lantern app: fix the dimmer slider is still working. It says a rounding step makes the slider jump, and it is rewriting that step."),
+    ("paraphrase waiting", act(Kind.THREAD_STATUS, thread="Show seed packets in a grid", status="idle",
+                               summary="It says it is waiting for the layout choice before it goes on."),
+     "Show seed packets in a grid is idle.",
+     "Show seed packets in a grid is idle, and it says it is waiting on your layout choice before it continues."),
+    ("paraphrase kiln page", act(Kind.THREAD_STATUS, thread="Move the kiln log to its own page", status="completed",
+                                 summary="It reports that the kiln log now has a page and the links work."),
+     "Move the kiln log to its own page finished, and it says it will also add a chart.",
+     "Move the kiln log to its own page finished, and it says the kiln log has its own page now, with working links."),
+    ("paraphrase done legend", act(Kind.DONE, thread="Add a harbour map legend", status="completed",
+                                   summary="It reports that the legend shows five symbols."),
+     "Add a harbour map legend finished, as mentioned in the summary.",
+     "Add a harbour map legend finished, and it says the legend has five symbols on it."),
+]
+CASES += PARAPHRASES
+
 ATTRIBUTION_CASES = [
     ("historical bare status", act(Kind.THREAD_STATUS, thread=T, status="working", summary="It added the helper."),
      f"{T} is still working, and it has added the helper.", None),

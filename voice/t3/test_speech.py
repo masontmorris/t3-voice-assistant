@@ -19,8 +19,8 @@ from voice.t3.acts import Kind, act
 from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Decider
-from voice.t3.speech import (RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane, LocalText, Speech, reader_messages,
-                              text_model)
+from voice.t3.speech import (LINE_SCHEMA, READER_VARIANTS, RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane,
+                              LocalText, Speech, local_messages, read_line, reader_messages, render_messages, text_model)
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -139,7 +139,7 @@ class LlamaServer(BaseHTTPRequestHandler):
             reply = {"tokens": [124901] if body["content"] == "<think>" else [1, 2]}
         else:
             self.bodies.append(body)
-            reply = {"choices": [{"message": {"content": "Should I stop it?"}, "finish_reason": "stop"}],
+            reply = {"choices": [{"message": {"content": json.dumps({"line": "Should I stop it?"})}, "finish_reason": "stop"}],
                      "usage": {"prompt_tokens": 300, "completion_tokens": 6}}
         data = json.dumps(reply).encode()
         self.send_response(200)
@@ -162,6 +162,27 @@ class LocalTextTest(unittest.TestCase):
         sent = LlamaServer.bodies[-1]
         self.assertEqual((sent["logit_bias"], sent["chat_template_kwargs"]),
                          ([[124901, False]], {"enable_thinking": False}))
+        self.assertEqual(sent["response_format"]["json_schema"]["schema"], LINE_SCHEMA)
+
+    def test_output_that_is_not_a_line_is_no_line(self):
+        for text in ('{"line": "Should I stop it?', "Should I stop it?", '{"words": "Should I stop it?"}', '{"line": 3}'):
+            with self.subTest(text=text):
+                self.assertEqual(read_line(text), "")
+
+    def test_the_local_writer_gets_the_examples_as_chat_turns_and_the_answer_as_json(self):
+        acts = (act(Kind.ASK_WHICH, of="thread", candidates=["Alpha", "Beta"]),)
+        system, example_in, example_out, record = local_messages(acts)
+        self.assertEqual((system["role"], example_in["role"], example_out["role"], record["role"]),
+                         ("system", "user", "assistant", "user"))
+        self.assertEqual(json.loads(example_out["content"]), {"line": READER_VARIANTS[(Kind.ASK_WHICH, "thread")][1]})
+        self.assertNotIn("Respond with interleaved", system["content"])
+        self.assertEqual(json.loads(record["content"].removeprefix("New record: ")),
+                         {"kind": "ask_which", "of": "thread", "candidates": ["Alpha", "Beta"]})
+
+    def test_a_local_lane_is_worded_with_the_chat_form_and_any_other_with_the_system_prompt(self):
+        local = Speech(Lane(LocalText("http://127.0.0.1:1")), Reads())
+        self.assertIs(local._lane_messages(), local_messages)
+        self.assertIs(Speech(Lane(Text()), Reads())._lane_messages(), render_messages)
 
     def test_the_local_renderer_refuses_to_run_without_its_think_ban(self):
         class OddTokenizer(LlamaServer):
@@ -451,6 +472,36 @@ class RenderTest(unittest.TestCase):
                          (["Add a clamp helper"], True, [{"person": "Stop the clamp thread."}]))
         self.assertIn("that the thread stopped or was cancelled", body["never_say"])
         self.assertEqual(body["an earlier wording was refused because"], ["not a question"])
+
+    def test_a_refused_writer_draft_is_worded_again_by_the_text_model_told_why(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        text = Text("Should I stop Add a clamp helper?")
+        speech = Speech(Lane(text), Reads(), F.Agree(), Lane(Writes("I've stopped Add a clamp helper.")))
+        rendered = speech.render(acts)
+        self.assertEqual((rendered.text, rendered.line.worded_by), ("Should I stop Add a clamp helper?", "text_model"))
+        body = text.bodies[0]
+        self.assertEqual(body["an earlier wording was refused because"], ["not a question"])
+        self.assertEqual(body["refused wordings"], ["I've stopped Add a clamp helper."])
+
+    def test_a_passing_writer_draft_never_reaches_the_text_model(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        text = Text()
+        speech = Speech(Lane(text), Reads(), F.Agree(), Lane(Writes("Should I stop Add a clamp helper?")))
+        self.assertEqual(speech.render(acts).line.worded_by, "lfm3")
+        self.assertEqual(text.renders, 0)
+
+    def test_when_the_writer_and_the_text_model_both_fail_the_writers_refusal_is_returned(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        speech = Speech(Lane(Cooling()), Reads(), F.Agree(), Lane(Writes("I've stopped Add a clamp helper.")))
+        rendered = speech.render(acts)
+        self.assertEqual((rendered.line, rendered.problems, rendered.raw),
+                         (None, ["not a question"], "I've stopped Add a clamp helper."))
+
+    def test_the_writer_is_shown_a_thread_example_for_a_thread_question_and_a_project_one_otherwise(self):
+        which = lambda of: reader_messages((act(Kind.ASK_WHICH, of=of, candidates=["Alpha", "Beta"]),))[0]["content"]
+        self.assertIn("Which thread do you mean", which("thread"))
+        self.assertNotIn("Which project do you mean", which("thread"))
+        self.assertIn("Which project do you mean", which("project"))
 
     def test_the_realtime_reader_gets_the_existing_thread_direction_and_example(self):
         for title in ("Rotate Signing Keys", "Refresh Onboarding Checklist"):

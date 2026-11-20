@@ -315,18 +315,26 @@ The call page's summariser picker (PR #78) offers LFM3-1.7B as `lfm3-1.7b` whene
 - **Starting and stopping.** `--local-text auto` (the default when the GGUF is present), or `on`, starts LFM3-1.7B on port 8099 with one slot at `-c 8192`, which holds S11's prompt of about 1.3k tokens with room. The gate needs a d1-2B: with `--decider d1` it opens a second connection to the decider's own server, and otherwise the live server starts one for it on port 8100 (`summary_gate_server`). Everything is loaded at start, so choosing the local summariser never waits on a load, and stops with the server. Under `auto`, if a local server fails to start, the call starts anyway on the cloud model and the picker does not offer the local one; `on` fails loudly. `--local-text off` starts neither and the picker does not offer it.
 - **Memory.** LFM3-Audio at the call's settings plus the two servers totalled 6,134 MiB on a card where other lanes held 1,030 MiB, which is 2,743 MiB over LFM3-Audio alone (measured, run 3: the same three models). With `--decider d1` the gate shares the decider's d1-2B, so the fully local stack loads the same three models (inferred: the shared case was not measured).
 
+## The local line writer
+
+The 1.7B words a T3 line only when something sends it a line to word: `VOICE_RENDERER=local`, or, since 2026-11-20, as the second route behind the live writer when the call page chose it as the summariser (`Speech.render`). The act eval above sent it `render_messages`: the facts as JSON, free text out, temperature 0. On 29 made-up acts (`voice/t3/eval/line_cases.py`, scored by `python -m voice.t3.eval.line_eval --writer local`, with the slot check and Liquid's d1.2) that form passed 6 on the first draft and 11 within two. Its failures were the ones above: a good sentence and then a run-on into "Its `summary` says ..." or "The record shows ...".
+
+The request is now `local_messages`: the realtime writer's directions as the system prompt, one made-up example per act kind as earlier chat turns, the answer as JSON `{"line": ...}` through a schema, the model card's sampling (temperature 0.1, top-k 50, repeat penalty 1.1) and 120 output tokens. It passed 27 on the first draft and 28 within two. What each lever did, in the order tried, is in [spoken-acts.md](spoken-acts.md#the-2026-11-20-call). In short: the run-ons did not go with a better prompt or with examples as chat turns (17 to 24 of 29 within two drafts); they went when the output was JSON, because the string closes. A string pattern like the summariser's was not used, since a line must be able to say any thread title, and `acts.check` already refuses markdown and code in a line.
+
+The one failure left in the shipped form is a second draft that quoted its refusal back as a confirmation. A cut-off JSON string is no line, so a line that runs to the token limit is refused and the turn goes on to its next route.
+
 ## Recommendation
 
 Keep the default on the cloud model. The local summariser is an option for when the cloud is unavailable or a fully local call matters more than detail.
 
-- A local fallback while particle-1 cools down would get about 11 of 40 lines through instead of none. But 8 of those 11 add a question nobody asked, which neither check catches (measured above). It is not worth wiring up without a check for that.
+- A local fallback while particle-1 cools down would have got about 11 of 40 lines through instead of none, and 8 of those 11 added a question nobody asked. That was with the render prompt above. With the request rebuilt in [The local line writer](#the-local-line-writer), 27 of 29 made-up acts pass both checks on the first draft, and the 1.7B is the second route behind the live writer.
 - Do not give the summariser more history. Every history arm on both sets scored under the last reply (measured).
 - Do not turn reasoning on for summaries. It did not lift truth and costs about 5 s (measured).
 - Prompting has moved the 1.7B's truth from 21 (the act eval) to 25 of 30 on unread threads, and the gate trades about a third of the true summaries for removing most false ones. The next lever is fine-tuning, which Liquid's card invites. Particle-1's gists over many threads would be the training data. That needs its own brief.
 
 ## Code
 
-- `voice/t3/speech.py` adds `LocalText`, `text_model` and `Lane.summarise`, which sends the local model its own form. `voice/t3/local_summary.py` holds that form and the gate. `voice/live/t3_tasks.py`'s `default_model` builds the lane's model through `text_model`.
+- `voice/t3/speech.py` adds `LocalText`, `text_model` and `Lane.summarise`, which sends the local model its own form, and `local_messages`, the request it is sent when it words a line. `voice/t3/local_summary.py` holds that form and the gate. `voice/live/t3_tasks.py`'s `default_model` builds the lane's model through `text_model`.
 - `python -m voice.t3.eval.summary_eval run|acts --dir DIR --renderer local` runs unit 11's evals through the local renderer and writes each call's latency to `ledger-run.json` or `ledger-acts.json`.
 - `voice/research/local_renderer/bench.py` produced the act eval's numbers, and `voice/research/local_summariser/bench.py` the fair summary test's, `--set fresh` for the second set. `voice/research/local_summariser/view.py` holds the thread view, each ladder step's prompt and the form check.
 - The hand scores come from `$VOICE_HOME/evals/local-renderer/write_scores.py` and `$VOICE_HOME/evals/local-summariser/tally.py` and `fresh/tally.py`. The frozen data names real threads, so it stays outside the repo.
