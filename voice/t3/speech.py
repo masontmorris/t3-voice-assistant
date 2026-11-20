@@ -36,6 +36,7 @@ from voice.t3.verify import Verdict
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
+assert LS.CHAT_TIMEOUT_S + LS.GATE_TIMEOUT_S < SUMMARY_TIMEOUT_S
 TURNS = 3
 
 NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command it wants to run), file_change "
@@ -159,11 +160,11 @@ class LocalText:
         self._ban: list | None = None
         self._gate = None
 
-    def _post(self, path: str, body: dict) -> dict:
+    def _post(self, path: str, body: dict, timeout_s: float | None = None) -> dict:
         request = urllib.request.Request(f"{self.url}{path}", data=json.dumps(body).encode(),
                                          headers={"Content-Type": "application/json"})
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+            with urllib.request.urlopen(request, timeout=timeout_s or self.timeout_s) as response:
                 return json.load(response)
         except (urllib.error.URLError, OSError) as exc:
             raise ConnectionError(f"the local text model at {self.url} failed: {exc}") from exc
@@ -183,7 +184,8 @@ class LocalText:
         """The thread's gist as measured for this model: S11's prompt, JSON out, then the gate. `text` is empty when
         the model wrote no gist or the gate did not pass it, so the status is said without a summary."""
         record = self._chat({"messages": LS.messages(state, question), "max_tokens": LS.MAX_TOKENS, **LS.SAMPLING,
-                             "response_format": {"type": "json_schema", "json_schema": {"schema": LS.GIST_SCHEMA}}})
+                             "response_format": {"type": "json_schema", "json_schema": {"schema": LS.GIST_SCHEMA}}},
+                            timeout_s=LS.CHAT_TIMEOUT_S)
         gist = LS.read_gist(record["text"])
         unsupported = self._unsupported(state, gist) if gist else None
         kept = unsupported is not None and unsupported < LS.GATE_THRESHOLD
@@ -193,17 +195,17 @@ class LocalText:
         """The gate's answer, or None when the local d1-2B cannot give one, which drops the gist."""
         from voice.local_decider.client import D1Client
         if self._gate is None:
-            self._gate = D1Client(self.gate_url)
+            self._gate = D1Client(self.gate_url, timeout_s=LS.GATE_TIMEOUT_S)
         try:
             return LS.unsupported(self._gate.call("decisions", LS.gate_request(state, gist), label="summary_gate"))
         except Exception:
             return None
 
-    def _chat(self, body: dict) -> dict:
+    def _chat(self, body: dict, timeout_s: float | None = None) -> dict:
         body = {**body, "chat_template_kwargs": {"enable_thinking": False}, "logit_bias": self._think_ban()}
         self.calls += 1
         started = time.perf_counter()
-        payload = self._post("/v1/chat/completions", body)
+        payload = self._post("/v1/chat/completions", body, timeout_s)
         ms = round((time.perf_counter() - started) * 1000, 1)
         choice = (payload.get("choices") or [{}])[0]
         usage = payload.get("usage") or {}
@@ -235,6 +237,7 @@ class Lane:
         self.pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="t3-text")
         self.lock = threading.Lock()
         self.calls = 0
+        self.generation = 0
 
     @staticmethod
     def _check(client) -> None:
@@ -242,10 +245,12 @@ class Lane:
             assert_free(client.model)
 
     def use(self, client) -> None:
-        """Swap the model behind the lane. A request already running finishes on the old one."""
+        """Swap the model behind the lane. A request already running finishes on the old one, and `generation` moves
+        on so nothing the old one wrote is taken for the new one's."""
         self._check(client)
         with self.lock:
             self.client = client
+            self.generation += 1
 
     def summarise(self, state: T.ThreadState, question: str | None) -> Future:
         """A thread's summary on the lane: the local model in the form measured for it, any other in the cloud's."""
@@ -384,8 +389,8 @@ class Speech:
 
     def prefetch(self, thread_id: str, question: str | None = None) -> None:
         """A speculative start: read the thread now and begin its summary on the lane, without waiting. The words so
-        far may not be the whole question, so the entry is partial: the first final question about the same thread
-        and read takes it over, so a summary started early is not thrown away."""
+        far may not be the whole question, so the entry is partial: only a final question that normalises to the
+        same words reuses it."""
         state = self.read(thread_id)
         if state is not None:
             self.remember(state)
@@ -394,15 +399,10 @@ class Speech:
     def _summary(self, state: T.ThreadState, question: str | None, partial: bool = False) -> Future | None:
         if self.lane is None:
             return None
-        key = (state.thread_id, state.as_of_sequence, normalise(question or ""))
+        key = (self.lane.generation, state.thread_id, state.as_of_sequence, normalise(question or ""))
         with self.lock:
             gist = self.summaries.get(key)
-            if gist is None and not partial:
-                early = [g for (thread_id, sequence, _), g in self.summaries.items()
-                         if (thread_id, sequence) == key[:2] and g.partial]
-                if early:
-                    gist = self.summaries[key] = early[-1]
-            if gist is None or (gist.future.done() and gist.future.exception() is not None):
+            if gist is None or gist.future.cancelled() or (gist.future.done() and gist.future.exception() is not None):
                 gist = self.summaries[key] = Gist(self.lane.summarise(state, question), partial)
             elif not partial:
                 gist.partial = False
@@ -415,6 +415,8 @@ class Speech:
         try:
             record = future.result(timeout=SUMMARY_TIMEOUT_S)
         except Exception:
+            # A summary still queued is dropped, so it never holds the one lane for the next caller.
+            future.cancel()
             return None
         text = _clean(record.get("text", ""))
         return text or None

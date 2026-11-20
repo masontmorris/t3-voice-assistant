@@ -84,16 +84,16 @@ class D1Client:
     # refuse the whole request with a 400, so on a live call no segment was ever decided and nothing was dispatched.
     typed_answers = False
 
-    def __init__(self, url=None, set_size=None):
+    def __init__(self, url=None, set_size=None, timeout_s=TIMEOUT_S):
         parts = urlsplit(url or os.environ.get("VOICE_D1_URL", f"http://127.0.0.1:{DEFAULT_PORT}"))
         self.host, self.port = parts.hostname, parts.port
-        self.set_size = set_size
+        self.set_size, self.timeout_s = set_size, timeout_s
         self._conn = None
 
     def _post(self, payload):
         for attempt in range(2):
             if self._conn is None:
-                self._conn = http.client.HTTPConnection(self.host, self.port, timeout=TIMEOUT_S)
+                self._conn = http.client.HTTPConnection(self.host, self.port, timeout=self.timeout_s)
             try:
                 self._conn.request("POST", "/v1/systemone", body=payload, headers={"Content-Type": "application/json"})
                 response = self._conn.getresponse()

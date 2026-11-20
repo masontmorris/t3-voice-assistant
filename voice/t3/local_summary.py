@@ -10,6 +10,8 @@ dropped and the voice says the thread's status with no summary.
 from __future__ import annotations
 
 import json
+import math
+import re
 from typing import Any
 
 from voice.t3 import types as T
@@ -94,6 +96,12 @@ GIST_SCHEMA = {"type": "object", "properties": {"gist": {"type": "string", "patt
 WORDS = 20
 SAMPLING = {"temperature": 0.1, "top_k": 50, "repeat_penalty": 1.1}
 MAX_TOKENS = 60
+# A summary is worth waiting for only while the status line waits (`speech.SUMMARY_TIMEOUT_S`), so the model and the
+# gate together stay well inside it. Measured with all three models loaded: model p95 about 0.4 s, gate p95 0.07 s.
+CHAT_TIMEOUT_S = 4.0
+GATE_TIMEOUT_S = 2.0
+_SPOKEN = re.compile(GIST_SCHEMA["properties"]["gist"]["pattern"])
+_MAX_CHARS = GIST_SCHEMA["properties"]["gist"]["maxLength"]
 
 
 def asks_for(text: str, words: int) -> str:
@@ -126,21 +134,25 @@ def messages(state: T.ThreadState, question: str | None) -> list[dict]:
 
 
 def read_gist(text: str) -> str | None:
-    """The `gist` of the model's JSON. Other keys are ignored: llama.cpp's grammar does not enforce
-    `additionalProperties`. Anything that is not that JSON, such as output cut at `MAX_TOKENS`, is no gist."""
+    """The `gist` of the model's JSON, only when it is what the schema allows. The grammar should already hold it
+    there, but this is the last check before the summary slot. Other keys are ignored: llama.cpp's grammar does not
+    enforce `additionalProperties`. Anything else, such as output cut at `MAX_TOKENS`, is no gist."""
     try:
         record = json.loads(text)
     except ValueError:
         return None
     gist = record.get("gist") if isinstance(record, dict) else None
-    return " ".join(gist.split()) or None if isinstance(gist, str) else None
+    if not isinstance(gist, str) or len(gist) > _MAX_CHARS or not _SPOKEN.fullmatch(gist):
+        return None
+    return " ".join(gist.split()) or None
 
 
 GATE_CONTEXT = ("A voice assistant is about to say `gist` out loud as what a coding thread reported. `last_reply` is "
                 "the thread's latest reply and `status` where its run stands. They are everything the assistant "
                 "knows.")
 GATE_QUESTION = "Does `gist` state something about the thread that `last_reply` and `status` do not support?"
-# Chosen on two sets of threads and held out on a third: it kept 0.7 false gists in 30 and 65% of the true ones.
+# Chosen on two sets of threads and held out on two more: 0.7 and 2.0 false gists spoken in 30, 65% and 79% of the
+# true ones kept (docs/voice/local-renderer.md).
 GATE_THRESHOLD = 0.10
 
 
@@ -156,9 +168,12 @@ def gate_request(state: T.ThreadState, gist: str) -> dict:
 
 
 def unsupported(record: dict[str, Any]) -> float | None:
-    """The gate's P(the gist is unsupported), or None when the decider gave no valid answer."""
-    if record.get("status") != 200:
-        return None
-    answer = ((record.get("response") or {}).get("answers") or {}).get("unsupported")
+    """The gate's P(the gist is unsupported), or None when the decider gave no valid answer, which drops the gist. A
+    boolean is no probability, though Python counts it as a number."""
+    response = record.get("response") if record.get("status") == 200 else None
+    answers = response.get("answers") if isinstance(response, dict) else None
+    answer = answers.get("unsupported") if isinstance(answers, dict) else None
     value = answer.get("noul") if isinstance(answer, dict) else None
-    return float(value) if isinstance(value, (int, float)) and 0 <= value <= 1 else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        return None
+    return float(value) if 0 <= value <= 1 else None

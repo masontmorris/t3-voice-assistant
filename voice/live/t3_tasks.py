@@ -29,6 +29,7 @@ import os
 import re
 import threading
 import time
+from contextlib import ExitStack, contextmanager
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable
@@ -1073,10 +1074,40 @@ def local_text_server(log_path: Path, port: int = LOCAL_TEXT_PORT):
 
 
 def summary_gate_server(log_path: Path, port: int = SUMMARY_GATE_PORT):
-    """The local d1-2B that checks LFM3-1.7B's gists, its own server so the summary never waits on the segmenter's."""
+    """The local d1-2B that checks LFM3-1.7B's gists, when no local decider already runs one."""
     from voice.local_decider.client import d1_server
 
     return d1_server(port=port, log_path=log_path)
+
+
+@contextmanager
+def local_summariser(mode: str, out: Path, shared_gate: str | None = None):
+    """The local summariser's servers for a call: LFM3-1.7B and its gate, a d1-2B of its own unless `shared_gate`
+    names one already running. Yields their URLs, or (None, None) when the local summariser is off. `on` fails loudly
+    if a server cannot start. `auto` leaves the call on the cloud summariser instead, with one log line, so a missing
+    model or a taken port never stops a call."""
+    if mode == "off" or (mode == "auto" and not LOCAL_TEXT_MODEL.is_file()):
+        yield None, None
+        return
+    servers = ExitStack()
+    try:
+        text = servers.enter_context(local_text_server(out / "text-server.log"))
+        print(f"LFM3-1.7B pid {text.proc.pid} on port {LOCAL_TEXT_PORT} after {text.startup_s:.1f} s", flush=True)
+        gate = shared_gate
+        if gate is None:
+            gate_server = servers.enter_context(summary_gate_server(out / "summary-gate.log"))
+            gate = f"http://127.0.0.1:{SUMMARY_GATE_PORT}"
+            print(f"summary gate d1-2B pid {gate_server.proc.pid} on port {SUMMARY_GATE_PORT} after "
+                  f"{gate_server.startup_s:.1f} s", flush=True)
+    except Exception as exc:
+        servers.close()
+        if mode == "on":
+            raise
+        print(f"local summariser off, summaries stay on the cloud model: {exc}", flush=True)
+        yield None, None
+        return
+    with servers:
+        yield f"http://127.0.0.1:{LOCAL_TEXT_PORT}", gate
 
 
 def summariser_choices(local_url: str | None = None,

@@ -117,8 +117,7 @@ from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, cr
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
-from voice.live.t3_tasks import (LOCAL_TEXT_MODEL, LOCAL_TEXT_PORT, SUMMARY_GATE_PORT, local_text_server,
-                                 summariser_choices, summary_gate_server)
+from voice.live.t3_tasks import local_summariser, summariser_choices
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
     default_model, default_origin, default_token_file, live_writer
 from voice.t3.verify import Decider as SpeechDecider
@@ -1162,18 +1161,10 @@ async def main_async(args):
                   f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
         t3 = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
-        local_text = gate = None
-        wants_local = getattr(args, "local_text", "auto")
-        if getattr(args, "t3", "off") == "on" and (wants_local == "on"
-                                                   or (wants_local == "auto" and LOCAL_TEXT_MODEL.is_file())):
-            text_server = stack.enter_context(local_text_server(out / "text-server.log"))
-            local_text = f"http://127.0.0.1:{LOCAL_TEXT_PORT}"
-            print(f"LFM3-1.7B pid {text_server.proc.pid} on port {LOCAL_TEXT_PORT} after "
-                  f"{text_server.startup_s:.1f} s", flush=True)
-            gate_server = stack.enter_context(summary_gate_server(out / "summary-gate.log"))
-            gate = f"http://127.0.0.1:{SUMMARY_GATE_PORT}"
-            print(f"summary gate d1-2B pid {gate_server.proc.pid} on port {SUMMARY_GATE_PORT} after "
-                  f"{gate_server.startup_s:.1f} s", flush=True)
+        # The gate takes a second connection to the local decider's d1-2B when it runs one, as the speech decider does.
+        shared_gate = f"http://{decider.host}:{decider.port}" if args.decider == "d1" else None
+        local_text, gate = stack.enter_context(local_summariser(
+            getattr(args, "local_text", "auto") if getattr(args, "t3", "off") == "on" else "off", out, shared_gate))
         if getattr(args, "t3", "off") == "on":
             writer = live_writer(url)
             if writer is not None:
