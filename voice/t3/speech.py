@@ -61,9 +61,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Say the message exactly as given, in quotes, "
                         "leaving words like my and I as they are. Nothing is sent yet.",
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
-    Kind.SAME_TITLE: "More than one of their threads has this name, so you cannot tell which one they mean and did "
-                     "nothing. `op` is what they asked for: tell (send it a message) or stop. They can do it in the "
-                     "app.",
+    Kind.SAME_TITLE: "Say that you did nothing, because more than one of their threads has this name. `op` is what "
+                     "they asked for: tell (send it a message) or stop. Say they can do it in the app.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then say what `summary` says, in answer to "
@@ -101,10 +100,20 @@ MEANINGS: dict[Kind, str] = {
                   "respectively. If the record gives a reason, attribute it to T3 as its reason for refusing.",
     Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
                         "same news in your own words, adding nothing. Attribute any work or results to the thread.",
+    Kind.CONFIRM_RESPOND: "Ask whether to approve or deny the request the thread is waiting on, as `decision` says, "
+                          "naming the thread. Say what it is about in a few words of your own, using `need` and "
+                          "`pending` only for that: a command's program, never a command line, flag, path or code. "
+                          "Nothing is answered yet.",
+    Kind.RESPONDED: "T3 accepted the answer: say that the request was approved or denied, as `decision` says, for the "
+                    "thread. Do not say what the thread does next.",
+    Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to approve or deny. "
+                          "Name the thread when it is given.",
+    Kind.CORRECTION: "What you said a moment ago about this thread was wrong. Say so in a few words, then say its real "
+                     "status. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
 }
 assert set(MEANINGS) == set(Kind)
 
-CLAIM_WORDS = {"finished": "that the thread is finished, done or completed",
+CLAIM_WORDS = {"answered": "that the request was already approved or denied", "finished": "that the thread is finished, done or completed",
                "stopped": "that the thread stopped or was cancelled", "started": "that the thread started",
                "sent": "that the message was sent or passed on",
                "working": "that the thread is still working or running"}
@@ -622,8 +631,10 @@ READER_EXAMPLES = {
     Kind.CONFIRM_TELL: ({"thread": "Example Trim Image Margins", "message": "keep the captions"},
                         "Should I send 'keep the captions' to Example Trim Image Margins as a follow-up?"),
     Kind.CONFIRM_STOP: ({"thread": "Example Split Export Files"}, "Should I stop Example Split Export Files?"),
+    # Said to the call's voice, the older shape ("More than one thread is called X, so I can't tell which to stop")
+    # was refused on 20 of 24 relays: it opened on a refusal of its own ("I can't help"). This shape recited 24 of 24.
     Kind.SAME_TITLE: ({"thread": "Example Sort Photo Albums", "op": "stop"},
-                      "More than one thread is called Example Sort Photo Albums, so I can't tell which to stop. You "
+                      "I didn't stop anything, because more than one thread is called Example Sort Photo Albums. You "
                       "can stop it in the app."),
     Kind.CANCELLED: ({"op": "start"}, "I won't start the thread."),
     # "The ... thread" and not the bare title first: after "the second one", the call's voice said a line that opens
@@ -663,6 +674,15 @@ READER_EXAMPLES = {
                    "T3 refused to send your follow-up message, citing an archived thread."),
     Kind.LEGACY_UPDATE: ({"thread": "Example Revise Column Labels", "text": "Example Revise Column Labels is still running."},
                          "Example Revise Column Labels is still running."),
+    Kind.CONFIRM_RESPOND: ({"thread": "Example Archive Old Invoices", "decision": "approve", "need": "command_approval",
+                            "pending": "Run the cleanup script?"},
+                           "Should I approve Example Archive Old Invoices running its cleanup script?"),
+    Kind.RESPONDED: ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "file_change"},
+                     "I approved the file changes for Example Mend Rail Maps."),
+    Kind.NOTHING_PENDING: ({"thread": "Example Tag Camera Clips"},
+                           "Example Tag Camera Clips isn't waiting on any request, so there was nothing to answer."),
+    Kind.CORRECTION: ({"thread": "Example Bake Menu Cards", "status": "working"},
+                      "Sorry, I got that wrong. The Example Bake Menu Cards thread is still working."),
 }
 
 
@@ -670,6 +690,14 @@ assert set(READER_EXAMPLES) == set(Kind)
 # A kind whose example is chosen by a slot as well: shown only the project example, the writer restates the task for
 # thread candidates and names none.
 READER_VARIANTS = {
+    (Kind.SAME_TITLE, "tell"): ({"thread": "Example Sort Photo Albums", "op": "tell"},
+                                "I didn't send anything, because more than one thread is called Example Sort Photo "
+                                "Albums. You can send it in the app."),
+    (Kind.CONFIRM_RESPOND, "deny"): ({"thread": "Example Archive Old Invoices", "decision": "deny",
+                                     "need": "command_approval", "pending": "Run the cleanup script?"},
+                                    "Should I say no to Example Archive Old Invoices running its cleanup script?"),
+    (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
+                               "I said no to the file changes for Example Mend Rail Maps."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
     (Kind.ASK_WHICH, "thread"): ({"of": "thread", "candidates": ["Example Mend Rail Maps", "Example Mend Rail Labels",
                                                                  "Example Add Rail Legend"]},
@@ -705,7 +733,8 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     examples = []
     for kind in kinds:
         slots = firsts[kind].slots
-        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op")), READER_EXAMPLES[kind])
+        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op") or slots.get("decision")),
+                                    READER_EXAMPLES[kind])
         example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else shown
         examples.append((json.dumps({"kind": kind.value, **example}), reply))
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]

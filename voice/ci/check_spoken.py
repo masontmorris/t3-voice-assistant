@@ -31,7 +31,7 @@ SPEAKING = {
     "voice/live/server.py": ("run_idle", "speak_t3"),
 }
 # Top-level names whose literals are not the voice's: the decider's tool text and the person's side of the CLI.
-NOT_SPOKEN_NAMES = frozenset({"T3_TOOLS", "ASKS", "drive", "smoke", "main", "transcript"})
+NOT_SPOKEN_NAMES = frozenset({"T3_TOOLS", "WAITING_ASKS", "WAITING_NOW", "ASKS", "drive", "smoke", "main", "transcript"})
 NOT_SPOKEN_CALLS = frozenset({"log", "print", "add_argument", "add_parser", "ArgumentParser", "warn"})
 # A lifecycle row's first argument says when the row applies; what the row says comes after it.
 DESCRIBED_CALLS = frozenset({"Row"})

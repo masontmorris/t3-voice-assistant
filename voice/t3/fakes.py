@@ -40,6 +40,10 @@ def requested(run="r1", sequence=95) -> T.InterruptRequested:
     return T.InterruptRequested(run, sequence)
 
 
+def responded(thread="t1", pending="q1", decision="approve", sequence=96, replayed=False) -> T.RespondResult:
+    return T.RespondResult(thread, pending, decision, sequence, replayed)
+
+
 def busy() -> SeamRefused:
     return refusal("thread_busy", "That thread is busy.")
 
@@ -122,6 +126,10 @@ class FakeSeam:
     def interrupt(self, request_id, thread_id):
         self.calls.append(("interrupt", request_id, thread_id))
         return self._answer("interrupt", unavailable())
+
+    def respond(self, request_id, thread_id, pending_request_id, decision):
+        self.calls.append(("respond", request_id, thread_id, pending_request_id, decision))
+        return self._answer("respond", unavailable())
 
     def watch(self, thread_id, after_sequence, run_id=None):
         self.calls.append(("watch", thread_id, after_sequence, run_id))

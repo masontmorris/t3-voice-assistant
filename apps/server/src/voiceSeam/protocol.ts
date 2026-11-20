@@ -222,6 +222,18 @@ export const VoiceInterruptResult = Schema.Union([
 ]).annotate({ identifier: "VoiceInterruptResult" });
 export type VoiceInterruptResult = typeof VoiceInterruptResult.Type;
 
+export const VoiceRespondResult = Schema.Struct({
+  threadId: ThreadId,
+  /** The runtime request that was answered. */
+  pendingRequestId: Schema.String,
+  decision: Schema.Literals(["approve", "deny"]),
+  /** A fresh answer: its accepted write. A replay: the thread's sequence now. */
+  sequence: Sequence,
+  /** True when the request id had already answered. */
+  replayed: Schema.Boolean,
+}).annotate({ identifier: "VoiceRespondResult" });
+export type VoiceRespondResult = typeof VoiceRespondResult.Type;
+
 /** Each op, its input, and the value an accepted request answers with. */
 export const REQUESTS = {
   list_threads: {
@@ -263,6 +275,16 @@ export const REQUESTS = {
   interrupt: {
     input: Schema.Struct({ requestId: VoiceRequestId, threadId: ThreadId }),
     output: VoiceInterruptResult,
+  },
+  respond: {
+    input: Schema.Struct({
+      requestId: VoiceRequestId,
+      threadId: ThreadId,
+      /** The pending approval to answer: `pending.requestId` of a read of the thread. */
+      pendingRequestId: Schema.String,
+      decision: Schema.Literals(["approve", "deny"]),
+    }),
+    output: VoiceRespondResult,
   },
 } as const;
 

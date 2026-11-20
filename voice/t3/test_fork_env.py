@@ -547,7 +547,7 @@ class SeamConfigTest(unittest.TestCase):
             doc = json.loads(paths.seam_config.read_text(encoding="utf-8"))
             self.assertEqual(doc["maxRuntimeMode"], "auto-accept-edits")
             self.assertEqual(
-                set(doc["operations"]), {"list", "read", "watch", "launch", "send", "interrupt"}
+                set(doc["operations"]), {"list", "read", "watch", "launch", "send", "interrupt", "respond"}
             )
             self.assertEqual([p["projectId"] for p in doc["projects"]], ["proj_sandbox"])
             self.assertEqual(doc["workspace"], {"proj_sandbox": {"type": "root"}})

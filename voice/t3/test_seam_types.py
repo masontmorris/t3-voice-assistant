@@ -113,7 +113,7 @@ class SchemaCoverageTest(unittest.TestCase):
                         self.assertEqual(properties["ok"]["enum"], [False])
                         self.assert_fields(node, ("type", "id", "ok", "error"))
                         self.assert_model_fields(properties["error"], T.ResultErr)
-        self.assertEqual(sorted(kinds), ["event", "hello"] + ["result"] * 8 + ["watch_ended"])
+        self.assertEqual(sorted(kinds), ["event", "hello"] + ["result"] * 9 + ["watch_ended"])
         self.assertEqual(len(ok_values), len(T.WIRE_OPS))
         models = {
             "list_threads": T.ThreadList,
@@ -122,6 +122,7 @@ class SchemaCoverageTest(unittest.TestCase):
             "unwatch": T.WatchStarted,
             "launch": T.LaunchResult,
             "send": T.SendResult,
+            "respond": T.RespondResult,
         }
         self.assertEqual(set(T.RESULT_DECODERS), set(T.WIRE_OPS))
         for op, node in zip(T.WIRE_OPS, ok_values, strict=True):

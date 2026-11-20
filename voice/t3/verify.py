@@ -73,6 +73,10 @@ MEANS: dict[Kind, str] = {
     Kind.SEAM_DOWN: "the assistant stopped following their threads",
     Kind.REFUSED: "T3 refused to {op}",
     Kind.LEGACY_UPDATE: "the same news as this older line: {text}",
+    Kind.CORRECTION: "what the assistant said a moment ago about {thread} was wrong, and {thread} is {status}",
+    Kind.CONFIRM_RESPOND: "whether to {decision} the request {thread} is waiting on, which is {need}",
+    Kind.RESPONDED: "the request {thread} was waiting on was {decided}",
+    Kind.NOTHING_PENDING: "{thread} is not waiting on any request, so there was nothing to approve or deny",
 }
 assert set(MEANS) == set(Kind)
 
@@ -92,10 +96,15 @@ NEED = {"command_approval": "approval to run a command", "file_change": "approva
 # work (measured on the fixture, 2026-11-18). A reply is never asked it (UNASKED).
 CLAIMS = {"finished": "the run of {thread} has already ended", "stopped": "{thread} has already stopped or was cancelled",
           "started": "the thread has already started", "sent": "the message has already been sent",
-          "working": "{thread} is still working or running"}
+          "working": "{thread} is still working or running",
+          "answered": "the request was already approved or denied, as something that has happened"}
+# A claim the decider reads from a question about approving at 0.61 and from a real claim at 0.80 and up (local d1-2B, 8
+# made-up confirm_respond lines), so this one claim is held to a higher bar than YES.
+CLAIM_BARS = {"answered": 0.75}
 CLAIMS_ONCE_ENDED = {"finished": "{thread} completed its work successfully"}
 ENDED_UNFINISHED = frozenset({"interrupted", "cancelled"})
-OPS = {"start": "start the thread", "ask": "look the thread up", "tell": "send the message", "stop": "stop the thread"}
+OPS = {"start": "start the thread", "ask": "look the thread up", "tell": "send the message", "stop": "stop the thread",
+       "respond": "answer the request"}
 
 
 @dataclass(frozen=True)
@@ -106,6 +115,7 @@ class Ask:
     question: str
     want: bool
     fix: str = ""
+    bar: float = 0.5
 
     def problem(self) -> str:
         return self.fix or f"a checker answered {'no' if self.want else 'yes'} to: {self.question}"
@@ -124,6 +134,8 @@ class Verdict:
 def _fill(template: str, slots: dict) -> str:
     values = dict(slots)
     values["status"] = STATUS.get(str(slots.get("status")), str(slots.get("status")))
+    values["decision"] = slots.get("decision", "answer")
+    values["decided"] = {"approve": "approved", "deny": "denied"}.get(str(slots.get("decision")), "answered")
     values["need"] = NEED.get(str(slots.get("need")), "something from them")
     values["op"] = OPS.get(str(slots.get("op")), "do it")
     if isinstance(slots.get("candidates"), (list, tuple)):
@@ -168,7 +180,8 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")
     for claim, wording in asked_claims(acts).items():
-        out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(wording, {'thread': subject})}?", False))
+        out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(wording, {'thread': subject})}?", False,
+                       bar=CLAIM_BARS.get(claim, YES)))
     # Of three phrasings probed on the six fixture lines, this one kept the widest gap (measured, 2026-11-18).
     out.append(Ask("invents", "Does the line state something about a thread that `facts` does not support?", False))
     return out
@@ -219,7 +232,7 @@ def judge(acts: Iterable[Act], answers: Any) -> tuple[bool, dict[str, float], tu
             problems.append(f"the decider gave no answer to: {ask.question}")
             continue
         probabilities[ask.name] = float(value)
-        if (value >= YES) != ask.want:
+        if (value >= ask.bar) != ask.want:
             failed.append(ask.name)
             problems.append(ask.problem())
     return not failed, probabilities, tuple(failed), tuple(problems)
@@ -232,6 +245,48 @@ def reuse_request(title: str, gist: str, asked: str | None, question: str) -> di
     return {"model": "d1.2", "state": state,
             "questions": {"answers": {"type": "noul", "instructions": REUSE_QUESTION,
                                       "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
+# A free reply (the voice model's own words, nothing drafted or checked) is judged against what T3 holds about the thread
+# the call last spoke of: one typed choice of what the reply says about a thread relative to `facts`.
+CLAIM_CONTEXT = ("A voice assistant just said `reply` aloud to the person it is talking to on a call about their coding "
+                 "threads in an app called T3. `facts` is everything true that the assistant knows about the thread it "
+                 "last spoke of: its state in T3, the end of its last reply, and what the assistant itself has sent to "
+                 "it or stopped. Nothing else is known. A thread's state, a request it waits on, and what the assistant "
+                 "sent to it or stopped are only what facts show. Saying a thread was approved, answered, sent to, "
+                 "started, stopped or finished is supported only when facts show that exactly.")
+CLAIM_QUESTION = "Compare `reply` with `facts`. What does the reply say about a coding thread?"
+CLAIM_CRITERIA = {"nothing": "The reply says nothing about a coding thread.",
+                  "supported": "Everything the reply says about a thread is shown by facts.",
+                  "unsupported": "The reply says something about a thread that facts do not show, or that facts "
+                                 "contradict."}
+# The share a reply needs for `unsupported` to be corrected. A correction cuts a reply that may be right, so this is the
+# sure side: on voice/t3/fixtures/claims.json it flags 8 of 10 wrong replies and 0 of 10 others (seen), and the held-out
+# set is in docs/voice/live-reply-check.md.
+CLAIM_UNSUPPORTED_YES = 0.5
+CLAIM_TIMEOUT_S = 2.0
+
+
+def claim_request(reply: str, facts: dict) -> dict:
+    """One decisions body: what `reply` says about a thread, and whether `facts` show it."""
+    return {"model": "d1.2", "state": {"reply": reply, "facts": facts, "context": CLAIM_CONTEXT},
+            "questions": {"reading": {"type": "choice", "instructions": CLAIM_QUESTION, "criteria": CLAIM_CRITERIA}}}
+
+
+@dataclass(frozen=True)
+class Claim:
+    """The decider's reading of a free reply: P(it says something about a thread that `facts` do not show) and P(it says
+    nothing about a thread). `wrong` is `unsupported` at CLAIM_UNSUPPORTED_YES or more. An unreadable answer is never
+    wrong, and says so in `error`."""
+
+    unsupported: float | None = None
+    nothing: float | None = None
+    ms: float = 0.0
+    error: str | None = None
+
+    @property
+    def wrong(self) -> bool:
+        return self.unsupported is not None and self.unsupported >= CLAIM_UNSUPPORTED_YES
 
 
 def noul(record: dict, name: str) -> float | None:
@@ -284,6 +339,23 @@ class Decider:
             return False
         p_yes = noul(record, "answers")
         return p_yes is not None and p_yes >= REUSE_YES
+
+    def claims(self, reply: str, facts: dict) -> Claim:
+        """Whether `reply` claims something about a thread that `facts` do not support. A timeout or any error is
+        never a claim: nothing is corrected on a check that did not finish."""
+        started = time.perf_counter()
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", claim_request(reply, facts), label="t3_claim")
+        except Exception as exc:
+            return Claim(ms=_ms(started), error=f"{type(exc).__name__}: {exc}")
+        response = record.get("response") if record.get("status") == 200 else None
+        answers = response.get("answers") if isinstance(response, dict) else None
+        scores = _scores((answers or {}).get("reading"), CLAIM_CRITERIA) if isinstance(answers, dict) else None
+        if scores is None:
+            return Claim(ms=_ms(started), error=f"decider status {record.get('status')}, no reading")
+        return Claim(scores.get("unsupported", 0.0), scores.get("nothing", 0.0), _ms(started))
 
     def reads(self, said: Act, reply: str, options: tuple[str, ...] = ()) -> Reading:
         """What `reply` does about the question `said` asked, and which of `options` it changes to when it asks for

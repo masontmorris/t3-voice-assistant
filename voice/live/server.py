@@ -68,6 +68,12 @@ the reply, `voice/live/facts.py` reads the days, dates, times, numbers and place
 said them in this call or a lookup gave them, and the turn's record keeps what that check would have refused. It is
 a log and nothing else: it never holds, cuts, mutes or regenerates a reply (docs/voice/live-fact-check.md).
 
+With --t3 on and the local d1-2B running, a free reply that says something about a thread is also checked against T3,
+beside the reply and never in front of it (`voice/live/replycheck.py`). One that T3 does not support is corrected:
+the rest of its audio is stopped through the barge-in path and a typed correction is spoken in its place, or, once it
+has finished playing, spoken as a follow-up, or, while the caller is talking, held for a quiet moment
+(docs/voice/live-reply-check.md).
+
 With --t3 on, news from a T3 thread the voice started or sent to (it is working, its reply, it finished) is spoken
 while the call is quiet, as its own short turn (`IdleTurn`). Quiet means no turn running, no reply playing, nobody
 speaking, and IDLE_GRACE_S since the last of them. Every update carries typed acts. The writer drafts a line, then
@@ -118,10 +124,11 @@ from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, cr
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
+from voice.live.replycheck import ReplyCheck
 from voice.live.t3_tasks import local_summariser, summariser_choices
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
     default_model, default_origin, default_token_file, live_writer
-from voice.t3.verify import VERIFY_TIMEOUT_S
+from voice.t3.verify import CLAIM_TIMEOUT_S, VERIFY_TIMEOUT_S
 from voice.t3.verify import Decider as SpeechDecider
 from voice.t3.verify import default_decider as default_speech_decider
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
@@ -776,8 +783,7 @@ class Conversation:
                                                                       prior.speaking)))
                 self.read_backs.add(barge.heard)
                 barge.heard.add_done_callback(self.read_backs.discard)
-            self.post({"type": "barge_in", "turn": self.playback.turn})
-            self.playback.stop(now)
+            self.stop_playback(now)
         if prior is not None:
             if prior.reply_started:
                 if barge_in or not prior.task.done():
@@ -797,6 +803,32 @@ class Conversation:
         turn.task.add_done_callback(lambda _: self.pending.discard(turn))
         self.turn = turn
         self.post({"type": "turn_start", "turn": turn.n, "carried_audio_s": round(turn.carried_s, 3)})
+
+    def stop_playback(self, now):
+        """Drop what the client has buffered of the reply and stop counting it as playing: a barge-in, or a reply
+        replaced by its correction."""
+        self.post({"type": "barge_in", "turn": self.playback.turn})
+        self.playback.stop(now)
+
+    def reply_check(self, turn):
+        """The check of this turn's free replies against T3, or None without a thread service or a decider for it."""
+        live = self.live
+        if live.t3 is None or live.claims is None:
+            return None
+
+        def playing():
+            if not turn.replies or turn.out_rate is None:
+                return None
+            sent_s = len(turn.replies[-1].pcm) / 2 / turn.out_rate
+            remaining = max(0.0, self.playback.until - time.perf_counter()) if self.playback.turn == turn.n else 0.0
+            return max(0.0, sent_s - remaining), sent_s
+
+        return ReplyCheck(
+            facts=live.t3.claim_facts, judge=live.claims.claims,
+            correction=lambda thread_id, replying_to: live.t3.correction(thread_id, replying_to),
+            playing=playing, muted=lambda: turn.muted,
+            speaking=lambda: self.overlap is not None or self.endpointer.state is not State.IDLE,
+            stop_playback=lambda: self.stop_playback(time.perf_counter()))
 
     def check_end(self, silent_ms):
         """One ask of the audio model at a check point, unless the turn already ended or an answer is still coming."""
@@ -947,7 +979,7 @@ class Conversation:
                                     prior_replies=tuple(self.ledger.replies()),
                                     task_service=live.task_service,
                                     send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm),
-                                    is_muted=lambda: turn.muted)
+                                    is_muted=lambda: turn.muted, reply_check=self.reply_check(turn))
             # Sound still being judged may continue this turn: until it is known, the turn has not finished.
             await floor_free(self.voice)
         except asyncio.CancelledError:
@@ -957,6 +989,8 @@ class Conversation:
         finally:
             self.voice_turn = None
         turn.decider.closed = True
+        if live.t3 is not None and live.t3.has_news(idle=True):
+            live.news.set()
         self.ledger.record(record, muted=turn.muted)
         record["ledger"] = self.ledger.record_dict()
         record["live"] = {**turn.metrics(), "prompt": self.prompt_source, "endpointer": vars(live.settings),
@@ -1067,9 +1101,10 @@ class Conversation:
 
 
 class Live:
-    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, *, secret):
+    def __init__(self, args, url, decider, tools, out, decider_lock=None, eou=None, *, secret, claims=None):
         self.args, self.url, self.decider, self.tools, self.out = args, url, decider, tools, out
         self.task_service = self.t3 = None
+        self.claims = claims
         self.news = asyncio.Event()
         self.secret = secret
         self.eou = eou
@@ -1215,12 +1250,15 @@ async def main_async(args):
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
             stack.callback(poller.stop)
-            tools = T3Registry(tools)
+            tools = T3Registry(tools, t3.pending_requests)
             print(f"t3 tasks on: {len(t3.follow.journal.live())} live threads and "
                   f"{len(t3.follow.journal.held())} held follow-ups resumed, text model "
                   f"{'on' if t3.model else 'off'}", flush=True)
+        # A free reply is checked against T3 by the summary gate's d1-2B, on a connection of its own.
+        claims = SpeechDecider(D1Client(gate, timeout_s=CLAIM_TIMEOUT_S)) if gate and t3 is not None else None
+        print(f"reply check {'on' if claims else 'off (no local d1-2B: --local-text off)'}", flush=True)
         live = Live(args, url, decider, tools, out, cloud_lock,
-                    eou=eou, secret=secret)
+                    eou=eou, secret=secret, claims=claims)
         live.news = news
         if t3 is not None:
             live.t3, live.task_service = t3, partial(T3TaskService, t3=t3)

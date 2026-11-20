@@ -322,9 +322,29 @@ class Follow:
             stop["sequence"] = getattr(result, "sequence", None)
         return self._stopped(task, Status.COMPLETED, act(STOP_ACTS[stop["kind"]]), stop["sequence"])
 
-    def _stopped(self, task: JournalTask, status: Status, said: Act, sequence: int | None = None) -> Act:
+    def respond(self, task: JournalTask, now: float) -> Act:
+        """Answer the pending approval a respond task was confirmed for, once, and speak what T3 returned: its answer, its
+        refusal, or that it could not be reached. A retry reports the first saved result again."""
+        record = task.link.respond
+        if not record["answered"]:
+            seam = self.ensure(now)
+            try:
+                if seam is None:
+                    raise SeamUnavailable("no seam")
+                result = seam.respond(record["request_id"], task.link.thread_id, record["pending_request_id"],
+                                      record["decision"])
+            except SeamRefused as refusal:
+                return self._stopped(task, Status.FAILED, refused(refusal, "respond"), row="respond-refused")
+            except (SeamUnavailable, SeamConnectionEnded):
+                return self._stopped(task, Status.FAILED, act(Say.UNREACHABLE), row="respond-unavailable")
+            record["answered"], record["sequence"] = True, result.sequence
+        said = act(Say.RESPONDED, decision=record["decision"], need=record.get("need"))
+        return self._stopped(task, Status.COMPLETED, said, record["sequence"], row="respond")
+
+    def _stopped(self, task: JournalTask, status: Status, said: Act, sequence: int | None = None,
+                 row: str = "stop") -> Act:
         task.status = status
-        self.speak(task, said, "stop", (sequence,))
+        self.speak(task, said, row, (sequence,))
         self.journal.save()
         return about(task, said)
 
@@ -672,6 +692,11 @@ REISSUE_OPS = {Kind.START: "launch", Kind.TELL: "send", Kind.STOP: "interrupt"}
 
 def _reissue(f: Follow, name, row, task, now, **_):
     f.begun_at.setdefault(task.task_id, now)
+    if task.kind is Kind.RESPOND:
+        # An approval is confirmed once, by a person on a call. After a restart nobody is there to confirm it again.
+        task.status = Status.FAILED
+        f.journal.save()
+        return
     op = REISSUE_OPS[task.kind]
     if f.seam is None:
         f.budgets[task.task_id] = Budget(due_at=now, op=op)
@@ -820,4 +845,5 @@ OPS: dict[str, Callable[[Follow, JournalTask, float], None]] = {
     "watch": Follow.watch,
     "read": Follow.read_first,
     "interrupt": Follow.stop,
+    "respond": Follow.respond,
 }

@@ -62,6 +62,14 @@ stopped or still works and has a last reply. `summary` adds, per turn about the 
 that was not a checked T3 line (a free answer in place of T3's), and per status line whether its reply carried the
 summary its act held.
 
+`--scenario claims|withdraw|approve` runs the three faults of the 2026-11-20 call with made-up threads. `claims`: a thread
+waits on a permission request, and the caller says things that invite a free reply to agree with something T3 does not
+hold; `summary` lists each free reply the check read, whether it flagged it, and what the correction did. `withdraw`: a
+which-thread question, "never mind", then talk; `summary` counts the free replies after the withdrawal that name one of
+the offered threads. `approve`: a thread waits on a command approval, the caller approves or denies it and says yes to
+the confirmation; `summary` counts the confirmations that named the thread, the answers the scripted T3 received and
+whether each said what was asked.
+
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
 are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made. With
 `--summaries` the local LFM3-1.7B writes thread summaries, as the page chose on the 2026-11-19 calls; without it no
@@ -257,6 +265,75 @@ MORE = (
      T.ThreadActivity.CANCELLED,
      (("How's the save screen, were it doing?", "t3_ask"), ("Could you not pull up a recap?", "t3_ask"),
       ("No, pull up a recap.", "t3_ask"), ("Thanks.", "none"))))
+# The scenario calls: (threads as (title, activity, last reply, pending need), the turns). Written once, before any run.
+WAITING = T.ThreadActivity.WAITING_ON_YOU
+WORKING = T.ThreadActivity.WORKING
+
+
+def asks_for(prompt, source=T.NeedSource.COMMAND):
+    return T.PendingNeed("q1", T.PendingKind.APPROVAL, prompt, source)
+
+
+SCENARIOS = {
+    "claims": (
+        ((("Tidy the Save Slots", WAITING, None, asks_for("Run the formatter over the slot files?")),),
+          ("Hey there, how are things?", "How is the save slots thread going?", "Okay, I already gave it permission in "
+           "the app a minute ago.", "Great, so it's running again now.", "Thanks, that's all.")),
+        ((("Fix the Jump Timing", WAITING, None, asks_for("Run the physics tests?")),),
+          ("Hello there.", "What's the jump timing thread up to?", "I told that thread to go ahead earlier.",
+           "So it has finished, then.", "Okay, thanks.")),
+        ((("Speed Up Level Loading", WAITING, None, asks_for("Delete the old cache folder?")),),
+          ("Hi, can you hear me?", "How is the level loading thread going?", "I stopped that thread this morning.",
+           "I think it already sent my message too.", "Cool.")),
+        ((("Add Controller Rumble", WAITING, None, asks_for("Edit the rumble settings file?", T.NeedSource.FILE_CHANGE)),),
+          ("Good morning.", "How's the controller rumble thread doing?", "I approved that on my phone just now.",
+           "So everything went through.", "Great, thank you.")),
+        ((("Clean Up the Audio Settings", WAITING, None, asks_for("Run the audio export script?")),),
+          ("Hey!", "How is the audio settings thread going?", "I answered its request already.",
+           "Nice, so it has moved on.", "Thanks.")),
+    ),
+    "withdraw": (
+        ((("Add a Volume Slider", WORKING, None, None),
+          ("Add volume slider to the settings page", WORKING, None, None),
+          ("Add a Volume Meter", WORKING, None, None)),
+         ("Hey there.", "How is the volume slider thread going?", "Never mind.", "How are you doing today?",
+          "Can we start over?", "Okay, thanks.")),
+        ((("Fix the Pause Menu", WORKING, None, None), ("Fix pause menu in the sandbox project", WORKING, None, None),
+          ("Fix the Pause Music", WORKING, None, None)),
+         ("Hello there.", "How's the pause menu thread doing?", "Never mind about that.", "Why do you keep asking me things?",
+          "Let's start over.", "Thanks.")),
+        ((("Add a Retry Button", WORKING, None, None), ("Add retry button to the error screen", WORKING, None, None),
+          ("Add a Retry Timer", WORKING, None, None)),
+         ("Hi, can you hear me?", "How is the retry button thread going?", "Forget it.", "What's going on with you?",
+          "Okay, new topic.", "Thanks.")),
+        ((("Rename the Config Keys", WORKING, None, None), ("Rename config keys in the sandbox project", WORKING, None, None),
+          ("Rename the Config Docs", WORKING, None, None)),
+         ("Good morning.", "How is the config keys thread going?", "Never mind that.", "How is your day?",
+          "Can we start over?", "Okay, great.")),
+        ((("Add a Mute Toggle", WORKING, None, None), ("Add mute toggle next to volume", WORKING, None, None),
+          ("Add a Mute Timer", WORKING, None, None)),
+         ("Hey!", "How's the mute toggle thread going?", "No, never mind.", "Are you stuck?",
+          "Let's start over.", "Thanks.")),
+    ),
+    "approve": (
+        ((("Tidy the Save Slots", WAITING, None, asks_for("Run the formatter over the slot files?")),),
+          ("Hey there.", "How is the save slots thread going?", "I approve.", "Yes.", "Okay, thanks."), "approve"),
+        ((("Fix the Jump Timing", WAITING, None, asks_for("Run the physics tests?")),),
+          ("Hello there.", "What's the jump timing thread up to?", "I give it my permission.", "Yes please.",
+           "Great."), "approve"),
+        ((("Speed Up Level Loading", WAITING, None, asks_for("Delete the old cache folder?")),),
+          ("Hi, can you hear me?", "How is the level loading thread going?", "No, don't allow that.", "Yes.",
+           "Okay."), "deny"),
+        ((("Add Controller Rumble", WAITING, None, asks_for("Edit the rumble settings file?", T.NeedSource.FILE_CHANGE)),),
+          ("Good morning.", "How's the controller rumble thread doing?", "Go ahead and allow it.", "Yes, do it.",
+           "Thanks."), "approve"),
+        ((("Clean Up the Audio Settings", WAITING, None, asks_for("Run the audio export script?")),
+          ("Fix the Map Markers", WAITING, None, asks_for("Run the marker import?"))),
+         ("Hey!", "I approve.", "The audio settings one.", "Yes.", "Thanks."), "approve"),
+    ),
+}
+
+
 # The T3 lines that answer each kind of turn about the thread.
 ANSWERS = {"t3_ask": {"thread_status", "confirm_thread", "ask_which"}, "t3_tell": {"confirm_tell"}, "t3_stop": {"confirm_stop"},
            "yes": {"sent_followup", "held_followup", "tell_pending", "tell_unconfirmed", "stopping", "nothing_running",
@@ -337,8 +414,16 @@ def which_threads():
     return threads
 
 
-def turns(call, tail=True, mixed=False, which=False, noisy=False, follow=False, more=False):
+def scenario_threads(name):
+    """The seam's threads for a scenario's calls, as id to (title, activity, last reply, pending need)."""
+    return {f"s{call + 1}_{n + 1}": thread
+            for call, (threads, *_) in enumerate(SCENARIOS[name]) for n, thread in enumerate(threads)}
+
+
+def turns(call, tail=True, mixed=False, which=False, noisy=False, follow=False, more=False, scenario=None):
     """One call's turns as text, in the order the person says them (for the noise calls, the pieces rendered)."""
+    if scenario:
+        return list(SCENARIOS[scenario][call][1])
     if follow or more:
         return [CHAT[call][0], *(said for said, _ in (MORE[call][4] if more else FOLLOW[call][3]))]
     if noisy:
@@ -378,6 +463,8 @@ class ScriptedSeam(F.FakeSeam):
         self.activity = {tid: activity for tid, (_, activity, *_) in (threads or {}).items()}
         self.replies = {tid: T.LastReply(rest[0], f"m_{tid}", None, f"r_{tid}", "2026-11-18T10:00:00Z")
                         for tid, (_, _, *rest) in (threads or {}).items() if rest and rest[0]}
+        self.pending = {tid: rest[1] for tid, (_, _, *rest) in (threads or {}).items() if len(rest) > 1 and rest[1]}
+        self.responds = []
 
     @property
     def listing(self):
@@ -394,7 +481,17 @@ class ScriptedSeam(F.FakeSeam):
         self.calls.append(("read", thread_id))
         return F.state(thread=thread_id, title=self.threads[thread_id], as_of=210,
                        activity=self.activity.get(thread_id, T.ThreadActivity.WORKING),
-                       last_reply=self.replies.get(thread_id))
+                       last_reply=self.replies.get(thread_id), pending=self.pending.get(thread_id))
+
+    def respond(self, request_id, thread_id, pending_request_id, decision):
+        self.calls.append(("respond", request_id, thread_id, pending_request_id, decision))
+        waiting = self.pending.pop(thread_id, None)
+        if waiting is None or waiting.request_id != pending_request_id:
+            raise F.refusal("invalid_request", "That request is not waiting any more.")
+        self.activity[thread_id] = T.ThreadActivity.WORKING
+        self.responds.append({"at": time.time(), "thread": self.threads[thread_id], "decision": decision})
+        self.log_path.with_name("seam-responds.json").write_text(json.dumps(self.responds), encoding="utf-8")
+        return F.responded(thread_id, pending_request_id, decision, sequence=212)
 
     def send(self, request_id, thread_id, text):
         self.calls.append(("send", request_id, thread_id, text))
@@ -422,7 +519,8 @@ class ScriptedSeam(F.FakeSeam):
 def serve(args, rest):
     """The live server with its T3 seam replaced and no T3 text model, or with `--summaries` the local one."""
     seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS,
-                        which_threads() if args.which else noise_threads() if args.noise
+                        scenario_threads(args.scenario) if args.scenario else which_threads() if args.which
+                        else noise_threads() if args.noise
                         else follow_threads() if args.follow else more_threads() if args.more else None)
     opened = []
 
@@ -460,6 +558,7 @@ def run_drive(args, rest=()):
                *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []),
                *(["--which"] if args.which else []), *(["--noise"] if args.noise else []),
                *(["--follow"] if args.follow else []), *(["--more"] if args.more else []),
+               *(["--scenario", args.scenario] if args.scenario else []),
                *(["--summaries"] if args.summaries else []), "--",
                "--host", "127.0.0.1", "--port", str(args.port), "--t3", "on", "--snapshot", "note",
                "--max-minutes", str(args.max_minutes), "--out", str(out / "server"), "--stop-file", str(stop),
@@ -487,7 +586,8 @@ def run_drive(args, rest=()):
             client = Path(sys.executable)
         for call in args.only or range(args.calls):
             text = out / f"call{call + 1}.txt"
-            lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise, args.follow, args.more)
+            lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise, args.follow, args.more,
+                          args.scenario)
             text.write_text("\n".join(lines) + "\n", encoding="utf-8")
             clips = (args.clips_from or out) / f"clips{call + 1}"
             if args.clips_from is not None:
@@ -716,6 +816,50 @@ def summarize(out):
     return rows, grades, started
 
 
+def scenario_summary(out, name):
+    """Per call and turn: what was heard, what the voice said, the free replies the check read and what it did, and for
+    each scenario its own count."""
+    windows = json.loads((out / "windows.json").read_text(encoding="utf-8"))
+    records = []
+    for path in sorted((out / "server").glob("turn_*.json")):
+        records.append(json.loads(path.read_text(encoding="utf-8")))
+    calls, current = [], None
+    for record in records:
+        live = record.get("live") or {}
+        if (live.get("call") or {}).get("turn") == 1:
+            current = []
+            calls.append(current)
+        timeline = record.get("timeline", [])
+        current.append({
+            "heard": record.get("final_transcript"), "idle": bool(record.get("idle")),
+            "replies": [(r.get("kind"), r.get("delivery"), r.get("text")) for r in record.get("replies", [])],
+            "claim_checks": [{k: v for k, v in e.items() if k not in ("t", "kind")} for e in timeline
+                             if e.get("kind") == "claim_check"],
+            "transition_flag_to_audio_s": [e.get("flag_to_audio_s") for e in timeline
+                                           if e.get("kind") == "reply" and e.get("reply") == "transition"],
+            "first_audio_s": live.get("speech_end_to_first_audio_sent_s"),
+            "t3_kinds": [a["kind"] for e in entries(record) for a in [{"kind": k} for k in e["kinds"]]]})
+    summary = {"calls": calls}
+    responds = out / "seam-responds.json"
+    answered = json.loads(responds.read_text(encoding="utf-8")) if responds.exists() else []
+    if name == "approve":
+        summary["answers_the_scripted_t3_received"] = answered
+        summary["expected"] = [(SCENARIOS["approve"][i][0][0][0], SCENARIOS["approve"][i][2]) for i in range(len(calls))]
+    if name == "withdraw":
+        titles = [[t[0] for t in SCENARIOS["withdraw"][i][0]] for i in range(len(calls))]
+        after = []
+        for turns_, offered in zip(calls, titles):
+            seen = next((n for n, t in enumerate(turns_) if (t["heard"] or "").lower().startswith(
+                ("never", "nevermind", "forget", "no, never"))), None)
+            free = [text for t in turns_[(seen + 1 if seen is not None else len(turns_)):]
+                    for kind, delivery, text in t["replies"] if kind not in ("t3", "t3_update") and text
+                    and delivery in (None, "sent")]
+            naming = [text for text in free if any(overlap(title, text) >= 0.6 for title in offered)]
+            after.append({"free_replies_after_the_withdrawal": len(free), "naming_an_offered_thread": naming})
+        summary["after_the_withdrawal"] = after
+    return summary
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("mode", choices=["drive", "serve", "summary"])
@@ -736,6 +880,7 @@ def main():
                         help="the follow-up calls: questions about a thread just discussed that do not name it")
     parser.add_argument("--more", action="store_true",
                         help="the more calls: a garbled thread question, why it stopped, and more detail")
+    parser.add_argument("--scenario", choices=sorted(SCENARIOS), help="the three faults of the 2026-11-20 call")
     parser.add_argument("--summaries", action="store_true",
                         help="the local LFM3-1.7B writes thread summaries, as on the 2026-11-19 calls")
     parser.add_argument("--clips-from", type=Path,
@@ -744,6 +889,9 @@ def main():
     argv = sys.argv[1:]
     head, rest = (argv[:argv.index("--")], argv[argv.index("--") + 1:]) if "--" in argv else (argv, [])
     args = parser.parse_args(head)
+    if args.mode == "summary" and args.scenario:
+        print(json.dumps(scenario_summary(args.out, args.scenario), indent=1))
+        return
     if args.mode == "summary":
         rows, grades, started = summarize(args.out)
         halves = {"visible": [g for c, g in grades.items() if c <= VISIBLE],

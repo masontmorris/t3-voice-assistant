@@ -60,6 +60,7 @@ class Kind(StrEnum):
     START = "start"
     TELL = "tell"
     STOP = "stop"
+    RESPOND = "respond"
 
 
 @dataclass
@@ -75,6 +76,7 @@ class T3Link:
     runs: list[list[str]] = field(default_factory=list)
     pending: dict | None = None
     stop: dict | None = None
+    respond: dict | None = None
 
 
 @dataclass
@@ -230,6 +232,15 @@ class T3Journal:
         """Follow-ups waiting for their thread's run to finish, oldest first."""
         return [t for t in self.tasks.values()
                 if t.status is Status.HELD and thread_id in (None, t.link.thread_id)]
+
+    def ensure_respond(self, task: JournalTask, pending_request_id: str, decision: str, need: str | None = None) -> dict:
+        """The task's answer record: the request id minted and saved once, before the first call, with the pending
+        request and the decision it answers. A retry of the task sends the same ones."""
+        if task.link.respond is None:
+            task.link.respond = {"request_id": ulid(), "pending_request_id": pending_request_id, "decision": decision,
+                                 "need": need, "sequence": None, "answered": False}
+            self.save()
+        return task.link.respond
 
     def ensure_stop(self, task: JournalTask) -> dict:
         """The task's interrupt record. Its request id is minted and saved once, before the first call."""

@@ -43,6 +43,7 @@ import {
   type PendingJoin,
 } from "./outcome.ts";
 import * as Launch from "./launch.ts";
+import * as Respond from "./respond.ts";
 import * as Send from "./send.ts";
 import {
   LIST_LIMIT,
@@ -51,6 +52,7 @@ import {
   type VoiceHello,
   type VoiceInterruptResult,
   type VoiceLaunchResult,
+  type VoiceRespondResult,
   type VoiceSendResult,
   type VoiceThreadList,
   type VoiceThreadState,
@@ -102,6 +104,11 @@ export class VoiceSeam extends Context.Service<
       caller: VoiceCaller,
       input: RequestInput<"interrupt">,
     ) => Effect.Effect<VoiceInterruptResult, VoiceSeamRefusal>;
+    /** Answers one pending approval of a visible thread. A retry answers from its receipt. */
+    readonly respond: (
+      caller: VoiceCaller,
+      input: RequestInput<"respond">,
+    ) => Effect.Effect<VoiceRespondResult, VoiceSeamRefusal>;
     /** Checks the thread now, then replays after `afterSequence` and follows live. */
     readonly watch: (
       caller: VoiceCaller,
@@ -191,6 +198,7 @@ const make = Effect.gen(function* () {
     receipts,
     managedMaxRuntimeMode: settings.managedPolicy?.limits?.maxRuntimeMode,
   });
+  const answers = Respond.make({ digest, threads, receipts });
   const launchThread = Launch.make({
     digest,
     threads,
@@ -399,6 +407,17 @@ const make = Effect.gen(function* () {
     return yield* writes.interrupt(shell, input);
   });
 
+  // No ceiling check: answering a request starts no work beyond what the thread already runs at, and the ceiling's
+  // `respond` operation is what lets the voice answer at all.
+  const respond = Effect.fn("VoiceSeam.respond")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"respond">,
+  ) {
+    yield* requireOperation(caller, "respond");
+    yield* requireVisible(caller, input.threadId);
+    return yield* answers.respond(input);
+  });
+
   const watch = Effect.fn("VoiceSeam.watch")(function* (
     caller: VoiceCaller,
     input: Watch.WatchInput,
@@ -411,7 +430,7 @@ const make = Effect.gen(function* () {
     );
   });
 
-  return VoiceSeam.of({ hello, listThreads, readThread, launch, send, interrupt, watch });
+  return VoiceSeam.of({ hello, listThreads, readThread, launch, send, interrupt, respond, watch });
 });
 
 /** The seam reads receipts through its own store, which the route's context does not carry. */

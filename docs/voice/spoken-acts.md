@@ -38,14 +38,14 @@ On the 2026-11-20 call (`--decider liquid --local-text on`) every thread questio
 
 The 1.7B as a line writer, which is what the fallback uses, was rebuilt in `voice/t3/speech.py` (`local_messages`, `LocalText.complete`) on the same 29 acts, by one lever at a time. Counts are first draft passing both checks, then passing within two drafts.
 
-| Request to the 1.7B                                                         | First draft | Within two drafts |
-| --------------------------------------------------------------------------- | ----------- | ----------------- |
-| The render prompt it had (JSON facts, free text, temperature 0)              | 6           | 11                |
+| Request to the 1.7B                                                                   | First draft | Within two drafts |
+| ------------------------------------------------------------------------------------- | ----------- | ----------------- |
+| The render prompt it had (JSON facts, free text, temperature 0)                       | 6           | 11                |
 | The realtime writer's prompt: directions and an example per kind in the system prompt | 20          | 20                |
-| That prompt's examples as earlier chat turns, stopped at a new line           | 18          | 21                |
-| The system-prompt form with JSON output and the card's sampling               | 17          | 23                |
-| The old render prompt with JSON output and the card's sampling                | 17          | 24                |
-| Examples as chat turns, JSON output `{"line": ...}`, the card's sampling (shipped) | 27          | 28                |
+| That prompt's examples as earlier chat turns, stopped at a new line                   | 18          | 21                |
+| The system-prompt form with JSON output and the card's sampling                       | 17          | 23                |
+| The old render prompt with JSON output and the card's sampling                        | 17          | 24                |
+| Examples as chat turns, JSON output `{"line": ...}`, the card's sampling (shipped)    | 27          | 28                |
 
 The 1.7B's failures were run-ons: a good first sentence followed by "Its `summary` says ...", or "The record shows a thread with title ..." (statuses with a summary passed 0 of 8 with the old prompt). Neither an example in the system prompt nor chat turns removed them, since the model kept writing; JSON output removed them, because the string closes. The only shipped failure left is a second draft that quoted the refusal back. Through the hosted model (deepseek flash, the paid text model) the same cases passed 29 of 29 before and after. With the realtime writer first and the 1.7B behind it, 29 of 29 passed.
 
@@ -54,6 +54,10 @@ The status check is not too strict on faithful paraphrases (voice/t3/fixtures/ve
 End to end, on the rehearsal (the real server, synthetic speech, a scripted T3, `--local-text on`), the call's failures did not appear before the change or after it, so it shows no gain and only that nothing broke. Per thread turn, the caller heard a checked T3 line on 7 of 8 turns of `--more` before (the eighth got only a free line) and 8 of 8 after, on 19 of 19 and then 20 of 20 of `--follow` (7 calls), and on the first relay of 9 of 10 and then 10 of 10 mixed turns of `--mixed` (5 calls). No turn was silent in either. The relay eval reproduces the read-out closing and the rehearsal's voice did not; why is not known (the call's persona, its history and its live audio are the differences, and none was tested).
 
 What can still end silent: a call with neither a local text server nor a cloud key (no second route), a decider that cannot answer (every line fails its check), two relays that both go off the words, and a person who speaks over the line. A turn whose question is never heard is not an open question, so a "yeah" that follows is not an answer; that is the same refusal as before and is unchanged.
+
+## The 2026-11-20 call, second part
+
+Three more faults of that call, and what changed, are in [live-reply-check.md](live-reply-check.md): a free reply that claimed something about a thread is now checked against T3 and corrected (a new `correction` act); a pending permission request can be approved or denied by voice (new acts `confirm_respond`, `responded` and `nothing_pending`, and a `respond` seam operation); and a question the caller never answered is told to the voice model once as withdrawn. The `same_title` line was refused twice because the voice opened its reply with a refusal of its own; its example is now the shape that recited 24 of 24.
 
 ## A lookup and T3 work in one turn
 
@@ -89,12 +93,12 @@ When a status question fits several threads, the voice asks which, and the decid
 
 Measured, GPU, synthetic voice. In a probe of that turn (five calls, the which line relayed, then "The second one." or "The first one."), the same draft opening with the bare title was said in 0 of 5 after the answer by place and 5 of 5 after a direct question about the same thread; "The X thread is interrupted." was said in 5 of 5 after the answer by place, on the first relay; "That one, X, is interrupted." in 0 of 5; and a text-only answer to the audio first, as on a mixed turn, made it worse ("I can't help", 0 of 5). `python -m voice.live.rehearse drive --which` runs five calls with three seeded threads each, two of them named alike: a status question the decider asks which about, an answer by place, a status question about the third thread by name, and an acknowledgement. The decider asked which in all 20 calls below.
 
-| Run | Picked by place, said on the first relay | Asked by name, said on the first relay |
-| --- | --- | --- |
-| Before, run 1 | 0 of 5 | 4 of 5 |
-| Before, run 2 | 1 of 5 | 4 of 5 |
-| After, run 1 | 5 of 5 | 5 of 5 |
-| After, run 2 | 5 of 5 | 5 of 5 |
+| Run           | Picked by place, said on the first relay | Asked by name, said on the first relay |
+| ------------- | ---------------------------------------- | -------------------------------------- |
+| Before, run 1 | 0 of 5                                   | 4 of 5                                 |
+| Before, run 2 | 1 of 5                                   | 4 of 5                                 |
+| After, run 1  | 5 of 5                                   | 5 of 5                                 |
+| After, run 2  | 5 of 5                                   | 5 of 5                                 |
 
 The one line said before was a "working" line; the misses by name followed a by-place miss in the same call. On the start and mixed calls the change scored the same as before it: every status line was said on its first relay in both (start 4 of 4 before and 2 of 2 after; mixed 5 of 5 in both), and the mixed calls' counts matched exactly.
 
@@ -108,24 +112,24 @@ A status asked again with nothing new in T3's record since the last one was said
 
 Measured on the hosted d1.2 decider, `python -m voice.t3.eval.record_followups`, one reading per case, replayed by voice/t3/test_followups.py. The seen set was looked at while the design was made; the held-out set was written before any run and changed nothing.
 
-| Set | Before: thread follow-ups | After: thread follow-ups | Before: other turns | After: other turns |
-| --- | --- | --- | --- | --- |
-| Seen | 0 of 8 | 8 of 8 | 6 of 6 | 6 of 6 |
-| Held out | 0 of 7 | 6 of 7 | 5 of 5 | 5 of 5 |
+| Set      | Before: thread follow-ups | After: thread follow-ups | Before: other turns | After: other turns |
+| -------- | ------------------------- | ------------------------ | ------------------- | ------------------ |
+| Seen     | 0 of 8                    | 8 of 8                   | 6 of 6              | 6 of 6             |
+| Held out | 0 of 7                    | 6 of 7                   | 5 of 5              | 5 of 5             |
 
 The held-out miss was "Cancel that one.", which the intent rules call a correction and the decider reads as one too (0.50 against 0.43 for a request), though it picks `t3_stop` at 0.9. With a follow-up held for the thread its firm `t3_stop` pick now reaches T3 as a stop to confirm ([below](#a-thread-question-the-decider-is-unsure-about)); without one it is still a correction.
 
 `python -m voice.live.rehearse drive --follow` runs calls about one of two seeded threads: a status question by name, then follow-ups that do not name it, with a lookup, chat or thanks between. Calls 6 and 7 were written after run 1, before any run of them. Runs 1 and 2 had the decider context but still asked "do you mean" back, with no example for `since_last_asked`; runs 3 to 6 are the code as it stood before 2026-11-20, and runs 3 and 4 worded two of the follow-ups differently. Run 7 adds the rule for unsure thread requests ([below](#a-thread-question-the-decider-is-unsure-about)): its turn pulled into T3 is a scripted "Yes, that one." with no question open, answered with a status line, and its three missed follow-ups are one call whose voice answered "Do you mean ...?" instead of saying it. GPU, synthetic voice, scripted T3 seam.
 
-| Run | Follow-ups answered with a checked T3 line | Other turns pulled into T3 | Statuses asked again, said as nothing new | Free lines naming a thread |
-| --- | --- | --- | --- | --- |
-| 1 (5 calls) | 5 of 9 | 0 of 7 | none asked again | 0 |
-| 2 (7 calls) | 7 of 13 | 0 of 9 | 0 of 4 | 0 |
-| 3 (7 calls) | 12 of 13 | 0 of 9 | 9 of 9 | 1 |
-| 4 (7 calls) | 11 of 13 | 0 of 9 | 8 of 8 | 0 |
-| 5 (7 calls) | 11 of 13 | 0 of 9 | 8 of 8 | 1 |
-| 6 (7 calls) | 8 of 13 | 0 of 9 | 5 of 5 | 7 |
-| 7 (7 calls) | 10 of 13 | 1 of 9 | 8 of 8 | 0 |
+| Run         | Follow-ups answered with a checked T3 line | Other turns pulled into T3 | Statuses asked again, said as nothing new | Free lines naming a thread |
+| ----------- | ------------------------------------------ | -------------------------- | ----------------------------------------- | -------------------------- |
+| 1 (5 calls) | 5 of 9                                     | 0 of 7                     | none asked again                          | 0                          |
+| 2 (7 calls) | 7 of 13                                    | 0 of 9                     | 0 of 4                                    | 0                          |
+| 3 (7 calls) | 12 of 13                                   | 0 of 9                     | 9 of 9                                    | 1                          |
+| 4 (7 calls) | 11 of 13                                   | 0 of 9                     | 8 of 8                                    | 0                          |
+| 5 (7 calls) | 11 of 13                                   | 0 of 9                     | 8 of 8                                    | 1                          |
+| 6 (7 calls) | 8 of 13                                    | 0 of 9                     | 5 of 5                                    | 7                          |
+| 7 (7 calls) | 10 of 13                                   | 1 of 9                     | 8 of 8                                    | 0                          |
 
 In runs 1 and 2 most misses were "Do you mean the thread called X?" lines the call's voice did not recite: it answered the question instead ("Yes, I mean the"), so nothing was said. Misses that remain with the shipped code:
 
@@ -152,12 +156,12 @@ So a turn the decider reads as a thread request ends in a checked T3 line or in 
 
 `python -m voice.live.rehearse drive --more --summaries` runs three calls with made-up threads: a thread question worded as a transcript garbles it, why the thread stopped, and requests for more detail. GPU, synthetic voice, scripted T3, hosted d1.2, the same clips in every run.
 
-| Run | ASR stagger | Thread turns answered by the free voice | Named questions answered with a checked line | Status lines whose summary was heard |
-| --- | --- | --- | --- | --- |
-| Before | 1 | 6 of 8 | 1 of 3 | 2 of 2 |
-| Before | 2 | 6 of 8 | 1 of 3 | 2 of 2 |
-| After | 1 | 0 of 8 | 3 of 3 | 4 of 4 |
-| After | 2 | 0 of 8 | 3 of 3 | 4 of 4 |
+| Run    | ASR stagger | Thread turns answered by the free voice | Named questions answered with a checked line | Status lines whose summary was heard |
+| ------ | ----------- | --------------------------------------- | -------------------------------------------- | ------------------------------------ |
+| Before | 1           | 6 of 8                                  | 1 of 3                                       | 2 of 2                               |
+| Before | 2           | 6 of 8                                  | 1 of 3                                       | 2 of 2                               |
+| After  | 1           | 0 of 8                                  | 3 of 3                                       | 4 of 4                               |
+| After  | 2           | 0 of 8                                  | 3 of 3                                       | 4 of 4                               |
 
 The table's runs used an earlier wording of five of the eleven turns. With the wording now in the script, one run after the change (stagger 1) gave: 1 of 8 thread turns answered by the free voice (a request for a recap the decider did not read as a request, answered "I cannot"), 3 of 3 named questions answered, 3 of 3 status lines with their summary heard, one request for detail answered with "do you mean" for the thread just spoken about, one said again without its summary, and one turn that said nothing because no line passed (measured, no run of the unchanged code on this wording).
 
@@ -200,14 +204,14 @@ The person is never flipped in a line: the writer quotes a person's message as t
 
 Liquid's speech-generation guide gives the spoken-chat system prompt as exactly `Respond with interleaved text and audio.` and says to put further instructions in the user turn. The call's system prompt is the persona followed by that line, so the placement was measured (2026-11-19, laptop GPU, synthetic voice, scripted T3 seam, every arm on the same rendered clips via `rehearse drive --clips-from`). Arms: A, the persona in the system prompt (shipped); B, the exact system prompt and the persona as text opening the first user turn; C, the persona opening every user turn; D, no persona.
 
-| | A | B | C | D |
-| --- | --- | --- | --- | --- |
-| Start calls, threads started | 4 of 5 | 4 of 5 | 4 of 5 | 4 of 5 |
-| Mixed turns, first relay recited | 10 of 10 and 10 of 10 | 6 of 8 | 7 of 10 | 7 of 10 |
-| Mixed calls, status line said on its first relay | 8 of 8 | 2 of 4 | 2 of 5 | 2 of 4 |
-| Follow-ups answered with a checked line | 9 of 9 | 9 of 9 | not run | 9 of 9 |
-| Free replies that refuse ("I can't") | 0 of 80 | 2 of 56 | 0 of 42 | 1 of 56 |
-| Free replies that claim an action | 3 of 80 | 3 of 56 | 7 of 42 | 3 of 56 |
+|                                                  | A                     | B       | C       | D       |
+| ------------------------------------------------ | --------------------- | ------- | ------- | ------- |
+| Start calls, threads started                     | 4 of 5                | 4 of 5  | 4 of 5  | 4 of 5  |
+| Mixed turns, first relay recited                 | 10 of 10 and 10 of 10 | 6 of 8  | 7 of 10 | 7 of 10 |
+| Mixed calls, status line said on its first relay | 8 of 8                | 2 of 4  | 2 of 5  | 2 of 4  |
+| Follow-ups answered with a checked line          | 9 of 9                | 9 of 9  | not run | 9 of 9  |
+| Free replies that refuse ("I can't")             | 0 of 80               | 2 of 56 | 0 of 42 | 1 of 56 |
+| Free replies that claim an action                | 3 of 80               | 3 of 56 | 7 of 42 | 3 of 56 |
 
 One run per cell except A on the mixed set (two). The free replies were labelled blind to arm by a second reader. No arm read a note aloud or spoke in the third person. The persona stays in the system prompt: out of it, the voice answers a status line on a mixed turn instead of saying it, and nothing else improves. Whether a persona in the first user turn fades over a long call was not measured, since that arm lost on short calls.
 
