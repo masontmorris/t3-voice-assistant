@@ -111,7 +111,7 @@ from voice.live import eou_audio
 from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start, State
 from voice.live.overlap import (Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe,
                                  words)
-from voice.local_decider.client import decider as make_decider, default_decider
+from voice.local_decider.client import D1Client, decider as make_decider, default_decider
 from voice.prototype.realtime import VOICE_HOME, Server, Session, write_pcm16
 from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, create_item, floor_free,
                                  heard_prefix, interrupted_note, plain_text, run_clip, say_acts, update_session)
@@ -120,6 +120,7 @@ from voice.t3.speech import speakable
 from voice.live.t3_tasks import LOCAL_TEXT_MODEL, LOCAL_TEXT_PORT, local_text_server, summariser_choices
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
     default_model, default_origin, default_token_file, live_writer
+from voice.t3.verify import Decider as SpeechDecider
 from voice.t3.verify import default_decider as default_speech_decider
 from voice.prototype.segmenter import SEGMENTERS, use_decider_cache
 from voice.tools.registry import open_registry
@@ -1172,8 +1173,12 @@ async def main_async(args):
             writer = live_writer(url)
             if writer is not None:
                 await stack.enter_async_context(writer)
+            # With the local decider, T3's own decisions (line checks, reply reads, thread picks) are made locally too,
+            # on a second connection: the client keeps one request in flight and the segmenter holds the first.
+            speech_decider = (SpeechDecider(D1Client(f"http://{decider.host}:{decider.port}"))
+                              if args.decider == "d1" else default_speech_decider())
             t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
-                              default_speech_decider(), writer=writer)
+                              speech_decider, writer=writer)
             t3.summarisers = summariser_choices(local_text)
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
