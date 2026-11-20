@@ -24,7 +24,7 @@ from voice.live.tests.test_endpoint import noise, tone
 def make_live(tmp):
     args = SimpleNamespace(silence_ms=700, start_ms=100, preroll_ms=300, floor_dbfs=-50.0, margin_db=10.0,
                            max_turn_s=30.0, prompt=Path(tmp) / "prompt.txt", delay=4.0,
-                           segmenter="hybrid", snapshot="reply", recall="note")
+                           segmenter="hybrid", snapshot="reply", recall="note", call_recording="on")
     return server.Live(args, "ws://unused", decider=None, tools=None, out=Path(tmp),
                        secret=test_server.SECRET)
 
@@ -239,8 +239,10 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                          ("connection_closed", True, True))
         self.assertGreater(self.conversation()[1].size, 0)
 
-    async def test_recording_can_be_turned_off_and_the_page_is_told(self):
-        self.live.record_calls = False
+    async def test_a_server_not_started_with_recording_on_records_nothing_and_the_page_is_told(self):
+        del self.live.args.call_recording
+        self.live.record_calls = server.Live(self.live.args, "ws://unused", None, None, Path(self.tmp.name),
+                                             secret=test_server.SECRET).record_calls
         _, ready = await self.call(reported=[self.played(0.2, 500, 1_600)])
         self.assertFalse(ready["record"])
         self.assertEqual(list(Path(self.tmp.name).glob("call-*")), [])

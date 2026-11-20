@@ -1082,7 +1082,7 @@ class Live:
         self.active, self.turns, self.overlaps = None, 0, 0
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.barge_in_note = getattr(args, "barge_in_note", "off") == "on"
-        self.record_calls = getattr(args, "call_recording", "on") == "on"
+        self.record_calls = getattr(args, "call_recording", "off") == "on"
 
     async def transcribe(self, pcm):
         return await transcribe(self.url, pcm, Session)
@@ -1264,9 +1264,9 @@ def main():
                         help="tell the voice session what the person heard of the reply a barge-in stops, before the "
                              "new turn's audio (default off: the A/B found no gain; the turn record keeps what was "
                              "heard either way)")
-    parser.add_argument("--call-recording", choices=["on", "off"], default="on",
+    parser.add_argument("--call-recording", choices=["on", "off"], default="off",
                         help="record each browser call as call-NNN/conversation.wav in --out: the microphone as "
-                             "received and the audio the page reported playing, on one timeline (default on)")
+                             "received and the audio the page reported playing, on one timeline (default off)")
     parser.add_argument("--max-minutes", type=float, default=55.0, help="stop the server after this long")
     parser.add_argument("--stop-file", type=Path, default=STOP_FILE,
                         help="stop when this file appears (default $VOICE_HOME/live/STOP)")
