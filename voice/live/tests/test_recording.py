@@ -73,6 +73,17 @@ class TimingTest(unittest.TestCase):
             self.assertTrue(np.all(samples[19_200:48_000] == 0), "the unplayed pause is silent")
             self.assertTrue(np.all(samples[48_000:49_600] == 900), "the second reply keeps its time")
 
+    def test_a_pinned_origin_does_not_move_with_the_first_item_to_arrive(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            recorder = recording.SessionRecorder(tmp, origin=0.0)
+            recorder.playback(pcm(800, 1_600), 16_000, t=1.0)
+            recorder.mic(pcm(100, 32_000), t=0.0)
+            manifest = json.loads(recorder.finalize(end="hangup", extra={"turns": 1}).read_text())
+            self.assertEqual((manifest["end"], manifest["partial"], manifest["turns"]), ("hangup", False, 1))
+            _, samples = read(Path(tmp) / "conversation.wav")
+            self.assertTrue(np.all(samples[16_000:17_600] == 900), "played audio is one second in, over the microphone")
+            self.assertTrue(np.all(samples[:16_000] == 100))
+
     def test_each_playback_rate_gets_its_own_track(self):
         with tempfile.TemporaryDirectory() as tmp:
             recorder = recording.SessionRecorder(tmp)

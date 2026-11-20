@@ -104,15 +104,18 @@ def _read_resampled(reader, rate, begin, end):
 class SessionRecorder:
     """Append-only timeline recorder. `mic` and `playback` are safe to call from the event loop and audio callback."""
 
-    def __init__(self, root, *, mic_rate=MIC_RATE, mode="vad", input_source="mic", server=None, max_queue=512):
+    def __init__(self, root, *, mic_rate=MIC_RATE, mode="vad", input_source="mic", server=None, max_queue=512,
+                 origin=None, notes=None):
         self.root = Path(root)
+        self.notes = notes
         self.mic_rate = mic_rate
         self.mode, self.input_source, self.server = mode, input_source, server
         self.manifest_path = self.root / "manifest.json"
         self._queue = queue.Queue(maxsize=max_queue)
         self._dropped = {key: 0 for key in (*DROP_KEYS.values(), *FRAME_KEYS.values())}
-        self._origin = None
-        self._origin_unix = None
+        # A caller that stamps every item itself can pin the timeline's zero, so no item's arrival order moves it.
+        self._origin = origin
+        self._origin_unix = None if origin is None else time.time()
         self._mic = None
         self._epochs = []
         self._error = None
@@ -218,8 +221,9 @@ class SessionRecorder:
                             "duration_s": round(writer.frames / writer.rate, 3)})
         return entries
 
-    def finalize(self):
-        """Stop the writer, close the tracks, mix the conversation, and write the manifest. Safe to call twice."""
+    def finalize(self, *, end=None, partial=False, extra=None):
+        """Stop the writer, close the tracks, mix the conversation, and write the manifest. Safe to call twice.
+        `end` says how the session stopped and `partial` that something the person heard may be missing."""
         if self._closed:
             return self.manifest_path
         self._closed = True
@@ -255,8 +259,11 @@ class SessionRecorder:
             "tracks": self._track_entries(),
             "dropped": dict(self._dropped),
             "finalized": True,
+            "end": end,
+            "partial": partial,
             "finalize_error": error,
-            "notes": "Microphone is the PCM16 sent to the server, including frames sent while PTT is up. "
+            **(extra or {}),
+            "notes": self.notes or "Microphone is the PCM16 sent to the server, including frames sent while PTT is up. "
                      "Playback is the PCM16 handed to the output callback, so a barge-in tail is absent. "
                      "WAV input records the simulated input, not a microphone.",
         }

@@ -13,7 +13,7 @@ cannot set the header. The secret never goes in a URL, a log or the page.
 
 Wire format. Binary frames are PCM16 mono: 16 kHz up from the client, LFM3's output rate down, 40 ms per frame
 down. Text frames are JSON control messages:
-  client -> server  hello {mode: vad|ptt}, ping {t}, ptt {down}
+  client -> server  hello {mode: vad|ptt, record}, ping {t}, ptt {down}, played {t, pcm}, bye
   server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, duck, unduck, barge_in,
                     turn_done
 
@@ -108,6 +108,7 @@ from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
 from voice.live import eou_audio
+from voice.live.browser_recording import BrowserRecording, call_dir
 from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start, State
 from voice.live.overlap import (Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe,
                                  words)
@@ -422,6 +423,7 @@ class Conversation:
         self.playback, self.overlap = Playback(), None
         self.checks, self.read_backs = set(), set()
         self.heard_at, self.news = time.perf_counter(), None
+        self.call_recording = None
 
     def voice_clock(self):
         """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
@@ -473,6 +475,7 @@ class Conversation:
             finally:
                 sender.cancel()
                 await asyncio.gather(sender, return_exceptions=True)
+                await self.finish_recording()
 
     async def browser_auth(self):
         """The page's first text frame carries the secret, since a browser cannot set the header. It must arrive
@@ -492,7 +495,26 @@ class Conversation:
             return False
         return True
 
+    def start_recording(self, hello):
+        """The page asks for a recording of the call in its hello; a native client does not, and records itself."""
+        if self.call_recording is None and hello.get("record") and self.live.record_calls:
+            try:
+                self.call_recording = BrowserRecording(call_dir(self.live.out), mode=self.mode,
+                                                       first_turn=self.live.turns + 1)
+            except OSError as exc:
+                print(f"call recording did not start: {exc!r}", flush=True)
+
+    async def finish_recording(self):
+        if self.call_recording is None:
+            return
+        try:
+            await asyncio.shield(asyncio.to_thread(self.call_recording.finish, self.live.turns))
+        except Exception as exc:
+            print(f"call recording was not finalized: {exc!r}", flush=True)
+
     def on_audio(self, pcm):
+        if self.call_recording is not None:
+            self.call_recording.mic(pcm)
         if self.mode == "ptt":
             if self.ptt_down and self.turn is not None and self.turn.turn_end is None:
                 self.turn.feed(pcm)
@@ -717,8 +739,9 @@ class Conversation:
         kind = message.get("type")
         if kind == "hello":
             self.mode = "ptt" if message.get("mode") == "ptt" else "vad"
+            self.start_recording(message)
             await self.ws.send(json.dumps({"type": "ready", "mode": self.mode, **vars(self.live.settings),
-                                           **self.live.summarisers()}))
+                                           **self.live.summarisers(), "record": self.call_recording is not None}))
         elif kind == "summariser":
             t3 = self.live.t3
             ok = t3 is not None and await asyncio.to_thread(t3.use_summariser, str(message.get("id")))
@@ -726,6 +749,10 @@ class Conversation:
             await self.ws.send(json.dumps({"type": "summariser", "ok": bool(ok), **self.live.summarisers()}))
         elif kind == "ping":
             await self.ws.send(json.dumps({"type": "pong", "t": message.get("t")}))
+        elif kind == "played" and self.call_recording is not None:
+            self.call_recording.played(message)
+        elif kind == "bye" and self.call_recording is not None:
+            self.call_recording.hangup = True
         elif kind == "ptt" and self.mode == "ptt":
             down = bool(message.get("down"))
             if down and not self.ptt_down:
@@ -978,13 +1005,16 @@ class Conversation:
                             live.t3.ack_news(unsent.pop(id(update)))
                             live.t3.spoke(update)
 
-                    reply, _ = await say_acts(
+                    reply, sent = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,
                         send_audio=lambda line, pcm: self.speak_t3(turn, line, pcm), record_delivery=delivered,
                         is_muted=lambda: turn.muted)
                     update.acts, update.sequences = draft_update.acts, draft_update.sequences
                     update.problems, update.refused, update.tries = draft_update.problems, draft_update.refused, draft_update.tries
                     record["replies"].append({"kind": "t3_update", "row": update.row, **reply})
+                    if sent:
+                        suffix = f"_{len(record['replies'])}" if len(record["replies"]) > 1 else ""
+                        write_pcm16(live.out / f"{turn.stem}_t3_update{suffix}.wav", sent, turn.out_rate)
                     log("reply", reply="t3_update", text=reply["text"])
                     if turn.muted:
                         break
@@ -1052,6 +1082,7 @@ class Live:
         self.active, self.turns, self.overlaps = None, 0, 0
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.barge_in_note = getattr(args, "barge_in_note", "off") == "on"
+        self.record_calls = getattr(args, "call_recording", "on") == "on"
 
     async def transcribe(self, pcm):
         return await transcribe(self.url, pcm, Session)
@@ -1233,6 +1264,9 @@ def main():
                         help="tell the voice session what the person heard of the reply a barge-in stops, before the "
                              "new turn's audio (default off: the A/B found no gain; the turn record keeps what was "
                              "heard either way)")
+    parser.add_argument("--call-recording", choices=["on", "off"], default="on",
+                        help="record each browser call as call-NNN/conversation.wav in --out: the microphone as "
+                             "received and the audio the page reported playing, on one timeline (default on)")
     parser.add_argument("--max-minutes", type=float, default=55.0, help="stop the server after this long")
     parser.add_argument("--stop-file", type=Path, default=STOP_FILE,
                         help="stop when this file appears (default $VOICE_HOME/live/STOP)")

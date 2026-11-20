@@ -3,7 +3,15 @@
 // Run with Node's built-in runner, no dependencies: node --test voice/live/web/resample.test.js
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { resampleLinear, floatToPCM16, pcm16ToFloat32, micToServerPCM16, levelDbfs } from "./resample.js";
+import {
+  resampleLinear,
+  floatToPCM16,
+  pcm16ToFloat32,
+  micToServerPCM16,
+  levelDbfs,
+  bytesToBase64,
+  micIndexAt,
+} from "./resample.js";
 
 function sineHz(rate, hz, seconds) {
   const out = new Float32Array(Math.round(rate * seconds));
@@ -77,5 +85,28 @@ describe("levelDbfs", () => {
   it("reads a full-scale sine near -3 dBFS and silence at the floor", () => {
     assert.ok(Math.abs(levelDbfs(sineHz(16000, 440, 0.1)) + 3.01) < 0.1);
     assert.equal(levelDbfs(new Float32Array(128)), -100);
+  });
+});
+
+describe("bytesToBase64", () => {
+  it("round-trips a run longer than one slice", () => {
+    const bytes = Uint8Array.from({ length: 0x8000 * 2 + 5 }, (_, i) => i % 251);
+    assert.deepEqual(new Uint8Array(Buffer.from(bytesToBase64(bytes), "base64")), bytes);
+  });
+});
+
+describe("micIndexAt", () => {
+  // 2048-frame blocks at 48 kHz send 683 samples, so the stream's index runs ahead of the clock.
+  const blocks = [0, 1, 2].map((n) => ({ frame: 1000 + n * 2048, frames: 2048, before: n * 683, samples: 683 }));
+
+  it("places a frame on the stream by the block it falls in, not by the nominal rate", () => {
+    assert.equal(micIndexAt(blocks, 1000 + 2048 + 1024), 683 + 341.5);
+    assert.equal(micIndexAt(blocks, 1000 + 2 * 2048), 2 * 683);
+  });
+
+  it("continues the last block's rate past its end and knows nothing before the first block", () => {
+    assert.equal(micIndexAt(blocks, 1000 + 3 * 2048), 3 * 683);
+    assert.equal(micIndexAt(blocks, 999), null);
+    assert.equal(micIndexAt([], 5), null);
   });
 });

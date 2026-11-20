@@ -49,6 +49,28 @@ export function replyToDeviceFloat(bytes, replyRate, deviceRate) {
   return resampleLinear(pcm16ToFloat32(bytes), replyRate, deviceRate);
 }
 
+// PCM16 bytes as base64, for a text frame. Built in slices so a long run never overflows the argument limit.
+export function bytesToBase64(bytes) {
+  let text = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    text += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(text);
+}
+
+// Where a device-clock frame falls in the microphone stream the server received. `blocks` are the sent microphone
+// blocks, oldest first: {frame, frames} is where one began on the clock and how long it was, {before, samples} how
+// many 16 kHz samples were sent before it and in it. The blocks resample to a rounded length, so the stream's own
+// index drifts from the clock; the recording is on the stream's index, which this finds. A frame inside the block
+// still being filled continues the last block's rate. Returns null for a frame before the first block.
+export function micIndexAt(blocks, frame) {
+  for (let i = blocks.length - 1; i >= 0; i -= 1) {
+    const block = blocks[i];
+    if (block.frame <= frame) return block.before + ((frame - block.frame) * block.samples) / block.frames;
+  }
+  return null;
+}
+
 export function levelDbfs(input) {
   if (input.length === 0) return -100;
   let sum = 0;

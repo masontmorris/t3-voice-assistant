@@ -29,6 +29,17 @@ Select **Start** and grant microphone access. Speak when the status shows listen
 
 Wear headphones to keep the reply out of the mic. The browser requests echo cancellation, noise suppression, and automatic gain control. Echo cancellation through a phone speaker still needs a hardware check. The server saves the same turn records as it does for the Python client.
 
+## Find the recording
+
+Each call is also recorded in its own `call-NNN` folder inside the server's records folder (the `records:` path the server prints), next to the `turn_NNN` files. A call that reconnects in the same server run gets the next number.
+
+- `conversation.wav` is a 16 kHz mono mix of both sides on one timeline. The assistant side is the audio your browser played, so a reply you cut off ends where you cut it, and a line the assistant spoke unprompted sits where you heard it.
+- `microphone.wav` and `assistant-playback-001.wav` are the two tracks. `manifest.json` lists them, the turn numbers the call covers, and how it ended.
+
+The page sends the audio it played back to the server over the same connection as the call. Nothing goes anywhere else. A call that ends without **Stop**, such as a closed tab or a dropped connection, is still mixed and its manifest says `"partial": true`, because the last moments the page played may be missing. An unprompted line the assistant speaks is also saved as `turn_NNN_t3_update.wav` with the turn's other audio.
+
+To record nothing, start the server with `--call-recording off`.
+
 ## Turn off tailnet access
 
 Run the undo command printed by the script. For port 8446, use:
