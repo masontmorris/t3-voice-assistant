@@ -18,8 +18,8 @@ PLANTS = {
                     'def started(title):\n    return f"{title} finished."\n\n\ndef which_project(candidates'),
     "wording in a slot": ("voice/live/t3_tasks.py", 'act(Say.CANCELLED, op="start")',
                           'act(Say.CANCELLED, op="start", thread="Okay, I won\'t start it")'),
-    "a line handed to the speaker": ("voice/prototype/run.py", "since, draft.line)",
-                                     'since, "It finished.")'),
+    "a line handed to the speaker": ("voice/prototype/run.py", "since, draft.line,",
+                                     'since, "It finished.",'),
     "a row's line": ("voice/t3/lifecycle.py", "Ends.GIVE_UP, act(Say.LAUNCH_UNCONFIRMED)),",
                      'Ends.GIVE_UP, "I couldn\'t confirm it started."),'),
 }
