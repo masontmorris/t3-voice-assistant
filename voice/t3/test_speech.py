@@ -13,6 +13,7 @@ from unittest.mock import Mock, patch
 from voice.prototype.realtime import Session
 from voice.prototype.tests.test_run_shared_session import FakeSession
 from voice.t3 import fakes as F
+from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.acts import Kind, act
 from voice.t3.pick.model import ModelFailed
@@ -167,6 +168,59 @@ class LocalTextTest(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             local.complete([{"role": "user", "content": "{}"}])
 
+    def summariser(self, p_unsupported):
+        """A local summariser whose model answers a gist with an extra key and whose gate answers `p_unsupported`,
+        or has no server at all when it is None."""
+
+        class Local(LlamaServer):
+            def do_POST(self):
+                if self.path == "/v1/systemone":
+                    body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                    Local.gated.append(body)
+                    reply = {"answers": {"unsupported": {"type": "noul", "noul": p_unsupported}}}
+                elif self.path == "/v1/chat/completions":
+                    body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+                    self.bodies.append(body)
+                    reply = {"choices": [{"message": {"content": json.dumps(
+                        {"gist": "It says all 12 tests pass.", "status": "finished"})}, "finish_reason": "stop"}]}
+                else:
+                    return super().do_POST()
+                data = json.dumps(reply).encode()
+                self.send_response(200)
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
+        Local.gated = []
+        server = ThreadingHTTPServer(("127.0.0.1", 0), Local)
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        self.addCleanup(server.shutdown)
+        url = f"http://127.0.0.1:{server.server_address[1]}"
+        gate = url if p_unsupported is not None else "http://127.0.0.1:9"
+        return LocalText(url, gate_url=gate), Local
+
+    def test_the_local_summariser_sends_the_measured_request_and_speaks_a_gist_the_gate_passes(self):
+        local, server = self.summariser(0.02)
+        speech = Speech(Lane(local), Reads(finished(140)), F.Agree())
+        asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished", asked="Did the tests pass?"),)
+        filled, _ = speech.fill(asked, "t5")
+        self.assertEqual(filled[0].slots["summary"], "It says all 12 tests pass.", "the extra key is ignored")
+        sent = server.bodies[-1]
+        self.assertEqual(sent["messages"], LS.messages(finished(140), "Did the tests pass?"))
+        self.assertEqual((sent["temperature"], sent["top_k"], sent["repeat_penalty"], sent["max_tokens"]),
+                         (0.1, 50, 1.1, 60))
+        self.assertEqual(sent["response_format"]["json_schema"]["schema"], LS.GIST_SCHEMA)
+        self.assertEqual(server.gated[-1]["state"]["gist"], "It says all 12 tests pass.")
+
+    def test_a_gist_the_gate_does_not_pass_leaves_the_status_bare(self):
+        for p_unsupported, why in ((0.4, "the gate finds it unsupported"), (None, "no gate answers")):
+            local, _ = self.summariser(p_unsupported)
+            speech = Speech(Lane(local), Reads(finished(140)), F.Agree())
+            asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished", asked="Is it done?"),)
+            filled, _ = speech.fill(asked, "t5")
+            self.assertNotIn("summary", filled[0].slots, why)
+            self.assertEqual(filled[0].slots["thread"], "Add a clamp helper")
+
     def test_the_renderer_is_chosen_by_name(self):
         self.assertIsInstance(text_model("local"), LocalText)
         self.assertEqual(text_model("particle-1", cloud=lambda: "cloud"), "cloud")
@@ -226,15 +280,18 @@ class SummaryTest(unittest.TestCase):
                                  "For Did the tests pass?: it added clamp."])
         self.assertEqual(text.summaries, 2, "the third question normalises to the first")
 
-    def test_a_partial_question_never_serves_a_different_final_one(self):
+    def test_a_summary_started_from_partial_words_serves_the_final_question(self):
         text, reads = Text(echo=True), Reads(finished(140))
         speech = Speech(Lane(text), reads, F.Agree())
         speech.prefetch("t5", "How's the clamp")
         asked = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished",
                      asked="How's the clamp thread going?"),)
         filled, _ = speech.fill(asked, "t5", (140,))
-        self.assertEqual(filled[0].slots["summary"], "For How's the clamp thread going?: it added clamp.")
-        self.assertEqual(text.summaries, 2)
+        self.assertEqual(filled[0].slots["summary"], "For How's the clamp: it added clamp.")
+        self.assertEqual(text.summaries, 1, "the early summary is not thrown away")
+        other = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="finished", asked="Did the tests pass?"),)
+        speech.fill(other, "t5", (140,))
+        self.assertEqual(text.summaries, 2, "a second final question gets its own summary")
 
     def test_the_title_is_a_name_and_never_evidence(self):
         text = Text()

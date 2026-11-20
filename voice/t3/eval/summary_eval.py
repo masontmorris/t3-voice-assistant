@@ -117,9 +117,11 @@ def state_as_of(records: Records, thread_id: str, at: str | None, *, pending=Non
 
 def freeze(args) -> int:
     records = Records(args.db)
-    rng = random.Random(SEED)
+    rng = random.Random(args.seed)
     picked: dict[str, list[dict]] = {name: [] for name in PLAN}
-    used: set[str] = set()
+    # Threads of an earlier set stay out, so a fresh set holds none a scorer has already read.
+    used: set[str] = {state["thread_id"] for path in args.exclude
+                      for state in json.loads(path.read_text(encoding="utf-8"))}
 
     def take(kind, thread_id, at=None, **more):
         if thread_id in used or len(picked[kind]) >= PLAN[kind]:
@@ -272,6 +274,9 @@ def main(argv=None) -> int:
     frozen = sub.add_parser("freeze", help="freeze thread states from a read-only copy of a T3 database")
     frozen.add_argument("--db", type=Path, required=True)
     frozen.add_argument("--out", type=Path, required=True)
+    frozen.add_argument("--seed", type=int, default=SEED)
+    frozen.add_argument("--exclude", type=Path, action="append", default=[],
+                        help="a states.json whose threads this set leaves out")
     for name, text in (("run", "summarise each frozen state and word its answer"),
                        ("acts", "render the planned acts and check each line")):
         command = sub.add_parser(name, help=text)

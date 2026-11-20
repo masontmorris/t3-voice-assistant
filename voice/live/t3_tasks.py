@@ -1060,6 +1060,7 @@ def live_writer(url: str) -> RealtimeWriter | None:
 LOCAL_SUMMARISER = "lfm3-1.7b"
 LOCAL_TEXT_MODEL = default_voice_home() / "gguf" / "LFM3-1.7B-Q4_K_M.gguf"
 LOCAL_TEXT_PORT = 8099
+SUMMARY_GATE_PORT = 8100
 # One slot, since the lane keeps one request in flight, and the context the summary bench measured it at.
 LOCAL_TEXT_FLAGS = ("-ngl", "99", "-np", "1", "-c", "8192", "-fa", "on")
 
@@ -1071,10 +1072,19 @@ def local_text_server(log_path: Path, port: int = LOCAL_TEXT_PORT):
     return LlamaServer(["-m", str(LOCAL_TEXT_MODEL), *LOCAL_TEXT_FLAGS], port, log_path)
 
 
-def summariser_choices(local_url: str | None = None) -> dict[str, tuple[str, Callable[[], object]]]:
+def summary_gate_server(log_path: Path, port: int = SUMMARY_GATE_PORT):
+    """The local d1-2B that checks LFM3-1.7B's gists, its own server so the summary never waits on the segmenter's."""
+    from voice.local_decider.client import d1_server
+
+    return d1_server(port=port, log_path=log_path)
+
+
+def summariser_choices(local_url: str | None = None,
+                       gate_url: str | None = None) -> dict[str, tuple[str, Callable[[], object]]]:
     """The models that can write thread summaries on this server, as id to (label, how to make its client): the free
     cloud model, a paid one only when VOICE_PAID_TEXT_MODEL names it, and the local model when its server is up at
-    `local_url`. The T3 lines are not in this choice: the local writer words them."""
+    `local_url`, its gists checked by the d1-2B at `gate_url`. The T3 lines are not in this choice: the local
+    writer words them."""
     choices: dict[str, tuple[str, Callable[[], object]]] = {}
     cache = default_voice_home() / "state" / "t3-pick-cache"
     if os.environ.get("OPENROUTER_API_KEY") or os.environ.get("VOICE_ENV_FILE"):
@@ -1082,7 +1092,7 @@ def summariser_choices(local_url: str | None = None) -> dict[str, tuple[str, Cal
         if PAID_MODEL:
             choices[PAID_MODEL] = (f"{PAID_MODEL} (cloud, paid)", lambda: LiveClient(model=PAID_MODEL, cache_dir=cache))
     if local_url:
-        choices[LOCAL_SUMMARISER] = ("LFM3-1.7B (local)", lambda: LocalText(local_url))
+        choices[LOCAL_SUMMARISER] = ("LFM3-1.7B (local)", lambda: LocalText(local_url, gate_url=gate_url))
     return choices
 
 

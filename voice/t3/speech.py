@@ -26,6 +26,7 @@ from concurrent.futures import TimeoutError as FutureTimeout
 from dataclasses import dataclass, field
 from typing import Any, Callable, Iterable
 
+from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
 from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
@@ -143,16 +144,20 @@ class LocalText:
     """A text model on a local llama-server's OpenAI-compatible chat route, the same `complete(messages)` record as
     the cloud client. No request leaves the machine, so no quota or `:free` rule applies. LFM3 thinks by default, and
     with the template's thinking switch off it still opened `<think>` on render prompts and spent its whole token
-    budget there (measured), so the `<think>` token is banned outright."""
+    budget there (measured), so the `<think>` token is banned outright. As the summariser it writes in the form
+    measured for it (`summarise`), checked by the local d1-2B at `gate_url`."""
 
     model = "local"
 
-    def __init__(self, url: str | None = None, timeout_s: float = RENDER_TIMEOUT_S, max_tokens: int = 200):
+    def __init__(self, url: str | None = None, timeout_s: float = RENDER_TIMEOUT_S, max_tokens: int = 200,
+                 gate_url: str | None = None):
         self.url = (url or os.environ.get("VOICE_RENDERER_URL", "http://127.0.0.1:8098")).rstrip("/")
+        self.gate_url = gate_url or os.environ.get("VOICE_SUMMARY_GATE_URL", "http://127.0.0.1:8100")
         self.timeout_s, self.max_tokens = timeout_s, max_tokens
         self.calls = 0
         self.ledger: list[dict] = []
         self._ban: list | None = None
+        self._gate = None
 
     def _post(self, path: str, body: dict) -> dict:
         request = urllib.request.Request(f"{self.url}{path}", data=json.dumps(body).encode(),
@@ -172,8 +177,30 @@ class LocalText:
         return self._ban
 
     def complete(self, messages) -> dict:
-        body = {"messages": messages, "temperature": 0, "max_tokens": self.max_tokens,
-                "chat_template_kwargs": {"enable_thinking": False}, "logit_bias": self._think_ban()}
+        return self._chat({"messages": messages, "temperature": 0, "max_tokens": self.max_tokens})
+
+    def summarise(self, state: T.ThreadState, question: str | None) -> dict:
+        """The thread's gist as measured for this model: S11's prompt, JSON out, then the gate. `text` is empty when
+        the model wrote no gist or the gate did not pass it, so the status is said without a summary."""
+        record = self._chat({"messages": LS.messages(state, question), "max_tokens": LS.MAX_TOKENS, **LS.SAMPLING,
+                             "response_format": {"type": "json_schema", "json_schema": {"schema": LS.GIST_SCHEMA}}})
+        gist = LS.read_gist(record["text"])
+        unsupported = self._unsupported(state, gist) if gist else None
+        kept = unsupported is not None and unsupported < LS.GATE_THRESHOLD
+        return {**record, "text": gist if kept else "", "gist": gist, "unsupported": unsupported}
+
+    def _unsupported(self, state: T.ThreadState, gist: str) -> float | None:
+        """The gate's answer, or None when the local d1-2B cannot give one, which drops the gist."""
+        from voice.local_decider.client import D1Client
+        if self._gate is None:
+            self._gate = D1Client(self.gate_url)
+        try:
+            return LS.unsupported(self._gate.call("decisions", LS.gate_request(state, gist), label="summary_gate"))
+        except Exception:
+            return None
+
+    def _chat(self, body: dict) -> dict:
+        body = {**body, "chat_template_kwargs": {"enable_thinking": False}, "logit_bias": self._think_ban()}
         self.calls += 1
         started = time.perf_counter()
         payload = self._post("/v1/chat/completions", body)
@@ -219,6 +246,16 @@ class Lane:
         self._check(client)
         with self.lock:
             self.client = client
+
+    def summarise(self, state: T.ThreadState, question: str | None) -> Future:
+        """A thread's summary on the lane: the local model in the form measured for it, any other in the cloud's."""
+        client = self.client
+        self._check(client)
+        with self.lock:
+            self.calls += 1
+        if isinstance(client, LocalText):
+            return self.pool.submit(client.summarise, state, question)
+        return self.pool.submit(client.complete, summary_messages(state, question))
 
     def submit(self, messages) -> Future:
         self._check(self.client)
@@ -347,8 +384,8 @@ class Speech:
 
     def prefetch(self, thread_id: str, question: str | None = None) -> None:
         """A speculative start: read the thread now and begin its summary on the lane, without waiting. The words so
-        far may not be the whole question, so the entry is partial: only a final question that normalises to the
-        same words reuses it."""
+        far may not be the whole question, so the entry is partial: the first final question about the same thread
+        and read takes it over, so a summary started early is not thrown away."""
         state = self.read(thread_id)
         if state is not None:
             self.remember(state)
@@ -360,8 +397,13 @@ class Speech:
         key = (state.thread_id, state.as_of_sequence, normalise(question or ""))
         with self.lock:
             gist = self.summaries.get(key)
+            if gist is None and not partial:
+                early = [g for (thread_id, sequence, _), g in self.summaries.items()
+                         if (thread_id, sequence) == key[:2] and g.partial]
+                if early:
+                    gist = self.summaries[key] = early[-1]
             if gist is None or (gist.future.done() and gist.future.exception() is not None):
-                gist = self.summaries[key] = Gist(self.lane.submit(summary_messages(state, question)), partial)
+                gist = self.summaries[key] = Gist(self.lane.summarise(state, question), partial)
             elif not partial:
                 gist.partial = False
         return gist.future
