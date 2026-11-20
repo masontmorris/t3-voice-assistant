@@ -49,7 +49,8 @@ NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command 
 MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread in this project. Nothing has started yet. Do not "
                          "repeat what they asked for.",
-    Kind.ASK_WHICH: "Ask which of these they mean, saying whether `of` is project or thread. Name every candidate.",
+    Kind.ASK_WHICH: "Ask which one they mean, saying whether `of` is project or thread, and name every candidate. "
+                    "Do not say the word candidates, and do not repeat what they asked.",
     Kind.NO_PROJECT: "In one sentence, tell them you can't find any project to use.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
     Kind.LAUNCHED: "A new thread started in this project.",
@@ -65,9 +66,10 @@ MEANINGS: dict[Kind, str] = {
                      "app.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",
-    Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
-                        "asked. When `since_last_asked` is set, say first that there is nothing new since they last "
-                        "heard, and do not offer the status as news, but still give the summary. When `need` is set, "
+    Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then say what `summary` says, in answer to "
+                        "what they asked. Say the content of `summary` itself, in your own words, and never say the "
+                        "word summary. When `since_last_asked` is set, say first that there is nothing new since they "
+                        "last heard, and do not offer the status as news, but still give the summary. When `need` is set, "
                         "the thread is waiting on them: " + NEED_WORDS,
     Kind.TELL_PENDING: "T3 was asked to pass the message on and has not confirmed it yet.",
     Kind.SENT_FOLLOWUP: "The message reached the thread.",
@@ -179,7 +181,11 @@ class LocalText:
         return self._ban
 
     def complete(self, messages) -> dict:
-        return self._chat({"messages": messages, "temperature": 0, "max_tokens": self.max_tokens})
+        """A spoken line for `local_messages`: the line as JSON, since the grammar cannot open `<think>` or run on past
+        the line, then the card's sampling. Output cut at `LINE_MAX_TOKENS` is no line."""
+        record = self._chat({"messages": messages, "max_tokens": LINE_MAX_TOKENS, **LS.SAMPLING,
+                             "response_format": {"type": "json_schema", "json_schema": {"schema": LINE_SCHEMA}}})
+        return {**record, "text": read_line(record["text"])}
 
     def summarise(self, state: T.ThreadState, question: str | None) -> dict:
         """The thread's gist as measured for this model: S11's prompt, JSON out, then the gate. `text` is empty when
@@ -222,6 +228,21 @@ class LocalText:
                             "completion_tokens": usage.get("completion_tokens")})
         return {"text": (choice.get("message") or {}).get("content") or "", "ms": ms,
                 "model": payload.get("model", self.model), "usage": usage, "finish_reason": choice.get("finish_reason")}
+
+
+LINE_SCHEMA = {"type": "object", "properties": {"line": {"type": "string", "maxLength": 300}}, "required": ["line"],
+               "additionalProperties": False}
+LINE_MAX_TOKENS = 120
+
+
+def read_line(text: str) -> str:
+    """The `line` of the model's JSON, or empty when it is not JSON with one."""
+    try:
+        record = json.loads(text)
+    except ValueError:
+        return ""
+    line = record.get("line") if isinstance(record, dict) else None
+    return line if isinstance(line, str) else ""
 
 
 RENDERERS = ("particle-1", "local")
@@ -496,17 +517,32 @@ class Speech:
     def render(self, acts: Iterable[Act], turns: Iterable[dict] = (), problems: Iterable[str] = (),
                refused: Iterable[str] = (), attempt: int = 0, *, known_names=frozenset()) -> Rendered:
         acts = tuple(acts)
-        lane = self.writer or self.lane
-        if lane is None:
+        routes = [(lane, build, by) for lane, build, by in
+                  ((self.writer, reader_messages, "lfm3"), (self.lane, self._lane_messages(), "text_model"))
+                  if lane is not None]
+        if not routes:
             return Rendered(None, error="no text model")
-        messages = reader_messages if self.writer else render_messages
-        try:
-            record = lane.call(messages(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
-        except Exception as exc:
-            return Rendered(None, error=repr(exc))
-        worded_by = "lfm3" if self.writer else "text_model"
-        return self.accept(acts, _clean(record.get("text", "")), worded_by, record.get("text"),
-                           known_names=known_names)
+        problems, refused = list(problems), list(refused)
+        first = None
+        for lane, build, worded_by in routes:
+            try:
+                record = lane.call(build(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
+            except Exception as exc:
+                rendered = Rendered(None, error=repr(exc))
+            else:
+                rendered = self.accept(acts, _clean(record.get("text", "")), worded_by, record.get("text"),
+                                       known_names=known_names)
+            if rendered.line is not None:
+                return rendered
+            first = first or rendered
+            # The next route is told what this one was refused for, so it does not word the same line.
+            problems = list(rendered.problems or ([rendered.error] if rendered.error else []))
+            if rendered.raw and rendered.raw not in refused:
+                refused.append(rendered.raw)
+        return first
+
+    def _lane_messages(self):
+        return local_messages if self.lane is not None and isinstance(self.lane.client, LocalText) else render_messages
 
     def accept(self, acts: Iterable[Act], text: str, worded_by: str, raw: str | None = None, *,
                known_names=frozenset()) -> Rendered:
@@ -566,7 +602,8 @@ READER = (
     "threads. Each message you receive is a JSON record from T3 about their threads. It is not something they "
     "said. Tell them what it says, speaking as I to you, in one short sentence per act. Keep every name, status "
     "and count as given, credit facts to the thread that reported them, and add nothing the record does not "
-    "state. Use a thread title only as a name. Reply with the words to say out loud."
+    "state. Use a thread title only as a name, without quotes. Never say a record's field names, and never mention a "
+    "summary, records or notes: say what they hold. Reply with the words to say out loud."
 )
 READER_EXAMPLES = {
     Kind.CONFIRM_LAUNCH: ({"project": "Example Fleet Notes"},
@@ -630,6 +667,15 @@ READER_EXAMPLES = {
 
 
 assert set(READER_EXAMPLES) == set(Kind)
+# A kind whose example is chosen by a slot as well: shown only the project example, the writer restates the task for
+# thread candidates and names none.
+READER_VARIANTS = {
+    (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
+    (Kind.ASK_WHICH, "thread"): ({"of": "thread", "candidates": ["Example Mend Rail Maps", "Example Mend Rail Labels",
+                                                                 "Example Add Rail Legend"]},
+                                 "Which thread do you mean, Example Mend Rail Maps, Example Mend Rail Labels, or "
+                                 "Example Add Rail Legend?"),
+}
 # With only the example above, every status asked again with nothing new was worded as that example's news (4 of 4,
 # GPU rehearsal, 2026-11-19). Without a summary here, a request for more detail got only "nothing new" (hosted call,
 # 2026-11-19).
@@ -637,27 +683,31 @@ SAID_AGAIN_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "working
                        "summary": "It says playback is stable.", "since_last_asked": NOTHING_NEW},
                       "There's nothing new from Example Tune Audio Levels since I last told you. It's still working, "
                       "and it says playback is stable.")
-EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
+EXAMPLE_NAMES = frozenset(name for slots, _ in (*READER_EXAMPLES.values(), *READER_VARIANTS.values())
                           for key in ("thread", "project", "available", "candidates") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
 
 
-def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0) -> list[dict]:
-    """Give the realtime writer the directions for the act kinds in this draft."""
+def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
+    """The writer's request in parts: the directions, one (record, reply) example per act kind, and the new record."""
     kinds = dict.fromkeys(a.kind for a in acts)
+    firsts = {}
+    for a in acts:
+        firsts.setdefault(a.kind, a)
     directions = "\n".join(f"{kind.value}: {MEANINGS[kind]}" for kind in kinds)
-    prompt = f"{READER}\n\n{directions}"
+    head = f"{READER}\n\n{directions}"
     if banned := never_say(acts):
-        prompt += f"\nDo not claim {', or '.join(banned)}."
+        head += f"\nDo not claim {', or '.join(banned)}."
     remark = next((turn["person"] for turn in reversed(_turns(turns)) if "person" in turn), None)
     if remark:
-        prompt += f"\n\nTheir last remark on the call, already answered: {json.dumps(remark)}"
-    prompt += "\n\nThese examples show how to turn a record into speech. Use the facts from the new record."
+        head += f"\n\nTheir last remark on the call, already answered: {json.dumps(remark)}"
     again = any(a.slots.get("since_last_asked") for a in acts)
+    examples = []
     for kind in kinds:
-        example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else READER_EXAMPLES[kind]
-        prompt += f'\n\nExample record: {json.dumps({"kind": kind.value, **example})}\nExample reply: {reply}'
-    prompt += "\n\nRespond with interleaved text and audio."
+        slots = firsts[kind].slots
+        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op")), READER_EXAMPLES[kind])
+        example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else shown
+        examples.append((json.dumps({"kind": kind.value, **example}), reply))
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]
     body = records[0] if len(records) == 1 else {"acts": records}
     if problems:
@@ -666,6 +716,30 @@ def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), at
         body["refused wordings"] = list(refused)
     if attempt:
         body["attempt"] = attempt + 1
+    return head, examples, body
+
+
+def reader_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0, *,
+                    realtime: bool = True) -> list[dict]:
+    """The realtime writer's request: one system prompt with the directions and examples, and the new record. The last
+    instruction asks the realtime session for its text."""
+    head, examples, body = _reader_parts(acts, turns, problems, refused, attempt)
+    prompt = f"{head}\n\nThese examples show how to turn a record into speech. Use the facts from the new record."
+    for record, reply in examples:
+        prompt += f"\n\nExample record: {record}\nExample reply: {reply}"
+    if realtime:
+        prompt += "\n\nRespond with interleaved text and audio."
     # Unlabelled, the new record read as one more example: beside a long start request, 6 of 10 confirm_launch drafts
     # were the example's reply with the example's project, and with the labels 0 of 10 (CPU, writer greedy).
     return [{"role": "system", "content": prompt}, {"role": "user", "content": "New record: " + json.dumps(body)}]
+
+
+def local_messages(acts: tuple[Act, ...], turns=(), problems=(), refused=(), attempt=0) -> list[dict]:
+    """The same directions for the local chat model, with the examples as earlier chat turns and the answer as the
+    JSON `LocalText.complete` reads."""
+    head, examples, body = _reader_parts(acts, turns, problems, refused, attempt)
+    out = [{"role": "system", "content": f'{head}\n\nAnswer with JSON: {{"line": the words to say}}.'}]
+    for record, reply in examples:
+        out += [{"role": "user", "content": f"New record: {record}"},
+                {"role": "assistant", "content": json.dumps({"line": reply})}]
+    return [*out, {"role": "user", "content": "New record: " + json.dumps(body)}]

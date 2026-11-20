@@ -2467,6 +2467,776 @@
     "ms": 130.9
   },
   {
+    "case": "paraphrase failed build",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Trim the harbour map tiles",
+          "status": "failed",
+          "summary": "It reports that the build failed on a missing font file.",
+          "asked": "did it work"
+        }
+      }
+    ],
+    "line": "The Trim the harbour map tiles thread failed, as mentioned in the summary.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Trim the harbour map tiles\"?",
+      "a1_means": "Does the line tell them that Trim the harbour map tiles is failed?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reports that the build failed on a missing font file.\"?",
+      "claims_working": "Does the line say that Trim the harbour map tiles is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255030770525
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.010432010944261246
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9904671902179017
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.4321355543737296
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.01709667391871715
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.150599346048038
+      }
+    },
+    "ms": 106.4
+  },
+  {
+    "case": "paraphrase failed build",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Trim the harbour map tiles",
+          "status": "failed",
+          "summary": "It reports that the build failed on a missing font file.",
+          "asked": "did it work"
+        }
+      }
+    ],
+    "line": "The Trim the harbour map tiles thread failed, and it says the build stopped because a font file was missing.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Trim the harbour map tiles\"?",
+      "a1_means": "Does the line tell them that Trim the harbour map tiles is failed?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reports that the build failed on a missing font file.\"?",
+      "claims_working": "Does the line say that Trim the harbour map tiles is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9963137007508792
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.006348599050974662
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9939322200153045
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9567119129926334
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.018695888271267686
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.027899140726066404
+      }
+    },
+    "ms": 112.7
+  },
+  {
+    "case": "paraphrase halved import",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Speed up the loom importer",
+          "status": "working",
+          "summary": "It says it cut the import time in half on the sample file."
+        }
+      }
+    ],
+    "line": "Speed up the loom importer is still working and has made good progress.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Speed up the loom importer\"?",
+      "a1_means": "Does the line tell them that Speed up the loom importer is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It says it cut the import time in half on the sample file.\"?",
+      "claims_finished": "Does the line say that the run of Speed up the loom importer has already ended?",
+      "claims_stopped": "Does the line say that Speed up the loom importer has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9944573486130615
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.007958431605515705
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9766369519795314
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.601019542889538
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.01141505267888754
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.008326017809732711
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.3881158718864927
+      }
+    },
+    "ms": 111.9
+  },
+  {
+    "case": "paraphrase halved import",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Speed up the loom importer",
+          "status": "working",
+          "summary": "It says it cut the import time in half on the sample file."
+        }
+      }
+    ],
+    "line": "Speed up the loom importer is still working, and it says importing the sample file now takes half the time.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Speed up the loom importer\"?",
+      "a1_means": "Does the line tell them that Speed up the loom importer is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It says it cut the import time in half on the sample file.\"?",
+      "claims_finished": "Does the line say that the run of Speed up the loom importer has already ended?",
+      "claims_stopped": "Does the line say that Speed up the loom importer has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9947027062810903
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.005297293139852136
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.990027618251644
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9142950354025414
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.009972380114192447
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.0047301466162994734
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.05375802049447804
+      }
+    },
+    "ms": 124.3
+  },
+  {
+    "case": "paraphrase two of five",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Rename the orchard sync job",
+          "status": "interrupted",
+          "summary": "Its last reply says two of the five renames were done."
+        }
+      }
+    ],
+    "line": "Rename the orchard sync job was interrupted, and it says all five renames were done.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Rename the orchard sync job\"?",
+      "a1_means": "Does the line tell them that Rename the orchard sync job is interrupted before it finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"Its last reply says two of the five renames were done.\"?",
+      "claims_finished": "Does the line say that Rename the orchard sync job completed its work successfully?",
+      "claims_working": "Does the line say that Rename the orchard sync job is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9970619258553931
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0318517729753423
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9869363265630502
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.03634346204669292
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.0694698286412277
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.0755912253669233
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8310849956652414
+      }
+    },
+    "ms": 159.8
+  },
+  {
+    "case": "paraphrase two of five",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Rename the orchard sync job",
+          "status": "interrupted",
+          "summary": "Its last reply says two of the five renames were done."
+        }
+      }
+    ],
+    "line": "Rename the orchard sync job was interrupted before it finished, and it says it got through two of the five renames.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Rename the orchard sync job\"?",
+      "a1_means": "Does the line tell them that Rename the orchard sync job is interrupted before it finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"Its last reply says two of the five renames were done.\"?",
+      "claims_finished": "Does the line say that Rename the orchard sync job completed its work successfully?",
+      "claims_working": "Does the line say that Rename the orchard sync job is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9957765370505588
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.006949548769524163
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9973169289330305
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9708393225144581
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.010912589519240443
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.04521311893826207
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.04721951680434229
+      }
+    },
+    "ms": 117.0
+  },
+  {
+    "case": "paraphrase slider",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Lantern app: fix the dimmer slider",
+          "status": "working",
+          "summary": "It says the slider jumps because of a rounding step and it is rewriting that step."
+        }
+      }
+    ],
+    "line": "Lantern app: fix the dimmer slider is still working, and it says the slider now works.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Lantern app: fix the dimmer slider\"?",
+      "a1_means": "Does the line tell them that Lantern app: fix the dimmer slider is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It says the slider jumps because of a rounding step and it is rewriting that step.\"?",
+      "claims_finished": "Does the line say that the run of Lantern app: fix the dimmer slider has already ended?",
+      "claims_stopped": "Does the line say that Lantern app: fix the dimmer slider has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9966334238039115
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0055426525535276555
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9875104403942467
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.06380992624562051
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.01954964060136781
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.006067778724619502
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8179155618961469
+      }
+    },
+    "ms": 103.3
+  },
+  {
+    "case": "paraphrase slider",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Lantern app: fix the dimmer slider",
+          "status": "working",
+          "summary": "It says the slider jumps because of a rounding step and it is rewriting that step."
+        }
+      }
+    ],
+    "line": "Lantern app: fix the dimmer slider is still working. It says a rounding step makes the slider jump, and it is rewriting that step.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Lantern app: fix the dimmer slider\"?",
+      "a1_means": "Does the line tell them that Lantern app: fix the dimmer slider is still working?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It says the slider jumps because of a rounding step and it is rewriting that step.\"?",
+      "claims_finished": "Does the line say that the run of Lantern app: fix the dimmer slider has already ended?",
+      "claims_stopped": "Does the line say that Lantern app: fix the dimmer slider has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9959637362106852
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0029380742161465474
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9944573475212536
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.95478688129601
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.014946803175687041
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.011415051699033474
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.045213118352582016
+      }
+    },
+    "ms": 114.5
+  },
+  {
+    "case": "paraphrase waiting",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Show seed packets in a grid",
+          "status": "idle",
+          "summary": "It says it is waiting for the layout choice before it goes on."
+        }
+      }
+    ],
+    "line": "Show seed packets in a grid is idle.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Show seed packets in a grid\"?",
+      "a1_means": "Does the line tell them that Show seed packets in a grid is idle?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It says it is waiting for the layout choice before it goes on.\"?",
+      "claims_finished": "Does the line say that the run of Show seed packets in a grid has already ended?",
+      "claims_stopped": "Does the line say that Show seed packets in a grid has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969944869510504
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.010912589050640768
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9964771755792154
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.02442462566275492
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.13931923120615522
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.24266986257173667
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.10530489462418761
+      }
+    },
+    "ms": 117.0
+  },
+  {
+    "case": "paraphrase waiting",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Show seed packets in a grid",
+          "status": "idle",
+          "summary": "It says it is waiting for the layout choice before it goes on."
+        }
+      }
+    ],
+    "line": "Show seed packets in a grid is idle, and it says it is waiting on your layout choice before it continues.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Show seed packets in a grid\"?",
+      "a1_means": "Does the line tell them that Show seed packets in a grid is idle?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It says it is waiting for the layout choice before it goes on.\"?",
+      "claims_finished": "Does the line say that the run of Show seed packets in a grid has already ended?",
+      "claims_stopped": "Does the line say that Show seed packets in a grid has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9968549413170827
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.007958434122698841
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9947027071246557
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9776534511573727
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.039670350404649515
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.03634346850884298
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.037971928769814804
+      }
+    },
+    "ms": 207.0
+  },
+  {
+    "case": "paraphrase kiln page",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Move the kiln log to its own page",
+          "status": "completed",
+          "summary": "It reports that the kiln log now has a page and the links work."
+        }
+      }
+    ],
+    "line": "Move the kiln log to its own page finished, and it says it will also add a chart.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Move the kiln log to its own page\"?",
+      "a1_means": "Does the line tell them that Move the kiln log to its own page is finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reports that the kiln log now has a page and the links work.\"?",
+      "claims_working": "Does the line say that Move the kiln log to its own page is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9959637360416124
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.013063676952878791
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9957765362403284
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.188962660244812
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.008710434716846573
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8551318823293569
+      }
+    },
+    "ms": 236.2
+  },
+  {
+    "case": "paraphrase kiln page",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Move the kiln log to its own page",
+          "status": "completed",
+          "summary": "It reports that the kiln log now has a page and the links work."
+        }
+      }
+    ],
+    "line": "Move the kiln log to its own page finished, and it says the kiln log has its own page now, with working links.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Move the kiln log to its own page\"?",
+      "a1_means": "Does the line tell them that Move the kiln log to its own page is finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reports that the kiln log now has a page and the links work.\"?",
+      "claims_working": "Does the line say that Move the kiln log to its own page is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.995375811693933
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.00579930960915522
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9953758130677686
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9908875669629046
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.008909186053934431
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.039670340274125346
+      }
+    },
+    "ms": 111.7
+  },
+  {
+    "case": "paraphrase done legend",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Add a harbour map legend",
+          "status": "completed",
+          "summary": "It reports that the legend shows five symbols."
+        }
+      }
+    ],
+    "line": "Add a harbour map legend finished, as mentioned in the summary.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a harbour map legend\"?",
+      "a1_means": "Does the line tell them that the run of Add a harbour map legend ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reports that the legend shows five symbols.\"?",
+      "claims_working": "Does the line say that Add a harbour map legend is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9944573479699419
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.011415053230055469
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9829033263092708
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.2869020568443316
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.018695888271267686
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.13394956611362135
+      }
+    },
+    "ms": 146.2
+  },
+  {
+    "case": "paraphrase done legend",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "done",
+        "slots": {
+          "thread": "Add a harbour map legend",
+          "status": "completed",
+          "summary": "It reports that the legend shows five symbols."
+        }
+      }
+    ],
+    "line": "Add a harbour map legend finished, and it says the legend has five symbols on it.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a harbour map legend\"?",
+      "a1_means": "Does the line tell them that the run of Add a harbour map legend ended as finished?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reports that the legend shows five symbols.\"?",
+      "claims_working": "Does the line say that Add a harbour map legend is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9916739818766113
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.003686299558056488
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9912895668997771
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9804503566941304
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.006949550918344976
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.02553318392125031
+      }
+    },
+    "ms": 107.0
+  },
+  {
     "case": "unsolicited question replied",
     "take": 1,
     "acts": [

@@ -412,12 +412,14 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, previ
 T3_NOTE = ("[Private note for you, not said by the person. What they just said is already handled, so do not answer it. "
            'Say exactly these words to them now, from the first word to the last, as "I" to "you", with nothing before '
            "or after them and no mention of this note. The words: ")
-T3_CUE = " (Reply with only these words.)]"
 MAX_RELAYS = 2
 
 
-def relay_note(text):
-    return f"{T3_NOTE}{text}{T3_CUE}"
+def relay_note(text, attempt=0):
+    """The note that has the voice say `text`. It ends on the quoted words: the voice reads out anything that follows
+    them. The retry moves the instruction before the words, since the same note gets the same reply."""
+    head = T3_NOTE.replace("The words: ", "Reply with only these words. The words: ") if attempt else T3_NOTE
+    return f'{head}"{text}"]'
 
 
 # A refused draft is worded again once in the same turn, with what was refused in the request: the writer shortened a
@@ -446,7 +448,7 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     spoken = None
     if draft.line is not None and not is_muted():
         for attempt in range(MAX_RELAYS):
-            reply, pcm = await relay_draft(session, rate, since, draft.line, abandoned=is_muted)
+            reply, pcm = await relay_draft(session, rate, since, draft.line, abandoned=is_muted, attempt=attempt)
             if reply["status"] == "completed" and not reply["function_calls"] and pcm:
                 spoken = words.accept(entry, reply["text"], draft.line)
                 if spoken.line is not None:
@@ -476,7 +478,7 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
     }, sent
 
 
-async def relay_draft(session, rate, since, line, abandoned=lambda: False):
+async def relay_draft(session, rate, since, line, abandoned=lambda: False, attempt=0):
     """The call's own voice says the checked draft. The response stops at the first word that is not the draft's, so
     a reply that goes off the words leaves only its start in the session. `abandoned()` is true once the turn is
     cancelled or muted; a relay that finds it so after the floor opens makes no response."""
@@ -484,7 +486,7 @@ async def relay_draft(session, rate, since, line, abandoned=lambda: False):
 
     async def generate():
         try:
-            item = await create_item(session, plain_text(relay_note(text)))
+            item = await create_item(session, plain_text(relay_note(text, attempt)))
             if item["accepted"] is True:
                 # The floor can close while the note is acknowledged, and the sound can then continue the turn.
                 await floor_free(session)

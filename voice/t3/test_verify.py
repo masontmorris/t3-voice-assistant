@@ -18,6 +18,10 @@ ESCAPES = {"Alpha is complete?", "Alpha has failed.", "Beta is running. Alpha is
 # The one right line d1.2 refused when the fixture was recorded: "running" is not among its act's facts. A refusal
 # fails safe, so the act goes to LFM3 and then waits; it is kept here so a change in it shows.
 REFUSED_RIGHT_LINES = {"Okay, I'll leave Add a clamp helper running."}
+# The one wrong line of the summary paraphrase cases that d1.2 passed: a vague status that carries none of the report
+# ("a1_summary" 0.60). Faithful paraphrases of a report all passed (0.91 or more) and the other six wrong lines were
+# refused, so the summary question is not too strict, but it lets a vague line through.
+PASSED_WRONG_LINES = {"Speed up the loom importer is still working and has made good progress."}
 
 
 class Recorded:
@@ -61,12 +65,13 @@ class LineCheck(unittest.TestCase):
         for row in rows:
             with self.subTest(row["line"], take=row.get("take")):
                 verdict = Decider(Recorded([row])).verify(acts_of(row), row["line"])
-                expected = row["should_pass"] and row["line"] not in REFUSED_RIGHT_LINES
+                expected = ((row["should_pass"] and row["line"] not in REFUSED_RIGHT_LINES)
+                            or row["line"] in PASSED_WRONG_LINES)
                 self.assertIsNone(verdict.error, verdict)
                 self.assertEqual(verdict.passed, expected, verdict)
-        self.assertEqual(sum(not row["should_pass"] for row in rows), 27,
-                         "3 escapes, 17 old word-list claims, 3 beside smoke-run lines, 3 takes of a false done and "
-                         "a status said again without its summary")
+        self.assertEqual(sum(not row["should_pass"] for row in rows), 34,
+                         "3 escapes, 17 old word-list claims, 3 beside smoke-run lines, 3 takes of a false done, "
+                         "a status said again without its summary and 7 wrong lines beside summary paraphrases")
 
     def test_a_reply_is_never_asked_whether_its_run_ended(self):
         reply = act(Kind.REPLIED, thread="Alpha", status="running", reply="I added clamp. The tests pass.")

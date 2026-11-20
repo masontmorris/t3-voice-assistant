@@ -69,7 +69,7 @@ class FakeVoice:
         if event["type"] == "response.create":
             draft = next(e["item"]["content"][0]["text"] for e in reversed(self.sent)
                          if e["type"] == "conversation.item.create")
-            draft = draft.removeprefix(prototype_run.T3_NOTE).removesuffix(prototype_run.T3_CUE)
+            draft = draft.split("The words: ", 1)[1].removeprefix('"').removesuffix('"]')
             text, pcm = self.responses.pop(0) if self.responses else (draft, self.default_audio)
             self.events.append({"type": "response.output_text.delta", "delta": text, "_t": 0})
             if pcm:
@@ -851,7 +851,7 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.frames, [960])
         notes = [event["item"]["content"][0]["text"] for event in self.live.active.voice.sent
                  if event["type"] == "conversation.item.create"]
-        self.assertEqual(notes, [prototype_run.relay_note(DONE_LINE)] * 2,
+        self.assertEqual(notes, [prototype_run.relay_note(DONE_LINE), prototype_run.relay_note(DONE_LINE, 1)],
                          "the retry sends the draft again, with no note about the reply that did not play")
         self.assertFalse(t3.has_news())
         await ws.close()

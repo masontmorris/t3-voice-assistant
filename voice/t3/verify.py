@@ -105,9 +105,10 @@ class Ask:
     name: str
     question: str
     want: bool
+    fix: str = ""
 
     def problem(self) -> str:
-        return f"a checker answered {'no' if self.want else 'yes'} to: {self.question}"
+        return self.fix or f"a checker answered {'no' if self.want else 'yes'} to: {self.question}"
 
 
 @dataclass(frozen=True)
@@ -160,7 +161,9 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
         # The meaning question alone passes a status line that leaves the summary out.
         if a.kind in SAYS_SUMMARY and "summary" in a.slots:
             out.append(Ask(f"a{n}_summary",
-                           f"Does the line pass on this report from the thread: \"{a.slots['summary']}\"?", True))
+                           f"Does the line pass on this report from the thread: \"{a.slots['summary']}\"?", True,
+                           f"the line left out what the thread reported: \"{a.slots['summary']}\". Say that, in your "
+                           "own words, after the status."))
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")
