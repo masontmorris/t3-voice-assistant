@@ -302,7 +302,8 @@ class Decider:
             return Picked(None, error=f"{type(exc).__name__}: {exc}")
         if record.get("status") != 200:
             return Picked(None, error=f"decider status {record.get('status')}")
-        return judge_pick((record.get("response") or {}).get("answers"), threads)
+        return judge_pick((record.get("response") or {}).get("answers"), threads,
+                          sure=getattr(self.client, "pick_sure", PICK_SURE))
 
 
 NONE, UNCLEAR = "none", "unclear"
@@ -335,6 +336,7 @@ class Picked:
     choice: str | None
     shares: dict[str, float] = field(default_factory=dict)
     error: str | None = None
+    sure_threshold: float = PICK_SURE
 
     @property
     def thread(self) -> str | None:
@@ -344,7 +346,7 @@ class Picked:
 
     @property
     def sure(self) -> bool:
-        return self.thread is not None and self.shares[self.thread] >= PICK_SURE
+        return self.thread is not None and self.shares[self.thread] >= self.sure_threshold
 
     @property
     def candidates(self) -> tuple[str, ...]:
@@ -370,7 +372,7 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
             "questions": {"pick": {"type": "choice", "instructions": instructions, "criteria": criteria}}}
 
 
-def judge_pick(answers: Any, threads: tuple[Listed, ...]) -> Picked:
+def judge_pick(answers: Any, threads: tuple[Listed, ...], sure: float = PICK_SURE) -> Picked:
     """The decider's answer as a Picked. A label that is not an option, or shares that are not numbers from 0 to 1,
     is no pick at all."""
     ids = {f"thread_{i:02d}": t.thread_id for i, t in enumerate(threads, 1)}
@@ -378,7 +380,8 @@ def judge_pick(answers: Any, threads: tuple[Listed, ...]) -> Picked:
     scores = _scores(answer, {*ids, NONE, UNCLEAR})
     if scores is None:
         return Picked(None, error="the decider gave no pick")
-    return Picked(ids.get(answer["choice"], answer["choice"]), {ids.get(k, k): v for k, v in scores.items()})
+    return Picked(ids.get(answer["choice"], answer["choice"]), {ids.get(k, k): v for k, v in scores.items()},
+                  sure_threshold=sure)
 
 
 READ_CRITERIA = {
