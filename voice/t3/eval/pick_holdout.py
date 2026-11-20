@@ -1,0 +1,48 @@
+"""Independent pick cases written before local calibration."""
+
+from voice.t3.verify import Listed
+
+TITLES = ("Repair lunar calendar export", "Repair lunar calendar import", "Build a tide chart", "Tune the harbor search", "Add a seed catalog", "Fix the lantern timer", "Document the observatory", "Replace the compass icon", "Audit the orchard cache", "Add a weather station")
+THREADS = tuple(Listed(f"h{i}", title, "Atlas", "finished") for i, title in enumerate(TITLES, 1))
+CASES = [
+    ("How is the lunar calendar export?", "sure", TITLES[0]),
+    ("Check the lunar calendar import thread.", "sure", TITLES[1]),
+    ("What happened to the tide chart?", "sure", TITLES[2]),
+    ("Is harbor search finished?", "sure", TITLES[3]),
+    ("Tell me about the seed catalog.", "sure", TITLES[4]),
+    ("Did the lantern timer get fixed?", "sure", TITLES[5]),
+    ("How is the observatory documentation?", "sure", TITLES[6]),
+    ("What about the compass icon replacement?", "sure", TITLES[7]),
+    ("Check the orchard cache audit.", "sure", TITLES[8]),
+    ("Where is the weather station work?", "sure", TITLES[9]),
+    ("Any news on exporting the lunar calendar?", "sure", TITLES[0]),
+    ("Did importing the lunar calendar work?", "sure", TITLES[1]),
+    ("Update me on charting the tides.", "sure", TITLES[2]),
+    ("How is search in the harbor?", "sure", TITLES[3]),
+    ("Was the catalog of seeds added?", "sure", TITLES[4]),
+    ("Is the timer for the lantern fixed?", "sure", TITLES[5]),
+    ("What's new in the observatory guide?", "sure", TITLES[6]),
+    ("Did we replace the compass symbol?", "sure", TITLES[7]),
+    ("How did the orchard cache audit go?", "sure", TITLES[8]),
+    ("What is the status of adding the weather station?", "sure", TITLES[9]),
+    ("How is the lunar calendar thread?", "asks", None),
+    ("The calendar repair, how is it?", "asks", None),
+    ("What about the calendar one?", "asks", None),
+    ("Check the lunar calendar fix.", "asks", None),
+    ("How is that one?", "asks", None),
+    ("And the other thread?", "asks", None),
+    ("What's happening with it?", "asks", None),
+    ("Give me an update on the thread.", "asks", None),
+    ("Check that one please.", "asks", None),
+    ("Is it done?", "asks", None),
+    ("How is the aquarium redesign?", "none", None),
+    ("Check the satellite launch thread.", "none", None),
+    ("Did the bakery migration finish?", "none", None),
+    ("What's the status of the glacier map?", "none", None),
+    ("Tell me about the bicycle checkout.", "none", None),
+    ("Is the music player done?", "none", None),
+    ("How is the invoice printer?", "none", None),
+    ("Look at the garden payment gateway.", "none", None),
+    ("Did the telescope billing change ship?", "none", None),
+    ("What happened to the volcano alerts?", "none", None),
+]
