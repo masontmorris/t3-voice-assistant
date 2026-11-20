@@ -1,0 +1,48 @@
+{"id": "h01", "tool": "t3_ask", "utterance": "How is the lantern thread going?"}
+{"id": "h02", "tool": "t3_ask", "utterance": "What happened in the pebble thread?"}
+{"id": "h03", "tool": "t3_ask", "utterance": "Is the orchard task still running?"}
+{"id": "h04", "tool": "t3_ask", "utterance": "Could you check on the comet thread?"}
+{"id": "h05", "tool": "t3_ask", "utterance": "Any update on that coding task?"}
+{"id": "h06", "tool": "t3_ask", "utterance": "Um, how far along is it?"}
+{"id": "h07", "tool": "t3_ask", "utterance": "Why did the mosaic thread stop?"}
+{"id": "h08", "tool": "t3_ask", "utterance": "What is blocking the river task?"}
+{"id": "h09", "tool": "t3_ask", "utterance": "Can I have more detail about that thread?"}
+{"id": "h10", "tool": "t3_ask", "utterance": "What did the thread do most recently?"}
+{"id": "h11", "tool": "t3_ask", "utterance": "Has the paper boat task finished yet?"}
+{"id": "h12", "tool": "t3_ask", "utterance": "Please look at the current thread."}
+{"id": "h13", "tool": "t3_start", "utterance": "Start a thread to add a clock."}
+{"id": "h14", "tool": "t3_start", "utterance": "Could you make a new task to fix the menu?"}
+{"id": "h15", "tool": "t3_start", "utterance": "Uh, start a coding thread for sorting records."}
+{"id": "h16", "tool": "t3_start", "utterance": "Please begin work on a tiny calculator."}
+{"id": "h17", "tool": "t3_start", "utterance": "Can you open a thread to improve the docs?"}
+{"id": "h18", "tool": "t3_start", "utterance": "I would like a new task to test the parser."}
+{"id": "h19", "tool": "t3_tell", "utterance": "Tell the lantern thread to add a test."}
+{"id": "h20", "tool": "t3_tell", "utterance": "Ask that task to explain its choices."}
+{"id": "h21", "tool": "t3_tell", "utterance": "Could you send it a note to check the logs?"}
+{"id": "h22", "tool": "t3_tell", "utterance": "Um, tell the thread to use a smaller buffer."}
+{"id": "h23", "tool": "t3_tell", "utterance": "Please let the running task know the build passed."}
+{"id": "h24", "tool": "t3_tell", "utterance": "Send a message to the comet thread saying continue."}
+{"id": "h25", "tool": "t3_stop", "utterance": "Stop the lantern thread."}
+{"id": "h26", "tool": "t3_stop", "utterance": "Could you pause that coding task?"}
+{"id": "h27", "tool": "t3_stop", "utterance": "Please interrupt the comet task."}
+{"id": "h28", "tool": "t3_stop", "utterance": "Uh, stop it for now."}
+{"id": "h29", "tool": "t3_stop", "utterance": "Cancel the running thread."}
+{"id": "h30", "tool": "t3_stop", "utterance": "Can you halt that work?"}
+{"id": "h31", "tool": "weather", "utterance": "What is the weather in Oslo?"}
+{"id": "h32", "tool": "weather", "utterance": "Will it rain in Lima tomorrow?"}
+{"id": "h33", "tool": "weather", "utterance": "Check the forecast for Kyoto."}
+{"id": "h34", "tool": "weather", "utterance": "Is it warm in Dublin today?"}
+{"id": "h35", "tool": "weather", "utterance": "How windy is it in Perth?"}
+{"id": "h36", "tool": "weather", "utterance": "Do I need an umbrella in Rome?"}
+{"id": "h37", "tool": "none", "utterance": "How is it going?"}
+{"id": "h38", "tool": "none", "utterance": "Thanks, that helps."}
+{"id": "h39", "tool": "none", "utterance": "That sounds wrong."}
+{"id": "h40", "tool": "none", "utterance": "The thread was green and soft."}
+{"id": "h41", "tool": "none", "utterance": "My friend mentioned a thread yesterday."}
+{"id": "h42", "tool": "none", "utterance": "I am sewing with a blue thread."}
+{"id": "h43", "tool": "none", "utterance": "The coding thread looks interesting."}
+{"id": "h44", "tool": "none", "utterance": "I started a thread this morning."}
+{"id": "h45", "tool": "none", "utterance": "That is a long thread."}
+{"id": "h46", "tool": "none", "utterance": "Hello there."}
+{"id": "h47", "tool": "none", "utterance": "I wonder about threads sometimes."}
+{"id": "h48", "tool": "none", "utterance": "Okay, great."}
