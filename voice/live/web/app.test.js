@@ -72,7 +72,13 @@ async function openPage(t, search = "") {
   bind(
     "AudioWorkletNode",
     class {
-      port = { postMessage() {} };
+      posted = [];
+      port = {
+        postMessage: (message) => {
+          this.posted.push(message);
+          if (message.type === "drain") this.port.onmessage({ data: { type: "recorded" } });
+        },
+      };
       constructor(context, name) {
         worklets.set(name, this);
       }
@@ -88,6 +94,8 @@ async function openPage(t, search = "") {
   bind(
     "WebSocket",
     class {
+      static OPEN = 1;
+      readyState = 1;
       sent = [];
       constructor() {
         socketCreated(this);
@@ -95,7 +103,9 @@ async function openPage(t, search = "") {
       send(data) {
         this.sent.push(data);
       }
-      close() {}
+      close() {
+        this.readyState = 3;
+      }
       control(message) {
         this.onmessage({ data: JSON.stringify(message) });
       }
@@ -110,6 +120,7 @@ async function openPage(t, search = "") {
     return await created;
   }
   async function close(socket, code, reason) {
+    socket.readyState = 3;
     socket.onclose({ code, reason });
     await Promise.resolve();
   }
@@ -208,4 +219,65 @@ NodeTest.test("debug events are absent by default", async (t) => {
 NodeTest.test("debug events are available with the debug query parameter", async (t) => {
   await openPage(t, "?debug");
   NodeAssert.equal(window.voiceDebug.events.at(-1).status, "secret saved, press Start");
+});
+
+async function callWithRecording(t, record) {
+  const page = await openPage(t);
+  const socket = await page.start();
+  socket.onopen();
+  socket.control({ type: "ready", mode: "vad", record });
+  const mic = (frame) =>
+    page.worklets.get("voice-capture").port.onmessage({
+      data: { type: "mic", pcm: new Float32Array(2048), level: 0, frame },
+    });
+  const played = (frame, samples) =>
+    page.worklets.get("voice-playback").port.onmessage({
+      data: { type: "played", frame, pcm: new Float32Array(samples).fill(0.5) },
+    });
+  const sent = () => socket.sent.filter((data) => typeof data === "string" && data.startsWith("{")).map((text) => JSON.parse(text));
+  return { page, socket, mic, played, sent };
+}
+
+NodeTest.test("hello asks for a recording and the page tells the output worklet the answer", async (t) => {
+  const call = await callWithRecording(t, true);
+  NodeAssert.equal(call.sent().find((message) => message.type === "hello").record, true);
+  NodeAssert.deepEqual(call.page.worklets.get("voice-playback").posted.at(-1), { type: "record", on: true });
+});
+
+NodeTest.test("played audio goes back on the microphone stream's timeline", async (t) => {
+  const call = await callWithRecording(t, true);
+  call.mic(10000);
+  call.mic(12048);
+  call.played(12048 + 1024, 4096);
+  const message = call.sent().find((sent) => sent.type === "played");
+  NodeAssert.equal(message.t, (683 + 341.5) / 16000);
+  NodeAssert.equal(Buffer.from(message.pcm, "base64").length, 1365 * 2, "16 kHz PCM16 of 4096 device samples");
+});
+
+NodeTest.test("nothing is sent back when the server records nothing", async (t) => {
+  const call = await callWithRecording(t, false);
+  call.mic(0);
+  call.played(0, 2048);
+  NodeAssert.deepEqual(
+    call.sent().filter((message) => message.type === "played" || message.type === "bye"),
+    [],
+  );
+});
+
+NodeTest.test("a hangup drains the worklet, then says bye", async (t) => {
+  const call = await callWithRecording(t, true);
+  call.mic(0);
+  call.page.callbacks.get(call.page.elements.get("stop"))();
+  await new Promise((resolve) => setTimeout(resolve, 20));
+  NodeAssert.deepEqual(call.page.worklets.get("voice-playback").posted.at(-1), { type: "drain" });
+  NodeAssert.equal(call.sent().at(-1).type, "bye");
+});
+
+NodeTest.test("a connection the server closed sends no bye", async (t) => {
+  const call = await callWithRecording(t, true);
+  await call.page.close(call.socket, 1006, "");
+  NodeAssert.equal(
+    call.sent().some((message) => message.type === "bye"),
+    false,
+  );
 });

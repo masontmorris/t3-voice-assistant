@@ -19,6 +19,7 @@ from voice.live.t3_tasks import T3Tasks
 from voice.live.tests.test_endpoint import noise, tone
 from voice.live.tests.test_t3_tasks import FakeText, worded
 from voice.prototype import run as prototype_run
+from voice.prototype.realtime import read_pcm16
 from voice.prototype.run import run_clip
 from voice.t3 import fakes as F
 from voice.t3.acts import act
@@ -829,6 +830,8 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(sum(self.frames), OUT_RATE * 2 * 2, "the whole line went out")
         record = self.record(1)
         self.assertTrue(record["idle"])
+        spoken, rate, _ = read_pcm16(Path(self.tmp.name) / "turn_001_t3_update.wav")
+        self.assertEqual((len(spoken), rate), (OUT_RATE * 2 * 2, OUT_RATE), "the line is kept as audio, like any spoken line")
         self.assertEqual(record["t3_updates"][0]["sequences"], [750, 751], "the record keeps the line's evidence")
         self.assertEqual(record["task_updates"][0]["evidence"], {"thread_id": "thread-1", "sequences": [750, 751]})
         self.assertEqual(record["replies"][0]["text"], DONE_LINE)

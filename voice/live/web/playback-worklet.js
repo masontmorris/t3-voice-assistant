@@ -2,6 +2,8 @@
 // from the reply's PCM16, and starts only once the prebuffer is queued or the reply has ended, the way the
 // Python client's Player waits before its stream opens. Ducking multiplies the gain while the server weighs
 // speech over the reply; a barge-in flushes everything still queued, like the Python client's buffer drop.
+// With recording on, the samples it hands to the output, after the gain, go back to the main thread in runs, each
+// stamped with the audio clock's frame it started on, so the recording is what was played rather than what was sent.
 class PlaybackProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -13,6 +15,10 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     this.gain = 1;
     this.prebuffer = 0;
     this.played = 0;
+    this.recording = false;
+    this.run = new Float32Array(4096);
+    this.runLength = 0;
+    this.runFrame = 0;
     this.port.onmessage = (event) => this.onMessage(event.data);
   }
 
@@ -33,7 +39,13 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.gain = 0.35;
     } else if (message.type === "unduck") {
       this.gain = 1;
+    } else if (message.type === "record") {
+      this.recording = !!message.on;
+    } else if (message.type === "drain") {
+      this.flushRun();
+      this.port.postMessage({ type: "recorded" });
     } else if (message.type === "flush") {
+      this.flushRun();
       this.queue = [];
       this.consumed = 0;
       this.queued = 0;
@@ -42,6 +54,24 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.played = 0;
       this.gain = 1;
     }
+  }
+
+  flushRun() {
+    if (this.runLength === 0) return;
+    this.port.postMessage({
+      type: "played",
+      frame: this.runFrame,
+      pcm: this.run.slice(0, this.runLength),
+    });
+    this.runLength = 0;
+  }
+
+  record(out, count) {
+    if (this.runLength > 0 && currentFrame !== this.runFrame + this.runLength) this.flushRun();
+    if (this.runLength === 0) this.runFrame = currentFrame;
+    this.run.set(out.subarray(0, count), this.runLength);
+    this.runLength += count;
+    if (this.runLength >= 2048) this.flushRun();
   }
 
   process(inputs, outputs) {
@@ -74,7 +104,11 @@ class PlaybackProcessor extends AudioWorkletProcessor {
         this.consumed = 0;
       }
     }
-    if (offset < out.length) out.fill(0, offset);
+    if (this.recording && offset > 0) this.record(out, offset);
+    if (offset < out.length) {
+      out.fill(0, offset);
+      this.flushRun();
+    }
     return true;
   }
 }

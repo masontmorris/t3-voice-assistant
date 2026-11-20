@@ -6,6 +6,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
     super();
     this.buffer = new Float32Array(4096);
     this.length = 0;
+    this.startFrame = 0;
     this.target = 2048;
   }
 
@@ -17,6 +18,7 @@ class CaptureProcessor extends AudioWorkletProcessor {
         let sample = 0;
         for (let c = 0; c < channels.length; c += 1) sample += channels[c][i];
         sample /= channels.length;
+        if (this.length === 0) this.startFrame = currentFrame + i;
         if (this.length === this.buffer.length) {
           const grown = new Float32Array(this.buffer.length * 2);
           grown.set(this.buffer);
@@ -29,7 +31,12 @@ class CaptureProcessor extends AudioWorkletProcessor {
         const block = this.buffer.slice(0, this.length);
         let sum = 0;
         for (let i = 0; i < block.length; i += 1) sum += block[i] * block[i];
-        this.port.postMessage({ type: "mic", pcm: block, level: Math.sqrt(sum / block.length) });
+        this.port.postMessage({
+          type: "mic",
+          pcm: block,
+          level: Math.sqrt(sum / block.length),
+          frame: this.startFrame,
+        });
         this.length = 0;
       }
     }

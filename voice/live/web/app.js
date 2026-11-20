@@ -1,10 +1,20 @@
-import { micToServerPCM16, replyToDeviceFloat } from "./resample.js";
+import {
+  bytesToBase64,
+  micIndexAt,
+  micToServerPCM16,
+  replyToDeviceFloat,
+} from "./resample.js";
 
 // The browser half of the live voice call. Opens the microphone, sends 16 kHz PCM16 like client.py, and
-// plays the reply through a jitter buffer that ducks, unducks and drops on barge-in the same way.
+// plays the reply through a jitter buffer that ducks, unducks and drops on barge-in the same way. When the server
+// offers a recording, it also sends back the audio the output worklet really played (see browser_recording.py).
 
 const SECRET_KEY = "voice-secret";
 const PING_MS = 2000;
+const SERVER_RATE = 16000;
+// Sent microphone blocks kept for placing played audio on the microphone stream; played runs are under 100 ms old.
+const MIC_BLOCKS_KEPT = 64;
+const DRAIN_WAIT_MS = 300;
 
 const els = {
   secret: document.getElementById("secret"),
@@ -39,6 +49,10 @@ const state = {
   pingTimer: 0,
   rtts: [],
   status: "idle",
+  record: false,
+  micBlocks: [],
+  micSent: 0,
+  drained: null,
 };
 
 function note(kind, detail) {
@@ -109,6 +123,10 @@ async function start() {
     if (type === "drained") {
       note("drained", { frames });
       if (state.status === "speaking") setStatus("listening");
+    } else if (type === "played") {
+      onPlayed(event.data, deviceRate);
+    } else if (type === "recorded" && state.drained) {
+      state.drained();
     }
   };
   state.micSource.connect(state.capture);
@@ -117,13 +135,16 @@ async function start() {
   state.captureGain.connect(state.context.destination);
   state.playback.connect(state.context.destination);
   state.replyRate = 0;
+  state.record = false;
+  state.micBlocks = [];
+  state.micSent = 0;
 
   const ws = new WebSocket(wsUrl());
   state.ws = ws;
   ws.binaryType = "arraybuffer";
   ws.onopen = () => {
     ws.send(`auth ${phrase}`);
-    ws.send(JSON.stringify({ type: "hello", mode: state.mode }));
+    ws.send(JSON.stringify({ type: "hello", mode: state.mode, record: true }));
     setStatus("connected");
     state.pingTimer = window.setInterval(() => {
       ws.send(JSON.stringify({ type: "ping", t: performance.now() }));
@@ -145,9 +166,43 @@ async function start() {
 
 function onMic(message, deviceRate) {
   if (!state.running || !state.ws || state.ws.readyState !== WebSocket.OPEN) return;
-  state.ws.send(micToServerPCM16(message.pcm, deviceRate));
+  const bytes = micToServerPCM16(message.pcm, deviceRate);
+  state.ws.send(bytes);
+  const samples = bytes.length / 2;
+  state.micBlocks.push({
+    frame: message.frame,
+    frames: message.pcm.length,
+    before: state.micSent,
+    samples,
+  });
+  if (state.micBlocks.length > MIC_BLOCKS_KEPT) state.micBlocks.shift();
+  state.micSent += samples;
   const db = 20 * Math.log10(Math.max(1e-5, message.level));
   els.meter.style.width = `${Math.max(0, Math.min(100, ((db + 60) / 60) * 100))}%`;
+}
+
+function onPlayed(message, deviceRate) {
+  const ws = state.ws;
+  if (!state.record || !ws || ws.readyState !== WebSocket.OPEN) return;
+  const at = micIndexAt(state.micBlocks, message.frame);
+  if (at === null) return;
+  const pcm = bytesToBase64(micToServerPCM16(message.pcm, deviceRate));
+  ws.send(JSON.stringify({ type: "played", t: at / SERVER_RATE, pcm }));
+}
+
+// Asks the output worklet for the run it still holds, then says goodbye, so the server can tell a hangup from a
+// connection that dropped.
+async function finishRecording(ws) {
+  if (!state.record || ws.readyState !== WebSocket.OPEN) return;
+  if (state.playback) {
+    const drained = new Promise((resolve) => {
+      state.drained = resolve;
+    });
+    state.playback.port.postMessage({ type: "drain" });
+    await Promise.race([drained, new Promise((resolve) => setTimeout(resolve, DRAIN_WAIT_MS))]);
+    state.drained = null;
+  }
+  ws.send(JSON.stringify({ type: "bye" }));
 }
 
 function onReply(data, deviceRate) {
@@ -169,6 +224,8 @@ function onControl(message) {
   }
   note("control", { text: describeControl(message) });
   if (message.type === "ready") {
+    state.record = !!message.record;
+    state.playback?.port.postMessage({ type: "record", on: state.record });
     els.talk.hidden = state.mode !== "ptt";
     setStatus("listening");
     showSummarisers(message);
@@ -241,6 +298,7 @@ async function stop(why) {
   if (state.pingTimer) window.clearInterval(state.pingTimer);
   state.pingTimer = 0;
   if (state.ws) {
+    await finishRecording(state.ws);
     try {
       state.ws.close();
     } catch {
