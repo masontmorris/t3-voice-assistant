@@ -6,6 +6,7 @@
     python -m voice.live.rehearse drive --which --out DIR [--calls 5]
     python -m voice.live.rehearse drive --noise --out DIR [--calls 5]
     python -m voice.live.rehearse drive --follow --out DIR [--calls 5]
+    python -m voice.live.rehearse drive --more --out DIR [--calls 3]
 
 The score is threads started, of N calls shaped like the call this lane is fixing. `drive` starts `serve` as a child,
 renders each call's turns with the server's own TTS, and sends them with the WAV client (to a null output, so nothing plays), one call
@@ -55,8 +56,16 @@ thanks between them is about nothing in T3. `summary` adds, per follow-up about 
 checked T3 line of the right kind about that thread, per other turn whether T3 said anything in it, and per status
 said again whether its act said that nothing is new.
 
+`--more` runs the same kind of call, shaped like the 2026-11-19 evening call: a thread question worded the way a
+transcript garbles it, a follow-up asking why the thread stopped, and requests for more detail, about a thread that
+stopped or still works and has a last reply. `summary` adds, per turn about the thread, whether the caller heard a line
+that was not a checked T3 line (a free answer in place of T3's), and per status line whether its reply carried the
+summary its act held.
+
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
-are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made.
+are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made. With
+`--summaries` the local LFM3-1.7B writes thread summaries, as the page chose on the 2026-11-19 calls; without it no
+status line carries one.
 """
 
 import argparse
@@ -69,6 +78,7 @@ import time
 from pathlib import Path
 
 from voice.live import server
+from voice.live.t3_tasks import LOCAL_SUMMARISER
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import types as T
@@ -232,8 +242,23 @@ FOLLOW = (
     ("Batch the Sprite Draws", "Add a Replay Camera", "Draw calls are down by half on the forest level.",
      (("What's the sprite draws thread up to?", "t3_ask"), ("What else has it done?", "t3_ask"), ("Yes.", "yes"),
       ("Is there any more news on it?", "t3_ask"), ("Yes.", "yes"), ("Great, thank you.", "none"))))
+# The more calls, in the follow-up calls' shape with the thread's activity added: a question worded as a transcript
+# garbles it, why it stopped, and more detail. Written once, before any run of them.
+MORE = (
+    ("Tune the Camera Shake", "Add a Photo Booth", "I lowered the shake on landings and I'm testing explosions next.",
+     T.ThreadActivity.INTERRUPTED,
+     (("How is the camera shake thread going?", "t3_ask"), ("Do you know why it stopped?", "t3_ask"),
+      ("Walk me through what it actually did.", "t3_ask"), ("Okay, thanks.", "none"))),
+    ("Sort the Inventory Icons", "Fix the Rain Sound", "I grouped the icons by type and I'm sorting the potions now.",
+     T.ThreadActivity.WORKING,
+     (("Um, could you say how this sort our icons thread been doing?", "t3_ask"),
+      ("Tell me more about how it's going.", "t3_ask"), ("Cool, thank you.", "none"))),
+    ("Speed Up the Save Screen", "Add Wind to the Grass", "I cached the slot previews, so the screen opens twice as fast.",
+     T.ThreadActivity.CANCELLED,
+     (("How's the save screen, were it doing?", "t3_ask"), ("Could you not pull up a recap?", "t3_ask"),
+      ("No, pull up a recap.", "t3_ask"), ("Thanks.", "none"))))
 # The T3 lines that answer each kind of turn about the thread.
-ANSWERS = {"t3_ask": {"thread_status", "confirm_thread"}, "t3_tell": {"confirm_tell"}, "t3_stop": {"confirm_stop"},
+ANSWERS = {"t3_ask": {"thread_status", "confirm_thread", "ask_which"}, "t3_tell": {"confirm_tell"}, "t3_stop": {"confirm_stop"},
            "yes": {"sent_followup", "held_followup", "tell_pending", "tell_unconfirmed", "stopping", "nothing_running",
                    "stop_unconfirmed", "thread_status"}}
 CALL_GAP_S = 4.0
@@ -293,6 +318,13 @@ def follow_threads():
             for call, (first, other, reply, _) in enumerate(FOLLOW) for n, title in enumerate((first, other))}
 
 
+def more_threads():
+    """The seam's threads for the more calls: the one asked about in its activity with its last reply, the other
+    working."""
+    return {f"m{call + 1}_{n + 1}": (title, activity if n == 0 else T.ThreadActivity.WORKING, reply if n == 0 else None)
+            for call, (first, other, reply, activity, _) in enumerate(MORE) for n, title in enumerate((first, other))}
+
+
 def which_threads():
     """The seam's threads for the which calls, as id to (title, activity): the thread the answer picks and the third
     thread are interrupted, the other twin is working."""
@@ -305,10 +337,10 @@ def which_threads():
     return threads
 
 
-def turns(call, tail=True, mixed=False, which=False, noisy=False, follow=False):
+def turns(call, tail=True, mixed=False, which=False, noisy=False, follow=False, more=False):
     """One call's turns as text, in the order the person says them (for the noise calls, the pieces rendered)."""
-    if follow:
-        return [CHAT[call][0], *(said for said, _ in FOLLOW[call][3])]
+    if follow or more:
+        return [CHAT[call][0], *(said for said, _ in (MORE[call][4] if more else FOLLOW[call][3]))]
     if noisy:
         return noise_pieces(call)
     if which:
@@ -388,15 +420,29 @@ class ScriptedSeam(F.FakeSeam):
 
 
 def serve(args, rest):
-    """The live server with its T3 seam replaced and no T3 text model."""
+    """The live server with its T3 seam replaced and no T3 text model, or with `--summaries` the local one."""
     seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS,
                         which_threads() if args.which else noise_threads() if args.noise
-                        else follow_threads() if args.follow else None)
+                        else follow_threads() if args.follow else more_threads() if args.more else None)
+    opened = []
 
     def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, **options):
-        return cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, **options)
+        opened.append(cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, **options))
+        return opened[-1]
+
+    choices = server.summariser_choices
+
+    def local_summaries(local_url=None, gate_url=None):
+        offered = choices(local_url, gate_url)
+        if args.summaries:
+            if not local_url:
+                raise SystemExit("--summaries needs the local summariser, which did not start")
+            opened[-1].summarisers = offered
+            opened[-1].use_summariser(LOCAL_SUMMARISER)
+        return offered
 
     server.T3Tasks.open = classmethod(open_t3)
+    server.summariser_choices = local_summaries
     server.default_model = lambda: None
     if args.cpu:
         real = server.Server
@@ -413,7 +459,8 @@ def run_drive(args, rest=()):
     command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out),
                *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []),
                *(["--which"] if args.which else []), *(["--noise"] if args.noise else []),
-               *(["--follow"] if args.follow else []), "--",
+               *(["--follow"] if args.follow else []), *(["--more"] if args.more else []),
+               *(["--summaries"] if args.summaries else []), "--",
                "--host", "127.0.0.1", "--port", str(args.port), "--t3", "on", "--snapshot", "note",
                "--max-minutes", str(args.max_minutes), "--out", str(out / "server"), "--stop-file", str(stop),
                "--decider-cache", str(out / "decider-cache"), *rest]
@@ -440,7 +487,7 @@ def run_drive(args, rest=()):
             client = Path(sys.executable)
         for call in args.only or range(args.calls):
             text = out / f"call{call + 1}.txt"
-            lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise, args.follow)
+            lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise, args.follow, args.more)
             text.write_text("\n".join(lines) + "\n", encoding="utf-8")
             clips = (args.clips_from or out) / f"clips{call + 1}"
             if args.clips_from is not None:
@@ -482,6 +529,8 @@ def entries(record):
             kinds = [a["kind"] for a in event.get("acts") or ()]
             current = {"kinds": kinds, "nothing_new": any((a.get("slots") or {}).get("since_last_asked")
                                                           for a in event.get("acts") or ()),
+                       "summary": next(((a.get("slots") or {}).get("summary") for a in event.get("acts") or ()
+                                        if (a.get("slots") or {}).get("summary")), None),
                        "draft": event.get("line"), "draft_problems": event.get("problems") or
                        ([event["error"]] if event.get("error") else []), "reply": None, "status": None,
                        "delivery": "unsent", "relays": 0}
@@ -570,12 +619,13 @@ def noise_call(call_rows, call):
             "joined": bool(joined), "second_said": said(second), "first_part_answered_alone": bool(alone)}
 
 
-def follow_call(call_rows, call):
+def follow_call(call_rows, call, calls=FOLLOW):
     """How one follow-up call went, per scripted turn after the chat line: the turn it became (the one with most of
     its words), whether it said a checked T3 line of the kind the turn wants about the call's thread, or for a turn
-    about nothing in T3 whether T3 said anything in it, and for a status whether its act said nothing is new. `call`
-    is its index from 0."""
-    title, *_, scripted = FOLLOW[call]
+    about nothing in T3 whether T3 said anything in it, for a status whether its act said nothing is new and whether
+    its reply carried the act's summary, and for a turn about the thread whether a free line was heard in it. `call`
+    is its index from 0 in `calls`."""
+    title, *_, scripted = calls[call]
     spoken = [row for row in call_rows if not row["idle"]]
     graded = []
     for n, (said, want) in enumerate(scripted):
@@ -587,8 +637,12 @@ def follow_call(call_rows, call):
         elif found:
             right = [e for e in row["t3"] if e["delivery"] == "sent" and ANSWERS[want] & set(e["kinds"])
                      and (want == "yes" or title.lower() in (e["draft"] or "").lower())]
+            summarised = [e for e in right if e["summary"]]
             entry.update(checked_line=bool(right), kinds=[e["kinds"] for e in row["t3"]],
-                         nothing_new=any(e["nothing_new"] for e in right), replies=[e["reply"] for e in right])
+                         nothing_new=any(e["nothing_new"] for e in right), replies=[e["reply"] for e in right],
+                         summary_heard=(any(overlap(e["summary"], e["reply"]) >= 0.5 for e in summarised)
+                                        if summarised else None),
+                         free=free_lines(row))
         graded.append(entry)
     return graded
 
@@ -680,6 +734,10 @@ def main():
                         help="the which calls: a which-thread question answered by place")
     parser.add_argument("--follow", action="store_true",
                         help="the follow-up calls: questions about a thread just discussed that do not name it")
+    parser.add_argument("--more", action="store_true",
+                        help="the more calls: a garbled thread question, why it stopped, and more detail")
+    parser.add_argument("--summaries", action="store_true",
+                        help="the local LFM3-1.7B writes thread summaries, as on the 2026-11-19 calls")
     parser.add_argument("--clips-from", type=Path,
                         help="send the clips an earlier drive rendered into this directory in place of rendering "
                              "new ones, so two runs hear the same audio")
@@ -715,9 +773,10 @@ def main():
                               **{f"{kind}_{key}": f"{sum(g[kind][key] for g in graded)} of {len(graded)}"
                                  for kind in ("by_place", "by_name") for key in ("drafted", "first_relay", "said")}}
             score["which_calls"] = graded
-        if args.follow:
+        if args.follow or args.more:
             graded = [t for order, window in enumerate(json.loads((args.out / "windows.json").read_text("utf-8")), 1)
-                      for t in follow_call([r for r in rows if r["call"] == order], window["call"] - 1)]
+                      for t in follow_call([r for r in rows if r["call"] == order], window["call"] - 1,
+                                           MORE if args.more else FOLLOW)]
 
             def count(chosen, key):
                 return f"{sum(bool(t.get(key)) for t in chosen)} of {len(chosen)}"
@@ -733,6 +792,10 @@ def main():
                 "statuses_said_again_told_nothing_is_new":
                     count([t for t in graded if not t["named"] and t.get("checked_line")
                            and ["thread_status"] in t.get("kinds", [])], "nothing_new"),
+                "status_lines_with_a_summary_heard":
+                    count([t for t in graded if t.get("summary_heard") is not None], "summary_heard"),
+                "thread_turns_with_a_free_line_heard":
+                    count([t for t in graded if t["want"].startswith("t3_") and t["turn"]], "free"),
                 "turns_not_found": sum(t["turn"] is None for t in graded)}
             score["follow_turns"] = graded
         mixed = [m for m in map(mixed_turn, rows) if m is not None]

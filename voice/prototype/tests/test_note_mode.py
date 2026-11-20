@@ -372,11 +372,15 @@ class T3TurnTest(NoteTurn):
         class Refused(T3SnapshotService):
             draft = "I stopped the clamp helper thread."
 
-        record = await self.turn([], task_service=Refused, send_checked=self.send_checked)
+        record = await self.turn(["It stopped because it was interrupted."], task_service=Refused,
+                                 send_checked=self.send_checked)
         self.assertEqual(texts(self.voice), [])
-        self.assertEqual(self.voice.asked, 0)
         self.assertEqual(self.spoken, [])
         self.assertEqual(record["replies"][0]["delivery"], "unsent")
+        # Unanswered, the turn's audio was answered by the next turn's reply with thread facts no check saw
+        # (rehearsal, 2026-11-20), so it gets an answer in text nobody hears.
+        asked, = [e for e in self.voice.sent if e.get("type") == "response.create"]
+        self.assertEqual(asked["response"]["output_modalities"], ["text"])
 
     async def test_call_audio_waits_for_response_done_and_the_reply_check(self):
         generating, finish = asyncio.Event(), asyncio.Event()

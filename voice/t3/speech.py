@@ -67,8 +67,8 @@ MEANINGS: dict[Kind, str] = {
                     "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then the summary, in answer to what they "
                         "asked. When `since_last_asked` is set, say first that there is nothing new since they last "
-                        "heard, and do not offer the status as news. When `need` is set, the thread is waiting on "
-                        "them: " + NEED_WORDS,
+                        "heard, and do not offer the status as news, but still give the summary. When `need` is set, "
+                        "the thread is waiting on them: " + NEED_WORDS,
     Kind.TELL_PENDING: "T3 was asked to pass the message on and has not confirmed it yet.",
     Kind.SENT_FOLLOWUP: "The message reached the thread.",
     Kind.TELL_UNCONFIRMED: "T3 was asked to pass the message on but never confirmed it arrived. They can check the "
@@ -631,9 +631,12 @@ READER_EXAMPLES = {
 
 assert set(READER_EXAMPLES) == set(Kind)
 # With only the example above, every status asked again with nothing new was worded as that example's news (4 of 4,
-# GPU rehearsal, 2026-11-19).
-SAID_AGAIN_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "working", "since_last_asked": NOTHING_NEW},
-                      "There's nothing new from Example Tune Audio Levels since I last told you. It's still working.")
+# GPU rehearsal, 2026-11-19). Without a summary here, a request for more detail got only "nothing new" (hosted call,
+# 2026-11-19).
+SAID_AGAIN_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "working",
+                       "summary": "It says playback is stable.", "since_last_asked": NOTHING_NEW},
+                      "There's nothing new from Example Tune Audio Levels since I last told you. It's still working, "
+                      "and it says playback is stable.")
 EXAMPLE_NAMES = frozenset(name for slots, _ in READER_EXAMPLES.values()
                           for key in ("thread", "project", "available", "candidates") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))

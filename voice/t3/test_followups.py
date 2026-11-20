@@ -1,6 +1,7 @@
 """Follow-ups about the thread the call last spoke about, on recorded d1.2 answers: with the thread in view, one that
 asks about it, sends it a message or stops it reaches that T3 tool, and chat, thanks and lookups stay where they were.
-Without it, as before, none of them reached T3."""
+Without it, one reaches T3 only because a parked thread request goes there (`Orchestrator._settle`): as its own act
+when the tool answer is firm, which T3 confirms, else as a lookup that acts on nothing."""
 
 from __future__ import annotations
 
@@ -10,9 +11,10 @@ import unittest
 from voice.t3.eval.record_followups import CASES, FIXTURE, T3, decide, key, passes
 
 RECORDED = json.loads(FIXTURE.read_text(encoding="utf-8"))
-# Held-out cases d1.2 does not route as the case wants. "Cancel that one" is read as withdrawing the earlier request
-# (correction 0.50, request 0.43), though its tool answer is t3_stop at 0.9, so nothing is dispatched and nothing acts.
-MISSES = {"Cancel that one."}
+# Held-out cases d1.2 does not route as the case wants. "Cancel that one" with no follow-up held is read as withdrawing
+# the earlier request (correction 0.50, request 0.43), though its tool answer is t3_stop at 0.9, so nothing is
+# dispatched and nothing acts.
+MISSES = {("Cancel that one.", False)}
 
 
 class Replay:
@@ -36,13 +38,15 @@ class FollowUps(unittest.TestCase):
             with self.subTest(row["utterance"], held=row["held"]):
                 routed = decide(Replay(), row["utterance"], row["recent"], row["earlier"], "after")
                 self.assertEqual(routed, row["routed"])
-                self.assertEqual(passes(row["want"], routed), row["utterance"] not in MISSES, routed)
+                self.assertEqual(passes(row["want"], routed), (row["utterance"], row["held"]) not in MISSES, routed)
 
-    def test_before_no_follow_up_about_a_thread_reached_t3(self):
+    def test_before_a_follow_up_reaches_t3_only_as_its_own_act_or_a_lookup(self):
         for row in RECORDED["rows"]:
             if row["mode"] == "before" and row["want"] in T3:
                 with self.subTest(row["utterance"]):
-                    self.assertEqual(decide(Replay(), row["utterance"], row["recent"], row["earlier"], "before"), [])
+                    routed = decide(Replay(), row["utterance"], row["recent"], row["earlier"], "before")
+                    self.assertEqual(routed, row["routed"])
+                    self.assertIn(routed, ([], [row["want"]], ["t3_ask"]))
 
 
 if __name__ == "__main__":

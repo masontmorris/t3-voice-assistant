@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 
 from voice.liquid_decider.client import LiquidClient
-from voice.t3.acts import Kind, act
+from voice.t3.acts import NOTHING_NEW, Kind, act
 from voice.t3.verify import request
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "verify_lines.json"
@@ -82,6 +82,12 @@ CASES += [
      f"{SMOKE} is done: it added clamp, and the tests pass.", None),
     ("smoke sent_followup", act(Kind.SENT_FOLLOWUP, thread=SMOKE), f"Your message is still waiting for {SMOKE}.",
      f"Your message reached {SMOKE}."),
+    # A request for more detail right after a status line (hosted call, 2026-11-19): the line said again must still
+    # pass on what the thread reported.
+    ("said again", act(Kind.THREAD_STATUS, thread=T, status="cancelled", summary="It reported setting up the project.",
+                       since_last_asked=NOTHING_NEW),
+     f"There's nothing new from {T} since I last told you. It was cancelled.",
+     f"There's nothing new from {T} since I last told you. It was cancelled after it reported setting up the project."),
 ]
 
 ATTRIBUTION_CASES = [

@@ -9,7 +9,7 @@ import unittest
 from pathlib import Path
 
 from voice.liquid_decider.client import BillingStop, SpendStop
-from voice.t3.acts import Act, Kind, act
+from voice.t3.acts import NOTHING_NEW, Act, Kind, act
 from voice.t3.speech import Lane, RenderedLine, Speech
 from voice.t3.verify import Decider, Verdict, asks, request
 
@@ -64,8 +64,9 @@ class LineCheck(unittest.TestCase):
                 expected = row["should_pass"] and row["line"] not in REFUSED_RIGHT_LINES
                 self.assertIsNone(verdict.error, verdict)
                 self.assertEqual(verdict.passed, expected, verdict)
-        self.assertEqual(sum(not row["should_pass"] for row in rows), 26,
-                         "3 escapes, 17 old word-list claims, 3 beside smoke-run lines and 3 takes of a false done")
+        self.assertEqual(sum(not row["should_pass"] for row in rows), 27,
+                         "3 escapes, 17 old word-list claims, 3 beside smoke-run lines, 3 takes of a false done and "
+                         "a status said again without its summary")
 
     def test_a_reply_is_never_asked_whether_its_run_ended(self):
         reply = act(Kind.REPLIED, thread="Alpha", status="running", reply="I added clamp. The tests pass.")
@@ -111,6 +112,10 @@ class LineCheck(unittest.TestCase):
         body = request([act(Kind.THREAD_STATUS, thread="Alpha", status="working")], "Alpha is busy.")
         self.assertEqual(body["state"]["facts"], [{"act": "thread_status", "thread": "Alpha", "status": "working"}])
         self.assertTrue(all(q["type"] == "noul" for q in body["questions"].values()))
+        again = asks([act(Kind.THREAD_STATUS, thread="Alpha", status="working", summary="It says the tests pass.",
+                          since_last_asked=NOTHING_NEW)])
+        self.assertIn(("a1_summary", True), [(a.name, a.want) for a in again],
+                      "a status said again still passes on what the thread reported")
 
     def test_an_unnamed_cancellation_cannot_name_a_thread(self):
         acts = (act(Kind.CANCELLED, op="start"),)
