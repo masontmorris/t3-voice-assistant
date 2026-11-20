@@ -45,7 +45,18 @@ TIMEOUT_S = 60
 
 def to_systemone(body):
     """The `/v1/systemone` body for one OpenRouter Decisions body."""
-    return {"state": body["state"], "questions": body["questions"]}
+    questions = dict(body["questions"])
+    for name, question in questions.copy().items():
+        tool = questions.get(name.removesuffix("_kind") + "_tool", {})
+        criteria = question.get("criteria", {})
+        if (name.endswith("_kind") and {"request", "chitchat"} <= criteria.keys()
+                and "t3_ask" in tool.get("criteria", {})):
+            criteria = dict(criteria)
+            criteria["request"] += (" Examples: How is the coding thread going? Is the task done? "
+                                    "Tell it to add a test.")
+            criteria["chitchat"] += " Examples: How are you? Thanks. That sounds wrong. I mentioned a thread."
+            questions[name] = {**question, "criteria": criteria}
+    return {"state": body["state"], "questions": questions}
 
 
 def from_systemone(response):

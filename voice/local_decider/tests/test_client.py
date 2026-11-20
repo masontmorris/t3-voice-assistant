@@ -7,6 +7,15 @@ from voice.local_decider.client import D1Client, from_systemone, to_systemone
 
 
 class Adapter(unittest.TestCase):
+    def test_thread_kind_examples_are_local_and_do_not_mutate_the_shared_request(self):
+        kind = {"type": "choice", "criteria": {"request": "Work.", "chitchat": "Chat."}}
+        body = {"state": {}, "questions": {"s1_kind": kind,
+                "s1_tool": {"type": "choice", "criteria": {"t3_ask": "Read a thread", "none": "Chat"}}}}
+        sent = to_systemone(body)
+        self.assertIn("How is the coding thread going?", sent["questions"]["s1_kind"]["criteria"]["request"])
+        self.assertEqual(body["questions"]["s1_kind"]["criteria"]["request"], "Work.")
+        self.assertEqual(sent["questions"]["s1_tool"], body["questions"]["s1_tool"])
+
     def test_the_request_keeps_state_and_questions_and_drops_the_openrouter_model(self):
         body = {"model": "perplexity/pplx-decider-flash-v1.3:free", "state": {"transcript": "hi"},
                 "questions": {"s1_kind": {"type": "choice", "instructions": "x", "criteria": {"a": "A", "b": "B"}}}}
