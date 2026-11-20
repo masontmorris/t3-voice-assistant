@@ -16,6 +16,7 @@ from typing import Any
 
 from voice.t3 import types as T
 from voice.t3.lifecycle import need_of
+from voice.t3.verify import noul
 
 MAX_WORDS = 25
 
@@ -168,12 +169,5 @@ def gate_request(state: T.ThreadState, gist: str) -> dict:
 
 
 def unsupported(record: dict[str, Any]) -> float | None:
-    """The gate's P(the gist is unsupported), or None when the decider gave no valid answer, which drops the gist. A
-    boolean is no probability, though Python counts it as a number."""
-    response = record.get("response") if record.get("status") == 200 else None
-    answers = response.get("answers") if isinstance(response, dict) else None
-    answer = answers.get("unsupported") if isinstance(answers, dict) else None
-    value = answer.get("noul") if isinstance(answer, dict) else None
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
-        return None
-    return float(value) if 0 <= value <= 1 else None
+    """The gate's P(the gist is unsupported), or None when the decider gave no valid answer, which drops the gist."""
+    return noul(record, "unsupported")

@@ -13,6 +13,7 @@ The decider classifies; it writes nothing (Mason, 2026-11-18). The question text
 
 from __future__ import annotations
 
+import math
 import os
 import threading
 import time
@@ -23,6 +24,14 @@ from voice.t3.acts import QUESTIONS, Act, Kind, forbidden_claims
 
 VERIFY_TIMEOUT_S = 2.0
 YES = 0.5
+
+# Whether a summary written for other words answers the question now asked: a choice, so the decider makes it.
+REUSE_CONTEXT = ("A voice assistant holds a short spoken `summary` of a coding thread. It was written for the words "
+                 "`summary_was_for`, or, when that is null, to say what the thread reported. The person has now asked "
+                 "`question`, or, when that is null, wants to hear what the thread reported.")
+REUSE_QUESTION = "Does `summary` answer `question`?"
+# P(yes) a reuse needs. Neither decider reuses a wrong summary at it in voice/t3/fixtures/summary_reuse.json.
+REUSE_YES = 0.8
 
 # What an act means, as the clause a question checks: "Is the line a question that asks <clause>?" for a confirm
 # act, else "Does the line tell them that <clause>?". Slots fill the braces.
@@ -207,6 +216,28 @@ def judge(acts: Iterable[Act], answers: Any) -> tuple[bool, dict[str, float], tu
     return not failed, probabilities, tuple(failed), tuple(problems)
 
 
+def reuse_request(title: str, gist: str, asked: str | None, question: str) -> dict:
+    """One decisions body: does `gist`, written for `asked`, answer `question`? The thread's records are not in it:
+    whether the summary is true was checked when it was written."""
+    state = {"thread": title, "summary": gist, "summary_was_for": asked, "question": question, "context": REUSE_CONTEXT}
+    return {"model": "d1.2", "state": state,
+            "questions": {"answers": {"type": "noul", "instructions": REUSE_QUESTION,
+                                      "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
+def noul(record: dict, name: str) -> float | None:
+    """The P(yes) of question `name` in a decider record, or None for anything else: a failed call, a body that is
+    not the decider's, a missing answer, or a value that is not a probability. A boolean is not one, though Python
+    counts it as a number."""
+    response = record.get("response") if isinstance(record, dict) and record.get("status") == 200 else None
+    answers = response.get("answers") if isinstance(response, dict) else None
+    answer = answers.get(name) if isinstance(answers, dict) else None
+    value = answer.get("noul") if isinstance(answer, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value):
+        return None
+    return float(value) if 0 <= value <= 1 else None
+
+
 @dataclass
 class Decider:
     """The line check over a decider client (`call(route, body, label)`), one request in flight."""
@@ -229,6 +260,21 @@ class Decider:
             return Verdict(False, ms=_ms(started), error=f"decider status {record.get('status')}")
         passed, answers, failed, problems = judge(acts, (record.get("response") or {}).get("answers"))
         return Verdict(passed, answers, failed, _ms(started), problems=problems)
+
+    def reuses(self, title: str, gist: str, asked: str | None, question: str | None) -> bool:
+        """Whether `gist`, written for `asked`, answers `question`: only on a confident yes. A timeout, an error or an
+        answer that is not a probability is no, and the summary is written again. With no question it is not asked:
+        neither decider could tell a full report from a narrow answer."""
+        if not question:
+            return False
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", reuse_request(title, gist, asked, question), label="t3_reuse")
+        except Exception:
+            return False
+        p_yes = noul(record, "answers")
+        return p_yes is not None and p_yes >= REUSE_YES
 
     def reads(self, said: Act, reply: str, options: tuple[str, ...] = ()) -> Reading:
         """What `reply` does about the question `said` asked, and which of `options` it changes to when it asks for

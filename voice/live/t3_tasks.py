@@ -173,18 +173,20 @@ class T3Tasks:
     call: int = field(default=0, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
+    reuse: Decider | None = field(default=None, kw_only=True)
     speech: Speech = field(init=False)
 
     def __post_init__(self) -> None:
         self.lane = Lane(self.model) if self.model is not None else None
-        self.speech = Speech(self.lane, self._read_quiet, self.decider, Lane(self.writer) if self.writer else None)
+        self.speech = Speech(self.lane, self._read_quiet, self.decider, Lane(self.writer) if self.writer else None,
+                             reuse=self.reuse)
 
     @classmethod
     def open(cls, origin: str, token_file: str | Path, journal_path: str | Path,
              model: LiveClient | LocalText | None = None, decider: Decider | None = None, *,
-             writer: RealtimeWriter | None = None) -> T3Tasks:
+             writer: RealtimeWriter | None = None, reuse: Decider | None = None) -> T3Tasks:
         follow = L.Follow(T3Journal(journal_path), lambda: T3Seam.connect(origin, token_file))
-        return cls(follow, model, decider, writer=writer)
+        return cls(follow, model, decider, writer=writer, reuse=reuse)
 
     def resume(self, now: float) -> None:
         with self.lock:

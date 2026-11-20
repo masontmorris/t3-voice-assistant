@@ -32,7 +32,7 @@ from voice.t3.pick.model import allowed_model
 from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
                            recites)
 from voice.t3.realtime_writer import RealtimeWriter
-from voice.t3.verify import Verdict
+from voice.t3.verify import Decider, Verdict
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
@@ -159,6 +159,7 @@ class LocalText:
         self.ledger: list[dict] = []
         self._ban: list | None = None
         self._gate = None
+        self._reuse: Decider | None = None
 
     def _post(self, path: str, body: dict, timeout_s: float | None = None) -> dict:
         request = urllib.request.Request(f"{self.url}{path}", data=json.dumps(body).encode(),
@@ -200,6 +201,14 @@ class LocalText:
             return LS.unsupported(self._gate.call("decisions", LS.gate_request(state, gist), label="summary_gate"))
         except Exception:
             return None
+
+    def reuse_decider(self) -> Decider:
+        """The gate's d1-2B on a connection of its own, for asking whether a summary answers a later question: the
+        caller asks it while the lane may be using the gate's connection."""
+        from voice.local_decider.client import D1Client
+        if self._reuse is None:
+            self._reuse = Decider(D1Client(self.gate_url, timeout_s=LS.GATE_TIMEOUT_S))
+        return self._reuse
 
     def _chat(self, body: dict, timeout_s: float | None = None) -> dict:
         body = {**body, "chat_template_kwargs": {"enable_thinking": False}, "logit_bias": self._think_ban()}
@@ -363,22 +372,30 @@ def speakable(line: Any, entry_point: str) -> RenderedLine:
 
 @dataclass
 class Gist:
-    """One cached summary. `partial` while only a speculative start from words still being spoken has asked for it."""
+    """One cached summary. `partial` while only a speculative start from words still being spoken has asked for it.
+    `question` is the words it was written for."""
 
     future: Future
     partial: bool
+    question: str | None = None
+
+    def usable(self) -> bool:
+        return not self.future.cancelled() and not (self.future.done() and self.future.exception() is not None)
 
 
 @dataclass
 class Speech:
     """`lane` is None when no model is configured: every render then fails and the act waits.
     `read(thread_id)` reads a thread through the seam, or returns None when it cannot. `decider` checks each line
-    against its acts (voice/t3/verify.py); with none, no line passes."""
+    against its acts (voice/t3/verify.py); with none, no line passes. `reuse` asks whether a cloud summary written for
+    other words answers a later question, on a connection bounded like the line checks; it defaults to `decider`.
+    The local summariser asks its own gate's d1-2B."""
 
     lane: Lane | None
     read: Callable[[str], T.ThreadState | None]
     decider: Any = None
     writer: Lane | None = None
+    reuse: Decider | None = None
     states: dict = field(default_factory=dict)
     summaries: dict = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
@@ -399,21 +416,50 @@ class Speech:
     def _summary(self, state: T.ThreadState, question: str | None, partial: bool = False) -> Future | None:
         if self.lane is None:
             return None
-        key = (self.lane.generation, state.thread_id, state.as_of_sequence, normalise(question or ""))
+        key = self._key(state, question)
         with self.lock:
             gist = self.summaries.get(key)
-            if gist is None or gist.future.cancelled() or (gist.future.done() and gist.future.exception() is not None):
-                gist = self.summaries[key] = Gist(self.lane.summarise(state, question), partial)
+            if gist is None or not gist.usable():
+                gist = self.summaries[key] = Gist(self.lane.summarise(state, question), partial, question)
             elif not partial:
                 gist.partial = False
         return gist.future
 
+    def _key(self, state: T.ThreadState, question: str | None) -> tuple:
+        return self.lane.generation, state.thread_id, state.as_of_sequence, normalise(question or "")
+
+    def _reuse(self, state: T.ThreadState, question: str | None) -> None:
+        """When no summary was asked for these words but one is written for this thread, read and model, ask the
+        decider whether it answers them, and file it under them on a confident yes. Anything else leaves the key
+        empty, so a new summary is written as before."""
+        key = self._key(state, question)
+        with self.lock:
+            here = self.summaries.get(key)
+            if here is not None and here.usable():
+                return
+            written = [g for k, g in self.summaries.items()
+                       if k[:3] == key[:3] and k != key and g.future.done() and g.usable()]
+        if not written:
+            return
+        earlier = written[-1]
+        gist = _clean(earlier.future.result().get("text", ""))
+        client = self.lane.client
+        decider = client.reuse_decider() if isinstance(client, LocalText) else self.reuse or self.decider
+        if not gist or decider is None or not decider.reuses(state.title, gist, earlier.question, question):
+            return
+        with self.lock:
+            here = self.summaries.get(key)
+            if here is None or not here.usable():
+                self.summaries[key] = Gist(earlier.future, False, earlier.question)
+
     def summary(self, state: T.ThreadState, question: str | None = None) -> str | None:
-        future = self._summary(state, question)
-        if future is None:
+        if self.lane is None:
             return None
+        deadline = time.monotonic() + SUMMARY_TIMEOUT_S
+        self._reuse(state, question)
+        future = self._summary(state, question)
         try:
-            record = future.result(timeout=SUMMARY_TIMEOUT_S)
+            record = future.result(timeout=max(0.0, deadline - time.monotonic()))
         except Exception:
             # A summary still queued is dropped, so it never holds the one lane for the next caller.
             future.cancel()

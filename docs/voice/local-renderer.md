@@ -291,7 +291,19 @@ S13 is S11 with reasoning on, no `<think>` ban, and a 4,096-token limit. It ran 
 
 ### A summary started early
 
-A summary the prefetch starts from words still being spoken is cached under those words, and is reused only when the final question normalises to the same words (`Speech._summary`). When the final question differs, the summary runs again. Taking the early summary over for any final question about the same thread and read was tried and withdrawn: a summary written for one question would then answer a different one, and the truth gate checks support, not relevance. In 574 recorded T3 ask turns the words differed on 33 (inferred: the task's creation stands in for the prefetch), so a reuse that could tell whether an early summary answers the final question would save about 271 ms on those turns.
+A summary the prefetch starts from words still being spoken is cached under those words. When the final question is different, whether that summary answers it is a choice, so the decider makes it (`Speech._reuse`): one typed yes/no question, "does `summary` answer `question`?". It is asked only when the earlier summary for the same thread, read and summariser is already written. A yes at 0.8 or above files it under the final question. Anything else (a no, a low yes, an error, a timeout, an answer that is not a probability) writes a new summary as before. The local summariser asks its own gate's d1-2B, on a second connection with the gate's 2 s cap. The cloud summariser asks the speech decider in use: hosted d1.2 with its 2 s timeout, or under `--decider d1` a second connection to the local d1-2B with the same 2 s. The question cannot share the gate's request, because the gate runs when the gist is written, before the final question exists. The whole check runs inside the status line's 10 s wait.
+
+Made-up cases test it (`voice/t3/eval/record_reuse.py`, replayed by `voice/t3/test_reuse.py`): 21 seen and 21 held out. A wrong reuse speaks a true summary that answers another question, so it is counted apart from a missed one.
+
+| Decider     | Seen: right of 13, wrong of 8 | Held out: right of 12, wrong of 9 | Median call |
+| ----------- | ----------------------------- | --------------------------------- | ----------- |
+| Local d1-2B | 10, 0                         | 10, 0                             | 23 ms       |
+| Hosted d1.2 | 12, 0                         | 12, 0                             | 111 ms      |
+
+- The highest P(yes) either decider gave a summary that does not answer was 0.52, and the 0.8 bar was chosen after both sets were read, so neither set is a clean test of it (measured).
+- When nothing specific was asked, the summary is always written again. A second question, whether the summary says what the thread reported and not only a narrower answer, was tried on six more cases and dropped: the local d1-2B gave all six between 0.93 and 0.96 whichever way they went, and the hosted d1.2 gave five of six under 0.14 (measured).
+
+In 576 recorded T3 ask turns, the words the prefetch started from differed from the final question on 35, and on 34 of them the final question only continued those words (inferred: the task's creation stands in for the prefetch). A reuse saves a summary (about 271 ms local, about 545 ms cloud) less the decider call, and a no costs the call. Real summaries are not the made-up ones, so how often the deciders say yes on a call is not known.
 
 ## The local summariser
 
