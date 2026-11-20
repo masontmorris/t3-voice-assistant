@@ -393,8 +393,8 @@ def serve(args, rest):
                         which_threads() if args.which else noise_threads() if args.noise
                         else follow_threads() if args.follow else None)
 
-    def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, *, writer=None):
-        return cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, writer=writer)
+    def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, **options):
+        return cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, **options)
 
     server.T3Tasks.open = classmethod(open_t3)
     server.default_model = lambda: None
