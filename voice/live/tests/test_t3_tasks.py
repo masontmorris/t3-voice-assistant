@@ -1049,10 +1049,10 @@ class Service(unittest.IsolatedAsyncioTestCase):
                                                   for r in records])
         return T3TaskService(segmenter, "conv_turn_001", 0.0, None, holds_side_effects=False, t3=t3)
 
-    def record(self, task_id, instruction, tool=None):
+    def record(self, task_id, instruction, tool=None, confidence=0.9):
         return {"task_id": task_id, "instruction": instruction, "status": "dispatched", "depends_on": [],
                 "side_effect": tool in (START, TELL, STOP), "sources": ["orchestrator"], "history": [],
-                "tool": {"tool": tool, "confidence": 0.9} if tool else None}
+                "tool": {"tool": tool, "confidence": confidence} if tool else None}
 
     def test_t3_records_go_to_t3_and_others_to_the_mock(self):
         seam = F.FakeSeam()
@@ -1060,7 +1060,9 @@ class Service(unittest.IsolatedAsyncioTestCase):
         t3 = tasks_over(self, seam)
         records = [self.record("task_1", "Add a clamp helper in the sandbox project", START),
                    self.record("task_2", "What's the weather in Lisbon?"),
-                   self.record("task_3", "Stop the toolchain thread.", STOP)]
+                   self.record("task_3", "Stop the toolchain thread.", STOP),
+                   self.record("task_4", "Tell me, uh, the fix our toolchain thread been going?", TELL,
+                               confidence=0.2)]
         service = self.service(t3, records)
         service.sync(0)
         snapshot = service.snapshot("utt_1", "...")
@@ -1070,6 +1072,8 @@ class Service(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(by_id["task_2"]["status"], "running")
         self.assertNotIn("acts", by_id["task_2"])
         self.assertEqual(by_id["task_3"]["acts"], [act(S.CONFIRM_STOP, thread="Upgrade the toolchain").to_json()])
+        self.assertIn(by_id["task_4"]["acts"][0]["kind"], {"thread_status", "confirm_thread", "ask_which", "no_thread"},
+                      "an unsure pick reaches T3 as a lookup, never as a message to send")
         self.assertIs(service.open_question(), T3_WAITING)
         self.assertEqual(service.executions["task_1"].state.value, "completed")
         self.assertEqual((seam.ops("launch"), seam.ops("interrupt")), ([], []))

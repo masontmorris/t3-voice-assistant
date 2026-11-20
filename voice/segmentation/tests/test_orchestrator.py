@@ -2,16 +2,21 @@ import unittest
 
 from voice.segmentation.contract import (Correction, CorrectionMode, Decisions, Kind, Readiness, SegmentDecision,
                              TranscriptUpdate)
+from voice.segmentation.gate import PLAN_A
 from voice.segmentation.spans import clause_segments
 from voice.segmentation.tasks import IllegalTransition, Orchestrator, Status
+from voice.tools.registry import ToolChoice
 
 
-def decide(sid, kind="request", ready="dispatch_now", depends=None, corrects=None, side_effect=False):
+def decide(sid, kind="request", ready="dispatch_now", depends=None, corrects=None, side_effect=False, tool=None,
+           tool_confidence=0.2):
     correction = None
     if corrects:
         mode, _, target = corrects.partition("_")
         correction = Correction(target, CorrectionMode(mode))
-    return SegmentDecision(sid, Kind(kind), Readiness(ready), depends, correction, side_effect)
+    return SegmentDecision(sid, Kind(kind), Readiness(ready), depends, correction, side_effect,
+                           {"ready": 0.3, "side_effect": 0.9 if side_effect else 0.1},
+                           ToolChoice(tool, tool_confidence) if tool else None)
 
 
 def step(orch, revision, text, final=False, delegates=None, **by_sid):
@@ -66,6 +71,29 @@ class DispatchPolicy(unittest.TestCase):
         step(orch, 1, "Book it.", final=True, s1={"ready": "wait"})
         self.assertEqual(statuses(orch), [("Book it.", Status.NEEDS_CLARIFICATION)])
         self.assertEqual(orch.snapshot("c", "u")["clarification_needed"], ["Book it."])
+
+    def test_a_thread_request_the_rules_would_park_goes_to_t3_as_a_lookup(self):
+        """Hosted call 2026-11-19: thread questions read `clarify`, or were held at the gate, and nothing asked the
+        person anything. As a lookup T3 finds the thread itself, asking which if it must, and acts on nothing."""
+        said = "How's the save slots thread going?"
+        for ready, tool, side_effect in (("clarify", "t3_ask", False), ("wait", "t3_ask", False),
+                                         ("dispatch_now", "t3_ask", False), ("clarify", "t3_tell", True),
+                                         ("dispatch_now", "t3_stop", True)):
+            orch = Orchestrator()
+            orch.gate = PLAN_A
+            step(orch, 1, said, final=True, s1={"ready": ready, "tool": tool, "side_effect": side_effect})
+            self.assertEqual(statuses(orch), [(said, Status.DISPATCHED)], (ready, tool))
+            self.assertEqual(orch.task_records()[0]["tool"]["tool"], "t3_ask", (ready, tool))
+        for ready in ("dispatch_now", "clarify"):
+            orch = Orchestrator()
+            orch.gate = PLAN_A
+            step(orch, 1, "Tell it to also add a test.", final=True,
+                 s1={"ready": ready, "tool": "t3_tell", "tool_confidence": 0.91, "side_effect": True})
+            self.assertEqual(statuses(orch), [("Tell it to also add a test.", Status.DISPATCHED)], ready)
+            self.assertEqual(orch.task_records()[0]["tool"]["tool"], "t3_tell", "a firm pick keeps its op: T3 confirms it")
+        orch = Orchestrator()
+        step(orch, 1, "How's the save slots thread going and", s1={"ready": "clarify", "tool": "t3_ask"}, s2={})
+        self.assertEqual(orch.dispatch_log, [], "during speech it waits like any other request")
 
     def test_non_request_segments_create_no_task(self):
         orch = Orchestrator()

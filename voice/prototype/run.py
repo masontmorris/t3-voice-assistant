@@ -985,6 +985,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 if owed:
                     await answer_unheard(voice, out_rate, audio_end, log)
                 await say_t3(t3_entries, "t3", audio_end)
+                if not owed and all(r.get("worded_by") is None for r in replies):
+                    # No line passed its checks, so nothing answered the audio, and unanswered audio is answered by
+                    # the next turn's reply, with thread facts no check saw.
+                    await answer_unheard(voice, out_rate, audio_end, log)
             item = None if t3_entries else shown(ordinary, snapshot_mode, adapter.text())
             if item is not None and prior_utterances:
                 item = with_call_turns(item, prior_utterances)

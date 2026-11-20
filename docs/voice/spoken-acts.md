@@ -77,7 +77,7 @@ After the voice has said something about a thread (its status, its start, a mess
 
 The decider still makes every choice; it is given what it lacked. `T3Tasks.spoken_about` is the thread the call last said something about, cleared when a call starts, and the turn adds it to the earlier tasks the decider sees as the newest one, a `t3_ask` about that thread (`with_thread` in voice/prototype/run.py). A turn worded as a correction that changes no value of the call's newest task is asked of the decider like a request (`turn_intent`); a correction that does change one ("I meant Saturday" after a Friday forecast) still amends that task.
 
-A status asked again with nothing new in T3's record since the last one was said carries `since_last_asked`, and its line says so: "There's nothing new from Tidy the Save Slots since I last told you. It's still working." With only the one `thread_status` example, the writer worded all 4 such lines as that example's news, "is still working and reports its status" (measured, GPU), so the act gets an example of its own (`SAID_AGAIN_EXAMPLE`).
+A status asked again with nothing new in T3's record since the last one was said carries `since_last_asked`, and its line says so, then still gives the summary: "There's nothing new from Tidy the Save Slots since I last told you. It's still working, and it says the slot list is merged." The person may be asking for more detail, not news, and the summary is the detail T3 has. With only the one `thread_status` example, the writer worded all 4 such lines as that example's news, "is still working and reports its status" (measured, GPU), so the act gets an example of its own (`SAID_AGAIN_EXAMPLE`). That example once had no summary, and on the 2026-11-19 evening call two requests for more detail heard only "nothing new" and the status, though the act carried the summary and the meaning check passed the line. The line check now also asks whether a status or done line passes on the thread's report (`a1_summary` in voice/t3/verify.py): on recorded d1.2 answers, the said-again line without its summary reads 0.08 and is refused, and the one with it 0.94.
 
 Measured on the hosted d1.2 decider, `python -m voice.t3.eval.record_followups`, one reading per case, replayed by voice/t3/test_followups.py. The seen set was looked at while the design was made; the held-out set was written before any run and changed nothing.
 
@@ -86,9 +86,9 @@ Measured on the hosted d1.2 decider, `python -m voice.t3.eval.record_followups`,
 | Seen | 0 of 8 | 8 of 8 | 6 of 6 | 6 of 6 |
 | Held out | 0 of 7 | 6 of 7 | 5 of 5 | 5 of 5 |
 
-The held-out miss is "Cancel that one.", which the intent rules call a correction and the decider reads as one too (0.50 against 0.43 for a request), though it picks `t3_stop` at 0.9.
+The held-out miss was "Cancel that one.", which the intent rules call a correction and the decider reads as one too (0.50 against 0.43 for a request), though it picks `t3_stop` at 0.9. With a follow-up held for the thread its firm `t3_stop` pick now reaches T3 as a stop to confirm ([below](#a-thread-question-the-decider-is-unsure-about)); without one it is still a correction.
 
-`python -m voice.live.rehearse drive --follow` runs calls about one of two seeded threads: a status question by name, then follow-ups that do not name it, with a lookup, chat or thanks between. Calls 6 and 7 were written after run 1, before any run of them. Runs 1 and 2 had the decider context but still asked "do you mean" back, with no example for `since_last_asked`; runs 3 to 6 are the shipped code, and runs 3 and 4 worded two of the follow-ups differently. GPU, synthetic voice, scripted T3 seam.
+`python -m voice.live.rehearse drive --follow` runs calls about one of two seeded threads: a status question by name, then follow-ups that do not name it, with a lookup, chat or thanks between. Calls 6 and 7 were written after run 1, before any run of them. Runs 1 and 2 had the decider context but still asked "do you mean" back, with no example for `since_last_asked`; runs 3 to 6 are the code as it stood before 2026-11-20, and runs 3 and 4 worded two of the follow-ups differently. Run 7 adds the rule for unsure thread requests ([below](#a-thread-question-the-decider-is-unsure-about)): its turn pulled into T3 is a scripted "Yes, that one." with no question open, answered with a status line, and its three missed follow-ups are one call whose voice answered "Do you mean ...?" instead of saying it. GPU, synthetic voice, scripted T3 seam.
 
 | Run | Follow-ups answered with a checked T3 line | Other turns pulled into T3 | Statuses asked again, said as nothing new | Free lines naming a thread |
 | --- | --- | --- | --- | --- |
@@ -98,12 +98,51 @@ The held-out miss is "Cancel that one.", which the intent rules call a correctio
 | 4 (7 calls) | 11 of 13 | 0 of 9 | 8 of 8 | 0 |
 | 5 (7 calls) | 11 of 13 | 0 of 9 | 8 of 8 | 1 |
 | 6 (7 calls) | 8 of 13 | 0 of 9 | 5 of 5 | 7 |
+| 7 (7 calls) | 10 of 13 | 1 of 9 | 8 of 8 | 0 |
 
 In runs 1 and 2 most misses were "Do you mean the thread called X?" lines the call's voice did not recite: it answered the question instead ("Yes, I mean the"), so nothing was said. Misses that remain with the shipped code:
 
 - "What did it say?" gives the thread just discussed 0.47 against a confirm floor of 0.5, so it is still asked back, and "Stop it." said while that question is open is read as the answer to it. The stop reaches T3 only on the next turn.
 - A line the voice cuts short or runs on past ("It's still working." alone, "... Let me know if") is stopped by the check and not said.
 - A turn the ASR mishears misses T3, and the voice answers it freely. In run 6, "Film me in on the rest of it." was answered twice with the last relay word for word, cue and all ("... Reply with only these words."). "What's the sprite, draws thread up to?" never reached T3, so no thread was in view for the follow-ups after it, and the voice made up five lines about the sprite. Those are run 6's 7 free lines. The ones in runs 3 and 5 answered a scripted "Yes." that had no question left to answer.
+
+## A thread question the decider is unsure about
+
+On the 2026-11-19 evening call, with the hosted decider, most questions about a thread never reached T3, and the voice answered them alone. Once it gave a status and a date no record holds, then said the same line on the next two turns. Twice it said the person's question back. The call's records show what parked each one:
+
+- A final request the decider read as `clarify` or `wait` became `needs_clarification`. A T3 task in that state gets no note and nothing asks the person anything, so the voice had only the audio.
+- The gate held one whose `ready` margin fell short, 0.38 against 0.40.
+- A follow-up right after a status line read `none` and `t3_ask` at 0.387 each, with the other thread tools at 0.056 between them, so it counted as chat.
+- A thread pick under the registry's tool margin falls to the word rules, which know no thread.
+
+The repeats and the echoes followed from these: with no note and nothing to answer from, the voice said its own last line again or the person's words back.
+
+On the final transcript, a thread request those rules would park now goes to T3 anyway (`Orchestrator._settle`). A pick at the gate's firm-tool bar (0.70) or over keeps its own act, which T3 confirms before it acts. An unsure pick goes as a lookup (`t3_ask`): T3 finds the thread, asks which one or "do you mean" when it must, and says how it is. It never sends, stops or starts anything. In a draft of this change an unsure pick kept its act. A stray "Yes, that one." with no question open read as `t3_tell` at 0.32, was offered as a message, and "Okay, thanks." was read as the yes that sent it (rehearsal). The T3 service applies the same rule to a pick under the tool margin. On the final transcript the four thread tools also count as one subject: when "no tool" is picked but they together outweigh every other option, the pick becomes the lookup, since a sum does not say which of the four was meant. A pick of another tool, such as the forecast, stands. While the words are still spoken they do not, because a fragment of a longer start request reads that way (50 of 1,937 partial request reads in the decider cache, 3 of 916 final ones).
+
+A T3 turn whose line fails its checks says nothing, and its audio gets an answer in text nobody hears (`answer_unheard`). Without that answer, the next turn's reply answered the earlier question too, with thread facts no check saw: "The thread stopped because it was interrupted while lowering the shake on landings." That happened in 2 of 2 rehearsal runs on that call, and in none of the 3 runs with the hidden answer.
+
+So a turn the decider reads as a thread request ends in a checked T3 line or in silence.
+
+`python -m voice.live.rehearse drive --more --summaries` runs three calls with made-up threads: a thread question worded as a transcript garbles it, why the thread stopped, and requests for more detail. GPU, synthetic voice, scripted T3, hosted d1.2, the same clips in every run.
+
+| Run | ASR stagger | Thread turns answered by the free voice | Named questions answered with a checked line | Status lines whose summary was heard |
+| --- | --- | --- | --- | --- |
+| Before | 1 | 6 of 8 | 1 of 3 | 2 of 2 |
+| Before | 2 | 6 of 8 | 1 of 3 | 2 of 2 |
+| After | 1 | 0 of 8 | 3 of 3 | 4 of 4 |
+| After | 2 | 0 of 8 | 3 of 3 | 4 of 4 |
+
+The table's runs used an earlier wording of five of the eleven turns. With the wording now in the script, one run after the change (stagger 1) gave: 1 of 8 thread turns answered by the free voice (a request for a recap the decider did not read as a request, answered "I cannot"), 3 of 3 named questions answered, 3 of 3 status lines with their summary heard, one request for detail answered with "do you mean" for the thread just spoken about, one said again without its summary, and one turn that said nothing because no line passed (measured, no run of the unchanged code on this wording).
+
+Before the change, the free voice told the caller how to sort "your Icons thread" from a menu that does not exist, and that they were "in the save screen" with items to keep. The stagger setting changed no count, before or after.
+
+The tool-pick replay (`python -m voice.t3.tool_pick_eval --text after --decider liquid`, recorded answers, no calls) moves from 56 to 60 of 60 T3 samples reaching their own tool, because four firm tells and stops the decider read as `clarify` now reach their confirmation. Of the 45 chat and lookup control samples, 1 now reaches T3: "Stop, I was talking to someone else.", as a lookup.
+
+What it does not fix:
+
+- A garbled question the transcript splits in two (a thread's name followed by a few stray words) sends both pieces to T3. On the second piece the decider leaned to another thread, and the voice asked "Do you mean the thread called Sort the Inventory Icons?". The question made that thread the one "it" means, so the next two answers were about it, in both rehearsal runs. Every line was checked, but the thread was wrong.
+- A turn the decider does not read as a request (chat, a description, a correction) still gets the voice's free answer, and nothing checks it. On the 2026-11-19 local-decider call, and in a stagger-2 rehearsal where a start request read as a description, the voice made up thread facts on such turns. A lookup's spoken result is free too, and once added a thread fact.
+- The writer sometimes drops the status from a detail line, and the check refuses both drafts, so that turn says nothing (1 of 3 calls, both runs).
 
 ## Starting a thread by voice, measured
 
@@ -124,7 +163,7 @@ The first three runs counted any launch during a call as its thread and gave the
 
 Every launch carried its call's whole request (all 9 at full overlap), all 35 T3 lines passed both checks and were said on the first relay, and no ordinary reply carried a note's or a draft's words. Two causes are open. Call 1's request was cut into "start a thread to get work going on", a separate description of what it is for, "Can you kick that off" and "and keep it tidy?", and readiness read each start fragment on its own words and asked for a clarification; on the CPU the same call broke the same way. A wording that counts other segments' description left the replay of this call at 0 of 3 draws, because a later fragment was then read as replacing the request, so per-segment wording does not reach it. In calls 3 and 4 the status question found no thread: "the nightly build threat" (the transcript's word) and "the spreadsheet columns thread done yet" carry words no title holds, so the lexical prefilter, which needs each content word in one title, matched nothing, and the lane model, given every title, answered none too. Both lines said were true ("I checked the recent threads and couldn't find a match.").
 
-The dispatch cause: the decider's readiness question called a long hesitant "start a thread" request ambiguous because it names no project (15 of 30 replayed draws dispatched, 27 of 30 with `T3_READY`), and its dependency and correction questions read the fragments one request is cut into ("for that", "the part that writes slots") as needing or replacing each other (17 of 24 draws dispatched, 23 of 24 with `T3_DEPENDS` and `T3_CORRECTS`, replaying the decider's dispatch questions on the rehearsal's requests). The first held-out half was looked at for causes before the dependency fix, so the second half is the clean one. The readiness wording is scoped to thread requests: worded for every request, it moved weather and time lookups off their tool. Scoped, on the tool-pick replay (`python -m voice.t3.tool_pick_eval --decider liquid`, 3 draws per case), the weather and time controls reach their tool in 10 of 10 cases, every T3 case picks its tool, and no chit-chat control is routed to a T3 tool: 0 of 84 draws, as before the change (d1.2 picks a T3 tool for 12 of them and the gate stops each).
+The dispatch cause: the decider's readiness question called a long hesitant "start a thread" request ambiguous because it names no project (15 of 30 replayed draws dispatched, 27 of 30 with `T3_READY`), and its dependency and correction questions read the fragments one request is cut into ("for that", "the part that writes slots") as needing or replacing each other (17 of 24 draws dispatched, 23 of 24 with `T3_DEPENDS` and `T3_CORRECTS`, replaying the decider's dispatch questions on the rehearsal's requests). The first held-out half was looked at for causes before the dependency fix, so the second half is the clean one. The readiness wording is scoped to thread requests: worded for every request, it moved weather and time lookups off their tool. Scoped, on the tool-pick replay (`python -m voice.t3.tool_pick_eval --decider liquid`, 3 draws per case), the weather and time controls reach their tool in 10 of 10 cases, every T3 case picks its tool, and no chit-chat control is routed to a T3 tool: 0 of 84 draws, as before the change (d1.2 picks a T3 tool for 12 of them and the gate stops each; since 2026-11-20 one the decider also reads as a request reaches T3 as a lookup, [above](#a-thread-question-the-decider-is-unsure-about)).
 
 Smaller causes found on the way: the writer copied its example's reply with the example's project beside a long start request, 6 of 10 drafts, and with the new record labelled "New record" 0 of 10 (CPU); drafts asked for while two writer sessions were closing failed with "busy" instead of waiting; one request cut into several launch segments asked its confirmation more than once; the relay answered a one-word yes with "Great!" (2 of 12 relays, and 8 of the 10 held relays in the baseline), and with "What they just said is already handled" in its note 0 of 12 (GPU).
 

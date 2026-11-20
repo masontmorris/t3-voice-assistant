@@ -143,6 +143,30 @@ class ToolQuestion(unittest.TestCase):
         self.assertEqual(set(broken.segments), {"s1"})
         self.assertEqual(broken.problems, ["s1_tool: type='choice' choice='dance'"])
 
+    def test_the_thread_tools_together_outweigh_one_other_answer_on_the_final_transcript(self):
+        """A follow-up after a status line can read `none` and `t3_ask` level, with the other thread tools holding
+        the rest: left as `none`, the voice answers it alone."""
+        tools = {**TOOLS, **{name: name for name in registry.T3_TOOLS}}
+        split = {"none": 0.39, "t3_ask": 0.39, "t3_tell": 0.03, "t3_start": 0.02, "t3_stop": 0.01, "agent": 0.14,
+                 "weather": 0.02}
+        answer = {"type": "choice", "choice": "none", "probabilities": split, "confidence": 0.0}
+        final = self.body("Do you know why it stopped?", tools=tools)
+        tool = parse_decisions(good_answers(final, s1_tool=answer), final).segments["s1"].tool
+        self.assertEqual(tool.tool, "t3_ask")
+        self.assertAlmostEqual(tool.confidence, 0.06)
+        spread = {"none": 0.25, "t3_stop": 0.2, "t3_ask": 0.2, "t3_tell": 0.2, "t3_start": 0.15}
+        answer_spread = {"type": "choice", "choice": "none", "probabilities": spread, "confidence": 0.05}
+        tool = parse_decisions(good_answers(final, s1_tool=answer_spread), final).segments["s1"].tool
+        self.assertEqual(tool.tool, "t3_ask", "a sum does not say which thread tool, so the pick is the lookup")
+        forecast = {"weather": 0.4, "t3_ask": 0.25, "t3_tell": 0.2, "none": 0.15}
+        answer_forecast = {"type": "choice", "choice": "weather", "probabilities": forecast, "confidence": 0.15}
+        tool = parse_decisions(good_answers(final, s1_tool=answer_forecast), final).segments["s1"].tool
+        self.assertEqual(tool, ToolChoice("weather", 0.15), "a pick of another tool stands")
+        text = "Do you know why it stopped? And"
+        partial = decision_request(TranscriptUpdate(1, text, False), clause_segments(text, False), [], {}, tools=tools)
+        self.assertEqual(parse_decisions(good_answers(partial, s1_tool=answer), partial).segments["s1"].tool,
+                         ToolChoice("none", 0.0), "a fragment while it is spoken keeps the decider's own pick")
+
     def test_the_read_place_and_day_ride_along_with_the_tool_answer(self):
         body = self.body(tools=TOOLS, arguments=True)
         response = good_answers(body, s1_place={"type": "text", "text": "Denver", "found": 0.99},

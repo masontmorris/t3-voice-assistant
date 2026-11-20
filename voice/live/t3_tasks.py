@@ -911,8 +911,11 @@ class T3TaskService(MockTaskService):
         return getattr(self.tools, "tool_threshold", 0.5) if self.tools is not None else 0.5
 
     def _start(self, task_id, instruction, side_effect, now, choice=None):
-        if choice is None or choice.tool not in T3_TOOLS or choice.confidence < self._threshold():
+        if choice is None or choice.tool not in T3_TOOLS:
             return super()._start(task_id, instruction, side_effect, now, choice)
+        if choice.confidence < self._threshold():
+            # The word rules know no thread, so an unsure pick reaches T3 too, as a lookup that acts on nothing.
+            choice = replace(choice, tool=ASK)
         key = f"{self.conversation_id}:{task_id}"
         if (choice.tool in (START, TELL) and self.t3.asking_start(f"{self.conversation_id}:")
                 and not (choice.tool == TELL and self.t3.names_thread(instruction, now))):

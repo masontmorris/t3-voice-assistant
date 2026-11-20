@@ -24,6 +24,8 @@ from voice.t3.acts import QUESTIONS, Act, Kind, forbidden_claims
 
 VERIFY_TIMEOUT_S = 2.0
 YES = 0.5
+# The acts whose line says the thread's summary after its status (speech.MEANINGS).
+SAYS_SUMMARY = frozenset({Kind.THREAD_STATUS, Kind.DONE})
 
 # Whether a summary written for other words answers the question now asked: a choice, so the decider makes it.
 REUSE_CONTEXT = ("A voice assistant holds a short spoken `summary` of a coding thread. It was written for the words "
@@ -155,6 +157,10 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
             out.append(Ask(f"a{n}_means", f"Does the line tell them that {means}?", True))
             out.append(Ask(f"a{n}_asks_unrequested",
                            "Does the line ask the person a question the act did not call for?", False))
+        # The meaning question alone passes a status line that leaves the summary out.
+        if a.kind in SAYS_SUMMARY and "summary" in a.slots:
+            out.append(Ask(f"a{n}_summary",
+                           f"Does the line pass on this report from the thread: \"{a.slots['summary']}\"?", True))
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")

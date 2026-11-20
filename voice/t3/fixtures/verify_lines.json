@@ -626,6 +626,7 @@
       "a1_about": "Is the line about the thread named \"Add a clamp helper\"?",
       "a1_means": "Does the line tell them that Add a clamp helper is still working?",
       "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It added the helper.\"?",
       "claims_finished": "Does the line say that the run of Add a clamp helper has already ended?",
       "claims_stopped": "Does the line say that Add a clamp helper has already stopped or was cancelled?",
       "invents": "Does the line state something about a thread that `facts` does not support?"
@@ -634,30 +635,34 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9955806943293598
+        "noul": 0.9973169287987055
       },
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.017096673462741175
+        "noul": 0.023363048391947038
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.0561213448392684
+        "noul": 0.03634346679827373
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.17540243754065665
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.9462419695675554
+        "noul": 0.9068862203734661
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.8903283258366437
+        "noul": 0.781540960778795
       },
       "invents": {
         "type": "noul",
-        "noul": 0.8551318850185093
+        "noul": 0.8310849743337491
       }
     },
-    "ms": 375.8
+    "ms": 100.4
   },
   {
     "case": "claim thread_status",
@@ -678,6 +683,7 @@
       "a1_about": "Is the line about the thread named \"Add a clamp helper\"?",
       "a1_means": "Does the line tell them that Add a clamp helper is still working?",
       "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It added the helper.\"?",
       "claims_finished": "Does the line say that the run of Add a clamp helper has already ended?",
       "claims_stopped": "Does the line say that Add a clamp helper has already stopped or was cancelled?",
       "invents": "Does the line state something about a thread that `facts` does not support?"
@@ -686,30 +692,34 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9963963610612422
+        "noul": 0.9936514010089355
       },
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.005799309198479371
+        "noul": 0.005062739682509615
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.9963137002625615
+        "noul": 0.9939322211117343
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9795584277211283
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.010432010328012765
+        "noul": 0.011415050137391247
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.0072708778366641705
+        "noul": 0.004520592065184131
       },
       "invents": {
         "type": "noul",
-        "noul": 0.02553318479892772
+        "noul": 0.04721951790303548
       }
     },
-    "ms": 134.7
+    "ms": 112.7
   },
   {
     "case": "claim thread_status",
@@ -730,6 +740,7 @@
       "a1_about": "Is the line about the thread named \"Add a clamp helper\"?",
       "a1_means": "Does the line tell them that Add a clamp helper is still working?",
       "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It added the helper.\"?",
       "claims_finished": "Does the line say that the run of Add a clamp helper has already ended?",
       "claims_stopped": "Does the line say that Add a clamp helper has already stopped or was cancelled?",
       "invents": "Does the line state something about a thread that `facts` does not support?"
@@ -738,30 +749,34 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9966334247962729
+        "noul": 0.996633424641501
       },
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.023363045110555737
+        "noul": 0.041441461234067514
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.019549643617927586
+        "noul": 0.016348258018426636
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.19603842663785329
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.8811170888013181
+        "noul": 0.910659870074754
       },
       "claims_stopped": {
         "type": "noul",
-        "noul": 0.9766369553228357
+        "noul": 0.9667140769623191
       },
       "invents": {
         "type": "noul",
-        "noul": 0.9305301724112126
+        "noul": 0.9361900737543795
       }
     },
-    "ms": 123.8
+    "ms": 159.3
   },
   {
     "case": "claim tell_pending",
@@ -1878,6 +1893,7 @@
       "a1_about": "Is the line about the thread named \"Add a Sum Helper\"?",
       "a1_means": "Does the line tell them that the run of Add a Sum Helper ended as interrupted before it finished?",
       "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"The thread has no reply yet and is interrupted, with nothing pending or waiting on.\"?",
       "claims_finished": "Does the line say that Add a Sum Helper completed its work successfully?",
       "claims_working": "Does the line say that Add a Sum Helper is still working or running?",
       "invents": "Does the line state something about a thread that `facts` does not support?"
@@ -1886,30 +1902,34 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9977626018460188
+        "noul": 0.9983347393729073
       },
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.019549642525724862
+        "noul": 0.04521312010962221
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.017878735507190432
+        "noul": 0.026690671568843822
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.14486811632606694
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.8039615699408873
+        "noul": 0.7130979564790234
       },
       "claims_working": {
         "type": "noul",
-        "noul": 0.01954963976921348
+        "noul": 0.02789913174802844
       },
       "invents": {
         "type": "noul",
-        "noul": 0.6541506804848483
+        "noul": 0.9462419698436101
       }
     },
-    "ms": 177.2
+    "ms": 137.2
   },
   {
     "case": "smoke done interrupted",
@@ -1930,6 +1950,7 @@
       "a1_about": "Is the line about the thread named \"Add a Sum Helper\"?",
       "a1_means": "Does the line tell them that the run of Add a Sum Helper ended as interrupted before it finished?",
       "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"The thread has no reply yet and is interrupted, with nothing pending or waiting on.\"?",
       "claims_finished": "Does the line say that Add a Sum Helper completed its work successfully?",
       "claims_working": "Does the line say that Add a Sum Helper is still working or running?",
       "invents": "Does the line state something about a thread that `facts` does not support?"
@@ -1938,30 +1959,34 @@
     "answers": {
       "a1_about": {
         "type": "noul",
-        "noul": 0.9971923128699862
+        "noul": 0.9971923121026802
       },
       "a1_asks_unrequested": {
         "type": "noul",
-        "noul": 0.007270877993349068
+        "noul": 0.009112434078374606
       },
       "a1_means": {
         "type": "noul",
-        "noul": 0.991289567286361
+        "noul": 0.9908875660563792
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9766369519795314
       },
       "claims_finished": {
         "type": "noul",
-        "noul": 0.012489559906950488
+        "noul": 0.017096674739473905
       },
       "claims_working": {
         "type": "noul",
-        "noul": 0.041441460695124034
+        "noul": 0.025533180545568353
       },
       "invents": {
         "type": "noul",
-        "noul": 0.013663812908545675
+        "noul": 0.03634346898400111
       }
     },
-    "ms": 222.6
+    "ms": 101.1
   },
   {
     "case": "pm replied finished work",
@@ -2324,6 +2349,122 @@
       }
     },
     "ms": 112.5
+  },
+  {
+    "case": "said again",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "cancelled",
+          "summary": "It reported setting up the project.",
+          "since_last_asked": "nothing new since they last heard its status"
+        }
+      }
+    ],
+    "line": "There's nothing new from Add a clamp helper since I last told you. It was cancelled.",
+    "should_pass": false,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a clamp helper\"?",
+      "a1_means": "Does the line tell them that Add a clamp helper is cancelled?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reported setting up the project.\"?",
+      "claims_finished": "Does the line say that Add a clamp helper completed its work successfully?",
+      "claims_working": "Does the line say that Add a clamp helper is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255030271518
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.003366575467749826
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9951614774782732
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.07883439967632122
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.010912588259878845
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.009972381855514297
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.03185177255696801
+      }
+    },
+    "ms": 128.6
+  },
+  {
+    "case": "said again",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "thread_status",
+        "slots": {
+          "thread": "Add a clamp helper",
+          "status": "cancelled",
+          "summary": "It reported setting up the project.",
+          "since_last_asked": "nothing new since they last heard its status"
+        }
+      }
+    ],
+    "line": "There's nothing new from Add a clamp helper since I last told you. It was cancelled after it reported setting up the project.",
+    "should_pass": true,
+    "asked": {
+      "a1_about": "Is the line about the thread named \"Add a clamp helper\"?",
+      "a1_means": "Does the line tell them that Add a clamp helper is cancelled?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "a1_summary": "Does the line pass on this report from the thread: \"It reported setting up the project.\"?",
+      "claims_finished": "Does the line say that Add a clamp helper completed its work successfully?",
+      "claims_working": "Does the line say that Add a clamp helper is still working or running?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_about": {
+        "type": "noul",
+        "noul": 0.9969255029938845
+      },
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.006348598289261512
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9933576728288633
+      },
+      "a1_summary": {
+        "type": "noul",
+        "noul": 0.9438786646472677
+      },
+      "claims_finished": {
+        "type": "noul",
+        "noul": 0.0052972935759326495
+      },
+      "claims_working": {
+        "type": "noul",
+        "noul": 0.00579931046570781
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.045213107224662416
+      }
+    },
+    "ms": 130.9
   },
   {
     "case": "unsolicited question replied",

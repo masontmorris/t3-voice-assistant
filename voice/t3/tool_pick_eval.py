@@ -9,8 +9,9 @@ The pick is the tool answered for the utterance's first segment. `reaches` says 
 dispatched with a tool answer that clears the registry's bar, which is what routes it to the T3 service.
 
 `--text before` scores the decider text and gate from before seam unit 10: no T3 sentence in the request-versus-chat
-question, and no T3 pass in the gate. It reproduces the old request bodies byte for byte, which the recorded calls
-check: a recorded answer is reused only when its request equals the body sent now.
+question, no T3 pass in the gate, and no parked thread request sent to T3 as a lookup. It reproduces the old request
+bodies byte for byte, which the recorded calls check: a recorded answer is reused only when its request equals the
+body sent now.
 
     VOICE_ENV_FILE=<env file with OPENROUTER_API_KEY> python -m voice.t3.tool_pick_eval --text after --gate
     VOICE_ENV_FILE=<env file with LIQUID_API_KEY> python -m voice.t3.tool_pick_eval --text nofragments --decider liquid
@@ -37,7 +38,7 @@ from voice.live.t3_tasks import T3Registry
 from voice.local_decider.client import decider as make_decider
 from voice.prototype.segmenter import live_calls, use_decider_cache
 from voice.research.segmentation import live_gate_eval
-from voice.segmentation import hybrid
+from voice.segmentation import contract, hybrid, tasks
 from voice.tools import registry
 
 CASES = Path(__file__).resolve().parent / "eval" / "tool_pick.jsonl"
@@ -83,13 +84,16 @@ def decider_text(which):
         finally:
             hybrid.T3_READY, hybrid.T3_DEPENDS, hybrid.T3_CORRECTS = saved
         return
-    saved = hybrid.T3_REQUEST, hybrid.T3_CHITCHAT, live_gate_eval.PLAN_A
+    # Before unit 10 no gate let a T3 pick through, no parked thread request went to T3 as a lookup, and no tool
+    # answer was read as a group.
+    saved = hybrid.T3_REQUEST, hybrid.T3_CHITCHAT, live_gate_eval.PLAN_A, tasks.T3_TOOLS, contract.T3_TOOLS
     hybrid.T3_REQUEST = hybrid.T3_CHITCHAT = ""
     live_gate_eval.PLAN_A = replace(saved[2], confirmed_tools=frozenset())
+    tasks.T3_TOOLS = contract.T3_TOOLS = frozenset()
     try:
         yield
     finally:
-        hybrid.T3_REQUEST, hybrid.T3_CHITCHAT, live_gate_eval.PLAN_A = saved
+        hybrid.T3_REQUEST, hybrid.T3_CHITCHAT, live_gate_eval.PLAN_A, tasks.T3_TOOLS, contract.T3_TOOLS = saved
 
 
 class StrictRecording(live_gate_eval.Recording):

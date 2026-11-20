@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from voice.segmentation.contract import CorrectionMode, Kind, Readiness
-from voice.tools.registry import ToolChoice
+from voice.tools.registry import T3_ASK, T3_TOOLS, ToolChoice
 
 
 class Status(StrEnum):
@@ -412,6 +412,15 @@ class Orchestrator:
             status, reason = (Status.DISPATCHED if verdict.passed else Status.HELD), verdict.reason()
         else:
             status, reason = Status.DISPATCHED, "ready"
+        if (status != Status.DISPATCHED and self.is_final and not seg.open and not task.depends_on
+                and task.tool is not None and task.tool.tool in T3_TOOLS):
+            # Parked, a thread request is answered by the voice alone, unchecked, so T3 asks back itself. A firm pick
+            # keeps its act, which T3 reads back and confirms before acting. An unsure one goes as a lookup, which
+            # acts on nothing.
+            bar = getattr(self.gate, "named_tool_threshold", None)
+            if bar is None or task.tool.confidence < bar:
+                task.tool = replace(task.tool, tool=T3_ASK)
+            status, reason = Status.DISPATCHED, f"{reason}; T3 asks back"
         self._move(task, status, reason)
 
     def snapshot(self, conversation_id, utterance_id):

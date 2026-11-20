@@ -9,7 +9,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from voice.segmentation.client import MODEL
-from voice.tools.registry import ToolChoice
+from voice.tools.registry import NONE, T3_ASK, T3_TOOLS, ToolChoice
 
 # A place answer is a name: letters, spaces, and the punctuation a name can carry. Measured in the 37-turn replay:
 # turn 020's answer was a copy of the request's own state, quotes and newlines included, and the forecast ran on it and
@@ -266,6 +266,22 @@ def _reading(answers, sid, questions, problems):
     return {"place": place, "when": None if when == "none" else when}
 
 
+def _thread_pick(picked, margin, probabilities):
+    """The T3 tools are four ways to act on one subject, so when "no tool" wins only because they split the weight,
+    the turn is about a thread. Which of the four it meant is not known from a sum, so the pick is the lookup, which
+    acts on nothing, at the sum's margin over the next option. A pick of another tool stands. Only on the final
+    transcript: while it is spoken, a fragment of a longer start request reads this way (50 of 1,937 partial request
+    reads in the decider cache, 3 of 916 final ones, measured 2026-11-19)."""
+    if picked != NONE or not isinstance(probabilities, dict):
+        return picked, margin
+    weights = {name: p for name, p in probabilities.items() if isinstance(p, (int, float))}
+    threads = sum(p for name, p in weights.items() if name in T3_TOOLS)
+    other = max((p for name, p in weights.items() if name not in T3_TOOLS), default=0.0)
+    if threads <= other:
+        return picked, margin
+    return T3_ASK, threads - other
+
+
 def parse_decisions(response, body):
     """Parse a decisions response against the request that produced it. Never raises on bad model output.
 
@@ -292,7 +308,10 @@ def parse_decisions(response, body):
         if f"{sid}_tool" in questions:
             picked = _choice(answers, f"{sid}_tool", set(questions[f"{sid}_tool"]["criteria"]), tool_problems)
             margin = answers.get(f"{sid}_tool", {}).get("confidence")
-            tool = None if picked is None else ToolChoice(picked, margin if isinstance(margin, (int, float)) else 0.0,
+            margin = margin if isinstance(margin, (int, float)) else 0.0
+            if picked is not None and body["state"].get("transcript_is_final"):
+                picked, margin = _thread_pick(picked, margin, answers[f"{sid}_tool"].get("probabilities"))
+            tool = None if picked is None else ToolChoice(picked, margin,
                                                           _reading(answers, sid, questions, tool_problems))
         if len(problems) > before:
             continue

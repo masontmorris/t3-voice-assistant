@@ -51,8 +51,10 @@
    "want": "t3_ask",
    "held": false,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_ask"
+   ],
+   "passes": true
   },
   {
    "utterance": "How's that one going?",
@@ -95,8 +97,10 @@
    "want": "t3_ask",
    "held": false,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_ask"
+   ],
+   "passes": true
   },
   {
    "utterance": "And how is that thread doing now?",
@@ -139,8 +143,10 @@
    "want": "t3_tell",
    "held": false,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_tell"
+   ],
+   "passes": true
   },
   {
    "utterance": "Tell it to also add tests.",
@@ -161,8 +167,10 @@
    "want": "t3_stop",
    "held": false,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_stop"
+   ],
+   "passes": true
   },
   {
    "utterance": "Stop it.",
@@ -381,8 +389,10 @@
    "want": "t3_ask",
    "held": true,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_ask"
+   ],
+   "passes": true
   },
   {
    "utterance": "What's it working on right now?",
@@ -403,8 +413,10 @@
    "want": "t3_ask",
    "held": true,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_ask"
+   ],
+   "passes": true
   },
   {
    "utterance": "How long has it been running?",
@@ -425,8 +437,10 @@
    "want": "t3_tell",
    "held": true,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_tell"
+   ],
+   "passes": true
   },
   {
    "utterance": "Ask it to log the load times too.",
@@ -447,7 +461,9 @@
    "want": "t3_tell",
    "held": true,
    "mode": "before",
-   "routed": [],
+   "routed": [
+    "t3_ask"
+   ],
    "passes": false
   },
   {
@@ -469,8 +485,10 @@
    "want": "t3_stop",
    "held": true,
    "mode": "before",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_stop"
+   ],
+   "passes": true
   },
   {
    "utterance": "Cancel that one.",
@@ -479,8 +497,10 @@
    "want": "t3_stop",
    "held": true,
    "mode": "after",
-   "routed": [],
-   "passes": false
+   "routed": [
+    "t3_stop"
+   ],
+   "passes": true
   },
   {
    "utterance": "Cool, thank you.",

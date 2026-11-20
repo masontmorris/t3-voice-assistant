@@ -44,7 +44,7 @@ The tool pick after the change, one row per sample:
 | none         |          |        |         | 3       |         |      | 36   |       |           | 3         | 36 of 42 |
 | agent        |          |        |         |         |         |      |      | 3     |           |           | 3 of 3   |
 
-The 3 `t3_stop` picks on `none` are "Stop, I was talking to someone else.", at 0.43 to 0.45. The gate holds them, because a T3 pick needs the 0.70 named-tool bar. Had one passed, the voice would have asked "Stop the X thread?" first.
+The 3 `t3_stop` picks on `none` are "Stop, I was talking to someone else.", at 0.43 to 0.45. The gate holds them, because a T3 pick needs the 0.70 named-tool bar. Since 2026-11-20 a thread request held or left to clarify on the final transcript still goes to T3, as a lookup when its pick is under that bar ([spoken acts](spoken-acts.md#a-thread-question-the-decider-is-unsure-about)), so where the decider reads one of these as a request the voice says how a thread is going, and stops nothing. On the recorded answers that is 1 of the 45 control samples, against 0 before, and the T3 requests that reach their own tool rise from 56 to 60 of 60 samples: four firm picks the decider read as `clarify` now reach their confirmation (measured, no calls).
 
 ## What changed
 
