@@ -361,7 +361,8 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
     answer's shares say how sure the pick is and which others the words fit."""
     criteria = {f"thread_{i:02d}": f"{t.title!r} in the project {t.project!r}, {t.activity.replace('_', ' ')}."
                 for i, t in enumerate(threads, 1)}
-    criteria[NONE] = "It means a thread that is not one of these."
+    # "Particular" keeps a vague request with nothing discussed out of this option on the local d1-2B.
+    criteria[NONE] = "It names or describes a particular thread, and none of these is that thread."
     criteria[UNCLEAR] = "It does not say which thread, or fits several of these equally well."
     state = {"request": request, "last_discussed": recent,
              "context": "A person on a voice call asked their assistant about one of their coding threads. `request` "
@@ -385,18 +386,20 @@ def judge_pick(answers: Any, threads: tuple[Listed, ...], sure: float = PICK_SUR
 
 
 READ_CRITERIA = {
-    "yes": "It agrees to exactly what the assistant asked, with nothing added, changed or conditional.",
+    "yes": ("It agrees to exactly what the assistant asked, with nothing added, changed or conditional. A short "
+            "agreement such as okay, sure, mm-hmm or please do counts."),
     "no": "It declines what the assistant asked, or takes it back.",
     "question": "It asks the assistant something, or asks about what was proposed, instead of answering.",
     "other": "It agrees but changes the project, thread or terms, adds a condition, or names something else.",
     "unrelated": "It does not answer what the assistant asked.",
 }
-# The reply's own label with most of the weight is a yes. The recorded yes replies score 0.60 and up, and the most any
-# other reply gives yes is 0.36.
+# The reply's own label with most of the weight is a yes. The recorded yes replies score 0.74 and up on d1.2 and 0.68
+# and up on the local d1-2B; the most a recorded reply that is not a yes gives it is 0.41 and 0.27.
 YES_CONFIDENCE = 0.5
 # A reply that is any share a question or another target is not an unconditional yes, however much of it says yes.
 OTHER_CEILING = 0.2
-# The two together: a rising "please do" gives them 0.21 of the weight, the most of any recorded yes.
+# The two together: a rising "please do" gives them 0.24 of the weight on the local d1-2B, the most of any recorded
+# yes, and 0.16 on d1.2.
 TOGETHER_CEILING = 0.25
 OPTION_CONFIDENCE = 0.6
 # The recorded replies that ask for something else give it 0.82 and up. One that changes the request, not the target,
@@ -412,7 +415,8 @@ def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dic
     what was proposed, changes to one of them, or changes without saying which."""
     state = {"assistant_asked": _fill(MEANS[said.kind], said.slots), "reply": reply,
              "context": "A voice assistant asked the person a yes or no question about their coding threads. `reply` "
-                        "is a transcript of what they said back."}
+                        "is a speech recognition transcript of what they said back: its punctuation is guessed, so a "
+                        "question mark may only mean their voice rose."}
     questions = {"reading": {"type": "choice", "instructions": "What does the person's reply do about what the "
                                                                "assistant asked?", "criteria": READ_CRITERIA}}
     if options and said.kind is Kind.ASK_WHICH:
