@@ -5,6 +5,7 @@ import base64
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 import urllib.request
 import wave
 from pathlib import Path
@@ -189,6 +190,43 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                         await websockets.connect(f"ws://127.0.0.1:{port}", additional_headers={"Origin": origin})
                     self.assertEqual(caught.exception.response.status_code, 403)
 
+    async def test_without_allowed_origins_any_page_with_the_secret_connects(self):
+        for origin in ("http://example.com", "https://app.example", "null"):
+            with self.subTest(origin=origin):
+                async with websockets.connect(self.url, additional_headers={"Origin": origin}) as ws:
+                    await ws.send(f"auth {test_server.SECRET}")
+                    await ws.send(json.dumps({"type": "hello", "mode": "vad"}))
+                    self.assertEqual(json.loads(await asyncio.wait_for(ws.recv(), 2))["type"], "ready")
+
+    async def test_an_allowed_origin_must_match_its_scheme_and_port_too(self):
+        allowed = await serve(self.live.handler, "127.0.0.1", 0,
+                              process_request=server.authorize(test_server.SECRET, origins=("https://app.example",)))
+        self.addAsyncCleanup(allowed.wait_closed)
+        self.addCleanup(allowed.close)
+        url = f"ws://127.0.0.1:{allowed.sockets[0].getsockname()[1]}"
+        for origin in ("http://app.example", "https://app.example:8443", "https://app.example.evil"):
+            with self.subTest(origin=origin):
+                with self.assertRaises(websockets.InvalidStatus) as caught:
+                    await websockets.connect(url, additional_headers={"Origin": origin})
+                self.assertEqual(caught.exception.response.status_code, 403)
+
+    async def test_a_proxied_request_needs_tailscale_serves_tailnet_identity(self):
+        for headers, ok in (({}, True),
+                            ({"X-Forwarded-For": "203.0.113.9"}, False),
+                            ({"Forwarded": "for=203.0.113.9"}, False),
+                            ({"Host": "desk.tail1234.ts.net:8446"}, False),
+                            ({"X-Forwarded-For": "100.101.1.2", "Tailscale-User-Login": "someone@example.com"},
+                             True)):
+            with self.subTest(headers=headers):
+                connect = websockets.connect(self.url, additional_headers={"Origin": "http://example.com",
+                                                                           **headers})
+                if ok:
+                    await (await connect).close()
+                else:
+                    with self.assertRaises(websockets.InvalidStatus) as caught:
+                        await connect
+                    self.assertEqual(caught.exception.response.status_code, 403)
+
     async def test_a_call_opened_on_a_thread_starts_only_when_the_seam_can_see_it(self):
         readable = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
         refusing = F.FakeSeam().answer("read", F.refusal("not_found"))
@@ -213,6 +251,23 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(heard["text"], "words in turn_001")
                     self.assertLess(log.index("heard"), log.index("reply_start"), "the caller's words show first")
                     self.assertIn("say", log)
+
+    async def test_a_thread_from_another_t3_environment_is_refused(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        seam.hello = replace(seam.hello, environment_id="env-a")
+        self.live.t3 = tasks_over(self, seam)
+        for environment, closed in (("env-b", server.CLOSE_OTHER_ENVIRONMENT), ("env-a", None)):
+            with self.subTest(environment=environment):
+                async with await self.browser() as ws:
+                    await ws.send(f"auth {test_server.SECRET}")
+                    await ws.send(json.dumps({"type": "hello", "mode": "vad", "thread": "t5",
+                                              "environment": environment}))
+                    if closed is None:
+                        self.assertEqual(json.loads(await asyncio.wait_for(ws.recv(), 2))["type"], "ready")
+                        continue
+                    with self.assertRaises(ConnectionClosed) as caught:
+                        await asyncio.wait_for(ws.recv(), 2)
+                    self.assertEqual(caught.exception.rcvd.code, closed)
 
     async def test_a_header_secret_with_an_origin_is_still_refused(self):
         with self.assertRaises(websockets.InvalidStatus):
@@ -304,3 +359,16 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class DirectPeerTest(unittest.TestCase):
+    def test_only_this_machine_and_the_tailnet_are_direct(self):
+        from websockets.datastructures import Headers
+        local = Headers({"Host": "127.0.0.1:8770"})
+        for peer, headers, direct in (("127.0.0.1", local, True), ("::1", Headers({"Host": "[::1]:8770"}), True),
+                                      ("100.101.1.2", Headers({"Host": "100.101.1.2:8770"}), True),
+                                      ("192.168.1.20", local, False), ("203.0.113.9", local, False),
+                                      ("100.128.0.1", local, False), ("not-an-ip", local, False),
+                                      ("127.0.0.1", Headers({"Host": "voice.example.com"}), False)):
+            with self.subTest(peer=peer, host=headers.get("Host")):
+                self.assertIs(server.direct_peer(peer, headers), direct)

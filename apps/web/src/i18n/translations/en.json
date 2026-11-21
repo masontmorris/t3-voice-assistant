@@ -12232,5 +12232,9 @@
   "e1048fe0f0eb6c3d": "live voice call secret password",
   "e21b730fdb820984": "Live voice",
   "ba75fe8458be8b28": "The address of a voice server on this device or your tailnet. Calls go straight to it, never through a relay.",
-  "5c6f2fab8fe5dd03": "Kept on this device only."
+  "5c6f2fab8fe5dd03": "Kept on this device only.",
+  "7e664283273943e0": "A voice call is using the microphone.",
+  "be2fe22cec8b1b50": "A tailnet name needs a wss:// address, such as one from Tailscale Serve.",
+  "eafbd616e90494c3": "Dictation is using the microphone.",
+  "e4a9284168a984bf": "The voice server works with a different T3 environment than this thread's."
 }

@@ -327,6 +327,14 @@ class T3Tasks:
             self._drop_question()
             self.withdrawn = None
 
+    def serves(self, environment_id: str, now: float) -> bool | None:
+        """Whether the seam is T3 environment `environment_id`, so a thread id from another environment is never
+        opened here. None when the seam cannot be reached to say."""
+        with self.lock:
+            if self._down("", now) is not None:
+                return None
+            return self.follow.seam.hello.environment_id == environment_id
+
     def view(self, thread_id: str, now: float) -> str | None:
         """Open the call on `thread_id`, the thread the caller started it from, as if the call had just spoken about it:
         "it" means this thread until a line about another one. Its title, or None when the seam cannot read it."""

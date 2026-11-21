@@ -12223,5 +12223,9 @@
   "e1048fe0f0eb6c3d": "voix direct appel secret mot de passe",
   "e21b730fdb820984": "Voix en direct",
   "ba75fe8458be8b28": "L’adresse d’un serveur vocal sur cet appareil ou sur votre tailnet. Les appels y vont directement, jamais par un relais.",
-  "5c6f2fab8fe5dd03": "Conservé uniquement sur cet appareil."
+  "5c6f2fab8fe5dd03": "Conservé uniquement sur cet appareil.",
+  "7e664283273943e0": "Un appel vocal utilise le micro.",
+  "be2fe22cec8b1b50": "Un nom de tailnet nécessite une adresse wss://, par exemple via Tailscale Serve.",
+  "eafbd616e90494c3": "La dictée utilise le micro.",
+  "e4a9284168a984bf": "Le serveur vocal fonctionne avec un autre environnement T3 que celui de ce fil."
 }

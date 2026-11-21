@@ -12218,5 +12218,9 @@
   "e1048fe0f0eb6c3d": "voz en vivo llamada secreto contraseña",
   "e21b730fdb820984": "Voz en vivo",
   "ba75fe8458be8b28": "La dirección de un servidor de voz en este dispositivo o en tu tailnet. Las llamadas van directamente a él, nunca a través de un relay.",
-  "5c6f2fab8fe5dd03": "Se guarda solo en este dispositivo."
+  "5c6f2fab8fe5dd03": "Se guarda solo en este dispositivo.",
+  "7e664283273943e0": "Una llamada de voz está usando el micrófono.",
+  "be2fe22cec8b1b50": "Un nombre de tailnet necesita una dirección wss://, como una de Tailscale Serve.",
+  "eafbd616e90494c3": "El dictado está usando el micrófono.",
+  "e4a9284168a984bf": "El servidor de voz trabaja con un entorno de T3 distinto al de este hilo."
 }

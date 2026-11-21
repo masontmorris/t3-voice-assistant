@@ -1,5 +1,6 @@
 import type { EnvironmentId, ThreadId } from "@t3tools/contracts";
 import { create } from "zustand";
+import { claimMicrophone } from "../speech/microphoneOwner";
 import { readVoiceServerReach } from "./useVoiceServerReach";
 import { openVoiceCall, type VoiceCallSession } from "./voiceCallSession";
 import { applyVoiceCallEvent, failVoiceCall, newVoiceCall, type VoiceCall } from "./voiceCallState";
@@ -23,12 +24,15 @@ function startVoiceCall(input: {
   readonly threadId: ThreadId;
   readonly url: string;
   readonly secret: string;
-}): void {
-  if (session) return;
+}): boolean {
+  if (session) return false;
+  const releaseMicrophone = claimMicrophone("call");
+  if (!releaseMicrophone) return false;
   useVoiceCallStore.setState({ call: newVoiceCall(input.environmentId, input.threadId) });
   const opened: VoiceCallSession = openVoiceCall({
     url: input.url,
     secret: input.secret,
+    environmentId: input.environmentId,
     threadId: input.threadId,
     onEvent: (event) => {
       if (session !== opened) return;
@@ -39,12 +43,14 @@ function startVoiceCall(input: {
     onEnded: (error) => {
       if (session !== opened) return;
       session = null;
+      releaseMicrophone();
       useVoiceCallStore.setState(({ call }) => ({
         call: error === null || call === null ? null : failVoiceCall(call, error),
       }));
     },
   });
   session = opened;
+  return true;
 }
 
 export function endVoiceCall(): void {
@@ -56,8 +62,9 @@ export function dismissVoiceCall(): void {
 }
 
 /**
- * Ends the call open on this thread, or starts one when none is open and the voice server can be
- * reached directly. False when neither applies, so a shortcut falls through.
+ * Ends the call open on this thread, or starts one when none is open, the microphone is free and
+ * the voice server can be reached directly. Every entry point goes through here. False when none
+ * of that applies, so a shortcut falls through.
  */
 export function toggleVoiceCall(environmentId: EnvironmentId, threadId: ThreadId): boolean {
   const call = useVoiceCallStore.getState().call;
@@ -68,6 +75,5 @@ export function toggleVoiceCall(environmentId: EnvironmentId, threadId: ThreadId
   }
   const { reach, secret } = readVoiceServerReach();
   if (reach.kind !== "ready") return false;
-  startVoiceCall({ environmentId, threadId, url: reach.url, secret });
-  return true;
+  return startVoiceCall({ environmentId, threadId, url: reach.url, secret });
 }

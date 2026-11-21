@@ -8,6 +8,7 @@ import json
 import tempfile
 import threading
 import unittest
+from dataclasses import replace
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
@@ -1752,6 +1753,15 @@ class SpokenAbout(unittest.TestCase):
         t3.begin_call()
         self.assertIsNone(t3.view("t9", 3), "a thread the seam cannot read opens nothing")
         self.assertIsNone(t3.spoken_about())
+
+    def test_the_seam_says_which_t3_environment_it_serves(self):
+        seam = F.FakeSeam()
+        seam.hello = replace(seam.hello, environment_id="env-a")
+        t3 = tasks_over(self, seam)
+        self.assertIs(t3.serves("env-a", 1), True)
+        self.assertIs(t3.serves("env-b", 1), False)
+        quiet = F.FakeSeam()
+        self.assertIs(tasks_over(self, quiet).serves("env-a", 1), False, "a seam that does not say serves no one")
 
     def test_a_status_asked_again_with_nothing_new_says_so(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))

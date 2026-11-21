@@ -19,8 +19,8 @@ down. Text frames are JSON control messages:
 
 `heard` is the caller's final transcript for the turn and `say` each piece of reply text as its audio goes out, with
 `relay` set on a line that relays a T3 thread; they are the captions a client shows. A hello with `thread` opens the
-call on that T3 thread (`T3Tasks.view`); one the seam cannot read closes the call with CLOSE_NO_THREAD, or with
-CLOSE_NO_T3 when the server runs without --t3. With --allow-origin, a browser page from any origin but the server's
+call on that T3 thread (`T3Tasks.view`); one the seam cannot read closes the call with CLOSE_NO_THREAD, a hello
+whose `environment` is not the seam's with CLOSE_OTHER_ENVIRONMENT, and one to a server without --t3 with CLOSE_NO_T3. With --allow-origin, a browser page from any origin but the server's
 own and those is refused before the handshake.
 
 Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-of-utterance authority (injection (c),
@@ -159,7 +159,7 @@ WEB_FILES = {
 # A browser cannot set X-Voice-Secret on its WebSocket handshake, so the page sends `auth {secret}` as its first
 # text frame instead. The frame must arrive within this long after the socket opens, before any audio.
 AUTH_TIMEOUT_S = 5.0
-CLOSE_NO_THREAD, CLOSE_NO_T3 = 4404, 4501
+CLOSE_NO_THREAD, CLOSE_OTHER_ENVIRONMENT, CLOSE_NO_T3 = 4404, 4409, 4501
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
@@ -238,8 +238,43 @@ def serve_page(connection, asset, hosts, web_dir):
     return response
 
 
+PROXY_HEADERS = ("X-Forwarded-For", "X-Forwarded-Host", "Forwarded")
+SERVE_IDENTITY = "Tailscale-User-Login"
+
+
+def direct_peer(peer, headers):
+    """Whether a request comes from this machine or the caller's tailnet, so call audio and the secret never come
+    from or go to anyone else. A loopback request that shows a proxy in front of it is Tailscale Serve's, and Serve
+    sets SERVE_IDENTITY (stripping any copy the client sent) only for tailnet users, never for Funnel traffic from the
+    public internet or for tagged devices."""
+    try:
+        address = ipaddress.ip_address(peer)
+    except ValueError:
+        return False
+    if address in TAILNET:
+        return True
+    if not address.is_loopback:
+        return False
+    proxied = any(headers.get(name) is not None for name in PROXY_HEADERS) or not all(
+        loopback_host(host) for host in headers.get_all("Host"))
+    return not proxied or bool(headers.get(SERVE_IDENTITY))
+
+
+def loopback_host(host):
+    name = urlsplit(f"//{host}").hostname or ""
+    if name == "localhost":
+        return True
+    try:
+        return ipaddress.ip_address(name).is_loopback
+    except ValueError:
+        return False
+
+
 def authorize(secret, web_dir=WEB_DIR, origins=()):
     def check(connection, request):
+        if not direct_peer(connection.remote_address[0], request.headers):
+            print("refused a request that is not from this machine or the tailnet", flush=True)
+            return connection.respond(HTTPStatus.FORBIDDEN, "only this machine and the tailnet may connect\n")
         if request.headers.get("Upgrade") is None and request.method == "GET":
             asset = WEB_FILES.get(request.path.partition("?")[0])
             if asset is not None:
@@ -764,7 +799,7 @@ class Conversation:
         kind = message.get("type")
         if kind == "hello":
             self.mode = "ptt" if message.get("mode") == "ptt" else "vad"
-            if not await self.view_thread(message.get("thread")):
+            if not await self.view_thread(message.get("thread"), message.get("environment")):
                 return
             self.start_recording(message)
             await self.ws.send(json.dumps({"type": "ready", "mode": self.mode, **vars(self.live.settings),
@@ -788,14 +823,19 @@ class Conversation:
                 self.end_turn(0, False)
             self.ptt_down = down
 
-    async def view_thread(self, thread_id):
-        """A call opened from a T3 thread starts with that thread in view. One the seam cannot read ends the call, so
-        the caller is never talking about a thread the voice cannot see."""
+    async def view_thread(self, thread_id, environment_id=None):
+        """A call opened from a T3 thread starts with that thread in view. One the seam cannot read, or one from another
+        T3 environment than the seam's, ends the call, so the caller never talks about a thread the voice cannot see or
+        acts on a different thread that shares its id."""
         if thread_id is None:
             return True
         t3 = self.live.t3
         if t3 is None:
             await self.ws.close(CLOSE_NO_T3, "this voice server runs without T3")
+            return False
+        if environment_id is not None and await asyncio.to_thread(
+                t3.serves, str(environment_id), time.monotonic()) is False:
+            await self.ws.close(CLOSE_OTHER_ENVIRONMENT, "the voice server works with another T3 environment")
             return False
         if await asyncio.to_thread(t3.view, str(thread_id), time.monotonic()) is None:
             await self.ws.close(CLOSE_NO_THREAD, "the voice server cannot see this thread")

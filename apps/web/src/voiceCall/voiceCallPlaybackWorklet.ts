@@ -6,15 +6,20 @@ declare function registerProcessor(name: string, processor: typeof AudioWorkletP
 export type PlaybackMessage =
   | { readonly type: "config"; readonly deviceRate: number }
   | { readonly type: "feed"; readonly pcm: Float32Array; readonly end?: boolean }
+  | { readonly type: "mark"; readonly id: number }
   | { readonly type: "duck" | "unduck" | "flush" };
+
+/** "drained" when a reply finished playing; a mark's id once playback reaches it. */
+export type PlaybackReport = "drained" | { readonly type: "mark"; readonly id: number };
 
 /**
  * Reply playback for a live call, ported from voice/live/web/playback-worklet.js without its
  * recording path. Starts once 80 ms is queued or the reply ended, ducks while the server weighs
- * speech over the reply, and drops what is queued on a barge-in.
+ * speech over the reply, and drops what is queued on a barge-in. A mark queued between pieces of
+ * audio is reported when playback reaches it, so a caption shows only for audio that played.
  */
 class VoiceCallPlaybackProcessor extends AudioWorkletProcessor {
-  private queue: Float32Array[] = [];
+  private queue: Array<Float32Array | number> = [];
   private consumed = 0;
   private queued = 0;
   private playing = false;
@@ -38,6 +43,8 @@ class VoiceCallPlaybackProcessor extends AudioWorkletProcessor {
       }
       this.ended = message.end === true;
       if (!this.playing && (this.ended || this.queued >= this.prebuffer)) this.playing = true;
+    } else if (message.type === "mark") {
+      this.queue.push(message.id);
     } else if (message.type === "duck") {
       this.gain = 0.35;
     } else if (message.type === "unduck") {
@@ -63,12 +70,16 @@ class VoiceCallPlaybackProcessor extends AudioWorkletProcessor {
     let offset = 0;
     while (offset < out.length) {
       const head = this.queue[0];
+      if (typeof head === "number") {
+        this.queue.shift();
+        this.report({ type: "mark", id: head });
+        continue;
+      }
       if (!head) {
         if (this.ended) {
           this.playing = false;
           this.ended = false;
-          // oxlint-disable-next-line unicorn/require-post-message-target-origin -- AudioWorklet MessagePorts do not accept a target origin
-          if (this.played) this.port.postMessage("drained");
+          if (this.played) this.report("drained");
           this.played = 0;
         }
         break;
@@ -86,6 +97,11 @@ class VoiceCallPlaybackProcessor extends AudioWorkletProcessor {
     }
     if (offset < out.length) out.fill(0, offset);
     return true;
+  }
+
+  private report(report: PlaybackReport) {
+    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- AudioWorklet MessagePorts do not accept a target origin
+    this.port.postMessage(report);
   }
 }
 

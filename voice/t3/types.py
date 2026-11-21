@@ -169,6 +169,8 @@ class Hello:
     ceiling: Ceiling
     projects: tuple[Project, ...]
     latest_sequence: int
+    # The T3 environment the seam serves; None from a server that does not say.
+    environment_id: str | None = None
 
 
 @dataclass(frozen=True)
@@ -474,6 +476,7 @@ def decode_hello(obj: Any) -> Hello:
             for p in _need(obj, "projects")
         ),
         latest_sequence=_need(obj, "latestSequence"),
+        environment_id=obj.get("environmentId"),
     )
 
 

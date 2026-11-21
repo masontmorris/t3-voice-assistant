@@ -115,9 +115,12 @@ Calls run on a voice server you start yourself, on this device or a machine on y
 tailnet. In **Settings → Voice → Live voice**, enter its address, such as
 `127.0.0.1:8770`, and paste its secret once. Both stay on this device. Call audio
 goes straight from this device to that server and never through T3 Connect or a
-relay, so the button is disabled for an address anywhere else. An HTTPS page,
-including the desktop app, needs a `wss://` address for a voice server on another
-machine, such as one from Tailscale Serve. A voice server started with
+relay, so the button is disabled for an address anywhere else. Use an IP address
+on this device or your tailnet, `localhost`, or a `wss://` address on your tailnet's
+`ts.net` name, such as one from Tailscale Serve; a `ts.net` name over plain `ws://`
+is refused, since only its certificate proves the machine is yours. An HTTPS page,
+including the desktop app, needs that `wss://` address for a voice server on another
+machine. A voice server started with
 `--allow-origin` accepts calls only from the origins it lists, so include the one
 T3 Code runs on.
 

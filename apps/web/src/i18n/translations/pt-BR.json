@@ -12222,5 +12222,9 @@
   "e1048fe0f0eb6c3d": "voz ao vivo chamada segredo senha",
   "e21b730fdb820984": "Voz ao vivo",
   "ba75fe8458be8b28": "O endereço de um servidor de voz neste dispositivo ou na sua tailnet. As chamadas vão direto para ele, nunca por um relay.",
-  "5c6f2fab8fe5dd03": "Guardado apenas neste dispositivo."
+  "5c6f2fab8fe5dd03": "Guardado apenas neste dispositivo.",
+  "7e664283273943e0": "Uma chamada de voz está usando o microfone.",
+  "be2fe22cec8b1b50": "Um nome de tailnet precisa de um endereço wss://, como um do Tailscale Serve.",
+  "eafbd616e90494c3": "O ditado está usando o microfone.",
+  "e4a9284168a984bf": "O servidor de voz trabalha com um ambiente T3 diferente do desta conversa."
 }

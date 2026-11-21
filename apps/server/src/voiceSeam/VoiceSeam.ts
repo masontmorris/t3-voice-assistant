@@ -18,6 +18,7 @@ import * as Layer from "effect/Layer";
 import * as SqlClient from "effect/sql/SqlClient";
 import type * as Stream from "effect/Stream";
 
+import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as CommandReceiptStore from "../orchestration-v2/CommandReceiptStore.ts";
 import * as ProjectStore from "../orchestration-v2/ProjectStore.ts";
 import { loadSubscriberShellSnapshot } from "../orchestration-v2/ShellStream.ts";
@@ -192,6 +193,7 @@ const make = Effect.gen(function* () {
   const digest = yield* Digest.Digest;
   const receipts = yield* CommandReceiptStore.CommandReceiptStoreV2;
   const settings = yield* ServerSettings.ServerSettingsService;
+  const environmentId = yield* (yield* ServerEnvironment.ServerEnvironment).getEnvironmentId;
   const writes = Send.make({
     digest,
     threads,
@@ -231,6 +233,7 @@ const make = Effect.gen(function* () {
           : [{ projectId: project.projectId, name: row.title, spokenNames: project.spokenNames }];
       }),
       latestSequence,
+      environmentId,
     } satisfies VoiceHello;
   }, Effect.mapError(VoiceSeamRefusal.unavailable));
 

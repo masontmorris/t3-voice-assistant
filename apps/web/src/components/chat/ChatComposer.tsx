@@ -147,7 +147,7 @@ import { useDictationSubmissionShortcut } from "../../speech/useDictationSubmiss
 import { useEnvironmentSpeechInput } from "../../speech/useEnvironmentSpeechInput";
 import { ComposerSpeechButton, ComposerSpeechRecordingPill } from "./ComposerSpeechButton";
 import { LiveVoiceButton } from "./LiveVoiceButton";
-import { selectLiveVoiceCallKey, useVoiceCallStore } from "../../voiceCall/voiceCallStore";
+import { useMicrophoneUser } from "../../speech/microphoneOwner";
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import { shortcutLabelForCommand, type ShortcutMatchContext } from "../../keybindings";
 import {
@@ -1852,7 +1852,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   };
   const readComposerSnapshotStable = useStableCallback(readComposerSnapshot);
 
-  const voiceCallLive = useVoiceCallStore(selectLiveVoiceCallKey) !== null;
+  const voiceCallLive = useMicrophoneUser(({ user }) => user === "call");
   const dictationDisabled =
     voiceCallLive ||
     !canOperateThread ||
@@ -3890,7 +3890,6 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                         environmentId={environmentId}
                         threadId={activeThreadId}
                         shortcutLabel={liveVoiceShortcutLabel}
-                        disabled={speechInput.state.phase !== "idle"}
                       />
                     ) : null}
                     {speechInput.available ? (

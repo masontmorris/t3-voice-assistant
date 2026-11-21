@@ -1,5 +1,6 @@
 import {
   CommandId,
+  EnvironmentId,
   MessageId,
   NonNegativeInt,
   OrchestrationV2RunStatus,
@@ -323,6 +324,8 @@ export const HelloFrame = Schema.Struct({
   /** Allowed projects that exist. */
   projects: Schema.Array(VoiceProject),
   latestSequence: Sequence,
+  /** The environment this seam serves, so a client can refuse a thread id from another one. */
+  environmentId: Schema.optional(EnvironmentId),
 }).annotate({ identifier: "HelloFrame" });
 export type VoiceHello = typeof HelloFrame.Type;
 

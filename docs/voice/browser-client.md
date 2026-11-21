@@ -31,9 +31,13 @@ Wear headphones to keep the reply out of the mic. The browser requests echo canc
 
 ## Call from a T3 thread
 
-The T3 web and desktop apps can open the same call from a thread's composer (see [Talk with a thread](../user/voice-input.md#talk-with-a-thread)). The app's hello names the thread, and the call starts with that thread in view, as if the voice had just spoken about it. Start the server with `--t3 on`. A thread the seam's credential cannot read ends the call at once with close code 4404, and a server without `--t3 on` ends it with 4501. The app shows both.
+The T3 web and desktop apps can open the same call from a thread's composer (see [Talk with a thread](../user/voice-input.md#talk-with-a-thread)). The app's hello names the thread, and the call starts with that thread in view, as if the voice had just spoken about it. Start the server with `--t3 on`. The hello also names the thread's T3 environment, and a seam that serves another environment ends the call with close code 4409, so a thread id that exists in both is never opened on the wrong one. A thread the seam's credential cannot read ends the call with 4404, and a server without `--t3 on` ends it with 4501. The app shows each.
 
-The app's page is a different origin from this server's, which the server accepts the way it accepts any browser: the secret in the first frame. To accept browser calls only from known pages, pass `--allow-origin` once per origin: the scheme, host and port the app is served from. The server's own page always connects. Calls from the app never record, whatever `--call-recording` says, because the app does not ask for a recording.
+The app's page is a different origin from this server's, which the server accepts the way it accepts any browser: the secret in the first frame. To accept browser calls only from known pages, pass `--allow-origin` once per origin: the scheme, host and port the app is served from. The server's own page always connects.
+
+The server answers only this machine and the tailnet: a peer outside loopback and 100.64.0.0/10 gets a 403 before the secret is read. A request that reaches it through a proxy on this machine (an `X-Forwarded-*` or `Forwarded` header, or a `Host` that is not loopback) must carry `Tailscale-User-Login`, which Tailscale Serve adds for tailnet users, strips from what clients send, and leaves off for Funnel traffic and tagged devices. So the page over `serve-tailscale.sh` works from a person's own device, and the same port shared through Funnel, or opened from a tagged device, is refused.
+
+Calls from the app never record, whatever `--call-recording` says, because the app does not ask for a recording.
 
 ## Find the recording
 

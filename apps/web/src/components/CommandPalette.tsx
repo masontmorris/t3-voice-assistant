@@ -191,6 +191,7 @@ import {
   newProjectId,
 } from "../lib/utils";
 import { buildThreadRouteParams } from "../threadRoutes";
+import { useMicrophoneUser } from "../speech/microphoneOwner";
 import { useVoiceServerReach } from "../voiceCall/useVoiceServerReach";
 import {
   selectLiveVoiceCallKey,
@@ -510,6 +511,7 @@ function OpenCommandPaletteDialog(props: {
   const availableSettingsSearchItems = useAvailableSettingsSearchItems();
   const voiceServerReach = useVoiceServerReach();
   const voiceCallThreadKey = useVoiceCallStore(selectLiveVoiceCallKey);
+  const dictating = useMicrophoneUser(({ user }) => user === "dictation");
   const { activeDraftThread, activeThread, defaultProjectRef, handleNewThread } =
     useHandleNewThread();
   const paletteRouteTarget = useThreadRouteTarget();
@@ -1508,6 +1510,7 @@ function OpenCommandPaletteDialog(props: {
         title: callHere ? gt("End voice call") : gt("Start voice call"),
         icon: <AudioLinesIcon className={ITEM_ICON_CLASS} />,
         shortcutCommand: "composer.voiceCall",
+        disabled: !callHere && dictating,
         run: async () => {
           toggleVoiceCall(environmentId, id);
         },

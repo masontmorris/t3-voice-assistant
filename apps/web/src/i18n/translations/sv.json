@@ -12230,5 +12230,9 @@
   "e1048fe0f0eb6c3d": "live röst samtal hemlighet lösenord",
   "e21b730fdb820984": "Liveröst",
   "ba75fe8458be8b28": "Adressen till en röstserver på den här enheten eller i ditt tailnet. Samtal går direkt dit, aldrig via ett relä.",
-  "5c6f2fab8fe5dd03": "Sparas bara på den här enheten."
+  "5c6f2fab8fe5dd03": "Sparas bara på den här enheten.",
+  "7e664283273943e0": "Ett röstsamtal använder mikrofonen.",
+  "be2fe22cec8b1b50": "Ett tailnet-namn kräver en wss://-adress, till exempel från Tailscale Serve.",
+  "eafbd616e90494c3": "Diktering använder mikrofonen.",
+  "e4a9284168a984bf": "Röstservern arbetar med en annan T3-miljö än den här trådens."
 }

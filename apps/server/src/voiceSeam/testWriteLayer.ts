@@ -44,6 +44,7 @@ import * as TextGeneration from "../textGeneration/TextGeneration.ts";
 import { ThreadWorktreeRestore } from "../workspace/restoreMissingWorktree.ts";
 import { VOICE_OPERATIONS, type VoiceSeamConfig } from "./ceiling.ts";
 import { voiceCommandId } from "./launch.ts";
+import { testEnvironment } from "./testLayer.ts";
 import * as VoiceSeam from "./VoiceSeam.ts";
 
 // The real orchestrator, ThreadLaunchService and ThreadManagementService, for the seam's writes.
@@ -246,6 +247,7 @@ const layerCountedLaunches = Layer.effect(
   ),
 );
 export const layerTest = VoiceSeam.layer.pipe(
+  Layer.provide(testEnvironment),
   Layer.provideMerge(layerCountedLaunches),
   Layer.provideMerge(
     Layer.mergeAll(
