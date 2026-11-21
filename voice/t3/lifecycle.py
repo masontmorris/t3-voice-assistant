@@ -371,6 +371,28 @@ class Follow:
         self.journal.save()
         return about(task, said)
 
+    def follow(self, thread_id: str, title: str, project_id: str | None, project_name: str | None,
+               now: float) -> JournalTask:
+        """Follow the thread a call was opened on, the way a thread the voice started or sent to is followed: a read
+        first, so only what happens after it is news, then a watch. It stays live across the thread's runs until
+        `unfollow`, and gives its watch to any task that acts on the thread meanwhile."""
+        task = self.journal.begin(Kind.FOLLOW, "", project_id, project_name, thread_id=thread_id, title=title)
+        task.status, task.announced = Status.LIVE, True
+        self.journal.save()
+        if self.seam is not None:
+            self.read_first(task, now)
+        return task
+
+    def unfollow(self, task: JournalTask) -> None:
+        """The call ended: stop watching and drop what it had not yet said."""
+        task.status = Status.COMPLETED
+        self.take(task.task_id)
+        self.journal.remove_lines([u for u in self.journal.pending_lines if u.task_id == task.task_id])
+        self.windows.pop(task.task_id, None)
+        self.budgets.pop(task.task_id, None)
+        self._release_watch(task)
+        self.journal.save()
+
     def drop(self, task: JournalTask, now: float) -> None:
         """Mason took back a held follow-up."""
         if task.status is Status.HELD:
@@ -454,6 +476,9 @@ class Follow:
         if owner is not None:
             self.windows.pop(owner, None)
             self.opened_at.pop(owner, None)
+            if self.journal.tasks[owner].kind is Kind.FOLLOW:
+                # It takes the watch back from a fresh read, so nothing the other task said is said twice.
+                self.journal.tasks[owner].link.cursor = None
         self.watching[thread] = task.task_id
         self.opened_at[task.task_id] = now
 
@@ -461,6 +486,8 @@ class Follow:
         """The seam keeps one watch per thread, and a new one replaces it. A live task keeps its watch, a held
         follow-up hands it to a live task, and an ended task hands it to anyone."""
         if owner is None:
+            return True
+        if self.journal.tasks[owner].kind is Kind.FOLLOW and task.kind is not Kind.FOLLOW:
             return True
         status = self.journal.tasks[owner].status
         return status in ENDED or (status is Status.HELD and task.status is Status.LIVE)
@@ -562,6 +589,8 @@ class Follow:
                 return self.run("ended-after-terminal", task, now)
             return self.run(WATCH_ENDED_ROWS[item.reason], task, now, code=item.reason)
         if isinstance(item, T.DoneEvent):
+            if task.kind is Kind.FOLLOW and task.link.cursor is not None and item.sequence <= task.link.cursor:
+                return
             if task.status is Status.LIVE:
                 if task.link.run_id is not None and item.run_id != task.link.run_id:
                     return
@@ -779,12 +808,21 @@ def _deleted(f: Follow, name, row, task, now, event):
 
 
 def _done(f: Follow, name, row, task, now, event):
+    if task.kind is Kind.FOLLOW:
+        # A call's thread can run again during the call, so its follow outlives each run. The cursor moves past the
+        # finish, so a reconnect does not replay it.
+        task.link.cursor = max(task.link.cursor or 0, event.sequence)
+        f.speak(task, act(Say.DONE, status=event.status.value), name, (event.sequence, event.as_of_sequence))
+        return f.journal.save()
     task.status = DONE_STATUS[event.status]
     f.speak(task, act(Say.DONE, status=event.status.value), name, (event.sequence, event.as_of_sequence))
     f.journal.save()
     f.windows[task.task_id] = now + DONE_WINDOW_S
     waiting = next((t for t in f.journal.by_thread(task.link.thread_id) if t.status is Status.LIVE), None)
     if waiting is not None:
+        if waiting.kind is Kind.FOLLOW:
+            # It goes on from where this watch stopped, so what follows the finish is not lost to a fresh read.
+            waiting.link.cursor = max(event.sequence, task.link.cursor or 0)
         f.watch(waiting, now)
 
 

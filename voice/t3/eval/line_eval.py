@@ -61,7 +61,8 @@ def prepared(speech: Speech, acts, scene) -> tuple:
         return acts
     ref = reference(scene.thread, scene.launched, scene.titles)
     me = next((l for l in scene.launched if l.thread_id == scene.thread), None)
-    acts = named(acts, ref, speech.account(me) if ref is not None and ref.unnamed and ref.shared else None)
+    account = ref is not None and ref.unnamed and ref.shared and not scene.on_call
+    acts = named(acts, ref, speech.account(me) if account else None, scene.on_call)
     if acts[0].kind is Kind.ASK_WHICH and scene.offered:
         acts = (Act(acts[0].kind, {**acts[0].slots, "candidates": candidate_names(
             scene.offered, scene.titles, scene.launched, speech.account)}),)

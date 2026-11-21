@@ -101,6 +101,8 @@ async def fake_run_clip(source, *args, persona, voice=None, speak=None, prior_ut
     SENT_BEFORE.append(list(voice.sent))
     voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
     await source.stream(FakeSession(), FakeSession())
+    if kwargs.get("on_heard") is not None:
+        kwargs["on_heard"](f"words in {source.name}")
     await asyncio.sleep(0.3)
     await prototype_run.floor_free(voice)
     speak(f"reply to {source.name}",b"\x01\x00" * (OUT_RATE * 2), True)
@@ -1009,20 +1011,23 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         turn.out_rate = OUT_RATE
         conversation.speak(turn, "I don't have the day for that yet.", b"\x01\x00" * OUT_RATE, True)
         kinds, frames = self.drain(conversation)
-        self.assertEqual(kinds[0], "reply_start")
+        self.assertEqual(kinds[:2], ["reply_start", "say"], "the caption goes out just before the audio it says")
         self.assertEqual(kinds[-1], "reply_end")
-        self.assertEqual(set(kinds[1:-1]), {"audio"})
+        self.assertEqual(set(kinds[2:-1]), {"audio"})
         self.assertEqual(frames, OUT_RATE * 2, "one second of 16-bit audio")
 
     def drain(self, conversation):
         """What the client would get from the outbox: the send loop drops a muted turn's audio."""
-        kinds, frames = [], 0
+        kinds, frames, self.captions = [], 0, []
         while not conversation.outbox.empty():
             turn, payload = conversation.outbox.get_nowait()
             if isinstance(payload, server.AudioFrame):
-                payload = payload.pcm
+                caption, payload = payload.caption, payload.pcm
                 if turn is not None and turn.muted:
                     continue
+                if caption is not None:
+                    self.captions.append(json.loads(caption))
+                    kinds.append(self.captions[-1]["type"])
                 kinds.append("audio")
                 frames += len(payload)
                 self.assertLessEqual(len(payload), OUT_RATE * 2 // 25, "no frame longer than 40 ms")
@@ -1042,6 +1047,9 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual((kinds[0], kinds[-1]), ("reply_start", "reply_end"))
         self.assertEqual(frames, OUT_RATE * 2, "both pieces, one second in all")
         self.assertEqual(conversation.playback.text, "It's sunny in Denver", "the echo check hears each word once")
+        self.assertEqual(self.captions, [{"type": "say", "turn": 1, "text": "It's sunny"},
+                                         {"type": "say", "turn": 1, "text": " in Denver"}],
+                         "each caption is the text its audio adds, and the end with no audio has none")
 
     async def test_a_turn_muted_mid_reply_sends_no_more_audio_and_still_ends_the_reply(self):
         conversation = await self.conversation()
@@ -1066,8 +1074,9 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         conversation = await self.conversation()
         turn = server.MicTurn(1, b"")
         turn.out_rate = OUT_RATE
-        frames = []
+        frames, sent = [], []
         async def send(payload):
+            sent.append("audio" if isinstance(payload, bytes) else json.loads(payload))
             if isinstance(payload, bytes):
                 frames.append(payload)
                 turn.mute("barge_in")
@@ -1078,6 +1087,10 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
             line = Speech(None, lambda thread_id: None, F.Agree()).accept(DONE.acts, DONE_LINE, "text_model").line
             pcm, first_sent = await conversation.speak_t3(turn, line, bytes(9600))
             self.assertEqual(frames, [pcm])
+            captions = [m for m in sent if m != "audio" and m["type"] == "say"]
+            self.assertEqual(captions, [{"type": "say", "turn": 1, "text": DONE_LINE, "relay": True}],
+                             "a T3 line is captioned once, as a relay, and nothing after the barge-in")
+            self.assertLess(sent.index(captions[0]), sent.index("audio"), "the caption goes out before its audio")
             self.assertEqual(len(pcm), 1920)
             self.assertIsNotNone(first_sent)
         finally:

@@ -31,7 +31,7 @@ import { VOICE_OPERATIONS, VOICE_SEAM_CONFIG_FILE } from "./ceiling.ts";
 import { voiceCommandId } from "./launch.ts";
 import * as VoiceSeamRoute from "./route.ts";
 import { createdOf, FIXTURES, thread } from "./testFixtures.ts";
-import { seamLayer, write } from "./testLayer.ts";
+import { seamLayer, TEST_ENVIRONMENT_ID, write } from "./testLayer.ts";
 
 const PLAIN = FIXTURES.plainReply;
 const PLAIN_THREAD = createdOf(PLAIN).payload.id;
@@ -666,6 +666,7 @@ it.live("sends hello first, answers each op, and starts a watch's events after i
         },
         projects: [{ projectId: PROJECT, name: "Voice sandbox", spokenNames: ["sandbox"] }],
         latestSequence: PLAIN.length,
+        environmentId: TEST_ENVIRONMENT_ID,
       });
 
       const answer = (op: string, input: unknown) =>

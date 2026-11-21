@@ -66,13 +66,14 @@ clipped = launch_title
 @dataclass(frozen=True)
 class Scene:
     """What T3 and the journal hold when a case's act is worded: `thread` is the one the act is about, `launched` the
-    threads the voice started, `titles` what T3 titles every listed thread now, and `offered` the threads a
-    which-thread question offers."""
+    threads the voice started, `titles` what T3 titles every listed thread now, `offered` the threads a
+    which-thread question offers, and `on_call` whether `thread` is the one the call was opened on."""
 
     thread: str
     launched: tuple
     titles: dict
     offered: tuple = ()
+    on_call: bool = False
 
 
 @dataclass(frozen=True)
@@ -245,7 +246,21 @@ HELD_OUT_SHAPES = [
     Scened(act(Kind.CONFIRM_THREAD, thread=clipped(KITE)),
            Scene("t7", (Launch("t7", KITE, PROJECT),), {"t7": "Fix the kite log viewer"})),
 ]
-APP_THREAD_REFERENCES.update({clipped(FERRY): "ferry timetable"})
+APP_THREAD_REFERENCES.update({clipped(FERRY): "ferry timetable", clipped(TIDE): "tide chart"})
+# The thread a call from the app was opened on, one of two launched threads in a project that T3 has not yet named:
+# the line calls it this thread. Written with the change that makes it so, and scored once.
+_on_call = Scene("t7", **_two, on_call=True)
+CALL_THREAD = [
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(TIDE), need="command_approval", prompt="ls tide-charts | head"), _on_call),
+    Scened(act(Kind.THREAD_STATUS, thread=clipped(TIDE), asked="is it approved", pending="ls tide-charts | head",
+               **WAITING), _on_call),
+    Scened(act(Kind.DONE, thread=clipped(TIDE), status="completed",
+               summary="It reports that the labels no longer overlap."), _on_call),
+    Scened(act(Kind.REPLIED, thread=clipped(TIDE), status="running", reply="I moved the labels below the chart."),
+           _on_call),
+    Scened(act(Kind.NEEDS_THE_APP, thread=clipped(TIDE), decision="approve"), _on_call),
+    Scened(act(Kind.CONFIRM_THREAD, thread=clipped(TIDE)), _on_call),
+]
 
 # What each request was started for, a faithful account of it and two that say something the request does not.
 ACCOUNT_CASES = (
@@ -278,7 +293,8 @@ GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_stat
           "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP, "needs_the_app": NEEDS_THE_APP,
           "needs_with_command": NEEDS_WITH_COMMAND, "launch_needs_you": LAUNCH_NEEDS,
           "launch_status_waiting": LAUNCH_STATUS, "launch_confirm_thread": LAUNCH_CONFIRM_THREAD,
-          "no_thread_other": NO_THREAD_OTHER, "held_out_launch": HELD_OUT, "held_out_shapes": HELD_OUT_SHAPES}
+          "no_thread_other": NO_THREAD_OTHER, "held_out_launch": HELD_OUT, "held_out_shapes": HELD_OUT_SHAPES,
+          "call_thread": CALL_THREAD}
 
 
 REQUESTS_BY_TITLE = {clipped(request): request for request in

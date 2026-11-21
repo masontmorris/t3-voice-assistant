@@ -97,7 +97,7 @@ function RecordingStatus(props: {
   );
 }
 
-function ShortcutTooltip(props: {
+export function ShortcutTooltip(props: {
   label: string;
   shortcut?: string | null | undefined;
   children: ReactElement;

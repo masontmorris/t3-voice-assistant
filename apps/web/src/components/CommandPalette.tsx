@@ -61,6 +61,7 @@ import {
 import { useLocation, useNavigate } from "@tanstack/react-router";
 import {
   ArrowLeftIcon,
+  AudioLinesIcon,
   BugIcon,
   ChartNoAxesColumnIcon,
   CheckIcon,
@@ -190,6 +191,14 @@ import {
   newProjectId,
 } from "../lib/utils";
 import { buildThreadRouteParams } from "../threadRoutes";
+import { useMicrophoneUser } from "../speech/microphoneOwner";
+import { useVoiceServerReach } from "../voiceCall/useVoiceServerReach";
+import {
+  selectLiveVoiceCallKey,
+  toggleVoiceCall,
+  useVoiceCallStore,
+  voiceCallKey,
+} from "../voiceCall/voiceCallStore";
 import { useAvailableSettingsSearchItems } from "./settings/useAvailableSettingsSearchItems";
 import {
   applyWslEnvironmentConfiguration,
@@ -500,6 +509,9 @@ function OpenCommandPaletteDialog(props: {
   const desktopLocalBootstraps = useDesktopLocalBootstraps();
   const primaryEnvironmentId = usePrimaryEnvironmentId();
   const availableSettingsSearchItems = useAvailableSettingsSearchItems();
+  const voiceServerReach = useVoiceServerReach();
+  const voiceCallThreadKey = useVoiceCallStore(selectLiveVoiceCallKey);
+  const dictating = useMicrophoneUser(({ user }) => user === "dictation");
   const { activeDraftThread, activeThread, defaultProjectRef, handleNewThread } =
     useHandleNewThread();
   const paletteRouteTarget = useThreadRouteTarget();
@@ -1482,6 +1494,27 @@ function OpenCommandPaletteDialog(props: {
           run: () => copyPromptLink(contextLink),
         });
       }
+    }
+  }
+
+  if (activeThread !== null) {
+    const callHere =
+      voiceCallThreadKey === voiceCallKey(activeThread.environmentId, activeThread.id);
+    const canCall = voiceServerReach.kind === "ready" && voiceCallThreadKey === null;
+    if (callHere || canCall) {
+      const { environmentId, id } = activeThread;
+      actionItems.push({
+        kind: "action",
+        value: "action:voice-call",
+        searchTerms: ["voice", "call", "talk", "speak", "live"],
+        title: callHere ? gt("End voice call") : gt("Start voice call"),
+        icon: <AudioLinesIcon className={ITEM_ICON_CLASS} />,
+        shortcutCommand: "composer.voiceCall",
+        disabled: !callHere && dictating,
+        run: async () => {
+          toggleVoiceCall(environmentId, id);
+        },
+      });
     }
   }
 

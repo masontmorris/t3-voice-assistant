@@ -372,6 +372,16 @@
           "type": "integer",
           "minimum": 0,
           "maximum": 9007199254740991
+        },
+        "environmentId": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "required": ["type", "ceiling", "projects", "latestSequence"],
