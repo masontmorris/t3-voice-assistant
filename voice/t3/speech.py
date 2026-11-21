@@ -15,7 +15,7 @@ by default, with the text model available as an override.
 
 from __future__ import annotations
 
-import dataclasses
+import hashlib
 import json
 import os
 import threading
@@ -102,9 +102,10 @@ MEANINGS: dict[Kind, str] = {
     Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
                         "same news in your own words, adding nothing. Attribute any work or results to the thread.",
     Kind.CONFIRM_RESPOND: "Ask whether to approve or deny the request the thread is waiting on, as `decision` says, "
-                          "naming the thread. Say what this request would do, in your own words, from `summary`: "
-                          "what the person would be allowing. Never read out a command line, flag, path or code. "
-                          "Nothing is answered yet.",
+                          "naming the thread. When `summary` is given, say what this request would do, in your own "
+                          "words, from it: what the person would be allowing. A denial has no `summary`: name the "
+                          "thread and ask whether to say no to its request. Never read out a command line, flag, path "
+                          "or code. Nothing is answered yet.",
     Kind.NEEDS_THE_APP: "You cannot tell them what this thread's request would do, so you cannot approve it for them: "
                         "say that this one has to be approved in the app. Name the thread.",
     Kind.RESPONDED: "T3 accepted the answer: say that the request was approved or denied, as `decision` says, for the "
@@ -225,6 +226,14 @@ class LocalText:
         kept = unsupported is not None and unsupported < LS.GATE_THRESHOLD
         return {**record, "text": gist if kept else "", "gist": gist, "unsupported": unsupported}
 
+    def describe(self, need: T.PendingNeed) -> dict:
+        """What approving `need` would let the thread do, in the approval prompt's form. It is not gated here: the
+        gate is the caller's (`RequestGate`), so no model's description reaches a confirmation without it."""
+        record = self._chat({"messages": LS.request_messages(need), "max_tokens": LS.MAX_TOKENS, **LS.SAMPLING,
+                             "response_format": {"type": "json_schema", "json_schema": {"schema": LS.REQUEST_SCHEMA}}},
+                            timeout_s=LS.CHAT_TIMEOUT_S)
+        return {**record, "text": LS.read_description(record["text"]) or ""}
+
     def _unsupported(self, state: T.ThreadState, gist: str) -> float | None:
         """The gate's answer, or None when the local d1-2B cannot give one, which drops the gist."""
         from voice.local_decider.client import D1Client
@@ -270,6 +279,38 @@ def read_line(text: str) -> str:
         return ""
     line = record.get("line") if isinstance(record, dict) else None
     return line if isinstance(line, str) else ""
+
+
+class RequestGate:
+    """The local d1-2B's check that a description says what a request would do, one connection and one request in
+    flight. Every description of an approval goes through it, whichever model wrote it, and with no answer from it
+    (not configured, down, a timeout, an answer that is not a probability) nothing is described."""
+
+    def __init__(self, url: str):
+        self.url = url
+        self._client = None
+        self._lock = threading.Lock()
+
+    def doubt(self, need: T.PendingNeed, description: str) -> float | None:
+        from voice.local_decider.client import D1Client
+        with self._lock:
+            try:
+                if self._client is None:
+                    self._client = D1Client(self.url, timeout_s=LS.GATE_TIMEOUT_S)
+                return LS.doubt(self._client.call("decisions", LS.request_gate(need, description),
+                                                   label="request_gate"))
+            except Exception:
+                return None
+
+
+def described(client, need: T.PendingNeed, gate: RequestGate | None) -> str:
+    """`client`'s description of `need`, when the gate passes it against the request; otherwise empty."""
+    if isinstance(client, LocalText):
+        text = client.describe(need)["text"]
+    else:
+        text = LS.read_description(client.complete(LS.request_messages(need)).get("text") or "") or ""
+    doubt = gate.doubt(need, text) if gate is not None and text else None
+    return text if doubt is not None and doubt < LS.REQUEST_THRESHOLD else ""
 
 
 RENDERERS = ("particle-1", "local")
@@ -318,6 +359,14 @@ class Lane:
         if isinstance(client, LocalText):
             return self.pool.submit(client.summarise, state, question)
         return self.pool.submit(client.complete, summary_messages(state, question))
+
+    def describe(self, need: T.PendingNeed, gate: RequestGate | None) -> Future:
+        """What approving `need` would let the thread do, written by the model behind the lane and passed by `gate`."""
+        client = self.client
+        self._check(client)
+        with self.lock:
+            self.calls += 1
+        return self.pool.submit(described, client, need, gate)
 
     def submit(self, messages) -> Future:
         self._check(self.client)
@@ -455,6 +504,8 @@ class Speech:
     states: dict = field(default_factory=dict)
     summaries: dict = field(default_factory=dict)
     lock: threading.Lock = field(default_factory=threading.Lock)
+    gate: RequestGate | None = None
+    descriptions: dict = field(default_factory=dict)
 
     def remember(self, state: T.ThreadState) -> None:
         with self.lock:
@@ -523,13 +574,43 @@ class Speech:
         text = _clean(record.get("text", ""))
         return text or None
 
-    def fill(self, acts: tuple[Act, ...], thread_id: str | None, sequences: tuple[int, ...] = ()):
-        """The acts with the read's title and the thread's summary filled in, and the read's sequence as evidence."""
-        if thread_id is None or not any(a.kind in SUMMARISED and "summary" not in a.slots for a in acts):
+    def describe(self, thread_id: str | None, need: T.PendingNeed | None) -> str | None:
+        """What approving `need` would let the thread do, or None. It is bound to this request by its id and its
+        stored content, and to this purpose: an ordinary summary is never one, and the descriptions are not summaries.
+        A request the voice cannot describe, no gate, a gate with no answer, or a description the gate doubts is None,
+        and the approval is left to the app."""
+        if self.lane is None or need is None or thread_id is None or self.gate is None or not LS.describable(need):
+            return None
+        content = hashlib.sha256(json.dumps([need.source.value, need.prompt]).encode()).hexdigest()
+        key = (self.lane.generation, thread_id, need.request_id, content)
+        deadline = time.monotonic() + SUMMARY_TIMEOUT_S
+        with self.lock:
+            future = self.descriptions.get(key)
+            if future is None or future.cancelled() or (future.done() and future.exception() is not None):
+                future = self.descriptions[key] = self.lane.describe(need, self.gate)
+        try:
+            return _clean(future.result(timeout=max(0.0, deadline - time.monotonic()))) or None
+        except Exception:
+            future.cancel()
+            return None
+
+    def _confirmed(self, a: Act, thread_id: str | None, need: T.PendingNeed | None) -> Act:
+        """A confirmation of an answer to a request. An approval carries the description of `need` if one passed the
+        gate, and never one it was given; a denial carries none, since nothing runs when a request is denied."""
+        slots = {k: v for k, v in a.slots.items() if k != "summary"}
+        text = self.describe(thread_id, need) if a.slots.get("decision") == "approve" else None
+        return Act(a.kind, {**slots, "summary": text} if text else slots)
+
+    def fill(self, acts: tuple[Act, ...], thread_id: str | None, sequences: tuple[int, ...] = (),
+             need: T.PendingNeed | None = None):
+        """The acts with the read's title and the thread's summary filled in, and the read's sequence as evidence. A
+        confirmation of an answer to a request is filled from `need`, the request itself, and never from a summary."""
+        acts = tuple(self._confirmed(a, thread_id, need) if a.kind is Kind.CONFIRM_RESPOND else a for a in acts)
+        summarised = SUMMARISED - {Kind.CONFIRM_RESPOND}
+        if thread_id is None or not any(a.kind in summarised and "summary" not in a.slots for a in acts):
             return acts, ()
         state, read = None, ()
-        confirming = any(a.kind is Kind.CONFIRM_RESPOND for a in acts)
-        if not confirming and any(a.kind is Kind.THREAD_STATUS for a in acts):
+        if any(a.kind is Kind.THREAD_STATUS for a in acts):
             with self.lock:
                 state = next((self.states[(thread_id, s)] for s in sequences if (thread_id, s) in self.states), None)
         if state is None:
@@ -539,13 +620,10 @@ class Speech:
             self.remember(state)
             read = (state.as_of_sequence,)
         question = next((a.slots.get("asked") for a in acts if a.slots.get("asked")), None)
-        if confirming:
-            # The request, not the thread's last reply: what approving would allow.
-            state = dataclasses.replace(state, last_reply=None)
         gist = self.summary(state, question)
         filled = []
         for a in acts:
-            if a.kind in SUMMARISED:
+            if a.kind in summarised:
                 slots = {"summary": gist} if gist else {}
                 if "thread" not in a.slots and state.title:
                     slots["thread"] = state.title
@@ -740,9 +818,8 @@ READER_VARIANTS = {
                                 "I didn't send anything, because more than one thread is called Example Sort Photo "
                                 "Albums. You can send it in the app."),
     (Kind.CONFIRM_RESPOND, "deny"): ({"thread": "Example Archive Old Invoices", "decision": "deny",
-                                     "need": "command_approval",
-                                     "summary": "It wants to run a script that deletes the old invoice folder."},
-                                    "Should I say no to Example Archive Old Invoices deleting the old invoice folder?"),
+                                     "need": "command_approval"},
+                                    "Should I say no to the request Example Archive Old Invoices is waiting on?"),
     (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
                                "I said no to the file changes for Example Mend Rail Maps."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),

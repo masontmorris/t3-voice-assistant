@@ -1248,6 +1248,7 @@ async def main_async(args):
             t3 = T3Tasks.open(default_origin(), default_token_file(), default_journal(), default_model(),
                               speech_decider, writer=writer, reuse=reuse)
             t3.summarisers = summariser_choices(local_text, gate)
+            t3.use_approval_gate(gate)
             t3.resume(time.monotonic())
             poller = Poller(t3, notify=lambda: loop.call_soon_threadsafe(news.set)).start()
             stack.callback(poller.stop)

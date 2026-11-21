@@ -42,6 +42,8 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 | `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                     |
 | `withdrawn-question`          | 1 of 1 | The initial thread question was asked in all three runs. Only marked checks varied. |
 | `news-permission`             | 1 of 2 | The known launch-dispatch fault can prevent the approval exchange from running.     |
+| `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).         |
+| `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                     |
 | `short-yes`                   | 1 of 2 | Whether both requests got a confirmation question varied.                           |
 | `news-done` (`--long`)        | 1 of 2 | Some runs never reached a finished thread or its news.                              |
 | `short-yes-tell` (`--long`)   | 1 of 2 | Whether T3 started a new run with the message varied.                               |

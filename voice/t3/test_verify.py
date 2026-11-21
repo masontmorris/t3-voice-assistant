@@ -119,6 +119,13 @@ class LineCheck(unittest.TestCase):
         self.assertEqual(decider.verify([act(Kind.UNANSWERED)], line).failed, ("claims_sent",))
         self.assertTrue(decider.verify([act(Kind.UNANSWERED, outcomes=["sent"])], "I sent the follow-up.").passed)
 
+    def test_an_unanswered_line_never_says_a_permission_request_was_approved_or_denied(self):
+        decider = Decider(AnsweringAsks({"a1_means": 0.9, "claims_answered": 0.9}))
+        for line in ("I approved the request.", "I said no to the request."):
+            self.assertEqual(decider.verify([act(Kind.UNANSWERED)], line).failed, ("claims_answered",), line)
+        for outcome in ("approved", "denied"):
+            self.assertTrue(decider.verify([act(Kind.UNANSWERED, outcomes=[outcome])], "Done.").passed, outcome)
+
     def test_the_decider_refuses_the_reviewers_escapes(self):
         decider = Decider(Recorded())
         escapes = [row for row in FIXTURE if row["line"] in ESCAPES]

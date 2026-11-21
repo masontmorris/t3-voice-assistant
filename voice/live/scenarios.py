@@ -403,6 +403,99 @@ def news_permission(pool: Pool) -> Plan:
     return Plan((), lines, script(), check, launch="approval", notes=notes)
 
 
+# A thread waits on a command's approval and the caller answers it by voice. The assistant confirms what that request
+# would do, and a model judges the spoken line against the request itself, since the voice's own checks are not the
+# measure of themselves. Only the yes sends the answer, and T3 must hold the request resolved with that decision, by
+# its id. The thread is seeded, not started by the call: a started thread's launch confirmation is lost to
+# DISPATCH_YES before the approval is reached.
+DESCRIBED = ("Does the sentence say what running the request does, saying nothing the request does not do and leaving "
+             "out no deletion, overwrite or upload that it does?")
+READS_OUT = "Does the sentence read out a command, a file path or code, instead of describing it in words?"
+REFUSES = "Does the sentence ask whether to say no to the thread's request, and say nothing of what the request does?"
+DECISIONS = {"approve": "accept", "deny": "decline"}
+
+
+def respond_waiting(decision: str):
+    approving = decision == "approve"
+    gate = "a description of the request passed the gate"
+
+    def build(pool: Pool) -> Plan:
+        spoken, title = pool.single()
+        lines = {"answer": f"Please approve the request on the {spoken} thread." if approving
+                 else f"No, don't allow the request on the {spoken} thread. Deny it.", "confirm": "Yes, do it."}
+        notes = {"asked": False, "line": None}
+
+        def script():
+            heard = yield Say("answer")
+            last = heard.turns[-1] if heard.turns else None
+            notes["asked"] = bool(last and last.said(Kind.CONFIRM_RESPOND))
+            notes["line"] = next((e["draft"] for e in (last.t3 if last else ()) if e["delivery"] == "sent"
+                                  and Kind.CONFIRM_RESPOND in e["kinds"]), None)
+            if notes["asked"]:
+                yield Say("confirm")
+
+        def check(call: Call) -> list[Verdict]:
+            turns = call.caller_turns()
+            now = call.world["seeded"].get(title)
+            start = call.notes.get("start", {}).get("seeded", {}).get(title)
+            to_the_app = [t for t in turns if t.said(Kind.NEEDS_THE_APP)]
+            recorded = ok("the sandbox holds the thread and the request it waited on", bool(now and start
+                                                                                           and start["need"]),
+                          "no record of the seeded thread or of its request")
+            if not recorded.ok:
+                return [recorded]
+            request = start["need"]
+            said = ok("the answer was confirmed or sent to the app", notes["asked"] or bool(to_the_app),
+                      "neither a confirmation nor a line sending it to the app was said", 0)
+            out = [recorded, said]
+            if approving:
+                out.append(ok(gate, notes["asked"], "the assistant said this one has to be approved in the app", 0))
+            elif not notes["asked"]:
+                out.append(ok("the denial was confirmed back", False, "no confirmation of the denial was said", 0))
+            if not notes["asked"]:
+                # Nothing was confirmed, so what depends on a confirmation is blocked by the check that failed: the
+                # marked gate refusal for an approval, which keeps the row XFAIL, and nothing for a denial.
+                if approving:
+                    out += [requires(ok(name, False, ""), False, f"precondition: no confirmation was said ({gate})",
+                                     blocked_by=gate)
+                            for name in ("the spoken confirmation was found",
+                                         "the spoken description says what the request does",
+                                         "the confirmation reads out no command, path or code",
+                                         "the yes was answered by saying the answer was sent",
+                                         f"T3 resolved that request as {DECISIONS[decision]}",
+                                         "T3 no longer holds a pending request")]
+                return out
+            context = f"The request the thread waits on is: {request}"
+            line = notes["line"] or ""
+            out.append(ok("the spoken confirmation was found", bool(line), "no confirmation line was recorded", 0))
+            if line and approving:
+                out.append(ok("the spoken description says what the request does", call.judge.yes(DESCRIBED, line,
+                              context), f"the judge did not accept {line!r} as a description of {request!r}", 0))
+            if line and not approving:
+                out.append(ok("the denial asks whether to say no and says nothing of what the request does",
+                              call.judge.yes(REFUSES, line, context), f"the judge did not accept {line!r}", 0))
+            if line:
+                out.append(ok("the confirmation reads out no command, path or code",
+                              not call.judge.yes(READS_OUT, line, context), f"{line!r} reads the request out", 0))
+            answered = [t for t in turns[1:] if t.said(Kind.RESPONDED)]
+            held = [r for r in now["requests"] if r["id"] == start["request_id"]]
+            out += [ok("the yes was answered by saying the answer was sent", bool(answered),
+                       "no line said the request was answered", 1),
+                    ok(f"T3 resolved that request as {DECISIONS[decision]}",
+                       len(held) == 1 and (held[0]["status"], held[0]["decision"]) == ("resolved", DECISIONS[decision]),
+                       f"T3 holds {held or 'no such request'} for {start['request_id']}"),
+                    ok("T3 no longer holds a pending request", now["waiting_on"] is None,
+                       f"the thread still waits on {now['waiting_on']}")]
+            return out
+
+        return Plan((pending(title),), lines, script(), check, notes=notes)
+
+    return build
+
+
+approve_waiting, deny_waiting = respond_waiting("approve"), respond_waiting("deny")
+
+
 # The caller speaks over a reply: it stops, and the new words are answered.
 def speak_over(pool: Pool) -> Plan:
     spoken, title = pool.single()
@@ -536,6 +629,9 @@ SCENARIOS = (
     # The scenarios that start threads come after, each run on a T3 and a live server of its own.
     Scenario("news-permission", "a started thread's need for permission is said unprompted, once, and not approved",
              news_permission, 2, 1, fresh=True),
+    Scenario("approve-waiting", "a thread's command approval is approved by voice after a description of it",
+             approve_waiting, 2, 1, fresh=True),
+    Scenario("deny-waiting", "a thread's command approval is denied by voice", deny_waiting, 2, 1, fresh=True),
     Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
     Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
     Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),
@@ -546,6 +642,10 @@ SCENARIOS = (
 DISPATCH_YES = ("a short yes to the launch confirmation is not always taken; a "
                 "no_thread line beside the confirmation clears the question; docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
+    ("approve-waiting", "a description of the request passed the gate"):
+        "the approval gate refuses a faithful description of this scenario's command, `printf` of a fixed line into a "
+        "hidden file (its description scores 0.53 against the bar of 0.10 and hand-written faithful ones 0.22 to 0.44), "
+        "so the approval is sent to the app; docs/voice/live-reply-check.md",
     ("news-permission", "the yes started a thread"): DISPATCH_YES,
     ("news-done", "the yes started a thread"): DISPATCH_YES,
     ("short-yes-tell", "the yes was taken"):
@@ -593,6 +693,7 @@ def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool
         seeded = world.seed(plan.seeds)
         world.configure(plan.launch)
         before = set(world.titles())
+        plan.notes["start"] = world.snapshot(seeded, before)
         text = work / "lines.txt"
         text.write_text("\n".join(plan.lines.values()) + "\n", encoding="utf-8")
         wavs = rig.render(text, work / "clips", lfm_port)
