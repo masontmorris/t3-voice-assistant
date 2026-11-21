@@ -70,6 +70,9 @@ the offered threads. `approve`: a thread waits on a command approval, the caller
 the confirmation; `summary` counts the confirmations that named the thread, the answers the scripted T3 received and
 whether each said what was asked.
 
+`Rig` and `CallClient` are also what the whole-call scenarios run on (voice/live/scenarios.py): a caller that picks its
+next line from what the server did, against the real T3 seam (`serve --real-seam`).
+
 Needs the GPU (run it inside the lease), VOICE_ENV_FILE for the decider key, and writes only under --out. The turns
 are synthetic speech; the T3 text model and the general agent are off, so no OpenRouter call is made. With
 `--summaries` the local LFM3-1.7B writes thread summaries, as the page chose on the 2026-11-19 calls; without it no
@@ -77,14 +80,18 @@ status line carries one.
 """
 
 import argparse
+import asyncio
 import json
 import os
 import subprocess
 import sys
 import threading
 import time
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any, Callable
 
+from voice.live import client as client_module
 from voice.live import server
 from voice.live.t3_tasks import LOCAL_SUMMARISER
 from voice.t3 import fakes as F
@@ -517,15 +524,21 @@ class ScriptedSeam(F.FakeSeam):
 
 
 def serve(args, rest):
-    """The live server with its T3 seam replaced and no T3 text model, or with `--summaries` the local one."""
-    seam = ScriptedSeam(args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS,
-                        scenario_threads(args.scenario) if args.scenario else which_threads() if args.which
-                        else noise_threads() if args.noise
-                        else follow_threads() if args.follow else more_threads() if args.more else None)
+    """The live server with its T3 seam replaced and no T3 text model, or with `--summaries` the local one. With
+    `--real-seam` the seam is the real one, to the T3 the environment's token and origin name."""
+    seam = None if args.real_seam else ScriptedSeam(
+        args.out / "seam-calls.json", MIXED_REQUESTS if args.mixed else REQUESTS,
+        scenario_threads(args.scenario) if args.scenario else which_threads() if args.which
+        else noise_threads() if args.noise
+        else follow_threads() if args.follow else more_threads() if args.more else None)
     opened = []
+    real_open = server.T3Tasks.open.__func__
 
     def open_t3(cls, origin, token_file, journal_path, model=None, decider=None, **options):
-        opened.append(cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, **options))
+        if seam is None:
+            opened.append(real_open(cls, origin, token_file, journal_path, model, decider, **options))
+        else:
+            opened.append(cls(L.Follow(T3Journal(journal_path), F.Connector(seam)), None, decider, **options))
         return opened[-1]
 
     choices = server.summariser_choices
@@ -549,38 +562,73 @@ def serve(args, rest):
     server.main()
 
 
+class Rig:
+    """The live server as a child process, up for as many calls as a drive makes, and gone when the drive ends. A
+    file `STOP` in `out` ends it, as it does for every serve."""
+
+    def __init__(self, out, port, max_minutes, flags=(), rest=(), env=None):
+        out.mkdir(parents=True, exist_ok=True)
+        self.out, self.port = out, port
+        self.env = dict(os.environ, VOICE_T3_JOURNAL=str(out / "t3-journal.json"), VOICE_AGENT="off",
+                        PYTHONIOENCODING="utf-8", **(env or {}))
+        self.stop = out / "STOP"
+        self.command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out), *flags, "--",
+                        "--host", "127.0.0.1", "--port", str(port), "--t3", "on", "--snapshot", "note",
+                        "--max-minutes", str(max_minutes), "--out", str(out / "server"), "--stop-file", str(self.stop),
+                        "--decider-cache", str(out / "decider-cache"), *rest]
+        self.ready, self.lines, self.child = threading.Event(), [], None
+
+    def __enter__(self):
+        self.child = subprocess.Popen(self.command, env=self.env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                      text=True, encoding="utf-8")
+
+        def read():
+            with (self.out / "server.out").open("w", encoding="utf-8", buffering=1) as log:
+                for line in self.child.stdout:
+                    log.write(line)
+                    self.lines.append(line)
+                    if line.startswith("live server on "):
+                        self.ready.set()
+            self.ready.set()
+
+        threading.Thread(target=read, daemon=True).start()
+        if not self.ready.wait(180) or not any(line.startswith("live server on ") for line in self.lines):
+            self.__exit__()
+            raise SystemExit("the live server did not come up, see server.out")
+        return self
+
+    def __exit__(self, *exc):
+        if self.child is None or self.child.poll() is not None:
+            return
+        try:
+            self.stop.touch()
+            try:
+                self.child.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                self.child.terminate()
+                self.child.wait(timeout=15)
+        finally:
+            if self.child.poll() is None:
+                self.child.kill()
+                self.child.wait(timeout=15)
+
+    def render(self, text_file, clips, lfm_port):
+        """Renders the lines of `text_file` to `clips` with the server's own TTS, in order."""
+        subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text_file), "--out", str(clips),
+                        "--server", f"http://127.0.0.1:{lfm_port}"], env=self.env, check=True,
+                       stdout=text_file.with_suffix(".out").open("w"), stderr=subprocess.STDOUT)
+        return sorted(clips.glob("turn_*.wav"))
+
+
 def run_drive(args, rest=()):
     out = args.out
-    out.mkdir(parents=True, exist_ok=True)
-    env = dict(os.environ, VOICE_T3_JOURNAL=str(out / "t3-journal.json"), VOICE_AGENT="off", PYTHONIOENCODING="utf-8")
-    stop = out / "STOP"
-    command = [sys.executable, "-u", "-m", "voice.live.rehearse", "serve", "--out", str(out),
-               *(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []),
-               *(["--which"] if args.which else []), *(["--noise"] if args.noise else []),
-               *(["--follow"] if args.follow else []), *(["--more"] if args.more else []),
-               *(["--scenario", args.scenario] if args.scenario else []),
-               *(["--summaries"] if args.summaries else []), "--",
-               "--host", "127.0.0.1", "--port", str(args.port), "--t3", "on", "--snapshot", "note",
-               "--max-minutes", str(args.max_minutes), "--out", str(out / "server"), "--stop-file", str(stop),
-               "--decider-cache", str(out / "decider-cache"), *rest]
-    child = subprocess.Popen(command, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-                             encoding="utf-8")
-    ready, lines = threading.Event(), []
-
-    def read():
-        with (out / "server.out").open("w", encoding="utf-8", buffering=1) as log:
-            for line in child.stdout:
-                log.write(line)
-                lines.append(line)
-                if line.startswith("live server on "):
-                    ready.set()
-        ready.set()
-
-    threading.Thread(target=read, daemon=True).start()
+    flags = [*(["--cpu"] if args.cpu else []), *(["--mixed"] if args.mixed else []),
+             *(["--which"] if args.which else []), *(["--noise"] if args.noise else []),
+             *(["--follow"] if args.follow else []), *(["--more"] if args.more else []),
+             *(["--scenario", args.scenario] if args.scenario else []),
+             *(["--summaries"] if args.summaries else [])]
     windows = []
-    try:
-        if not ready.wait(180) or not any(line.startswith("live server on ") for line in lines):
-            raise SystemExit("the live server did not come up, see server.out")
+    with Rig(out, args.port, args.max_minutes, flags, rest) as rig:
         client = VOICE / "venv-live-client/Scripts/python.exe"
         if not client.is_file():
             client = Path(sys.executable)
@@ -594,27 +642,131 @@ def run_drive(args, rest=()):
                 # Rendering gives the server time to close the call before; without it, wait as long.
                 time.sleep(CALL_GAP_S)
             else:
-                subprocess.run([sys.executable, "-m", "voice.live.script", "--turns", str(text), "--out", str(clips),
-                                "--server", f"http://127.0.0.1:{args.lfm_port}"], env=env, check=True,
-                               stdout=(out / f"clips{call + 1}.out").open("w"), stderr=subprocess.STDOUT)
+                rig.render(text, clips, args.lfm_port)
             wavs = sorted(clips.glob("turn_*.wav"))
             if args.noise:
                 wavs = compose_noise_call(call, wavs, out / f"composed{call + 1}")
             started = time.time()
             subprocess.run([str(client), "-m", "voice.live.client", "--server", f"ws://127.0.0.1:{args.port}",
                             "--secret-file", str(VOICE / "live/secret"), "--log-dir", str(out / f"client{call + 1}"),
-                            "--output", "null", "--wav", *map(str, wavs)], env=env, check=True, timeout=240,
+                            "--output", "null", "--wav", *map(str, wavs)], env=rig.env, check=True, timeout=240,
                            stdout=(out / f"client{call + 1}.out").open("w"), stderr=subprocess.STDOUT)
             windows.append({"call": call + 1, "start": started, "end": time.time()})
             (out / "windows.json").write_text(json.dumps(windows), encoding="utf-8")
             print(f"call {call + 1} done in {time.time() - started:.0f} s", flush=True)
-    finally:
-        stop.touch()
+
+
+@dataclass(frozen=True)
+class Say:
+    """The caller says `line` (a key of the scenario's lines). With `over`, a pair of a line and a delay in ms, the caller
+    then says that line over the reply that begins, that long after it starts."""
+
+    line: str
+    over: tuple[str, int] | None = None
+
+
+@dataclass(frozen=True)
+class WaitNews:
+    """The caller is quiet until the assistant says news by itself, or `timeout_s` passes."""
+
+    timeout_s: float = 90.0
+
+
+@dataclass(frozen=True)
+class Pause:
+    seconds: float
+
+
+@dataclass(frozen=True)
+class Do:
+    """Something happens in the world, off the call's loop. Its result comes back as `Heard.value`."""
+
+    fn: Callable[[], Any]
+
+
+@dataclass(frozen=True)
+class Heard:
+    """What the server did since the caller's last step: every turn's record in order (the caller's turns and the news
+    the assistant said by itself), and the result of a `Do` or whether a `WaitNews` ran out."""
+
+    turns: tuple[dict, ...]
+    value: Any = None
+    timed_out: bool = False
+
+
+class CallClient(client_module.Client):
+    """A synthetic caller that holds a whole call. `script` is a generator that yields what the caller does next and
+    is sent what the server did; `clips` maps each line it may say to its rendered clip; `load` returns a turn's
+    record by number, written before the server tells the client the turn is done."""
+
+    def __init__(self, args, script, clips, load):
+        self.script, self.clips, self.load = script, clips, load
+        first = next(script)
+        args.wav = [clips[first.line]]
+        super().__init__(args)
+        self.queued, self.heard, self.expect, self.over, self.news = [], [], True, None, None
+        self.over_armed = False
+        self.over = (clips[first.over[0]], first.over[1]) if first.over else None
+
+    def on_control(self, message):
+        kind = message.get("type")
+        if kind == "reply_start" and self.over is not None and not self.over_armed:
+            self.over_armed = True
+            asyncio.get_running_loop().call_later(self.over[1] / 1000, self.say_over)
+        if kind == "turn_done":
+            self.heard.append(self.load(message["turn"]))
+            if message.get("idle") and message.get("replies") and self.news is not None:
+                self.news.cancel()
+                self.news = None
+                asyncio.get_running_loop().create_task(self.after_playback(lambda: self.resume(None, False)))
+        super().on_control(message)
+
+    def say_over(self):
+        clip, self.over, self.over_armed = self.over[0], None, False
+        self.send(clip)
+
+    def send(self, clip):
+        self.queued.append(clip)
+        self.next_clip.set()
+
+    def advance(self):
+        # While a line waits to be said over the reply, the turn that began the reply is not the one that ends the step.
+        if self.expect and self.over is None:
+            self.expect = False
+            asyncio.get_running_loop().create_task(self.after_playback(lambda: self.resume(None, False)))
+
+    def resume(self, value, timed_out):
+        turns, self.heard = tuple(t for t in self.heard if t is not None), []
+        loop = asyncio.get_running_loop()
         try:
-            child.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            child.terminate()
-            child.wait(timeout=15)
+            action = self.script.send(Heard(turns, value, timed_out))
+        except StopIteration:
+            self.finished.set()
+            return
+        if isinstance(action, Say):
+            self.expect = True
+            self.over = (self.clips[action.over[0]], action.over[1]) if action.over else None
+            self.send(self.clips[action.line])
+        elif isinstance(action, WaitNews):
+            self.news = loop.call_later(action.timeout_s, lambda: (setattr(self, "news", None),
+                                                                    self.resume(None, True)))
+        elif isinstance(action, Pause):
+            loop.call_later(action.seconds, self.resume, None, False)
+        elif isinstance(action, Do):
+            loop.run_in_executor(None, action.fn).add_done_callback(lambda done: self.resume(done.result(), False))
+        else:
+            raise TypeError(f"a caller script yields Say, WaitNews, Pause or Do, not {action!r}")
+
+
+def hold_call(rig, script, clips, load, log_dir, timeout_s=300):
+    """Runs `script` as one call to the rig's server, in this process, with the reply audio going nowhere."""
+    args = client_module.build_parser().parse_args(
+        ["--server", f"ws://127.0.0.1:{rig.port}", "--secret-file", str(VOICE / "live/secret"), "--log-dir",
+         str(log_dir), "--output", "null", "--no-record"])
+    caller = CallClient(args, script, clips, load)
+    asyncio.run(asyncio.wait_for(caller.run(), timeout_s))
+    if not caller.finished.is_set():
+        raise RuntimeError("the live connection closed before the caller finished its script")
 
 
 ASKING = {"confirm_launch", "ask_which", "no_project"}
@@ -883,6 +1035,8 @@ def main():
     parser.add_argument("--scenario", choices=sorted(SCENARIOS), help="three faults: claims in free replies, withdrawn questions, approvals")
     parser.add_argument("--summaries", action="store_true",
                         help="the local LFM3-1.7B writes thread summaries, as on the 2026-11-19 calls")
+    parser.add_argument("--real-seam", action="store_true",
+                        help="serve only: the real T3 seam in place of the scripted one (see voice/live/scenarios.py)")
     parser.add_argument("--clips-from", type=Path,
                         help="send the clips an earlier drive rendered into this directory in place of rendering "
                              "new ones, so two runs hear the same audio")
