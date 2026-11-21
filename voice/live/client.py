@@ -282,11 +282,12 @@ def without_carry(clip, previous):
     return clip
 
 
-async def wav_frames(paths, queue, next_clip, lead_s=0.5):
+async def wav_frames(paths, queue, next_clip, lead_s=0.5, clips=None):
     """Clips in place of the microphone, at real-time pace with silence between. Each clip after the first waits for
-    `next_clip`. A clip that begins with the previous one is sent from where they differ, see `without_carry`."""
+    `next_clip`. A clip that begins with the previous one is sent from where they differ, see `without_carry`. A
+    caller that picks its next clip while the call runs passes `clips` and appends to it."""
     step, start, index = FRAME_SAMPLES * 2, time.perf_counter(), 0
-    first, clips = read_wav_16k(paths[0]), list(paths[1:])
+    first, clips = read_wav_16k(paths[0]), list(paths[1:]) if clips is None else clips
     pending, previous = bytearray(b"\x00" * int(lead_s * RATE) * 2 + first), first
     while True:
         if not pending and clips and next_clip.is_set():
@@ -321,6 +322,7 @@ class Client:
         self.plan = deque(str(step) for step in (args.wav or [])[1:])
         self.clips_left = sum(not until_row(step) for step in self.plan)
         self.waiting_for, self.rows_seen = None, set()
+        self.queued = None
         self.next_clip = asyncio.Event()
         self.turn_end_rx, self.trailing_s, self.reply_first = None, 0.0, None
         self.reply_audio, self.reply_turn, self.reply_t0 = bytearray(), None, None
@@ -530,7 +532,8 @@ class Client:
             self.player.open(self.args.output_rate)
             ws = await self.connect(secret)
             if self.args.wav:
-                source = wav_frames([p for p in self.args.wav if not until_row(str(p))], frames, self.next_clip)
+                source = wav_frames([p for p in self.args.wav if not until_row(str(p))], frames, self.next_clip,
+                                    clips=self.queued)
             else:
                 raw = self.echo is not None or getattr(self.args, "raw_mic", False)
                 source = mic_frames(device(self.args.input), frames, raw=raw)
@@ -566,7 +569,7 @@ class Client:
                 print(f"client log was not closed cleanly: {exc}", file=sys.stderr, flush=True)
 
 
-def main():
+def build_parser():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     config_path = HERE / "config.json"
     config = json.loads(config_path.read_text(encoding="utf-8")) if config_path.is_file() else {}
@@ -603,6 +606,11 @@ def main():
     parser.add_argument("--log-dir", type=Path, default=LOG_DIR)
     parser.add_argument("--no-record", dest="record", action="store_false",
                         help="do not record this session's microphone, playback and conversation")
+    return parser
+
+
+def main():
+    parser = build_parser()
     args = parser.parse_args()
     if args.list_devices:
         import sounddevice as sd
