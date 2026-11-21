@@ -743,25 +743,19 @@ class T3Tasks:
             if asked.op in WAITS and len({t.title.casefold() for t in listed}) == 1:
                 # Only one thread waits on them, so there is nothing for the decider to choose between.
                 return self._ask_back(replace(base, candidates=(listed[0].thread_id,)), evidence, now)
-            if asked.op == ANSWER:
-                # The words answer a question, they do not name a thread: "the second one" picked the second thread of
-                # the listing and sent its answer to the wrong one. Several threads wait, so it is the one this call
-                # last spoke about, or it asks which.
-                here = next((t.thread_id for t in listed if t.thread_id == self.spoken_id), None)
-                if here is not None:
-                    return self._ask_back(replace(base, candidates=(here,)), evidence, now)
-                candidates = tuple(t.thread_id for t in listed[:3])
-                return self._which(replace(base, kind="thread", candidates=candidates), evidence, now)
-            last = base.titles.get(self._recent(base.titles)) if recent else None
+            # Several threads wait. The words answer a question, so the decider is told that, and chooses a thread only
+            # when they name one; the thread last spoken about is not offered as "it", and with none named it asks which.
+            answering = asked.op == ANSWER
+            last = base.titles.get(self._recent(base.titles)) if recent and not answering else None
             call = self.call
 
-        picked = self._picked(reference, options, last)
+        picked = self._picked(reference, options, last, answering)
 
         with self.lock:
             if self.call != call:
                 # The call ended while the decider was picking: nothing is asked or read for a call that has gone.
                 return L.Update(key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
-            if picked.choice == NONE:
+            if picked.choice == NONE and not answering:
                 return none
             thread = picked.thread
             if thread is None:
@@ -797,10 +791,14 @@ class T3Tasks:
                 options[title] = Listed(t.thread_id, t.title, names.get(t.project_id, ""), t.activity.value)
         return tuple(options.values()), frozenset(shared)
 
-    def _picked(self, reference: str, options: tuple[Listed, ...], last: str | None) -> Picked:
-        """The decider's pick, off the lock since it is a network call. With no decider nothing is picked."""
+    def _picked(self, reference: str, options: tuple[Listed, ...], last: str | None,
+                answering: bool = False) -> Picked:
+        """The decider's pick, off the lock since it is a network call. With no decider nothing is picked. `answering`
+        says the words answer a question a thread asked: a thread is picked only when they name it."""
         picks = getattr(self.decider, "picks", None)
-        return picks(reference, options, last) if picks is not None else Picked(None)
+        if picks is None:
+            return Picked(None)
+        return picks(reference, options, last, answering=True) if answering else picks(reference, options, last)
 
     def _list(self, key: str):
         try:

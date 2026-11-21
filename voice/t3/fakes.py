@@ -212,6 +212,7 @@ class Reader(Agree):
         self.readings, self.asked = readings, []
         self.picking, self.picked = picking or {}, []
         self.choosing, self.chosen = choosing or {}, []
+        self.answering = []  # the words each pick was made for as an answer to a thread's question
 
     def chooses(self, question, options, reply, own_words=False):
         """The test's choice for `reply`: the 0-based index of an option, OWN_WORDS, UNCLEAR or NO_ANSWER, or a Chosen
@@ -224,11 +225,13 @@ class Reader(Agree):
         label = f"option_{scripted + 1:02d}" if isinstance(scripted, int) else scripted
         return Chosen(label, {label: 0.9})
 
-    def picks(self, request, threads, recent=None):
+    def picks(self, request, threads, recent=None, answering=False):
         """The test's pick for `request`: a thread id, NONE or UNCLEAR, or each thread's share. A request the test
         did not script is picked by matching its words against the titles, and leans (0.8) to a lone match, so it is
         confirmed. What d1.2 really picks is in voice/t3/test_picks.py."""
         self.picked.append((request, tuple(threads), recent))
+        if answering:
+            self.answering.append(request)
         scripted = self.picking.get(request)
         if isinstance(scripted, dict):
             return Picked(max(scripted, key=scripted.get), dict(scripted))

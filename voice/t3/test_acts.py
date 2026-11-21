@@ -104,7 +104,11 @@ CASES = {
                          "Add clamp helper wants a database, Postgres, SQLite, or Keep the current store.":
                              "not a question",
                          "Which database should it use, Postgres, SQLite, or Keep the current store?":
-                             "thread missing"}),
+                             "thread missing",
+                         "Add clamp helper asks which database to use: SQLite, Postgres, or Keep the current store?":
+                             "ask_question options out of order",
+                         "Add clamp helper asks which database to use: Keep the current store, Postgres, or SQLite?":
+                             "ask_question options out of order"}),
     Kind.CONFIRM_ANSWER: ({"thread": "Add clamp helper", "questions": ["Which database should it use?", "Name?"],
                            "answers": ["Postgres", "users"]},
                           "Should I answer Add clamp helper with Postgres and users?",

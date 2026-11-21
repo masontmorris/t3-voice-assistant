@@ -86,7 +86,12 @@ export const make = (sources: AnswerSources) => {
     shell: Pick<OrchestrationV2ThreadShell, "runtimeMode" | "interactionMode">,
     input: RequestInput<"answer_question">,
   ) {
-    const commandId = yield* voiceCommandId(sources.digest, "answer", input.requestId);
+    const commandId = yield* voiceCommandId(
+      sources.digest,
+      "answer",
+      input.requestId,
+      input.pendingRequestId,
+    );
     const requestId = RuntimeRequestId.make(input.pendingRequestId);
 
     /** The request as T3 holds it with the given status, and the question it asked. */

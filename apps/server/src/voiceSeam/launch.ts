@@ -42,17 +42,26 @@ const TITLE_MAX_CHARS = 80;
 
 /**
  * The command a write derives from its request id alone, so a retry names the same command and
- * thread. It is the MCP launch id's shape, `mcp:launch:<sha256 hex>`, with a voice prefix.
+ * thread. It is the MCP launch id's shape, `mcp:launch:<sha256 hex>`, with a voice prefix. A write that answers
+ * one pending request passes it as `scope`: a receipt does not hold the request, so the command is minted for it,
+ * and a retry that names another request has no receipt to replay.
  */
 export const voiceCommandId = (
   digest: Digest.Digest["Service"],
   operation: "launch" | "send" | "interrupt" | "respond" | "answer",
   requestId: string,
+  scope?: string,
 ) =>
   digest
     .digestHex(
       Digest.sha256,
-      new TextEncoder().encode(JSON.stringify(["voice", operation, requestId])),
+      new TextEncoder().encode(
+        JSON.stringify(
+          scope === undefined
+            ? ["voice", operation, requestId]
+            : ["voice", operation, requestId, scope],
+        ),
+      ),
     )
     .pipe(Effect.map((hex) => CommandId.make(`voice:${operation}:${hex}`)));
 

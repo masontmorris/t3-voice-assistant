@@ -1925,24 +1925,33 @@ class Answer(unittest.TestCase):
         self.assertEqual((update.acts[0].kind, update.acts[0].slots["thread"]),
                          (S.CONFIRM_ANSWER, "Fix the flaky ASR test"))
 
-    def test_the_words_of_an_answer_never_pick_the_thread_it_goes_to(self):
-        """"The second one" picked the second thread of the listing, and a yes sent the answer to the wrong thread."""
+    def waiting_two(self, picking, choosing):
         seam = self.seam(None, ("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
-        decider = F.Reader(READINGS, {"The second one.": {"t6": 0.95}}, {"The second one.": 1})
-        t3 = tasks_over(self, seam, decider=decider)
-        update = t3.about("k1", ANSWER, "The second one.", 0)
-        self.assertEqual((update.acts[0].kind, decider.picked), (S.ASK_WHICH, []), "asked which, and no pick was made")
+        asking_t5 = self.state(self.ASKS, thread="t5", title="Add a clamp helper")
+        asking_t6 = self.state(self.ASKS, thread="t6", title="Fix the flaky ASR test")
+        seam.read = asking_t6
+        seam.answer("read", asking_t5, asking_t6)
+        decider = F.Reader(READINGS, picking, choosing)
+        return seam, decider, tasks_over(self, seam, decider=decider)
+
+    def test_a_thread_the_caller_names_wins_over_the_one_the_call_last_spoke_about(self):
+        words = "Answer the ASR one with SQLite."
+        seam, decider, t3 = self.waiting_two({words: {"t6": 0.95}}, {words: 1})
+        t3.spoken_id = "t5"
+        update = t3.about("k1", ANSWER, words, 0)
+        self.assertEqual((update.acts[0].kind, update.acts[0].slots["thread"], update.acts[0].slots["answers"]),
+                         (S.CONFIRM_ANSWER, "Fix the flaky ASR test", ["SQLite"]))
+        self.assertEqual(decider.answering, [words], "the decider chose the thread, told the words are an answer")
         self.assertEqual(self.sent(seam), [])
 
-    def test_with_several_threads_waiting_the_answer_goes_to_the_one_the_call_last_spoke_about(self):
-        seam = self.seam(None, ("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
-        decider = F.Reader(READINGS, {"The second one.": {"t6": 0.95}}, {"The second one.": 1})
-        t3 = tasks_over(self, seam, decider=decider)
+    def test_with_several_questions_waiting_and_no_thread_named_it_asks_which_even_after_one_was_spoken_about(self):
+        """"The second one" picked the second thread of the listing once, and a yes sent the answer to the wrong one."""
+        words = "The second one."
+        seam, decider, t3 = self.waiting_two({words: {"unclear": 0.9}}, {words: 1})
         t3.spoken_id = "t5"
-        update = t3.about("k1", ANSWER, "The second one.", 0)
-        self.assertEqual((update.acts[0].kind, update.acts[0].slots["thread"], update.acts[0].slots["answers"]),
-                         (S.CONFIRM_ANSWER, "Add a clamp helper", ["SQLite"]))
-        self.assertEqual(decider.picked, [])
+        update = t3.about("k1", ANSWER, words, 0)
+        self.assertEqual(update.acts[0].kind, S.ASK_WHICH)
+        self.assertEqual(self.sent(seam), [])
 
     def test_two_threads_waiting_on_questions_ask_which_and_the_words_are_kept_for_the_one_chosen(self):
         seam = self.seam(None, ("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))

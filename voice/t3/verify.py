@@ -142,7 +142,6 @@ OPEN_QUESTION = "what they want to answer to the question {thread} is asking the
 
 # Per value of a list slot, the question that it is said as what it is: an option offered, an answer asked about or given.
 OFFERED: dict[Kind, tuple[tuple[str, str], ...]] = {
-    Kind.ASK_QUESTION: (("options", 'Does the line offer "{value}" as one of the choices?'),),
     Kind.CONFIRM_ANSWER: (("answers", 'Does the line say that the answer "{value}" would be given?'),),
     Kind.ANSWERED: (("answers", 'Does the line say that the answer "{value}" was given?'),),
 }
@@ -202,6 +201,14 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     # The slot check finds an option anywhere in the line, so "Strong" is found in "how strong should it be" and a line
     # that leaves the option out passes it (rehearsal). Each option and answer is asked about on its own.
     for n, a in enumerate(acts, 1):
+        options = a.slots.get("options") if a.kind is Kind.ASK_QUESTION else None
+        for i, value in enumerate(options or (), 1):
+            # A reply by place is read against this order, so the line must tell the options in it.
+            out.append(Ask(f"a{n}_options_{i}",
+                           f'Does the line offer "{value}" as choice number {i} of {len(options)}, the choices in '
+                           f'order being {", ".join(options)}?', True,
+                           f"the line left out {value!r} or told the options in another order. Say every option, each as "
+                           f"given, in this order: {', '.join(options)}."))
         for key, template in OFFERED.get(a.kind, ()):
             for i, value in enumerate(a.slots.get(key) or (), 1):
                 out.append(Ask(f"a{n}_{key}_{i}", template.format(value=value), True,
@@ -414,7 +421,8 @@ class Decider:
             return Chosen(None, error=f"decider status {record.get('status')}")
         return judge_choice((record.get("response") or {}).get("answers"), len(options), own_words)
 
-    def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None) -> Picked:
+    def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None,
+              answering: bool = False) -> Picked:
         """Which of `threads` the words `request` mean, with how sure it is. `recent` is the title the call was just
         about. A timeout or any error picks nothing, and nothing is always asked about."""
         if not threads:
@@ -422,7 +430,8 @@ class Decider:
         try:
             with self.lock:
                 self.calls += 1
-                record = self.client.call("decisions", pick_request(request, threads, recent), label="t3_pick")
+                record = self.client.call("decisions", pick_request(request, threads, recent, answering),
+                                          label="t3_pick")
         except Exception as exc:
             return Picked(None, error=f"{type(exc).__name__}: {exc}")
         if record.get("status") != 200:
@@ -481,7 +490,15 @@ class Picked:
         return tuple(thread for _, thread in sorted(fits, key=lambda fit: -fit[0]))
 
 
-def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None) -> dict:
+ANSWERING_CONTEXT = ("A person on a voice call is answering a question one of their coding threads asked. `request` is a "
+                     "transcript of what they said, and may mishear a word.")
+ANSWERING_PICK = ("Which of the person's threads does `request` name or describe, by its title, project or subject? "
+                  "Most of `request` is the answer, not a thread. Words that only pick an option, or a place such as "
+                  "\"the second one\", name no thread: choose unclear. The options list the threads, newest first.")
+
+
+def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None,
+                 answering: bool = False) -> dict:
     """One decisions body asking which listed thread the person's words mean. The threads are the options, so the
     answer's shares say how sure the pick is and which others the words fit."""
     criteria = {f"thread_{i:02d}": f"{t.title!r} in the project {t.project!r}, {t.activity.replace('_', ' ')}."
@@ -494,6 +511,9 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
                         "is a transcript of what they said, and may mishear a word."}
     instructions = ("Which of the person's threads does `request` mean? The options list them, newest first. "
                     "`last_discussed` is the thread the conversation was just about, when there is one.")
+    if answering:
+        state = {"request": request, "last_discussed": None, "context": ANSWERING_CONTEXT}
+        instructions = ANSWERING_PICK
     return {"model": "d1.2", "state": state,
             "questions": {"pick": {"type": "choice", "instructions": instructions, "criteria": criteria}}}
 

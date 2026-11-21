@@ -112,8 +112,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to answer. "
                           "Name the thread when it is given.",
     Kind.ASK_QUESTION: "The thread is asking them a question and waiting for the answer. Ask it, naming the thread, and "
-                       "say every value in `options` exactly as given, so they can pick one. Say the question in your "
-                       "own words. When `own_words` is true, say they can also answer in their own words. When `count` "
+                       "say every value in `options` exactly as given and in the order given, so they can pick one by name or "
+                       "place. Say the question in your own words. When `own_words` is true, say they can also answer in their own words. When `count` "
                        "is set, this is question `number` of `count`: say which. `restated` unheard means you did not "
                        "catch which option they meant, and changed means the thread now asks something different: say "
                        "so, then ask. Nothing is answered yet.",

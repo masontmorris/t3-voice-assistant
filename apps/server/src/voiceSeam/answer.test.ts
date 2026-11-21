@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import {
+  RuntimeRequestId,
   type OrchestrationV2RuntimeRequest,
   type OrchestrationV2StoredEvent,
   type OrchestrationV2TurnItem,
@@ -90,6 +91,10 @@ const rig = (
   item: OrchestrationV2TurnItem,
   options: {
     readonly receipt?: { readonly threadId: ThreadId; readonly status: "accepted" | "rejected" };
+    /** The command the receipt was recorded for; another command id finds none. */
+    readonly receiptId?: string;
+    /** The turn items T3 holds, one per request; the pending question's by default. */
+    readonly items?: ReadonlyArray<OrchestrationV2TurnItem>;
     readonly resolved?: ReadonlyArray<OrchestrationV2RuntimeRequest>;
     readonly records?: (sent: Stored) => Stored;
     readonly fails?: { readonly _tag: string };
@@ -113,7 +118,7 @@ const rig = (
             runtimeRequests: filter.runtimeRequestStatuses?.includes("resolved")
               ? answered
               : pending,
-            turnItems: [item],
+            turnItems: options.items ?? [item],
           }),
         getThreadEventSequence: () => Effect.succeed(77),
         dispatch: (command: Record<string, unknown>) => {
@@ -134,9 +139,9 @@ const rig = (
         },
       },
       receipts: {
-        getByCommandId: () =>
+        getByCommandId: (id: string) =>
           Effect.succeed(
-            receipt === undefined
+            receipt === undefined || (options.receiptId !== undefined && id !== options.receiptId)
               ? Option.none()
               : Option.some({ ...receipt, error: receipt.status === "rejected" ? "no" : null }),
           ),
@@ -198,7 +203,7 @@ it.effect("answers a question with the option's value, or its label when it has 
     const digest = yield* Digest.Digest;
     assert.strictEqual(
       dispatched[0]!.commandId,
-      yield* voiceCommandId(digest, "answer", REQUEST_ID),
+      yield* voiceCommandId(digest, "answer", REQUEST_ID, QUESTION.id),
       "the voice's request id fixes the command",
     );
   }).pipe(Effect.provide(NodeCrypto.layer)),
@@ -485,6 +490,40 @@ it.effect(
         { concurrency: 2 },
       );
       assert.deepEqual([...mixed].sort(), ["answered", "invalid_request"]);
+    }).pipe(Effect.provide(NodeCrypto.layer)),
+);
+
+it.effect(
+  "a retry that names another pending request is refused, though that request holds the same answers",
+  () =>
+    Effect.gen(function* () {
+      const digest = yield* Digest.Digest;
+      const second = {
+        ...QUESTION,
+        id: RuntimeRequestId.make("runtime-request:second"),
+      } as OrchestrationV2RuntimeRequest;
+      const { dispatched, sources } = yield* rig([], itemOf([DATABASE]), {
+        receipt: { threadId: THREAD, status: "accepted" },
+        receiptId: yield* voiceCommandId(digest, "answer", REQUEST_ID, QUESTION.id),
+        resolved: [
+          resolvedWith(QUESTION, { database: "pg" }),
+          resolvedWith(second, { database: "pg" }),
+        ],
+        items: [
+          itemOf([DATABASE]),
+          { ...itemOf([DATABASE]), requestId: second.id } as OrchestrationV2TurnItem,
+        ],
+      });
+      const answers = [option_("database", "Postgres")];
+      assert.strictEqual(
+        yield* outcome(make(sources).answer(CONFIG, SHELL, input(answers, second.id))),
+        "invalid_request",
+      );
+      assert.lengthOf(dispatched, 0);
+      assert.isTrue(
+        (yield* make(sources).answer(CONFIG, SHELL, input(answers, QUESTION.id))).replayed,
+        "the request the command was minted for still replays",
+      );
     }).pipe(Effect.provide(NodeCrypto.layer)),
 );
 

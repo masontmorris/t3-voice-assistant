@@ -245,6 +245,19 @@ def _named_values(value) -> list[str]:
     return [str(value)]
 
 
+def in_order(text: str, values: Iterable[str]) -> bool:
+    """`values` are all said in `text`, each after the one before, as whole words after `normalise`. Each is looked for
+    from the end of the last, so a value that is also a word of the question ("strong") is found where it is listed."""
+    words, at = normalise(text).split(), 0
+    for value in values:
+        want = normalise(value).split()
+        found = next((i for i in range(at, len(words) - len(want) + 1) if words[i:i + len(want)] == want), None)
+        if found is None:
+            return False
+        at = found + len(want)
+    return True
+
+
 def check(line: str, acts: Iterable[Act]) -> list[str]:
     """Why `line` may not be spoken for `acts`. Empty when it may."""
     acts = list(acts)
@@ -277,6 +290,11 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
                 for value in _named_values(a.slots[name]):
                     if not says(text, value):
                         problems.append(f"{a.kind.value} {name} missing: {value}")
+    for a in acts:
+        # "The second one" is read against the order the options were stored in, so they are told in that order.
+        options = a.slots.get("options") if a.kind is Kind.ASK_QUESTION else None
+        if options and all(says(text, value) for value in options) and not in_order(text, options):
+            problems.append(f"{a.kind.value} options out of order: {', '.join(options)}")
     return problems
 
 
