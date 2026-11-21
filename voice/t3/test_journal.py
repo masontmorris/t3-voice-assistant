@@ -12,7 +12,7 @@ from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.acts import Act
 from voice.t3.acts import Kind as S
-from voice.t3.journal import Kind, Status, T3Journal, ulid
+from voice.t3.journal import Kind, Status, T3Journal, launch_title, ulid
 
 
 class JournalCase(unittest.TestCase):
@@ -42,6 +42,13 @@ class JournalCase(unittest.TestCase):
 
 
 class RequestIds(JournalCase):
+    def test_a_launch_is_titled_as_the_seam_titles_it(self):
+        self.assertEqual(launch_title("Fix the flaky test"), "Fix the flaky test")
+        self.assertEqual(launch_title("Fix the flaky test" + chr(10) + "and the slow one"), "Fix the flaky test")
+        long = "Um, start a thread to sort the pantry list, a long hesitant request that runs well past the limit."
+        self.assertEqual(launch_title(long), long[:79].rstrip() + "…")
+        self.assertEqual(len(launch_title(long)), 80)
+
     def test_two_turns_never_share_a_request_id(self):
         same_ms = [ulid(now_ms=1_700_000_000_000) for _ in range(2000)]
         self.assertEqual(len(set(same_ms)), 2000)

@@ -364,6 +364,21 @@ class Gate(unittest.TestCase):
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(
             turns[:2], {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}})))
 
+    def test_permission_news_must_be_delivered_once_the_wait_happened(self):
+        plan = S.news_permission(S.Pool())
+        plan.notes.update(confirmed=True, timed_out=False)
+        world = {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}}
+        lost = "permission news was not lost to a refused line"
+        silent = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1, [Kind.LAUNCHED]), turn(2), turn(3), turn(4)]
+        self.assertIn(lost, failed(plan.check(call(silent, world))), "no news and no refusal is no news")
+        refused = [*silent[:2], dataclasses.replace(turn(2, [Kind.NEEDS_YOU], delivery="unsent"), idle=True), *silent[3:]]
+        self.assertIn(lost, failed(plan.check(call(refused, world))))
+        said = [*silent[:2], turn(2, [Kind.NEEDS_YOU], idle=True), *silent[3:]]
+        self.assertNotIn(lost, failed(plan.check(call(said, world))))
+        plan.notes.pop("timed_out")
+        self.assertNotIn(lost, [v.check for v in plan.check(call(silent, world)) if not v.ok and not v.precondition],
+                         "with no wait the check is a failed precondition, not a failed check")
+
     def test_k_of_n_and_an_error_that_no_run_passed(self):
         two = [result("x", True), result("x", False), result("x", True)]
         self.assertEqual(self.table(two, passes=2)[0][0][1], "PASS")

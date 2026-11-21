@@ -24,8 +24,8 @@ import urllib.error
 import urllib.request
 from concurrent.futures import Future, ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FutureTimeout
-from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable
+from dataclasses import dataclass, field, replace
+from typing import Any, Callable, Iterable, Mapping
 
 from voice.t3 import local_summary as LS
 from voice.t3 import types as T
@@ -33,7 +33,8 @@ from voice.t3.pick.model import allowed_model
 from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise, outcome_meaning,
                            recites)
 from voice.t3.realtime_writer import RealtimeWriter
-from voice.t3.verify import Decider, Verdict
+from voice.t3.journal import launch_title
+from voice.t3.verify import REQUEST_ACTS, Decider, Verdict
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
@@ -43,9 +44,14 @@ TURNS = 3
 NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command it wants to run), file_change "
               "(approve file edits), file_read, permission, tool_input, question (answer its question), link or "
               "secret or card (something only the app can take), or unanswerable (a request no one can answer any "
-              "more, so they can stop it in the app). Describe the need in a few words of your own, using the "
-              "`prompt` (or `pending`) only to say what it is about, such as the program a command runs. Never read "
-              "the prompt out, and never say a command line, a flag, a path or code.")
+              "more, so they can stop it in the app). Say what it waits for in a few words of your own. When "
+              "`request` is given, say what that request would do from it, in your own words, without naming a program, a "
+              "file or a path, and add nothing to it. "
+              "Without `request`, say only the kind of thing it waits for, such as approval to run a command, and "
+              "never what the command does or is for. Never say a command line, a flag, a path or code.")
+BEGUN = (" When `begun_in` is given, the thread has no name yet: it is the one you started for them in that project, "
+         "so say that in place of a thread name. The project is not the thread's name. When `begun_for` is given, more "
+         "than one thread was started in that project, so also say what this one was started for, from it.")
 # What each act means, for the model that words it. These are directions, never wording to repeat.
 MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread in this project. Nothing has started yet. Do not "
@@ -227,6 +233,13 @@ class LocalText:
         kept = unsupported is not None and unsupported < LS.GATE_THRESHOLD
         return {**record, "text": gist if kept else "", "gist": gist, "unsupported": unsupported}
 
+    def chat_gist(self, messages) -> str:
+        """The `gist` string of a request answered in the description's JSON form."""
+        record = self._chat({"messages": messages, "max_tokens": LS.MAX_TOKENS, **LS.SAMPLING,
+                             "response_format": {"type": "json_schema", "json_schema": {"schema": LS.REQUEST_SCHEMA}}},
+                            timeout_s=LS.CHAT_TIMEOUT_S)
+        return record["text"]
+
     def describe(self, need: T.PendingNeed) -> dict:
         """What approving `need` would let the thread do, in the approval prompt's form. It is not gated here: the
         gate is the caller's (`RequestGate`), so no model's description reaches a confirmation without it."""
@@ -292,6 +305,18 @@ class RequestGate:
         self._client = None
         self._lock = threading.Lock()
 
+    def doubts_account(self, instruction: str, account: str) -> float | None:
+        """P(the account says something the request does not support), or None when the gate gives no answer."""
+        from voice.local_decider.client import D1Client
+        with self._lock:
+            try:
+                if self._client is None:
+                    self._client = D1Client(self.url, timeout_s=LS.GATE_TIMEOUT_S)
+                return LS.unsupported(self._client.call("decisions", LS.account_gate(instruction, account),
+                                                         label="account_gate"))
+            except Exception:
+                return None
+
     def doubt(self, need: T.PendingNeed, description: str) -> float | None:
         from voice.local_decider.client import D1Client
         with self._lock:
@@ -312,6 +337,17 @@ def described(client, need: T.PendingNeed, gate: RequestGate | None) -> str:
         text = LS.read_description(client.complete(LS.request_messages(need)).get("text") or "") or ""
     doubt = gate.doubt(need, text) if gate is not None and text else None
     return text if doubt is not None and doubt < LS.REQUEST_THRESHOLD else ""
+
+
+def accounted(client, instruction: str, gate: RequestGate | None) -> str:
+    """`client`'s account of what a thread was started for, when the gate passes it against the request."""
+    messages = LS.account_messages(instruction)
+    if isinstance(client, LocalText):
+        text = LS.read_description(client.chat_gist(messages)) or ""
+    else:
+        text = LS.read_description(client.complete(messages).get("text") or "") or ""
+    doubt = gate.doubts_account(instruction, text) if gate is not None and text else None
+    return text if doubt is not None and doubt < LS.ACCOUNT_THRESHOLD else ""
 
 
 RENDERERS = ("particle-1", "local")
@@ -361,6 +397,14 @@ class Lane:
             return self.pool.submit(client.summarise, state, question)
         return self.pool.submit(client.complete, summary_messages(state, question))
 
+    def account(self, instruction: str, gate: RequestGate | None) -> Future:
+        """What a thread was started for, written by the model behind the lane and passed by `gate`."""
+        client = self.client
+        self._check(client)
+        with self.lock:
+            self.calls += 1
+        return self.pool.submit(accounted, client, instruction, gate)
+
     def describe(self, need: T.PendingNeed, gate: RequestGate | None) -> Future:
         """What approving `need` would let the thread do, written by the model behind the lane and passed by `gate`."""
         client = self.client
@@ -407,6 +451,85 @@ def _clean(text: str) -> str:
     return text
 
 
+@dataclass(frozen=True)
+class Launch:
+    """A thread this voice started on a person's request, in any call: what they said and the project it started in.
+    "You started" covers exactly these. A thread another client made is the person's, not the voice's to claim."""
+
+    thread_id: str
+    instruction: str
+    project: str
+
+
+@dataclass(frozen=True)
+class Reference:
+    """How to name one launched thread now. `unnamed`: T3 still titles it with the launch title, which is the person's
+    own words cut off and no name to say. `shared`: another launched thread in the project is as unnamed, so the
+    project alone does not tell them apart."""
+
+    title: str
+    instruction: str
+    project: str
+    unnamed: bool
+    shared: bool
+
+
+def reference(thread_id: str, launched: Iterable[Launch], titles: Mapping[str, str]) -> Reference | None:
+    """The reference for `thread_id` against the titles T3 holds now, or None when the voice did not start it or T3
+    does not list it. The thread is picked by its id; a title is only compared with the one the launch gave."""
+    launched = tuple(launched)
+    me = next((l for l in launched if l.thread_id == thread_id), None)
+    title = titles.get(thread_id)
+    if me is None or title is None:
+        return None
+    unnamed = title == launch_title(me.instruction)
+    shared = unnamed and any(l.thread_id != thread_id and l.project == me.project
+                             and titles.get(l.thread_id) == launch_title(l.instruction) for l in launched)
+    return Reference(title, me.instruction, me.project, unnamed, shared)
+
+
+def named(acts: Iterable[Act], ref: Reference | None, account: str | None) -> tuple[Act, ...]:
+    """`acts` about the thread `ref` names, with its title as T3 holds it now. One still titled with the launch title
+    is carried by its project (`begun_in`) and, when another launched thread in the project is as unnamed, by what it
+    was started for (`begun_for`, a gated account). With no gated account to tell them apart the title stays: it is
+    unsayable but it does not name another thread."""
+    acts = tuple(acts)
+    if ref is None:
+        return acts
+    out = []
+    for a in acts:
+        title = a.slots.get("thread")
+        if "begun_in" not in RULES[a.kind].slots or title not in (launch_title(ref.instruction), ref.title):
+            out.append(a)
+            continue
+        slots = {k: v for k, v in a.slots.items() if k != "thread"}
+        if not ref.unnamed or (ref.shared and not account):
+            out.append(Act(a.kind, {**slots, "thread": ref.title}))
+        else:
+            out.append(Act(a.kind, {**slots, "begun_in": ref.project, **({"begun_for": account} if ref.shared else {})}))
+    return tuple(out)
+
+
+def candidate_names(thread_ids: Iterable[str], titles: Mapping[str, str], launched: Iterable[Launch],
+                    account: Callable[[Launch], str | None]) -> list[str]:
+    """What the voice calls each of the threads it offers to choose between: its title, or for a launched thread that
+    still has the launch title, what it was started for, when a gated account of that is available."""
+    launched = {l.thread_id: l for l in launched}
+    names = []
+    for thread in thread_ids:
+        me = launched.get(thread)
+        said = account(me) if me is not None and titles[thread] == launch_title(me.instruction) else None
+        names.append(said or titles[thread])
+    return names
+
+
+def without_request(acts: Iterable[Act]) -> tuple[Act, ...]:
+    """`acts` with no description of a request: the second draft of a line the first draft of which was refused says
+    only what kind of thing the thread waits for, so a description the writer cannot word never costs the line."""
+    return tuple(Act(a.kind, {k: v for k, v in a.slots.items() if k != "request"}) if "request" in a.slots else a
+                 for a in acts)
+
+
 def kept_exact(acts: Iterable[Act]) -> list[str]:
     values = []
     for a in acts:
@@ -428,11 +551,17 @@ def act_facts(a: Act) -> dict:
 
 
 def wording_direction(a: Act) -> str:
+    direction = _direction(a)
+    return direction + BEGUN if a.slots.get("begun_in") else direction
+
+
+def _direction(a: Act) -> str:
     if a.kind is Kind.UNANSWERED and (outcomes := a.slots.get("outcomes")):
         return f"Say only that you {outcome_meaning(outcomes)}. Do not say you could not answer."
     if a.slots.get("recap"):
         return MEANINGS[a.kind] + " Make clear this is a recap of the same action you already reported."
-    if a.kind in (Kind.THREAD_STATUS, Kind.NEEDS_YOU) and not (a.slots.get("summary") or a.slots.get("since_last_asked")):
+    if a.kind in (Kind.THREAD_STATUS, Kind.NEEDS_YOU) and not (a.slots.get("summary") or a.slots.get("since_last_asked")
+                                                                or a.slots.get("request")):
         return (MEANINGS[a.kind] + " Use at most eight words besides the full thread title. Copy the title as supplied, "
                 "including any ellipsis, without quotes or adding spaces.")
     return MEANINGS[a.kind]
@@ -510,6 +639,7 @@ class Speech:
     lock: threading.Lock = field(default_factory=threading.Lock)
     gate: RequestGate | None = None
     descriptions: dict = field(default_factory=dict)
+    accounts: dict = field(default_factory=dict)
 
     def remember(self, state: T.ThreadState) -> None:
         with self.lock:
@@ -525,8 +655,12 @@ class Speech:
             self._summary(state, question, partial=True)
 
     def _summary(self, state: T.ThreadState, question: str | None, partial: bool = False) -> Future | None:
-        if self.lane is None:
+        """A summary is written from the thread's last reply and never from a pending request: what a request would
+        do is the description's job, gated against the request. So the state the model sees has none, whether the
+        summary is a prefetch or a reuse, and a thread with only a request has nothing to summarise."""
+        if self.lane is None or (state.last_reply is None and state.pending is not None):
             return None
+        state = replace(state, pending=None)
         key = self._key(state, question)
         with self.lock:
             gist = self.summaries.get(key)
@@ -564,7 +698,7 @@ class Speech:
                 self.summaries[key] = Gist(earlier.future, False, earlier.question)
 
     def summary(self, state: T.ThreadState, question: str | None = None) -> str | None:
-        if self.lane is None:
+        if self.lane is None or (state.last_reply is None and state.pending is not None):
             return None
         deadline = time.monotonic() + SUMMARY_TIMEOUT_S
         self._reuse(state, question)
@@ -598,6 +732,24 @@ class Speech:
             future.cancel()
             return None
 
+    def account(self, launch: Launch) -> str | None:
+        """What a thread the voice started was started for, from the request that started it and nothing else, or
+        None. It is cached per request and passed by its own gate question against that request, so with no gate, no
+        answer from it, or an account it doubts there is none and the thread is not guessed at."""
+        if self.lane is None or self.gate is None:
+            return None
+        key = (self.lane.generation, launch.thread_id, hashlib.sha256(launch.instruction.encode()).hexdigest())
+        deadline = time.monotonic() + SUMMARY_TIMEOUT_S
+        with self.lock:
+            future = self.accounts.get(key)
+            if future is None or future.cancelled() or (future.done() and future.exception() is not None):
+                future = self.accounts[key] = self.lane.account(launch.instruction, self.gate)
+        try:
+            return _clean(future.result(timeout=max(0.0, deadline - time.monotonic()))) or None
+        except Exception:
+            future.cancel()
+            return None
+
     def _confirmed(self, a: Act, thread_id: str | None, need: T.PendingNeed | None) -> Act:
         """A confirmation of an answer to a request. An approval carries the description of `need` if one passed the
         gate, and never one it was given; a denial carries none, since nothing runs when a request is denied."""
@@ -605,14 +757,32 @@ class Speech:
         text = self.describe(thread_id, need) if a.slots.get("decision") == "approve" else None
         return Act(a.kind, {**slots, "summary": text} if text else slots)
 
+    def _request(self, acts: tuple[Act, ...], thread_id: str | None, state: T.ThreadState | None) -> tuple[Act, ...]:
+        """A line about a pending request never sees the request's stored text. What it may say the request is about is
+        `request`, the description the approval gate passed for this request as the read holds it now, and without one
+        it says only what kind of thing the thread waits for."""
+        out = []
+        for a in acts:
+            if a.kind not in REQUEST_ACTS or not ({"prompt", "pending"} & a.slots.keys()):
+                out.append(a)
+                continue
+            stored = a.slots.get("prompt", a.slots.get("pending"))
+            need = state.pending if state is not None and state.pending is not None and state.pending.prompt == stored else None
+            text = self.describe(thread_id, need)
+            slots = {k: v for k, v in a.slots.items() if k not in ("prompt", "pending")}
+            out.append(Act(a.kind, {**slots, "request": text} if text else slots))
+        return tuple(out)
+
     def fill(self, acts: tuple[Act, ...], thread_id: str | None, sequences: tuple[int, ...] = (),
              need: T.PendingNeed | None = None):
         """The acts with the read's title and the thread's summary filled in, and the read's sequence as evidence. A
         confirmation of an answer to a request is filled from `need`, the request itself, and never from a summary."""
         acts = tuple(self._confirmed(a, thread_id, need) if a.kind is Kind.CONFIRM_RESPOND else a for a in acts)
         summarised = SUMMARISED - {Kind.CONFIRM_RESPOND}
-        if thread_id is None or not any(a.kind in summarised and "summary" not in a.slots for a in acts):
-            return acts, ()
+        asks_request = any(a.kind in REQUEST_ACTS and {"prompt", "pending"} & a.slots.keys() for a in acts)
+        if thread_id is None or not (asks_request or any(a.kind in summarised and "summary" not in a.slots
+                                                          for a in acts)):
+            return self._request(acts, thread_id, None), ()
         state, read = None, ()
         if any(a.kind is Kind.THREAD_STATUS for a in acts):
             with self.lock:
@@ -620,9 +790,10 @@ class Speech:
         if state is None:
             state = self.read(thread_id)
             if state is None:
-                return acts, ()
+                return self._request(acts, thread_id, None), ()
             self.remember(state)
             read = (state.as_of_sequence,)
+        acts = self._request(acts, thread_id, state)
         question = next((a.slots.get("asked") for a in acts if a.slots.get("asked")), None)
         gist = self.summary(state, question)
         filled = []
@@ -769,7 +940,7 @@ READER_EXAMPLES = {
     Kind.RUN_UPDATE: ({"thread": "Example Review Build Flags", "status": "queued"}, "Example Review Build Flags is queued to run."),
     Kind.REPLIED: ({"thread": "Example Check Delivery Types", "status": "running", "reply": "I found 12 duplicates."},
                    "Example Check Delivery Types reports that it found 12 duplicates."),
-    Kind.NEEDS_YOU: ({"thread": "Example Archive Old Invoices", "need": "command_approval", "prompt": "Run the cleanup script?"},
+    Kind.NEEDS_YOU: ({"thread": "Example Archive Old Invoices", "need": "command_approval"},
                      "Example Archive Old Invoices needs your approval to run a command."),
     Kind.NEED_RESOLVED: ({"thread": "Example Organize Print Sizes", "status": "expired"},
                          "The request from Example Organize Print Sizes expired."),
@@ -826,6 +997,36 @@ READER_VARIANTS = {
     (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
                                "I said no to the file changes for Example Mend Rail Maps."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
+    (Kind.NEEDS_YOU, "request"): ({"thread": "Example Archive Old Invoices", "need": "command_approval",
+                                   "request": "It wants to delete the old invoice folder."},
+                                  "Example Archive Old Invoices needs your approval to delete the old invoice folder."),
+    (Kind.NEEDS_YOU, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                    "need": "command_approval"},
+                                   "The thread you started in Example Fleet Notes for sorting the fleet log by date needs "
+                                   "your approval to run a command."),
+    (Kind.THREAD_STATUS, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                        "status": "waiting_on_you", "need": "command_approval"},
+                                       "The thread you started in Example Fleet Notes for sorting the fleet log by date is "
+                                       "waiting for your approval to run a command."),
+    (Kind.CONFIRM_THREAD, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date"},
+                                        "Do you mean the thread you started in Example Fleet Notes for sorting the fleet "
+                                        "log by date?"),
+    (Kind.NEEDS_THE_APP, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                        "decision": "approve"},
+                                       "I can't describe the request the thread you started in Example Fleet Notes for "
+                                       "sorting the fleet log by date is waiting on. It needs approval in the app."),
+    (Kind.NEEDS_YOU, "begun"): ({"begun_in": "Example Fleet Notes", "need": "command_approval"},
+                                "The thread you started in Example Fleet Notes needs your approval to run a command."),
+    (Kind.THREAD_STATUS, "begun"): ({"begun_in": "Example Fleet Notes", "status": "waiting_on_you",
+                                     "need": "command_approval"},
+                                    "The thread you started in Example Fleet Notes is waiting for your approval to run "
+                                    "a command."),
+    (Kind.NO_THREAD, "other"): ({"other": True}, "I couldn't find any other thread that matches, besides the one you turned down."),
+    (Kind.CONFIRM_THREAD, "begun"): ({"begun_in": "Example Fleet Notes"},
+                                     "Do you mean the thread you started in Example Fleet Notes?"),
+    (Kind.NEEDS_THE_APP, "begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve"},
+                                    "I can't describe the request the thread you started in Example Fleet Notes is "
+                                    "waiting on. It needs approval in the app."),
     # Worded without an example, "I will not answer the thread "X"." came out with quotes around the name (2 of 2 drafts).
     (Kind.CANCELLED, "answer"): ({"op": "answer", "thread": "Example Pick Storage Layer"},
                                  "I won't give Example Pick Storage Layer that answer."),
@@ -860,14 +1061,35 @@ SAID_AGAIN_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "working
                        "summary": "It says playback is stable.", "since_last_asked": NOTHING_NEW},
                       "There's nothing new from Example Tune Audio Levels since I last told you. It's still working, "
                       "and it says playback is stable.")
+SAID_AGAIN_WAITING_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "waiting_on_you",
+                              "need": "command_approval", "since_last_asked": NOTHING_NEW},
+                             "There's nothing new from Example Tune Audio Levels since I last told you. It's still "
+                             "waiting for your approval to run a command.")
+SAID_AGAIN_REQUEST_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "waiting_on_you",
+                              "need": "command_approval", "request": "It wants to delete the old sound folder.",
+                              "since_last_asked": NOTHING_NEW},
+                             "There's nothing new from Example Tune Audio Levels since I last told you. It's still "
+                             "waiting for your approval to delete the old sound folder.")
+SAID_AGAIN_BEGUN_EXAMPLE = ({"begun_in": "Example Fleet Notes", "status": "waiting_on_you", "need": "command_approval",
+                            "since_last_asked": NOTHING_NEW},
+                           "There's nothing new from the thread you started in Example Fleet Notes since I last told "
+                           "you. It's still waiting for your approval to run a command.")
 EXAMPLE_NAMES = frozenset(name for slots, _ in (*READER_EXAMPLES.values(), *READER_VARIANTS.values())
-                          for key in ("thread", "project", "available", "candidates") if key in slots
+                          for key in ("thread", "project", "available", "candidates", "begun_in") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
 
 
 def _shape(kind: Kind, slots: dict) -> str | None:
     if kind is Kind.ASK_WHICH and slots.get("of") == "thread" and len(slots.get("candidates") or ()) == 2:
         return "thread_pair"
+    if slots.get("begun_for") and (kind, "begun_for") in READER_VARIANTS:
+        return "begun_for"
+    if slots.get("begun_in") and (kind, "begun") in READER_VARIANTS:
+        return "begun"
+    if kind is Kind.NEEDS_YOU and slots.get("request"):
+        return "request"
+    if kind is Kind.NO_THREAD and slots.get("other"):
+        return "other"
     if variant := (slots.get("of") or slots.get("op") or slots.get("decision") or slots.get("restated")):
         return variant
     if kind is Kind.UNANSWERED and slots.get("outcomes"):
@@ -897,14 +1119,18 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     for kind in kinds:
         slots = firsts[kind].slots
         shown = READER_VARIANTS.get((kind, _shape(kind, slots)), READER_EXAMPLES[kind])
-        example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else shown
+        if again and kind is Kind.THREAD_STATUS:
+            shown = (SAID_AGAIN_BEGUN_EXAMPLE if slots.get("begun_in") else
+                     SAID_AGAIN_REQUEST_EXAMPLE if slots.get("request") else
+                     SAID_AGAIN_WAITING_EXAMPLE if slots.get("need") else SAID_AGAIN_EXAMPLE)
+        example, reply = shown
         examples.append((json.dumps({"kind": kind.value, **example}), reply))
     # The questions a confirmation answers are for the line check; the writer given them asked them again (3 of 3 drafts).
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key not in ("asked", "questions")}}
                for a in acts]
     body = records[0] if len(records) == 1 else {"acts": records}
     if body.get("kind") == Kind.NEEDS_THE_APP.value:
-        body = {"thread": body["thread"], **body}
+        body = {"thread": body["thread"], **body} if "thread" in body else body
     if problems:
         body["earlier draft problems"] = list(problems)
     if refused:

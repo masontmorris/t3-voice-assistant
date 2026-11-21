@@ -14,15 +14,16 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from voice.live.t3_tasks import (ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
-                                 T3Tasks, status_act, tell_parts, transcript_rows)
+                                 T3Tasks, Question, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
+from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.acts import QUESTIONS, RULES, Act, act, check
 from voice.t3.acts import Kind as S
-from voice.t3.journal import Kind, Status, T3Journal
+from voice.t3.journal import Kind, Status, T3Journal, launch_title
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
 from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, Picked
@@ -98,11 +99,29 @@ class FakeText:
         return f"About {facts}, any thoughts?" if ask else f"About {facts}, noted."
 
 
+class AccountText(FakeText):
+    """The text model, which also says what a thread was started for from the request that started it."""
+
+    ACCOUNTS = {"pantry": "sorting the pantry list", "lantern": "tidying the lantern config files"}
+
+    def complete(self, messages):
+        if messages[0]["content"] == LS.ACCOUNT_SYSTEM:
+            request = json.loads(messages[-1]["content"].split("\n")[0])["request"]
+            account = next(said for word, said in self.ACCOUNTS.items() if word in request)
+            self.accounted = [*getattr(self, "accounted", []), request]
+            return {"text": json.dumps({"gist": account}), "ms": 1, "tokens": {}}
+        return super().complete(messages)
+
+
 class FakeGate:
     """The approval gate: every description is doubted `doubt` much, and the requests it was asked about are kept."""
 
     def __init__(self, doubt=0.01):
-        self.doubt_of, self.asked = doubt, []
+        self.doubt_of, self.asked, self.accounts = doubt, [], []
+
+    def doubts_account(self, instruction, account):
+        self.accounts.append((instruction, account))
+        return self.doubt_of
 
     def doubt(self, need, description):
         self.asked.append((need, description))
@@ -1662,6 +1681,17 @@ class Respond(unittest.TestCase):
                 self.assertIsNone(t3.answer("Yes.", 1))
                 self.assertEqual(seam.ops("respond"), [])
 
+    def test_a_second_draft_says_only_the_kind_of_request(self):
+        t3 = worded(tasks_over(self, self.seam()), FakeText(), None)
+        said = act(S.NEEDS_YOU, thread="Add a clamp helper", need="command_approval", request="It wants to run tests.")
+        update = L.Update("k1", (said,), "completed", thread_id="t7")
+        t3.say(update)
+        self.assertIn("request", update.acts[0].slots)
+        update.tries, update.refused = 1, ("It wants to run tests.",)
+        t3.say(update)
+        self.assertEqual(update.refused, ())
+        self.assertEqual(update.acts[0].slots, {"thread": "Add a clamp helper", "need": "command_approval"})
+
     def test_an_approval_whose_stored_prompt_is_not_an_action_goes_to_the_app_by_its_source_and_never_by_its_text(self):
         for source, prompt in ((T.NeedSource.PERMISSION, "mcp__github__create_issue"),
                                (T.NeedSource.FILE_READ, "Read the project notes"),
@@ -2248,3 +2278,83 @@ class SpokenAbout(unittest.TestCase):
         self.assertIsNone(ask(3), "the thread reported something since")
         t3.begin_call()
         self.assertIsNone(ask(4), "a new call has heard nothing yet")
+
+
+class LaunchedThreads(unittest.TestCase):
+    """How a line names a thread the voice started: by its id, by what T3 titles it now, and never by guessing."""
+
+    PANTRY = "Um, start a thread to sort the pantry list, a long hesitant request that runs well past the limit."
+    LANTERN = "Uh, I want a thread to tidy the lantern config files, and keep the formatting the same as before ok."
+
+    def over(self, launches, rows, gate=None):
+        seam = F.FakeSeam(read=F.state(thread="t7", title="x", as_of=1))
+        seam.listing = listing(*rows)
+        t3 = worded(tasks_over(self, seam), AccountText(), gate)
+        t3.follow.ensure(0.0)
+        for thread, request, project in launches:
+            t3.follow.journal.begin(Kind.START, request, "p1", project, thread_id=thread)
+        return t3
+
+    def slots(self, t3, thread, title, kind=S.NEEDS_YOU):
+        update = L.Update("k", (act(kind, thread=title, need="command_approval"),), "completed", thread_id=thread)
+        t3.say(update)
+        return {name: value for name, value in update.acts[0].slots.items() if name != "summary"}
+
+    def test_a_launched_thread_the_project_alone_names_is_named_by_it_even_beside_an_ordinary_thread(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", pantry), ("t9", "Tidy the harbour map")])
+        self.assertEqual(self.slots(t3, "t7", pantry), {"begun_in": "Voice sandbox", "need": "command_approval"})
+        self.assertEqual(self.slots(t3, "t9", "Tidy the harbour map"),
+                         {"thread": "Tidy the harbour map", "need": "command_approval"})
+
+    def test_two_launched_threads_in_one_project_are_told_apart_by_a_gated_account(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        gate = FakeGate()
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                       [("t7", pantry), ("t8", lantern)], gate)
+        self.assertEqual(self.slots(t3, "t7", pantry), {"begun_in": "Voice sandbox",
+                                                       "begun_for": "sorting the pantry list",
+                                                       "need": "command_approval"})
+        self.assertEqual(self.slots(t3, "t8", lantern)["begun_for"], "tidying the lantern config files")
+        self.assertEqual([request for request, _ in gate.accounts], [self.PANTRY, self.LANTERN],
+                         "each account was passed by the gate against its own request")
+
+    def test_without_a_gated_account_an_ambiguous_thread_is_not_guessed_at(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        for gate in (None, FakeGate(0.4), FakeGate(None)):
+            with self.subTest(gate=gate and gate.doubt_of):
+                t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                               [("t7", pantry), ("t8", lantern)], gate)
+                self.assertEqual(self.slots(t3, "t7", pantry), {"thread": pantry, "need": "command_approval"},
+                                 "the title is unsayable but it does not name the other thread")
+
+    def test_a_thread_another_client_made_is_never_called_the_one_the_voice_started(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", pantry), ("t9", pantry)])
+        self.assertEqual(self.slots(t3, "t9", pantry), {"thread": pantry, "need": "command_approval"})
+        self.assertEqual(self.slots(t3, "t7", pantry)["begun_in"], "Voice sandbox")
+
+    def test_duplicate_launch_titles_keep_each_threads_own_project(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.PANTRY, "Pebble Garden")],
+                       [("t7", pantry), ("t8", pantry)])
+        self.assertEqual(self.slots(t3, "t7", pantry)["begun_in"], "Voice sandbox")
+        self.assertEqual(self.slots(t3, "t8", pantry)["begun_in"], "Pebble Garden")
+
+    def test_an_act_built_before_a_retitle_is_worded_with_the_title_the_thread_has_now(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", "Sort the pantry list")])
+        self.assertEqual(self.slots(t3, "t7", pantry), {"thread": "Sort the pantry list", "need": "command_approval"})
+
+    def test_a_which_thread_question_offers_launched_threads_by_what_they_were_started_for(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        rows = [("t7", pantry), ("t8", lantern)]
+        launches = [("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")]
+        for gate, expected in ((FakeGate(), ["sorting the pantry list", "tidying the lantern config files"]),
+                               (None, [pantry, lantern])):
+            t3 = self.over(launches, rows, gate)
+            t3.question = Question("k", "thread", "which", ("t7", "t8"), ASK, titles=dict(rows))
+            update = L.Update("k", (act(S.ASK_WHICH, of="thread", candidates=[pantry, lantern]),), "needs_clarification",
+                              "pick")
+            t3.say(update)
+            self.assertEqual(update.acts[0].slots["candidates"], expected)

@@ -134,6 +134,40 @@ CASES = {
 }
 
 
+CLIPPED = "So, uh, I want to get some work going on, uhm, a small project. A tool that con…"
+
+
+class NamesInTheForm(unittest.TestCase):
+    def test_a_name_said_whole_is_not_judged_on_its_own_punctuation(self):
+        said = act(Kind.NEEDS_THE_APP, thread=CLIPPED, decision="approve")
+        line = ("I can't tell what So, uh, I want to get some work going on. Uhm, a small project, a tool that con... "
+                "would be allowed to do, so you'll need to approve that one in the app.")
+        self.assertEqual(check(line, [said]), [])
+
+    def test_the_line_around_a_name_is_still_judged(self):
+        said = act(Kind.CONFIRM_THREAD, thread=CLIPPED)
+        self.assertEqual(check(f"Do you mean the thread called {CLIPPED}?", [said]), [])
+        self.assertIn("not plain speech", check(f"Do you mean the thread called {CLIPPED} or `not`?", [said]))
+        self.assertIn("too long", check(f"Do you mean {CLIPPED}? Is it? Really? Sure.", [said]))
+        self.assertIn(f"confirm_thread thread missing: {CLIPPED}",
+                      check("Do you mean the thread called So, uh, I want to get some work going on?", [said]))
+
+    def test_only_the_names_own_characters_are_masked(self):
+        said = act(Kind.CONFIRM_THREAD, thread="Alpha Beta")
+        self.assertIn("not plain speech", check("Do you mean the thread called Alpha `Beta?", [said]))
+        self.assertIn("not plain speech", check("Do you mean the thread called Alpha ```Beta?", [said]))
+        self.assertEqual(check("Do you mean the thread called Alpha Beta?", [said]), [])
+        punctuated = act(Kind.CONFIRM_THREAD, thread="Alpha, then Beta. Gamma…")
+        self.assertEqual(check("Do you mean the thread called Alpha, then Beta. Gamma...?", [punctuated]), [])
+        self.assertIn("not plain speech", check("Do you mean the thread called Alpha, then `Beta. Gamma?", [punctuated]))
+
+    def test_a_thread_with_no_title_is_named_by_its_project(self):
+        said = act(Kind.NEEDS_YOU, begun_in="Voice sandbox", need="command_approval")
+        self.assertEqual(check("The thread you started in Voice sandbox needs your approval to run a command.", [said]), [])
+        self.assertIn("needs_you begun_in missing: Voice sandbox",
+                      check("The thread you started needs your approval to run a command.", [said]))
+
+
 class SlotRules(unittest.TestCase):
     def test_unanswered_forbids_every_action_except_confirmed_outcomes(self):
         forbidden = {"started", "sent", "stopped", "answered", "finished"}

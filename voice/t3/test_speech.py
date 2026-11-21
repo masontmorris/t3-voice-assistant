@@ -22,7 +22,8 @@ from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Decider
 from voice.t3.speech import (LINE_SCHEMA, READER_VARIANTS, RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane,
                               LocalText, RequestGate, Speech, local_messages, read_line, reader_messages, render_messages,
-                              text_model)
+                              text_model, wording_direction, Launch, named, reference)
+from voice.t3.journal import launch_title
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -296,6 +297,104 @@ class LocalTextTest(unittest.TestCase):
             self.assertEqual(doubt is not None and doubt < LS.REQUEST_THRESHOLD, spoken, p_unsupported)
         self.assertIsNone(RequestGate("http://127.0.0.1:9").doubt(need, "It builds."), "a gate that is down is no answer")
 
+    def test_a_line_about_a_pending_request_gets_the_gated_description_or_only_its_kind(self):
+        class Describes:
+            model = "fake/text:free"
+
+            def complete(self, messages):
+                return {"text": json.dumps({"gist": "It wants to write a note into a file."})}
+
+        class Gate:
+            def __init__(self, answer):
+                self.answer, self.asked = answer, []
+
+            def doubt(self, need, description):
+                self.asked.append(need.prompt)
+                return self.answer
+
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=140, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need("q1", "printf 'ready' > note.txt"))
+        for kind, stored in ((Kind.NEEDS_YOU, "prompt"), (Kind.THREAD_STATUS, "pending"), (Kind.CORRECTION, "pending")):
+            said = (act(kind, thread="Add a clamp helper", need="command_approval", **{stored: "printf 'ready' > note.txt"}),)
+            for doubt, described in ((0.01, True), (0.4, False), (None, False)):
+                gate = Gate(doubt)
+                speech = Speech(Lane(Describes()), Reads(waiting), F.Agree(), gate=gate)
+                filled, _ = speech.fill(said, "t5")
+                with self.subTest(kind=kind.value, doubt=doubt):
+                    self.assertNotIn(stored, filled[0].slots, "the stored text never reaches the writer")
+                    self.assertEqual(filled[0].slots.get("request"),
+                                     "It wants to write a note into a file." if described else None)
+                    self.assertEqual(gate.asked, ["printf 'ready' > note.txt"])
+
+    def test_a_request_that_changed_is_not_described_from_the_new_one(self):
+        class Gate:
+            asked = []
+
+            def doubt(self, need, description):
+                self.asked.append(need.prompt)
+                return 0.0
+
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=140, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need("q2", "rm -rf build"))
+        gate = Gate()
+        speech = Speech(Lane(Text()), Reads(waiting), F.Agree(), gate=gate)
+        filled, _ = speech.fill((act(Kind.NEEDS_YOU, need="command_approval", prompt="printf 'ready' > note.txt"),), "t5")
+        self.assertEqual((gate.asked, "request" in filled[0].slots), ([], False))
+
+    def test_a_tool_permission_is_never_described(self):
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=140, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need("q3", "Bash", source=T.NeedSource.PERMISSION))
+        speech = Speech(Lane(Text()), Reads(waiting), F.Agree(), gate=type("G", (), {"doubt": lambda *a: 0.0})())
+        filled, _ = speech.fill((act(Kind.NEEDS_YOU, need="permission", prompt="Bash"),), "t5")
+        self.assertEqual(filled[0].slots, {"need": "permission", "thread": "Add a clamp helper"})
+
+    def test_a_launched_thread_is_named_by_its_id_and_by_the_title_it_has_now(self):
+        request = "Um, start a thread to sort the pantry list, a long hesitant request that runs well past the limit."
+        other = "Uh, I want a thread to tidy the lantern config files, and keep the formatting the same as before ok."
+        launched = (Launch("t7", request, "Voice sandbox"), Launch("t8", other, "Voice sandbox"))
+        title, other_title = launch_title(request), launch_title(other)
+        said = (act(Kind.NEEDS_YOU, thread=title, need="command_approval"),
+                act(Kind.CONFIRM_STOP, thread="Sort the pantry list"), act(Kind.NO_THREAD, other=True))
+        alone = reference("t7", launched, {"t7": title, "t8": "Tidy the lantern config"})
+        self.assertEqual((alone.unnamed, alone.shared), (True, False))
+        got = named(said, alone, None)
+        self.assertEqual(got[0].slots, {"begun_in": "Voice sandbox", "need": "command_approval"})
+        self.assertEqual(got[1:], said[1:], "an act with another title, or with no thread, is not about this one")
+        self.assertIn("in place of a thread name", wording_direction(got[0]))
+        both = reference("t7", launched, {"t7": title, "t8": other_title})
+        self.assertEqual(named(said, both, "sorting the pantry list")[0].slots,
+                         {"begun_in": "Voice sandbox", "begun_for": "sorting the pantry list", "need": "command_approval"})
+        self.assertEqual(named(said, both, None)[0].slots, {"thread": title, "need": "command_approval"},
+                         "no gated account, so the thread is not guessed at")
+        self.assertIsNone(reference("t9", launched, {"t9": title}), "a thread the voice did not start")
+        self.assertIsNone(reference("t7", launched, {}), "a thread T3 does not list")
+        retitled = reference("t7", launched, {"t7": "Sort the pantry list", "t8": other_title})
+        self.assertEqual(named(said, retitled, None)[0].slots, {"thread": "Sort the pantry list", "need": "command_approval"})
+        elsewhere = reference("t7", (Launch("t7", request, "Voice sandbox"), Launch("t8", other, "Pebble Garden")),
+                              {"t7": title, "t8": other_title})
+        self.assertFalse(elsewhere.shared, "another project's thread does not make the project ambiguous")
+
+    def test_a_summary_prefetched_from_a_state_with_a_request_never_carries_it(self):
+        text = Text()
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=9, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need(prompt="rm -rf build"), last_reply=REPLY)
+        speech = Speech(Lane(text), Reads(waiting), F.Agree(), gate=None)
+        speech.prefetch("t5", "How is it going?")
+        filled, _ = speech.fill((act(Kind.THREAD_STATUS, status="waiting_on_you", need="command_approval",
+                                     pending="rm -rf build", asked="How is it going?"),), "t5")
+        self.assertEqual(text.summaries, 1, "the prefetched summary is the one reused")
+        self.assertNotIn("rm -rf build", json.dumps(text.bodies), "no model call was shown the request")
+        self.assertIn("summary", filled[0].slots)
+        self.assertNotIn("pending", filled[0].slots)
+
+    def test_a_thread_with_only_a_request_is_not_prefetched(self):
+        text = Text()
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=9, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need(prompt="rm -rf build"))
+        speech = Speech(Lane(text), Reads(waiting), F.Agree())
+        speech.prefetch("t5", None)
+        self.assertEqual(text.summaries, 0)
+
     def test_an_ordinary_summary_is_never_the_description_of_a_request_and_the_reverse(self):
         class Both:
             model = "fake/text:free"
@@ -532,17 +631,25 @@ class SummaryTest(unittest.TestCase):
         self.assertIn("Attribute claims from the last reply to the thread", SUMMARY_SYSTEM)
         self.assertIn("never say the thread did what its name says unless the last reply says it", SUMMARY_SYSTEM)
 
-    def test_a_thread_with_no_reply_is_summarised_from_its_status_and_need(self):
+    def test_a_thread_with_no_reply_and_a_request_is_not_summarised(self):
         text = Text()
         waiting = F.state(thread="t5", title="Add a clamp helper", as_of=9, activity=T.ThreadActivity.WAITING_ON_YOU,
                           pending=F.need(prompt="Run pytest?"))
         speech = Speech(Lane(text), Reads(waiting), F.Agree())
-        filled, _ = speech.fill((act(Kind.NEEDS_YOU, prompt="Run pytest?"),), "t5")
-        self.assertEqual(text.summaries, 1, "no reply is no reason to skip the answer")
-        self.assertEqual(text.bodies[0]["records"]["last_reply"], None)
-        self.assertEqual((text.bodies[0]["records"]["status"], text.bodies[0]["records"]["pending"]),
-                         ("waiting_on_you", "Run pytest?"))
-        self.assertIn("summary", filled[0].slots)
+        filled, _ = speech.fill((act(Kind.NEEDS_YOU, need="command_approval", prompt="Run pytest?"),), "t5")
+        self.assertEqual(text.summaries, 0, "what the request would do is the description's job, not a summary's")
+        self.assertEqual(filled[0].slots, {"need": "command_approval", "thread": "Add a clamp helper"},
+                         "no gate, so no description, and the stored text never reaches the writer")
+
+    def test_a_summary_beside_a_request_is_written_without_the_request(self):
+        text = Text()
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=9, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need(prompt="rm -rf build"), last_reply=REPLY)
+        speech = Speech(Lane(text), Reads(waiting), F.Agree())
+        speech.fill((act(Kind.THREAD_STATUS, status="waiting_on_you", need="command_approval", pending="rm -rf build"),),
+                    "t5")
+        self.assertEqual(text.summaries, 1)
+        self.assertIsNone(text.bodies[0]["records"]["pending"])
 
     def test_a_summarizer_that_is_cooling_down_still_lets_the_status_line_be_drafted(self):
         writer = Lane(Writes("Add a clamp helper is finished."))

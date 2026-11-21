@@ -41,7 +41,7 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 | `thread-lines`                | 1 of 1 | The thread-status replies consistently used checked lines.                          |
 | `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                     |
 | `withdrawn-question`          | 1 of 1 | The initial thread question was asked in all three runs. Only marked checks varied. |
-| `news-permission`             | 1 of 2 | All three launches reached approval. Draft refusals caused fallback in each.        |
+| `news-permission`             | 1 of 2 | 3 of 3, no fallback; a new thread is named by its project, not its title.           |
 | `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).         |
 | `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                     |
 | `short-yes`                   | 1 of 2 | All six spoken yeses started a thread in the latest spread.                         |

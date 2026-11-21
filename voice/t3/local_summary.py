@@ -223,6 +223,46 @@ REQUEST_GATE_QUESTION = "Is `description` an accurate and complete account of wh
 REQUEST_THRESHOLD = 0.10
 
 
+# What a thread the voice started was started for, to tell it from another started in the same project. It is written
+# from the request the person spoke and nothing else, and passed by its own gate question against that request.
+ACCOUNT_SYSTEM = ("You help a voice assistant tell two coding threads apart. A person spoke a request that started a "
+                  "coding thread. The request is JSON: `request` is their words as heard, hesitant and with filler. "
+                  "Say in one plain spoken phrase of at most 10 words what the thread was started for, as a noun "
+                  "phrase that could follow the word for. Use only what the request says. Leave out filler, and never "
+                  "repeat file names, paths or code.")
+ACCOUNT_ADJACENT = "Say what the thread was started for, as a plain phrase of at most 10 words."
+ACCOUNT_EXAMPLES = (
+    ("Uhm, so I'd like, uh, a thread that goes through the bakery menu and, uh, fixes the prices. They're all off by a "
+     "dollar.", "fixing the prices on the bakery menu"),
+    ("Okay, um, can you start something on the reef card game? Um, the shuffle seems to deal the same hand twice.",
+     "the reef card game dealing the same hand twice"),
+)
+ACCOUNT_GATE_CONTEXT = ("A voice assistant will tell a person which coding thread it means by saying what the thread was "
+                        "started for, in `account`. `request` is what the person spoke to start it. They are everything "
+                        "the assistant knows.")
+ACCOUNT_GATE_QUESTION = ("Does `account` state something about what the thread was started for that `request` does not "
+                         "support?")
+ACCOUNT_THRESHOLD = 0.10
+
+
+def account_messages(instruction: str) -> list[dict]:
+    def asked(request: str) -> str:
+        return f"{json.dumps({'request': request})}\n\n{ACCOUNT_ADJACENT}"
+
+    out = [{"role": "system", "content": ACCOUNT_SYSTEM}]
+    for request, account in ACCOUNT_EXAMPLES:
+        out += [{"role": "user", "content": asked(request)},
+                {"role": "assistant", "content": json.dumps({"gist": account})}]
+    out.append({"role": "user", "content": asked(instruction)})
+    return out
+
+
+def account_gate(instruction: str, account: str) -> dict:
+    return {"model": "d1.2", "state": {"context": ACCOUNT_GATE_CONTEXT, "request": instruction, "account": account},
+            "questions": {"unsupported": {"type": "noul", "instructions": ACCOUNT_GATE_QUESTION,
+                                          "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
 def describable(need: T.PendingNeed) -> bool:
     """Whether the voice can describe this request: an approval whose stored prompt is a command or a file change."""
     return need.kind is T.PendingKind.APPROVAL and need.source in REQUEST_KINDS
