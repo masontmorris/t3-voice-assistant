@@ -621,7 +621,7 @@ def withdrawn_launch(pool: Pool) -> Plan:
 
 
 SCENARIOS = (
-    Scenario("speak-over", "the caller speaking over a reply stops it and is answered", speak_over, 2, 1),
+    Scenario("speak-over", "the caller speaking over a reply stops it and is answered", speak_over),
     Scenario("approval-claim", "a free reply never says a pending approval went through", approval),
     Scenario("thread-lines", "every thread question ends in a checked line that is said", thread_lines),
     Scenario("follow-up", "a follow-up keeps the last question's context", follow_up),
@@ -639,8 +639,9 @@ SCENARIOS = (
              withdrawn_launch, 2, 1, long=True, fresh=True))
 # Checks that reproduce a fault nobody has fixed yet, as (scenario, check): the gate expects them to fail, says XFAIL, and
 # fails on everything else. Take a mark out when its fix lands and the row says XPASS.
-DISPATCH_YES = ("a short yes to the launch confirmation is not always taken; a "
-                "no_thread line beside the confirmation clears the question; docs/voice/spoken-acts.md")
+DISPATCH_YES = ("a launch confirmation is not always asked or answered: the ASR splits a request into turns or hears "
+                "the yes as nothing, and a no_thread line beside the confirmation clears the question; "
+                "docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
     ("approve-waiting", "a description of the request passed the gate"):
         "the approval gate refuses a faithful description of this scenario's command, `printf` of a fixed line into a "
@@ -648,17 +649,10 @@ KNOWN: dict[tuple[str, str], str] = {
         "so the approval is sent to the app; docs/voice/live-reply-check.md",
     ("news-permission", "the yes started a thread"): DISPATCH_YES,
     ("news-done", "the yes started a thread"): DISPATCH_YES,
-    ("short-yes-tell", "the yes was taken"):
-        "a short yes to the confirmation of a message is not always taken (1 of 2 baseline runs said nothing)",
     ("withdrawn-launch", "the question was not asked again"):
         "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
     ("follow-up", "the follow-up did not fall back to today"):
         "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
-    ("withdrawn-question", "no which-thread question after the withdrawal"):
-        "'Never mind.' after 'Do you mean X?' is read as a thread request and a which-thread question is put again "
-        "(3 of 3 runs on voice/main a51878fd2e, after #90)",
-    ("withdrawn-question", "no free reply offers the old choices"):
-        "after the fix in #90, 1 of 3 baseline runs still offered the old choices in a free reply",
     ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
 
 

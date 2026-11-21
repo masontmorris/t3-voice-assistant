@@ -124,6 +124,8 @@ CASES = {
                          {"You'll need to answer that in the app.": "thread missing"}),
     Kind.UNANSWERED: ({}, "I couldn't give you an answer just now.",
                       {"Could you say that again?": "unrequested question"}),
+    Kind.NOTHING_DONE: ({}, "Sorry, I got that wrong. I haven't started or changed anything.",
+                        {"I haven't started or changed anything. Want me to try?": "unrequested question"}),
     Kind.CORRECTION: ({"thread": "Add clamp helper", "status": "working"},
                       "Sorry, I got that wrong. Add clamp helper is still working.",
                       {"Add clamp helper is still working. Want me to check?": "unrequested question",

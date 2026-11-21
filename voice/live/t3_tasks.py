@@ -224,6 +224,7 @@ class T3Tasks:
     spoken_id: str | None = field(default=None, init=False)
     told: dict[str, int] = field(default_factory=dict, init=False)
     withdrawn: Question | None = field(default=None, init=False)
+    declined: dict | None = field(default=None, init=False)
     call: int = field(default=0, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
@@ -356,7 +357,7 @@ class T3Tasks:
             self.spoken_of = self.spoken_id = None
             self.told.clear()
             self._drop_question()
-            self.withdrawn = None
+            self.withdrawn = self.declined = None
 
     def end_call(self) -> None:
         with self.lock:
@@ -382,10 +383,27 @@ class T3Tasks:
             since = question.heard_at if question.heard else question.asked_at
             if question.call != self.call or question.expired or time.monotonic() - since > CONFIRM_TTL_S:
                 if question.heard and question.call == self.call:
-                    self.withdrawn = question
+                    self._withdraw(question)
                 self._drop_question()
                 return None
             return question
+
+    def _withdraw(self, question: Question) -> None:
+        """A heard question was dropped unanswered. The voice is told once (`take_withdrawn`), the decider keeps it as
+        typed state for the rest of the call (`declined_state`), and a thread the question only named is no longer the
+        thread the call last spoke about."""
+        self.withdrawn = question
+        names = [question.titles.get(t, t) for t in question.candidates]
+        self.declined = {"asked": "which of these threads they meant" if question.kind == "thread"
+                         else "whether this is the thread they meant", "threads": names}
+        if question.kind == "thread_confirm" and self.spoken_id in question.candidates:
+            self.spoken_of = self.spoken_id = None
+
+    def declined_state(self) -> dict | None:
+        """The question about threads the caller took back, as the decider is shown it, until a line about a thread is
+        said again. Typed, so a later turn that is not about those threads is not read as an answer to it."""
+        with self.lock:
+            return dict(self.declined) if self.declined is not None else None
 
     def take_withdrawn(self) -> Question | None:
         """The question the person heard and a turn dropped unanswered, once: the voice session still holds its words,
@@ -405,6 +423,7 @@ class T3Tasks:
                            None)
             begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
             if titles or started or begun:
+                self.declined = None
                 self.recent = update.thread_id or self.recent
                 self.spoken_of = titles[0] if titles else f"the new thread in {started or begun}"
                 self.spoken_id = update.thread_id
@@ -459,15 +478,19 @@ class T3Tasks:
                               "options": [option.label for option in first.options]})
         return found
 
-    def claim_facts(self) -> tuple[str, dict] | None:
+    def claim_facts(self) -> tuple[str | None, dict] | None:
         """The thread the call last spoke of and what is true of it now, for the check of a free reply: its state in T3,
-        the end of its last reply, and what the voice itself sent to it or stopped. None when no thread is in view,
-        and a reply is then not checked. Off the lock: the read is a seam call."""
+        the end of its last reply, and what the voice itself sent to it or stopped. With no thread in view the facts say
+        so and list what the voice did, so a reply that claims a start, a send or an approval is still checked; the thread
+        id is then None. None when the thread in view cannot be read. Off the lock: the read is a seam call."""
         with self.lock:
             thread_id = self.spoken_id
             did = [{"did": task.kind.value, "text": task.instruction, "outcome": task.status.value}
-                   for task in self.follow.journal.tasks.values() if task.link.thread_id == thread_id][-5:]
-        state = self._read_quiet(thread_id) if thread_id else None
+                   for task in self.follow.journal.tasks.values()
+                   if thread_id is None or task.link.thread_id == thread_id][-5:]
+        if thread_id is None:
+            return None, {"thread": None, "the_assistant_did": did}
+        state = self._read_quiet(thread_id)
         if state is None:
             return None
         pending = state.pending
@@ -479,9 +502,11 @@ class T3Tasks:
                  "the_assistant_did": did}
         return thread_id, facts
 
-    def correction(self, thread_id: str, replying_to: str) -> L.Update | None:
+    def correction(self, thread_id: str | None, replying_to: str) -> L.Update | None:
         """The act that says a free reply was wrong, from a fresh read of the thread, as an update the voice words and
-        checks like any other. None when the thread cannot be read."""
+        checks like any other. With no thread in view it says nothing was done. None when the thread cannot be read."""
+        if thread_id is None:
+            return L.Update(f"correction:{replying_to}", (act(Say.NOTHING_DONE),), "completed", "correction")
         state = self._read_quiet(thread_id)
         if state is None:
             return None
@@ -616,7 +641,7 @@ class T3Tasks:
         if update is None and question is not None and question.heard:
             with self.lock:
                 if self.question is None or self.question is not question:
-                    self.withdrawn = question
+                    self._withdraw(question)
         if isinstance(update, Choose):
             return self._choose(update)
         if not isinstance(update, Lookup):
@@ -650,7 +675,7 @@ class T3Tasks:
             if question.kind == "thread":
                 return self._answer_thread(question, text, reading, now)
             if question.kind == "thread_confirm":
-                return self._answer_thread_confirm(question, text, kind, now)
+                return self._answer_thread_confirm(question, text, reading, now)
             if question.kind == "answer":
                 return self._take(question, reading if isinstance(reading, Chosen) else None, text)
             if question.kind == "answer_confirm":
@@ -875,15 +900,18 @@ class T3Tasks:
         said = act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
         return L.Update(question.key, (said,), "needs_clarification", "pick", sequences=evidence)
 
-    def _answer_thread_confirm(self, question: Question, text: str, kind: str | None, now: float):
+    def _answer_thread_confirm(self, question: Question, text: str, reading: Reading | None, now: float):
         thread = question.candidates[0]
+        kind = reading.kind if reading is not None else None
         if kind == "yes":
             down = self._down(question.key, now)
             return down if down is not None else self._act(question, thread, now)
         cancelled = act(Say.CANCELLED, op=OPS[question.op], thread=question.titles.get(thread))
         if kind == "no" and question.op != ASK:
             return L.Update(question.key, (cancelled,), "cancelled", "pick", thread)
-        return Lookup(question, thread) if kind == "no" else None
+        # A no to "do you mean this thread" looks for another one, unless it takes the whole request back: then nothing
+        # is asked, and the turn goes on as talk.
+        return Lookup(question, thread) if kind == "no" and not reading.withdrawing else None
 
     def _answer_thread(self, question: Question, text: str, reading: Reading | None, now: float):
         """A reply to "which thread": the one the decider reads it as choosing, by name or by place. A reply that
@@ -1452,6 +1480,9 @@ class T3TaskService(MockTaskService):
 
     def withdrawn(self):
         return self.t3.take_withdrawn()
+
+    def declined_state(self):
+        return self.t3.declined_state()
 
     def update_for(self, entry) -> L.Update:
         if entry.get("type") == "task_update":

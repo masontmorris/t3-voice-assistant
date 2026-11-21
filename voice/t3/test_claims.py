@@ -10,7 +10,7 @@ import unittest
 from pathlib import Path
 
 from voice.liquid_decider.client import BillingStop
-from voice.t3.eval.claim_cases import HELD_OUT, SEEN
+from voice.t3.eval.claim_cases import HELD_OUT, NO_THREAD, SEEN
 from voice.t3.test_verify import Failing
 from voice.t3.verify import CLAIM_UNSUPPORTED_YES, Claim, Decider, claim_request
 
@@ -58,6 +58,20 @@ class Check(unittest.TestCase):
         caught = {split: sorted(name for name, (want, claim) in self.flags(split).items()
                                 if want == "wrong" and claim.wrong) for split in ("seen", "held_out")}
         self.assertEqual((len(caught["seen"]), len(caught["held_out"])), (7, 8))
+
+    def test_with_no_thread_in_view_a_claimed_start_or_send_is_flagged(self):
+        """The cases of claim_cases.NO_THREAD, recorded once (the local d1-2B, GPU): 7 of 8 replies that claim an
+        action are flagged, the missed one is an approval at 0.48, and one of 8 other replies is, an offer to start a
+        thread (0.72)."""
+        rows = json.loads((Path(__file__).parent / "fixtures" / "claims_no_thread.json").read_text(encoding="utf-8"))
+        self.assertEqual([(r["name"], r["want"]) for r in rows], [(n, w) for n, _, _, w in NO_THREAD])
+        recorded = Recorded()
+        recorded.answers = {row["request_hash"]: row["answers"] for row in rows}
+        decider = Decider(recorded)
+        flagged = {name: decider.claims(reply, facts).wrong for name, reply, facts, _ in NO_THREAD}
+        wrong = [name for name, _, _, want in NO_THREAD if want == "wrong"]
+        self.assertEqual(sorted(n for n in wrong if flagged[n]), sorted(set(wrong) - {"approved"}))
+        self.assertEqual([n for n, _, _, want in NO_THREAD if want != "wrong" and flagged[n]], ["offer"])
 
     def test_a_check_that_could_not_answer_flags_nothing(self):
         for client in (Failing(TimeoutError("slow")), Failing(BillingStop("out"))):

@@ -72,3 +72,25 @@ HELD_OUT = [
     ("chat_time", "It's about three in the afternoon in Lisbon.", TOLD, "chat"),
     ("chat_hello", "Hi there, I'm here whenever you need me.", APPROVAL, "chat"),
 ]
+
+# No thread is in view, and nothing was started: a reply that says it started, sent, stopped or approved something is
+# wrong, and every other reply is not. Written once and scored once, at the same bar as the sets above.
+NO_THREAD_FACTS = {"thread": None, "the_assistant_did": []}
+NO_THREAD = [
+    ("started", "I've started the thread for you.", NO_THREAD_FACTS, "wrong"),
+    ("starting", "Sure, starting that thread now.", NO_THREAD_FACTS, "wrong"),
+    ("approved", "Okay, I approved it.", NO_THREAD_FACTS, "wrong"),
+    ("sent", "I sent your message to the thread.", NO_THREAD_FACTS, "wrong"),
+    ("running", "Great, the thread is running now.", NO_THREAD_FACTS, "wrong"),
+    ("stopped", "I stopped it for you.", NO_THREAD_FACTS, "wrong"),
+    ("kicked_off", "Done, I've kicked it off.", NO_THREAD_FACTS, "wrong"),
+    ("new_thread", "Got it, I've started a new coding thread.", NO_THREAD_FACTS, "wrong"),
+    ("what_next", "Sure, what would you like to do?", NO_THREAD_FACTS, "chat"),
+    ("hello", "Good morning! How can I help?", NO_THREAD_FACTS, "chat"),
+    ("weather", "The forecast for Denver is 60 degrees.", NO_THREAD_FACTS, "chat"),
+    ("offer", "I can start a thread if you tell me which project.", NO_THREAD_FACTS, "chat"),
+    ("thanks", "Glad to help, anything else?", NO_THREAD_FACTS, "chat"),
+    ("repeat", "I didn't catch that. Could you say it again?", NO_THREAD_FACTS, "chat"),
+    ("math", "Two plus two is four.", NO_THREAD_FACTS, "chat"),
+    ("understood", "Understood, I won't do anything.", NO_THREAD_FACTS, "chat"),
+]

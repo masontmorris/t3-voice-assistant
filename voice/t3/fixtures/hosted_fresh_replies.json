@@ -1,1 +1,1192 @@
-[{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Yes.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.0036339340620167295,"other":0.003472212259783552,"question":0.004165713257679317,"unrelated":0.0065674554910487085,"yes":0.9821606849294716},"confidence":0.9777008561618394}},"request_hash":"f866bd157092072a3b49cd896f378cb0b713391aefd39620567ac2caf60085c4"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Yeah, that one.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.003475710034159882,"other":0.0054796308668285335,"question":0.0024147786370848435,"unrelated":0.0054796308668285335,"yes":0.9831502495950981},"confidence":0.9789378119938728}},"request_hash":"b3b0953b722f75f05b8e577077f1b6d3f28242b68311feb2377e3a583971c2f5"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Yep, that's it.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.005704270398684783,"other":0.006248009155640506,"question":0.0022950099497003984,"unrelated":0.007845046825167332,"yes":0.977907663670807},"confidence":0.9723845795885087}},"request_hash":"b947687410205dc976680c451f5b304045f870708986a8733f1bb236f826b4ca"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"That's the one.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.006104361832899071,"other":0.00919554041392107,"question":0.004241056475438621,"unrelated":0.02503423599742626,"yes":0.955424805280315},"confidence":0.9442810066003937}},"request_hash":"6c59b8766f602faf2b41a2a2d7b6734b0843716ed2e1374af14de97dccd6a62c"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Correct.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.003317165670628107,"other":0.004996940191116728,"question":0.002152508052356128,"unrelated":0.007527333197340641,"yes":0.9820060528885584},"confidence":0.977507566110698}},"request_hash":"05299e54070cd850a8addde33a515af0ec858493b257b659900a477baffd5e49"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Mm-hmm.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.049671471291973225,"other":0.01520781543943248,"question":0.006403568778316349,"unrelated":0.054406213559403005,"yes":0.8743109309308749},"confidence":0.8428886636635935}},"request_hash":"af470ed3d671196393de24614fd19f524ebbb49c6f23c783ffe224d7526e5feb"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Right.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.01954172677709729,"other":0.02140447056094688,"question":0.008611701317098961,"unrelated":0.0556789097324859,"yes":0.894763191612371},"confidence":0.8684539895154637}},"request_hash":"b133f38d36e57faf60eb8063f33d1404e287072b20571ae8d33797bdf31e22c6"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Yes, that's right?","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.009607872886448378,"other":0.014473189145341623,"question":0.12869495229146308,"unrelated":0.015147292586469446,"yes":0.8320766930902774},"confidence":0.7900958663628468}},"request_hash":"7a7bc10c4a2c9d55526fa549890f7b4f7a499208e2b0e74392356b738aea68ff"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Exactly.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.005650386631554845,"other":0.005913559110943038,"question":0.0036665346054435216,"unrelated":0.016099264176356532,"yes":0.9686702554757021},"confidence":0.9608378193446276}},"request_hash":"00a4de8124edb2c841427ea46a6ea5fe447f42472bfaad3e8e3fd994d349c763"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Yeah?","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.057944679834824285,"other":0.06346804496016079,"question":0.39209041099807757,"unrelated":0.07614444525520163,"yes":0.4103524189517357},"confidence":0.2629405236896696}},"request_hash":"a196b0ada10de0ce88886531ddb038d1ab46ee293d67fd5607fd42dfaa4d9f28"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Uh, yes.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.008512504494987362,"other":0.004500559236258778,"question":0.005399450803915712,"unrelated":0.01282313880633217,"yes":0.9687643466585059},"confidence":0.9609554333231323}},"request_hash":"d2b077047f423a3bcc9e7d4ff5aa5add574a3edbd2c5f6805357eb181705c366"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Yes, the timetable one.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.006179246806126972,"other":0.24681323480772868,"question":0.003266966414268966,"unrelated":0.0077587083070402895,"yes":0.7359818436648351},"confidence":0.6699773045810439}},"request_hash":"13f176bd41b2b87f9ff80489caa1f154da7d00c077564fa100a29d1579cead4f"},{"act":{"kind":"confirm_thread","slots":{"thread":"Add a greenhouse humidity alarm"}},"reply":"Yeah, the humidity alarm.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.008602749499004131,"other":0.45153859406580504,"question":0.005213852426737448,"unrelated":0.01702938348816119,"yes":0.5176154205202922},"confidence":0.3970192756503652}},"request_hash":"d60b1d7640ac7cd07a0cb6e5d3d745e07550f07bd6816764b54c0268f6642043"},{"act":{"kind":"confirm_thread","slots":{"thread":"Add a greenhouse humidity alarm"}},"reply":"Sure, that one.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.004956969361273659,"other":0.008559838156637523,"question":0.003772172764899274,"unrelated":0.008559838156637523,"yes":0.974151181560552},"confidence":0.96768897695069}},"request_hash":"7386d4a369a07dd212ca9c59153e7f5066dd5ed7e1142daae74f045e648376f6"},{"act":{"kind":"confirm_stop","slots":{"thread":"Speed up the photo upload"}},"reply":"Yeah, stop it.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.13997954789885922,"other":0.01724284261724134,"question":0.006051750337605428,"unrelated":0.010450337631493608,"yes":0.8262755215148004},"confidence":0.7828444018935006}},"request_hash":"16d8c850d09990e63dee97dfe14612f552f1f778c288bfcc81f8351832d61e88"},{"act":{"kind":"confirm_stop","slots":{"thread":"Speed up the photo upload"}},"reply":"Okay, do it?","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.028760322949447296,"other":0.045342088904099596,"question":0.16976730120157016,"unrelated":0.027480395691325408,"yes":0.7286498912535575},"confidence":0.6608123640669469}},"request_hash":"a1644ad61aec0ec185f9345dbbcc9f8df8efbc1eb2dd48c7683cbd8d1d5ac67e"},{"act":{"kind":"confirm_tell","slots":{"thread":"Write the field notes exporter","message":"also export the photos"}},"reply":"Yep, send that.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.008165068657204802,"other":0.009795868515624731,"question":0.0035982046679653053,"unrelated":0.005936963855346877,"yes":0.9725038943038584},"confidence":0.965629867879823}},"request_hash":"c8300cc45d871dbbad9ba7c8ad58c7b43995dfa60799b96a342bcaef0a70d09d"},{"act":{"kind":"confirm_tell","slots":{"thread":"Write the field notes exporter","message":"also export the photos"}},"reply":"Sounds good.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.013389295244802616,"other":0.011160267695612998,"question":0.006175249603988862,"unrelated":0.04576871144509815,"yes":0.9235064760104975},"confidence":0.904383095013122}},"request_hash":"ba142f6b23a6937136802012a0c337d4a0df2288c82cc6e9fb5973572a2b3cd6"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"No.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"no":0.9655134307917655,"other":0.011667906718173412,"question":0.0019321792981720446,"unrelated":0.008106375850007922,"yes":0.012780107341881173},"confidence":0.956891788489707}},"request_hash":"beec3ee322fcc50a53b37da8ddb411154676156152611a2013fb5ae8e02db76f"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"No, not that one.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"no":0.9429921120147973,"other":0.038954149744881116,"question":0.0029081678223157495,"unrelated":0.0079172899369521,"yes":0.007228280481053645},"confidence":0.9287401400184967}},"request_hash":"e82212e5514dd1d74717d0c7c21758673ab73c0a1c47d80977cb8810715d33ac"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Nope, wrong thread.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"no":0.9171065464637455,"other":0.0625092035150737,"question":0.002764686204777004,"unrelated":0.0070298614421238775,"yes":0.01058970237428002},"confidence":0.8963831830796818}},"request_hash":"47294a5913eb278cb476df9925d074330fcbd464c5525989ad9fb937162de3e7"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"No, I meant the ferry map.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"no":0.6173028471014896,"other":0.357477697275441,"question":0.004625299150702912,"unrelated":0.01617469807214325,"yes":0.004419458400223211},"confidence":0.5216285588768621}},"request_hash":"da2804d54f5c302ecf3ce9f6228cf7018bab0aec600d94bab18c69a1a908eb5a"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"The seat picker one, actually.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.17097287989407203,"other":0.8037734191363392,"question":0.005374625491806082,"unrelated":0.010165741912532906,"yes":0.009713333565249957},"confidence":0.7547167739204239}},"request_hash":"f78ce94de24052a55e8a902cec28677d99ec35bf41990309bd8e68d219b41bf6"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Not the timetable, the refund one.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.46729269412100993,"other":0.5118356647162388,"question":0.005395763031189454,"unrelated":0.01117854535945078,"yes":0.004297332772111168},"confidence":0.3897945808952985}},"request_hash":"610f21ab80ba91377e8882585526b865ba3f4e55b75e5c1fb019106d98af5bbc"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Is that the one that failed?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"no":0.02509942894361839,"other":0.03957050623541577,"question":0.8745496061638752,"unrelated":0.04334242032236275,"yes":0.017438038334727974},"confidence":0.843187007704844}},"request_hash":"5d69cb7797b931c1d8d3105b203cc3c04f75d5e2634f577a7b061e4725787bac"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"What's the weather tomorrow?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"no":0.011534708583046538,"other":0.005826999465538316,"question":0.06505731516789141,"unrelated":0.9120132976135925,"yes":0.00556767916993129},"confidence":0.8900166220169907}},"request_hash":"26b71de0b4dfa614a8fe84ade437fb60f234d8a660450d8ab69dbd325733174e"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Hang on.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"no":0.16122793335777494,"other":0.0342952429473815,"question":0.05166195929413254,"unrelated":0.7242290363208176,"yes":0.028585828079893356},"confidence":0.655286295401022}},"request_hash":"2440d530ddc0f3254d1bf0510a1ce8bb87ddcef59aff3f81be79f503a75d9cae"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"I don't know.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"no":0.07645010813327413,"other":0.022364905176779123,"question":0.03525939262364104,"unrelated":0.8535505439686774,"yes":0.01237505009762831},"confidence":0.8169381799608466}},"request_hash":"95718e1ca17305ae964ae15a875d6888c1d9c91babd7155b44fcbe9617fb2231"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Yes, but the other ferry thread.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.008803586114670437,"other":0.9573035296112578,"question":0.0015968188333583856,"unrelated":0.003541963531544959,"yes":0.02875410190916846},"confidence":0.9466294120140721}},"request_hash":"b411a42e8e6ada2176313e52452c4e29d92b5d94a2e128f310ea89246f504394"},{"act":{"kind":"confirm_thread","slots":{"thread":"Fix the ferry timetable parser"}},"reply":"Hmm, maybe?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.17269369646580465,"other":0.3577741105521952,"question":0.0482719387272925,"unrelated":0.248566557788903,"yes":0.17269369646580465},"confidence":0.19721763819024402}},"request_hash":"b3edc5c996a2bd560553ecdffa40cd3615dc9e6d4ed0e5ee82013acccd31e2ba"},{"act":{"kind":"confirm_stop","slots":{"thread":"Speed up the photo upload"}},"reply":"No, let it finish.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"no":0.8365412786939289,"other":0.0624529694281468,"question":0.0034682371044038995,"unrelated":0.019121101268068458,"yes":0.07841641350545196},"confidence":0.7956765983674112}},"request_hash":"4ae3a4ed1def877876a6fb0e33b1b09baf04ec59806e3d4ed077e8d820fd97f7"},{"act":{"kind":"confirm_stop","slots":{"thread":"Speed up the photo upload"}},"reply":"Stop the other one instead.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.17410744836568673,"other":0.7472780074036656,"question":0.005728080436301565,"unrelated":0.05330613071257583,"yes":0.019580333081770297},"confidence":0.684097509254582}},"request_hash":"ae770c2deef1351ae8b28631d8085d2fd40f381e9606e8da8b6d23aff6f0e740"},{"act":{"kind":"confirm_tell","slots":{"thread":"Write the field notes exporter","message":"also export the photos"}},"reply":"Send it to the uploader thread instead.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.13543520159274797,"other":0.7994509295193091,"question":0.008427799356563568,"unrelated":0.03155489273681799,"yes":0.02513117679456139},"confidence":0.7493136618991363}},"request_hash":"0c73849cc4c81da661dd2cbf1fb627a01ae3199b65ec8c152fa1821cd9a8259e"},{"act":{"kind":"confirm_tell","slots":{"thread":"Write the field notes exporter","message":"also export the photos"}},"reply":"Yes, but say videos, not photos.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.005380180290494788,"other":0.9653067603453507,"question":0.0015385099971715055,"unrelated":0.0024813811378032666,"yes":0.025293168229179673},"confidence":0.9566334504316885}},"request_hash":"c6b14f9e3f4f536b78b1e21c8fbaff54d7d2884b63204badbca01c55767e47a4"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"]}},"reply":"The map one.","options":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"],"must_act":false,"expected_target":"Add dark tiles to the ferry map","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.009876857266987976,"other":0.2740850780580126,"question":0.018681409902178068,"unrelated":0.04643283290540961,"yes":0.6509238218674118},"confidence":0.5636547773342648},"target":{"type":"choice","choice":"option_2","probabilities":{"elsewhere":0.00494109907788597,"keeps":0.012281151639727343,"option_1":0.0035927593340212387,"option_2":0.9710322778771854,"option_3":0.008152712071179955},"confidence":0.9637903473464817}},"request_hash":"b1e3b0a345203ee694a1595158dfbc6054f98ab54a451a1ef58b8f18c3ef0e40"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"]}},"reply":"The middle one.","options":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"],"must_act":false,"expected_target":"Add dark tiles to the ferry map","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.01737223096462598,"other":0.2791726877886631,"question":0.03438881757230883,"unrelated":0.14102993864778204,"yes":0.52803632502662},"confidence":0.410045406283275},"target":{"type":"choice","choice":"option_2","probabilities":{"elsewhere":0.0025815895282162394,"keeps":0.005227983733245878,"option_1":0.003632185455631854,"option_2":0.9816882072727781,"option_3":0.006870034010128078},"confidence":0.9771102590909726}},"request_hash":"27e7326520796ee12a16facc5ffb46c5f6bcc3b954e0f89dc504d3b68fb60674"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"]}},"reply":"Spanish.","options":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"],"must_act":false,"expected_target":"Translate the ferry app to Spanish","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.011152342787267304,"other":0.4066843840784759,"question":0.016799760829628606,"unrelated":0.09916613460464319,"yes":0.466197377699985},"confidence":0.33274672212498124},"target":{"type":"choice","choice":"option_3","probabilities":{"elsewhere":0.0032893705627793776,"keeps":0.012315876409577042,"option_1":0.002804885152353544,"option_2":0.007811915849181129,"option_3":0.9737779520261091},"confidence":0.9672224400326364}},"request_hash":"805fc92f013ad3e9c74d225c87e6488d56c915a2cb6872077e9f3f62adfc7acc"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"]}},"reply":"The first.","options":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"],"must_act":false,"expected_target":"Fix the ferry timetable parser","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"no":0.020059887465421786,"other":0.2567390798275458,"question":0.019167157686031576,"unrelated":0.09430503829355219,"yes":0.6097288367274487},"confidence":0.5121610459093109},"target":{"type":"choice","choice":"option_1","probabilities":{"elsewhere":0.003181155055738813,"keeps":0.003039583381619951,"option_1":0.985604659878058,"option_2":0.004180319706321606,"option_3":0.003994281978261669},"confidence":0.9820058248475725}},"request_hash":"dd64fe67a5caa3953211231cb916a2bd0fefa394dbc7d9f989d8afe6e078ce78"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"]}},"reply":"The seat picker.","options":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"],"must_act":false,"expected_target":"elsewhere","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"no":0.01616496482056452,"other":0.514225661489117,"question":0.0112307446059327,"unrelated":0.44858155884915674,"yes":0.00979707023522915},"confidence":0.3927820768613962},"target":{"type":"choice","choice":"elsewhere","probabilities":{"elsewhere":0.8184167911950379,"keeps":0.15893756691567185,"option_1":0.007526352071129217,"option_2":0.009890293722997667,"option_3":0.005228996095163352},"confidence":0.7730209889937973}},"request_hash":"b2ac3266c4a87f536fc3bc98a38f2a6f475b345fbabfceef825490fc038ba38c"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"]}},"reply":"None of them.","options":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"no":0.7372509756460502,"other":0.1307151332052019,"question":0.00677993167465511,"unrelated":0.1193395282286736,"yes":0.0059144312454191455},"confidence":0.6715637195575628},"target":{"type":"choice","choice":"keeps","probabilities":{"elsewhere":0.027808717789585595,"keeps":0.9689503404973501,"option_1":0.0012582530943013085,"option_2":0.0009575100646686451,"option_3":0.0010251785540943646},"confidence":0.9611879256216875}},"request_hash":"eaec9265cc226c9e1b17e1c568f175b166a91bd32ed0048c2cf7ae5be312d020"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"]}},"reply":"Never mind.","options":["Fix the ferry timetable parser","Add dark tiles to the ferry map","Translate the ferry app to Spanish"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"no":0.8430193771987547,"other":0.016061273640238603,"question":0.013387419582605357,"unrelated":0.11904033777128728,"yes":0.008491591807113967},"confidence":0.8037742214984434},"target":{"type":"choice","choice":"keeps","probabilities":{"elsewhere":0.012401178699320321,"keeps":0.980522384490991,"option_1":0.002637888359380914,"option_2":0.002520493807831939,"option_3":0.0019180546424757319},"confidence":0.9756529806137388}},"request_hash":"5e2808f4de5dcb0238285b5785d4480b134e24cfe827e0667cfd029f761f43d0"}]
+[
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Yes.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9985796646845094 },
+      "asks": { "type": "noul", "noul": 0.00178273678569136 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.0039716971178560476,
+          "other": 0.005462249803611502,
+          "question": 0.003022396671533196,
+          "unrelated": 0.007512197438952667,
+          "yes": 0.9800314589680467
+        },
+        "confidence": 0.9750393237100583
+      },
+      "withdraws": { "type": "noul", "noul": 0.022346551925235315 }
+    },
+    "request_hash": "becb0d5133139a5b2a51f769eaa24ae9ca9f98ad62cde68a84af382d1505a4e2"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Yeah, that one.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.997436027855803 },
+      "asks": { "type": "noul", "noul": 0.002807686913496793 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.00487143777466542,
+          "other": 0.017427652971693883,
+          "question": 0.004447496411232476,
+          "unrelated": 0.015910995404870405,
+          "yes": 0.9573424174375378
+        },
+        "confidence": 0.9466780217969222
+      },
+      "withdraws": { "type": "noul", "noul": 0.01709667378192435 }
+    },
+    "request_hash": "7535b0e3f39e17ac1c367ec05fd918fe6c513cf34a5276ceb1486528d2ed9757"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Yep, that's it.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9981762939251029 },
+      "asks": { "type": "noul", "noul": 0.0005985540792724574 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.0017673415646736604,
+          "other": 0.002662302993831697,
+          "question": 0.0013758820989311848,
+          "unrelated": 0.004597341861575562,
+          "yes": 0.9895971314809879
+        },
+        "confidence": 0.9869964143512349
+      },
+      "withdraws": { "type": "noul", "noul": 0.030477466139516032 }
+    },
+    "request_hash": "8c495598393dc997f90c5fba28bf9327b8d3ee4d728364803ed041a7f8075910"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "That's the one.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9963137005914284 },
+      "asks": { "type": "noul", "noul": 0.002450146265852145 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.0033041292913467708,
+          "other": 0.006249537883649696,
+          "question": 0.0033041292913467708,
+          "unrelated": 0.008995268219403404,
+          "yes": 0.9781469353142535
+        },
+        "confidence": 0.9726836691428169
+      },
+      "withdraws": { "type": "noul", "noul": 0.02442462230064752 }
+    },
+    "request_hash": "da9be351c8c006c8c8467d0dcf99fe7ffb7284ffb2d10deaf0ec662f101190ab"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Correct.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9967827655917273 },
+      "asks": { "type": "noul", "noul": 0.0036862989601166873 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.002645661467268962,
+          "other": 0.0036385601373864823,
+          "question": 0.0024154203389825514,
+          "unrelated": 0.007889196238151775,
+          "yes": 0.9834111618182102
+        },
+        "confidence": 0.9792639522727629
+      },
+      "withdraws": { "type": "noul", "noul": 0.05375801939025961 }
+    },
+    "request_hash": "77fa93c7d5576ac24812a2254e176797212bfd2ee0e14994098b8ecadddb92fa"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Mm-hmm.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9636565372880856 },
+      "asks": { "type": "noul", "noul": 0.003217234334308517 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.028122642874123138,
+          "other": 0.009430994555364145,
+          "question": 0.006857440659211556,
+          "unrelated": 0.060976056459734675,
+          "yes": 0.8946128654515665
+        },
+        "confidence": 0.8682660818144581
+      },
+      "withdraws": { "type": "noul", "noul": 0.08934012639307046 }
+    },
+    "request_hash": "6149d93220d1e2abb9e9b23fdc00f481f04fdfa16d22843085bb04aeb95cdbba"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Right.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9667140801055815 },
+      "asks": { "type": "noul", "noul": 0.0019523381137351665 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.01636921186553192,
+          "other": 0.017929547244121515,
+          "question": 0.013036886571327908,
+          "unrelated": 0.053464801732321585,
+          "yes": 0.8991995525866971
+        },
+        "confidence": 0.8739994407333715
+      },
+      "withdraws": { "type": "noul", "noul": 0.056121341102148004 }
+    },
+    "request_hash": "90715729e24fed19e8e7160cb961c41afabff1f25d5646129d14471da0c331a8"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Yes, that's right?",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9652176738588195 },
+      "asks": { "type": "noul", "noul": 0.12875593067821053 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.008936600226923223,
+          "other": 0.012290449494501235,
+          "question": 0.2264109708927193,
+          "unrelated": 0.012862889625978246,
+          "yes": 0.739499089759878
+        },
+        "confidence": 0.6743738621998475
+      },
+      "withdraws": { "type": "noul", "noul": 0.03478232486582448 }
+    },
+    "request_hash": "19cec851936466f7196499cb0e33446ccc2503c9057a40ebe1e3f1fce4a31838"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Exactly.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9959637363088566 },
+      "asks": { "type": "noul", "noul": 0.0029380744069190043 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.003151687331831433,
+          "other": 0.0056959113512417125,
+          "question": 0.0028774078367835966,
+          "unrelated": 0.011800370593597053,
+          "yes": 0.9764746228865461
+        },
+        "confidence": 0.9705932786081826
+      },
+      "withdraws": { "type": "noul", "noul": 0.03328592347424514 }
+    },
+    "request_hash": "d9e311439c2ebcb275b5530f04f05e8e913ce448cba317e2edb53667846edef3"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Yeah?",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.7815409681912363 },
+      "asks": { "type": "noul", "noul": 0.17540245637881524 },
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "no": 0.025345310210661005,
+          "other": 0.0265257937003664,
+          "question": 0.4669037160988474,
+          "unrelated": 0.05495419023426128,
+          "yes": 0.4262709897558639
+        },
+        "confidence": 0.3336296451235592
+      },
+      "withdraws": { "type": "noul", "noul": 0.1565158101401612 }
+    },
+    "request_hash": "b9f6313d1e0440850f6233a93cc270d3a940c8887166980e9bcb65c9ae22aef9"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Uh, yes.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9912895676963742 },
+      "asks": { "type": "noul", "noul": 0.0012677400560231063 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.0037640125069777403,
+          "other": 0.006210543386804338,
+          "question": 0.004515794435725358,
+          "unrelated": 0.013465819905136522,
+          "yes": 0.9720438297653561
+        },
+        "confidence": 0.965054787206695
+      },
+      "withdraws": { "type": "noul", "noul": 0.019549639717203835 }
+    },
+    "request_hash": "d2457ba3d0eb87e9993d2b1564829e931eefc510d055c49fafd330f3475f322d"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Yes, the timetable one.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9908875647578427 },
+      "asks": { "type": "noul", "noul": 0.012489560944407386 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.0052374572636519744,
+          "other": 0.30110613694588595,
+          "question": 0.0038082465406813286,
+          "unrelated": 0.0065761903439385105,
+          "yes": 0.6832719689058423
+        },
+        "confidence": 0.6040899611323028
+      },
+      "withdraws": { "type": "noul", "noul": 0.023363048206207892 }
+    },
+    "request_hash": "fecf7b3a21400d60e0b27956c4e182b6f77fc531e60093c29e6a78c659ba3b13"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Add a greenhouse humidity alarm" } },
+    "reply": "Yeah, the humidity alarm.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9547868920725218 },
+      "asks": { "type": "noul", "noul": 0.010912589958552663 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.009421361451823698,
+          "other": 0.4313788242916122,
+          "question": 0.006254270730341529,
+          "unrelated": 0.011303079238507548,
+          "yes": 0.541642464287715
+        },
+        "confidence": 0.42705308035964373
+      },
+      "withdraws": { "type": "noul", "noul": 0.04328809004148748 }
+    },
+    "request_hash": "ff41eb78ea8022e1074abe4c6822138458b9cda4aaf0fbd66bf8f3daa34da0b7"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Add a greenhouse humidity alarm" } },
+    "reply": "Sure, that one.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.994200691161351 },
+      "asks": { "type": "noul", "noul": 0.001452988239975352 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.004128480455006016,
+          "other": 0.007808742555274174,
+          "question": 0.003441177912023294,
+          "unrelated": 0.01123950843225226,
+          "yes": 0.9733820906454441
+        },
+        "confidence": 0.9667276133068052
+      },
+      "withdraws": { "type": "noul", "noul": 0.012489558467897507 }
+    },
+    "request_hash": "2500ecaa028a8567b23a2516e20cf46fb67f24858fd6934ba6551d1945e43530"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
+    "reply": "Yeah, stop it.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9244087791836507 },
+      "asks": { "type": "noul", "noul": 0.003857329738150794 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.20338493782836609,
+          "other": 0.016631295330132006,
+          "question": 0.00840164693387452,
+          "unrelated": 0.010079698301901507,
+          "yes": 0.7615024216057258
+        },
+        "confidence": 0.7018780270071572
+      }
+    },
+    "request_hash": "11e67a014d3512f1f912ebe0bf1bdff7dd4af2556284cb2dfe47edc9fcceed45"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
+    "reply": "Okay, do it?",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9244087867679406 },
+      "asks": { "type": "noul", "noul": 0.16262021029559684 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.014641482712732733,
+          "other": 0.03033314800665319,
+          "question": 0.15619439338267496,
+          "unrelated": 0.03033314800665319,
+          "yes": 0.768497827891286
+        },
+        "confidence": 0.7106222848641075
+      }
+    },
+    "request_hash": "e36955cca8914ef357e25b6ef663337d074fba7fdf0234788589f682cb3e0b5c"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Write the field notes exporter", "message": "also export the photos" }
+    },
+    "reply": "Yep, send that.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.9980915152469394 },
+      "asks": { "type": "noul", "noul": 0.003366575276560956 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.0025426310809612833,
+          "other": 0.0045951897225958585,
+          "question": 0.0014069000855569096,
+          "unrelated": 0.0023213562670294273,
+          "yes": 0.9891339228438565
+        },
+        "confidence": 0.9864174035548205
+      }
+    },
+    "request_hash": "524711b3599cfc8f014c44d2a4cb55a3b8525b92ab7a55972d29ca128067d945"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Write the field notes exporter", "message": "also export the photos" }
+    },
+    "reply": "Sounds good.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.988059627896166 },
+      "asks": { "type": "noul", "noul": 0.009112434997150493 },
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.01428848479160841,
+          "other": 0.0205661211344356,
+          "question": 0.013045016229729593,
+          "unrelated": 0.0923821556215144,
+          "yes": 0.859718222222712
+        },
+        "confidence": 0.82464777777839
+      }
+    },
+    "request_hash": "9d522736bdeed99153f9a18de246409aa43b745e3a0b9e587ef41395a5caa1be"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "No.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.0021380393256366483 },
+      "asks": { "type": "noul", "noul": 0.005799309965074319 },
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "no": 0.9618615128533057,
+          "other": 0.005122397108155242,
+          "question": 0.0061454876453522645,
+          "unrelated": 0.010139928489551114,
+          "yes": 0.016730673903635623
+        },
+        "confidence": 0.952326891066632
+      },
+      "withdraws": { "type": "noul", "noul": 0.33562362926689515 }
+    },
+    "request_hash": "89869e2087a03b8d482041378766fb5451c2ddf6ccd0b574151315e135cc54b3"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "No, not that one.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.01494679822176536 },
+      "asks": { "type": "noul", "noul": 0.061143809576635295 },
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "no": 0.9487761914271643,
+          "other": 0.029825292532208163,
+          "question": 0.0026713669815024072,
+          "unrelated": 0.010001982130286118,
+          "yes": 0.00872516692883891
+        },
+        "confidence": 0.9359702392839553
+      },
+      "withdraws": { "type": "noul", "noul": 0.10530489769196884 }
+    },
+    "request_hash": "61ec3d0b624e114443fb9da0aa4d1a30b04a8495c321a23fb1441316a6b8ae50"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Nope, wrong thread.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.005799309933784732 },
+      "asks": { "type": "noul", "noul": 0.02234655204379716 },
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "no": 0.9510855453950352,
+          "other": 0.03928848385043356,
+          "question": 0.001737668480973998,
+          "unrelated": 0.003854390076249528,
+          "yes": 0.004033912197307762
+        },
+        "confidence": 0.938856931743794
+      },
+      "withdraws": { "type": "noul", "noul": 0.15059934882484172 }
+    },
+    "request_hash": "f3e47c07d498c0ab70dc3bd7bd8f19bd3d34e378dd7dee8e4fb670d9e62d764e"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "No, I meant the ferry map.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.008710434154542654 },
+      "asks": { "type": "noul", "noul": 0.0970298463353057 },
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "no": 0.8213198638230746,
+          "other": 0.16693028040820174,
+          "question": 0.003483526465332572,
+          "unrelated": 0.002774375441519392,
+          "yes": 0.005491953861871661
+        },
+        "confidence": 0.7766498297788433
+      },
+      "withdraws": { "type": "noul", "noul": 0.09311378604223801 }
+    },
+    "request_hash": "a41af92abb9f172e9e3a172282f3092cd42a00b8319089d0560461a7fa496595"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "The seat picker one, actually.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.016348258018426636 },
+      "asks": { "type": "noul", "noul": 0.13931921689003465 },
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "no": 0.18840049766939806,
+          "other": 0.7382531438785961,
+          "question": 0.0056589029996556035,
+          "unrelated": 0.06318055083588538,
+          "yes": 0.004506904616464868
+        },
+        "confidence": 0.6728164298482451
+      },
+      "withdraws": { "type": "noul", "noul": 0.04521312034389423 }
+    },
+    "request_hash": "e04bfc1cc694ba60741403b820c694845d89884ae589c0223260308dd782581e"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Not the timetable, the refund one.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.01429112766008522 },
+      "asks": { "type": "noul", "noul": 0.2869020524032132 },
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "no": 0.35715439973791335,
+          "other": 0.6167445407688108,
+          "question": 0.007453152301994587,
+          "unrelated": 0.01346976724838859,
+          "yes": 0.005178139942892706
+        },
+        "confidence": 0.5209306759610135
+      },
+      "withdraws": { "type": "noul", "noul": 0.03328592495856367 }
+    },
+    "request_hash": "8cfaca73027bbca02a56dcc699c52c42eb5b97987a24fbc3c1a0bd4728a24fbb"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Is that the one that failed?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.07883440795235602 },
+      "asks": { "type": "noul", "noul": 0.9620280783669662 },
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "no": 0.019883684075496198,
+          "other": 0.027345904335998438,
+          "question": 0.9104206585850615,
+          "unrelated": 0.031347623344733816,
+          "yes": 0.011002129658710056
+        },
+        "confidence": 0.888025823231327
+      },
+      "withdraws": { "type": "noul", "noul": 0.10109224177563948 }
+    },
+    "request_hash": "f9e3485396cac0ca57219525cce04ff707f4c263f380c2f46872937f0bcd3bab"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "What's the weather tomorrow?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.01194037143157006 },
+      "asks": { "type": "noul", "noul": 0.7402079421565323 },
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "no": 0.02017690266136769,
+          "other": 0.01760119559645035,
+          "question": 0.14954388809926994,
+          "unrelated": 0.8059116417910487,
+          "yes": 0.0067663718518633
+        },
+        "confidence": 0.7573895522388108
+      },
+      "withdraws": { "type": "noul", "noul": 0.6226385971152885 }
+    },
+    "request_hash": "3c3531dd9fb2cfa404199a2bdd3980c7c5548c50e2fd55da6aad92d1d7315fb8"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Hang on.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.030477465979159634 },
+      "asks": { "type": "noul", "noul": 0.3881158925070356 },
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "no": 0.06628909487414221,
+          "other": 0.030573063815080265,
+          "question": 0.03348732954115326,
+          "unrelated": 0.8484096197949482,
+          "yes": 0.021240891974675994
+        },
+        "confidence": 0.8105120247436852
+      },
+      "withdraws": { "type": "noul", "noul": 0.1754024469597357 }
+    },
+    "request_hash": "de3236a52a8055aa170269580d5cc9e99d2734378a9695ff2257a1ef5ec3c467"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "I don't know.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.006642326347561559 },
+      "asks": { "type": "noul", "noul": 0.07247096209065744 },
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "no": 0.06324544364206862,
+          "other": 0.01473548358733941,
+          "question": 0.09970960804016299,
+          "unrelated": 0.8094550572337997,
+          "yes": 0.01285440749662932
+        },
+        "confidence": 0.7618188215422497
+      },
+      "withdraws": { "type": "noul", "noul": 0.23440170905597912 }
+    },
+    "request_hash": "73c92ef062e59d7a15f148b1cc531550d16f1bf2703c5cabf0e5729a94a3f508"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Yes, but the other ferry thread.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.48862099125815583 },
+      "asks": { "type": "noul", "noul": 0.16891500433475856 },
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "no": 0.004098769459800484,
+          "other": 0.9663770568247334,
+          "question": 0.0013745315191849455,
+          "unrelated": 0.0016490651331677966,
+          "yes": 0.02650057706311342
+        },
+        "confidence": 0.9579713210309166
+      },
+      "withdraws": { "type": "noul", "noul": 0.05148880658509894 }
+    },
+    "request_hash": "62d2fd56d8af8dd25347d379299ce4d54435f57f4d574c21c5cef98a692c75de"
+  },
+  {
+    "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
+    "reply": "Hmm, maybe?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.025533177574968563 },
+      "asks": { "type": "noul", "noul": 0.12373487769570003 },
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "no": 0.04104684174875609,
+          "other": 0.34874353902215843,
+          "question": 0.10677411478247381,
+          "unrelated": 0.4183976886612257,
+          "yes": 0.08503781578538598
+        },
+        "confidence": 0.2729971108265321
+      },
+      "withdraws": { "type": "noul", "noul": 0.051488806320062995 }
+    },
+    "request_hash": "dff88426b21b11a90c8f4678b1cb30a92adce4bda1c639d2bcf3f1321fed835c"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
+    "reply": "No, let it finish.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.10967167734275816 },
+      "asks": { "type": "noul", "noul": 0.03185177381209091 },
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "no": 0.809645451975816,
+          "other": 0.11965263562001756,
+          "question": 0.005666046882443949,
+          "unrelated": 0.01689580160900193,
+          "yes": 0.04814006391272049
+        },
+        "confidence": 0.7620568149697702
+      }
+    },
+    "request_hash": "33c89e884e9220950da20d9d74e4f9241a5131ee9079b6a4176e3cb94ee7758e"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
+    "reply": "Stop the other one instead.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.061143812068882294 },
+      "asks": { "type": "noul", "noul": 0.48862099125815583 },
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "no": 0.2345296390354743,
+          "other": 0.6682294115892223,
+          "question": 0.008451445743203332,
+          "unrelated": 0.07865006026143058,
+          "yes": 0.010139443370669457
+        },
+        "confidence": 0.5852867644865279
+      }
+    },
+    "request_hash": "d9f27734e90be4063195397702e40315484641cade67e4fc406913e4093c90a4"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Write the field notes exporter", "message": "also export the photos" }
+    },
+    "reply": "Send it to the uploader thread instead.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.10109225015925606 },
+      "asks": { "type": "noul", "noul": 0.35621952722040356 },
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "no": 0.1185174629430199,
+          "other": 0.8393165208171918,
+          "question": 0.005873691976335959,
+          "unrelated": 0.021013234728885898,
+          "yes": 0.015279089534566553
+        },
+        "confidence": 0.7991456510214898
+      }
+    },
+    "request_hash": "25113846d858cc1240006b9b8a5acfbd82177f497109532e8a6a8e06de5c6d06"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Write the field notes exporter", "message": "also export the photos" }
+    },
+    "reply": "Yes, but say videos, not photos.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "agrees": { "type": "noul", "noul": 0.694115356457275 },
+      "asks": { "type": "noul", "noul": 0.3773614130854831 },
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "no": 0.0031264864031132827,
+          "other": 0.9686667131682352,
+          "question": 0.0015091211968087392,
+          "unrelated": 0.0013164724938004603,
+          "yes": 0.02538120673804226
+        },
+        "confidence": 0.960833391460294
+      }
+    },
+    "request_hash": "e2151ed57d10c1ec8c446cf6de6d01e041c4dee0a345e7129cba565a77ce192d"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": [
+          "Fix the ferry timetable parser",
+          "Add dark tiles to the ferry map",
+          "Translate the ferry app to Spanish"
+        ]
+      }
+    },
+    "reply": "The map one.",
+    "options": [
+      "Fix the ferry timetable parser",
+      "Add dark tiles to the ferry map",
+      "Translate the ferry app to Spanish"
+    ],
+    "must_act": false,
+    "expected_target": "Add dark tiles to the ferry map",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.009876857266987976,
+          "other": 0.2740850780580126,
+          "question": 0.018681409902178068,
+          "unrelated": 0.04643283290540961,
+          "yes": 0.6509238218674118
+        },
+        "confidence": 0.5636547773342648
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_2",
+        "probabilities": {
+          "elsewhere": 0.00494109907788597,
+          "keeps": 0.012281151639727343,
+          "option_1": 0.0035927593340212387,
+          "option_2": 0.9710322778771854,
+          "option_3": 0.008152712071179955
+        },
+        "confidence": 0.9637903473464817
+      }
+    },
+    "request_hash": "b1e3b0a345203ee694a1595158dfbc6054f98ab54a451a1ef58b8f18c3ef0e40"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": [
+          "Fix the ferry timetable parser",
+          "Add dark tiles to the ferry map",
+          "Translate the ferry app to Spanish"
+        ]
+      }
+    },
+    "reply": "The middle one.",
+    "options": [
+      "Fix the ferry timetable parser",
+      "Add dark tiles to the ferry map",
+      "Translate the ferry app to Spanish"
+    ],
+    "must_act": false,
+    "expected_target": "Add dark tiles to the ferry map",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.01737223096462598,
+          "other": 0.2791726877886631,
+          "question": 0.03438881757230883,
+          "unrelated": 0.14102993864778204,
+          "yes": 0.52803632502662
+        },
+        "confidence": 0.410045406283275
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_2",
+        "probabilities": {
+          "elsewhere": 0.0025815895282162394,
+          "keeps": 0.005227983733245878,
+          "option_1": 0.003632185455631854,
+          "option_2": 0.9816882072727781,
+          "option_3": 0.006870034010128078
+        },
+        "confidence": 0.9771102590909726
+      }
+    },
+    "request_hash": "27e7326520796ee12a16facc5ffb46c5f6bcc3b954e0f89dc504d3b68fb60674"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": [
+          "Fix the ferry timetable parser",
+          "Add dark tiles to the ferry map",
+          "Translate the ferry app to Spanish"
+        ]
+      }
+    },
+    "reply": "Spanish.",
+    "options": [
+      "Fix the ferry timetable parser",
+      "Add dark tiles to the ferry map",
+      "Translate the ferry app to Spanish"
+    ],
+    "must_act": false,
+    "expected_target": "Translate the ferry app to Spanish",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.011152342787267304,
+          "other": 0.4066843840784759,
+          "question": 0.016799760829628606,
+          "unrelated": 0.09916613460464319,
+          "yes": 0.466197377699985
+        },
+        "confidence": 0.33274672212498124
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_3",
+        "probabilities": {
+          "elsewhere": 0.0032893705627793776,
+          "keeps": 0.012315876409577042,
+          "option_1": 0.002804885152353544,
+          "option_2": 0.007811915849181129,
+          "option_3": 0.9737779520261091
+        },
+        "confidence": 0.9672224400326364
+      }
+    },
+    "request_hash": "805fc92f013ad3e9c74d225c87e6488d56c915a2cb6872077e9f3f62adfc7acc"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": [
+          "Fix the ferry timetable parser",
+          "Add dark tiles to the ferry map",
+          "Translate the ferry app to Spanish"
+        ]
+      }
+    },
+    "reply": "The first.",
+    "options": [
+      "Fix the ferry timetable parser",
+      "Add dark tiles to the ferry map",
+      "Translate the ferry app to Spanish"
+    ],
+    "must_act": false,
+    "expected_target": "Fix the ferry timetable parser",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "no": 0.020059887465421786,
+          "other": 0.2567390798275458,
+          "question": 0.019167157686031576,
+          "unrelated": 0.09430503829355219,
+          "yes": 0.6097288367274487
+        },
+        "confidence": 0.5121610459093109
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_1",
+        "probabilities": {
+          "elsewhere": 0.003181155055738813,
+          "keeps": 0.003039583381619951,
+          "option_1": 0.985604659878058,
+          "option_2": 0.004180319706321606,
+          "option_3": 0.003994281978261669
+        },
+        "confidence": 0.9820058248475725
+      }
+    },
+    "request_hash": "dd64fe67a5caa3953211231cb916a2bd0fefa394dbc7d9f989d8afe6e078ce78"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": [
+          "Fix the ferry timetable parser",
+          "Add dark tiles to the ferry map",
+          "Translate the ferry app to Spanish"
+        ]
+      }
+    },
+    "reply": "The seat picker.",
+    "options": [
+      "Fix the ferry timetable parser",
+      "Add dark tiles to the ferry map",
+      "Translate the ferry app to Spanish"
+    ],
+    "must_act": false,
+    "expected_target": "elsewhere",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "no": 0.01616496482056452,
+          "other": 0.514225661489117,
+          "question": 0.0112307446059327,
+          "unrelated": 0.44858155884915674,
+          "yes": 0.00979707023522915
+        },
+        "confidence": 0.3927820768613962
+      },
+      "target": {
+        "type": "choice",
+        "choice": "elsewhere",
+        "probabilities": {
+          "elsewhere": 0.8184167911950379,
+          "keeps": 0.15893756691567185,
+          "option_1": 0.007526352071129217,
+          "option_2": 0.009890293722997667,
+          "option_3": 0.005228996095163352
+        },
+        "confidence": 0.7730209889937973
+      }
+    },
+    "request_hash": "b2ac3266c4a87f536fc3bc98a38f2a6f475b345fbabfceef825490fc038ba38c"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": [
+          "Fix the ferry timetable parser",
+          "Add dark tiles to the ferry map",
+          "Translate the ferry app to Spanish"
+        ]
+      }
+    },
+    "reply": "None of them.",
+    "options": [
+      "Fix the ferry timetable parser",
+      "Add dark tiles to the ferry map",
+      "Translate the ferry app to Spanish"
+    ],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "no": 0.7372509756460502,
+          "other": 0.1307151332052019,
+          "question": 0.00677993167465511,
+          "unrelated": 0.1193395282286736,
+          "yes": 0.0059144312454191455
+        },
+        "confidence": 0.6715637195575628
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.027808717789585595,
+          "keeps": 0.9689503404973501,
+          "option_1": 0.0012582530943013085,
+          "option_2": 0.0009575100646686451,
+          "option_3": 0.0010251785540943646
+        },
+        "confidence": 0.9611879256216875
+      }
+    },
+    "request_hash": "eaec9265cc226c9e1b17e1c568f175b166a91bd32ed0048c2cf7ae5be312d020"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": [
+          "Fix the ferry timetable parser",
+          "Add dark tiles to the ferry map",
+          "Translate the ferry app to Spanish"
+        ]
+      }
+    },
+    "reply": "Never mind.",
+    "options": [
+      "Fix the ferry timetable parser",
+      "Add dark tiles to the ferry map",
+      "Translate the ferry app to Spanish"
+    ],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "no": 0.8430193771987547,
+          "other": 0.016061273640238603,
+          "question": 0.013387419582605357,
+          "unrelated": 0.11904033777128728,
+          "yes": 0.008491591807113967
+        },
+        "confidence": 0.8037742214984434
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.012401178699320321,
+          "keeps": 0.980522384490991,
+          "option_1": 0.002637888359380914,
+          "option_2": 0.002520493807831939,
+          "option_3": 0.0019180546424757319
+        },
+        "confidence": 0.9756529806137388
+      }
+    },
+    "request_hash": "5e2808f4de5dcb0238285b5785d4480b134e24cfe827e0667cfd029f761f43d0"
+  }
+]

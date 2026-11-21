@@ -1,1 +1,1484 @@
-{"criteria":{"yes":"It agrees to exactly what the assistant asked, with nothing added, changed or conditional. A short agreement such as okay, sure, mm-hmm or please do counts.","no":"It declines what the assistant asked, or takes it back.","question":"It asks the assistant something, or asks about what was proposed, instead of answering.","other":"It agrees but changes the project, thread or terms, adds a condition, or names something else.","unrelated":"It does not answer what the assistant asked."},"rows":[{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.007,"other":0.006,"question":0.007,"unrelated":0.01,"yes":0.97}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yeah.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.009,"other":0.007,"question":0.005,"unrelated":0.017,"yes":0.961}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yeah, go ahead.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.007,"other":0.012,"question":0.004,"unrelated":0.01,"yes":0.967}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Sure.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.009,"other":0.009,"question":0.006,"unrelated":0.021,"yes":0.955}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Sure, why not.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.014,"other":0.016,"question":0.015,"unrelated":0.022,"yes":0.932}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.011,"other":0.013,"question":0.005,"unrelated":0.021,"yes":0.95}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do?","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.02,"other":0.02,"question":0.124,"unrelated":0.033,"yes":0.803}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do!","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.007,"other":0.008,"question":0.004,"unrelated":0.013,"yes":0.968}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, please.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.004,"other":0.005,"question":0.003,"unrelated":0.005,"yes":0.983}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Do it.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.01,"other":0.011,"question":0.005,"unrelated":0.017,"yes":0.958}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Go for it.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.007,"other":0.014,"question":0.004,"unrelated":0.014,"yes":0.962}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Okay.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.058,"other":0.02,"question":0.014,"unrelated":0.137,"yes":0.771}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Okay, sounds good.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.021,"other":0.021,"question":0.011,"unrelated":0.078,"yes":0.87}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yep.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.005,"other":0.004,"question":0.003,"unrelated":0.007,"yes":0.982}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Alright, go ahead.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.009,"other":0.013,"question":0.008,"unrelated":0.024,"yes":0.946}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Uh-huh.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.051,"other":0.016,"question":0.019,"unrelated":0.133,"yes":0.782}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, do it.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.003,"other":0.004,"question":0.002,"unrelated":0.004,"yes":0.987}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes please do?","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.008,"other":0.016,"question":0.026,"unrelated":0.009,"yes":0.942}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Mm-hmm, go on.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.026,"other":0.029,"question":0.012,"unrelated":0.062,"yes":0.871}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.978,"other":0.003,"question":0.003,"unrelated":0.005,"yes":0.01}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No, don't.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.98,"other":0.003,"question":0.003,"unrelated":0.007,"yes":0.007}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Nope.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.971,"other":0.003,"question":0.003,"unrelated":0.011,"yes":0.012}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Wait.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.405,"other":0.044,"question":0.075,"unrelated":0.443,"yes":0.033}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Never mind.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.63,"other":0.019,"question":0.014,"unrelated":0.318,"yes":0.02}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Hold on, not yet.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.864,"other":0.054,"question":0.01,"unrelated":0.062,"yes":0.01}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"What do you mean?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"question","p":{"no":0.015,"other":0.005,"question":0.912,"unrelated":0.059,"yes":0.009}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"How long will it take?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"question","p":{"no":0.017,"other":0.016,"question":0.905,"unrelated":0.045,"yes":0.016}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Which project is that?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"question","p":{"no":0.013,"other":0.035,"question":0.92,"unrelated":0.025,"yes":0.007}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Why?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"question","p":{"no":0.014,"other":0.005,"question":0.929,"unrelated":0.046,"yes":0.007}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Can you tell me more first?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"question","p":{"no":0.041,"other":0.026,"question":0.872,"unrelated":0.045,"yes":0.015}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Start it in the voice server instead.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.06,"other":0.886,"question":0.004,"unrelated":0.018,"yes":0.032}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No, the other project.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.669,"other":0.282,"question":0.005,"unrelated":0.036,"yes":0.007}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but in the server project.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.004,"other":0.968,"question":0.001,"unrelated":0.003,"yes":0.023}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Actually make it about the build.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.099,"other":0.803,"question":0.013,"unrelated":0.06,"yes":0.025}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"What's the weather like?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.011,"other":0.006,"question":0.107,"unrelated":0.87,"yes":0.007}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Hmm, I'm not sure.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.103,"other":0.015,"question":0.028,"unrelated":0.838,"yes":0.017}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Maybe later.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.397,"other":0.455,"question":0.011,"unrelated":0.122,"yes":0.015}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"I'm thinking about it.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.073,"other":0.041,"question":0.027,"unrelated":0.82,"yes":0.039}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Thanks.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.079,"other":0.015,"question":0.02,"unrelated":0.731,"yes":0.155}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Hello?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.028,"other":0.009,"question":0.219,"unrelated":0.715,"yes":0.03}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but in the other project.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.009,"other":0.972,"question":0.002,"unrelated":0.002,"yes":0.015}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but only after the tests pass.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.004,"other":0.968,"question":0.002,"unrelated":0.001,"yes":0.024}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Sure, in the voice server.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.008,"other":0.852,"question":0.004,"unrelated":0.009,"yes":0.126}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yeah, but make it about the build instead.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.005,"other":0.971,"question":0.002,"unrelated":0.002,"yes":0.019}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Okay, if it's quick.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.022,"other":0.852,"question":0.009,"unrelated":0.011,"yes":0.105}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, as long as it doesn't touch the main branch.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.006,"other":0.96,"question":0.002,"unrelated":0.003,"yes":0.029}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes please, and also tell the other thread.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.006,"other":0.567,"question":0.006,"unrelated":0.008,"yes":0.412}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Yes, stop it.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.046,"other":0.011,"question":0.004,"unrelated":0.007,"yes":0.932}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Please do.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.116,"other":0.015,"question":0.007,"unrelated":0.039,"yes":0.823}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Go ahead.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.12,"other":0.042,"question":0.014,"unrelated":0.083,"yes":0.741}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Yeah.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.134,"other":0.016,"question":0.012,"unrelated":0.049,"yes":0.789}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"No, leave it running.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.821,"other":0.074,"question":0.004,"unrelated":0.014,"yes":0.088}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Which one is that?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"question","p":{"no":0.014,"other":0.017,"question":0.867,"unrelated":0.093,"yes":0.008}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Don't stop it.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.844,"other":0.023,"question":0.005,"unrelated":0.029,"yes":0.099}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Yes, but wait until it finishes the run.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.013,"other":0.917,"question":0.003,"unrelated":0.005,"yes":0.063}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Yes, send it.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.006,"other":0.007,"question":0.003,"unrelated":0.004,"yes":0.98}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Please do?","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.025,"other":0.021,"question":0.101,"unrelated":0.032,"yes":0.821}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Sure.","options":[],"asked":null,"must_act":true,"expected_target":null,"target_answer":null,"choice":"yes","p":{"no":0.013,"other":0.01,"question":0.006,"unrelated":0.021,"yes":0.95}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Send it to the other thread.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.109,"other":0.804,"question":0.004,"unrelated":0.011,"yes":0.072}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"What does it say?","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"question","p":{"no":0.018,"other":0.01,"question":0.851,"unrelated":0.1,"yes":0.02}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"No.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.974,"other":0.003,"question":0.002,"unrelated":0.006,"yes":0.015}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Yes, but add that it should keep my formatting.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"other","p":{"no":0.004,"other":0.964,"question":0.001,"unrelated":0.001,"yes":0.03}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":true,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.04,"keeps":0.934,"option_1":0.026}},"choice":"yes","p":{"no":0.009,"other":0.011,"question":0.006,"unrelated":0.013,"yes":0.962}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do?","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":true,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.078,"keeps":0.876,"option_1":0.045}},"choice":"yes","p":{"no":0.021,"other":0.055,"question":0.109,"unrelated":0.04,"yes":0.774}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.218,"keeps":0.745,"option_1":0.037}},"choice":"no","p":{"no":0.984,"other":0.004,"question":0.002,"unrelated":0.005,"yes":0.005}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but in the other project.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"Voice server","target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.414,"keeps":0.434,"option_1":0.152}},"choice":"other","p":{"no":0.012,"other":0.942,"question":0.003,"unrelated":0.003,"yes":0.041}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"The other project please.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"Voice server","target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.827,"keeps":0.056,"option_1":0.117}},"choice":"other","p":{"no":0.167,"other":0.685,"question":0.014,"unrelated":0.116,"yes":0.017}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No, the other one.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"Voice server","target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.812,"keeps":0.015,"option_1":0.173}},"choice":"no","p":{"no":0.482,"other":0.482,"question":0.005,"unrelated":0.024,"yes":0.007}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Put it in the voice server.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"Voice server","target_answer":{"choice":"option_1","probabilities":{"elsewhere":0.02,"keeps":0.016,"option_1":0.964}},"choice":"other","p":{"no":0.111,"other":0.821,"question":0.005,"unrelated":0.049,"yes":0.014}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"What do you mean?","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.086,"keeps":0.878,"option_1":0.036}},"choice":"question","p":{"no":0.02,"other":0.008,"question":0.907,"unrelated":0.059,"yes":0.006}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but only after the tests pass.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.045,"keeps":0.912,"option_1":0.043}},"choice":"other","p":{"no":0.005,"other":0.962,"question":0.003,"unrelated":0.003,"yes":0.028}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Actually make it about the build.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":null,"target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.534,"keeps":0.171,"option_1":0.295}},"choice":"other","p":{"no":0.172,"other":0.705,"question":0.017,"unrelated":0.083,"yes":0.023}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Not that one.","options":["Voice server"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"Voice server","target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.805,"keeps":0.119,"option_1":0.076}},"choice":"no","p":{"no":0.547,"other":0.277,"question":0.021,"unrelated":0.14,"yes":0.016}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"The other one.","options":["Voice server","Docs site"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"elsewhere","target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.781,"keeps":0.088,"option_1":0.07,"option_2":0.061}},"choice":"other","p":{"no":0.178,"other":0.609,"question":0.021,"unrelated":0.17,"yes":0.022}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"The docs one.","options":["Voice server","Docs site"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"Docs site","target_answer":{"choice":"option_2","probabilities":{"elsewhere":0.032,"keeps":0.04,"option_1":0.007,"option_2":0.921}},"choice":"other","p":{"no":0.076,"other":0.737,"question":0.02,"unrelated":0.143,"yes":0.024}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Not that one.","options":["Voice server","Docs site"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":false,"expected_target":"elsewhere","target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.864,"keeps":0.111,"option_1":0.01,"option_2":0.014}},"choice":"no","p":{"no":0.642,"other":0.225,"question":0.015,"unrelated":0.109,"yes":0.01}},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes.","options":["Voice server","Docs site"],"asked":"The assistant proposed one thing, and `alternatives` lists every other thing it could be. Does the reply keep what was proposed, or change to one of the alternatives?","must_act":true,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.034,"keeps":0.949,"option_1":0.009,"option_2":0.008}},"choice":"yes","p":{"no":0.008,"other":0.012,"question":0.006,"unrelated":0.014,"yes":0.959}},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Voice server.","options":["Voice server","Docs site"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Voice server","target_answer":{"choice":"option_1","probabilities":{"elsewhere":0.002,"keeps":0.004,"option_1":0.987,"option_2":0.007}},"choice":"yes","p":{"no":0.01,"other":0.294,"question":0.01,"unrelated":0.05,"yes":0.636}},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Docs site.","options":["Voice server","Docs site"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Docs site","target_answer":{"choice":"option_2","probabilities":{"elsewhere":0.003,"keeps":0.004,"option_1":0.002,"option_2":0.991}},"choice":"yes","p":{"no":0.007,"other":0.295,"question":0.006,"unrelated":0.021,"yes":0.67}},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"The first one.","options":["Voice server","Docs site"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Voice server","target_answer":{"choice":"option_1","probabilities":{"elsewhere":0.003,"keeps":0.003,"option_1":0.979,"option_2":0.014}},"choice":"yes","p":{"no":0.02,"other":0.273,"question":0.021,"unrelated":0.12,"yes":0.565}},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"The second.","options":["Voice server","Docs site"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Docs site","target_answer":{"choice":"option_2","probabilities":{"elsewhere":0.004,"keeps":0.008,"option_1":0.005,"option_2":0.983}},"choice":"yes","p":{"no":0.034,"other":0.33,"question":0.028,"unrelated":0.133,"yes":0.475}},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Never mind.","options":["Voice server","Docs site"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.015,"keeps":0.975,"option_1":0.004,"option_2":0.005}},"choice":"no","p":{"no":0.798,"other":0.009,"question":0.013,"unrelated":0.17,"yes":0.01}},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Neither.","options":["Voice server","Docs site"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.032,"keeps":0.963,"option_1":0.002,"option_2":0.003}},"choice":"no","p":{"no":0.606,"other":0.194,"question":0.009,"unrelated":0.177,"yes":0.014}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Never mind.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.014,"keeps":0.979,"option_1":0.002,"option_2":0.003,"option_3":0.002}},"choice":"no","p":{"no":0.847,"other":0.009,"question":0.011,"unrelated":0.125,"yes":0.008}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"No, cancel that.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.022,"keeps":0.97,"option_1":0.003,"option_2":0.002,"option_3":0.002}},"choice":"no","p":{"no":0.915,"other":0.014,"question":0.007,"unrelated":0.057,"yes":0.007}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The clamp one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Add a clamp helper","target_answer":{"choice":"option_1","probabilities":{"elsewhere":0.006,"keeps":0.006,"option_1":0.976,"option_2":0.008,"option_3":0.003}},"choice":"yes","p":{"no":0.012,"other":0.241,"question":0.011,"unrelated":0.081,"yes":0.655}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The second one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Fix the flaky ASR test","target_answer":{"choice":"option_2","probabilities":{"elsewhere":0.002,"keeps":0.002,"option_1":0.002,"option_2":0.987,"option_3":0.008}},"choice":"yes","p":{"no":0.013,"other":0.125,"question":0.014,"unrelated":0.076,"yes":0.772}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Um, the first.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Add a clamp helper","target_answer":{"choice":"option_1","probabilities":{"elsewhere":0.007,"keeps":0.009,"option_1":0.973,"option_2":0.005,"option_3":0.006}},"choice":"yes","p":{"no":0.023,"other":0.27,"question":0.033,"unrelated":0.164,"yes":0.51}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The last one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Add a sum helper","target_answer":{"choice":"option_3","probabilities":{"elsewhere":0.001,"keeps":0.005,"option_1":0.002,"option_2":0.003,"option_3":0.988}},"choice":"yes","p":{"no":0.029,"other":0.279,"question":0.025,"unrelated":0.185,"yes":0.482}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The one about the flaky test.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Fix the flaky ASR test","target_answer":{"choice":"option_2","probabilities":{"elsewhere":0.008,"keeps":0.012,"option_1":0.004,"option_2":0.971,"option_3":0.005}},"choice":"yes","p":{"no":0.011,"other":0.254,"question":0.014,"unrelated":0.193,"yes":0.527}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The sum helper.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"Add a sum helper","target_answer":{"choice":"option_3","probabilities":{"elsewhere":0.002,"keeps":0.006,"option_1":0.003,"option_2":0.003,"option_3":0.987}},"choice":"yes","p":{"no":0.008,"other":0.304,"question":0.01,"unrelated":0.049,"yes":0.629}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"What are they again?","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.012,"keeps":0.98,"option_1":0.003,"option_2":0.002,"option_3":0.002}},"choice":"question","p":{"no":0.016,"other":0.012,"question":0.864,"unrelated":0.102,"yes":0.006}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Hold on a second.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.014,"keeps":0.978,"option_1":0.003,"option_2":0.004,"option_3":0.001}},"choice":"unrelated","p":{"no":0.103,"other":0.017,"question":0.055,"unrelated":0.801,"yes":0.024}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"None of those.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":null,"target_answer":{"choice":"keeps","probabilities":{"elsewhere":0.058,"keeps":0.937,"option_1":0.001,"option_2":0.002,"option_3":0.001}},"choice":"no","p":{"no":0.494,"other":0.286,"question":0.012,"unrelated":0.199,"yes":0.009}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Oh, I was after the checkout button one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"elsewhere","target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.913,"keeps":0.082,"option_1":0.002,"option_2":0.002,"option_3":0.001}},"choice":"other","p":{"no":0.065,"other":0.659,"question":0.015,"unrelated":0.254,"yes":0.007}},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Look at the one that adds a checkout button.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"asked":"The assistant read out `listed`, in that order, and asked which one the person means. Which does the reply choose?","must_act":false,"expected_target":"elsewhere","target_answer":{"choice":"elsewhere","probabilities":{"elsewhere":0.942,"keeps":0.051,"option_1":0.002,"option_2":0.003,"option_3":0.001}},"choice":"other","p":{"no":0.028,"other":0.764,"question":0.025,"unrelated":0.178,"yes":0.005}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Never mind.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.642,"other":0.018,"question":0.015,"unrelated":0.283,"yes":0.042}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"No, cancel that.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.954,"other":0.01,"question":0.003,"unrelated":0.013,"yes":0.021}},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Neither.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.144,"other":0.028,"question":0.02,"unrelated":0.773,"yes":0.035}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Never mind.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.727,"other":0.017,"question":0.009,"unrelated":0.223,"yes":0.025}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"No, cancel that.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"no","p":{"no":0.977,"other":0.005,"question":0.003,"unrelated":0.01,"yes":0.005}},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Neither.","options":[],"asked":null,"must_act":false,"expected_target":null,"target_answer":null,"choice":"unrelated","p":{"no":0.335,"other":0.141,"question":0.019,"unrelated":0.482,"yes":0.024}}]}
+{
+  "criteria": {
+    "yes": "It agrees to exactly what the assistant asked, with nothing added, changed or conditional. A short agreement such as okay, sure, mm-hmm or please do counts.",
+    "no": "It declines what the assistant asked, or takes it back.",
+    "question": "It asks the assistant something, or asks about what was proposed, instead of answering.",
+    "other": "It agrees but changes the project, thread or terms, adds a condition, or names something else.",
+    "unrelated": "It does not answer what the assistant asked."
+  },
+  "rows": [
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.005, "other": 0.004, "question": 0.009, "unrelated": 0.013, "yes": 0.969 },
+      "noul": { "agrees": 0.998, "asks": 0.002 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yeah.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.019, "other": 0.007, "question": 0.01, "unrelated": 0.038, "yes": 0.925 },
+      "noul": { "agrees": 0.992, "asks": 0.001 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yeah, go ahead.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.002, "other": 0.004, "question": 0.002, "unrelated": 0.003, "yes": 0.989 },
+      "noul": { "agrees": 0.997, "asks": 0.002 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Sure.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.006, "other": 0.005, "question": 0.006, "unrelated": 0.02, "yes": 0.963 },
+      "noul": { "agrees": 0.997, "asks": 0.001 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Sure, why not.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.009, "other": 0.015, "question": 0.05, "unrelated": 0.013, "yes": 0.914 },
+      "noul": { "agrees": 0.994, "asks": 0.157 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Please do.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.006, "other": 0.009, "question": 0.006, "unrelated": 0.012, "yes": 0.968 },
+      "noul": { "agrees": 0.994, "asks": 0.015 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Please do?",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.007, "other": 0.013, "question": 0.058, "unrelated": 0.032, "yes": 0.89 },
+      "noul": { "agrees": 0.962, "asks": 0.064 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Please do!",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.002, "other": 0.003, "question": 0.003, "unrelated": 0.011, "yes": 0.98 },
+      "noul": { "agrees": 0.995, "asks": 0.007 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, please.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.002, "other": 0.004, "question": 0.003, "unrelated": 0.005, "yes": 0.986 },
+      "noul": { "agrees": 0.998, "asks": 0.003 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Do it.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.008, "other": 0.009, "question": 0.006, "unrelated": 0.03, "yes": 0.947 },
+      "noul": { "agrees": 0.992, "asks": 0.006 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Go for it.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.004, "other": 0.009, "question": 0.005, "unrelated": 0.018, "yes": 0.964 },
+      "noul": { "agrees": 0.996, "asks": 0.009 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Okay.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.042, "other": 0.013, "question": 0.016, "unrelated": 0.157, "yes": 0.772 },
+      "noul": { "agrees": 0.953, "asks": 0.008 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Okay, sounds good.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.01, "other": 0.01, "question": 0.006, "unrelated": 0.048, "yes": 0.926 },
+      "noul": { "agrees": 0.988, "asks": 0.006 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yep.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.003, "other": 0.003, "question": 0.003, "unrelated": 0.01, "yes": 0.981 },
+      "noul": { "agrees": 0.996, "asks": 0.002 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Alright, go ahead.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.005, "other": 0.006, "question": 0.004, "unrelated": 0.029, "yes": 0.956 },
+      "noul": { "agrees": 0.989, "asks": 0.004 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Uh-huh.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.036, "other": 0.009, "question": 0.03, "unrelated": 0.09, "yes": 0.835 },
+      "noul": { "agrees": 0.911, "asks": 0.013 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, do it.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.003, "other": 0.003, "question": 0.001, "unrelated": 0.002, "yes": 0.991 },
+      "noul": { "agrees": 0.997, "asks": 0.004 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes please do?",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.003, "other": 0.005, "question": 0.009, "unrelated": 0.003, "yes": 0.98 },
+      "noul": { "agrees": 0.993, "asks": 0.019 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Mm-hmm, go on.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.014, "other": 0.042, "question": 0.015, "unrelated": 0.09, "yes": 0.839 },
+      "noul": { "agrees": 0.946, "asks": 0.029 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "No.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.983, "other": 0.002, "question": 0.003, "unrelated": 0.004, "yes": 0.008 },
+      "noul": { "agrees": 0.004, "asks": 0.01 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "No, don't.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.972, "other": 0.004, "question": 0.004, "unrelated": 0.005, "yes": 0.015 },
+      "noul": { "agrees": 0.005, "asks": 0.01 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Nope.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.975, "other": 0.002, "question": 0.006, "unrelated": 0.009, "yes": 0.008 },
+      "noul": { "agrees": 0.003, "asks": 0.004 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Wait.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.337, "other": 0.063, "question": 0.036, "unrelated": 0.531, "yes": 0.033 },
+      "noul": { "agrees": 0.041, "asks": 0.336 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Never mind.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.497, "other": 0.009, "question": 0.008, "unrelated": 0.475, "yes": 0.011 },
+      "noul": { "agrees": 0.049, "asks": 0.082 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Hold on, not yet.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.795, "other": 0.039, "question": 0.013, "unrelated": 0.141, "yes": 0.012 },
+      "noul": { "agrees": 0.02, "asks": 0.097 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "What do you mean?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "question",
+      "p": { "no": 0.011, "other": 0.005, "question": 0.929, "unrelated": 0.05, "yes": 0.004 },
+      "noul": { "agrees": 0.036, "asks": 0.977 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "How long will it take?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "question",
+      "p": { "no": 0.014, "other": 0.019, "question": 0.922, "unrelated": 0.035, "yes": 0.01 },
+      "noul": { "agrees": 0.101, "asks": 0.98 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Which project is that?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "question",
+      "p": { "no": 0.008, "other": 0.041, "question": 0.908, "unrelated": 0.037, "yes": 0.005 },
+      "noul": { "agrees": 0.038, "asks": 0.988 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Why?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "question",
+      "p": { "no": 0.014, "other": 0.005, "question": 0.932, "unrelated": 0.042, "yes": 0.008 },
+      "noul": { "agrees": 0.056, "asks": 0.979 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Can you tell me more first?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "question",
+      "p": { "no": 0.016, "other": 0.016, "question": 0.935, "unrelated": 0.021, "yes": 0.011 },
+      "noul": { "agrees": 0.056, "asks": 0.991 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Start it in the voice server instead.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.078, "other": 0.873, "question": 0.006, "unrelated": 0.023, "yes": 0.021 },
+      "noul": { "agrees": 0.163, "asks": 0.388 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "No, the other project.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.651, "other": 0.329, "question": 0.004, "unrelated": 0.011, "yes": 0.005 },
+      "noul": { "agrees": 0.045, "asks": 0.218 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, but in the server project.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.005, "other": 0.972, "question": 0.002, "unrelated": 0.002, "yes": 0.02 },
+      "noul": { "agrees": 0.226, "asks": 0.134 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Actually make it about the build.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.101, "other": 0.822, "question": 0.012, "unrelated": 0.047, "yes": 0.017 },
+      "noul": { "agrees": 0.211, "asks": 0.399 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "What's the weather like?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.007, "other": 0.007, "question": 0.32, "unrelated": 0.662, "yes": 0.004 },
+      "noul": { "agrees": 0.022, "asks": 0.684 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Hmm, I'm not sure.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.063, "other": 0.009, "question": 0.036, "unrelated": 0.883, "yes": 0.009 },
+      "noul": { "agrees": 0.009, "asks": 0.089 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Maybe later.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.261, "other": 0.45, "question": 0.016, "unrelated": 0.261, "yes": 0.012 },
+      "noul": { "agrees": 0.016, "asks": 0.051 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "I'm thinking about it.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.073, "other": 0.053, "question": 0.053, "unrelated": 0.779, "yes": 0.042 },
+      "noul": { "agrees": 0.026, "asks": 0.072 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Thanks.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.039, "other": 0.007, "question": 0.01, "unrelated": 0.86, "yes": 0.084 },
+      "noul": { "agrees": 0.114, "asks": 0.014 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Hello?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.019, "other": 0.008, "question": 0.104, "unrelated": 0.846, "yes": 0.022 },
+      "noul": { "agrees": 0.04, "asks": 0.287 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, but in the other project.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.004, "other": 0.983, "question": 0.001, "unrelated": 0.002, "yes": 0.011 },
+      "noul": { "agrees": 0.243, "asks": 0.278 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, but only after the tests pass.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.008, "other": 0.944, "question": 0.003, "unrelated": 0.003, "yes": 0.043 },
+      "noul": { "agrees": 0.644, "asks": 0.377 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Sure, in the voice server.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.007, "other": 0.786, "question": 0.004, "unrelated": 0.011, "yes": 0.192 },
+      "noul": { "agrees": 0.953, "asks": 0.016 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yeah, but make it about the build instead.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.006, "other": 0.977, "question": 0.002, "unrelated": 0.002, "yes": 0.013 },
+      "noul": { "agrees": 0.534, "asks": 0.367 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Okay, if it's quick.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.009, "other": 0.92, "question": 0.005, "unrelated": 0.009, "yes": 0.057 },
+      "noul": { "agrees": 0.797, "asks": 0.196 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, as long as it doesn't touch the main branch.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.005, "other": 0.942, "question": 0.002, "unrelated": 0.002, "yes": 0.049 },
+      "noul": { "agrees": 0.899, "asks": 0.306 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes please, and also tell the other thread.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.005, "other": 0.703, "question": 0.004, "unrelated": 0.005, "yes": 0.283 },
+      "noul": { "agrees": 0.994, "asks": 0.069 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Yes, stop it.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.134, "other": 0.023, "question": 0.004, "unrelated": 0.008, "yes": 0.83 },
+      "noul": { "agrees": 0.974, "asks": 0.004 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Please do.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.052, "other": 0.014, "question": 0.008, "unrelated": 0.05, "yes": 0.876 },
+      "noul": { "agrees": 0.89, "asks": 0.005 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Go ahead.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.064, "other": 0.03, "question": 0.016, "unrelated": 0.102, "yes": 0.788 },
+      "noul": { "agrees": 0.749, "asks": 0.018 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Yeah.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.08, "other": 0.015, "question": 0.007, "unrelated": 0.05, "yes": 0.848 },
+      "noul": { "agrees": 0.973, "asks": 0.003 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "No, leave it running.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.872, "other": 0.071, "question": 0.005, "unrelated": 0.011, "yes": 0.041 },
+      "noul": { "agrees": 0.089, "asks": 0.02 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Which one is that?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "question",
+      "p": { "no": 0.01, "other": 0.022, "question": 0.909, "unrelated": 0.052, "yes": 0.008 },
+      "noul": { "agrees": 0.043, "asks": 0.984 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Don't stop it.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.894, "other": 0.014, "question": 0.005, "unrelated": 0.01, "yes": 0.077 },
+      "noul": { "agrees": 0.151, "asks": 0.035 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Yes, but wait until it finishes the run.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.009, "other": 0.921, "question": 0.003, "unrelated": 0.004, "yes": 0.063 },
+      "noul": { "agrees": 0.936, "asks": 0.119 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "Yes, send it.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.003, "other": 0.011, "question": 0.004, "unrelated": 0.005, "yes": 0.976 },
+      "noul": { "agrees": 0.999, "asks": 0.003 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "Please do?",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.011, "other": 0.015, "question": 0.063, "unrelated": 0.024, "yes": 0.886 },
+      "noul": { "agrees": 0.967, "asks": 0.036 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "Sure.",
+      "options": [],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "yes",
+      "p": { "no": 0.005, "other": 0.006, "question": 0.003, "unrelated": 0.01, "yes": 0.976 },
+      "noul": { "agrees": 0.997, "asks": 0.002 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "Send it to the other thread.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.049, "other": 0.894, "question": 0.006, "unrelated": 0.022, "yes": 0.029 },
+      "noul": { "agrees": 0.316, "asks": 0.243 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "What does it say?",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "question",
+      "p": { "no": 0.014, "other": 0.01, "question": 0.912, "unrelated": 0.052, "yes": 0.013 },
+      "noul": { "agrees": 0.082, "asks": 0.972 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "No.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.982, "other": 0.002, "question": 0.003, "unrelated": 0.004, "yes": 0.008 },
+      "noul": { "agrees": 0.003, "asks": 0.006 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "Yes, but add that it should keep my formatting.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "other",
+      "p": { "no": 0.005, "other": 0.95, "question": 0.003, "unrelated": 0.002, "yes": 0.039 },
+      "noul": { "agrees": 0.911, "asks": 0.243 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes.",
+      "options": ["Voice server"],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": { "elsewhere": 0.078, "keeps": 0.874, "option_1": 0.047 }
+      },
+      "choice": "yes",
+      "p": { "no": 0.003, "other": 0.006, "question": 0.003, "unrelated": 0.007, "yes": 0.982 },
+      "noul": { "agrees": 0.996, "asks": 0.002 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Please do?",
+      "options": ["Voice server"],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": { "elsewhere": 0.075, "keeps": 0.875, "option_1": 0.05 }
+      },
+      "choice": "yes",
+      "p": { "no": 0.01, "other": 0.031, "question": 0.059, "unrelated": 0.03, "yes": 0.869 },
+      "noul": { "agrees": 0.955, "asks": 0.067 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "No.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": { "elsewhere": 0.15, "keeps": 0.807, "option_1": 0.044 }
+      },
+      "choice": "no",
+      "p": { "no": 0.972, "other": 0.006, "question": 0.004, "unrelated": 0.01, "yes": 0.008 },
+      "noul": { "agrees": 0.008, "asks": 0.008 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, but in the other project.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": "Voice server",
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": { "elsewhere": 0.328, "keeps": 0.473, "option_1": 0.199 }
+      },
+      "choice": "other",
+      "p": { "no": 0.005, "other": 0.974, "question": 0.002, "unrelated": 0.002, "yes": 0.018 },
+      "noul": { "agrees": 0.388, "asks": 0.218 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "The other project please.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": "Voice server",
+      "target_answer": {
+        "choice": "elsewhere",
+        "probabilities": { "elsewhere": 0.83, "keeps": 0.047, "option_1": 0.123 }
+      },
+      "choice": "other",
+      "p": { "no": 0.114, "other": 0.673, "question": 0.012, "unrelated": 0.18, "yes": 0.021 },
+      "noul": { "agrees": 0.061, "asks": 0.782 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "No, the other one.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": "Voice server",
+      "target_answer": {
+        "choice": "elsewhere",
+        "probabilities": { "elsewhere": 0.836, "keeps": 0.035, "option_1": 0.129 }
+      },
+      "choice": "no",
+      "p": { "no": 0.515, "other": 0.47, "question": 0.003, "unrelated": 0.008, "yes": 0.004 },
+      "noul": { "agrees": 0.02, "asks": 0.545 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Put it in the voice server.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": "Voice server",
+      "target_answer": {
+        "choice": "option_1",
+        "probabilities": { "elsewhere": 0.022, "keeps": 0.036, "option_1": 0.943 }
+      },
+      "choice": "other",
+      "p": { "no": 0.056, "other": 0.789, "question": 0.009, "unrelated": 0.128, "yes": 0.018 },
+      "noul": { "agrees": 0.079, "asks": 0.326 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "What do you mean?",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": { "elsewhere": 0.177, "keeps": 0.796, "option_1": 0.026 }
+      },
+      "choice": "question",
+      "p": { "no": 0.008, "other": 0.007, "question": 0.919, "unrelated": 0.063, "yes": 0.004 },
+      "noul": { "agrees": 0.045, "asks": 0.984 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes, but only after the tests pass.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": { "elsewhere": 0.031, "keeps": 0.929, "option_1": 0.04 }
+      },
+      "choice": "other",
+      "p": { "no": 0.005, "other": 0.97, "question": 0.002, "unrelated": 0.002, "yes": 0.02 },
+      "noul": { "agrees": 0.182, "asks": 0.399 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Actually make it about the build.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": { "elsewhere": 0.373, "keeps": 0.447, "option_1": 0.18 }
+      },
+      "choice": "other",
+      "p": { "no": 0.112, "other": 0.759, "question": 0.017, "unrelated": 0.094, "yes": 0.018 },
+      "noul": { "agrees": 0.129, "asks": 0.41 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Not that one.",
+      "options": ["Voice server"],
+      "must_act": false,
+      "expected_target": "Voice server",
+      "target_answer": {
+        "choice": "elsewhere",
+        "probabilities": { "elsewhere": 0.868, "keeps": 0.089, "option_1": 0.043 }
+      },
+      "choice": "no",
+      "p": { "no": 0.489, "other": 0.372, "question": 0.009, "unrelated": 0.125, "yes": 0.006 },
+      "noul": { "agrees": 0.029, "asks": 0.59 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "The other one.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": "elsewhere",
+      "target_answer": {
+        "choice": "elsewhere",
+        "probabilities": {
+          "elsewhere": 0.873,
+          "keeps": 0.052,
+          "option_1": 0.043,
+          "option_2": 0.031
+        }
+      },
+      "choice": "other",
+      "p": { "no": 0.124, "other": 0.666, "question": 0.017, "unrelated": 0.178, "yes": 0.015 },
+      "noul": { "agrees": 0.061, "asks": 0.811 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "The docs one.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": "Docs site",
+      "target_answer": {
+        "choice": "option_2",
+        "probabilities": { "elsewhere": 0.049, "keeps": 0.037, "option_1": 0.01, "option_2": 0.903 }
+      },
+      "choice": "other",
+      "p": { "no": 0.052, "other": 0.735, "question": 0.014, "unrelated": 0.171, "yes": 0.028 },
+      "noul": { "agrees": 0.11, "asks": 0.226 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Not that one.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": "elsewhere",
+      "target_answer": {
+        "choice": "elsewhere",
+        "probabilities": {
+          "elsewhere": 0.917,
+          "keeps": 0.057,
+          "option_1": 0.014,
+          "option_2": 0.012
+        }
+      },
+      "choice": "no",
+      "p": { "no": 0.499, "other": 0.347, "question": 0.01, "unrelated": 0.14, "yes": 0.005 },
+      "noul": { "agrees": 0.019, "asks": 0.243 }
+    },
+    {
+      "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+      "reply": "Yes.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": true,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.039,
+          "keeps": 0.942,
+          "option_1": 0.011,
+          "option_2": 0.008
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.002, "other": 0.004, "question": 0.003, "unrelated": 0.005, "yes": 0.986 },
+      "noul": { "agrees": 0.997, "asks": 0.002 }
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+      },
+      "reply": "Voice server.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": "Voice server",
+      "target_answer": {
+        "choice": "option_1",
+        "probabilities": {
+          "elsewhere": 0.004,
+          "keeps": 0.005,
+          "option_1": 0.985,
+          "option_2": 0.006
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.012, "other": 0.371, "question": 0.011, "unrelated": 0.048, "yes": 0.558 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+      },
+      "reply": "Docs site.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": "Docs site",
+      "target_answer": {
+        "choice": "option_2",
+        "probabilities": {
+          "elsewhere": 0.003,
+          "keeps": 0.005,
+          "option_1": 0.003,
+          "option_2": 0.989
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.01, "other": 0.346, "question": 0.009, "unrelated": 0.039, "yes": 0.597 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+      },
+      "reply": "The first one.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": "Voice server",
+      "target_answer": {
+        "choice": "option_1",
+        "probabilities": {
+          "elsewhere": 0.004,
+          "keeps": 0.006,
+          "option_1": 0.981,
+          "option_2": 0.009
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.024, "other": 0.277, "question": 0.028, "unrelated": 0.192, "yes": 0.478 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+      },
+      "reply": "The second.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": "Docs site",
+      "target_answer": {
+        "choice": "option_2",
+        "probabilities": {
+          "elsewhere": 0.002,
+          "keeps": 0.006,
+          "option_1": 0.003,
+          "option_2": 0.989
+        }
+      },
+      "choice": "other",
+      "p": { "no": 0.041, "other": 0.523, "question": 0.023, "unrelated": 0.16, "yes": 0.253 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+      },
+      "reply": "Never mind.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.021,
+          "keeps": 0.971,
+          "option_1": 0.004,
+          "option_2": 0.004
+        }
+      },
+      "choice": "no",
+      "p": { "no": 0.811, "other": 0.011, "question": 0.014, "unrelated": 0.158, "yes": 0.007 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+      },
+      "reply": "Neither.",
+      "options": ["Voice server", "Docs site"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.025,
+          "keeps": 0.972,
+          "option_1": 0.001,
+          "option_2": 0.001
+        }
+      },
+      "choice": "no",
+      "p": { "no": 0.652, "other": 0.229, "question": 0.01, "unrelated": 0.096, "yes": 0.012 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "Never mind.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.01,
+          "keeps": 0.983,
+          "option_1": 0.002,
+          "option_2": 0.002,
+          "option_3": 0.002
+        }
+      },
+      "choice": "no",
+      "p": { "no": 0.81, "other": 0.011, "question": 0.011, "unrelated": 0.157, "yes": 0.011 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "No, cancel that.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.022,
+          "keeps": 0.972,
+          "option_1": 0.002,
+          "option_2": 0.002,
+          "option_3": 0.002
+        }
+      },
+      "choice": "no",
+      "p": { "no": 0.928, "other": 0.011, "question": 0.003, "unrelated": 0.05, "yes": 0.007 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "The clamp one.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "Add a clamp helper",
+      "target_answer": {
+        "choice": "option_1",
+        "probabilities": {
+          "elsewhere": 0.005,
+          "keeps": 0.006,
+          "option_1": 0.972,
+          "option_2": 0.011,
+          "option_3": 0.006
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.013, "other": 0.282, "question": 0.021, "unrelated": 0.099, "yes": 0.584 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "The second one.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "Fix the flaky ASR test",
+      "target_answer": {
+        "choice": "option_2",
+        "probabilities": {
+          "elsewhere": 0.003,
+          "keeps": 0.003,
+          "option_1": 0.002,
+          "option_2": 0.985,
+          "option_3": 0.007
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.026, "other": 0.26, "question": 0.024, "unrelated": 0.151, "yes": 0.539 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "Um, the first.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "Add a clamp helper",
+      "target_answer": {
+        "choice": "option_1",
+        "probabilities": {
+          "elsewhere": 0.003,
+          "keeps": 0.006,
+          "option_1": 0.981,
+          "option_2": 0.005,
+          "option_3": 0.004
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.028, "other": 0.251, "question": 0.034, "unrelated": 0.191, "yes": 0.496 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "The last one.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "Add a sum helper",
+      "target_answer": {
+        "choice": "option_3",
+        "probabilities": {
+          "elsewhere": 0.001,
+          "keeps": 0.003,
+          "option_1": 0.002,
+          "option_2": 0.005,
+          "option_3": 0.989
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.021, "other": 0.158, "question": 0.017, "unrelated": 0.158, "yes": 0.647 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "The one about the flaky test.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "Fix the flaky ASR test",
+      "target_answer": {
+        "choice": "option_2",
+        "probabilities": {
+          "elsewhere": 0.01,
+          "keeps": 0.009,
+          "option_1": 0.003,
+          "option_2": 0.972,
+          "option_3": 0.005
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.018, "other": 0.29, "question": 0.026, "unrelated": 0.117, "yes": 0.549 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "The sum helper.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "Add a sum helper",
+      "target_answer": {
+        "choice": "option_3",
+        "probabilities": {
+          "elsewhere": 0.002,
+          "keeps": 0.004,
+          "option_1": 0.003,
+          "option_2": 0.003,
+          "option_3": 0.988
+        }
+      },
+      "choice": "yes",
+      "p": { "no": 0.01, "other": 0.184, "question": 0.015, "unrelated": 0.068, "yes": 0.723 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "What are they again?",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.023,
+          "keeps": 0.964,
+          "option_1": 0.004,
+          "option_2": 0.004,
+          "option_3": 0.004
+        }
+      },
+      "choice": "question",
+      "p": { "no": 0.012, "other": 0.006, "question": 0.926, "unrelated": 0.053, "yes": 0.004 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "Hold on a second.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.01,
+          "keeps": 0.978,
+          "option_1": 0.003,
+          "option_2": 0.006,
+          "option_3": 0.003
+        }
+      },
+      "choice": "unrelated",
+      "p": { "no": 0.137, "other": 0.013, "question": 0.029, "unrelated": 0.808, "yes": 0.013 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "None of those.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": {
+        "choice": "keeps",
+        "probabilities": {
+          "elsewhere": 0.075,
+          "keeps": 0.921,
+          "option_1": 0.001,
+          "option_2": 0.002,
+          "option_3": 0.001
+        }
+      },
+      "choice": "no",
+      "p": { "no": 0.439, "other": 0.401, "question": 0.011, "unrelated": 0.141, "yes": 0.009 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "Oh, I was after the checkout button one.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "elsewhere",
+      "target_answer": {
+        "choice": "elsewhere",
+        "probabilities": {
+          "elsewhere": 0.94,
+          "keeps": 0.051,
+          "option_1": 0.003,
+          "option_2": 0.005,
+          "option_3": 0.002
+        }
+      },
+      "choice": "other",
+      "p": { "no": 0.058, "other": 0.748, "question": 0.012, "unrelated": 0.174, "yes": 0.006 },
+      "noul": {}
+    },
+    {
+      "act": {
+        "kind": "ask_which",
+        "slots": {
+          "of": "thread",
+          "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+        }
+      },
+      "reply": "Look at the one that adds a checkout button.",
+      "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+      "must_act": false,
+      "expected_target": "elsewhere",
+      "target_answer": {
+        "choice": "elsewhere",
+        "probabilities": {
+          "elsewhere": 0.894,
+          "keeps": 0.092,
+          "option_1": 0.005,
+          "option_2": 0.004,
+          "option_3": 0.005
+        }
+      },
+      "choice": "other",
+      "p": { "no": 0.02, "other": 0.731, "question": 0.036, "unrelated": 0.204, "yes": 0.008 },
+      "noul": {}
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Never mind.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.393, "other": 0.019, "question": 0.012, "unrelated": 0.54, "yes": 0.037 },
+      "noul": { "agrees": 0.211, "asks": 0.101 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "No, cancel that.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.962, "other": 0.006, "question": 0.002, "unrelated": 0.016, "yes": 0.013 },
+      "noul": { "agrees": 0.019, "asks": 0.03 }
+    },
+    {
+      "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+      "reply": "Neither.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.199, "other": 0.025, "question": 0.022, "unrelated": 0.712, "yes": 0.042 },
+      "noul": { "agrees": 0.045, "asks": 0.175 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "Never mind.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.579, "other": 0.01, "question": 0.012, "unrelated": 0.385, "yes": 0.015 },
+      "noul": { "agrees": 0.038, "asks": 0.059 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "No, cancel that.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "no",
+      "p": { "no": 0.978, "other": 0.005, "question": 0.004, "unrelated": 0.007, "yes": 0.006 },
+      "noul": { "agrees": 0.007, "asks": 0.049 }
+    },
+    {
+      "act": {
+        "kind": "confirm_tell",
+        "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+      },
+      "reply": "Neither.",
+      "options": [],
+      "must_act": false,
+      "expected_target": null,
+      "target_answer": null,
+      "choice": "unrelated",
+      "p": { "no": 0.385, "other": 0.043, "question": 0.022, "unrelated": 0.529, "yes": 0.021 },
+      "noul": { "agrees": 0.049, "asks": 0.145 }
+    }
+  ]
+}

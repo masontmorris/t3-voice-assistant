@@ -2,6 +2,7 @@
 
     python -m voice.t3.eval.record_claims     # starts the local d1-2B, under the GPU lease
     python -m voice.t3.eval.record_claims --cpu   # the same with no GPU layers, while the GPU is held
+    python -m voice.t3.eval.record_claims --no-thread   # only the cases with no thread in view
 
 The cases are made up (voice/t3/eval/claim_cases.py). Each row keeps the answers and the call's time, so the replay can
 score the thresholds without a model server and the time of one check is on record.
@@ -15,10 +16,12 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from voice.local_decider.client import FLAGS, MODEL, VOICE_HOME, D1Client, LlamaServer, decider
-from voice.t3.eval.claim_cases import HELD_OUT, SEEN
+from voice.t3.eval.claim_cases import HELD_OUT, NO_THREAD, SEEN
 from voice.t3.verify import claim_request
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "claims.json"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+FIXTURE = FIXTURES / "claims.json"
+NO_THREAD_FIXTURE = FIXTURES / "claims_no_thread.json"
 
 
 def key(body):
@@ -39,7 +42,9 @@ def main():
     rows = []
     with (cpu_decider() if "--cpu" in sys.argv else decider("d1")) as client:
         client.call("decisions", claim_request("Hello.", SEEN[0][2]))  # the first call loads the prompt
-        for split, cases in (("seen", SEEN), ("held_out", HELD_OUT)):
+        sets = ((("no_thread", NO_THREAD),) if "--no-thread" in sys.argv
+                else (("seen", SEEN), ("held_out", HELD_OUT)))
+        for split, cases in sets:
             for name, reply, facts, want in cases:
                 body = claim_request(reply, facts)
                 started = time.perf_counter()
@@ -49,7 +54,7 @@ def main():
                     raise RuntimeError(f"decider status {result['status']}")
                 rows.append({"split": split, "name": name, "want": want, "ms": ms, "request_hash": key(body),
                              "answers": result["response"]["answers"]})
-    FIXTURE.write_text(json.dumps(rows, separators=(",", ":")) + "\n", encoding="utf-8")
+    (NO_THREAD_FIXTURE if "--no-thread" in sys.argv else FIXTURE).write_text(json.dumps(rows, separators=(",", ":")) + "\n", encoding="utf-8")
     times = sorted(row["ms"] for row in rows)
     print(f"{len(rows)} rows, median {times[len(times) // 2]} ms, p95 {times[int(len(times) * 0.95)]} ms")
 

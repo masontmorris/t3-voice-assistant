@@ -1573,6 +1573,58 @@ class WithdrawnQuestion(unittest.TestCase):
         t3.begin_call()
         self.assertIsNone(t3.take_withdrawn())
 
+    def confirming(self, readings):
+        seam = F.FakeSeam(read=F.state(thread="t3", title="Add Clamp Helper", as_of=150))
+        seam.listing = listing(("t3", "Add Clamp Helper"), ("t0", "Add Sum Helper"), ("t1", "Fix the Menu Blur"))
+        t3 = tasks_over(self, seam, decider=F.Reader(readings))
+        asked = t3.about("k2", ASK, "How is the clamp helper thread going?", 0)
+        self.assertEqual(asked.acts, (act(S.CONFIRM_THREAD, thread="Add Clamp Helper"),))
+        t3.spoke(asked)
+        return t3
+
+    def test_a_no_that_takes_the_whole_request_back_does_not_look_for_another_thread(self):
+        """"Never mind" after "do you mean X?" is not a request for another thread: nothing is asked or said about
+        a thread, and the voice is told once that the question was withdrawn."""
+        t3 = self.confirming({"Never mind.": "withdraw", "Never mind that. What's two plus two?": "withdraw"})
+        self.assertIsNone(t3.answer("Never mind.", 1))
+        self.assertEqual(t3.take_withdrawn().kind, "thread_confirm")
+        self.assertIsNone(t3.question, "the withdrawn question is not left open for a later turn to answer")
+
+    def test_a_no_that_wants_another_thread_looks_for_one(self):
+        t3 = self.confirming({"No, not that one.": "no"})
+        again = t3.answer("No, not that one.", 1)
+        self.assertIsNotNone(again)
+        self.assertTrue(all(a.kind in (S.ASK_WHICH, S.NO_THREAD, S.CONFIRM_THREAD) for a in again.acts), again.acts)
+        self.assertIsNone(t3.take_withdrawn())
+
+    def test_the_decider_is_shown_the_withdrawn_question_until_a_thread_is_spoken_of_again(self):
+        t3 = self.confirming({"Never mind.": "withdraw"})
+        self.assertIsNone(t3.declined_state(), "an open question is not a withdrawn one")
+        t3.answer("Never mind.", 1)
+        self.assertEqual(t3.declined_state(), {"asked": "whether this is the thread they meant",
+                                               "threads": ["Add Clamp Helper"]})
+        t3.spoke(L.Update("k3", (act(S.THREAD_STATUS, thread="Add Sum Helper", status="working"),), "completed",
+                          "ask", "t0"))
+        self.assertIsNone(t3.declined_state())
+
+    def test_a_thread_only_a_withdrawn_question_named_is_not_the_one_the_call_last_spoke_about(self):
+        t3 = self.confirming({"Never mind.": "withdraw"})
+        self.assertEqual(t3.spoken_id, "t3")
+        t3.answer("Never mind.", 1)
+        self.assertEqual((t3.spoken_about(), t3.spoken_id), (None, None))
+
+    def test_a_new_call_forgets_the_withdrawn_question_the_decider_was_shown(self):
+        t3 = self.confirming({"Never mind.": "withdraw"})
+        t3.answer("Never mind.", 1)
+        t3.begin_call()
+        self.assertIsNone(t3.declined_state())
+
+    def test_a_withdrawn_question_is_not_asked_again_by_a_later_turn(self):
+        t3 = self.confirming({"Never mind.": "withdraw"})
+        t3.answer("Never mind.", 1)
+        self.assertIsNone(t3.live_question())
+        self.assertIsNone(t3.answer("Can we start over?", 2))
+
 
 class ClaimFacts(unittest.TestCase):
     def tasks(self, **state):
@@ -1582,11 +1634,18 @@ class ClaimFacts(unittest.TestCase):
         t3.follow.ensure(0)
         return t3
 
-    def test_no_thread_in_view_gives_no_facts_and_a_thread_of_an_earlier_call_is_not_in_view(self):
+    def test_with_no_thread_in_view_the_facts_say_so_and_a_thread_of_an_earlier_call_is_not_in_view(self):
+        """A free reply that claims a start or an approval is judged even when no thread is in view: against facts that
+        show nothing was done."""
         t3 = self.tasks()
-        self.assertIsNone(t3.claim_facts())
+        self.assertEqual(t3.claim_facts(), (None, {"thread": None, "the_assistant_did": []}))
         t3.recent = "t6"
-        self.assertIsNone(t3.claim_facts(), "`recent` outlives the call; a reply is judged against this call's thread")
+        self.assertEqual(t3.claim_facts()[0], None,
+                         "`recent` outlives the call; a reply is judged against this call's thread")
+
+    def test_a_correction_with_no_thread_in_view_says_nothing_was_done(self):
+        update = self.tasks().correction(None, "turn_001")
+        self.assertEqual((update.acts, update.thread_id, update.row), ((act(S.NOTHING_DONE),), None, "correction"))
 
     def test_the_facts_are_the_thread_the_call_last_spoke_of(self):
         t3 = self.tasks(activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need(prompt="Run the formatter?"),

@@ -34,20 +34,20 @@ set takes about 13 minutes and about 100 hosted decider calls (under a cent); a 
 a second only when its rule allows it. `--long` adds three more scenarios (about 8 minutes more), `--only ID` runs some,
 and `--spread N` runs each scenario N times unless it errors. `python -m voice.live.scenarios list` shows the rules.
 
-| Scenario                      | Rule   | Baseline reason                                                                     |
-| ----------------------------- | ------ | ----------------------------------------------------------------------------------- |
-| `speak-over`                  | 1 of 2 | Whether the first reply stopped varied.                                             |
-| `approval-claim`              | 1 of 1 | The title-first app direction was heard in all three runs of the latest spread.     |
-| `thread-lines`                | 1 of 1 | The thread-status replies consistently used checked lines.                          |
-| `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                     |
-| `withdrawn-question`          | 1 of 1 | The initial thread question was asked in all three runs. Only marked checks varied. |
-| `news-permission`             | 1 of 2 | 3 of 3, no fallback; a new thread is named by its project, not its title.           |
-| `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).         |
-| `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                     |
-| `short-yes`                   | 1 of 2 | All six spoken yeses started a thread in the latest spread.                         |
-| `news-done` (`--long`)        | 1 of 2 | A direct low-confidence lookup cleared the launch question in 1 of 3 calls.         |
-| `short-yes-tell` (`--long`)   | 1 of 2 | 3 of 3 confirmed messages reached their threads.                                    |
-| `withdrawn-launch` (`--long`) | 1 of 2 | Whether the assistant asked a launch question varied.                               |
+| Scenario                      | Rule   | Baseline reason                                                                   |
+| ----------------------------- | ------ | --------------------------------------------------------------------------------- |
+| `speak-over`                  | 1 of 1 | 3 of 3; the words said over a question are answered (2 of 3 before).              |
+| `approval-claim`              | 1 of 1 | The title-first app direction was heard in all three runs of the latest spread.   |
+| `thread-lines`                | 1 of 1 | The thread-status replies consistently used checked lines.                        |
+| `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                   |
+| `withdrawn-question`          | 1 of 1 | 8 of 8, every check, no mark: "do you mean" and "which thread" forms.             |
+| `news-permission`             | 1 of 2 | 3 of 3, no fallback; a new thread is named by its project, not its title.         |
+| `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).       |
+| `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                   |
+| `short-yes`                   | 1 of 2 | 1 of 3 runs complete: the ASR split a request in 2, so no confirmation was asked. |
+| `news-done` (`--long`)        | 1 of 2 | 2 of 3; in 1 the yes transcribed as nothing (marked).                             |
+| `short-yes-tell` (`--long`)   | 1 of 2 | 3 of 3 reached their threads; "Yeah?" was not taken in 1 of 3 runs before.        |
+| `withdrawn-launch` (`--long`) | 1 of 2 | Whether the assistant asked a launch question varied.                             |
 
 A check that reproduces a fault nobody has fixed is listed in `KNOWN` in `voice/live/scenarios.py` with the fault. Its
 failure is XFAIL and does not turn the gate red. XPASS means every marked check passed in the runs it made: confirm

@@ -212,6 +212,21 @@ class Hybrid(unittest.TestCase):
         self.assertIn("follow-up", body["questions"]["s1_kind"]["criteria"]["request"])
         self.assertIn("earlier resolved task", body["questions"]["s1_ready"]["criteria"]["dispatch_now"])
 
+    def test_a_withdrawn_question_is_typed_state_and_chitchat_says_it_is_not_answered_by_other_words(self):
+        tools = {"weather": "w", "t3_ask": "a", "none": "n"}
+        withdrawn = {"asked": "whether this is the thread they meant", "threads": ["Add clamp helper"]}
+        asked = []
+        for state in (None, withdrawn):
+            decider = FakeDecider()
+            seg = HybridSegmenter(decider, "test", tools=tools)
+            seg.conversation_mode, seg.withdrawn_question = True, state
+            seg.update(TranscriptUpdate(1, "Tell me about octopuses.", True))
+            asked.append(decider.bodies[-1])
+        self.assertNotIn("withdrawn_question", asked[0]["state"])
+        self.assertEqual(asked[1]["state"]["withdrawn_question"], withdrawn)
+        self.assertNotIn("withdrawn_question", asked[0]["questions"]["s1_kind"]["criteria"]["chitchat"])
+        self.assertIn("withdrawn_question", asked[1]["questions"]["s1_kind"]["criteria"]["chitchat"])
+
     def test_a_waiting_approval_changes_the_kind_question_only_while_one_waits_and_never_the_state(self):
         tools = {"weather": "w", "t3_ask": "a", "none": "n"}
         asked = []

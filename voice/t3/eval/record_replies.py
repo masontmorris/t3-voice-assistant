@@ -81,33 +81,26 @@ CASES += [(a, r, (), False, None) for a in (STOP, TELL) for r in ("Never mind.",
 def main() -> int:
     client = LiquidClient(max_attempts=3)
     criteria = reading_request(LAUNCH, "")["questions"]["reading"]["criteria"]
-    kept = json.loads(FIXTURE.read_text(encoding="utf-8")) if FIXTURE.exists() else {}
-    old = {(json.dumps(row["act"]), row["reply"], tuple(row.get("options", ()))): row for row in kept.get("rows", [])} if kept.get("criteria") == criteria else {}
     rows, took = [], []
     for said, reply, options, must_act, target in CASES:
-        key = (json.dumps(said.to_json()), reply, tuple(options))
-        asked = reading_request(said, reply, options)["questions"].get("target", {}).get("instructions")
-        if key in old and old[key].get("asked") == asked:
-            rows.append({**old[key], "must_act": must_act, "expected_target": target})
-            continue
         record = client.call("decisions", reading_request(said, reply, options), label="t3_reply_fixture", fresh=True,
                              cache_record=False)
-        answer = ((record.get("response") or {}).get("answers") or {}).get("reading")
+        answers = (record.get("response") or {}).get("answers")
+        answer = (answers or {}).get("reading")
         if record["status"] != 200 or not isinstance(answer, dict):
             raise RuntimeError(f"Liquid gave an incomplete answer for {reply!r}: status {record['status']}")
-        target_answer = ((record.get("response") or {}).get("answers") or {}).get("target")
+        target_answer = answers.get("target")
         if target_answer is not None:
             target_answer = {"choice": target_answer.get("choice"),
                              "probabilities": {k: round(v, 3) for k, v in target_answer["probabilities"].items()}}
-        rows.append({"act": said.to_json(), "reply": reply, "options": list(options), "asked": asked,
-                     "must_act": must_act,
+        rows.append({"act": said.to_json(), "reply": reply, "options": list(options), "must_act": must_act,
                      "expected_target": target, "target_answer": target_answer, "choice": answer.get("choice"),
-                     "p": {k: round(v, 3) for k, v in answer["probabilities"].items()}})
+                     "p": {k: round(v, 3) for k, v in answer["probabilities"].items()},
+                     "noul": {k: round(answers[k]["noul"], 3) for k in ("agrees", "asks", "withdraws") if k in answers}})
         took.append(record["timing"]["ms"])
-        print(json.dumps({"reply": reply, "choice": rows[-1]["choice"], "p": rows[-1]["p"], "target": target_answer,
-                          "ms": round(took[-1])}), flush=True)
-    if took:
-        print(json.dumps({"calls": len(took), "median_ms": round(sorted(took)[len(took) // 2])}), flush=True)
+        print(json.dumps({"reply": reply, "choice": rows[-1]["choice"], "p": rows[-1]["p"], "noul": rows[-1]["noul"],
+                          "target": target_answer, "ms": round(took[-1])}), flush=True)
+    print(json.dumps({"calls": len(took), "median_ms": round(sorted(took)[len(took) // 2])}), flush=True)
     FIXTURE.parent.mkdir(parents=True, exist_ok=True)
     FIXTURE.write_bytes((json.dumps({"criteria": criteria, "rows": rows}, separators=(",", ":")) + "\n").encode())
     return 0

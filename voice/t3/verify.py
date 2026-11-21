@@ -77,6 +77,7 @@ MEANS: dict[Kind, str] = {
     Kind.REFUSED: "T3 refused to {op}",
     Kind.LEGACY_UPDATE: "the same news as this older line: {text}",
     Kind.UNANSWERED: "the assistant could not give an answer",
+    Kind.NOTHING_DONE: "the assistant has not started, sent, stopped or approved anything, and what it said a moment ago about doing so was wrong",
     Kind.CORRECTION: "what the assistant said a moment ago about {thread} was wrong, and {thread} is {status}",
     Kind.CONFIRM_RESPOND: "whether to {decision} the request {thread} is waiting on, which is {need}",
     Kind.RESPONDED: "the request {thread} was waiting on was {decided}",
@@ -598,19 +599,29 @@ READ_CRITERIA = {
     "other": "It agrees but changes the project, thread or terms, adds a condition, or names something else.",
     "unrelated": "It does not answer what the assistant asked.",
 }
-# The reply's own label with most of the weight is a yes. The recorded yes replies score 0.74 and up on d1.2 and 0.68
-# and up on the local d1-2B; the most a recorded reply that is not a yes gives it is 0.41 and 0.27.
-YES_CONFIDENCE = 0.5
-# A reply that is any share a question or another target is not an unconditional yes, however much of it says yes.
+# A yes is read from two questions of its own beside the choice, because the choice splits a bare "Yeah?" between yes
+# and question (0.48 and 0.33 on the hosted d1.2) and so never acts on it: does the reply say yes, and does it, in
+# words, ask for anything. A real question scores 0.89 or more on the second, a bare word of agreement with a rising
+# voice 0.53 or less. The choice still catches a no, a condition and another target. Without the last sentence of the
+# first question a hesitant "hmm, maybe?" was a yes at 0.66.
+AGREES = ("Do the person's words say yes to what the assistant asked? A bare yeah, sure or okay counts, however it is "
+          "said. A condition, a change, or another target does not. A reply that is unsure, undecided or "
+          "non-committal, such as maybe, perhaps or I don't know, is not yes.")
+ASKS = ("Do the person's words ask the assistant for information, an explanation or a different choice before "
+        "deciding? A bare word of agreement is not asking, even said with a rising voice.")
+WITHDRAWS = ("Does the person take back what they asked about altogether, so that they no longer want any thread "
+             "looked up? Saying this is not the thread they mean, or naming another one, does not.")
+AGREES_CONFIDENCE = 0.5
+ASKS_CEILING = 0.7
+WITHDRAWS_CONFIDENCE = 0.5
+# A reply with any real share of a no or of another target is not an unconditional yes, however much of it says yes.
 OTHER_CEILING = 0.2
-# The two together: a rising "please do" gives them 0.24 of the weight on the local d1-2B, the most of any recorded
-# yes, and 0.16 on d1.2.
-TOGETHER_CEILING = 0.25
 OPTION_CONFIDENCE = 0.6
 # The recorded replies that ask for something else give it 0.82 and up. One that changes the request, not the target,
 # gave it 0.41 in one recording and 0.57 in the next.
 ELSEWHERE_CONFIDENCE = 0.7
 KEEPS, ELSEWHERE = "keeps", "elsewhere"
+YES_NO = {"true": "Yes.", "false": "No."}
 
 
 def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dict:
@@ -624,6 +635,11 @@ def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dic
                         "question mark may only mean their voice rose."}
     questions = {"reading": {"type": "choice", "instructions": "What does the person's reply do about what the "
                                                                "assistant asked?", "criteria": READ_CRITERIA}}
+    if said.kind is not Kind.ASK_WHICH:
+        questions["agrees"] = {"type": "noul", "instructions": AGREES, "criteria": YES_NO}
+        questions["asks"] = {"type": "noul", "instructions": ASKS, "criteria": YES_NO}
+    if said.kind is Kind.CONFIRM_THREAD:
+        questions["withdraws"] = {"type": "noul", "instructions": WITHDRAWS, "criteria": YES_NO}
     if options and said.kind is Kind.ASK_WHICH:
         # The assistant listed the options aloud, so "the second one" answers by place as well as by name.
         state["listed"] = list(options)
@@ -650,28 +666,46 @@ def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dic
 @dataclass(frozen=True)
 class Reading:
     """What a reply does about a pending question, by the decider. `target` is the option it changes to, and
-    `elsewhere` says it changes to another option without making clear which."""
+    `elsewhere` says it changes to another option without making clear which. `agrees`, `asks` and `withdraws` are the
+    shares the decider gave the questions of that name, None when one was not asked or not answered."""
 
     label: str | None
     probabilities: dict[str, float] = field(default_factory=dict)
     error: str | None = None
     target: str | None = None
     elsewhere: bool = False
+    agrees: float | None = None
+    asks: float | None = None
+    withdraws: float | None = None
 
     @property
     def yes(self) -> bool:
-        """An unconditional yes: the reply's own label, confident, with no real share of a no, or of a question, a
-        changed target or a condition together, and no change of target read beside it. Anything short is not a yes."""
+        """An unconditional yes: the reply says yes and asks nothing in words, with no real share of a no or of a
+        changed target or condition, and no change of target read beside it. Anything short is not a yes."""
         p = self.probabilities
-        return (self.label == "yes" and p.get("yes", 0.0) >= YES_CONFIDENCE and p.get("no", 0.0) <= OTHER_CEILING
-                and max(p.get("other", 0.0), p.get("question", 0.0)) <= OTHER_CEILING
-                and p.get("other", 0.0) + p.get("question", 0.0) < TOGETHER_CEILING
-                and self.target is None and not self.elsewhere)
+        return (self.agrees is not None and self.asks is not None and self.agrees >= AGREES_CONFIDENCE
+                and self.asks < ASKS_CEILING and p.get("no", 0.0) <= OTHER_CEILING
+                and p.get("other", 0.0) <= OTHER_CEILING and self.target is None and not self.elsewhere)
+
+    @property
+    def withdrawing(self) -> bool:
+        """A no that takes the whole request back, as against one that says this is not the one and asks for another."""
+        return self.label == "no" and self.withdraws is not None and self.withdraws >= WITHDRAWS_CONFIDENCE
 
     @property
     def kind(self) -> str | None:
         """"yes", "no", or None for a reply that neither agrees outright nor declines."""
         return "yes" if self.yes else "no" if self.label == "no" else None
+
+
+def _noul(answers: dict, name: str) -> float | None:
+    """The P(yes) of the question `name` in a decider's answers, None for a missing answer or a value that is not a
+    probability."""
+    answer = answers.get(name)
+    value = answer.get("noul") if isinstance(answer, dict) else None
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1:
+        return None
+    return float(value)
 
 
 def _scores(answer: Any, labels) -> dict[str, float] | None:
@@ -703,7 +737,8 @@ def judge_reading(answers: Any, options: tuple[str, ...] = ()) -> Reading:
     share = shares.get(picked["choice"], 0.0) if shares is not None else 0.0
     target = names.get(picked["choice"]) if share >= OPTION_CONFIDENCE else None
     elsewhere = shares is not None and picked["choice"] == ELSEWHERE and share >= ELSEWHERE_CONFIDENCE
-    return Reading(answers["reading"]["choice"], scores, target=target, elsewhere=elsewhere)
+    return Reading(answers["reading"]["choice"], scores, target=target, elsewhere=elsewhere,
+                   **{name: _noul(answers, name) for name in ("agrees", "asks", "withdraws")})
 
 
 OWN_WORDS, NO_ANSWER = "own_words", "no_answer"
