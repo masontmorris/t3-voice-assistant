@@ -522,6 +522,53 @@ class T3TurnTest(NoteTurn):
         asked, = [e for e in self.voice.sent if e.get("type") == "response.create"]
         self.assertEqual(asked["response"]["output_modalities"], ["text"])
 
+    async def test_a_turn_with_no_delivered_line_says_a_checked_acknowledgment(self):
+        fallback = "I couldn't give you an answer just now."
+        deliveries = []
+
+        class Unanswered(T3SnapshotService):
+            def unanswered(self):
+                acts = (act(S.UNANSWERED),)
+                return {"acts": [a.to_json() for a in acts]}, SimpleNamespace(
+                    say=lambda entry, turns: CHECKED.accept(acts, fallback, "text_model"),
+                    accept=self.accept, refuse=self.refuse)
+
+            def record_delivery(self, entry, state):
+                deliveries.append((entry["task_id"], state))
+
+        for draft, script in (
+            ("I stopped the clamp helper thread.", ["Unheard.", fallback]),
+            (DRAFT, ["I stopped it.", "I stopped it.", fallback]),
+        ):
+            with self.subTest(draft=draft):
+                self.spoken.clear()
+                deliveries.clear()
+                Unanswered.draft = draft
+                record = await self.turn(script, task_service=Unanswered, send_checked=self.send_checked)
+                self.assertEqual(self.spoken, [fallback])
+                self.assertEqual([r["delivery"] for r in record["replies"]], ["unsent", "sent"])
+                self.assertEqual(deliveries, [("t3_1", "unsent")])
+
+    async def test_a_relay_that_ends_incomplete_retries_before_releasing_audio(self):
+        choice = act(S.ASK_WHICH, of="thread", candidates=["Mend Rail Maps", "Add a Rail Legend"])
+        draft = "Which thread do you mean, Mend Rail Maps or Add a Rail Legend?"
+
+        class Choosing(asked_in_order({**T3_ENTRY, "acts": [choice.to_json()]})):
+            def say(self, entry, turns=()):
+                return CHECKED.accept((choice,), draft, "text_model")
+
+        class Incomplete(Scripted):
+            async def push(inner, event):
+                if event["type"] == "response.done" and inner.asked == 1:
+                    event["response"]["status"] = "incomplete"
+                await super().push(event)
+
+        self.voice = await Incomplete.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn([draft, draft], task_service=Choosing, send_checked=self.send_checked)
+        self.assertEqual(self.spoken, [draft])
+        self.assertEqual(record["replies"][0]["delivery"], "sent")
+        self.assertEqual(self.voice.asked, 2)
+
     async def test_call_audio_waits_for_response_done_and_the_reply_check(self):
         generating, finish = asyncio.Event(), asyncio.Event()
 

@@ -534,13 +534,9 @@ SCENARIOS = (
              withdrawn_launch, 2, 1, long=True, fresh=True))
 # Checks that reproduce a fault nobody has fixed yet, as (scenario, check): the gate expects them to fail, says XFAIL, and
 # fails on everything else. Take a mark out when its fix lands and the row says XPASS.
-SILENT = ("a turn T3 took whose lines were all refused by their checks says nothing; docs/voice/spoken-acts.md, "
-          "'What can still end silent'")
 DISPATCH_YES = ("a short yes to the launch confirmation is not always taken; a "
                 "no_thread line beside the confirmation clears the question; docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
-    ("speak-over", "the second turn was not left silent by refused T3 lines"): SILENT,
-    ("speak-over", "no thread turn ends in silence"): SILENT,
     ("news-permission", "the yes started a thread"): DISPATCH_YES,
     ("news-done", "the yes started a thread"): DISPATCH_YES,
     ("short-yes-tell", "the yes was taken"):
@@ -549,16 +545,11 @@ KNOWN: dict[tuple[str, str], str] = {
         "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
     ("follow-up", "the follow-up did not fall back to today"):
         "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
-    ("withdrawn-question", "no which-thread question after the withdrawal"):
-        "'Never mind.' after 'Do you mean X?' is read as a thread request and a which-thread question is put again "
-        "(3 of 3 runs on voice/main a51878fd2e, after #90)",
-    ("withdrawn-question", "no thread turn ends in silence"): SILENT,
     ("withdrawn-question", "no free reply offers the old choices"):
         "after the fix in #90, 1 of 3 baseline runs still offered the old choices in a free reply",
     ("news-permission", "permission news was not lost to a refused line"):
         "the needs-you line is refused by its checks in some runs (1 of 3 in the baseline) and nothing is said",
-    ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES,
-    ("short-yes", "no thread turn ends in silence"): SILENT}
+    ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
 
 
 def collect(server: Path, seen: list[int]) -> tuple[Turn, ...]:

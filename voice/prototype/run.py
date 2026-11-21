@@ -481,9 +481,7 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
                 words.refuse(entry, spoken)
             log("t3_call_reply", text=reply["text"], status=reply["status"], generated_audio_s=reply["speech_s"],
                 problems=spoken.problems, error=spoken.error, attempt=attempt + 1)
-            # The voice went off the words (or was stopped for it): ask once more, as the note's words are unchanged. A
-            # reply that was the words and failed to play is not asked again, and nor is one that never began.
-            if spoken.line is not None or reply["status"] not in ("completed", "cancelled") or is_muted():
+            if spoken.line is not None or reply["status"] not in ("completed", "cancelled", "incomplete") or is_muted():
                 break
     if delivery == "sent":
         entry["spoken"] = spoken.line.text
@@ -927,12 +925,12 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         replies, tool_turn, injection, answered, t3_only, owed = [], None, [], None, False, []
         record_delivery = getattr(service, "record_delivery", None)
 
-        async def say_t3(entries, kind, since):
+        async def say_t3(entries, kind, since, *, words=service, delivered=record_delivery, render_context=True):
             for index, entry in enumerate(entries):
-                delivery = None if record_delivery is None else lambda state: record_delivery(entry, state)
+                delivery = None if delivered is None else lambda state: delivered(entry, state)
                 said = [r["text"] for r in replies if r.get("text") and r.get("delivery", "sent") == "sent"]
-                turns = [*context, {"user": adapter.text(), "assistant": said}]
-                reply, pcm = await say_acts(voice, out_rate, since, entry, service, turns, log,
+                turns = [*context, {"user": adapter.text(), "assistant": said}] if render_context else ()
+                reply, pcm = await say_acts(voice, out_rate, since, entry, words, turns, log,
                                             send_audio=send_checked, record_delivery=delivery, is_muted=is_muted)
                 replies.append({"kind": kind, "row": entry.get("row"), **reply})
                 log("reply", reply=kind, text=reply["text"])
@@ -1167,6 +1165,12 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if update_pcm:
                 write_pcm16(out / f"{stem}_update.wav", update_pcm, out_rate)
             await correct()
+
+        unanswered = getattr(service, "unanswered", None)
+        if (unanswered is not None and send_checked is not None and adapter.text() and not is_muted()
+                and not any(r["speech_s"] for r in replies)):
+            entry, words = unanswered()
+            await say_t3([entry], "t3", audio_end, words=words, delivered=None, render_context=False)
 
     finally:
         if worker is not None:

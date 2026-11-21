@@ -122,6 +122,8 @@ CASES = {
     Kind.ANSWER_IN_APP: ({"thread": "Add clamp helper"},
                          "Add clamp helper has a question you'll need to answer in the app.",
                          {"You'll need to answer that in the app.": "thread missing"}),
+    Kind.UNANSWERED: ({}, "I couldn't give you an answer just now.",
+                      {"Could you say that again?": "unrequested question"}),
     Kind.CORRECTION: ({"thread": "Add clamp helper", "status": "working"},
                       "Sorry, I got that wrong. Add clamp helper is still working.",
                       {"Add clamp helper is still working. Want me to check?": "unrequested question",

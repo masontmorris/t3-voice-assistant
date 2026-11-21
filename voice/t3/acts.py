@@ -52,6 +52,7 @@ class Kind(StrEnum):
     REFUSED = "refused"
     LEGACY_UPDATE = "legacy_update"
     CORRECTION = "correction"
+    UNANSWERED = "unanswered"
     CONFIRM_RESPOND = "confirm_respond"
     RESPONDED = "responded"
     NOTHING_PENDING = "nothing_pending"
@@ -142,6 +143,7 @@ RULES: dict[Kind, Rule] = {
     Kind.SEAM_DOWN: Rule(("reason",)),
     Kind.REFUSED: Rule(("op", "code", "reason"), forbids=("started", "sent")),
     Kind.LEGACY_UPDATE: Rule(("thread", "text")),
+    Kind.UNANSWERED: Rule(()),
     Kind.CORRECTION: Rule(("thread", "status", "need", "pending", "waiting_for"), ("thread",), plain=True),
     # `decision` is approve or deny. `need` and `pending` say what is being answered, as a thread's status does.
     # An approval is confirmed only with a description of this request in `summary`, from the thread's own records.

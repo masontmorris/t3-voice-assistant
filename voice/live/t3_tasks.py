@@ -1341,6 +1341,10 @@ class T3TaskService(MockTaskService):
                 self.t3.prefetch(record["instruction"])
         return events
 
+    def unanswered(self) -> tuple[dict, Words]:
+        update = L.Update("unanswered", (act(Say.UNANSWERED),), "completed")
+        return update_entry(update, self.conversation_id), Words(self.t3, lambda _: update)
+
     def correction_entry(self, update: L.Update) -> dict:
         """The task update that carries a correction to be worded, said, and given back if it is not heard."""
         entry = self.t3.news_entry(update, self.conversation_id)

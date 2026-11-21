@@ -73,6 +73,7 @@ MEANS: dict[Kind, str] = {
     Kind.SEAM_DOWN: "the assistant stopped following their threads",
     Kind.REFUSED: "T3 refused to {op}",
     Kind.LEGACY_UPDATE: "the same news as this older line: {text}",
+    Kind.UNANSWERED: "the assistant could not give an answer",
     Kind.CORRECTION: "what the assistant said a moment ago about {thread} was wrong, and {thread} is {status}",
     Kind.CONFIRM_RESPOND: "whether to {decision} the request {thread} is waiting on, which is {need}",
     Kind.RESPONDED: "the request {thread} was waiting on was {decided}",
@@ -185,7 +186,9 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
         if a.kind in QUESTIONS:
             out.append(Ask(f"a{n}_means", f"Is the line a question that asks {means}?", True))
         else:
-            out.append(Ask(f"a{n}_means", f"Does the line tell them that {means}?", True))
+            meaning = (f"Does the line tell them only that {means}, without a reason, outcome or other claim?"
+                       if a.kind is Kind.UNANSWERED else f"Does the line tell them that {means}?")
+            out.append(Ask(f"a{n}_means", meaning, True))
             out.append(Ask(f"a{n}_asks_unrequested",
                            "Does the line ask the person a question the act did not call for?", False))
         # The meaning question alone passes a status line that leaves the summary out.
