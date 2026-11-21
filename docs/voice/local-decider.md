@@ -16,13 +16,13 @@ d1 fits beside LFM3 and keeps up with speech, but it loses too many scenarios to
 
 `python -m voice.research.local_decider.bench replay` sends all 565 recorded decisions requests once per server setting per round. They come from the prototype's decider cache (80) and the fork's `voice/research/segmentation/cache/` (485). Settings alternate within each round, over 3 rounds.
 
-| Setting                                           | Median   | p95      | Max      | Calls per second | GPU memory over idle | Errors              |
-| ------------------------------------------------- | -------- | -------- | -------- | ---------------- | -------------------- | ------------------- |
-| Batch 8192, flash attention on (the card's flags) | 118.6 ms | 514.4 ms | 2,383 ms | 4.83             | 2,383 MiB            | 0                   |
-| Batch 4096, flash attention on                    | 120.3 ms | 523.9 ms | 2,377 ms | 4.83             | 1,703 MiB            | 0                   |
-| Batch 2048, flash attention on (the new default)  | 120.4 ms | 519.5 ms | 2,409 ms | 4.84             | 1,411 MiB            | 0                   |
-| Batch 512, flash attention on                     | 117.6 ms | 466.7 ms | 968 ms   | 5.48             | 1,213 MiB            | 12 of 565 per round |
-| Batch 8192, flash attention off                   | 122.5 ms | 548.0 ms | 2,707 ms | 4.60             | 6,079 MiB            | 0                   |
+| Setting | Median | p95 | Max | Calls per second | GPU memory over idle | Errors |
+| --- | --- | --- | --- | --- | --- | --- |
+| Batch 8192, flash attention on (the card's flags) | 118.6 ms | 514.4 ms | 2,383 ms | 4.83 | 2,383 MiB | 0 |
+| Batch 4096, flash attention on | 120.3 ms | 523.9 ms | 2,377 ms | 4.83 | 1,703 MiB | 0 |
+| Batch 2048, flash attention on (the new default) | 120.4 ms | 519.5 ms | 2,409 ms | 4.84 | 1,411 MiB | 0 |
+| Batch 512, flash attention on | 117.6 ms | 466.7 ms | 968 ms | 5.48 | 1,213 MiB | 12 of 565 per round |
+| Batch 8192, flash attention off | 122.5 ms | 548.0 ms | 2,707 ms | 4.60 | 6,079 MiB | 0 |
 
 - Batch 4096 and batch 2048 gave byte-identical answers to batch 8192 on all 565 requests (measured). Every question prompt fits in 2048 tokens, so the GPU does the same work at either size (inferred). `voice/local_decider/client.py` now starts d1 with batch 2048.
 - Batch 512 fails the 12 requests whose single-question prompt is longer than 512 tokens. The server answers "input (521 tokens) is too large to process" (measured).
@@ -37,25 +37,25 @@ The tail comes from requests with many questions. llama.cpp evaluates each quest
 
 d1's answers at batch 8192, round 0, against pplx's recorded answers to the same 94 hybrid requests (measured). A noul answer agrees when both are on the same side of 0.5.
 
-| Question      | Answers | Agreement |
-| ------------- | ------- | --------- |
-| `kind`        | 175     | 94.3%     |
-| `depends`     | 82      | 91.5%     |
-| `side_effect` | 175     | 91.4%     |
-| `ready`       | 175     | 80.6%     |
-| `finished`    | 70      | 80.0%     |
-| `at`          | 70      | 75.7%     |
-| `corrects`    | 82      | 74.4%     |
-| `same_as`     | 3       | 100%      |
+| Question | Answers | Agreement |
+| --- | --- | --- |
+| `kind` | 175 | 94.3% |
+| `depends` | 82 | 91.5% |
+| `side_effect` | 175 | 91.4% |
+| `ready` | 175 | 80.6% |
+| `finished` | 70 | 80.0% |
+| `at` | 70 | 75.7% |
+| `corrects` | 82 | 74.4% |
+| `same_as` | 3 | 100% |
 
 ## The hybrid with d1 on the scenarios
 
 `python -m voice.segmentation.run --option h --mode stream --decider d1` ran once per set, without and with `--reuse`. The pplx columns are the committed PR #6 runs.
 
-| Set         | pplx pass | d1 pass | d1 with reuse pass | Premature, pplx / d1 | Calls, pplx / d1 | Final segments changed |
-| ----------- | --------- | ------- | ------------------ | -------------------- | ---------------- | ---------------------- |
-| Original 11 | 11        | 8       | 8                  | 0 / 1                | 32 / 34          | 1                      |
-| Held-out 18 | 14        | 7       | 7                  | 1 / 3                | 36 / 38          | 2                      |
+| Set | pplx pass | d1 pass | d1 with reuse pass | Premature, pplx / d1 | Calls, pplx / d1 | Final segments changed |
+| --- | --- | --- | --- | --- | --- | --- |
+| Original 11 | 11 | 8 | 8 | 0 / 1 | 32 / 34 | 1 |
+| Held-out 18 | 14 | 7 | 7 | 1 / 3 | 36 / 38 | 2 |
 
 d1 found the same final segments as pplx in all but 3 of 29 scenarios, so the losses come from classifying segments, not from finding breaks (measured).
 
@@ -68,17 +68,17 @@ d1 found the same final segments as pplx in all but 3 of 29 scenarios, so the lo
 
 `python -m voice.prototype.run <clips> --inject c --decider d1` ran the 10 clips in `$VOICE_HOME/audio/real/` once at LFM3's default context and once with `--lfm-ctx 32768`. The cloud column is the hybrid's PR #6 run, whose decider calls were live.
 
-| Measurement                                                                  | Cloud             | d1, LFM3 at 128k  | d1, LFM3 at 32k   |
-| ---------------------------------------------------------------------------- | ----------------- | ----------------- | ----------------- |
-| Clips passed                                                                 | 7 of 10           | 6 of 10           | 6 of 10           |
-| Premature dispatches                                                         | 0                 | 0                 | 0                 |
-| Total GPU memory after both load                                             | not measured      | 7,154 MiB         | 4,430 MiB         |
-| Decider call while audio streams, median (p95)                               | 101 ms (291 ms)   | 395 ms (840 ms)   | 426 ms (847 ms)   |
-| Decider call after the audio ends, median (p95)                              | 106 ms (181 ms)   | 324 ms (730 ms)   | 339 ms (747 ms)   |
-| Snapshot ready after the audio ends, median (max)                            | 0.258 s (0.310 s) | 0.414 s (1.619 s) | 0.502 s (1.643 s) |
-| First reply audio after the audio ends, median (max)                         | 0.408 s (0.504 s) | 0.567 s (1.695 s) | 0.585 s (1.722 s) |
+| Measurement | Cloud | d1, LFM3 at 128k | d1, LFM3 at 32k |
+| --- | --- | --- | --- |
+| Clips passed | 7 of 10 | 6 of 10 | 6 of 10 |
+| Premature dispatches | 0 | 0 | 0 |
+| Total GPU memory after both load | not measured | 7,154 MiB | 4,430 MiB |
+| Decider call while audio streams, median (p95) | 101 ms (291 ms) | 395 ms (840 ms) | 426 ms (847 ms) |
+| Decider call after the audio ends, median (p95) | 106 ms (181 ms) | 324 ms (730 ms) | 339 ms (747 ms) |
+| Snapshot ready after the audio ends, median (max) | 0.258 s (0.310 s) | 0.414 s (1.619 s) | 0.502 s (1.643 s) |
+| First reply audio after the audio ends, median (max) | 0.408 s (0.504 s) | 0.567 s (1.695 s) | 0.585 s (1.722 s) |
 | Lag from a word's first partial to the decision that covers it, median (p95) | 1.093 s (3.050 s) | 1.283 s (3.473 s) | 1.257 s (3.406 s) |
-| Words no partial decision covered                                            | 52 of 120         | 49 of 120         | 49 of 120         |
+| Words no partial decision covered | 52 of 120 | 49 of 120 | 49 of 120 |
 
 - d1 failed `04_correction.wav` as well as the 3 clips pplx fails (measured). It is the same correction weakness as in the scenarios (inferred).
 - These clip runs predate the current turn flow. Re-run on today's code, d1 passes 2 of 10 on llama.cpp and 1 of 10 on mistral.rs, so use the columns above for the serving paths' latency and VRAM, not for a pass count (measured, [mistral.rs with packing](#mistralrs-with-packing)).
@@ -92,11 +92,11 @@ d1 found the same final segments as pplx in all but 3 of 29 scenarios, so the lo
 
 `python -m voice.research.local_decider.bench bargein 02_two_requests.wav --lfm-ctx 32768` asked LFM3 for a spoken reply 12 times. In 6 of them, d1 answered recorded hybrid requests back to back for the whole reply. The two kinds alternated.
 
-| Measurement                                | Without d1     | With d1 busy    |
-| ------------------------------------------ | -------------- | --------------- |
-| LFM3 first audio after the request, median | 0.322 s        | 0.404 s         |
-| LFM3 time to finish the reply, median      | 0.852 s        | 2.279 s         |
-| d1 call while LFM3 speaks, median (p95)    | not applicable | 678 ms (809 ms) |
+| Measurement | Without d1 | With d1 busy |
+| --- | --- | --- |
+| LFM3 first audio after the request, median | 0.322 s | 0.404 s |
+| LFM3 time to finish the reply, median | 0.852 s | 2.279 s |
+| d1 call while LFM3 speaks, median (p95) | not applicable | 678 ms (809 ms) |
 
 The replies held 3.4 to 4.6 s of audio (measured). With d1 busy the whole time, LFM3 still produced audio faster than real time, at about 0.6 s of work per second of audio (inferred from the medians). d1 calls took about twice as long as alone (measured). A back-to-back load is the worst case. The segmenter calls at most about once per second of speech (inferred).
 
@@ -115,10 +115,10 @@ The model rules this out. d1-2B's config sets `"d1_attention": "set"`, and its `
 
 `voice/local_decider/reuse.py` keeps each answer keyed by its question, its piece's text, and whether that piece is still being spoken. It re-asks a question when that key changes. It always re-asks the break questions of the newest piece and the one before it, and any question that names no segment. `python -m voice.research.local_decider.bench reuse` replayed the hybrid's 94 calls in order. It sent each request twice, once in full and once through the reuse layer, alternating which went first.
 
-| Measurement                | Full request    | With reuse      |
-| -------------------------- | --------------- | --------------- |
-| Questions asked            | 835             | 742             |
-| Input tokens               | 237,683         | 208,496         |
+| Measurement | Full request | With reuse |
+| --- | --- | --- |
+| Questions asked | 835 | 742 |
+| Input tokens | 237,683 | 208,496 |
 | Call latency, median (p95) | 323 ms (651 ms) | 291 ms (557 ms) |
 
 Of the 93 answers it reused, 16 differed from a fresh answer to the full request, a reuse error of 17% (measured). 12 of the 16 were `ready`, because readiness depends on the speech after a piece, not only on its own words (inferred). The saving is small because the hybrid calls only 2 or 3 times per utterance, so few pieces repeat with unchanged text (inferred). Answer reuse did not change any scenario pass count (measured).
@@ -127,12 +127,12 @@ Of the 93 answers it reused, 16 differed from a fresh answer to the full request
 
 `voice/research/local_decider/transformers_bench.py` ran d1-2B's own `system_one` in bf16 from the Hugging Face cache, revision `652f920e544ea37f81e4b0ce89b81d4ed0da90b1`, read-only, in decision-lab's venv (torch 2.11.0+cu128, transformers 5.19.0). This torch build has no flash attention, so the run routed the model's `_fused` check to false and used its portable masked-attention path, as decision-lab does. Each request ran 5 times at the default group size of 16 questions per state and at 1, alternating.
 
-| Requests                                              | llama.cpp         | Transformers, packed 16 | Transformers, one question at a time |
-| ----------------------------------------------------- | ----------------- | ----------------------- | ------------------------------------ |
-| 5 slowest, 28 or 29 questions                         | 1,970 to 2,376 ms | 944 to 1,098 ms         | 3,647 to 4,316 ms                    |
-| 5 median, 3 to 5 questions                            | 108 to 126 ms     | 112 to 138 ms           | 187 to 269 ms                        |
-| Input tokens, 5 slowest                               | 16,425 to 19,589  | 4,387 to 4,739          | the same as llama.cpp                |
-| Changed answers against pplx, 5 slowest (144 answers) | 21                | 7                       | 15                                   |
+| Requests | llama.cpp | Transformers, packed 16 | Transformers, one question at a time |
+| --- | --- | --- | --- |
+| 5 slowest, 28 or 29 questions | 1,970 to 2,376 ms | 944 to 1,098 ms | 3,647 to 4,316 ms |
+| 5 median, 3 to 5 questions | 108 to 126 ms | 112 to 138 ms | 187 to 269 ms |
+| Input tokens, 5 slowest | 16,425 to 19,589 | 4,387 to 4,739 | the same as llama.cpp |
+| Changed answers against pplx, 5 slowest (144 answers) | 21 | 7 | 15 |
 
 - Packing reads the state once per 16 questions. On the slowest requests it read about a quarter of the tokens and ran 2.2 times faster than llama.cpp, although its kernels ran 1.8 times slower per token (measured).
 - On median-size requests the two paths were within 30 ms (measured).
@@ -154,13 +154,13 @@ mistral.rs 0.10.0, commit `fb4cdc3730dc64b366724e7637a205a8b7747499`, built for 
 
 `python -m voice.research.local_decider.bench packing` sent mistral.rs's three largest recorded requests at five set sizes. Input tokens are the server's own `usage.input_tokens`, which sums each group's prompt length.
 
-| Questions | Groups | Set size     | Input tokens | Latency  |
-| --------- | ------ | ------------ | ------------ | -------- |
-| 32        | 32     | 1            | 19,892       | 3,590 ms |
-| 32        | 16     | 2            | 11,940       | 2,372 ms |
-| 32        | 8      | 4            | 7,964        | 1,773 ms |
-| 32        | 4      | 8            | 5,976        | 1,501 ms |
-| 32        | 2      | 16 (default) | 4,982        | 1,444 ms |
+| Questions | Groups | Set size | Input tokens | Latency |
+| --- | --- | --- | --- | --- |
+| 32 | 32 | 1 | 19,892 | 3,590 ms |
+| 32 | 16 | 2 | 11,940 | 2,372 ms |
+| 32 | 8 | 4 | 7,964 | 1,773 ms |
+| 32 | 4 | 8 | 5,976 | 1,501 ms |
+| 32 | 2 | 16 (default) | 4,982 | 1,444 ms |
 
 Measured, one call per cell. Each request's tokens fit `groups x state + question tokens` exactly: the state is 497 tokens and the questions 3,988 for this request; 557 and 4,024 for the next; 534 and 3,635 for the 29-question one. The state is read once per group and nowhere else. Latency follows the groups rather than the questions, though not proportionally, because each group's forward pass is not free.
 
@@ -173,11 +173,11 @@ Two checks confirm it is the packing the Transformers path did and that it stops
 
 `python -m voice.research.local_decider.bench replay --configs mr16,mr1 --rounds 2 --paged-attn off` sent all 590 recorded requests twice per config, alternating. `mr16` sends no `set_size` and gets the model's default 16 questions per state read; `mr1` sends 1, which is llama.cpp's one-state-read-per-question shape. No errors, and round 1 repeated round 0 within 2.5% at the median (measured).
 
-| Setting                            | Requests | Median   | p95        | Max      | Calls per second | Questions per second | Peak VRAM | Startup |
-| ---------------------------------- | -------- | -------- | ---------- | -------- | ---------------- | -------------------- | --------- | ------- |
-| mistral.rs, packed 16              | 590      | 153.4 ms | 504.9 ms   | 1,533 ms | 4.32             | 27.4                 | 3,400 MiB | 10.1 s  |
-| mistral.rs, one question at a time | 590      | 232.1 ms | 1,022.6 ms | 4,063 ms | 2.46             | 15.6                 | 2,665 MiB | 10.0 s  |
-| llama.cpp, batch 2048              | 565      | 118.3 ms | 514.0 ms   | 2,361 ms | 4.84             | 28.65                | 2,104 MiB | 1.2 s   |
+| Setting | Requests | Median | p95 | Max | Calls per second | Questions per second | Peak VRAM | Startup |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| mistral.rs, packed 16 | 590 | 153.4 ms | 504.9 ms | 1,533 ms | 4.32 | 27.4 | 3,400 MiB | 10.1 s |
+| mistral.rs, one question at a time | 590 | 232.1 ms | 1,022.6 ms | 4,063 ms | 2.46 | 15.6 | 2,665 MiB | 10.0 s |
+| llama.cpp, batch 2048 | 565 | 118.3 ms | 514.0 ms | 2,361 ms | 4.84 | 28.65 | 2,104 MiB | 1.2 s |
 
 The mistral.rs rows are round 0 of this run; round 1 moved the median by 2.5% and 0.9%. The llama.cpp row is its own earlier replay, which covers 565 of the 590 requests; the 25 it lacks are newer cache entries, so the per-request comparison below uses only the 565 both ran (measured).
 
@@ -185,13 +185,13 @@ The mistral.rs rows are round 0 of this run; round 1 moved the median by 2.5% an
 - Against llama.cpp, packing is a wash on the whole set: 30% slower at the median, 2% better at p95 and 35% better at the max, and 11% fewer calls per second (measured; over the 565 requests both ran, the medians are 150.1 ms against 118.3 ms). The fit says llama.cpp runs about 122 ms per 1,000 input tokens and mistral.rs about 292 ms, so mistral.rs's kernels are 2.4 times slower per token, and packing saves 4 times the tokens only on the largest requests (measured, `latency.fit`; the cause of the slower kernels is a guess, since neither GPU has a profile taken here).
 - The crossover is at about 10 questions per request. By question count, on the 565 requests both paths ran (medians):
 
-| Questions | Requests | llama.cpp  | mistral.rs, packed 16 | mistral.rs, unpacked |
-| --------- | -------- | ---------- | --------------------- | -------------------- |
-| 0 to 2    | 14       | 20.6 ms    | 44.1 ms               | 43.6 ms              |
-| 3 to 5    | 343      | 79.8 ms    | 110.6 ms              | 151.5 ms             |
-| 6 to 9    | 126      | 268.1 ms   | 277.3 ms              | 483.3 ms             |
-| 10 to 19  | 74       | 425.6 ms   | 403.2 ms              | 720.9 ms             |
-| 20 to 39  | 8        | 2,114.3 ms | 1,309.5 ms            | 3,245.0 ms           |
+| Questions | Requests | llama.cpp | mistral.rs, packed 16 | mistral.rs, unpacked | 
+| --- | --- | --- | --- | --- |
+| 0 to 2 | 14 | 20.6 ms | 44.1 ms | 43.6 ms |
+| 3 to 5 | 343 | 79.8 ms | 110.6 ms | 151.5 ms |
+| 6 to 9 | 126 | 268.1 ms | 277.3 ms | 483.3 ms |
+| 10 to 19 | 74 | 425.6 ms | 403.2 ms | 720.9 ms |
+| 20 to 39 | 8 | 2,114.3 ms | 1,309.5 ms | 3,245.0 ms |
 
 - The hybrid's own 94 calls are small. On them llama.cpp took a median of 333.9 ms (p95 678.0, max 948.2), mistral.rs packed 329.7 ms (563.0, 765.6) and unpacked 558.5 ms (1,085.2, 1,565.2) (measured). So in the live call path the packing buys about 5% at the median and 17% at p95 over llama.cpp, not the 2 times it buys on the tail.
 
@@ -199,17 +199,17 @@ The mistral.rs rows are round 0 of this run; round 1 moved the median by 2.5% an
 
 Same rule as the table above, over the same 94 hybrid requests (832 answers).
 
-| Question      | Answers | llama.cpp | mistral.rs packed | mistral.rs unpacked |
-| ------------- | ------- | --------- | ----------------- | ------------------- |
-| `kind`        | 175     | 94.3%     | 91.4%             | 94.3%               |
-| `depends`     | 82      | 91.5%     | 90.2%             | 92.7%               |
-| `side_effect` | 175     | 91.4%     | 93.1%             | 90.9%               |
-| `ready`       | 175     | 80.6%     | 81.1%             | 82.9%               |
-| `finished`    | 70      | 80.0%     | 74.3%             | 81.4%               |
-| `at`          | 70      | 75.7%     | 77.1%             | 75.7%               |
-| `corrects`    | 82      | 74.4%     | 78.0%             | 74.4%               |
-| `same_as`     | 3       | 100%      | 100%              | 100%                |
-| All           | 832     | 85.8%     | 85.6%             | 86.4%               |
+| Question | Answers | llama.cpp | mistral.rs packed | mistral.rs unpacked |
+| --- | --- | --- | --- | --- |
+| `kind` | 175 | 94.3% | 91.4% | 94.3% |
+| `depends` | 82 | 91.5% | 90.2% | 92.7% |
+| `side_effect` | 175 | 91.4% | 93.1% | 90.9% |
+| `ready` | 175 | 80.6% | 81.1% | 82.9% |
+| `finished` | 70 | 80.0% | 74.3% | 81.4% |
+| `at` | 70 | 75.7% | 77.1% | 75.7% |
+| `corrects` | 82 | 74.4% | 78.0% | 74.4% |
+| `same_as` | 3 | 100% | 100% | 100% |
+| All | 832 | 85.8% | 85.6% | 86.4% |
 
 Packing changes answers: mistral.rs packed made a different decision from llama.cpp on 347 of 3,346 answers (10.4%), by up to 0.76 in probability, and unpacked on 26 (0.8%), by up to 0.07 (measured). Unpacked also reproduced llama.cpp's token count on every request, so the adapter feeds both servers the same prompt. Packed agreement is 2 answers below llama.cpp's overall and unpacked is 5 above, which is a spread this sample cannot separate (inferred: 832 answers, 6 answers is 0.7 points).
 
@@ -223,13 +223,13 @@ On the ten requests the Transformers bench used (164 answers), against pplx's re
 
 `clips-beside-lfm.py` in the lane's `mistralrs-linux` folder starts the chosen d1 server, sets `VOICE_D1_URL`, and runs `python -m voice.prototype.run <10 clips> --inject c --decider d1 --lfm-ctx 32768` once per serving path, so both runs used the same code, clips and LFM3 flags.
 
-| Measurement                                         | llama.cpp d1            | mistral.rs packed       |
-| --------------------------------------------------- | ----------------------- | ----------------------- |
-| Decider server alone over idle                      | 1,411 MiB               | 1,649 MiB               |
-| Total GPU memory after LFM3 and d1 load             | 4,542 MiB               | 4,782 MiB               |
+| Measurement | llama.cpp d1 | mistral.rs packed |
+| --- | --- | --- |
+| Decider server alone over idle | 1,411 MiB | 1,649 MiB |
+| Total GPU memory after LFM3 and d1 load | 4,542 MiB | 4,782 MiB |
 | Decider call while audio streams, median (p95, max) | 396.1 ms (859.1, 860.0) | 381.4 ms (707.7, 752.4) |
-| Decider call after the audio ends, median           | 422.0 ms (1 call)       | 369.5 ms (1 call)       |
-| Clips passed                                        | 2 of 10                 | 1 of 10                 |
+| Decider call after the audio ends, median | 422.0 ms (1 call) | 369.5 ms (1 call) |
+| Clips passed | 2 of 10 | 1 of 10 |
 
 - Both servers fit beside LFM3 at 32k, at 4,542 and 4,782 MiB of the card's 12 GB (measured). mistral.rs runs higher after its largest requests because the CUDA allocator keeps the high-water mark: it sat at 3,229 MiB after the clips, so the worst case for the pair is about 5,600 MiB (measured for the 3,229 MiB, inferred for the total, since the clip run's largest request is much smaller than the replay's).
 - Beside LFM3 the hybrid's calls are small, as above, so mistral.rs is 4% faster at the median and 18% faster at p95 (measured, 15 calls against 18; the two runs did not make the same number of calls, so these are not paired, and the paired comparison is the 94-request replay above). Only one call per run came after the audio ended, so that row says little (measured).

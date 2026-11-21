@@ -17,14 +17,14 @@ npx remotion render LoopReplay "$VOICE_HOME/viz/renders/<name>.mp4" --props='{"a
 
 The look follows a teenage engineering field-system brief: a warm grey stage, black instrument modules, and signal red, yellow and teal lamps. The brief and its eight references are under `$VOICE_HOME/viz-refs/loop-viz/` (`brief.md`, `picked/`), outside git.
 
-| Module           | Draws                                                                                                                                                                   | From events                                                           |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| Header           | Run name, turn number and the replay clock                                                                                                                              | `speech_start`                                                        |
+| Module | Draws | From events |
+| --- | --- | --- |
+| Header | Run name, turn number and the replay clock | `speech_start` |
 | MIC · TRANSCRIPT | An 8 s scrolling waveform (microphone above the line, assistant below) and the current turn's transcript, with a cursor while it is partial. Flashes red on a barge-in. | `waveform.json`, `transcript_partial`, `transcript_final`, `barge_in` |
-| DECIDER          | The latest decision point: revision, latency, and each segment's kind, readiness, side effect and weakest confidence. A tag shows a split or a merge.                   | `decision_point`, `task_split`, `task_merged`                         |
-| TASKS            | Up to four task cards. Each drops in when created, has a status lamp, and shows its gate meter (score against the threshold tick) and its result when done.             | `task_created`, `task_status`, `gate_verdict`                         |
-| LFM · VOICE      | What LFM saw at the hand-off, which tools it called, the reply with words lit as they play, a CUT OFF tag, and tool results.                                            | `handoff`, `lfm_action`, `reply_start`, `reply_end`, `tool_call`      |
-| Overlays         | A gate verdict slams its score full-frame for 1.1 s. The hand-off wipes the final transcript across the frame.                                                          | `gate_verdict`, `handoff`                                             |
+| DECIDER | The latest decision point: revision, latency, and each segment's kind, readiness, side effect and weakest confidence. A tag shows a split or a merge. | `decision_point`, `task_split`, `task_merged` |
+| TASKS | Up to four task cards. Each drops in when created, has a status lamp, and shows its gate meter (score against the threshold tick) and its result when done. | `task_created`, `task_status`, `gate_verdict` |
+| LFM · VOICE | What LFM saw at the hand-off, which tools it called, the reply with words lit as they play, a CUT OFF tag, and tool results. | `handoff`, `lfm_action`, `reply_start`, `reply_end`, `tool_call` |
+| Overlays | A gate verdict slams its score full-frame for 1.1 s. The hand-off wipes the final transcript across the frame. | `gate_verdict`, `handoff` |
 
 The stage is a pure function of archive time. `stateAt(archive, t)` in `src/archive.ts` folds the events up to `t`, and `src/Stage.tsx` draws that state. Both compositions call the same pair, so an edit shows exactly what the replay shows at that moment.
 

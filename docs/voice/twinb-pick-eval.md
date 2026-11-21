@@ -33,12 +33,12 @@ trimmed (measured in the builder's test and in the snapshots themselves). The co
 threads, of which 973 were subagent children and 164 were listed (measured). The window and project
 choices live in a local spec file, so no project name is baked into the code.
 
-| snapshot | listed threads | ceiling total | outside the ceiling | settled beyond the 25 newest | window                           |
-| -------- | -------------- | ------------- | ------------------- | ---------------------------- | -------------------------------- |
-| A        | 60             | 84            | 6                   | 30                           | five days, one project excluded  |
-| B        | 57             | 83            | 6                   | 32                           | three projects, three weeks      |
-| C        | 37             | 37            | 6                   | 10                           | two projects, every age          |
-| D        | 54             | 85            | 6                   | 26                           | two weeks, two projects excluded |
+| snapshot | listed threads | ceiling total | outside the ceiling | settled beyond the 25 newest | window |
+| --- | --- | --- | --- | --- | --- |
+| A | 60 | 84 | 6 | 30 | five days, one project excluded |
+| B | 57 | 83 | 6 | 32 | three projects, three weeks |
+| C | 37 | 37 | 6 | 10 | two projects, every age |
+| D | 54 | 85 | 6 | 26 | two weeks, two projects excluded |
 
 The windowed snapshots set `truncated: true` because they hold fewer threads than their ceiling allows
 at any age, which is what makes "not among your most recent threads" a true sentence (measured). Every
@@ -67,12 +67,12 @@ manifest is kept at `$VOICE_HOME/evals/twinb-pick/scratch/round1/frozen-manifest
 
 **Arms.** Each ran 190 cases three times and a case passes only when all three runs pass (measured).
 
-| arm       | configuration                                                                                                                                                                                                                                            |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| prefilter | no model. One allowed title containing every content word is the pick, a state word matches activity, a tie asks                                                                                                                                         |
-| model     | prefilter first; a hit wins; a tie asks; a miss sends the whole allowed list to `particle-ai/particle-1:free`, temperature 0, 200 output tokens, reasoning off, provider sort latency, one request in flight paced 3.2 seconds apart, every reply cached |
-| model_tie | the same client, plus the model may break a prefilter tie and sees only the tied titles                                                                                                                                                                  |
-| local     | the same chain as `model` over `qwen2.5-1.5b-instruct-q4_k_m` on llama.cpp b12428 under the GPU lease, `-ngl 99`, 8192 context, JSON-schema constrained output, temperature 0                                                                            |
+| arm | configuration |
+| --- | --- |
+| prefilter | no model. One allowed title containing every content word is the pick, a state word matches activity, a tie asks |
+| model | prefilter first; a hit wins; a tie asks; a miss sends the whole allowed list to `particle-ai/particle-1:free`, temperature 0, 200 output tokens, reasoning off, provider sort latency, one request in flight paced 3.2 seconds apart, every reply cached |
+| model_tie | the same client, plus the model may break a prefilter tie and sees only the tied titles |
+| local | the same chain as `model` over `qwen2.5-1.5b-instruct-q4_k_m` on llama.cpp b12428 under the GPU lease, `-ngl 99`, 8192 context, JSON-schema constrained output, temperature 0 |
 
 The local model had no copy on disk. One file was downloaded, 1.12 GB, Apache-2.0, at
 `$VOICE_HOME/gguf/qwen2.5-1.5b-instruct-q4_k_m.gguf`, and its row is in
@@ -83,19 +83,19 @@ equal requests, so the first shape never fell back).
 
 Cases that pass, over three repeats, strict view. A case passes only when all three runs are correct.
 
-| slice          | cases | prefilter | model | model_tie | local |
-| -------------- | ----- | --------- | ----- | --------- | ----- |
-| exact          | 30    | 21        | 30    | 30        | 22    |
-| paraphrase     | 40    | 16        | 39    | 39        | 17    |
-| project        | 15    | 0         | 9     | 9         | 4     |
-| state          | 20    | 15        | 17    | 15        | 15    |
-| back reference | 15    | 15        | 15    | 15        | 15    |
-| ambiguous      | 25    | 16        | 22    | 22        | 16    |
-| nonexistent    | 15    | 15        | 14    | 14        | 11    |
-| older          | 10    | 4         | 10    | 10        | 4     |
-| no subject     | 10    | 0         | 3     | 3         | 5     |
-| outside        | 10    | 10        | 10    | 10        | 6     |
-| total          | 190   | 112       | 169   | 167       | 115   |
+| slice | cases | prefilter | model | model_tie | local |
+| --- | --- | --- | --- | --- | --- |
+| exact | 30 | 21 | 30 | 30 | 22 |
+| paraphrase | 40 | 16 | 39 | 39 | 17 |
+| project | 15 | 0 | 9 | 9 | 4 |
+| state | 20 | 15 | 17 | 15 | 15 |
+| back reference | 15 | 15 | 15 | 15 | 15 |
+| ambiguous | 25 | 16 | 22 | 22 | 16 |
+| nonexistent | 15 | 15 | 14 | 14 | 11 |
+| older | 10 | 4 | 10 | 10 | 4 |
+| no subject | 10 | 0 | 3 | 3 | 5 |
+| outside | 10 | 10 | 10 | 10 | 6 |
+| total | 190 | 112 | 169 | 167 | 115 |
 
 The lenient view, where a question is never a wrong thread and an unparseable reply reads as a
 question, scores 113, 172, 171 and 122 (measured). The two views separate only where a reply could not
@@ -104,13 +104,13 @@ be parsed or a question missed a gold thread, so the strict column is the one to
 The pass bar, with the latency metric named. It counts a run as wrong when it named the wrong thread or
 picked one thread where a question was right.
 
-| criterion                                 | bar                 | prefilter        | model      | model_tie  | local      |
-| ----------------------------------------- | ------------------- | ---------------- | ---------- | ---------- | ---------- |
-| wrong in ambiguous, nonexistent, outside  | 0                   | 3, fail          | 6, fail    | 6, fail    | 9, fail    |
-| wrong overall                             | at most 2           | 9, fail          | 12, fail   | 15, fail   | 47, fail   |
-| correct on the unambiguous slices, strict | at least 90 percent | 52.9, fail       | 98.6, pass | 98.6, pass | 55.7, fail |
-| unnecessary questions                     | at most 10 percent  | 0.5, pass        | 3.2, pass  | 3.2, pass  | 17.0, fail |
-| `single_request_p95_ms`                   | at most 700         | no request, pass | 1610, fail | 1605, fail | 1399, fail |
+| criterion | bar | prefilter | model | model_tie | local |
+| --- | --- | --- | --- | --- | --- |
+| wrong in ambiguous, nonexistent, outside | 0 | 3, fail | 6, fail | 6, fail | 9, fail |
+| wrong overall | at most 2 | 9, fail | 12, fail | 15, fail | 47, fail |
+| correct on the unambiguous slices, strict | at least 90 percent | 52.9, fail | 98.6, pass | 98.6, pass | 55.7, fail |
+| unnecessary questions | at most 10 percent | 0.5, pass | 3.2, pass | 3.2, pass | 17.0, fail |
+| `single_request_p95_ms` | at most 700 | no request, pass | 1610, fail | 1605, fail | 1399, fail |
 
 `single_request_p95_ms` is the pooled p95 over every model request in the arm. The worst single slice
 reads higher on small samples, 2193 ms for the model arm and 1763 ms for the local arm (measured), and
@@ -120,12 +120,12 @@ Latency, three ways (measured). The single-request column is the client's own ti
 call. The wall column is the harness timer around the whole pick, so it includes the prefilter, the
 prompt build and any backoff. Both p95 columns pool every run in the arm.
 
-| arm       | requests | p50 single request | p95 single request | p95 wall under eval load |
-| --------- | -------- | ------------------ | ------------------ | ------------------------ |
-| prefilter | 0        | none               | none               | 0.85 ms                  |
-| model     | 288      | 506 ms             | 1610 ms            | not recomputable         |
-| model_tie | 366      | 548 ms             | 1605 ms            | 3302 ms                  |
-| local     | 288      | 785 ms             | 1399 ms            | 1269 ms                  |
+| arm | requests | p50 single request | p95 single request | p95 wall under eval load |
+| --- | --- | --- | --- | --- |
+| prefilter | 0 | none | none | 0.85 ms |
+| model | 288 | 506 ms | 1610 ms | not recomputable |
+| model_tie | 366 | 548 ms | 1605 ms | 3302 ms |
+| local | 288 | 785 ms | 1399 ms | 1269 ms |
 
 The model arm's pooled wall p95 cannot be recomputed. Its run files were re-scored from the disk
 cache after the uncached run to prove the committed parser produced the same picks, and that replay
@@ -154,15 +154,15 @@ replies, which is the correction below).
 
 ## The known failures
 
-| case                                   | what it checks                                         | prefilter                               | model                                | local                        |
-| -------------------------------------- | ------------------------------------------------------ | --------------------------------------- | ------------------------------------ | ---------------------------- |
-| shared title prefix                    | two titles and eight seconds apart, so ask naming both | ask with both, correct                  | ask with both, correct               | ask with both, correct       |
-| project-only mention                   | 45 threads in that project, so ask                     | named a thread, fail                    | named a thread, fail (prefilter hit) | named a thread, fail         |
-| "the PR thread" with no PR in the list | say none, never a thread                               | none, correct                           | asked, unnecessary question          | none, correct                |
-| recency, many just finished            | ask                                                    | ask, correct                            | ask, correct                         | ask, correct                 |
-| deleted thread, absent                 | none                                                   | none, correct                           | none, correct                        | asked, unnecessary question  |
-| back reference after a launch          | resolve from the task record                           | the record's thread, correct            | the record's thread, correct         | the record's thread, correct |
-| "the one that failed"                  | match activity, not the title that says failed         | asked with both failed threads, correct | asked with both, correct             | asked with both, correct     |
+| case | what it checks | prefilter | model | local |
+| --- | --- | --- | --- | --- |
+| shared title prefix | two titles and eight seconds apart, so ask naming both | ask with both, correct | ask with both, correct | ask with both, correct |
+| project-only mention | 45 threads in that project, so ask | named a thread, fail | named a thread, fail (prefilter hit) | named a thread, fail |
+| "the PR thread" with no PR in the list | say none, never a thread | none, correct | asked, unnecessary question | none, correct |
+| recency, many just finished | ask | ask, correct | ask, correct | ask, correct |
+| deleted thread, absent | none | none, correct | none, correct | asked, unnecessary question |
+| back reference after a launch | resolve from the task record | the record's thread, correct | the record's thread, correct | the record's thread, correct |
+| "the one that failed" | match activity, not the title that says failed | asked with both failed threads, correct | asked with both, correct | asked with both, correct |
 
 The state-word case is the one the prefilter was rewritten for. Its old rule matched the word failed
 inside a title and spoke that thread; the new rule matches activity, and all three arms now ask with
@@ -288,19 +288,19 @@ three runs pass (measured).
 Cases that pass, over three repeats. Strict first, then lenient, then the confirming-question view,
 then confirm-lenient.
 
-| slice          | cases | prefilter strict / lenient / confirm / confirm-lenient | model strict / lenient / confirm / confirm-lenient |
-| -------------- | ----- | ------------------------------------------------------ | -------------------------------------------------- |
-| exact          | 13    | 9 / 9 / 9 / 9                                          | 12 / 12 / 12 / 12                                  |
-| paraphrase     | 17    | 3 / 3 / 3 / 3                                          | 17 / 17 / 17 / 17                                  |
-| project        | 6     | 1 / 2 / 1 / 2                                          | 4 / 5 / 4 / 6                                      |
-| state          | 8     | 3 / 3 / 3 / 3                                          | 7 / 8 / 7 / 8                                      |
-| back reference | 6     | 6 / 6 / 6 / 6                                          | 6 / 6 / 6 / 6                                      |
-| ambiguous      | 10    | 6 / 6 / 6 / 6                                          | 8 / 9 / 8 / 9                                      |
-| nonexistent    | 6     | 6 / 6 / 6 / 6                                          | 6 / 6 / 6 / 6                                      |
-| older          | 5     | 0 / 0 / 0 / 0                                          | 5 / 5 / 5 / 5                                      |
-| no subject     | 4     | 0 / 0 / 0 / 0                                          | 0 / 0 / 0 / 0                                      |
-| outside        | 5     | 5 / 5 / 5 / 5                                          | 5 / 5 / 5 / 5                                      |
-| total          | 80    | 39 / 40 / 39 / 40                                      | 70 / 73 / 70 / 74                                  |
+| slice | cases | prefilter strict / lenient / confirm / confirm-lenient | model strict / lenient / confirm / confirm-lenient |
+| --- | --- | --- | --- |
+| exact | 13 | 9 / 9 / 9 / 9 | 12 / 12 / 12 / 12 |
+| paraphrase | 17 | 3 / 3 / 3 / 3 | 17 / 17 / 17 / 17 |
+| project | 6 | 1 / 2 / 1 / 2 | 4 / 5 / 4 / 6 |
+| state | 8 | 3 / 3 / 3 / 3 | 7 / 8 / 7 / 8 |
+| back reference | 6 | 6 / 6 / 6 / 6 | 6 / 6 / 6 / 6 |
+| ambiguous | 10 | 6 / 6 / 6 / 6 | 8 / 9 / 8 / 9 |
+| nonexistent | 6 | 6 / 6 / 6 / 6 | 6 / 6 / 6 / 6 |
+| older | 5 | 0 / 0 / 0 / 0 | 5 / 5 / 5 / 5 |
+| no subject | 4 | 0 / 0 / 0 / 0 | 0 / 0 / 0 / 0 |
+| outside | 5 | 5 / 5 / 5 / 5 | 5 / 5 / 5 / 5 |
+| total | 80 | 39 / 40 / 39 / 40 | 70 / 73 / 70 / 74 |
 
 Cases and runs separately (measured). Prefilter strict: 39 of 80 cases pass, wrong in 1 case over
 3 runs, all three the same ambiguous request where one title matched and the gold was a question.
@@ -375,30 +375,30 @@ The four scores are strict, lenient, confirm, and confirm-lenient. The latency c
 milliseconds. Request timing includes a connection setup when observed and excludes pacing.
 Wall timing includes each arm's pacing and local work.
 
-| Arm                    | Cases | Runs | Cases passed in the four views | Request p50 / p95 | Wall p50 / p95 | d1.2 calls | Liquid spend |
-| ---------------------- | ----: | ---: | ------------------------------ | ----------------- | -------------- | ---------: | -----------: |
-| Prefilter              |    80 |  240 | 39 / 40 / 39 / 40              | None              | 0.34 / 0.63    |          0 |           $0 |
-| Prefilter + particle-1 |    80 |  240 | 70 / 73 / 70 / 74              | 570 / 1620        | 2882 / 3901    |          0 |           $0 |
-| `narrow+decider`       |    80 |  240 | 38 / 56 / 38 / 57              | 94 / 194          | 116 / 217      |        240 |  $0.00128682 |
-| `full+decider`         |     0 |    0 | Ineligible                     | None              | None           |          0 |           $0 |
+| Arm | Cases | Runs | Cases passed in the four views | Request p50 / p95 | Wall p50 / p95 | d1.2 calls | Liquid spend |
+| --- | ---: | ---: | --- | --- | --- | ---: | ---: |
+| Prefilter | 80 | 240 | 39 / 40 / 39 / 40 | None | 0.34 / 0.63 | 0 | $0 |
+| Prefilter + particle-1 | 80 | 240 | 70 / 73 / 70 / 74 | 570 / 1620 | 2882 / 3901 | 0 | $0 |
+| `narrow+decider` | 80 | 240 | 38 / 56 / 38 / 57 | 94 / 194 | 116 / 217 | 240 | $0.00128682 |
+| `full+decider` | 0 | 0 | Ineligible | None | None | 0 | $0 |
 
 Measured wrong counts by slice. Each cell gives distinct cases with a wrong result and then
 wrong runs, in strict, lenient, and confirm order. Wrong includes a wrong direct pick, a direct
 pick where gold requires asking, or a confirmation naming the wrong target.
 
-| Slice          | Cases / runs per eligible arm | Prefilter       | Prefilter + particle-1 | `narrow+decider` |
-| -------------- | ----------------------------: | --------------- | ---------------------- | ---------------- |
-| Exact          |                       13 / 39 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 1/3 · 1/3 · 1/3  |
-| Paraphrase     |                       17 / 51 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 0/0 · 0/0 · 0/0  |
-| Project        |                        6 / 18 | 0/0 · 0/0 · 0/0 | 1/3 · 1/3 · 0/0        | 0/0 · 0/0 · 0/0  |
-| State          |                        8 / 24 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 0/0 · 0/0 · 0/0  |
-| Back reference |                        6 / 18 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 0/0 · 0/0 · 0/0  |
-| Ambiguous      |                       10 / 30 | 1/3 · 1/3 · 1/3 | 1/3 · 1/3 · 1/3        | 1/3 · 1/3 · 0/0  |
-| Nonexistent    |                        6 / 18 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 0/0 · 0/0 · 0/0  |
-| Older          |                        5 / 15 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 0/0 · 0/0 · 0/0  |
-| No subject     |                        4 / 12 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 0/0 · 0/0 · 0/0  |
-| Outside        |                        5 / 15 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0        | 0/0 · 0/0 · 0/0  |
-| Total          |                      80 / 240 | 1/3 · 1/3 · 1/3 | 2/6 · 2/6 · 1/3        | 2/6 · 2/6 · 1/3  |
+| Slice | Cases / runs per eligible arm | Prefilter | Prefilter + particle-1 | `narrow+decider` |
+| --- | ---: | --- | --- | --- |
+| Exact | 13 / 39 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 1/3 · 1/3 · 1/3 |
+| Paraphrase | 17 / 51 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Project | 6 / 18 | 0/0 · 0/0 · 0/0 | 1/3 · 1/3 · 0/0 | 0/0 · 0/0 · 0/0 |
+| State | 8 / 24 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Back reference | 6 / 18 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Ambiguous | 10 / 30 | 1/3 · 1/3 · 1/3 | 1/3 · 1/3 · 1/3 | 1/3 · 1/3 · 0/0 |
+| Nonexistent | 6 / 18 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Older | 5 / 15 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| No subject | 4 / 12 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Outside | 5 / 15 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
+| Total | 80 / 240 | 1/3 · 1/3 · 1/3 | 2/6 · 2/6 · 1/3 | 2/6 · 2/6 · 1/3 |
 
 **Retrieval.** Measured once per case, the top eight included the gold thread in 39 of 46
 single-target cases. Recall was 13/13 exact, 17/17 paraphrase, 2/2 project, 0/3 state,
@@ -440,29 +440,29 @@ Measured scores give case passes in strict, lenient, confirm, and confirm-lenien
 A case passes when all of its repeats pass. Request timing includes connection setup when
 observed and excludes pacing. Wall timing includes pacing and local work.
 
-| Arm                    | Cases | Runs | Cases passed in the four views | Request p50 / p95 (ms) | Wall p50 / p95 (ms) | Liquid calls | Liquid spend |
-| ---------------------- | ----: | ---: | ------------------------------ | ---------------------- | ------------------- | -----------: | -----------: |
-| Prefilter              |    80 |  240 | 39 / 40 / 39 / 40              | None                   | 0.34 / 0.63         |            0 |           $0 |
-| Prefilter + particle-1 |    80 |  240 | 70 / 73 / 70 / 74              | 570 / 1620             | 2882 / 3901         |            0 |           $0 |
-| `narrow+decider`       |    80 |  240 | 49 / 55 / 49 / 62              | 106 / 194              | 132 / 220           |          240 |  $0.00436950 |
-| `full+decider`         |     0 |    0 | Ineligible                     | None                   | None                |            0 |           $0 |
+| Arm | Cases | Runs | Cases passed in the four views | Request p50 / p95 (ms) | Wall p50 / p95 (ms) | Liquid calls | Liquid spend |
+| --- | ---: | ---: | --- | --- | --- | ---: | ---: |
+| Prefilter | 80 | 240 | 39 / 40 / 39 / 40 | None | 0.34 / 0.63 | 0 | $0 |
+| Prefilter + particle-1 | 80 | 240 | 70 / 73 / 70 / 74 | 570 / 1620 | 2882 / 3901 | 0 | $0 |
+| `narrow+decider` | 80 | 240 | 49 / 55 / 49 / 62 | 106 / 194 | 132 / 220 | 240 | $0.00436950 |
+| `full+decider` | 0 | 0 | Ineligible | None | None | 0 | $0 |
 
 Measured wrong counts give cases with at least one wrong result and wrong runs, in
 strict, lenient, and confirm order. The recorded baseline breakouts are in Round A above.
 
-| Slice          | Cases / runs | `narrow+decider` wrong cases/runs in the three views |
-| -------------- | -----------: | ---------------------------------------------------- |
-| Exact          |      13 / 39 | 0/0 · 0/0 · 0/0                                      |
-| Paraphrase     |      17 / 51 | 0/0 · 0/0 · 0/0                                      |
-| Project        |       6 / 18 | 1/3 · 1/3 · 0/0                                      |
-| State          |       8 / 24 | 2/6 · 2/6 · 1/3                                      |
-| Back reference |       6 / 18 | 0/0 · 0/0 · 0/0                                      |
-| Ambiguous      |      10 / 30 | 5/11 · 5/11 · 0/0                                    |
-| Nonexistent    |       6 / 18 | 0/0 · 0/0 · 0/0                                      |
-| Older          |       5 / 15 | 0/0 · 0/0 · 0/0                                      |
-| No subject     |       4 / 12 | 0/0 · 0/0 · 0/0                                      |
-| Outside        |       5 / 15 | 0/0 · 0/0 · 0/0                                      |
-| Total          |     80 / 240 | 8/20 · 8/20 · 1/3                                    |
+| Slice | Cases / runs | `narrow+decider` wrong cases/runs in the three views |
+| --- | ---: | --- |
+| Exact | 13 / 39 | 0/0 · 0/0 · 0/0 |
+| Paraphrase | 17 / 51 | 0/0 · 0/0 · 0/0 |
+| Project | 6 / 18 | 1/3 · 1/3 · 0/0 |
+| State | 8 / 24 | 2/6 · 2/6 · 1/3 |
+| Back reference | 6 / 18 | 0/0 · 0/0 · 0/0 |
+| Ambiguous | 10 / 30 | 5/11 · 5/11 · 0/0 |
+| Nonexistent | 6 / 18 | 0/0 · 0/0 · 0/0 |
+| Older | 5 / 15 | 0/0 · 0/0 · 0/0 |
+| No subject | 4 / 12 | 0/0 · 0/0 · 0/0 |
+| Outside | 5 / 15 | 0/0 · 0/0 · 0/0 |
+| Total | 80 / 240 | 8/20 · 8/20 · 1/3 |
 
 The measured retrieval limit remained 39 of 46 single targets in the top eight.
 Only 2 of 6 recorded back-reference targets were offered, and those were the two

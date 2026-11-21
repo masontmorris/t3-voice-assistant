@@ -71,12 +71,12 @@ Choices inside that rule, and why:
 **Measured alignment.** `align.py` sent 24 replies' own audio, cut at every block boundary, through the LFM3 ASR and
 matched each transcript back to the reply's words (81 boundaries, replays polish/before and polish/after2):
 
-| What                                                                           | Result                                                            |
-| ------------------------------------------------------------------------------ | ----------------------------------------------------------------- |
-| Words the audio of blocks 0..k said beyond the whole words of text runs 0..k+1 | 0 at every boundary (maximum 0)                                   |
-| Words the text of runs 0..k leads the audio of blocks 0..k                     | median 7, p10 3, maximum 16                                       |
-| Boundaries where the audio reached past run k itself                           | 1 of 81 (turn 25, block 1, by 5 words, still inside run k+1)      |
-| First blocks (0.94 s) the ASR read as empty                                    | 16 of 24; 4 of 24 with 1 s of silence after them (`pad_check.py`) |
+| What | Result |
+| --- | --- |
+| Words the audio of blocks 0..k said beyond the whole words of text runs 0..k+1 | 0 at every boundary (maximum 0) |
+| Words the text of runs 0..k leads the audio of blocks 0..k | median 7, p10 3, maximum 16 |
+| Boundaries where the audio reached past run k itself | 1 of 81 (turn 25, block 1, by 5 words, still inside run k+1) |
+| First blocks (0.94 s) the ASR read as empty | 16 of 24; 4 of 24 with 1 s of silence after them (`pad_check.py`) |
 
 So one block of lookahead held on this sample: no released audio said a word the screens had not passed (measured,
 24 replies, one speaker's call). The ASR's own delay inflates the lag a little, since it reads nothing from most
@@ -143,17 +143,17 @@ Speech end to first audio sent, `live.speech_end_to_first_audio_sent_s` in each 
 seconds, split by the length of the turn's first reply as sent. Reply length is sampled, so the counts per band
 differ between runs (measured).
 
-| Reply length                               | Before, 90ac28d6f2 (held reply) | After, ae525736d7 (streamed) |
-| ------------------------------------------ | ------------------------------- | ---------------------------- |
-| short, under 4 s                           | 1.69 / 3.13, n=11               | 1.28 / 1.49, n=18            |
-| medium, 4 to 8 s                           | 1.84 / 2.26, n=24               | 1.25 / 1.49, n=16            |
-| long, 8 s or more                          | 2.35 / 2.40, n=2                | 1.44 / 1.53, n=3             |
-| **all turns**                              | **1.84 / 2.59, n=37**           | **1.29 / 1.54, n=37**        |
-| client, speech end to first audio received | 1.85 / 2.60                     | 1.29 / 1.54                  |
-| underruns (client `reply_end` counts)      | 0 in 43 replies                 | 0 in 43 replies              |
-| releases audited / violations              | none, held                      | 141 / 0                      |
-| responses stopped after releasing audio    | none, held                      | 2                            |
-| turns with no reply heard                  | 0                               | 0                            |
+| Reply length | Before, 90ac28d6f2 (held reply) | After, ae525736d7 (streamed) |
+| --- | --- | --- |
+| short, under 4 s | 1.69 / 3.13, n=11 | 1.28 / 1.49, n=18 |
+| medium, 4 to 8 s | 1.84 / 2.26, n=24 | 1.25 / 1.49, n=16 |
+| long, 8 s or more | 2.35 / 2.40, n=2 | 1.44 / 1.53, n=3 |
+| **all turns** | **1.84 / 2.59, n=37** | **1.29 / 1.54, n=37** |
+| client, speech end to first audio received | 1.85 / 2.60 | 1.29 / 1.54 |
+| underruns (client `reply_end` counts) | 0 in 43 replies | 0 in 43 replies |
+| releases audited / violations | none, held | 141 / 0 |
+| responses stopped after releasing audio | none, held | 2 |
+| turns with no reply heard | 0 | 0 |
 
 Every turn that did not stop part way released its first block a median of 0.155 s after the model's first audio
 frame, at most 0.204 s (measured, `lookahead.py final`). The rest of the gain is the reply's remaining generation,
@@ -162,10 +162,10 @@ measured 1.29 s is inside the 0.30 s run-to-run spread the research measured for
 
 Mid-reply stops in the final run (measured, `audit.json`):
 
-| Turn | Heard                                                             | Why it stopped                                                                    | What followed                                                                                                                         |
-| ---- | ----------------------------------------------------------------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- |
-| 2    | "The weather in Raleigh today is a high of 57 degrees Fahrenheit" | `date February 22`, `number 1732` (the Washington birthday, which nothing gave)   | the continuation said the same fact and was held, so the turn ended on the forecast                                                   |
-| 20   | "The weather" (0.94 s)                                            | `number 57`, `number 0`: a forecast invented while the Seattle lookup was running | the continuation restarted "The weather in Seattle..." and the `restated` screen held it; the task update then said the real forecast |
+| Turn | Heard | Why it stopped | What followed |
+| --- | --- | --- | --- |
+| 2 | "The weather in Raleigh today is a high of 57 degrees Fahrenheit" | `date February 22`, `number 1732` (the Washington birthday, which nothing gave) | the continuation said the same fact and was held, so the turn ended on the forecast |
+| 20 | "The weather" (0.94 s) | `number 57`, `number 0`: a forecast invented while the Seattle lookup was running | the continuation restarted "The weather in Seattle..." and the `restated` screen held it; the task update then said the real forecast |
 
 An intermediate run at eae21082e2, before the by-ear padding, stopped six responses on turns 20 to 22 the same way.
 There the ASR read the one-block fragment as empty, the turn took that as nothing heard, and the retry went out from
@@ -181,16 +181,16 @@ constant to change.
 
 ## Tests
 
-| Behaviour                                                                          | Test                                                                                                                                                                                           | Fails without it                                                                    |
-| ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
-| No audio for text that has not passed                                              | `test_stream_release.ReleaseGateTest.test_no_audio_for_text_that_has_not_passed`, `test_a_word_still_arriving_is_not_screened`, `test_a_prefix_that_fails_and_then_passes_releases_again`      | yes: a gate that ignores the screens fails 6 tests                                  |
-| Audio goes out while the reply is generated                                        | `test_audio_reaches_the_speaker_before_the_reply_is_done`, `test_a_block_is_released_once_the_next_runs_text_has_passed`                                                                       | yes: a gate that holds until done fails 8 tests                                     |
-| A late failure stops at the last passing block and re-asks once, without repeating | `test_a_late_failure_stops_at_the_last_boundary_that_passed_and_goes_on_without_repeating`, `test_a_continuation_that_says_the_heard_part_again_is_not_spoken`                                 | yes: a from-the-top re-ask, and a missing `restated` screen, each fail one          |
-| The note quotes what the audio said                                                | `test_the_continuation_quotes_what_the_released_audio_said_not_what_it_was_released_on`, `test_a_fragment_the_ear_cannot_read_is_still_continued_not_restarted`                                | yes (checked by reverting run.py)                                                   |
-| Barge-in during a streamed reply                                                   | `test_server.LiveServerTest.test_a_barge_in_during_a_streamed_reply_stops_its_audio_and_ends_it_once`, `SpeakTest.test_a_turn_muted_mid_reply_sends_no_more_audio_and_still_ends_the_reply`    | yes: a muted turn that never ends its reply fails 2, one that keeps sending fails 1 |
-| One reply on the wire                                                              | `SpeakTest.test_a_reply_released_in_pieces_is_one_reply_on_the_wire`                                                                                                                           |                                                                                     |
-| Reply polish under streaming                                                       | `test_a_stale_repeat_releases_nothing_before_it_is_asked_again`, `test_a_reply_that_opens_like_an_earlier_line_streams_once_it_differs`, and the merged `PickedPlaceTest` and `StaleReplyTest` |                                                                                     |
-| The question for a missing place                                                   | `test_the_question_for_a_missing_place_streams_and_a_guessed_city_stops_it`                                                                                                                    |                                                                                     |
+| Behaviour | Test | Fails without it |
+| --- | --- | --- |
+| No audio for text that has not passed | `test_stream_release.ReleaseGateTest.test_no_audio_for_text_that_has_not_passed`, `test_a_word_still_arriving_is_not_screened`, `test_a_prefix_that_fails_and_then_passes_releases_again` | yes: a gate that ignores the screens fails 6 tests |
+| Audio goes out while the reply is generated | `test_audio_reaches_the_speaker_before_the_reply_is_done`, `test_a_block_is_released_once_the_next_runs_text_has_passed` | yes: a gate that holds until done fails 8 tests |
+| A late failure stops at the last passing block and re-asks once, without repeating | `test_a_late_failure_stops_at_the_last_boundary_that_passed_and_goes_on_without_repeating`, `test_a_continuation_that_says_the_heard_part_again_is_not_spoken` | yes: a from-the-top re-ask, and a missing `restated` screen, each fail one |
+| The note quotes what the audio said | `test_the_continuation_quotes_what_the_released_audio_said_not_what_it_was_released_on`, `test_a_fragment_the_ear_cannot_read_is_still_continued_not_restarted` | yes (checked by reverting run.py) |
+| Barge-in during a streamed reply | `test_server.LiveServerTest.test_a_barge_in_during_a_streamed_reply_stops_its_audio_and_ends_it_once`, `SpeakTest.test_a_turn_muted_mid_reply_sends_no_more_audio_and_still_ends_the_reply` | yes: a muted turn that never ends its reply fails 2, one that keeps sending fails 1 |
+| One reply on the wire | `SpeakTest.test_a_reply_released_in_pieces_is_one_reply_on_the_wire` | |
+| Reply polish under streaming | `test_a_stale_repeat_releases_nothing_before_it_is_asked_again`, `test_a_reply_that_opens_like_an_earlier_line_streams_once_it_differs`, and the merged `PickedPlaceTest` and `StaleReplyTest` | |
+| The question for a missing place | `test_the_question_for_a_missing_place_streams_and_a_guessed_city_stops_it` | |
 
 The mutation script is `$VOICE_HOME/evidence/stream-release/mutate.py`, outside the repo: each mutant breaks one behaviour,
 runs the tests that should catch it, and restores the file (measured, all six caught, on da24f47216).

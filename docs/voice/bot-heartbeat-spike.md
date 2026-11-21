@@ -85,25 +85,25 @@ The two misses that both versions share point to a gate rule, not more wording. 
 
 Round 1 used one test PM and one test worker on `claude-haiku-5-5` at low effort.
 
-| Check                                                            | Result | Evidence (UTC, measured)                                                                                                                                                                                                   |
-| ---------------------------------------------------------------- | ------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1. A quiet worker gets a verdict, and `wake_pm` starts a PM turn | Passed | At 53 s quiet, system one chose `wake_pm` with p=0.97. PM run ordinal 2 was requested at 08:42:14.769 and completed at 08:42:22.2. A separate read through T3's thread reader confirmed it.                                |
-| 2. A tick with no change makes no model call                     | Passed | 28 of 33 ticks had no trigger and made 0 calls. The ledger has exactly 5 attempts.                                                                                                                                         |
-| 3. The backstop fires while system one keeps saying `stay_quiet` | Passed | With the test switch `forceVerdict: "stay_quiet"`, the backstop woke the PM at 100 s without a model call. PM run ordinal 4 completed at 08:46:17.8.                                                                       |
-| 4. Every verdict is logged with node, delta, verdict and reason  | Passed | `checkins.jsonl` has 6 verdict entries. By their `source` field, 2 are from system one, 3 are forced (the model was asked, then the test switch overrode it), and 1 is from the backstop. Every entry has all four fields. |
+| Check | Result | Evidence (UTC, measured) |
+| ----- | ------ | ------------------------ |
+| 1. A quiet worker gets a verdict, and `wake_pm` starts a PM turn | Passed | At 53 s quiet, system one chose `wake_pm` with p=0.97. PM run ordinal 2 was requested at 08:42:14.769 and completed at 08:42:22.2. A separate read through T3's thread reader confirmed it. |
+| 2. A tick with no change makes no model call | Passed | 28 of 33 ticks had no trigger and made 0 calls. The ledger has exactly 5 attempts. |
+| 3. The backstop fires while system one keeps saying `stay_quiet` | Passed | With the test switch `forceVerdict: "stay_quiet"`, the backstop woke the PM at 100 s without a model call. PM run ordinal 4 completed at 08:46:17.8. |
+| 4. Every verdict is logged with node, delta, verdict and reason | Passed | `checkins.jsonl` has 6 verdict entries. By their `source` field, 2 are from system one, 3 are forced (the model was asked, then the test switch overrode it), and 1 is from the backstop. Every entry has all four fields. |
 
 ## Round 2 fixes, tested first
 
 Each fix has a test in `test/core.test.mjs` that drives the core with a fake clock, a fake T3 and a fake decider. Commit `910c7cf` moves the decisions into `core.mjs` with no change in behavior. On that core, all 6 tests in `8537bd2` fail. On `0653aab` all 6 pass (measured, `node --test`).
 
-| Defect                                                                     | Test                                                                                                                          | Before the fix                                | After                                                                             |
-| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- | --------------------------------------------------------------------------------- |
-| 1. The backstop was per PM, so a noisy worker reset a quiet worker's clock | A noisy worker wakes the PM every tick. The quiet worker must still get a backstop within 150 s.                              | No backstop for the quiet worker              | A backstop within 150 s                                                           |
-| 2. A decider error threw, wrote no check-in, and woke nobody               | The decider throws "call budget of 60 attempts used"                                                                          | No entry and no wake                          | A logged `wake_pm` whose reason names the budget, and one wake                    |
-| 3. The backstop never backed off                                           | A healthy, unchanged worker for 1000 s with a 100 s backstop and a 500 s ceiling                                              | Wakes at 100, 200, 300 and so on up to 1000 s | Wakes at 100 and 600 s, with the skip logged                                      |
-| 4. The bot would trigger itself in a deeper tree                           | An orchestrator, a watched PM and a stalled worker. The bot's wake starts a run in the PM, and later the PM opens a question. | The PM was not watched at all                 | The wake run is dropped, and the question wakes the orchestrator once             |
-| 4, rule 1. Finished runs of T3 children went to the decider                | A child and a non-child of the PM both finish a run                                                                           | Both asked                                    | The child's delta is dropped with a "rule 1" reason, and the non-child's is asked |
-| Repeat wakes                                                               | A stalled worker gets `wake_pm` at 30 s and at 90 s, then changes                                                             | 2 wakes for one stall                         | 1 wake, then 1 suppressed entry, then a new wake after the change                 |
+| Defect | Test | Before the fix | After |
+| ------ | ---- | -------------- | ----- |
+| 1. The backstop was per PM, so a noisy worker reset a quiet worker's clock | A noisy worker wakes the PM every tick. The quiet worker must still get a backstop within 150 s. | No backstop for the quiet worker | A backstop within 150 s |
+| 2. A decider error threw, wrote no check-in, and woke nobody | The decider throws "call budget of 60 attempts used" | No entry and no wake | A logged `wake_pm` whose reason names the budget, and one wake |
+| 3. The backstop never backed off | A healthy, unchanged worker for 1000 s with a 100 s backstop and a 500 s ceiling | Wakes at 100, 200, 300 and so on up to 1000 s | Wakes at 100 and 600 s, with the skip logged |
+| 4. The bot would trigger itself in a deeper tree | An orchestrator, a watched PM and a stalled worker. The bot's wake starts a run in the PM, and later the PM opens a question. | The PM was not watched at all | The wake run is dropped, and the question wakes the orchestrator once |
+| 4, rule 1. Finished runs of T3 children went to the decider | A child and a non-child of the PM both finish a run | Both asked | The child's delta is dropped with a "rule 1" reason, and the non-child's is asked |
+| Repeat wakes | A stalled worker gets `wake_pm` at 30 s and at 90 s, then changes | 2 wakes for one stall | 1 wake, then 1 suppressed entry, then a new wake after the change |
 
 The one-PM, two-worker live runs cannot show defect 4, because no PM is watched there. The test covers it.
 
@@ -135,7 +135,6 @@ The bar was deleted after round 3 (see Changes after round 3). Each rule wake fo
 It expressed a per-node budget from config, a budget written into the charter, and a budget scaled from the worker's own estimate, with a role default behind them. On the held cases it caught all three stalls of that kind: a run quiet past the role default, a run past twice its own 5-minute estimate, and a run past its charter's 15 minutes. It also left alone a 2-hour training run 25 minutes in.
 
 It could not express these (measured on held cases, or inferred where marked):
-
 - **A loop that keeps making events.** A retry loop updates the thread, so its quiet time stays short. The decider caught the held one (s3-loop, wake_pm with stay_quiet at 0.03). The rule never could.
 - **Waiting that is not phrased as a promise.** "Waiting on the CI run to finish before I merge" matches no promise phrase. The decider gave it stay_quiet at 0.90, just above the bar, so it was the gate's one missed alarm.
 - **A conditional promise.** "I will report back if anything changes" from a finished worker matched the promise rule, which woke the PM needlessly.
@@ -185,7 +184,6 @@ With 22 cases, each case moves accuracy by about 5 points, so treat these as rou
 `test/rules.test.mjs` has 6 tests. On the round 2 core (`823563a`) they fail, and on `7527c2c` they pass, together with the 6 round 2 tests (measured). They cover: the stall rule from a configured budget; the stall rule from twice the worker's estimate; the promise rule, and its hold-off while a background task exists; the question rule; the bar routing to wake_pm or tell_mason, and passing a confident stay_quiet; a failed child run going through the gate while a completed one is dropped.
 
 The round 3 live runs used a test PM and three Haiku workers in `approval-required`, all archived afterwards (measured, 2026-11-16 UTC).
-
 - **Run A.** The question rule fired 90 s after the worker's question opened, and the promise rule fired at 69 s of quiet. Neither asked the decider. Both wakes started PM turns (runs 2 and 3). 20 s before its rule fired, the question worker had got stay_quiet from the decider at 0.95. The finished worker got stay_quiet at 0.99, above the bar.
 - **Run B.** With a 1-minute worker budget, the stall rule fired on the worker that was still running and waiting on its question, with no model call (PM run 4).
 - **Run C.** The per-worker backstop still fires after the tick changes: three wakes at 20 s (PM runs 5, 6 and 7).

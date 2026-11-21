@@ -8,12 +8,12 @@ This page reports what was measured on 2026-11-16, on branch `voice/liquid-decid
 
 ## The route
 
-|          |                                                                                                     |
-| -------- | --------------------------------------------------------------------------------------------------- |
-| Endpoint | `POST https://api.liquid.ai/decisions/v1/systemone` with `Authorization: Bearer $LIQUID_API_KEY`    |
-| Body     | `{model, state, questions}`, at most 128 questions per request                                      |
-| Answer   | `answers` in TypeSafe's choice and noul shape, plus `usage {input_tokens, output_tokens, cost}`     |
-| Key      | `LIQUID_API_KEY` in the env file named by `VOICE_ENV_FILE`, placed only in the Authorization header |
+| | |
+| --- | --- |
+| Endpoint | `POST https://api.liquid.ai/decisions/v1/systemone` with `Authorization: Bearer $LIQUID_API_KEY` |
+| Body | `{model, state, questions}`, at most 128 questions per request |
+| Answer | `answers` in TypeSafe's choice and noul shape, plus `usage {input_tokens, output_tokens, cost}` |
+| Key | `LIQUID_API_KEY` in the env file named by `VOICE_ENV_FILE`, placed only in the Authorization header |
 
 The segmenter keeps building its existing bodies. The Liquid client replaces the body's model field with `d1.2` on the
 wire and keeps `state` and `questions` as they are, which is the same adapter the local decider uses
@@ -48,14 +48,14 @@ input tokens, plus one probe outside the ledger at $0.0000039. The $1.00 guard d
 each, in call order, with no cache. Those are the 11 original scenarios, the 18 held-out scenarios and the 10 clips.
 All 94 returned 200 (measured).
 
-| Measurement                              | d1.2   | pplx     |
-| ---------------------------------------- | ------ | -------- |
-| Call latency, median                     | 138 ms | 98.9 ms  |
-| Call latency, p95                        | 231 ms | 223.6 ms |
-| Call latency, max                        | 444 ms | 642.2 ms |
-| Median at 1 to 4 questions (11 calls)    | 168 ms |          |
-| Median at 5 to 8 questions (30 calls)    | 142 ms |          |
-| Median at 9 or more questions (53 calls) | 136 ms |          |
+| Measurement | d1.2 | pplx |
+| --- | --- | --- |
+| Call latency, median | 138 ms | 98.9 ms |
+| Call latency, p95 | 231 ms | 223.6 ms |
+| Call latency, max | 444 ms | 642.2 ms |
+| Median at 1 to 4 questions (11 calls) | 168 ms | |
+| Median at 5 to 8 questions (30 calls) | 142 ms | |
+| Median at 9 or more questions (53 calls) | 136 ms | |
 
 The pplx column is `timing.ms` from the same 94 cached records, so both columns are the same requests, the same bodies
 and the same machine. d1.2's median is 39 ms slower and its tail is shorter (measured). The brief's 93 to 101 ms figure
@@ -63,17 +63,17 @@ and [local-decider.md](local-decider.md)'s 101 ms are on the same order.
 
 Answers to the same questions (measured; a noul answer agrees when both sit on the same side of 0.5):
 
-| Question      | Answers | Agreement |
-| ------------- | ------- | --------- |
-| `kind`        | 176     | 95.5%     |
-| `ready`       | 176     | 68.2%     |
-| `side_effect` | 176     | 93.2%     |
-| `depends`     | 82      | 89.0%     |
-| `corrects`    | 82      | 98.8%     |
-| `finished`    | 70      | 77.1%     |
-| `at`          | 70      | 55.7%     |
-| `same_as`     | 3       | 100%      |
-| all           | 835     | 84.1%     |
+| Question | Answers | Agreement |
+| --- | --- | --- |
+| `kind` | 176 | 95.5% |
+| `ready` | 176 | 68.2% |
+| `side_effect` | 176 | 93.2% |
+| `depends` | 82 | 89.0% |
+| `corrects` | 82 | 98.8% |
+| `finished` | 70 | 77.1% |
+| `at` | 70 | 55.7% |
+| `same_as` | 3 | 100% |
+| all | 835 | 84.1% |
 
 26 of the 94 requests matched pplx on every answer. `ready` is the weak one, and the gate scores it.
 
@@ -82,10 +82,10 @@ Answers to the same questions (measured; a noul answer agrees when both sit on t
 `python -m voice.research.segmentation.live_gate_eval --decider liquid --fresh` ran the 70 items three times each, 210 traces,
 $0.00185 (measured). The pplx column is the committed trace set scored by the shipped rule, with no new calls.
 
-| Split             | pplx accuracy | d1.2 accuracy | pplx false dispatch | d1.2 false dispatch | pplx false hold | d1.2 false hold |
-| ----------------- | ------------- | ------------- | ------------------- | ------------------- | --------------- | --------------- |
-| Train 46 items    | 96%           | 89%           | 0                   | 0                   | 2               | 5               |
-| Held-out 24 items | 88%           | 83%           | 1                   | 0                   | 2               | 4               |
+| Split | pplx accuracy | d1.2 accuracy | pplx false dispatch | d1.2 false dispatch | pplx false hold | d1.2 false hold |
+| --- | --- | --- | --- | --- | --- | --- |
+| Train 46 items | 96% | 89% | 0 | 0 | 2 | 5 |
+| Held-out 24 items | 88% | 83% | 1 | 0 | 2 | 4 |
 
 The gate is not what holds these items. Its score spread on the 23 items that reached it was median 0.094, mean 0.097,
 max 0.265, and 3 items straddled the 0.40 bar (measured). The nine false holds break down as four whose `ready` answer
@@ -116,12 +116,12 @@ back three times as two fragments and the full text, and one recording turn (`tu
 itself has two wordless turns (`turn_008` and `turn_009`), so these belong to the audio path, not to the decider
 (inferred).
 
-| Measurement                                | d1.2     | pplx |
-| ------------------------------------------ | -------- | ---- |
-| Spoken turns with a transcript             | 36       | 35   |
-| Recording turns matched                    | 34 of 35 |      |
-| Tasks created in the whole call            | 12       | 13   |
-| Matched turns whose task behaviour changed | 1        |      |
+| Measurement | d1.2 | pplx |
+| --- | --- | --- |
+| Spoken turns with a transcript | 36 | 35 |
+| Recording turns matched | 34 of 35 | |
+| Tasks created in the whole call | 12 | 13 |
+| Matched turns whose task behaviour changed | 1 | |
 
 The one changed turn is the recording's `turn_003`, a question about the assistant's own state. pplx created one lookup
 task for it, and d1.2 created none (measured). The utterance asks about the assistant rather than for work, and the

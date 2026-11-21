@@ -8,19 +8,19 @@ Mason set the design on 2026-11-16. While the person speaks, the decider segment
 
 `gated` is now the prototype's default, as Mason decided. On these clips it lost to `decider`, the old final call, on tasks and on latency.
 
-| Measurement                               | `gated`            | `decider`          | `handoff`          |
-| ----------------------------------------- | ------------------ | ------------------ | ------------------ |
+| Measurement | `gated` | `decider` | `handoff` |
+| --- | --- | --- | --- |
 | First reply audio, median / p95 / max (s) | 0.62 / 0.86 / 0.86 | 0.41 / 0.59 / 0.59 | 0.62 / 0.84 / 0.84 |
-| Expected tasks correct, of 26             | 18                 | 23                 | 15                 |
-| Clips passed, of 14                       | 7                  | 10                 | 4                  |
-| Premature or duplicate dispatches         | 0                  | 0                  | 2                  |
-| Expected side-effect requests that ran    | 8                  | 1                  | 3                  |
-| Replies that invent something, of 14      | 1                  | 4                  | 3                  |
-| Replies that call a held task done        | 0                  | 0                  | 0                  |
-| Tasks the gate ran during speech          | 5                  | none               | none               |
-| Of those, wrong                           | 0                  | none               | none               |
-| Tasks LFM3 decided at the end             | 14                 | none               | 10                 |
-| Decider calls per utterance, mean         | 2.36               | 3.36               | 2.36               |
+| Expected tasks correct, of 26 | 18 | 23 | 15 |
+| Clips passed, of 14 | 7 | 10 | 4 |
+| Premature or duplicate dispatches | 0 | 0 | 2 |
+| Expected side-effect requests that ran | 8 | 1 | 3 |
+| Replies that invent something, of 14 | 1 | 4 | 3 |
+| Replies that call a held task done | 0 | 0 | 0 |
+| Tasks the gate ran during speech | 5 | none | none |
+| Of those, wrong | 0 | none | none |
+| Tasks LFM3 decided at the end | 14 | none | 10 |
+| Decider calls per utterance, mean | 2.36 | 3.36 | 2.36 |
 
 All numbers are measured. `python -m voice.research.prototype.eou_report` prints this table and the per-clip table from the run records.
 
@@ -60,10 +60,10 @@ A side effect never reaches a real lookup. In `gated`, it runs on the mock worke
 
 `python -m voice.research.segmentation.gate_tune` replays the hybrid's decision points on partials from cached answers. It uses the original 11 scenarios and the 4 synthetic clips, and it stops before the final transcript. Every task dispatched during speech is a candidate, labelled right or wrong from the scenario's expectations. A dispatch is wrong when it matches no expected task, the task ends corrected, it must never dispatch, it lacks a required word, or it repeats.
 
-| Gate form                                   | Candidates | Wrong ones | Score of the wrong one | Lowest right score | Right ones that run at 0.40 |
-| ------------------------------------------- | ---------- | ---------- | ---------------------- | ------------------ | --------------------------- |
-| Lowest of all answers                       | 10         | 1          | 0.35                   | 0.41               | 9 of 9                      |
-| Lowest of the ready and side-effect answers | 10         | 1          | 0.35                   | 0.43               | 9 of 9                      |
+| Gate form | Candidates | Wrong ones | Score of the wrong one | Lowest right score | Right ones that run at 0.40 |
+| --- | --- | --- | --- | --- | --- |
+| Lowest of all answers | 10 | 1 | 0.35 | 0.41 | 9 of 9 |
+| Lowest of the ready and side-effect answers | 10 | 1 | 0.35 | 0.43 | 9 of 9 |
 
 All results are measured. The wrong candidate is `05_correction_after_dispatch`, whose first request runs and is then corrected. Both forms separate the candidates the same way, so I kept every answer, which also watches the break and correction answers. I froze the threshold at 0.40 in commit `526d631d4`, before any run on Mason's clips.
 
@@ -79,16 +79,16 @@ The COMMON.md sample of real outputs is `$VOICE_HOME/evidence/eou/gate-and-reply
 
 These are the expected tasks that `decider` got right and `gated` did not (measured, from the task records):
 
-| Clip and task                        | What happened in `gated`                                                                                                                                                                                           | Step that caused it  |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- |
-| 03 T2, the booking                   | The decider's task stayed proposed. LFM3 ran the flight search with `run_task`, but delegated the booking as a new task, which lost its dependency on the search.                                                  | LFM3's task decision |
-| 04 T2, the corrected reminder        | The decider withdrew the first reminder on a partial. The snapshot leaves out a task a correction withdrew, so LFM3 delegated the new reminder instead of amending the old one. The new task records no `revises`. | The snapshot         |
-| `correction` T2, the corrected timer | The same as 04.                                                                                                                                                                                                    | The snapshot         |
-| 05 T1, the milk                      | The side-effect piece never committed during speech, so its task stayed proposed. LFM3 did not run it. It delegated one combined task for both requests instead.                                                   | LFM3's task decision |
-| 08 T1, the calendar search           | The gate ran the search during speech. LFM3 then cancelled it, when the speaker had taken back the text to Sam. The decider had already withdrawn the text.                                                        | LFM3's task decision |
-| 09 T1, the message and the lights    | The side-effect task stayed proposed. LFM3 delegated the whole run-on as one read-only task, which ran.                                                                                                            | LFM3's task decision |
-| 09 T3, starting the RoboRock         | That one combined task stood in for the lights, so no task was left to match the RoboRock.                                                                                                                         | LFM3's task decision |
-| `long` T4, sending the slides        | The task waited on its dependency. LFM3 delegated the whole 48-word utterance as one task instead of running it.                                                                                                   | LFM3's task decision |
+| Clip and task | What happened in `gated` | Step that caused it |
+| --- | --- | --- |
+| 03 T2, the booking | The decider's task stayed proposed. LFM3 ran the flight search with `run_task`, but delegated the booking as a new task, which lost its dependency on the search. | LFM3's task decision |
+| 04 T2, the corrected reminder | The decider withdrew the first reminder on a partial. The snapshot leaves out a task a correction withdrew, so LFM3 delegated the new reminder instead of amending the old one. The new task records no `revises`. | The snapshot |
+| `correction` T2, the corrected timer | The same as 04. | The snapshot |
+| 05 T1, the milk | The side-effect piece never committed during speech, so its task stayed proposed. LFM3 did not run it. It delegated one combined task for both requests instead. | LFM3's task decision |
+| 08 T1, the calendar search | The gate ran the search during speech. LFM3 then cancelled it, when the speaker had taken back the text to Sam. The decider had already withdrawn the text. | LFM3's task decision |
+| 09 T1, the message and the lights | The side-effect task stayed proposed. LFM3 delegated the whole run-on as one read-only task, which ran. | LFM3's task decision |
+| 09 T3, starting the RoboRock | That one combined task stood in for the lights, so no task was left to match the RoboRock. | LFM3's task decision |
+| `long` T4, sending the slides | The task waited on its dependency. LFM3 delegated the whole 48-word utterance as one task instead of running it. | LFM3's task decision |
 
 `gated` gained 09 T2, which `decider` merged into T1, and 07 T1 and 10 T1, the implicit rain question, which LFM3 delegated. The weather lookup then failed, because no place was given and `VOICE_DEFAULT_PLACE` was not set (measured), so the user heard that the task failed.
 
@@ -106,15 +106,15 @@ Each fix is an inference. None of them has run.
 
 In the first round, `handoff` got 16 of 26 tasks right against `decider`'s 23 (measured, `$VOICE_HOME/evidence/eou/after`). These are the 7 tasks it lost:
 
-| Clip and task                        | What happened                                                                                                                                                             | Step that caused it                         |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
-| 03 T1, the flight search             | The last decision, on a partial, said `wait`, and the words never changed. The close turned that into `needs_clarification`.                                              | The close rule                              |
-| 03 T2, the booking                   | The decider last read the booking's condition without "book the cheapest one", which came in the tail. Its dependency answer, made on partial words, named no dependency. | The uncovered tail                          |
-| 04 T2, the corrected reminder        | The snapshot left out the withdrawn first reminder, so LFM3 delegated a new one with no `revises`.                                                                        | The snapshot                                |
-| 08 T1, the calendar search           | LFM3 cancelled the calendar search instead of the text to Sam.                                                                                                            | LFM3's task decision                        |
-| 09 T1, the message and the lights    | The same `wait` on unchanged words became `needs_clarification`.                                                                                                          | The close rule                              |
-| `correction` T2, the corrected timer | The same as 04.                                                                                                                                                           | The snapshot                                |
-| `single` T1, the Tokyo time          | The whole request was in the tail, and LFM3 made no call.                                                                                                                 | LFM3's task decision, on the uncovered tail |
+| Clip and task | What happened | Step that caused it |
+| --- | --- | --- |
+| 03 T1, the flight search | The last decision, on a partial, said `wait`, and the words never changed. The close turned that into `needs_clarification`. | The close rule |
+| 03 T2, the booking | The decider last read the booking's condition without "book the cheapest one", which came in the tail. Its dependency answer, made on partial words, named no dependency. | The uncovered tail |
+| 04 T2, the corrected reminder | The snapshot left out the withdrawn first reminder, so LFM3 delegated a new one with no `revises`. | The snapshot |
+| 08 T1, the calendar search | LFM3 cancelled the calendar search instead of the text to Sam. | LFM3's task decision |
+| 09 T1, the message and the lights | The same `wait` on unchanged words became `needs_clarification`. | The close rule |
+| `correction` T2, the corrected timer | The same as 04. | The snapshot |
+| `single` T1, the Tokyo time | The whole request was in the tail, and LFM3 made no call. | LFM3's task decision, on the uncovered tail |
 
 So the close rule cost 2 tasks, LFM3's decisions 2, the snapshot 2, and the tail 1. The tail also set up the `single` miss. The gated turn has no close rule, so its 03 T1 and 09 T1 survive. The snapshot and LFM3's decisions still cost tasks in `gated`.
 
@@ -157,11 +157,11 @@ Nothing changes while the person speaks. The hybrid from PR #6 calls the decider
 
 `HybridSegmenter.close` takes the final transcript instead of `update`, and it makes no call. It rebuilds the pieces from the committed segments and the soft cuts that the last decision point chose. Then `Orchestrator.close` settles each task.
 
-| A task's words since its last decision | What the close does                                                                                                                                                                             |
-| -------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Unchanged                              | Settles the task with its last decision, as on a final transcript. A side effect dispatches, and the task service holds it for confirmation, as before. A `wait` becomes `needs_clarification`. |
-| Changed                                | Holds the task (`held`, shown as `held_for_confirmation`). No decider read the new words, so code cannot tell whether they made the request a side effect.                                      |
-| No task (the words were never read)    | Nothing. The words go to LFM3 as `unreviewed_speech`.                                                                                                                                           |
+| A task's words since its last decision | What the close does |
+| --- | --- |
+| Unchanged | Settles the task with its last decision, as on a final transcript. A side effect dispatches, and the task service holds it for confirmation, as before. A `wait` becomes `needs_clarification`. |
+| Changed | Holds the task (`held`, shown as `held_for_confirmation`). No decider read the new words, so code cannot tell whether they made the request a side effect. |
+| No task (the words were never read) | Nothing. The words go to LFM3 as `unreviewed_speech`. |
 
 The measured run used an earlier version of the second row. That version held a changed side effect but dispatched a changed read-only request with its final words. On clip 03 the decider had last read "and if any are under three hundred" and called it read-only. "book the cheapest one" then arrived in the tail, and the close dispatched a booking. This branch now holds every changed task. [After the measured run](#after-the-measured-run) gives that rule's effect on the recorded runs.
 
@@ -169,11 +169,11 @@ The measured run used an earlier version of the second row. That version held a 
 
 A third, text-only LFM3 session on the same `llama-server` (`-np 3`) gets the snapshot as prefixed user text. The snapshot lists every task with its `task_id` and carries `unreviewed_speech`. That session may call three tools:
 
-| Tool                                 | What the task service does with the call                                                                                                                                                                           |
-| ------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `delegate(instruction, side_effect)` | Reconciles it with the live tasks by the rule below. A new read-only task runs. A new side-effect task, or one with no flag, is held.                                                                              |
-| `cancel_task(task_id)`               | Withdraws an undispatched task or cancels a dispatched one. It refuses an unknown id, a task that is already superseded, withdrawn, or cancelled, and a task whose run has completed.                              |
-| `amend_task(task_id, new_request)`   | Supersedes or cancels the task and makes a new one that revises it, with the instruction "old (corrected: new)". A completed task keeps its result. It refuses the same cases as `cancel_task`, except completion. |
+| Tool | What the task service does with the call |
+| --- | --- |
+| `delegate(instruction, side_effect)` | Reconciles it with the live tasks by the rule below. A new read-only task runs. A new side-effect task, or one with no flag, is held. |
+| `cancel_task(task_id)` | Withdraws an undispatched task or cancels a dispatched one. It refuses an unknown id, a task that is already superseded, withdrawn, or cancelled, and a task whose run has completed. |
+| `amend_task(task_id, new_request)` | Supersedes or cancels the task and makes a new one that revises it, with the instruction "old (corrected: new)". A completed task keeps its result. It refuses the same cases as `cancel_task`, except completion. |
 
 A tool call is a request. `MockTaskService.call_tool` checks it and returns what happened. The voice session then hears the updated snapshot as prefixed user text, which is injection method (c) from PR #5, and it replies. The voice session never makes a tool call of its own.
 
@@ -189,15 +189,15 @@ A duplicate links to the task and changes nothing else. A read-only claim about 
 
 The four synthetic clips were the tuning set, as in PR #5. Mason's ten clips ran only after the design froze at commit `e9fd50c19`. Each pass below ran once on the synthetic clips. After a request's first live call, its decider answer came from the cache.
 
-| Pass      | Design                                                                                     | Clips where the tool calls handled the tail | Replies with a false done claim | First reply audio (s): two_request, correction, single, long |
-| --------- | ------------------------------------------------------------------------------------------ | ------------------------------------------- | ------------------------------- | ------------------------------------------------------------ |
-| Smoke     | Tools offered in the voice session, one response with text and audio                       | 1 of 2                                      | 1 of 2                          | 0.27, 0.25                                                   |
-| 1         | Text-only tool turn in the voice session, then the spoken reply                            | 3 of 4                                      | 2 of 4                          | 0.41, 0.51, 0.46, 1.14                                       |
-| 2         | Pass 1, plus the snapshot as user text after the tools and the asymmetric side-effect rule | 4 of 4                                      | 2 of 4                          | 0.54, 0.59, 0.45, 1.21                                       |
-| 3         | Pass 2, plus a switch to the plain method (c) persona before the reply                     | 4 of 4                                      | 2 of 4                          | 0.45, 0.58, 0.49, 1.11                                       |
-| 4, frozen | A separate text-only tools session; the voice session sees only snapshots                  | 3 of 4                                      | 0 of 4                          | 0.68, 0.58, 0.69, 0.88                                       |
-| 5         | Pass 4, plus a warm-up turn and a line saying a question is a request                      | 0 of 4                                      | 0 of 4                          | 0.49, 0.63, 0.59, 0.90                                       |
-| 6         | Pass 4, plus the question line only                                                        | 3 of 4                                      | 1 of 4                          | 0.66, 0.73, 0.62, 0.96                                       |
+| Pass | Design | Clips where the tool calls handled the tail | Replies with a false done claim | First reply audio (s): two_request, correction, single, long |
+| --- | --- | --- | --- | --- |
+| Smoke | Tools offered in the voice session, one response with text and audio | 1 of 2 | 1 of 2 | 0.27, 0.25 |
+| 1 | Text-only tool turn in the voice session, then the spoken reply | 3 of 4 | 2 of 4 | 0.41, 0.51, 0.46, 1.14 |
+| 2 | Pass 1, plus the snapshot as user text after the tools and the asymmetric side-effect rule | 4 of 4 | 2 of 4 | 0.54, 0.59, 0.45, 1.21 |
+| 3 | Pass 2, plus a switch to the plain method (c) persona before the reply | 4 of 4 | 2 of 4 | 0.45, 0.58, 0.49, 1.11 |
+| 4, frozen | A separate text-only tools session; the voice session sees only snapshots | 3 of 4 | 0 of 4 | 0.68, 0.58, 0.69, 0.88 |
+| 5 | Pass 4, plus a warm-up turn and a line saying a question is a request | 0 of 4 | 0 of 4 | 0.49, 0.63, 0.59, 0.90 |
+| 6 | Pass 4, plus the question line only | 3 of 4 | 1 of 4 | 0.66, 0.73, 0.62, 0.96 |
 
 All results are measured, one run per pass. The grades are mine.
 
@@ -211,11 +211,11 @@ All results are measured, one run per pass. The grades are mine.
 
 Each cell gives the median, the p95, and the max, in seconds after the audio ends, over 14 clips. With 14 samples, the nearest-rank p95 is the max.
 
-| Measurement       | Before: decider call at the end | After: handoff     |
-| ----------------- | ------------------------------- | ------------------ |
-| Final transcript  | 0.10 / 0.21 / 0.21              | 0.11 / 0.15 / 0.15 |
-| Snapshot ready    | 0.24 / 0.31 / 0.31              | 0.11 / 0.15 / 0.15 |
-| First reply audio | 0.45 / 0.52 / 0.52              | 0.60 / 0.92 / 0.92 |
+| Measurement | Before: decider call at the end | After: handoff |
+| --- | --- | --- |
+| Final transcript | 0.10 / 0.21 / 0.21 | 0.11 / 0.15 / 0.15 |
+| Snapshot ready | 0.24 / 0.31 / 0.31 | 0.11 / 0.15 / 0.15 |
+| First reply audio | 0.45 / 0.52 / 0.52 | 0.60 / 0.92 / 0.92 |
 
 All numbers are measured. PR #6 reported a 0.41 s median first reply over Mason's 10 clips. This round's 0.45 s covers 14 clips at `-c 32768` with every decider call live.
 
@@ -231,9 +231,9 @@ So the handoff did take the decider off the reply's path. LFM3's tool turn costs
 
 The lag runs from a word's first partial to the end of the first decision point that read it. These are seconds over words, as median, p95, and max.
 
-| Decision points counted          | Before                         | After                          |
-| -------------------------------- | ------------------------------ | ------------------------------ |
-| Every decision point             | 1.01 / 2.94 / 3.94 (200 words) | 1.08 / 3.01 / 3.94 (129 words) |
+| Decision points counted | Before | After |
+| --- | --- | --- |
+| Every decision point | 1.01 / 2.94 / 3.94 (200 words) | 1.08 / 3.01 / 3.94 (129 words) |
 | Decision points on partials only | 1.07 / 3.01 / 3.94 (125 words) | 1.08 / 3.01 / 3.94 (129 words) |
 
 The call policy sets this lag, not the decider's speed. A call takes about 0.1 s (measured). The hybrid calls when a marker appears or moves after the cursor, or for a second look. So a word waits until the next such event, often the next "and" or sentence end (inferred from the policy in `HybridSegmenter._needs_call`). A clip with no marker, such as 01, gets no decision point during speech at all.
@@ -246,15 +246,15 @@ The call policy sets this lag, not the decider's speed. A call takes about 0.1 s
 
 The scorer is `voice.segmentation.score` against `expected.json`, over every task from every source. A held side effect scores as a final dispatch, because it ends as `held_for_confirmation` either way. A held read-only task scores as undispatched.
 
-| Measurement                            | Before   | After    |
-| -------------------------------------- | -------- | -------- |
-| Clips passed                           | 10 of 14 | 4 of 14  |
-| Expected tasks correct                 | 23 of 26 | 16 of 26 |
-| Premature dispatches                   | 0        | 0        |
-| Duplicate dispatches                   | 0        | 2        |
-| Missed tasks and corrections           | 3        | 6        |
-| Unexpected tasks                       | 1        | 3        |
-| Expected side-effect requests that ran | 1        | 4        |
+| Measurement | Before | After |
+| --- | --- | --- |
+| Clips passed | 10 of 14 | 4 of 14 |
+| Expected tasks correct | 23 of 26 | 16 of 26 |
+| Premature dispatches | 0 | 0 |
+| Duplicate dispatches | 0 | 2 |
+| Missed tasks and corrections | 3 | 6 |
+| Unexpected tasks | 1 | 3 |
+| Expected side-effect requests that ran | 1 | 4 |
 
 All numbers are measured. Both arms failed 07 and 10, the implicit requests, as in PR #6. Both also failed `long`, where "I need help planning tomorrow" became a clarification, and 09. The handoff also failed six clips that the before arm passed: 03, 04, 05, 08, `correction`, and `single`. These are the reasons, with 09's new failures (measured, from the task records):
 
@@ -274,21 +274,21 @@ Nine expected requests had no decider task after the close (measured). LFM3 dele
 
 One reader graded every spoken reply with PR #5's rubric. A reply invents something when it makes a done claim the snapshot does not support, promises a step the snapshot does not show, or gives a result or reason the snapshot does not hold. Leaving a status out is not invention.
 
-| Measurement                            | Before  | After    |
-| -------------------------------------- | ------- | -------- |
-| Replies that invent something          | 3 of 14 | 2 of 14  |
+| Measurement | Before | After |
+| --- | --- | --- |
+| Replies that invent something | 3 of 14 | 2 of 14 |
 | Replies that state every task's status | 8 of 14 | 10 of 14 |
-| Replies that call a held task done     | 0 of 14 | 0 of 14  |
+| Replies that call a held task done | 0 of 14 | 0 of 14 |
 
 All grades are measured. 06 and 10 invented in both arms. 06 said a task was complete when there was no task, and 10 promised to check the forecast. The before arm's third invention was 09, which said a running task would start after confirmation. The grades and the reader's notes stay under `$VOICE_HOME/evidence/eou/grades.json`, because the notes quote the replies. Most replies in both arms still narrate in the third person ("The user wants..."), as PR #5 found.
 
 #### Calls per utterance
 
-| Measurement                       | Before | After |
-| --------------------------------- | ------ | ----- |
-| Decider calls per utterance, mean | 3.36   | 2.36  |
-| Decider calls, total              | 47     | 33    |
-| LFM3 tool calls, total            | none   | 10    |
+| Measurement | Before | After |
+| --- | --- | --- |
+| Decider calls per utterance, mean | 3.36 | 2.36 |
+| Decider calls, total | 47 | 33 |
+| LFM3 tool calls, total | none | 10 |
 
 All numbers are measured. Every clip lost exactly its final call. In the before arm, every final decision point made one call, with no drain call.
 
@@ -296,11 +296,11 @@ All numbers are measured. Every clip lost exactly its final call. In the before 
 
 Reading the failures above led to one code change on this branch. The rule now holds a task whose words changed after its last decision, whatever its kind. A request whose new words no decider read is unclassified, and the prototype already holds unclassified requests (`needs_hold` in PR #5). I made the change for safety, after reading the test-set results, so it has no clean measurement. `python -m voice.research.prototype.eou_report` replays the recorded handoff run under the new rule, in code only, with LFM3's calls unchanged.
 
-| Close rule, on the recorded handoff run             | Clips passed | Expected tasks correct | Expected side-effect requests that ran |
-| --------------------------------------------------- | ------------ | ---------------------- | -------------------------------------- |
-| Measured: a changed read-only request dispatches    | 4            | 16                     | 4                                      |
-| Shipped: every changed task is held                 | 4            | 15                     | 3                                      |
-| Shipped, and a `wait` on unchanged words dispatches | 4            | 17                     | 3                                      |
+| Close rule, on the recorded handoff run | Clips passed | Expected tasks correct | Expected side-effect requests that ran |
+| --- | --- | --- | --- |
+| Measured: a changed read-only request dispatches | 4 | 16 | 4 |
+| Shipped: every changed task is held | 4 | 15 | 3 |
+| Shipped, and a `wait` on unchanged words dispatches | 4 | 17 | 3 |
 
 The shipped rule stops 03's booking, and it also holds 05's read-only drive time for an OK. The three side-effect requests that still ran all come from LFM3's one read-only delegate on 09. The `wait` rule in the last row is an open decision, because it changes the score on the test set it came from.
 
@@ -354,9 +354,9 @@ CLIPS is `$VOICE_HOME/audio/real/01_single.wav` through `10_noisy.wav`, then `si
 
 ## Files outside the repo
 
-| Path                                            | Contents                                                                                                                 | Size                       |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ | -------------------------- |
-| `$VOICE_HOME/evidence/eou/`                     | Both rounds' run records, reply WAVs, server logs, the tuning passes, the grades, the gate sample, and the report output | 93 MB                      |
-| `$VOICE_HOME/evidence/prototype/decider-cache/` | The ledger lines and new cached responses of both rounds                                                                 | part of the existing cache |
+| Path | Contents | Size |
+| --- | --- | --- |
+| `$VOICE_HOME/evidence/eou/` | Both rounds' run records, reply WAVs, server logs, the tuning passes, the grades, the gate sample, and the report output | 93 MB |
+| `$VOICE_HOME/evidence/prototype/decider-cache/` | The ledger lines and new cached responses of both rounds | part of the existing cache |
 
 No model, package, or venv was added.

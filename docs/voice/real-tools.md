@@ -23,15 +23,15 @@ The prototype hook is in `voice/prototype/tasks.py`. When the service starts a r
 
 Each clip ran in one pass, and the three clips that make lookups ran in two more passes. Times are seconds, one value per pass. "Heard" is when the first audio of the reply that carried the result was generated, counted from the end of the clip's audio.
 
-| Clip                                            | Task the segmenter made | Tool and arguments                                                     | Lookup           | Heard            | Reply states the result |
-| ----------------------------------------------- | ----------------------- | ---------------------------------------------------------------------- | ---------------- | ---------------- | ----------------------- |
-| `11_tools`                                      | The weather request     | weather, Denver, weekend                                               | 0.62, 0.62, 0.61 | 0.56, 1.81, 1.64 | Yes, 3 of 3             |
-| `11_tools`                                      | The time request        | time, Tokyo                                                            | 0.48, 0.50, 0.49 | 2.32, 1.81, 1.64 | Yes, 3 of 3             |
-| `01_single`                                     | The weather request     | weather, Denver, tomorrow                                              | 0.60, 0.60, 0.60 | 1.38, 1.89, 1.41 | Yes, 3 of 3             |
-| `07_implicit`                                   | None                    | None                                                                   | None             | None             | No lookup ran           |
-| `10_noisy`                                      | None                    | None                                                                   | None             | None             | No lookup ran           |
-| `single` (synthetic)                            | The time request        | time, Tokyo                                                            | 0.47, 0.48, 0.47 | 1.41, 1.63, 1.27 | Yes, 3 of 3             |
-| `two_request`, `correction`, `long` (synthetic) | As before               | None. These tasks have no tool, and they ran on the mock or were held. | None             | None             | Not applicable          |
+| Clip | Task the segmenter made | Tool and arguments | Lookup | Heard | Reply states the result |
+| --- | --- | --- | --- | --- | --- |
+| `11_tools` | The weather request | weather, Denver, weekend | 0.62, 0.62, 0.61 | 0.56, 1.81, 1.64 | Yes, 3 of 3 |
+| `11_tools` | The time request | time, Tokyo | 0.48, 0.50, 0.49 | 2.32, 1.81, 1.64 | Yes, 3 of 3 |
+| `01_single` | The weather request | weather, Denver, tomorrow | 0.60, 0.60, 0.60 | 1.38, 1.89, 1.41 | Yes, 3 of 3 |
+| `07_implicit` | None | None | None | None | No lookup ran |
+| `10_noisy` | None | None | None | None | No lookup ran |
+| `single` (synthetic) | The time request | time, Tokyo | 0.47, 0.48, 0.47 | 1.41, 1.63, 1.27 | Yes, 3 of 3 |
+| `two_request`, `correction`, `long` (synthetic) | As before | None. These tasks have no tool, and they ran on the mock or were held. | None | None | Not applicable |
 
 All values are measured. Notes on the table:
 
@@ -112,7 +112,7 @@ To record the fixture again, run `python -m voice.tools.record`. It sends only t
 
 ## Files outside the repo
 
-| Path                              | What                                                                           | Size  |
-| --------------------------------- | ------------------------------------------------------------------------------ | ----- |
-| `$VOICE_HOME/venv-mcp-time`       | The venv for `mcp-server-time`                                                 | 46 MB |
+| Path | What | Size |
+| --- | --- | --- |
+| `$VOICE_HOME/venv-mcp-time` | The venv for `mcp-server-time` | 46 MB |
 | `$VOICE_HOME/evidence/real-tools` | Run records, reply WAVs, logs, the bench output, and this lane's decider cache | 17 MB |

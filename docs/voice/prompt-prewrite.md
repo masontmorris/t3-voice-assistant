@@ -72,20 +72,20 @@ Mason asked for very small but representative tests of `deepseek/deepseek-v4.1-f
 - Scenarios: the 15 draft requests from `01_two_independent`, `05_correction_after_dispatch`, `08_delegate_after_dispatch`, `10_side_effect_email`, and `post_and_read`. They cover a plain lookup, a correction, a voice delegate, a dependency, two side-effect tasks, and 4 of the 5 requests where default reasoning folded in a neighbor's task. `voice/research/delegation/results/subset-<model>.json` holds each model's drafts.
 - Clips: the 7 draft requests from Mason's clips. Each draft lands after its own measured latency, so the clip result is a direct readiness measurement, not a sweep. The clip drafts and their cache hold transcripts, so they stay under `$VOICE_HOME/evidence/prewrite/`.
 
-| Measurement                                              | Default           | `-fast`          | `-ultrafast`     |
-| -------------------------------------------------------- | ----------------- | ---------------- | ---------------- |
-| Median latency, 22 drafts                                | 7.57 s            | 4.09 s           | 0.80 s           |
-| p95 latency (nearest rank)                               | 11.99 s           | 8.64 s           | 1.12 s           |
-| Range                                                    | 2.47 s to 14.79 s | 2.91 s to 8.80 s | 0.51 s to 2.04 s |
-| Median reasoning tokens                                  | 782               | 494              | 155              |
-| Answers nested under the schema name                     | 5 of 22           | 0                | 0                |
-| Clip tasks with the draft in hand at dispatch            | 0 of 5            | 0 of 5           | 5 of 5           |
-| Clip tasks dispatched with the draft                     | 0 of 9            | 0 of 9           | 3 of 9           |
-| Scenario drafts that ask for exactly the span            | 10 of 15          | 11 of 15         | 11 of 15         |
-| Scenario drafts that fold in a neighbor's read-only task | 5                 | 3                | 3                |
-| Scenario drafts that add an outside action               | 0                 | 1                | 1                |
-| Clip drafts that ask for exactly the span                | 7 of 7            | 7 of 7           | 7 of 7           |
-| Drafts `check` rejected, scenarios and clips             | 6 of 22           | 5 of 22          | 6 of 22          |
+| Measurement | Default | `-fast` | `-ultrafast` |
+| --- | --- | --- | --- |
+| Median latency, 22 drafts | 7.57 s | 4.09 s | 0.80 s |
+| p95 latency (nearest rank) | 11.99 s | 8.64 s | 1.12 s |
+| Range | 2.47 s to 14.79 s | 2.91 s to 8.80 s | 0.51 s to 2.04 s |
+| Median reasoning tokens | 782 | 494 | 155 |
+| Answers nested under the schema name | 5 of 22 | 0 | 0 |
+| Clip tasks with the draft in hand at dispatch | 0 of 5 | 0 of 5 | 5 of 5 |
+| Clip tasks dispatched with the draft | 0 of 9 | 0 of 9 | 3 of 9 |
+| Scenario drafts that ask for exactly the span | 10 of 15 | 11 of 15 | 11 of 15 |
+| Scenario drafts that fold in a neighbor's read-only task | 5 | 3 | 3 |
+| Scenario drafts that add an outside action | 0 | 1 | 1 |
+| Clip drafts that ask for exactly the span | 7 of 7 | 7 of 7 | 7 of 7 |
+| Drafts `check` rejected, scenarios and clips | 6 of 22 | 5 of 22 | 6 of 22 |
 
 All 66 answers in this test returned HTTP 200 with `finish_reason` `stop`, and every one parsed (measured). Each reply named the model that was asked for.
 
@@ -112,18 +112,18 @@ The same request then went out with `"reasoning_effort": "off"`. The body was th
 
 The race used 12 draft requests per setting. 5 came from `10_side_effect_email` and `post_and_read`, the two scenarios where a faster setting had added an outside action. The other 7 came from Mason's clips, where each draft lands after its own measured latency. The baseline is ultrafast on its default reasoning, using the cached answers to the same 12 requests from the matched test above. `voice/research/delegation/results/race-off-<model>.json` holds the scenario drafts. The clip drafts stay under `$VOICE_HOME/evidence/prewrite/`.
 
-| Measurement, 12 drafts each                   | Ultrafast, default | Default id, off  | `-fast`, off     | `-ultrafast`, off |
-| --------------------------------------------- | ------------------ | ---------------- | ---------------- | ----------------- |
-| Median latency                                | 0.88 s             | 1.99 s           | 1.67 s           | 0.52 s            |
-| p95 latency (nearest rank)                    | 1.12 s             | 2.31 s           | 1.95 s           | 0.70 s            |
-| Range                                         | 0.51 s to 2.04 s   | 1.59 s to 2.56 s | 1.30 s to 2.09 s | 0.34 s to 0.96 s  |
-| Median reasoning tokens                       | 154                | 0                | 0                | 0                 |
-| Clip tasks with the draft in hand at dispatch | 5 of 5             | 1 of 5           | 1 of 5           | 5 of 5            |
-| Clip tasks dispatched with the draft          | 3 of 9             | 1 of 9           | 1 of 9           | 4 of 9            |
-| Scenario drafts that ask for exactly the span | 3 of 5             | 4 of 5           | 2 of 5           | 3 of 5            |
-| Scenario drafts that add an outside action    | 1                  | 0                | 2                | 1                 |
-| Clip drafts that ask for exactly the span     | 7 of 7             | 7 of 7           | 7 of 7           | 7 of 7            |
-| Drafts `check` rejected                       | 5 of 12            | 3 of 12          | 4 of 12          | 4 of 12           |
+| Measurement, 12 drafts each | Ultrafast, default | Default id, off | `-fast`, off | `-ultrafast`, off |
+| --- | --- | --- | --- | --- |
+| Median latency | 0.88 s | 1.99 s | 1.67 s | 0.52 s |
+| p95 latency (nearest rank) | 1.12 s | 2.31 s | 1.95 s | 0.70 s |
+| Range | 0.51 s to 2.04 s | 1.59 s to 2.56 s | 1.30 s to 2.09 s | 0.34 s to 0.96 s |
+| Median reasoning tokens | 154 | 0 | 0 | 0 |
+| Clip tasks with the draft in hand at dispatch | 5 of 5 | 1 of 5 | 1 of 5 | 5 of 5 |
+| Clip tasks dispatched with the draft | 3 of 9 | 1 of 9 | 1 of 9 | 4 of 9 |
+| Scenario drafts that ask for exactly the span | 3 of 5 | 4 of 5 | 2 of 5 | 3 of 5 |
+| Scenario drafts that add an outside action | 1 | 0 | 2 | 1 |
+| Clip drafts that ask for exactly the span | 7 of 7 | 7 of 7 | 7 of 7 | 7 of 7 |
+| Drafts `check` rejected | 5 of 12 | 3 of 12 | 4 of 12 | 4 of 12 |
 
 All 36 race answers returned HTTP 200 with `finish_reason` `stop`, and every one parsed (measured).
 
@@ -139,13 +139,13 @@ The extra clip dispatch for ultrafast with reasoning off came from `08_cancel`. 
 
 ### Latency
 
-| Measurement                 | Value                                        |
-| --------------------------- | -------------------------------------------- |
-| Answers                     | 31, all HTTP 200, all `finish_reason` `stop` |
-| Median latency              | 7.0 s                                        |
-| p95 latency (nearest rank)  | 12.0 s                                       |
-| Range                       | 2.4 s to 14.8 s                              |
-| Reasoning tokens per answer | median 769, maximum 1,991                    |
+| Measurement | Value |
+| --- | --- |
+| Answers | 31, all HTTP 200, all `finish_reason` `stop` |
+| Median latency | 7.0 s |
+| p95 latency (nearest rank) | 12.0 s |
+| Range | 2.4 s to 14.8 s |
+| Reasoning tokens per answer | median 769, maximum 1,991 |
 
 The replay ran one request at a time. Latency was not the replay's clock, so these are request times, not readiness.
 
@@ -166,10 +166,10 @@ I read all 31 drafts against their spans.
 
 With live answers and decision point i at time i, a draft that lands before the next point is ready.
 
-| Set      | Dispatched | With a draft | No draft started | Rejected | Stale |
-| -------- | ---------- | ------------ | ---------------- | -------- | ----- |
-| Original | 18         | 6            | 8                | 3        | 1     |
-| Held-out | 26         | 9            | 14               | 3        | 0     |
+| Set | Dispatched | With a draft | No draft started | Rejected | Stale |
+| --- | --- | --- | --- | --- | --- |
+| Original | 18 | 6 | 8 | 3 | 1 |
+| Held-out | 26 | 9 | 14 | 3 | 0 |
 
 This table assumes each draft lands within one decision point. At 7.0 s per answer it would not, so the scenario readiness here is an upper bound (inferred).
 
@@ -177,29 +177,29 @@ This table assumes each draft lands within one decision point. At 7.0 s per answ
 
 The clip replay uses the as-run updates from the hybrid's prototype run (`$VOICE_HOME/evidence/hybrid/run-h-c`). It reproduced that run's task records and dispatch logs on all 10 clips, with every author (measured). Each decision point happens at the second it finished in the live run. The sweep below uses the stand-in author at fixed latencies. [Faster settings](#faster-settings-a-small-matched-test) has the live clip drafts.
 
-| Clip            | Task   | Dispatched on | First completion to dispatch, s | First completion to final transcript, s |
-| --------------- | ------ | ------------- | ------------------------------- | --------------------------------------- |
-| 01_single       | task_1 | final         | 0.00                            | 0.00                                    |
-| 02_two_requests | task_1 | partial       | 0.91                            | 2.04                                    |
-| 03_dependent    | task_1 | final         | 2.49                            | 2.49                                    |
-| 04_correction   | task_2 | final         | 0.00                            | 0.00                                    |
-| 05_topic_change | task_1 | final         | 0.79                            | 0.79                                    |
-| 05_topic_change | task_2 | final         | 0.00                            | 0.00                                    |
-| 08_cancel       | task_1 | partial       | 1.00                            | 4.10                                    |
-| 09_run_on       | task_1 | final         | 0.67                            | 0.67                                    |
-| 09_run_on       | task_2 | final         | 0.00                            | 0.00                                    |
+| Clip | Task | Dispatched on | First completion to dispatch, s | First completion to final transcript, s |
+| --- | --- | --- | --- | --- |
+| 01_single | task_1 | final | 0.00 | 0.00 |
+| 02_two_requests | task_1 | partial | 0.91 | 2.04 |
+| 03_dependent | task_1 | final | 2.49 | 2.49 |
+| 04_correction | task_2 | final | 0.00 | 0.00 |
+| 05_topic_change | task_1 | final | 0.79 | 0.79 |
+| 05_topic_change | task_2 | final | 0.00 | 0.00 |
+| 08_cancel | task_1 | partial | 1.00 | 4.10 |
+| 09_run_on | task_1 | final | 0.67 | 0.67 |
+| 09_run_on | task_2 | final | 0.00 | 0.00 |
 
 Clips 06, 07, and 10 dispatched no task. The 4 tasks at 0.00 are the last request of their utterance. The hybrid's completion answer for those first said yes on the final transcript, at the same point that dispatched them (measured).
 
-| Author latency, s     | Dispatched with a draft | Raw, no draft started | Raw, still drafting | Median added wait if dispatch held for the draft, s |
-| --------------------- | ----------------------- | --------------------- | ------------------- | --------------------------------------------------- |
-| 0.25                  | 5 of 9                  | 4                     | 0                   | 0.00                                                |
-| 0.5                   | 5 of 9                  | 4                     | 0                   | 0.00                                                |
-| 1                     | 1 of 9                  | 4                     | 4                   | 0.33                                                |
-| 2                     | 1 of 9                  | 4                     | 4                   | 1.33                                                |
-| 4                     | 0 of 9                  | 4                     | 5                   | 3.33                                                |
-| 7.0 (measured median) | 0 of 9                  | 4                     | 5                   | 6.33                                                |
-| 12.0 (measured p95)   | 0 of 9                  | 4                     | 5                   | 11.33                                               |
+| Author latency, s | Dispatched with a draft | Raw, no draft started | Raw, still drafting | Median added wait if dispatch held for the draft, s |
+| --- | --- | --- | --- | --- |
+| 0.25 | 5 of 9 | 4 | 0 | 0.00 |
+| 0.5 | 5 of 9 | 4 | 0 | 0.00 |
+| 1 | 1 of 9 | 4 | 4 | 0.33 |
+| 2 | 1 of 9 | 4 | 4 | 1.33 |
+| 4 | 0 of 9 | 4 | 5 | 3.33 |
+| 7.0 (measured median) | 0 of 9 | 4 | 5 | 6.33 |
+| 12.0 (measured p95) | 0 of 9 | 4 | 5 | 11.33 |
 
 The clips started 7 drafts for 7 tasks, with no redrafts (measured). The 2 drafted tasks that did not dispatch, in clips 02 and 03, wait on `task_1`'s result (measured). These are 10 clips with one run each, so a different speaker or pace could move the 0.67 s floor (inferred).
 

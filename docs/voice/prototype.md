@@ -17,15 +17,15 @@ The turn this doc measures ends with a decider call on the final transcript. The
 
 All code is in `voice/prototype/`.
 
-| File            | What it does                                                                                                                                                                                                                                                                                                                                     |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `run.py`        | Starts `llama-server`, streams the clip at real-time pace into a `realtime` voice session and a `?intent=transcription` session at once, and drives one turn.                                                                                                                                                                                    |
-| `realtime.py`   | The server process and a WebSocket session with a background reader. It uses Stage 1's server flags (`--temp 0 -np 2 -ngl 99`) and the GGUF files from `voice/research/speech/llamacpp_rt.py`.                                                                                                                                                   |
-| `transcript.py` | `TranscriptAdapter` turns transcription deltas into `TranscriptUpdate` records. Each update carries the whole utterance, a new revision number, and `is_final` on the last completed item after the final commit.                                                                                                                                |
-| `segmenter.py`  | The `Segmenter` interface, the update coalescing, and the two segmenters. The default is the hybrid from `voice/segmentation/hybrid.py` (see [stage2-hybrid.md](stage2-hybrid.md)). `--segmenter baseline` picks `BaselineSegmenter`, which wraps round 2's `Runner("a")` and `Orchestrator` from PR #2. The runs in this doc used the baseline. |
-| `tasks.py`      | `MockTaskService` and `build_snapshot`. A mock worker completes read-only tasks after 4 s with a canned result. Side-effect tasks, and delegate tasks that no decider answer classified, are held and never run.                                                                                                                                 |
-| `report.py`     | WER, task scores against `expected.json`, the side-effect check, and the timing tables. It prints no transcript text.                                                                                                                                                                                                                            |
-| `expected.json` | The expected task records per clip, written from `script.txt` and committed before the first run.                                                                                                                                                                                                                                                |
+| File | What it does |
+| --- | --- |
+| `run.py` | Starts `llama-server`, streams the clip at real-time pace into a `realtime` voice session and a `?intent=transcription` session at once, and drives one turn. |
+| `realtime.py` | The server process and a WebSocket session with a background reader. It uses Stage 1's server flags (`--temp 0 -np 2 -ngl 99`) and the GGUF files from `voice/research/speech/llamacpp_rt.py`. |
+| `transcript.py` | `TranscriptAdapter` turns transcription deltas into `TranscriptUpdate` records. Each update carries the whole utterance, a new revision number, and `is_final` on the last completed item after the final commit. |
+| `segmenter.py` | The `Segmenter` interface, the update coalescing, and the two segmenters. The default is the hybrid from `voice/segmentation/hybrid.py` (see [stage2-hybrid.md](stage2-hybrid.md)). `--segmenter baseline` picks `BaselineSegmenter`, which wraps round 2's `Runner("a")` and `Orchestrator` from PR #2. The runs in this doc used the baseline. |
+| `tasks.py` | `MockTaskService` and `build_snapshot`. A mock worker completes read-only tasks after 4 s with a canned result. Side-effect tasks, and delegate tasks that no decider answer classified, are held and never run. |
+| `report.py` | WER, task scores against `expected.json`, the side-effect check, and the timing tables. It prints no transcript text. |
+| `expected.json` | The expected task records per clip, written from `script.txt` and committed before the first run. |
 
 `llamacpp_rt.py` is not imported. It parses `sys.argv` and imports torch on import, which took 7.2 s (measured), and it reads server events only while it waits, so it cannot feed a live consumer.
 
@@ -57,12 +57,12 @@ The decider cache and call ledger for these runs live in `$VOICE_HOME/evidence/p
 
 llama.cpp's realtime server has no mid-session system item. I tested three other ways to get the snapshot in, in the brief's order. Methods (b) and (c) ran on all 14 clips. The tool-only variant of (b) ran on the 4 synthetic clips.
 
-| Method                                                                                                | What the server does                                                                                                                                                                                                  | Replies that invent nothing | Replies that talk to the user as "you" |
-| ----------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------- | -------------------------------------- |
-| (a) Client-made `function_call` item, then its `function_call_output`                                 | Rejects both. The call item gets "only user messages and function call outputs are supported", and the output gets "a function call output must follow the response that called it". The reply then ignores the task. | Not applicable              | Not applicable                         |
-| (b) Output of the model's own call, `delegate` and `get_task_status` offered, `tool_choice: required` | Accepts the `function_call_output`. The model called a tool on 13 of 14 clips. On `single` it made no call, so the snapshot had nowhere to go and the reply failed with `conversation_empty`.                         | 10 of 13                    | 13 of 13                               |
-| (b) with only `get_task_status` offered                                                               | `tool_choice: required` is not enforced. The model called the tool on 2 of 4 synthetic clips.                                                                                                                         | Not graded                  | Not graded                             |
-| (c) User text with the prefix `[task service snapshot, machine-generated, not spoken by the user]`    | Accepts it as a user message.                                                                                                                                                                                         | 13 of 14                    | 3 of 14                                |
+| Method | What the server does | Replies that invent nothing | Replies that talk to the user as "you" |
+| --- | --- | --- | --- |
+| (a) Client-made `function_call` item, then its `function_call_output` | Rejects both. The call item gets "only user messages and function call outputs are supported", and the output gets "a function call output must follow the response that called it". The reply then ignores the task. | Not applicable | Not applicable |
+| (b) Output of the model's own call, `delegate` and `get_task_status` offered, `tool_choice: required` | Accepts the `function_call_output`. The model called a tool on 13 of 14 clips. On `single` it made no call, so the snapshot had nowhere to go and the reply failed with `conversation_empty`. | 10 of 13 | 13 of 13 |
+| (b) with only `get_task_status` offered | `tool_choice: required` is not enforced. The model called the tool on 2 of 4 synthetic clips. | Not graded | Not graded |
+| (c) User text with the prefix `[task service snapshot, machine-generated, not spoken by the user]` | Accepts it as a user message. | 13 of 14 | 3 of 14 |
 
 All results are measured, one run per clip, method (a) on one clip. Method (a) fails a type check on the item before the model sees it, so one clip settles it (inferred from the error text).
 
@@ -80,22 +80,22 @@ Method (b) also has side effects in the segmenter (measured, pass 2):
 
 Pass 1 ran method (c) on all 14 clips inside `quiet_run.py` and the GPU lease. The decider made a live call for each request it had not cached. The synthetic clips were the tuning set, so they ran first in earlier passes and hit the cache here.
 
-| Clip             | WER  | Tasks | Failures                                         | Snapshot statuses                                                                                | Side-effect tasks held / executed / dispatched early | Final transcript (s) | Snapshot ready (s) | First reply audio (s) | Live decider calls |
-| ---------------- | ---- | ----- | ------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ---------------------------------------------------- | -------------------- | ------------------ | --------------------- | ------------------ |
-| 01_single        | 0.00 | pass  | -                                                | running                                                                                          | 0 / 0 / 0 of 0                                       | 0.06                 | 0.32               | 0.44                  | 1                  |
-| 02_two_requests  | 0.00 | pass  | -                                                | running, pending                                                                                 | 0 / 0 / 0 of 1                                       | 0.15                 | 0.15               | 0.31                  | 0                  |
-| 03_dependent     | 0.00 | pass  | -                                                | running, pending                                                                                 | 0 / 0 / 0 of 1                                       | 0.13                 | 2.09               | 2.38                  | 3                  |
-| 04_correction    | 0.00 | pass  | -                                                | held_for_confirmation                                                                            | 1 / 0 / 0 of 2                                       | 0.13                 | 2.41               | 2.72                  | 2                  |
-| 05_topic_change  | 0.00 | pass  | -                                                | held_for_confirmation, running                                                                   | 1 / 0 / 0 of 1                                       | 0.11                 | 2.73               | 3.06                  | 3                  |
-| 06_not_a_request | 0.00 | pass  | -                                                | -                                                                                                | 0 / 0 / 0 of 0                                       | 0.19                 | 0.30               | 0.50                  | 1                  |
-| 07_implicit      | 0.00 | FAIL  | T1 missing                                       | -                                                                                                | 0 / 0 / 0 of 0                                       | 0.10                 | 0.19               | 0.37                  | 1                  |
-| 08_cancel        | 0.00 | pass  | -                                                | completed                                                                                        | 0 / 0 / 0 of 1                                       | 0.09                 | 6.73               | 7.07                  | 5                  |
-| 09_run_on        | 0.14 | FAIL  | T2 missing                                       | held_for_confirmation, held_for_confirmation                                                     | 2 / 0 / 0 of 2                                       | 0.10                 | 2.88               | 3.24                  | 3                  |
-| 10_noisy         | 0.00 | FAIL  | T1 missing                                       | -                                                                                                | 0 / 0 / 0 of 0                                       | 0.03                 | 0.04               | 0.22                  | 0                  |
-| correction       | 0.00 | pass  | -                                                | held_for_confirmation                                                                            | 1 / 0 / 0 of 1                                       | 0.12                 | 0.12               | 0.31                  | 0                  |
-| long             | 0.00 | FAIL  | extra needs_clarification task; asked to clarify | needs_clarification, completed, completed, pending, held_for_confirmation, held_for_confirmation | 2 / 0 / 0 of 3                                       | 0.11                 | 0.11               | 0.34                  | 0                  |
-| single           | 0.00 | pass  | -                                                | running                                                                                          | 0 / 0 / 0 of 0                                       | 0.12                 | 0.12               | 0.26                  | 0                  |
-| two_request      | 0.00 | pass  | -                                                | running, pending                                                                                 | 0 / 0 / 0 of 1                                       | 0.10                 | 0.10               | 0.25                  | 0                  |
+| Clip | WER | Tasks | Failures | Snapshot statuses | Side-effect tasks held / executed / dispatched early | Final transcript (s) | Snapshot ready (s) | First reply audio (s) | Live decider calls |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| 01_single | 0.00 | pass | - | running | 0 / 0 / 0 of 0 | 0.06 | 0.32 | 0.44 | 1 |
+| 02_two_requests | 0.00 | pass | - | running, pending | 0 / 0 / 0 of 1 | 0.15 | 0.15 | 0.31 | 0 |
+| 03_dependent | 0.00 | pass | - | running, pending | 0 / 0 / 0 of 1 | 0.13 | 2.09 | 2.38 | 3 |
+| 04_correction | 0.00 | pass | - | held_for_confirmation | 1 / 0 / 0 of 2 | 0.13 | 2.41 | 2.72 | 2 |
+| 05_topic_change | 0.00 | pass | - | held_for_confirmation, running | 1 / 0 / 0 of 1 | 0.11 | 2.73 | 3.06 | 3 |
+| 06_not_a_request | 0.00 | pass | - | - | 0 / 0 / 0 of 0 | 0.19 | 0.30 | 0.50 | 1 |
+| 07_implicit | 0.00 | FAIL | T1 missing | - | 0 / 0 / 0 of 0 | 0.10 | 0.19 | 0.37 | 1 |
+| 08_cancel | 0.00 | pass | - | completed | 0 / 0 / 0 of 1 | 0.09 | 6.73 | 7.07 | 5 |
+| 09_run_on | 0.14 | FAIL | T2 missing | held_for_confirmation, held_for_confirmation | 2 / 0 / 0 of 2 | 0.10 | 2.88 | 3.24 | 3 |
+| 10_noisy | 0.00 | FAIL | T1 missing | - | 0 / 0 / 0 of 0 | 0.03 | 0.04 | 0.22 | 0 |
+| correction | 0.00 | pass | - | held_for_confirmation | 1 / 0 / 0 of 1 | 0.12 | 0.12 | 0.31 | 0 |
+| long | 0.00 | FAIL | extra needs_clarification task; asked to clarify | needs_clarification, completed, completed, pending, held_for_confirmation, held_for_confirmation | 2 / 0 / 0 of 3 | 0.11 | 0.11 | 0.34 | 0 |
+| single | 0.00 | pass | - | running | 0 / 0 / 0 of 0 | 0.12 | 0.12 | 0.26 | 0 |
+| two_request | 0.00 | pass | - | running, pending | 0 / 0 / 0 of 1 | 0.10 | 0.10 | 0.25 | 0 |
 
 Times are seconds after the audio ended. "Tasks" scores the segmenter's records with `voice.segmentation.score`, the Stage 2 scorer, against `expected.json`.
 
@@ -108,14 +108,14 @@ Times are seconds after the audio ended. "Tasks" scores the segmenter's records 
 
 Each cell gives the median, the range, and the clip count, over one run per clip.
 
-| Seconds after the audio ends                    | Pass 1, (c), live decider where uncached | Pass 3, (c), every decision cached | Pass 2, (b)                |
-| ----------------------------------------------- | ---------------------------------------- | ---------------------------------- | -------------------------- |
-| Final transcript                                | 0.11 (0.03 to 0.19), n=14                | 0.12 (0.04 to 0.19), n=14          | 0.14 (0.05 to 0.26), n=14  |
-| Snapshot ready                                  | 0.25 (0.04 to 6.73), n=14                | 0.12 (0.04 to 0.19), n=14          | 0.44 (0.30 to 10.07), n=14 |
-| Snapshot ready, final decision made a live call | 2.25 (0.19 to 6.73), n=8                 | none                               | 0.77 (0.45 to 10.07), n=7  |
-| Snapshot ready, final decision cached           | 0.12 (0.04 to 0.15), n=6                 | 0.12 (0.04 to 0.19), n=14          | 0.36 (0.30 to 0.43), n=7   |
-| First reply audio                               | 0.41 (0.22 to 7.07), n=14                | 0.28 (0.16 to 0.36), n=14          | 0.55 (0.37 to 10.69), n=13 |
-| First reply audio, counted from snapshot ready  | 0.19 (0.13 to 0.36), n=14                | 0.17 (0.08 to 0.25), n=14          | 0.09 (0.07 to 0.62), n=13  |
+| Seconds after the audio ends | Pass 1, (c), live decider where uncached | Pass 3, (c), every decision cached | Pass 2, (b) |
+| --- | --- | --- | --- |
+| Final transcript | 0.11 (0.03 to 0.19), n=14 | 0.12 (0.04 to 0.19), n=14 | 0.14 (0.05 to 0.26), n=14 |
+| Snapshot ready | 0.25 (0.04 to 6.73), n=14 | 0.12 (0.04 to 0.19), n=14 | 0.44 (0.30 to 10.07), n=14 |
+| Snapshot ready, final decision made a live call | 2.25 (0.19 to 6.73), n=8 | none | 0.77 (0.45 to 10.07), n=7 |
+| Snapshot ready, final decision cached | 0.12 (0.04 to 0.15), n=6 | 0.12 (0.04 to 0.19), n=14 | 0.36 (0.30 to 0.43), n=7 |
+| First reply audio | 0.41 (0.22 to 7.07), n=14 | 0.28 (0.16 to 0.36), n=14 | 0.55 (0.37 to 10.69), n=13 |
+| First reply audio, counted from snapshot ready | 0.19 (0.13 to 0.36), n=14 | 0.17 (0.08 to 0.25), n=14 | 0.09 (0.07 to 0.62), n=13 |
 
 All runs were measured inside `quiet_run.py` and the GPU lease, on Q4_K_M weights on the RTX 3060.
 
@@ -177,8 +177,8 @@ The decider made 52 live calls for this work, all HTTP 200, with no 429s and no 
 
 ## Files outside the repo
 
-| Path                              | Contents                                                                                  | Size  |
-| --------------------------------- | ----------------------------------------------------------------------------------------- | ----- |
+| Path | Contents | Size |
+| --- | --- | --- |
 | `$VOICE_HOME/evidence/prototype/` | Run records, reply WAVs, server logs, the decider cache and ledger, and the report output | 51 MB |
 
 No model, package, or venv was added. The prototype uses the Stage 1 venv and the GGUF files already listed in [licenses.md](licenses.md).

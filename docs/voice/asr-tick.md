@@ -10,13 +10,13 @@ On Mason's recordings, 2 sessions update every 0.48 s and put each word on scree
 
 ## What sets the tick
 
-| Layer           | Finding                                                                                                                                                                                                        | Label                                              |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
-| Model           | The live-ASR context is trained on `[12 audio rows] text <\|text_end\|>` blocks. `interleaved_n_audio` is 12 in the config, and 12 rows at 80 ms is 0.96 s.                                                    | Measured (config and `transcribe_live` docstring)  |
-| llama.cpp       | `mtmd_audio_stream_lfm3a` holds `chunk_rows = 12` as a `static constexpr`. `step_live` waits until 12 rows are ready, feeds them, then samples text until `<\|text_end\|>`. The encoder runs once per 12 rows. | Measured (source at b12428, `tools/mtmd/mtmd.cpp`) |
-| Our server      | `MicTurn.stream` sends 40 ms of audio per message with no coalescing.                                                                                                                                          | Measured (`voice/live/server.py`)                  |
-| Recorded calls  | In 37 real turns (84 intervals) the gap between text bursts has median 0.959 s, 10th to 90th percentile 0.888 to 0.998 s. A block's tokens arrive within about 30 ms, so each tick is a burst.                 | Measured                                           |
-| After audio end | 0.81 bursts per turn arrive after the audio ends, 18% of the delta pieces. That is the last partial block, flushed.                                                                                            | Measured                                           |
+| Layer | Finding | Label |
+| --- | --- | --- |
+| Model | The live-ASR context is trained on `[12 audio rows] text <\|text_end\|>` blocks. `interleaved_n_audio` is 12 in the config, and 12 rows at 80 ms is 0.96 s. | Measured (config and `transcribe_live` docstring) |
+| llama.cpp | `mtmd_audio_stream_lfm3a` holds `chunk_rows = 12` as a `static constexpr`. `step_live` waits until 12 rows are ready, feeds them, then samples text until `<\|text_end\|>`. The encoder runs once per 12 rows. | Measured (source at b12428, `tools/mtmd/mtmd.cpp`) |
+| Our server | `MicTurn.stream` sends 40 ms of audio per message with no coalescing. | Measured (`voice/live/server.py`) |
+| Recorded calls | In 37 real turns (84 intervals) the gap between text bursts has median 0.959 s, 10th to 90th percentile 0.888 to 0.998 s. A block's tokens arrive within about 30 ms, so each tick is a burst. | Measured |
+| After audio end | 0.81 bursts per turn arrive after the audio ends, 18% of the delta pieces. That is the last partial block, flushed. | Measured |
 
 The limiter is therefore the block size. A word spoken just after a block closes waits up to 0.96 s, and the average wait is about half that (inferred from the geometry). Compute is not the limiter, because the final transcript lands a median of 0.05 s after the audio ends (measured, single session, 54 clips).
 
@@ -24,16 +24,16 @@ The limiter is therefore the block size. A word spoken just after a block closes
 
 All rows ran 54 clips (11 of Mason's scripted recordings and 43 live-call turns, 244 s of audio) streamed at real-time pace to llama.cpp b12428 with the Q4_K_M weights on the RTX 3060, inside the GPU lease and `quiet_run`. "Gain" is how much earlier each word first appears than in a single session on the same clip (paired by word position). WER is against `script.txt` for the 11 recordings (139 words), and the scripted words are approximate because Mason spoke naturally. "Drift" is the word error rate of a session's final text against the single session's.
 
-| Option                                          | Update interval                   | First text from audio start | WER vs script                        | Drift     | Word gain, mean (90th pct) | GPU beside a voice session                                    |
-| ----------------------------------------------- | --------------------------------- | --------------------------- | ------------------------------------ | --------- | -------------------------- | ------------------------------------------------------------- |
-| One session (today)                             | 0.960 s                           | 1.06 s                      | 3.6%                                 | 0         | 0                          | Voice first audio 0.187 s after the end, GPU 23% busy, 2.8 GB |
-| 2 staggered sessions                            | 0.480 s                           | 1.01 s                      | 3.6% (final)                         | 0 (final) | 0.18 s (0.48 s)            | 0.241 s (+54 ms), 29%, 2.9 GB                                 |
-| 4 staggered sessions                            | 0.241 s                           | 1.00 s                      | 3.6% (final)                         | 0 (final) | 0.25 s (0.63 s)            | 0.275 s (+88 ms), 31%, 3.0 GB                                 |
-| Block of 6 rows                                 | 0.49 s median, 1.86 s at the 90th | 1.05 s                      | 78%                                  | 64%       | not usable                 | not run                                                       |
-| Block of 4 rows                                 | 0.63 s, 1.33 s                    | 0.98 s                      | 85%                                  | 99%       | not usable                 | not run                                                       |
-| Block of 3 rows                                 | 0.48 s, 1.15 s                    | 1.01 s                      | 139%                                 | 82%       | not usable                 | not run                                                       |
-| Block of 6 rows, encoder still stepping 12 rows | 0.96 s                            | n/a                         | 81%                                  | 83%       | not usable                 | not run                                                       |
-| Peek at the open block (not built)              | any, for example every 0.24 s     | up to 0.96 s sooner         | 10.7% of peeks had a wrong tail word | n/a       | 2.0 words ahead on average | inferred, see below                                           |
+| Option | Update interval | First text from audio start | WER vs script | Drift | Word gain, mean (90th pct) | GPU beside a voice session |
+| --- | --- | --- | --- | --- | --- | --- |
+| One session (today) | 0.960 s | 1.06 s | 3.6% | 0 | 0 | Voice first audio 0.187 s after the end, GPU 23% busy, 2.8 GB |
+| 2 staggered sessions | 0.480 s | 1.01 s | 3.6% (final) | 0 (final) | 0.18 s (0.48 s) | 0.241 s (+54 ms), 29%, 2.9 GB |
+| 4 staggered sessions | 0.241 s | 1.00 s | 3.6% (final) | 0 (final) | 0.25 s (0.63 s) | 0.275 s (+88 ms), 31%, 3.0 GB |
+| Block of 6 rows | 0.49 s median, 1.86 s at the 90th | 1.05 s | 78% | 64% | not usable | not run |
+| Block of 4 rows | 0.63 s, 1.33 s | 0.98 s | 85% | 99% | not usable | not run |
+| Block of 3 rows | 0.48 s, 1.15 s | 1.01 s | 139% | 82% | not usable | not run |
+| Block of 6 rows, encoder still stepping 12 rows | 0.96 s | n/a | 81% | 83% | not usable | not run |
+| Peek at the open block (not built) | any, for example every 0.24 s | up to 0.96 s sooner | 10.7% of peeks had a wrong tail word | n/a | 2.0 words ahead on average | inferred, see below |
 
 Notes on the table.
 

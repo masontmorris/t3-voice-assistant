@@ -35,7 +35,6 @@ The server exposes the same shapes on `127.0.0.1:8787`: `POST /handoff`, `GET /o
 The bot follows T3's shell stream, as the heartbeat does. Any thread whose `lineage.parentThreadId` names a registered node joins the registry one level down: under the root as a PM, and under a PM or a worker as a worker. Its charter is the thread title, which the delegating agent wrote, such as "Denver to Boulder drive time". The first snapshot after a restart repeats the pass until no new node appears, so a child created while the bot was down should be found (inferred from the code, not run).
 
 It found all 4 workers the PM delegated to, with no help from the root or the PM (measured). It could not express these:
-
 - **Message edges.** The root reaches the PM with `t3_thread_send`, which leaves no lineage, so the PM has to be registered at setup. The PM's received message does carry `senderThreadId` (measured in the PM thread), which a later version could read to learn such edges.
 - **Top-level threads.** A thread an agent starts with `t3_thread_launch` or `create_threads` has no parent in its lineage (inferred from the schema, not tested), so it stays outside the tree.
 - **Real charters.** The title is a label, not a charter, and a discovered node gets the role default for its expected quiet time.
@@ -64,7 +63,6 @@ The snapshot built from `tree.json` alone after the runs, with 0 calls, listed `
 ## The seam for check 5, and why
 
 The seam is the prototype's task-service interface, unchanged: `submit_delegate`, `sync`, `poll`, `next_due`, `snapshot`, `take_updates` and `executions`. `RootTaskService` subclasses `MockTaskService` and replaces three of them:
-
 - `sync` sends each dispatch that the mock would run to `POST /handoff` as `<conversation_id>:<task_id>`, and holds the rest exactly as the mock does.
 - `poll` reads `task_result` entries from `GET /outbox`, and `next_due` keeps the caller polling while a task runs.
 
@@ -78,14 +76,14 @@ The seam leaves out cancellation, which stays local because the root is not told
 
 The spike spent 27 test-thread turns (measured from every run in the registry, plus the probe thread and its helper).
 
-| Work                                                              | Turns |
-| ----------------------------------------------------------------- | ----- |
-| Probe of the T3 tools and `delegate_task`                         | 3     |
-| Check 1 (setup; the restart cost 0)                               | 3     |
-| Check 2 (root 2, PM 1, workers 2, 1 needless heartbeat to the PM) | 6     |
-| Check 3                                                           | 0     |
-| Check 4 (2 worker setups, 5 heartbeat turns to the PM)            | 7     |
-| Check 5 (two replays, 4 each)                                     | 8     |
+| Work | Turns |
+| ---- | ----- |
+| Probe of the T3 tools and `delegate_task` | 3 |
+| Check 1 (setup; the restart cost 0) | 3 |
+| Check 2 (root 2, PM 1, workers 2, 1 needless heartbeat to the PM) | 6 |
+| Check 3 | 0 |
+| Check 4 (2 worker setups, 5 heartbeat turns to the PM) | 7 |
+| Check 5 (two replays, 4 each) | 8 |
 
 The decider ledger went from 84 to 116 of 120: 32 calls. Serve C spent 24 of them in 5 minutes on silence asks across 8 nodes, mostly finished delegated workers, before the fix that leaves finished T3 children alone. Serve D spent 4. The recipient question used 1.
 
@@ -104,7 +102,6 @@ Binding to 127.0.0.1 was not enough. Any web page in a browser on this machine c
 `serve.mjs` creates the secret once in `state/api-secret`, which is git-ignored, and never prints or logs it. `root_tasks.py` reads it in-process.
 
 The tests in `test/api.test.mjs` fail on the refactor-only handler (`97aa209`) and pass from `f22dce4`. Live, on serve E at 10:05:37 and again on serve F at 10:16:39, the probe got these results (measured):
-
 - 401 with no secret, and 401 with a wrong secret;
 - 403 for a no-secret `text/plain` POST with an `Origin` header, as a web page would send it;
 - 403 for the secret with an `Origin` header;
@@ -130,7 +127,6 @@ The window is too short to show the steady state, which follows from the timings
 ### 4. Results are tied to requests by tag, checked by the sender chain
 
 The sender id is on the messages. A message that `t3_thread_send` delivers names its sender in `senderThreadId` (measured). But two live facts keep the chain from being the tie.
-
 - **The bot's view of T3 omits tool outputs.** In the HTTP thread snapshot the bot reads, a tool call has `outputOmitted: true`, so the id of the message it created is missing. The bot can still match a received message to its sender's `t3_thread_send` call by recipient and exact text.
 - **T3 batches messages that arrive together into one run.** On serve E at 10:05:44, two handoffs sent 20 ms apart went to the PM as one run (PM run 3), and both results came back to the root as one run (root run 4), whose single reply had both tags. So a result's chain leads back to the set of requests that run served, not to one request.
 

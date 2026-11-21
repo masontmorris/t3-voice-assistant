@@ -17,13 +17,13 @@ To rebuild the synthetic example, run `python -m voice.research.archive.syntheti
 
 ## Layout
 
-| Path             | Contents                                                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| `manifest.json`  | Schema, duration, stems, per-turn clock offsets, reply placement, warnings, event counts, and the SHA-256 of every other file. |
-| `timeline.jsonl` | One event per line, sorted by `t`.                                                                                             |
-| `waveform.json`  | RMS at 100 frames per second, separately for the microphone and the assistant playback.                                        |
-| `stems/`         | `microphone.wav`, `assistant-playback-NNN.wav` and `conversation.wav`, copied from the client recording.                       |
-| `clips/`         | The server's per-turn input, reply and update WAVs. The validator uses them.                                                   |
+| Path | Contents |
+| --- | --- |
+| `manifest.json` | Schema, duration, stems, per-turn clock offsets, reply placement, warnings, event counts, and the SHA-256 of every other file. |
+| `timeline.jsonl` | One event per line, sorted by `t`. |
+| `waveform.json` | RMS at 100 frames per second, separately for the microphone and the assistant playback. |
+| `stems/` | `microphone.wav`, `assistant-playback-NNN.wav` and `conversation.wav`, copied from the client recording. |
+| `clips/` | The server's per-turn input, reply and update WAVs. The validator uses them. |
 
 ## The replay clock
 
@@ -35,25 +35,25 @@ The exporter places a reply where its WAV sounds in the playback stem. It search
 
 Every event has `t`, `seq` (its line number from 0), `type`, `turn` and `src`. `src` is `server` for an event the server logged, `client` for one the client logged, and `derived` for one the exporter inferred. Task IDs are `<turn>/<server task id>`, because the server numbers tasks from 1 in every turn.
 
-| `type`                      | Payload                                                                                                                            | Source                                                                 |
-| --------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `speech_start`              | `audio` pointer to the turn's input clip                                                                                           | derived: input start plus the endpointer's pre-roll                    |
-| `speech_end`                |                                                                                                                                    | derived: `turn_end` minus the trailing silence                         |
-| `turn_end`                  | `trailing_ms`, `forced`                                                                                                            | the end of the input audio on the microphone stem                      |
-| `transcript_partial`        | `revision`, `text`                                                                                                                 | ASR update                                                             |
-| `transcript_final`          | `revision`, `text`                                                                                                                 | ASR final                                                              |
-| `decision_point`            | `revision`, `is_final`, `source`, `segments`, `decisions` (kind, readiness, side effect and confidences per segment), `latency_ms` | decider call                                                           |
-| `task_split`, `task_merged` | `before`, `after`                                                                                                                  | derived: the segment count rose or fell between two decision points    |
-| `gate_verdict`              | `task_id`, `score`, `threshold`, `passed`, `weakest`                                                                               | task history `gate` entry                                              |
-| `task_created`              | `task_id`, `text`, `sources`                                                                                                       | the earliest of task history, LFM's delegate call and the task service |
-| `task_status`               | `task_id`, `status`, optional `reason` and `result_summary`                                                                        | task history and the task service                                      |
-| `handoff`                   | `final_transcript`, `unreviewed_speech`, `segments`, `snapshot`                                                                    | end of utterance: the snapshot LFM sees                                |
-| `lfm_action`                | `calls` (name and arguments), `text`, `snapshot_after`                                                                             | LFM's tool turn                                                        |
-| `tool_call`                 | `name`, `arguments`, `result`                                                                                                      | tool result                                                            |
-| `reply_start`               | `reply` (`snapshot` or `update`), `reply_id`, `text`, `audio` pointer                                                              | where the reply's WAV sounds                                           |
-| `reply_end`                 | `reply`, `reply_id`, `played_s`, `interrupted`, `cut`                                                                              | derived                                                                |
-| `barge_in`                  |                                                                                                                                    | client log                                                             |
-| `backlog_reprompt`          | `task_ids`                                                                                                                         | reserved: `voice/main` does not log backlog re-prompts yet             |
+| `type` | Payload | Source |
+| --- | --- | --- |
+| `speech_start` | `audio` pointer to the turn's input clip | derived: input start plus the endpointer's pre-roll |
+| `speech_end` | | derived: `turn_end` minus the trailing silence |
+| `turn_end` | `trailing_ms`, `forced` | the end of the input audio on the microphone stem |
+| `transcript_partial` | `revision`, `text` | ASR update |
+| `transcript_final` | `revision`, `text` | ASR final |
+| `decision_point` | `revision`, `is_final`, `source`, `segments`, `decisions` (kind, readiness, side effect and confidences per segment), `latency_ms` | decider call |
+| `task_split`, `task_merged` | `before`, `after` | derived: the segment count rose or fell between two decision points |
+| `gate_verdict` | `task_id`, `score`, `threshold`, `passed`, `weakest` | task history `gate` entry |
+| `task_created` | `task_id`, `text`, `sources` | the earliest of task history, LFM's delegate call and the task service |
+| `task_status` | `task_id`, `status`, optional `reason` and `result_summary` | task history and the task service |
+| `handoff` | `final_transcript`, `unreviewed_speech`, `segments`, `snapshot` | end of utterance: the snapshot LFM sees |
+| `lfm_action` | `calls` (name and arguments), `text`, `snapshot_after` | LFM's tool turn |
+| `tool_call` | `name`, `arguments`, `result` | tool result |
+| `reply_start` | `reply` (`snapshot` or `update`), `reply_id`, `text`, `audio` pointer | where the reply's WAV sounds |
+| `reply_end` | `reply`, `reply_id`, `played_s`, `interrupted`, `cut` | derived |
+| `barge_in` | | client log |
+| `backlog_reprompt` | `task_ids` | reserved: `voice/main` does not log backlog re-prompts yet |
 
 An `audio` pointer is `{"clip", "clip_offset_s", "stem", "at", "probe_s"}`. It says the clip, from `clip_offset_s`, sounds in `stem` at replay time `at`.
 
@@ -66,11 +66,11 @@ An `audio` pointer is `{"clip", "clip_offset_s", "stem", "at", "probe_s"}`. It s
 
 ## Results
 
-| Archive                                                                                             | Events | Audio checks | Max lag | Errors |
-| --------------------------------------------------------------------------------------------------- | ------ | ------------ | ------- | ------ |
-| `voice/research/archive/example` (synthetic)                                                        | 57     | 7            | 0.1 ms  | 0      |
-| Desktop loopback, three clips from `$VOICE_HOME/audio/real` through `client.py --wav`               | 117    | 9            | 0.4 ms  | 0      |
-| Mason's live demo, server run `20261116-080326` with the laptop's client recording, 6 turns, 91.7 s | 120    | 14           | 0.3 ms  | 0      |
+| Archive | Events | Audio checks | Max lag | Errors |
+| --- | --- | --- | --- | --- |
+| `voice/research/archive/example` (synthetic) | 57 | 7 | 0.1 ms | 0 |
+| Desktop loopback, three clips from `$VOICE_HOME/audio/real` through `client.py --wav` | 117 | 9 | 0.4 ms | 0 |
+| Mason's live demo, server run `20261116-080326` with the laptop's client recording, 6 turns, 91.7 s | 120 | 14 | 0.3 ms | 0 |
 
 All three rows are measured. The loopback ran on 2026-11-16 at this branch's head, in a `voice-loopviz` GPU lease, with `02_two_requests.wav`, `11_tools.wav` and `04_correction.wav`. Two of its replies were cut by barge-ins.
 
