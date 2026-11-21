@@ -7,7 +7,8 @@ gate asks the local d1-2B whether the last reply and status support the gist; wh
 dropped and the voice says the thread's status with no summary.
 
 An approval's description is a different job: the source is the request, not a reply, and an omission is the danger,
-so it has its own prompt, its own gate question and its own bar (`request_messages`, `request_gate`).
+so it has its own prompt, its own gate question and its own bar (`request_messages`, `request_gate`). It is written
+and gated for one request, by its id and its stored content, and it is spoken only after that gate passed it.
 """
 
 from __future__ import annotations
@@ -188,8 +189,11 @@ def unsupported(record: dict[str, Any]) -> float | None:
 # What approving a request lets a thread do. The request is shown as JSON with its own field names and no thread
 # title, which the summariser borrowed facts from; the last reply is left out. Examples are made-up requests as chat
 # turns and teach how to read one, never wording to be spoken.
-REQUEST_KINDS = {T.NeedSource.COMMAND: "a shell command", T.NeedSource.FILE_CHANGE: "a change to a file",
-                 T.NeedSource.FILE_READ: "a file to read", T.NeedSource.PERMISSION: "permission to use a tool"}
+#
+# Only a request whose stored prompt is the action itself is described: a command, or a change to a file. A tool
+# permission stores only the tool's name, a file read only a path, and the others nothing the voice can describe, so
+# those go to the app. The choice is made on the request's source, a typed field, never on its text.
+REQUEST_KINDS = {T.NeedSource.COMMAND: "a shell command", T.NeedSource.FILE_CHANGE: "a change to a file"}
 REQUEST_SYSTEM = ("You help a voice assistant tell a person what they would be approving. A coding agent asks "
                   "permission to do one thing. The request is JSON: `kind` is what sort of request it is and `text` "
                   "is the request as the agent wrote it. Say in one plain spoken sentence of at most 20 words what "
@@ -204,15 +208,11 @@ REQUEST_EXAMPLES = (
      "It wants to list the first few files in the source folder."),
     ({"kind": "a change to a file", "text": "Rename function getUser to fetchUser in lib/users.ts"},
      "It wants to rename one function in a users file."),
-    ({"kind": "permission to use a tool", "text": "mcp__notes__append_note"},
-     "It wants to use the append note tool from the notes server."),
+    ({"kind": "a change to a file", "text": "Add a section about caching to docs/guide.md"},
+     "It wants to add a new section about caching to the guide."),
 )
-# The grammar leaves out slashes, colons, equals signs and the other characters a path, URL or flag is made of, so the
-# model cannot read one out. Without it, 24 of 30 baseline descriptions carried a literal command or path.
-REQUEST_SCHEMA = {"type": "object",
-                  "properties": {"gist": {"type": "string", "pattern": "^[A-Za-z0-9 ,.'-]+$", "maxLength": 220}},
+REQUEST_SCHEMA = {"type": "object", "properties": {"gist": {"type": "string", "maxLength": 220}},
                   "required": ["gist"], "additionalProperties": False}
-_REQUEST_SPOKEN = re.compile(REQUEST_SCHEMA["properties"]["gist"]["pattern"])
 
 REQUEST_GATE_CONTEXT = ("A voice assistant will tell a person what approving a coding agent's `request` would let the "
                         "agent do, in `description`. The person will say yes on the strength of it alone, so it must "
@@ -223,16 +223,16 @@ REQUEST_GATE_QUESTION = "Is `description` an accurate and complete account of wh
 REQUEST_THRESHOLD = 0.10
 
 
-def describes_request(state: T.ThreadState) -> bool:
-    """A thread read with no reply and an approval waiting: the description of what approving it would do."""
-    return state.last_reply is None and state.pending is not None and state.pending.kind is T.PendingKind.APPROVAL
+def describable(need: T.PendingNeed) -> bool:
+    """Whether the voice can describe this request: an approval whose stored prompt is a command or a file change."""
+    return need.kind is T.PendingKind.APPROVAL and need.source in REQUEST_KINDS
 
 
-def request_view(state: T.ThreadState) -> dict:
-    return {"kind": REQUEST_KINDS.get(state.pending.source, "a request"), "text": state.pending.prompt}
+def request_view(need: T.PendingNeed) -> dict:
+    return {"kind": REQUEST_KINDS[need.source], "text": need.prompt}
 
 
-def request_messages(state: T.ThreadState) -> list[dict]:
+def request_messages(need: T.PendingNeed) -> list[dict]:
     def asked(request: dict) -> str:
         return f"{json.dumps({'request': request})}\n\n{REQUEST_ADJACENT}"
 
@@ -240,18 +240,25 @@ def request_messages(state: T.ThreadState) -> list[dict]:
     for request, description in REQUEST_EXAMPLES:
         out += [{"role": "user", "content": asked(request)},
                 {"role": "assistant", "content": json.dumps({"gist": description})}]
-    out.append({"role": "user", "content": asked(request_view(state))})
+    out.append({"role": "user", "content": asked(request_view(need))})
     return out
 
 
 def read_description(text: str) -> str | None:
-    """`read_gist` with the narrower character set the description's schema allows, as the last check."""
-    gist = read_gist(text)
-    return gist if gist is not None and _REQUEST_SPOKEN.fullmatch(gist) else None
+    """The `gist` of the model's JSON, or the text itself from a model that answered in prose. What it says is the
+    gate's to judge: nothing here decides whether it is good."""
+    try:
+        record = json.loads(text)
+    except ValueError:
+        record = {"gist": text}
+    gist = record.get("gist") if isinstance(record, dict) else None
+    if not isinstance(gist, str) or len(gist) > _MAX_CHARS:
+        return None
+    return " ".join(gist.split()) or None
 
 
-def request_gate(state: T.ThreadState, description: str) -> dict:
-    return {"model": "d1.2", "state": {"context": REQUEST_GATE_CONTEXT, "request": request_view(state),
+def request_gate(need: T.PendingNeed, description: str) -> dict:
+    return {"model": "d1.2", "state": {"context": REQUEST_GATE_CONTEXT, "request": request_view(need),
                                        "description": description},
             "questions": {"accurate": {"type": "noul", "instructions": REQUEST_GATE_QUESTION,
                                        "criteria": {"true": "Yes.", "false": "No."}}}}

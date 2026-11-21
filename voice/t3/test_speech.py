@@ -21,7 +21,7 @@ from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Decider
 from voice.t3.speech import (LINE_SCHEMA, READER_VARIANTS, RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane,
-                              LocalText, Speech, local_messages, read_line, reader_messages, render_messages, text_model)
+                              LocalText, RequestGate, Speech, local_messages, read_line, reader_messages, render_messages, text_model)
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -280,25 +280,86 @@ class LocalTextTest(unittest.TestCase):
         self.assertEqual(sent["response_format"]["json_schema"]["schema"], LS.GIST_SCHEMA)
         self.assertEqual(server.gated[-1]["state"]["gist"], "It says all 12 tests pass.")
 
-    def test_a_pending_approval_is_described_from_the_request_with_its_own_prompt_gate_and_bar(self):
-        waiting = F.state(thread="t5", title="Clear the build folder", activity=T.ThreadActivity.WAITING_ON_YOU,
-                          pending=F.need("q1", "rm -rf dist && pnpm build"))
-        for p_unsupported, spoken in ((0.04, True), (0.4, False)):
+    def test_the_local_model_describes_a_request_in_the_approval_prompt_and_the_gate_judges_it_apart(self):
+        need = F.need("q1", "rm -rf dist && pnpm build")
+        for p_unsupported, spoken in ((0.04, True), (0.4, False), (0.11, False)):
             local, server = self.summariser(p_unsupported)
-            record = local.summarise(waiting, "What would approving this request let the thread do?")
+            text = local.describe(need)["text"]
             sent = server.bodies[-1]
-            self.assertEqual(sent["messages"], LS.request_messages(waiting))
+            self.assertEqual(sent["messages"], LS.request_messages(need))
             self.assertEqual(sent["response_format"]["json_schema"]["schema"], LS.REQUEST_SCHEMA)
-            self.assertNotIn("Clear the build folder", json.dumps(sent["messages"][-1]), "the title is not shown")
-            self.assertEqual(server.gated[-1]["state"], LS.request_gate(waiting, record["gist"])["state"])
-            self.assertEqual(record["text"], "It says all 12 tests pass." if spoken else "")
-        local, server = self.summariser(0.11)
-        self.assertEqual(local.summarise(waiting, None)["text"], "", "0.11 is over the approval bar of 0.10")
-        replied = dataclasses.replace(waiting, last_reply=REPLY)
-        local, server = self.summariser(0.11)
-        local.summarise(replied, "Is it done?")
-        self.assertEqual(server.bodies[-1]["messages"], LS.messages(replied, "Is it done?"),
-                         "a thread with a reply to read keeps the summary prompt")
+            self.assertEqual(text, "It says all 12 tests pass.")
+            gate = RequestGate(local.gate_url)
+            doubt = gate.doubt(need, text)
+            self.assertEqual(server.gated[-1]["state"], LS.request_gate(need, text)["state"])
+            self.assertEqual(doubt is not None and doubt < LS.REQUEST_THRESHOLD, spoken, p_unsupported)
+        self.assertIsNone(RequestGate("http://127.0.0.1:9").doubt(need, "It builds."), "a gate that is down is no answer")
+
+    def test_an_ordinary_summary_is_never_the_description_of_a_request_and_the_reverse(self):
+        class Both:
+            model = "fake/text:free"
+
+            def __init__(self):
+                self.summaries = self.descriptions = 0
+
+            def complete(self, messages):
+                if messages[0]["content"] == LS.REQUEST_SYSTEM:
+                    self.descriptions += 1
+                    return {"text": json.dumps({"gist": "It wants to delete the dist folder and rebuild."})}
+                self.summaries += 1
+                return {"text": "The build passed."}
+
+        class Gate:
+            asked = []
+
+            def doubt(self, need, description):
+                self.asked.append((need.prompt, description))
+                return 0.01
+
+        waiting = F.state(thread="t5", title="Add a clamp helper", as_of=140, activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need("q1", "rm -rf dist && pnpm build"), last_reply=REPLY)
+        model, gate = Both(), Gate()
+        speech = Speech(Lane(model), Reads(waiting), F.Agree(), gate=gate)
+        status = (act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="waiting_on_you"),)
+        filled, _ = speech.fill(status, "t5")
+        self.assertEqual((filled[0].slots["summary"], model.summaries, gate.asked), ("The build passed.", 1, []))
+        confirm = (act(Kind.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve", need="command_approval"),)
+        said, _ = speech.fill(confirm, "t5", (140,), waiting.pending)
+        self.assertEqual(said[0].slots["summary"], "It wants to delete the dist folder and rebuild.",
+                         "the status summary cached at the same sequence did not stand in for the description")
+        self.assertEqual((model.summaries, model.descriptions), (1, 1))
+        self.assertEqual(gate.asked, [("rm -rf dist && pnpm build", "It wants to delete the dist folder and rebuild.")])
+        speech.fill(confirm, "t5", (140,), waiting.pending)
+        self.assertEqual(model.descriptions, 1, "the same request, with the same content, is described once")
+        other = F.need("q1", "rm -rf dist build && pnpm build")
+        speech.fill(confirm, "t5", (140,), other)
+        self.assertEqual(model.descriptions, 2, "the same id with other content is described again")
+        again, _ = speech.fill((act(Kind.THREAD_STATUS, thread="Add a clamp helper", status="waiting_on_you",
+                                    asked="Is it done?"),), "t5")
+        self.assertEqual((again[0].slots["summary"], model.summaries), ("The build passed.", 2),
+                         "and a description is never an ordinary summary")
+
+    def test_an_approval_confirmation_never_keeps_a_summary_it_was_given_and_a_denial_has_none(self):
+        text = Text()
+        speech = Speech(Lane(text), Reads(finished(140)), F.Agree(), gate=None)
+        given = act(Kind.CONFIRM_RESPOND, thread="T", decision="approve", need="command_approval", summary="It is safe.")
+        filled, _ = speech.fill((given,), "t5", (), F.need("q1", "pnpm test"))
+        self.assertNotIn("summary", filled[0].slots, "no gate, so no description, and not the one it came with")
+        denial = act(Kind.CONFIRM_RESPOND, thread="T", decision="deny", need="command_approval")
+        self.assertEqual(speech.fill((denial,), "t5", (), F.need("q1", "pnpm test"))[0][0].slots, denial.slots)
+        self.assertEqual(text.summaries, 0)
+
+    def test_a_request_the_voice_cannot_describe_is_not_described_by_any_model(self):
+        for source in (T.NeedSource.PERMISSION, T.NeedSource.FILE_READ, T.NeedSource.MCP_ELICITATION):
+            text = Text()
+
+            class Gate:
+                def doubt(self, need, description):
+                    raise AssertionError("not asked")
+
+            speech = Speech(Lane(text), Reads(finished(140)), F.Agree(), gate=Gate())
+            self.assertIsNone(speech.describe("t5", F.need("q1", "mcp__github__create_issue", source=source)))
+            self.assertEqual(text.summaries, 0)
 
     def test_the_local_summariser_asks_its_own_gate_whether_an_earlier_gist_answers(self):
         local, server = self.summariser(0.02, p_reuse=0.99)

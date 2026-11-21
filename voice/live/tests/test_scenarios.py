@@ -1,6 +1,7 @@
 """The scenarios' scoring and gate rules, and the caller that holds a call against a stand-in server."""
 
 import asyncio
+import dataclasses
 import json
 import subprocess
 import tempfile
@@ -92,32 +93,86 @@ class Approval(unittest.TestCase):
         self.assertEqual(failed(S.claims_approval(call(turns, self.world("approval"), Yes(0.1)), "x", tuple(turns))), [])
 
 
+class Judged(Judge):
+    """A judge that answers each stated question as the test says, and raises on one it was not told about."""
+
+    def __init__(self, **answers):
+        super().__init__(client=object())
+        self.answers = answers
+
+    def p_yes(self, question, text, context):
+        self.asked.append({"question": question, "text": text, "context": context})
+        return {S.DESCRIBED: self.answers["described"], S.REFUSES: self.answers["refuses"],
+                S.READS_OUT: self.answers["reads_out"]}[question]
+
+
 class RespondByVoice(unittest.TestCase):
-    def held(self, build, kinds, waiting, described=True, asked=True):
+    REQUEST = "printf 'x' > .probe.txt"
+
+    def held(self, build, *, line="It wants to write a short line into a hidden file.", asked=True, app=False,
+             responded=True, decision=None, status="resolved", pending=None, record=True, request_known=True,
+             judge=None):
         plan = build(S.Pool())
         title = plan.seeds[0].title
-        plan.notes.update(asked=asked, described=described)
-        turns = [turn(0, kinds[0]), turn(1, kinds[1])]
-        return plan.check(call(turns, {"seeded": {title: {"waiting_on": waiting}}, "made": {}}))
+        decision = decision or ("accept" if build is S.approve_waiting else "decline")
+        turns = [turn(0, [Kind.CONFIRM_RESPOND] if asked else [Kind.NEEDS_THE_APP] if app else []),
+                 turn(1, [Kind.RESPONDED] if responded else [])]
+        turns[0] = dataclasses.replace(turns[0], t3=tuple({**e, "draft": line} for e in turns[0].t3))
+        plan.notes.update(asked=asked, line=line if asked else None, start={"seeded": {title: {
+            "need": self.REQUEST if request_known else None, "request_id": "q1"}}})
+        now = {title: {"waiting_on": pending, "request_id": None,
+                       "requests": [{"id": "q1", "status": status, "decision": decision}]}} if record else {}
+        judge = judge or Judged(described=0.9, refuses=0.9, reads_out=0.1)
+        return plan.check(Call(tuple(turns), {"seeded": now, "made": {}}, judge, plan.notes))
 
-    def test_an_approval_needs_a_confirmation_with_a_description_a_yes_that_is_answered_and_a_cleared_request(self):
-        confirm, said = [Kind.CONFIRM_RESPOND], [Kind.RESPONDED]
-        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, said), None)), [])
-        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, said), "approval")),
-                         ["T3 no longer holds the request"])
-        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, said), None, described=False)),
-                         ["the confirmation described the request"])
-        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, []), None)),
-                         ["the yes was answered by saying the answer was sent"])
+    def test_an_approval_passes_only_with_a_described_confirmation_a_yes_and_the_decision_recorded_for_that_request(self):
+        self.assertEqual(failed(self.held(S.approve_waiting)), [])
+        judge = Judged(described=0.9, refuses=0.9, reads_out=0.1)
+        self.held(S.approve_waiting, judge=judge)
+        self.assertEqual([a["question"] for a in judge.asked], [S.DESCRIBED, S.READS_OUT])
+        self.assertIn(self.REQUEST, judge.asked[0]["context"], "the line is judged against the request itself")
 
-    def test_a_request_sent_to_the_app_fails_the_confirmation_and_its_checks_are_preconditions(self):
-        found = self.held(S.approve_waiting, ([Kind.NEEDS_THE_APP], []), "approval", asked=False)
-        self.assertEqual(failed(found)[0], "the answer was confirmed back")
-        self.assertTrue(all(v.precondition for v in found[1:]))
+    def test_each_of_the_things_that_make_an_approval_wrong_fails_its_own_check(self):
+        wrong = {"a description the judge rejects": (dict(judge=Judged(described=0.1, refuses=0.9, reads_out=0.1)),
+                                                     "the spoken description says what the request does"),
+                 "a line that reads the request out": (dict(judge=Judged(described=0.9, refuses=0.9, reads_out=0.9)),
+                                                       "the confirmation reads out no command, path or code"),
+                 "a decision other than the one asked for": (dict(decision="decline"),
+                                                             "T3 resolved that request as accept"),
+                 "a request still pending": (dict(status="pending", decision=None), "T3 resolved that request as accept"),
+                 "no answer said": (dict(responded=False), "the yes was answered by saying the answer was sent"),
+                 "the thread still waiting": (dict(pending="approval"), "T3 no longer holds a pending request")}
+        for name, (options, check) in wrong.items():
+            with self.subTest(name):
+                self.assertEqual(failed(self.held(S.approve_waiting, **options)), [check])
 
-    def test_a_denial_needs_no_description(self):
-        found = self.held(S.deny_waiting, ([Kind.CONFIRM_RESPOND], [Kind.RESPONDED]), None, described=False)
-        self.assertEqual(failed(found), [])
+    def test_a_missing_record_fails_and_never_passes(self):
+        self.assertEqual(failed(self.held(S.approve_waiting, record=False)),
+                         ["the sandbox holds the thread and the request it waited on"])
+        self.assertEqual(failed(self.held(S.deny_waiting, request_known=False)),
+                         ["the sandbox holds the thread and the request it waited on"])
+        self.assertEqual(failed(self.held(S.approve_waiting, status="expired", decision=None)),
+                         ["T3 resolved that request as accept"])
+
+    def test_an_approval_the_gate_sends_to_the_app_is_the_one_known_failure_and_nothing_downstream_is_scored(self):
+        found = self.held(S.approve_waiting, asked=False, app=True)
+        self.assertEqual(failed(found), ["a description of the request passed the gate"])
+        scenario = S.Scenario("approve-waiting", "", S.approve_waiting)
+        table, green = S.rows({"approve-waiting": [Result("approve-waiting", 1, tuple(found), (), 0, 0, 0)]}, [scenario])
+        self.assertEqual((table[0][1], green), ("XFAIL", True))
+        silent = self.held(S.approve_waiting, asked=False, app=False)
+        self.assertEqual(failed(silent), ["the answer was confirmed or sent to the app",
+                                          "a description of the request passed the gate"])
+        self.assertEqual(S.rows({"approve-waiting": [Result("approve-waiting", 1, tuple(silent), (), 0, 0, 0)]},
+                                [scenario])[0][0][1], "FAIL")
+
+    def test_a_denial_is_judged_as_a_refusal_that_says_nothing_of_the_request_and_resolves_it_declined(self):
+        self.assertEqual(failed(self.held(S.deny_waiting)), [])
+        self.assertEqual(failed(self.held(S.deny_waiting, judge=Judged(described=0.9, refuses=0.1, reads_out=0.1))),
+                         ["the denial asks whether to say no and says nothing of what the request does"])
+        self.assertEqual(failed(self.held(S.deny_waiting, decision="accept")), ["T3 resolved that request as decline"])
+        self.assertEqual(failed(self.held(S.deny_waiting, asked=False, app=True)),
+                         ["the denial was confirmed back"])
 
 
 class Lines(unittest.TestCase):

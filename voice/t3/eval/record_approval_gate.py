@@ -15,25 +15,32 @@ from pathlib import Path
 
 from voice.local_decider.client import D1Client, decider
 from voice.t3 import local_summary as LS
+from voice.t3 import types as T
 from voice.t3.eval import approval_cases as AC
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "approval_gate.json"
-SPLITS = (("seen", AC.SEEN), ("held_out", AC.HELD_OUT))
 
 
 def key(body):
     return hashlib.sha256(json.dumps(body, sort_keys=True).encode()).hexdigest()
 
 
+def old_state(case):
+    """The thread as the summary gate it used before saw it: the request pending, no reply, the thread's title."""
+    return T.ThreadState("th-1", "pr-1", case["title"], T.ThreadActivity.WAITING_ON_YOU, None, AC.need(case), None, 1)
+
+
+def bodies(case, text):
+    return {"request": LS.request_gate(AC.need(case), text), "summary": LS.gate_request(old_state(case), text)}
+
+
 def rows_for(client):
     rows = []
-    for split, cases in SPLITS:
+    for split, cases in AC.SPLITS:
         by_name = {c["name"]: c for c in cases}
         for row in AC.descriptions(cases):
-            state = AC.state(by_name[row["case"]])
             gates = {}
-            for gate, body in (("request", LS.request_gate(state, row["text"])),
-                               ("summary", LS.gate_request(state, row["text"]))):
+            for gate, body in bodies(by_name[row["case"]], row["text"]).items():
                 result = client.call("decisions", body, label="approval_gate")
                 if result["status"] != 200:
                     raise RuntimeError(f"decider status {result['status']}")
