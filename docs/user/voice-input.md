@@ -104,6 +104,29 @@ sees the recording, which runs in T3 Code itself.
 are down, and **Toggle** always needs a second press. Change the chord itself in
 [Keybindings settings](./keybindings.md).
 
+## Talk with a thread
+
+The live-voice button beside the microphone in a thread's composer opens a spoken
+call about that thread. Ask how it is going, tell it something, or stop it without
+naming it: on the call, "it" means this thread. The web and desktop apps have the
+button; the mobile app does not yet.
+
+Calls run on a voice server you start yourself, on this device or a machine on your
+tailnet. In **Settings → Voice → Live voice**, enter its address, such as
+`127.0.0.1:8770`, and paste its secret once. Both stay on this device. Call audio
+goes straight from this device to that server and never through T3 Connect or a
+relay, so the button is disabled for an address anywhere else. An HTTPS page,
+including the desktop app, needs a `wss://` address for a voice server on another
+machine, such as one from Tailscale Serve. A voice server started with
+`--allow-origin` accepts calls only from the origins it lists, so include the one
+T3 Code runs on.
+
+While a call is open, a strip above the composer shows the latest words from both
+sides and whether the voice is listening, thinking, or speaking. The call stays open when you switch threads, and the strip shows on every thread until
+you select **End call**. One call is open at a time. The command palette has **Start
+voice call**, and **Composer: Start or End Voice Call** can be bound in
+[Keybindings settings](./keybindings.md); it has no default shortcut.
+
 ## Improve recognition
 
 - **Language** picks what you speak. **Auto** lets a multilingual model detect

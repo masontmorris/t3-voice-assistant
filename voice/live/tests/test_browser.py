@@ -19,6 +19,8 @@ from websockets.exceptions import ConnectionClosed
 from voice.live import server
 from voice.live.tests import test_server
 from voice.live.tests.test_endpoint import noise, tone
+from voice.live.tests.test_t3_tasks import tasks_over
+from voice.t3 import fakes as F
 
 
 def make_live(tmp):
@@ -169,6 +171,48 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                     with self.assertRaises(ConnectionClosed) as caught:
                         await asyncio.wait_for(ws.recv(), 2)
                     self.assertEqual((caught.exception.rcvd.code, caught.exception.rcvd.reason), (code, reason))
+
+    async def test_with_allowed_origins_only_those_and_the_page_itself_connect(self):
+        allowed = await serve(self.live.handler, "127.0.0.1", 0,
+                              process_request=server.authorize(test_server.SECRET, origins=("http://app.example",)))
+        self.addAsyncCleanup(allowed.wait_closed)
+        self.addCleanup(allowed.close)
+        port = allowed.sockets[0].getsockname()[1]
+        for origin, ok in (("http://app.example", True), (f"http://127.0.0.1:{port}", True),
+                           ("http://example.com", False)):
+            with self.subTest(origin=origin):
+                if ok:
+                    ws = await websockets.connect(f"ws://127.0.0.1:{port}", additional_headers={"Origin": origin})
+                    await ws.close()
+                else:
+                    with self.assertRaises(websockets.InvalidStatus) as caught:
+                        await websockets.connect(f"ws://127.0.0.1:{port}", additional_headers={"Origin": origin})
+                    self.assertEqual(caught.exception.response.status_code, 403)
+
+    async def test_a_call_opened_on_a_thread_starts_only_when_the_seam_can_see_it(self):
+        readable = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        refusing = F.FakeSeam().answer("read", F.refusal("not_found"))
+        for t3, closed in ((None, server.CLOSE_NO_T3), (tasks_over(self, refusing), server.CLOSE_NO_THREAD),
+                           (tasks_over(self, readable), None)):
+            with self.subTest(closed=closed):
+                self.live.t3 = t3
+                async with await self.browser() as ws:
+                    await ws.send(f"auth {test_server.SECRET}")
+                    await ws.send(json.dumps({"type": "hello", "mode": "vad", "thread": "t5"}))
+                    if closed is not None:
+                        with self.assertRaises(ConnectionClosed) as caught:
+                            await asyncio.wait_for(ws.recv(), 2)
+                        self.assertEqual(caught.exception.rcvd.code, closed)
+                        continue
+                    log = []
+                    await self.until(ws, "ready", log)
+                    self.assertEqual(t3.spoken_about(), "Add a clamp helper")
+                    await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+                    heard = await self.until(ws, "heard", log)
+                    await self.until(ws, "turn_done", log)
+                    self.assertEqual(heard["text"], "words in turn_001")
+                    self.assertLess(log.index("heard"), log.index("reply_start"), "the caller's words show first")
+                    self.assertIn("say", log)
 
     async def test_a_header_secret_with_an_origin_is_still_refused(self):
         with self.assertRaises(websockets.InvalidStatus):

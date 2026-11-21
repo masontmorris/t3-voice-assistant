@@ -13,9 +13,15 @@ cannot set the header. The secret never goes in a URL, a log or the page.
 
 Wire format. Binary frames are PCM16 mono: 16 kHz up from the client, LFM3's output rate down, 40 ms per frame
 down. Text frames are JSON control messages:
-  client -> server  hello {mode: vad|ptt, record}, ping {t}, ptt {down}, played {t, pcm}, bye
-  server -> client  ready, pong {t}, turn_start, turn_end, reply_start {rate}, reply_end, duck, unduck, barge_in,
-                    turn_done
+  client -> server  hello {mode: vad|ptt, record, thread?}, ping {t}, ptt {down}, played {t, pcm}, bye
+  server -> client  ready, pong {t}, turn_start, turn_end, heard {text}, reply_start {rate}, say {text, relay?},
+                    reply_end, duck, unduck, barge_in, turn_done
+
+`heard` is the caller's final transcript for the turn and `say` each piece of reply text as its audio goes out, with
+`relay` set on a line that relays a T3 thread; they are the captions a client shows. A hello with `thread` opens the
+call on that T3 thread (`T3Tasks.view`); one the seam cannot read closes the call with CLOSE_NO_THREAD, or with
+CLOSE_NO_T3 when the server runs without --t3. With --allow-origin, a browser page from any origin but the server's
+own and those is refused before the handshake.
 
 Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-of-utterance authority (injection (c),
 the hybrid segmenter, the `gated` default from `voice/main`): live ASR, the segmenter and decider, the task service
@@ -109,6 +115,7 @@ from datetime import datetime
 from functools import partial
 from http import HTTPStatus
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
@@ -152,6 +159,7 @@ WEB_FILES = {
 # A browser cannot set X-Voice-Secret on its WebSocket handshake, so the page sends `auth {secret}` as its first
 # text frame instead. The frame must arrive within this long after the socket opens, before any audio.
 AUTH_TIMEOUT_S = 5.0
+CLOSE_NO_THREAD, CLOSE_NO_T3 = 4404, 4501
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
@@ -230,7 +238,7 @@ def serve_page(connection, asset, hosts, web_dir):
     return response
 
 
-def authorize(secret, web_dir=WEB_DIR):
+def authorize(secret, web_dir=WEB_DIR, origins=()):
     def check(connection, request):
         if request.headers.get("Upgrade") is None and request.method == "GET":
             asset = WEB_FILES.get(request.path.partition("?")[0])
@@ -238,9 +246,14 @@ def authorize(secret, web_dir=WEB_DIR):
                 return serve_page(connection, asset, request.headers.get_all("Host"), web_dir)
             return connection.respond(HTTPStatus.NOT_FOUND, "not found\n")
         header = request.headers.get(HEADER, "")
-        if request.headers.get("Origin") is not None:
+        origin = request.headers.get("Origin")
+        if origin is not None:
             if header and hmac.compare_digest(header.encode(), secret.encode()):
                 return connection.respond(HTTPStatus.FORBIDDEN, "header auth is not for browsers\n")
+            if origins and origin not in origins and urlsplit(origin).netloc not in request.headers.get_all("Host"):
+                print(f"refused a browser connection from {connection.remote_address[0]}: origin not allowed",
+                      flush=True)
+                return connection.respond(HTTPStatus.FORBIDDEN, "origin not allowed\n")
             return None
         if not hmac.compare_digest(header.encode(), secret.encode()):
             print(f"refused a connection from {connection.remote_address[0]}: bad or missing secret", flush=True)
@@ -321,6 +334,8 @@ def note_for(heard):
 class AudioFrame:
     pcm: bytes
     reply: Reply
+    # The `say` caption for the text this audio carries, sent just before it and dropped with it when the turn is muted.
+    caption: str | None = None
 
 
 @dataclass(frozen=True)
@@ -440,10 +455,11 @@ class Conversation:
     def post(self, message, turn=None):
         self.outbox.put_nowait((turn, json.dumps(message)))
 
-    def post_audio(self, turn, pcm, reply):
+    def post_audio(self, turn, pcm, reply, caption=None):
         step = turn.out_rate * DOWN_CHUNK_MS // 1000 * 2
         for offset in range(0, len(pcm), step):
-            self.outbox.put_nowait((turn, AudioFrame(pcm[offset:offset + step], reply)))
+            self.outbox.put_nowait((turn, AudioFrame(pcm[offset:offset + step], reply, caption)))
+            caption = None
 
     async def _send_loop(self):
         try:
@@ -451,6 +467,8 @@ class Conversation:
                 turn, payload = await self.outbox.get()
                 if isinstance(payload, AudioFrame):
                     if not turn.muted:
+                        if payload.caption is not None:
+                            await self.ws.send(payload.caption)
                         await self.ws.send(payload.pcm)
                         sent = time.perf_counter()
                         turn.first_audio = turn.first_audio or sent
@@ -746,6 +764,8 @@ class Conversation:
         kind = message.get("type")
         if kind == "hello":
             self.mode = "ptt" if message.get("mode") == "ptt" else "vad"
+            if not await self.view_thread(message.get("thread")):
+                return
             self.start_recording(message)
             await self.ws.send(json.dumps({"type": "ready", "mode": self.mode, **vars(self.live.settings),
                                            **self.live.summarisers(), "record": self.call_recording is not None}))
@@ -767,6 +787,20 @@ class Conversation:
             elif self.ptt_down and not down and self.turn is not None:
                 self.end_turn(0, False)
             self.ptt_down = down
+
+    async def view_thread(self, thread_id):
+        """A call opened from a T3 thread starts with that thread in view. One the seam cannot read ends the call, so
+        the caller is never talking about a thread the voice cannot see."""
+        if thread_id is None:
+            return True
+        t3 = self.live.t3
+        if t3 is None:
+            await self.ws.close(CLOSE_NO_T3, "this voice server runs without T3")
+            return False
+        if await asyncio.to_thread(t3.view, str(thread_id), time.monotonic()) is None:
+            await self.ws.close(CLOSE_NO_THREAD, "the voice server cannot see this thread")
+            return False
+        return True
 
     def start_turn(self, pcm, barge_in=False):
         """A new turn starts. A barge-in stops the reply the client is playing. A turn that has spoken and is still
@@ -883,7 +917,7 @@ class Conversation:
         if event.get("type") == "session.created":
             self.out_rate = turn.out_rate = event["session"]["audio"]["output"]["format"]["rate"]
 
-    def speak(self, turn, text, pcm, done):
+    def speak(self, turn, text, pcm, done, relay=False):
         """Send a reply to the client as its audio is released: `reply_start` before the first piece, each piece in
         40 ms frames, and `reply_end` once the reply is `done`. A muted turn sends no more audio but still ends the
         reply it started, so the client is not left waiting for the rest."""
@@ -901,7 +935,10 @@ class Conversation:
             reply.text = text
             reply.pcm += pcm
             self.playback.add(len(pcm) / 2 / turn.out_rate, new_text.strip(), now, turn.n)
-            self.post_audio(turn, pcm, reply)
+            caption = None
+            if new_text.strip():
+                caption = json.dumps({"type": "say", "turn": turn.n, "text": new_text, **({"relay": True} if relay else {})})
+            self.post_audio(turn, pcm, reply, caption)
         if done and turn.speaking:
             turn.speaking = False
             self.post({"type": "reply_end", "turn": turn.n}, turn)
@@ -912,7 +949,7 @@ class Conversation:
         await floor_free(self.voice)
         if turn.muted or (self.sender is not None and self.sender.done()):
             return b"", None
-        self.speak(turn, text, pcm, True)
+        self.speak(turn, text, pcm, True, relay=True)
         reply = turn.replies[-1]
         done = asyncio.get_running_loop().create_future()
         self.outbox.put_nowait((turn, AudioDelivery(done)))
@@ -980,7 +1017,8 @@ class Conversation:
                                     prior_replies=tuple(self.ledger.replies()),
                                     task_service=live.task_service,
                                     send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm),
-                                    is_muted=lambda: turn.muted, reply_check=self.reply_check(turn))
+                                    is_muted=lambda: turn.muted, reply_check=self.reply_check(turn),
+                                    on_heard=lambda text: self.post({"type": "heard", "turn": turn.n, "text": text}))
             # Sound still being judged may continue this turn: until it is known, the turn has not finished.
             await floor_free(self.voice)
         except asyncio.CancelledError:
@@ -1265,7 +1303,8 @@ async def main_async(args):
             live.t3, live.task_service = t3, partial(T3TaskService, t3=t3)
         watcher = asyncio.create_task(watch_lag())
         stack.callback(watcher.cancel)
-        async with serve(live.handler, host, args.port, process_request=authorize(secret), max_size=2 ** 20):
+        async with serve(live.handler, host, args.port,
+                         process_request=authorize(secret, origins=tuple(getattr(args, "allow_origin", ()))), max_size=2 ** 20):
             _, prompt_source = load_persona(args.prompt)
             print(f"llama-server pid {server.proc.pid} healthy after {server.startup_s:.1f} s", flush=True)
             print(f"live server on ws://{host}:{args.port}, prompt: {prompt_source}, records: {out}", flush=True)
@@ -1306,6 +1345,9 @@ def main():
     parser.add_argument("--call-recording", choices=["on", "off"], default="off",
                         help="record each browser call as call-NNN/conversation.wav in --out: the microphone as "
                              "received and the audio the page reported playing, on one timeline (default off)")
+    parser.add_argument("--allow-origin", action="append", default=[], metavar="ORIGIN",
+                        help="a page origin, such as the T3 app's, that may open a browser call; once any is given, "
+                             "pages from other origins than this server's own are refused (repeatable)")
     parser.add_argument("--max-minutes", type=float, default=55.0, help="stop the server after this long")
     parser.add_argument("--stop-file", type=Path, default=STOP_FILE,
                         help="stop when this file appears (default $VOICE_HOME/live/STOP)")

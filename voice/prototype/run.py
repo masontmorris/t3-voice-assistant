@@ -740,7 +740,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
                    recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(),
-                   task_service=None, send_checked=None, is_muted=lambda: False, reply_check=None):
+                   task_service=None, send_checked=None, is_muted=lambda: False, reply_check=None,
+                   on_heard=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -756,6 +757,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     "reply" with the person's words dropped from the snapshot and from the task update (see `without_utterance`), so
     the item still carries the task list, its statuses and its results. "off" sends no machine text at all, whatever
     `eou` and `inject` are. The task service, the tool session and its snapshot are the same in all four.
+
+    `on_heard(text)` gets the turn's final transcript once it is known, before the reply, for live captions.
 
     `speak(text, pcm, done)` takes each piece of reply audio as it is generated, when the caller streams the reply
     itself, as live mode does, and one call with `done` set at the end of each reply (`answer`). The turn writes the
@@ -1005,6 +1008,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             log("asr_final_missing")
             enqueue(adapter.finish())
         await updates_q.join()
+        if on_heard is not None and adapter.text():
+            on_heard(adapter.text())
         service.poll(clock())
         unreviewed = closed.get("unreviewed_speech")
         snapshot = service.snapshot("utt_1", adapter.text(), unreviewed if eou in TOOL_SESSIONS else None)

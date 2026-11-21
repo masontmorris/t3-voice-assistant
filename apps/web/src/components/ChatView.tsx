@@ -344,6 +344,8 @@ import { useProactivePanels } from "../hooks/useProactivePanels";
 import { useIncrementalTimelineEntries } from "../hooks/useIncrementalTimelineEntries";
 import { useRightPanelSurfaceClose } from "../hooks/useRightPanelSurfaceClose";
 import { ComposerBannerStack, type ComposerBannerStackItem } from "./chat/ComposerBannerStack";
+import { VoiceCallStrip } from "./chat/VoiceCallStrip";
+import { toggleVoiceCall } from "../voiceCall/voiceCallStore";
 import { modelFallbackBannerItem } from "./chat/ComposerUsageLimits";
 import { ComposerSurface } from "./chat/ComposerSurface";
 import { resolveThreadSyncPhase } from "../threadSync";
@@ -2812,6 +2814,10 @@ export default function ChatView(props: ChatViewProps) {
       "thread.copyReference": ({ event }) => {
         if (!event.repeat) copyActiveThreadReference();
       },
+      "composer.voiceCall": ({ event }) => {
+        if (serverThreadId === undefined) return false;
+        if (!event.repeat) return toggleVoiceCall(environmentId, serverThreadId);
+      },
       "chat.find": () => {
         if (!isServerThread || serverConfig?.threadFind !== true || activeThreadKey === null)
           return false;
@@ -3666,6 +3672,11 @@ export default function ChatView(props: ChatViewProps) {
                     }
                   >
                     <ChildThreadApprovals threadRef={activeThreadRef} />
+                    <VoiceCallStrip
+                      environmentId={environmentId}
+                      threadId={serverThreadId ?? null}
+                      waitingOnYou={pendingApprovals.length > 0 || pendingUserInputs.length > 0}
+                    />
                     <div className="relative">
                       <ComposerSurface.Shell contextRow={showComposerContextStrip}>
                         <ComposerSurface.Host

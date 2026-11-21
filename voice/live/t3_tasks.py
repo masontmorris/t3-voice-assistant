@@ -327,6 +327,20 @@ class T3Tasks:
             self._drop_question()
             self.withdrawn = None
 
+    def view(self, thread_id: str, now: float) -> str | None:
+        """Open the call on `thread_id`, the thread the caller started it from, as if the call had just spoken about it:
+        "it" means this thread until a line about another one. Its title, or None when the seam cannot read it."""
+        with self.lock:
+            if self._down("", now) is not None:
+                return None
+            try:
+                state = self.follow.seam.read_thread(thread_id)
+            except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
+                return None
+            self.recent = self.spoken_id = state.thread_id
+            self.spoken_of = state.title
+            return state.title
+
     def end_call(self) -> None:
         with self.lock:
             self._drop_question()

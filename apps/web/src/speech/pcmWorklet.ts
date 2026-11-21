@@ -17,10 +17,16 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
   private levelEnergy = 0;
   private level = 0;
   private readonly meterOnly: boolean;
+  private readonly limit: number;
 
-  constructor(options?: { readonly processorOptions?: { readonly meterOnly?: boolean } }) {
+  constructor(options?: {
+    readonly processorOptions?: { readonly meterOnly?: boolean; readonly call?: boolean };
+  }) {
     super();
     this.meterOnly = options?.processorOptions?.meterOnly === true;
+    // A live call streams 40 ms blocks for its endpointer and has no dictation length limit.
+    if (options?.processorOptions?.call === true) this.chunk = new Float32Array(640);
+    this.limit = options?.processorOptions?.call === true ? Infinity : 16_000 * 300;
     this.port.onmessage = ({ data }) => {
       if (data === "start") this.recording = true;
       if (data === "stop") {
@@ -42,7 +48,7 @@ class PcmCaptureProcessor extends AudioWorkletProcessor {
 
   private append(pcm: Float32Array) {
     for (const sample of pcm) {
-      if (this.samples === 16_000 * 300) {
+      if (this.samples === this.limit) {
         this.recording = false;
         // oxlint-disable-next-line unicorn/require-post-message-target-origin -- AudioWorklet MessagePorts do not accept a target origin
         this.port.postMessage("limit");

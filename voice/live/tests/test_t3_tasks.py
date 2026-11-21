@@ -1738,6 +1738,21 @@ class SpokenAbout(unittest.TestCase):
         t3.begin_call()
         self.assertIsNone(t3.spoken_about())
 
+    def test_a_call_opened_on_a_thread_starts_with_it_in_view(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        self.assertEqual(t3.view("t5", 1), "Add a clamp helper")
+        self.assertEqual((t3.spoken_about(), t3.recent), ("Add a clamp helper", "t5"))
+        update = t3.about("k1", ASK, "How is it doing?", 2)
+        self.assertEqual(said(update), [("thread_status", "Add a clamp helper", "working")],
+                         "a question that names no thread is about the one the call opened on, without asking back")
+        seam.answer("read", F.refusal("not_found"))
+        t3.begin_call()
+        self.assertIsNone(t3.view("t9", 3), "a thread the seam cannot read opens nothing")
+        self.assertIsNone(t3.spoken_about())
+
     def test_a_status_asked_again_with_nothing_new_says_so(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
         seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))

@@ -569,6 +569,14 @@ export const ClientSettingsSchema = Schema.Struct({
     Schema.withDecodingDefault(Effect.succeed([])),
   ),
   voiceShortcutMode: VoiceShortcutMode.pipe(Schema.withDecodingDefault(Effect.succeed("auto"))),
+  // Device-local, like the voice server's own page: call audio goes from this device straight to
+  // that server, so its address and secret never pass through a T3 environment.
+  liveVoiceServer: Schema.String.check(Schema.isMaxLength(512)).pipe(
+    Schema.withDecodingDefault(Effect.succeed("")),
+  ),
+  liveVoiceSecret: Schema.String.check(Schema.isMaxLength(512)).pipe(
+    Schema.withDecodingDefault(Effect.succeed("")),
+  ),
   speechLanguage: SpeechLanguage.pipe(Schema.withDecodingDefault(Effect.succeed("auto"))),
   speechTranslateToEnglish: Schema.Boolean.pipe(Schema.withDecodingDefault(Effect.succeed(false))),
   speechCustomWords: SpeechCustomWords.pipe(Schema.withDecodingDefault(Effect.succeed([]))),
@@ -2121,6 +2129,8 @@ export const ClientSettingsPatch = Schema.Struct({
   voiceMicrophone: Schema.optionalKey(Schema.String),
   voiceMicrophones: Schema.optionalKey(Schema.Array(VoiceMicrophoneEntry)),
   voiceShortcutMode: Schema.optionalKey(VoiceShortcutMode),
+  liveVoiceServer: Schema.optionalKey(Schema.String.check(Schema.isMaxLength(512))),
+  liveVoiceSecret: Schema.optionalKey(Schema.String.check(Schema.isMaxLength(512))),
   speechLanguage: Schema.optionalKey(SpeechLanguage),
   speechTranslateToEnglish: Schema.optionalKey(Schema.Boolean),
   speechCustomWords: Schema.optionalKey(SpeechCustomWords),
