@@ -471,17 +471,23 @@ class T3Tasks:
         """What threads are waiting on the person for, up to three, as the decider is shown them: an approval by the
         thread's title and what it asks for in a few words, a question by its text and options. A thread whose request
         only the app can take, or whose question the voice cannot ask (see `answerableQuestions` in the seam), is not
-        listed: the voice cannot answer it. Off the lock: each is a seam read."""
+        listed: the voice cannot answer it. The thread the call was opened on is always among them, since the voice
+        speaks up when it waits. Off the lock: each is a seam read."""
         seam = self.follow.seam
         if seam is None:
             return []
         try:
-            waiting = [t for t in seam.list_threads().threads if t.activity is T.ThreadActivity.WAITING_ON_YOU][:3]
+            listed = [t.thread_id for t in seam.list_threads().threads if t.activity is T.ThreadActivity.WAITING_ON_YOU]
         except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
             return []
+        own = self.following.link.thread_id if self.following is not None else None
+        waiting = ([own] if own is not None else []) + [thread for thread in listed if thread != own]
         found = []
-        for thread in waiting:
-            state = self._read_quiet(thread.thread_id)
+        # The call's own thread reads first and may not be waiting, so it never takes one of the three places.
+        for thread_id in waiting[:3 + (own is not None)]:
+            if len(found) == 3:
+                break
+            state = self._read_quiet(thread_id)
             if state is None or state.pending is None:
                 continue
             if state.pending.kind is T.PendingKind.APPROVAL:

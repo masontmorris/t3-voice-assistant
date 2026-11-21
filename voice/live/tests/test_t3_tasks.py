@@ -2255,7 +2255,7 @@ class CallThreadFollow(unittest.TestCase):
         said = self.news(F.reply(146, message="m2", thread="t5"), F.done(147, thread="t5", run="r2"))
         self.assertEqual(said, [(S.REPLIED, "Add a clamp helper"), (S.DONE, "Add a clamp helper")], "once each")
         self.assertEqual(follow.watching["t5"], self.t3.following.task_id, "the follow takes the watch back")
-        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 147, None), "from a fresh read, past the tell's news")
+        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 147, None), "from where the tell's watch stopped")
 
     def test_the_follow_ends_with_the_call_and_drops_what_it_had_not_said(self):
         self.t3.view("t5", 1)
@@ -2284,3 +2284,51 @@ class CallThreadFollow(unittest.TestCase):
         restarted.resume(5)
         self.assertFalse([c for c in seam.calls if c[0] == "watch"], "no call is open to hear its news")
         self.assertFalse([t for t in restarted.follow.journal.live() if t.kind is Kind.FOLLOW])
+
+    def test_news_after_the_handed_off_task_finishes_is_not_lost_in_the_hand_back(self):
+        self.t3.view("t5", 1)
+        follow = self.t3.follow
+        tell = follow.journal.begin(Kind.TELL, "Add tests too.", "p1", "Voice sandbox", thread_id="t5",
+                                    title="Add a clamp helper")
+        self.seam.answer("send", F.sent(thread="t5", run="r2", sequence=145))
+        follow.send(tell, 2)
+        self.t3.take()
+        # The read when the follow takes the watch back already covers the reply after the finish.
+        self.seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=149)
+        said = self.news(F.done(147, thread="t5", run="r2"), F.reply(148, message="m3", thread="t5"))
+        self.assertEqual(said, [(S.DONE, "Add a clamp helper"), (S.REPLIED, "Add a clamp helper")])
+        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 147, None), "resumed where the handed-off watch stopped")
+
+    def test_a_finish_is_said_once_even_when_the_seam_reconnects_right_after_it(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        t3 = T3Tasks(L.Follow(T3Journal(Path(tmp.name) / "journal.json"), F.Connector(self.seam, self.seam)), None,
+                     F.Reader(READINGS))
+        t3.begin_call()
+        t3.view("t5", 1)
+        self.seam.push(F.done(142, thread="t5"), T.CLOSE_1013)
+        t3.poll(2)
+        self.assertEqual([a.kind for u in t3.take() for a in u.acts], [S.DONE])
+        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 142, None), "the reconnect watches past the finish")
+        self.seam.push(F.done(142, thread="t5"))
+        t3.poll(3)
+        self.assertEqual(t3.take(), [], "a replayed finish is not said again")
+
+    def test_the_calls_own_thread_is_always_among_the_waiting_requests_the_decider_sees(self):
+        waiting = T.ThreadActivity.WAITING_ON_YOU
+        rows = [("t1", "Fix the login page"), ("t2", "Bump the parser"), ("t3", "Tidy the docs"),
+                ("t5", "Add a clamp helper")]
+        self.seam.listing = T.ThreadList(tuple(T.ThreadSummary(tid, "p1", title, waiting, "2026-11-17T10:00:00Z", False)
+                                               for tid, title in rows), 4, False, 77)
+        reads = {tid: F.state(thread=tid, title=title, activity=waiting, pending=F.need(f"q-{tid}"))
+                 for tid, title in rows}
+        self.seam.read = None
+        self.seam.read_thread = lambda tid: reads[tid]
+        self.t3.view("t5", 1)
+        offered = [request["thread"] for request in self.t3.pending_requests()]
+        self.assertIn("Add a clamp helper", offered)
+        self.assertEqual(len(offered), 3, "still at most three")
+        reads["t5"] = F.state(thread="t5", title="Add a clamp helper", activity=waiting)
+        self.assertEqual([request["thread"] for request in self.t3.pending_requests()],
+                         ["Fix the login page", "Bump the parser", "Tidy the docs"],
+                         "a call's thread that waits on nothing leaves the three places to the others")
