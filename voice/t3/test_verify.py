@@ -11,7 +11,7 @@ from pathlib import Path
 from voice.liquid_decider.client import BillingStop, SpendStop
 from voice.t3.acts import NOTHING_NEW, Act, Kind, act
 from voice.t3.speech import Lane, RenderedLine, Speech
-from voice.t3.verify import Decider, Verdict, asks, request
+from voice.t3.verify import Decider, Verdict, act_meaning, asks, request
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "verify_lines.json").read_text(encoding="utf-8"))
 ESCAPES = {"Alpha is complete?", "Alpha has failed.", "Beta is running. Alpha is unrelated."}
@@ -79,6 +79,48 @@ class ConfirmingAnApproval(unittest.TestCase):
     def test_a_denial_without_a_description_is_checked_without_one(self):
         deny = act(Kind.CONFIRM_RESPOND, thread="Add clamp helper", decision="deny", need="command_approval")
         self.assertNotIn("a1_summary", [ask.name for ask in asks([deny])])
+
+
+class DescribingARequest(unittest.TestCase):
+    """What a line says a pending request is about is the gated description or nothing."""
+
+    DESCRIBED = act(Kind.NEEDS_YOU, thread="Add clamp helper", need="command_approval",
+                    request="It wants to write a short note into a file.")
+    KIND_ONLY = act(Kind.NEEDS_YOU, thread="Add clamp helper", need="command_approval")
+    PASSING = {"a1_about": 0.9, "a1_means": 0.9}
+
+    def verdict(self, said, **answers):
+        return Decider(AnsweringAsks({**self.PASSING, **answers})).verify([said], "Add clamp helper needs approval.")
+
+    def test_a_described_line_must_carry_the_description_and_add_nothing(self):
+        names = [ask.name for ask in asks([self.DESCRIBED])]
+        self.assertIn("a1_request", names)
+        self.assertIn("a1_request_adds", names)
+        self.assertIn("a1_reads_out", names)
+        self.assertNotIn("a1_kind_only", names)
+        self.assertTrue(self.verdict(self.DESCRIBED, a1_request=0.9).passed)
+        left_out = self.verdict(self.DESCRIBED, a1_request=0.1)
+        self.assertEqual(left_out.failed, ("a1_request",))
+        added = self.verdict(self.DESCRIBED, a1_request=0.9, a1_request_adds=0.9)
+        self.assertEqual(added.failed, ("a1_request_adds",))
+        read_out = self.verdict(self.DESCRIBED, a1_request=0.9, a1_reads_out=0.9)
+        self.assertEqual(read_out.failed, ("a1_reads_out",))
+
+    def test_a_line_with_no_description_says_only_the_kind_of_request(self):
+        self.assertEqual([ask.name for ask in asks([self.KIND_ONLY]) if ask.name.startswith("a1_k")], ["a1_kind_only"])
+        self.assertTrue(self.verdict(self.KIND_ONLY).passed)
+        invented = self.verdict(self.KIND_ONLY, a1_kind_only=0.9)
+        self.assertEqual(invented.failed, ("a1_kind_only",))
+        self.assertIn("kind of thing", invented.problems[0])
+
+    def test_a_thread_with_no_title_is_asked_about_as_the_one_started_for_them(self):
+        said = act(Kind.NEEDS_YOU, begun_in="Voice sandbox", need="command_approval")
+        self.assertIn("started for them in Voice sandbox", act_meaning(said))
+        self.assertNotIn("a1_about", [ask.name for ask in asks([said])])
+
+    def test_no_other_thread_is_what_the_act_means(self):
+        self.assertIn("no other thread", act_meaning(act(Kind.NO_THREAD, other=True)))
+        self.assertIn("9 recent threads", act_meaning(act(Kind.NO_THREAD, recent=9)))
 
 
 class OptionsAndAnswers(unittest.TestCase):
