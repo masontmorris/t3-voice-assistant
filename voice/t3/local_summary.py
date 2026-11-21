@@ -5,6 +5,9 @@ worked examples on made-up threads, at most 20 words asked for, the model card's
 `gist` cannot hold markdown or code characters. The examples teach how to read a record; none is ever spoken. The
 gate asks the local d1-2B whether the last reply and status support the gist; when they may not, the gist is
 dropped and the voice says the thread's status with no summary.
+
+An approval's description is a different job: the source is the request, not a reply, and an omission is the danger,
+so it has its own prompt, its own gate question and its own bar (`request_messages`, `request_gate`).
 """
 
 from __future__ import annotations
@@ -180,3 +183,81 @@ def gate_request(state: T.ThreadState, gist: str) -> dict:
 def unsupported(record: dict[str, Any]) -> float | None:
     """The gate's P(the gist is unsupported), or None when the decider gave no valid answer, which drops the gist."""
     return noul(record, "unsupported")
+
+
+# What approving a request lets a thread do. The request is shown as JSON with its own field names and no thread
+# title, which the summariser borrowed facts from; the last reply is left out. Examples are made-up requests as chat
+# turns and teach how to read one, never wording to be spoken.
+REQUEST_KINDS = {T.NeedSource.COMMAND: "a shell command", T.NeedSource.FILE_CHANGE: "a change to a file",
+                 T.NeedSource.FILE_READ: "a file to read", T.NeedSource.PERMISSION: "permission to use a tool"}
+REQUEST_SYSTEM = ("You help a voice assistant tell a person what they would be approving. A coding agent asks "
+                  "permission to do one thing. The request is JSON: `kind` is what sort of request it is and `text` "
+                  "is the request as the agent wrote it. Say in one plain spoken sentence of at most 20 words what "
+                  "approving it lets the agent do. Say every effect it has, and say plainly when it deletes, "
+                  "overwrites or publishes something. Use only what the request says. Describe code, file names and "
+                  "paths in words; never repeat them.")
+REQUEST_ADJACENT = "Say what approving this request lets the agent do, in one plain spoken sentence of at most 20 words."
+REQUEST_EXAMPLES = (
+    ({"kind": "a shell command", "text": "rm -f session.lock && ./start-server.sh"},
+     "It wants to delete a lock file and then start the server."),
+    ({"kind": "a shell command", "text": "ls -la src | head"},
+     "It wants to list the first few files in the source folder."),
+    ({"kind": "a change to a file", "text": "Rename function getUser to fetchUser in lib/users.ts"},
+     "It wants to rename one function in a users file."),
+    ({"kind": "permission to use a tool", "text": "mcp__notes__append_note"},
+     "It wants to use the append note tool from the notes server."),
+)
+# The grammar leaves out slashes, colons, equals signs and the other characters a path, URL or flag is made of, so the
+# model cannot read one out. Without it, 24 of 30 baseline descriptions carried a literal command or path.
+REQUEST_SCHEMA = {"type": "object",
+                  "properties": {"gist": {"type": "string", "pattern": "^[A-Za-z0-9 ,.'-]+$", "maxLength": 220}},
+                  "required": ["gist"], "additionalProperties": False}
+_REQUEST_SPOKEN = re.compile(REQUEST_SCHEMA["properties"]["gist"]["pattern"])
+
+REQUEST_GATE_CONTEXT = ("A voice assistant will tell a person what approving a coding agent's `request` would let the "
+                        "agent do, in `description`. The person will say yes on the strength of it alone, so it must "
+                        "not leave out or soften anything that deletes, overwrites, installs, publishes or sends.")
+REQUEST_GATE_QUESTION = "Is `description` an accurate and complete account of what `request` would do?"
+# Chosen on the seen made-up requests (docs/voice/live-reply-check.md): the lowest score of a misleading description
+# there was 0.129, a harmless-sounding account of a deletion, so a bar above that lets it through.
+REQUEST_THRESHOLD = 0.10
+
+
+def describes_request(state: T.ThreadState) -> bool:
+    """A thread read with no reply and an approval waiting: the description of what approving it would do."""
+    return state.last_reply is None and state.pending is not None and state.pending.kind is T.PendingKind.APPROVAL
+
+
+def request_view(state: T.ThreadState) -> dict:
+    return {"kind": REQUEST_KINDS.get(state.pending.source, "a request"), "text": state.pending.prompt}
+
+
+def request_messages(state: T.ThreadState) -> list[dict]:
+    def asked(request: dict) -> str:
+        return f"{json.dumps({'request': request})}\n\n{REQUEST_ADJACENT}"
+
+    out = [{"role": "system", "content": REQUEST_SYSTEM}]
+    for request, description in REQUEST_EXAMPLES:
+        out += [{"role": "user", "content": asked(request)},
+                {"role": "assistant", "content": json.dumps({"gist": description})}]
+    out.append({"role": "user", "content": asked(request_view(state))})
+    return out
+
+
+def read_description(text: str) -> str | None:
+    """`read_gist` with the narrower character set the description's schema allows, as the last check."""
+    gist = read_gist(text)
+    return gist if gist is not None and _REQUEST_SPOKEN.fullmatch(gist) else None
+
+
+def request_gate(state: T.ThreadState, description: str) -> dict:
+    return {"model": "d1.2", "state": {"context": REQUEST_GATE_CONTEXT, "request": request_view(state),
+                                       "description": description},
+            "questions": {"accurate": {"type": "noul", "instructions": REQUEST_GATE_QUESTION,
+                                       "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
+def doubt(record: dict[str, Any]) -> float | None:
+    """The gate's P(the description is not accurate and complete), or None when the decider gave no valid answer."""
+    accurate = noul(record, "accurate")
+    return None if accurate is None else 1 - accurate

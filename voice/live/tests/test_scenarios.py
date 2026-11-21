@@ -92,6 +92,34 @@ class Approval(unittest.TestCase):
         self.assertEqual(failed(S.claims_approval(call(turns, self.world("approval"), Yes(0.1)), "x", tuple(turns))), [])
 
 
+class RespondByVoice(unittest.TestCase):
+    def held(self, build, kinds, waiting, described=True, asked=True):
+        plan = build(S.Pool())
+        title = plan.seeds[0].title
+        plan.notes.update(asked=asked, described=described)
+        turns = [turn(0, kinds[0]), turn(1, kinds[1])]
+        return plan.check(call(turns, {"seeded": {title: {"waiting_on": waiting}}, "made": {}}))
+
+    def test_an_approval_needs_a_confirmation_with_a_description_a_yes_that_is_answered_and_a_cleared_request(self):
+        confirm, said = [Kind.CONFIRM_RESPOND], [Kind.RESPONDED]
+        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, said), None)), [])
+        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, said), "approval")),
+                         ["T3 no longer holds the request"])
+        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, said), None, described=False)),
+                         ["the confirmation described the request"])
+        self.assertEqual(failed(self.held(S.approve_waiting, (confirm, []), None)),
+                         ["the yes was answered by saying the answer was sent"])
+
+    def test_a_request_sent_to_the_app_fails_the_confirmation_and_its_checks_are_preconditions(self):
+        found = self.held(S.approve_waiting, ([Kind.NEEDS_THE_APP], []), "approval", asked=False)
+        self.assertEqual(failed(found)[0], "the answer was confirmed back")
+        self.assertTrue(all(v.precondition for v in found[1:]))
+
+    def test_a_denial_needs_no_description(self):
+        found = self.held(S.deny_waiting, ([Kind.CONFIRM_RESPOND], [Kind.RESPONDED]), None, described=False)
+        self.assertEqual(failed(found), [])
+
+
 class Lines(unittest.TestCase):
     def test_every_thread_turn_needs_a_said_line_and_a_refused_one_fails(self):
         plan = S.thread_lines(S.Pool())

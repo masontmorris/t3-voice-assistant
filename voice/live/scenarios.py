@@ -396,6 +396,56 @@ def news_permission(pool: Pool) -> Plan:
     return Plan((), lines, script(), check, launch="approval", notes=notes)
 
 
+# A thread waits on a command's approval and the caller answers it by voice: the assistant confirms what that request
+# would do (an approval with a description of it), only the yes sends the answer, and T3 no longer holds the request.
+# The thread is seeded, not started by the call: a started thread's launch confirmation is lost to DISPATCH_YES before
+# the approval is reached.
+def respond_waiting(decision: str):
+    approving = decision == "approve"
+
+    def build(pool: Pool) -> Plan:
+        spoken, title = pool.single()
+        lines = {"answer": f"Please approve the request on the {spoken} thread." if approving
+                 else f"No, don't allow the request on the {spoken} thread. Deny it.", "confirm": "Yes, do it."}
+        notes = {"asked": False, "described": False}
+
+        def script():
+            heard = yield Say("answer")
+            last = heard.turns[-1] if heard.turns else None
+            notes["asked"] = bool(last and last.said(Kind.CONFIRM_RESPOND))
+            notes["described"] = bool(last and any(e.get("summary") for e in last.t3
+                                                   if Kind.CONFIRM_RESPOND in e["kinds"]))
+            if notes["asked"]:
+                yield Say("confirm")
+
+        def check(call: Call) -> list[Verdict]:
+            turns = call.caller_turns()
+            thread = call.world["seeded"].get(title, {})
+            answered = [t for t in turns[1:] if t.said(Kind.RESPONDED)]
+            to_the_app = [t for t in turns if t.said(Kind.NEEDS_THE_APP)]
+            asked = ok("the answer was confirmed back", notes["asked"],
+                       "the assistant said this one has to be answered in the app" if to_the_app
+                       else "no confirmation of the answer was said", 0)
+            after = "precondition: no confirmation of the answer was said"
+            out = [asked]
+            if approving:
+                out.append(requires(ok("the confirmation described the request", notes["described"],
+                                       "the confirmation carried no description of the request", 0), asked.ok, after))
+            out += [requires(ok("the yes was answered by saying the answer was sent", bool(answered),
+                                "no line said the request was answered", 1), asked.ok, after),
+                    requires(ok("T3 no longer holds the request", thread.get("waiting_on") is None,
+                                f"the thread still waits on {thread.get('waiting_on')}"),
+                             asked.ok and len(turns) >= 2, "precondition: the caller did not answer a confirmation")]
+            return out
+
+        return Plan((pending(title),), lines, script(), check, notes=notes)
+
+    return build
+
+
+approve_waiting, deny_waiting = respond_waiting("approve"), respond_waiting("deny")
+
+
 # The caller speaks over a reply: it stops, and the new words are answered.
 def speak_over(pool: Pool) -> Plan:
     spoken, title = pool.single()
@@ -527,6 +577,9 @@ SCENARIOS = (
     # The scenarios that start threads come after, each run on a T3 and a live server of its own.
     Scenario("news-permission", "a started thread's need for permission is said unprompted, once, and not approved",
              news_permission, 2, 1, fresh=True),
+    Scenario("approve-waiting", "a thread's command approval is approved by voice after a description of it",
+             approve_waiting, 2, 1, fresh=True),
+    Scenario("deny-waiting", "a thread's command approval is denied by voice", deny_waiting, 2, 1, fresh=True),
     Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
     Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
     Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),

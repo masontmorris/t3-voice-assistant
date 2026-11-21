@@ -214,21 +214,28 @@ class LocalText:
 
     def summarise(self, state: T.ThreadState, question: str | None) -> dict:
         """The thread's gist as measured for this model: S11's prompt, JSON out, then the gate. `text` is empty when
-        the model wrote no gist or the gate did not pass it, so the status is said without a summary."""
-        record = self._chat({"messages": LS.messages(state, question), "max_tokens": LS.MAX_TOKENS, **LS.SAMPLING,
-                             "response_format": {"type": "json_schema", "json_schema": {"schema": LS.GIST_SCHEMA}}},
+        the model wrote no gist or the gate did not pass it, so the status is said without a summary. A pending
+        approval with no reply to read is described from the request itself, with its own prompt, gate and bar."""
+        request = LS.describes_request(state)
+        messages = LS.request_messages(state) if request else LS.messages(state, question)
+        schema = LS.REQUEST_SCHEMA if request else LS.GIST_SCHEMA
+        record = self._chat({"messages": messages, "max_tokens": LS.MAX_TOKENS, **LS.SAMPLING,
+                             "response_format": {"type": "json_schema", "json_schema": {"schema": schema}}},
                             timeout_s=LS.CHAT_TIMEOUT_S)
-        gist = LS.read_gist(record["text"])
-        unsupported = self._unsupported(state, gist) if gist else None
-        kept = unsupported is not None and unsupported < LS.GATE_THRESHOLD
+        gist = (LS.read_description if request else LS.read_gist)(record["text"])
+        unsupported = self._unsupported(state, gist, request) if gist else None
+        bar = LS.REQUEST_THRESHOLD if request else LS.GATE_THRESHOLD
+        kept = unsupported is not None and unsupported < bar
         return {**record, "text": gist if kept else "", "gist": gist, "unsupported": unsupported}
 
-    def _unsupported(self, state: T.ThreadState, gist: str) -> float | None:
+    def _unsupported(self, state: T.ThreadState, gist: str, request: bool = False) -> float | None:
         """The gate's answer, or None when the local d1-2B cannot give one, which drops the gist."""
         from voice.local_decider.client import D1Client
         if self._gate is None:
             self._gate = D1Client(self.gate_url, timeout_s=LS.GATE_TIMEOUT_S)
         try:
+            if request:
+                return LS.doubt(self._gate.call("decisions", LS.request_gate(state, gist), label="request_gate"))
             return LS.unsupported(self._gate.call("decisions", LS.gate_request(state, gist), label="summary_gate"))
         except Exception:
             return None

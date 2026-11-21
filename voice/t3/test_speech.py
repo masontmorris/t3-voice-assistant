@@ -4,6 +4,7 @@ pass the slot check or are not returned."""
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import threading
 import unittest
@@ -240,6 +241,8 @@ class LocalTextTest(unittest.TestCase):
                     if held is not None:
                         held.wait(30)
                     name, p = ("answers", p_reuse) if "answers" in body["questions"] else ("unsupported", p_unsupported)
+                    if "accurate" in body["questions"]:
+                        name, p = "accurate", 1 - p_unsupported
                     reply = {"answers": {name: {"type": "noul", "noul": p}}}
                 elif self.path == "/v1/chat/completions":
                     body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
@@ -276,6 +279,26 @@ class LocalTextTest(unittest.TestCase):
                          (0.1, 50, 1.1, 60))
         self.assertEqual(sent["response_format"]["json_schema"]["schema"], LS.GIST_SCHEMA)
         self.assertEqual(server.gated[-1]["state"]["gist"], "It says all 12 tests pass.")
+
+    def test_a_pending_approval_is_described_from_the_request_with_its_own_prompt_gate_and_bar(self):
+        waiting = F.state(thread="t5", title="Clear the build folder", activity=T.ThreadActivity.WAITING_ON_YOU,
+                          pending=F.need("q1", "rm -rf dist && pnpm build"))
+        for p_unsupported, spoken in ((0.04, True), (0.4, False)):
+            local, server = self.summariser(p_unsupported)
+            record = local.summarise(waiting, "What would approving this request let the thread do?")
+            sent = server.bodies[-1]
+            self.assertEqual(sent["messages"], LS.request_messages(waiting))
+            self.assertEqual(sent["response_format"]["json_schema"]["schema"], LS.REQUEST_SCHEMA)
+            self.assertNotIn("Clear the build folder", json.dumps(sent["messages"][-1]), "the title is not shown")
+            self.assertEqual(server.gated[-1]["state"], LS.request_gate(waiting, record["gist"])["state"])
+            self.assertEqual(record["text"], "It says all 12 tests pass." if spoken else "")
+        local, server = self.summariser(0.11)
+        self.assertEqual(local.summarise(waiting, None)["text"], "", "0.11 is over the approval bar of 0.10")
+        replied = dataclasses.replace(waiting, last_reply=REPLY)
+        local, server = self.summariser(0.11)
+        local.summarise(replied, "Is it done?")
+        self.assertEqual(server.bodies[-1]["messages"], LS.messages(replied, "Is it done?"),
+                         "a thread with a reply to read keeps the summary prompt")
 
     def test_the_local_summariser_asks_its_own_gate_whether_an_earlier_gist_answers(self):
         local, server = self.summariser(0.02, p_reuse=0.99)
