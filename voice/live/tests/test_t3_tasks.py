@@ -2512,6 +2512,11 @@ class LaunchedThreads(unittest.TestCase):
             self.assertNotIn("rm -rf", json.dumps(need.slots), "the stored command is never said")
             if "request" in need.slots:
                 self.assertIn(need.slots["request"], [d for _, d in gate.asked], "only a description the gate passed")
+        t3.spoke(L.Update("k2", (act(S.NEEDS_YOU, thread=lantern, need="command_approval"),), "completed",
+                          thread_id="t8"))
+        self.assertEqual(t3.spoken_id, "t8")
+        t3.spoke(news[-1])
+        self.assertEqual((t3.spoken_id, t3.recent), ("t7", "t7"), "said as this thread, it is \"it\" again")
         t3.end_call()
         self.assertEqual(self.slots(t3, "t7", pantry)["begun_for"], "sorting the pantry list",
                          "after the call the launch is named by what it was started for again")
