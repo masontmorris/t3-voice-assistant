@@ -2,10 +2,12 @@
 
 import asyncio
 import json
+import subprocess
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import numpy as np
 import soundfile as sf
@@ -53,18 +55,20 @@ class Withdrawn(unittest.TestCase):
 
     def test_a_call_that_moves_on_passes(self):
         plan = self.plan()
-        turns = [turn(i, free=("Sure.",)) for i in range(1, 5)]
+        turns = [turn(1, cancelled="continued"), *(turn(i, free=("Sure.",)) for i in range(2, 6))]
         self.assertEqual(failed(plan.check(self.held(*turns))), [])
 
     def test_the_old_choices_offered_again_fail_on_the_thread_line_and_on_the_judged_reply(self):
         plan = self.plan()
         repeat = [turn(1, [Kind.ASK_WHICH]), turn(2, free=("Which one?",))]
         found = failed(plan.check(call([turn(0, [Kind.ASK_WHICH]), *repeat], judge=Yes(0.9))))
-        self.assertEqual(found, ["no thread line after the withdrawal", "no free reply offers the old choices"])
+        self.assertEqual(found, ["no which-thread question after the withdrawal", "no free reply offers the old choices"])
 
     def test_a_call_whose_first_turn_asked_nothing_fails_its_precondition(self):
         plan = self.plan()
-        self.assertEqual(failed(plan.check(call([turn(0, [Kind.THREAD_STATUS])]))), ["asked a thread question"])
+        found = plan.check(call([turn(0, [Kind.THREAD_STATUS])]))
+        self.assertEqual(failed(found)[0], "asked a thread question")
+        self.assertTrue(all(v.precondition for v in found[1:]))
 
 
 class Approval(unittest.TestCase):
@@ -109,9 +113,9 @@ class FollowUp(unittest.TestCase):
         city = S.CITIES[0]
         first = turn(0, tools=[self.lookup(city, "2026-11-21")])
         self.assertEqual(failed(plan.check(call([first, turn(1, tools=[self.lookup(city, "2026-11-27")])]))), [])
-        self.assertEqual(len(failed(plan.check(call([first, turn(1, tools=[self.lookup("Paris", "2026-11-27")])])))), 1)
+        self.assertEqual(len(failed(plan.check(call([first, turn(1, tools=[self.lookup("Paris", "2026-11-27")])])))), 3)
         self.assertEqual(len(failed(plan.check(call([first, turn(1, tools=[self.lookup(city, "2026-11-20")])])))), 1)
-        self.assertEqual(len(failed(plan.check(call([first, turn(1)])))), 2)
+        self.assertEqual(len(failed(plan.check(call([first, turn(1)])))), 3)
 
 
 class Silence(unittest.TestCase):
@@ -161,13 +165,13 @@ class LongSet(unittest.TestCase):
 
     def test_news_of_the_end_is_said_once(self):
         plan = S.news_done(S.Pool())
-        plan.notes["confirmed"] = True
+        plan.notes.update(confirmed=True, timed_out=False)
         world = {"seeded": {}, "made": {"t": {"activity": "finished"}}}
         said = [turn(0), turn(1, [Kind.DONE], idle=True)]
         self.assertEqual(failed(plan.check(call(said, world))), [])
         self.assertEqual(failed(plan.check(call([turn(0)], world))), ["the assistant said it finished, unprompted"])
         twice = [*said, turn(2, [Kind.DONE], idle=True)]
-        self.assertEqual(failed(plan.check(call(twice, world))), ["it said the run ended once"])
+        self.assertEqual(failed(plan.check(call(twice, world))), ["no duplicate done notices"])
 
 
 class FalseStart(unittest.TestCase):
@@ -208,12 +212,8 @@ class Gate(unittest.TestCase):
         return S.Scenario("x", "w", lambda pool: None, runs, passes)
 
     def table(self, results, passes=1, known=()):
-        S.KNOWN.clear()
-        S.KNOWN.update({("x", check): "a fault" for check in known})
-        try:
+        with patch.object(S, "KNOWN", {("x", check): "a fault" for check in known}):
             return S.rows({"x": results}, [self.sc(passes, len(results))])
-        finally:
-            S.KNOWN.clear()
 
     def test_green_for_a_pass_and_red_for_a_fail(self):
         self.assertEqual((self.table([result("x", True)])[0][0][1], self.table([result("x", True)])[1]), ("PASS", True))
@@ -237,6 +237,114 @@ class Gate(unittest.TestCase):
         self.assertEqual(self.table(two[:2], passes=2)[0][0][1], "FAIL")
         broken = self.table([result("x", False, error="RuntimeError: the server died")])
         self.assertEqual((broken[0][0][1], broken[1]), ("ERROR", False))
+
+    def test_an_error_followed_by_a_clean_run_still_fails_the_scenario(self):
+        runs = [result("x", False, "RuntimeError: the server died"), result("x", True)]
+        table, green = self.table(runs, known=["c"])
+        self.assertEqual((table[0][1], green), ("ERROR", False))
+        self.assertIn("the server died", table[0][6])
+
+    def test_withdrawn_question_has_no_retry_to_hide_an_unmarked_failure(self):
+        scenario = next(sc for sc in S.SCENARIOS if sc.id == "withdrawn-question")
+        self.assertEqual((scenario.passes, scenario.runs), (1, 1))
+
+    def test_skipping_a_confirmation_leaves_a_failed_unmarked_precondition(self):
+        for build in (S.news_permission, S.short_yes, S.news_done, S.short_yes_tell):
+            with self.subTest(scenario=build.__name__):
+                scenario = next(sc for sc in S.SCENARIOS if sc.build == build)
+                plan = build(S.Pool())
+                next(plan.script)
+                with self.assertRaises(StopIteration):
+                    while True:
+                        plan.script.send(R.Heard((turn(0),), None, False))
+                held = call([turn(0), turn(1)] if build == S.short_yes else [turn(0)])
+                verdicts = plan.check(held)
+                self.assertTrue(any(not v.ok and (scenario.id, v.check) not in S.KNOWN for v in verdicts))
+                self.assertTrue(any(v.precondition and not v.ok for v in verdicts))
+                run = Result(scenario.id, 1, tuple(verdicts), (), 0, 0, 0)
+                table, green = S.rows({scenario.id: [run]}, [scenario])
+                self.assertEqual((table[0][1], green), ("FAIL", False))
+
+    def run_call(self, out, play, judge=None, build=S.approval, sid="approval-claim"):
+        world = Mock()
+        world.titles.return_value = {}
+        world.snapshot.return_value = {"seeded": {"x": {"waiting_on": "approval"}}, "made": {}}
+        rig = Mock(out=out)
+        rig.render.return_value = [None] * 5
+        with patch.object(R, "hold_call", side_effect=play), patch.object(S.time, "sleep"):
+            return S.run_once(S.Scenario(sid, "", build), 1, world, rig, judge or Yes(0.0), S.Pool(), out, 0)
+
+    def test_a_missing_or_unreadable_completed_turn_is_an_error(self):
+        for record in (None, "broken JSON", "{}", '{"clip":"turn_002","error":"model server died"}'):
+            with self.subTest(record=record), tempfile.TemporaryDirectory() as tmp:
+                out = Path(tmp)
+                server = out / "server"
+                server.mkdir()
+                (server / "turn_001.json").write_text('{"clip":"turn_001"}', encoding="utf-8")
+                if record is not None:
+                    (server / "turn_002.json").write_text(record, encoding="utf-8")
+
+                def play(_rig, _script, _clips, load, *_):
+                    load(1)
+                    load(2)
+
+                run = self.run_call(out, play)
+                self.assertIsNotNone(run.error)
+                self.assertIn("turn_002.json", run.error)
+
+    def test_unanswered_judge_questions_are_errors_even_for_marked_checks(self):
+        cases = [(S.approval, "approval-claim", "It's approved."),
+                 (S.withdrawn, "withdrawn-question", "Which one?"),
+                 (S.withdrawn_launch, "withdrawn-launch", "I'm starting it now.")]
+        for build, sid, reply in cases:
+            for response in (TimeoutError("hosted judge timed out"), {"status": 200, "response": {}}):
+                with self.subTest(scenario=sid, response=response), tempfile.TemporaryDirectory() as tmp:
+                    out = Path(tmp)
+                    (out / "server").mkdir()
+
+                    def play(_rig, _script, _clips, load, *_):
+                        for n in range(1, 6 if build == S.withdrawn else 5):
+                            name = f"turn_{n:03d}"
+                            record = {"clip": name, "replies": [{"text": reply}] if n == 2 else [], "timeline": []}
+                            if n == 1:
+                                kind = Kind.ASK_WHICH if build == S.withdrawn else Kind.CONFIRM_LAUNCH
+                                record["timeline"] = [{"kind": "t3_words", "acts": [{"kind": kind}]},
+                                                      {"kind": "t3_delivery", "delivery": "sent"}]
+                            (out / "server" / f"{name}.json").write_text(json.dumps(record), encoding="utf-8")
+                            load(n)
+
+                    client = Mock()
+                    if isinstance(response, Exception):
+                        client.call.side_effect = response
+                    else:
+                        client.call.return_value = response
+                    run = self.run_call(out, play, Judge(client), build, sid=sid)
+                    table, green = S.rows({sid: [run]}, [S.Scenario(sid, "", build)])
+                    self.assertEqual((table[0][1], green), ("ERROR", False))
+                    self.assertIn("judge", run.error.lower())
+
+    def test_a_live_shutdown_timeout_still_stops_t3_and_is_reported(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            args = SimpleNamespace(out=Path(tmp), long=False, only=None, spread=None, port=0, lfm_port=0,
+                                   max_minutes=1)
+            world = Mock()
+            rig = R.Rig(args.out / "live", args.port, args.max_minutes)
+            rig.__enter__ = Mock(return_value=rig)
+            rig.child = Mock()
+            rig.child.poll.return_value = None
+            rig.child.wait.side_effect = [subprocess.TimeoutExpired("live child", 30),
+                                          subprocess.TimeoutExpired("live child", 15), 0]
+            with (patch.object(S, "SCENARIOS", (self.sc(),)), patch.object(S, "World", return_value=world),
+                  patch.object(R, "Rig", return_value=rig), patch.object(S, "default_decider", return_value=True),
+                  patch.object(S.lc, "use_cache"), patch.object(S, "ledger", return_value=[]),
+                  patch.object(S, "run_once", return_value=result("x", True)), patch.object(S, "show") as show):
+                try:
+                    status = S.gate(args)
+                finally:
+                    world.down.assert_called_once()
+            rig.child.kill.assert_called_once()
+            self.assertEqual(status, 1)
+            self.assertEqual(show.call_args.args[0][0][1], "ERROR")
 
 
 class FakeServer:

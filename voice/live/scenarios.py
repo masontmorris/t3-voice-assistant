@@ -30,7 +30,7 @@ import json
 import os
 import sys
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Callable, Generator
 
@@ -133,6 +133,10 @@ def ok(check: str, condition: bool, why: str, turn: int | None = None) -> Verdic
     return Verdict(check, bool(condition), "" if condition else why, None if condition else turn)
 
 
+def requires(verdict: Verdict, condition: bool, why: str) -> Verdict:
+    return verdict if condition else Verdict(verdict.check, False, why, verdict.turn, precondition=True)
+
+
 def nth(turns: tuple[Turn, ...], i: int) -> Turn | None:
     return turns[i] if i < len(turns) else None
 
@@ -182,11 +186,14 @@ def withdrawn(pool: Pool) -> Plan:
         turns = call.caller_turns()
         after = turns[1:]
         offers = [t for t in after if t.said_kinds & set(ABOUT_A_THREAD)]
-        out = [ok("asked a thread question", turns and turns[0].said(*ASKING),
-                  "the assistant asked no question about a thread, so there was nothing to withdraw", 0),
-               ok("no thread line after the withdrawal", not offers,
-                  f"turn {offers[0].index} said {sorted(offers[0].said_kinds)} about a thread" if offers else "",
-                  offers[0].index if offers else None)]
+        asked = ok("asked a thread question", turns and turns[0].said(*ASKING),
+                   "the assistant asked no question about a thread, so there was nothing to withdraw", 0)
+        questions = [t for t in offers if t.said(Kind.ASK_WHICH)]
+        other_lines = [t for t in offers if t.said_kinds & (set(ABOUT_A_THREAD) - {Kind.ASK_WHICH})]
+        out = [ok("no which-thread question after the withdrawal", not questions, "asked which thread again",
+                  questions[0].index if questions else None),
+               ok("no other thread line after the withdrawal", not other_lines, "said another line about a thread",
+                  other_lines[0].index if other_lines else None)]
         repeated = None
         for t in after:
             for line in t.free:
@@ -195,9 +202,11 @@ def withdrawn(pool: Pool) -> Plan:
                     repeated = (t.index, line)
         out.append(ok("no free reply offers the old choices", repeated is None,
                       f"turn {repeated[0]} offered the choices again" if repeated else "", repeated[0] if repeated else None))
-        silent = [t for t in after if not has_reply(t) and not t.t3]
-        out.append(ok("every turn is answered", not silent, "a turn got no reply", silent[0].index if silent else None))
-        return out
+        silent = [t for t in after if t.cancelled != "continued" and not has_reply(t) and not t.t3]
+        out.append(ok("every completed turn was answered", not silent, "a turn got no reply",
+                      silent[0].index if silent else None))
+        return [asked, *(requires(v, asked.ok and bool(after), "precondition: no thread question was withdrawn")
+                         for v in out)]
 
     return Plan((finished(one), finished(two), finished(other)), lines, script(), check)
 
@@ -237,7 +246,9 @@ def approval(pool: Pool) -> Plan:
         yield Say("check")
 
     def check(call: Call) -> list[Verdict]:
-        return claims_approval(call, title, call.caller_turns()[1:])
+        turns = call.caller_turns()[1:]
+        return [requires(v, len(turns) >= 2, "precondition: the approval and follow-up turns were not completed")
+                for v in claims_approval(call, title, turns)]
 
     return Plan((pending(title),), lines, script(), check)
 
@@ -288,11 +299,14 @@ def short_yes(pool: Pool) -> Plan:
     def check(call: Call) -> list[Verdict]:
         made = len(call.world["made"])
         said = [t for t in call.caller_turns() if t.said(Kind.LAUNCHED)]
-        return [ok("each request was confirmed back", all(notes["asked"]) and len(notes["asked"]) == 2,
-                   f"asked to confirm {sum(notes['asked'])} of 2 requests"),
-                ok("each yes to a confirmation started a thread", made == len(notes["answered"]) == sum(notes["answered"]),
-                   f"{len(notes['answered'])} requests were confirmed, {made} threads exist and "
-                   f"{sum(notes['answered'])} yeses were told a thread started"),
+        confirmed = notes["asked"] == [True, True]
+        return [ok("each request was confirmed back", confirmed, f"asked to confirm {sum(notes['asked'])} of 2 requests"),
+                requires(ok("each yes to a confirmation started a thread", made >= 2, f"{made} threads exist after two yeses"),
+                         confirmed, "precondition: both confirmations must be asked before the caller can say yes"),
+                requires(ok("each started thread was acknowledged", sum(notes["answered"]) >= made,
+                            f"{sum(notes['answered'])} of {made} thread starts were acknowledged"),
+                         confirmed, "precondition: both confirmations must be asked before the caller can say yes"),
+                ok("no extra thread was started", made <= 2, f"{made} threads exist after two requests"),
                 ok("no line says a thread started that did not", len(said) <= made,
                    f"{len(said)} lines said a thread started, {made} exist"), no_false_start(call)]
 
@@ -323,13 +337,19 @@ def follow_up(pool: Pool) -> Plan:
         first_run = weather[0][0] if turns and weather[0] else None
         second_run = weather[1][0] if len(turns) > 1 and weather[1] else None
         first, second = (r["arguments"] if r else None for r in (first_run, second_run))
-        return [ok("the first question ran a forecast for the city", first is not None
+        out = [ok("the first question ran a forecast for the city", first is not None
                    and city.lower() in str(first.get("place", "")).lower(), f"the forecast ran with {first}", 0),
                 ok("the follow-up kept the place", second is not None
                    and city.lower() in str(second.get("place", "")).lower(),
-                   f"the follow-up ran {second}" if second else "the follow-up ran no forecast", 1),
-                ok("the follow-up's forecast is for a week from today", forecast_days(first_run, second_run) == 6,
-                   f"the follow-up's forecast is {forecast_days(first_run, second_run)} days after the first, not 6", 1)]
+                   f"the follow-up ran {second}" if second else "the follow-up ran no forecast", 1)]
+        days = forecast_days(first_run, second_run)
+        fell_back_to_today = days == -1 and second.get("when") == "today"
+        ready = all(v.ok for v in out) and days is not None
+        out.extend(requires(v, ready, "precondition: both forecasts must return dates for the requested city") for v in (
+            ok("the follow-up did not fall back to today", not fell_back_to_today, "the tool ran today's forecast", 1),
+            ok("the follow-up's forecast is for a week from today", days == 6 or fell_back_to_today,
+               f"the follow-up's forecast is {days} days after the first, not 6", 1)))
+        return out
 
     return Plan((), lines, script(), check)
 
@@ -356,19 +376,22 @@ def news_permission(pool: Pool) -> Plan:
 
     def check(call: Call) -> list[Verdict]:
         news = [t for t in call.news() if t.said(Kind.NEEDS_YOU)]
+        refused = any(Kind.NEEDS_YOU in entry["kinds"] for t in call.news() for entry in t.refused)
         made = call.world["made"]
-        started = ok("the request was confirmed and the thread started", notes["confirmed"] and len(made) == 1,
-                     f"confirmed={notes['confirmed']}, threads made={len(made)}")
-        if not started.ok:
-            return [started, no_false_start(call)]
-        out = [started,
-               ok("the assistant said the thread needs permission, unprompted", bool(news),
+        out = launch_checks(call, notes)
+        waited = "timed_out" in notes and len(made) == 1
+        news_checks = [ok("permission news was said or reached the reply checks", bool(news) or refused,
                   "no needs-you line was said by itself" + (" (the wait ran out)" if notes.get("timed_out") else ""),
                   call.news()[0].index if call.news() else None),
-               ok("it said so once", len(news) <= 1, f"{len(news)} needs-you lines were said by themselves",
+               ok("permission news was not lost to a refused line", bool(news) or not refused,
+                  "the checks refused the only attempt at permission news"),
+               ok("no duplicate permission news", len(news) <= 1, f"{len(news)} needs-you lines were said by themselves",
                   news[1].index if len(news) > 1 else None)]
         titles = ", ".join(v["title"] for v in made.values())
-        return out + claims_approval(call, titles, call.caller_turns()[2:])
+        approval_turns = call.caller_turns()[2:]
+        return [*out, *(requires(v, waited, "precondition: no wait for news about a started thread") for v in news_checks),
+                *(requires(v, waited and len(approval_turns) >= 2, "precondition: no completed approval exchange for a started thread")
+                  for v in claims_approval(call, titles, approval_turns))]
 
     return Plan((), lines, script(), check, launch="approval", notes=notes)
 
@@ -384,12 +407,25 @@ def speak_over(pool: Pool) -> Plan:
     def check(call: Call) -> list[Verdict]:
         turns = call.caller_turns()
         last = turns[-1] if turns else None
+        answered = len(turns) > 1 and has_reply(last)
+        refused = len(turns) > 1 and bool(last.refused) and not last.said_kinds and not last.cancelled
         return [ok("the first reply was stopped", any(t.barge_in or t.cancelled == "barge_in" for t in turns),
                    "the caller speaking over the reply was not taken as a barge-in", 0),
-                ok("the new words were answered", len(turns) > 1 and has_reply(last), "the second turn got no reply",
-                   last.index if last else None)]
+                ok("the new words were answered or reached the T3 reply checks", answered or refused,
+                   "the second turn got no reply and tried no refused T3 line", last.index if last else None),
+                ok("the second turn was not left silent by refused T3 lines", answered or not refused,
+                   "the T3 reply checks refused every line", last.index if last else None)]
 
     return Plan((finished(title),), lines, script(), check)
+
+
+def launch_checks(call: Call, notes: dict) -> list[Verdict]:
+    made = len(call.world["made"])
+    return [ok("the launch confirmation was asked", notes["confirmed"], "no launch confirmation was said", 0),
+            requires(ok("the yes started a thread", made > 0, "no thread exists after the yes", 1), notes["confirmed"],
+                     "precondition: no launch confirmation was asked"),
+            ok("no extra thread was started", made <= 1, f"{made} threads exist after one request"),
+            no_false_start(call)]
 
 
 # The long set. A thread the caller started finishes by itself and the assistant says so, once.
@@ -411,18 +447,16 @@ def news_done(pool: Pool) -> Plan:
         made = call.world["made"]
         news = [t for t in call.news() if t.said(Kind.DONE, Kind.REPLIED)]
         finished_by_itself = [v for v in made.values() if v["activity"] == "finished"]
-        started = ok("the request was confirmed and the thread started", notes["confirmed"] and len(made) == 1,
-                     f"confirmed={notes['confirmed']}, threads made={len(made)}")
-        if not started.ok:
-            return [started, no_false_start(call)]
-        return [started,
-                ok("the thread finished in T3", len(finished_by_itself) == 1, f"the thread is {list(made.values())}"),
+        out = [ok("the thread finished in T3", len(finished_by_itself) == 1, f"the thread is {list(made.values())}"),
                 ok("the assistant said it finished, unprompted", bool(news),
                    "no done or replied line was said by itself" + (" (the wait ran out)" if notes.get("timed_out")
                                                                    else ""),
                    call.news()[0].index if call.news() else None),
-                ok("it said the run ended once", sum(t.said(Kind.DONE) for t in call.news()) <= 1,
-                   "the end of the run was said more than once"), no_false_start(call)]
+                ok("no duplicate done notices", sum(t.said(Kind.DONE) for t in call.news()) <= 1,
+                   "the end of the run was said more than once")]
+        waited = "timed_out" in notes and len(made) == 1
+        return launch_checks(call, notes) + [requires(v, waited, "precondition: no wait for news about a started thread")
+                                             for v in out]
 
     return Plan((), lines, script(), check, notes=notes)
 
@@ -441,13 +475,14 @@ def short_yes_tell(pool: Pool) -> Plan:
 
     def check(call: Call) -> list[Verdict]:
         turns = call.caller_turns()
-        told = [t for t in turns if t.said(Kind.SENT_FOLLOWUP, Kind.HELD_FOLLOWUP, Kind.TELL_PENDING)]
+        told = [t for t in turns[1:] if t.said(Kind.SENT_FOLLOWUP, Kind.HELD_FOLLOWUP, Kind.TELL_PENDING)]
         asked = ok("the message was confirmed back", notes["asked"], "no confirm_tell question was said", 0)
         taken = ok("the yes was taken", bool(told), "the yes was not answered with the message going", 1)
-        if not (asked.ok and taken.ok):
-            return [asked, taken]
-        return [asked, taken, ok("the thread got the message", call.world["seeded"][title]["new_run"],
-                                 "T3 shows no new run on the thread", 1)]
+        reached = asked.ok and len(turns) >= 2
+        delivered = ok("the thread got the message", call.world["seeded"].get(title, {}).get("new_run", False),
+                       "T3 shows no new run on the thread", 1)
+        return [asked, *(requires(v, reached, "precondition: the caller did not answer a message confirmation")
+                         for v in (taken, delivered))]
 
     return Plan((finished(title),), lines, script(), check, notes=notes)
 
@@ -465,27 +500,30 @@ def withdrawn_launch(pool: Pool) -> Plan:
     def check(call: Call) -> list[Verdict]:
         turns = call.caller_turns()
         after = turns[1:]
-        asked_again = [t for t in after if t.said_kinds & set(ASKING)]
-        return [ok("the launch was asked about", bool(turns) and turns[0].said(Kind.CONFIRM_LAUNCH, Kind.ASK_WHICH),
-                   "no launch question was said, so nothing was withdrawn", 0),
+        asked_again = [t for t in after if t.said(Kind.CONFIRM_LAUNCH)]
+        other_questions = [t for t in after if t.said_kinds & (set(ASKING) - {Kind.CONFIRM_LAUNCH})]
+        asked = ok("the launch was asked about", bool(turns) and turns[0].said(Kind.CONFIRM_LAUNCH, Kind.ASK_WHICH),
+                   "no launch question was said, so nothing was withdrawn", 0)
+        return [asked,
                 ok("nothing was started", not call.world["made"], f"{len(call.world['made'])} threads exist"),
                 ok("no launch line after the withdrawal", not any(t.said(Kind.LAUNCHED, Kind.LAUNCH_PENDING)
                                                                   for t in after), "a launch was said after it"),
-                ok("the question was not asked again", not asked_again,
+                requires(ok("the question was not asked again", not asked_again,
                    f"turn {asked_again[0].index} asked {sorted(asked_again[0].said_kinds)}" if asked_again else "",
-                   asked_again[0].index if asked_again else None), no_false_start(call)]
+                   asked_again[0].index if asked_again else None), asked.ok and bool(after),
+                         "precondition: no launch question was withdrawn"),
+                ok("no different thread question was asked", not other_questions, "asked another thread question",
+                   other_questions[0].index if other_questions else None), no_false_start(call)]
 
     return Plan((), lines, script(), check)
 
 
-# One run decides a scenario whose runs agreed in the baseline (three runs each, 2026-11-20, voice/main a51878fd2e): the
-# three first here, 3 of 3 each. The others varied from run to run, so either of two runs may pass.
 SCENARIOS = (
     Scenario("speak-over", "the caller speaking over a reply stops it and is answered", speak_over, 2, 1),
     Scenario("approval-claim", "a free reply never says a pending approval went through", approval),
     Scenario("thread-lines", "every thread question ends in a checked line that is said", thread_lines),
     Scenario("follow-up", "a follow-up keeps the last question's context", follow_up),
-    Scenario("withdrawn-question", "a withdrawn which-thread question is not offered again", withdrawn, 2, 1),
+    Scenario("withdrawn-question", "a withdrawn which-thread question is not offered again", withdrawn),
     # The scenarios that start threads come after, each run on a T3 and a live server of its own.
     Scenario("news-permission", "a started thread's need for permission is said unprompted, once, and not approved",
              news_permission, 2, 1, fresh=True),
@@ -498,34 +536,27 @@ SCENARIOS = (
 # fails on everything else. Take a mark out when its fix lands and the row says XPASS.
 SILENT = ("a turn T3 took whose lines were all refused by their checks says nothing; docs/voice/spoken-acts.md, "
           "'What can still end silent'")
-DISPATCH = ("a long hesitant start request is not always read as a launch request, or reaches T3 with a no_thread line "
-            "beside its confirmation, which clears the question the yes answers; docs/voice/spoken-acts.md, 'Starting a "
-            "thread by voice' (open causes)")
-DISPATCH_YES = ("a short yes to the launch confirmation is not always taken (0 of 3 started a thread in one baseline run); a "
+DISPATCH_YES = ("a short yes to the launch confirmation is not always taken; a "
                 "no_thread line beside the confirmation clears the question; docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
-    ("speak-over", "the new words were answered"): SILENT,
+    ("speak-over", "the second turn was not left silent by refused T3 lines"): SILENT,
     ("speak-over", "no thread turn ends in silence"): SILENT,
-    ("news-permission", "the request was confirmed and the thread started"): DISPATCH_YES,
-    ("news-done", "the request was confirmed and the thread started"): DISPATCH_YES,
+    ("news-permission", "the yes started a thread"): DISPATCH_YES,
+    ("news-done", "the yes started a thread"): DISPATCH_YES,
     ("short-yes-tell", "the yes was taken"):
         "a short yes to the confirmation of a message is not always taken (1 of 2 baseline runs said nothing)",
     ("withdrawn-launch", "the question was not asked again"):
         "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
-    ("follow-up", "the follow-up's forecast is for a week from today"):
+    ("follow-up", "the follow-up did not fall back to today"):
         "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
-    ("withdrawn-question", "no thread line after the withdrawal"):
+    ("withdrawn-question", "no which-thread question after the withdrawal"):
         "'Never mind.' after 'Do you mean X?' is read as a thread request and a which-thread question is put again "
         "(3 of 3 runs on voice/main a51878fd2e, after #90)",
     ("withdrawn-question", "no thread turn ends in silence"): SILENT,
     ("withdrawn-question", "no free reply offers the old choices"):
         "after the fix in #90, 1 of 3 baseline runs still offered the old choices in a free reply",
-    ("withdrawn-question", "every turn is answered"): "1 of 3 baseline runs left the last turn unanswered",
-    ("news-permission", "the assistant said the thread needs permission, unprompted"):
+    ("news-permission", "permission news was not lost to a refused line"):
         "the needs-you line is refused by its checks in some runs (1 of 3 in the baseline) and nothing is said",
-    ("news-permission", "no thread turn ends in silence"):
-        "a status line for a thread whose title was cut off at the request's 80th character is refused twice",
-    ("short-yes", "each request was confirmed back"): DISPATCH,
     ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES,
     ("short-yes", "no thread turn ends in silence"): SILENT}
 
@@ -533,20 +564,29 @@ KNOWN: dict[tuple[str, str], str] = {
 def collect(server: Path, seen: list[int]) -> tuple[Turn, ...]:
     """The call's turns in order, read from the files the server wrote, after it has had time to finish them."""
     time.sleep(SETTLE_S)
-    turns = []
-    for i, n in enumerate(sorted(set(seen))):
-        record = json.loads((server / f"turn_{n:03d}.json").read_text(encoding="utf-8"))
-        turns.append(turn_of(i, record, R.entries))
-    return tuple(turns)
+    return tuple(read_turn(server, i, n) for i, n in enumerate(sorted(set(seen))))
+
+
+def read_turn(server: Path, index: int, n: int) -> Turn:
+    path = server / f"turn_{n:03d}.json"
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        if not isinstance(record, dict) or record.get("clip") != path.stem:
+            raise ValueError("record does not identify the completed turn")
+        if record.get("error"):
+            raise ValueError(f"server reported {record['error']}")
+        return turn_of(index, record, R.entries)
+    except (OSError, ValueError, TypeError, KeyError, AttributeError) as exc:
+        raise RuntimeError(f"cannot score {path.name}: {exc}") from exc
 
 
 def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool: Pool, out: Path,
              lfm_port: int) -> Result:
     started, name = time.time(), f"{scenario.id}-{run}"
-    plan = scenario.build(pool)
     work = out / name
-    work.mkdir(parents=True, exist_ok=True)
     try:
+        plan = scenario.build(pool)
+        work.mkdir(parents=True, exist_ok=True)
         seeded = world.seed(plan.seeds)
         world.configure(plan.launch)
         before = set(world.titles())
@@ -555,17 +595,15 @@ def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool
         wavs = rig.render(text, work / "clips", lfm_port)
         clips = dict(zip(plan.lines, wavs))
         seen = []
+        server = rig.out / "server"
 
         def load(n):
-            path = rig.out / "server" / f"turn_{n:03d}.json"
-            if not path.is_file():
-                return None
             seen.append(n)
-            return turn_of(len(seen) - 1, json.loads(path.read_text(encoding="utf-8")), R.entries)
+            return read_turn(server, len(seen) - 1, n)
 
         asked = len(judge.asked)
         R.hold_call(rig, plan.script, clips, load, work / "client", CALL_TIMEOUT_S)
-        turns = collect(rig.out / "server", seen)
+        turns = collect(server, seen)
         call = Call(turns, world.snapshot(seeded, before), judge, plan.notes)
         verdicts = (*plan.check(call), no_silent_turn(call))
         (work / "call.json").write_text(json.dumps({"turns": [t.__dict__ for t in turns], "world": call.world,
@@ -575,9 +613,7 @@ def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool
         return Result(scenario.id, run, verdicts, tuple(t.first_audio_s for t in turns if t.first_audio_s),
                       sum(t.decider_calls for t in turns), len(judge.asked) - asked, time.time() - started,
                       window=(started, time.time()))
-    except BaseException as exc:
-        if isinstance(exc, KeyboardInterrupt):
-            raise
+    except (Exception, SystemExit) as exc:
         return Result(scenario.id, run, (), (), 0, 0, time.time() - started, f"{type(exc).__name__}: {exc}",
                       (started, time.time()))
 
@@ -596,6 +632,10 @@ def ledger(out: Path) -> list[tuple[float, float]]:
     return found
 
 
+def unexpected(result: Result) -> list[Verdict]:
+    return [v for v in result.failed if v.precondition or (result.scenario, v.check) not in KNOWN]
+
+
 def rows(results: dict[str, list[Result]], scenarios: list[Scenario], attempts=()) -> tuple[list[list[str]], bool]:
     """One row per scenario, and whether the gate is green. A run passes when no check failed that `KNOWN` does not
     name. A scenario passes when `passes` of its runs do, and says XFAIL while a named check still fails in it and XPASS
@@ -606,20 +646,20 @@ def rows(results: dict[str, list[Result]], scenarios: list[Scenario], attempts=(
         if not runs:
             continue
         marked = {check for (sid, check) in KNOWN if sid == sc.id}
-        unexpected = [[v for v in r.failed if v.check not in marked] for r in runs]
-        good = sum(r.error is None and not u for r, u in zip(runs, unexpected))
-        still = {v.check for r in runs for v in r.failed if v.check in marked}
-        if good >= sc.passes:
+        failures = [unexpected(r) for r in runs]
+        good = sum(r.error is None and not u for r, u in zip(runs, failures))
+        still = {v.check for r in runs for v in r.failed if not v.precondition and v.check in marked}
+        error = next((r.error for r in runs if r.error is not None), None)
+        if error is not None:
+            verdict, green = "ERROR", False
+        elif good >= sc.passes:
             verdict = "XFAIL" if still else "XPASS" if marked else "PASS"
         else:
-            verdict = "ERROR" if all(r.error for r in runs) else "FAIL"
-            green = False
-        first = next((r for r, u in zip(runs, unexpected) if r.error or u), None)
-        why = ""
-        if first is not None:
-            why = first.error or "; ".join(f"{v.check}" + (f" (turn {v.turn})" if v.turn is not None else "") + f": {v.why}"
-                                           for v in unexpected[runs.index(first)])
-        elif still:
+            verdict, green = "FAIL", False
+        first = next((u for u in failures if u), [])
+        why = error or "; ".join(v.check + (f" (turn {v.turn})" if v.turn is not None else "") + f": {v.why}"
+                                 for v in first)
+        if not why and still:
             why = "known: " + ", ".join(sorted(still))
         table.append([sc.id, verdict, f"{good}/{len(runs)}", f"need {sc.passes}", str(median_audio(runs) or "-"),
                       str(sum(lo <= when <= hi for r in runs for lo, hi in [r.window] for when, _ in attempts)),
@@ -646,13 +686,26 @@ class Session:
         self.world.up()
         env = {"VOICE_T3_ORIGIN": self.world.origin, "VOICE_T3_TOKEN_FILE": str(self.world.token_file)}
         self.rig = R.Rig(self.out, self.args.port, self.args.max_minutes, ["--real-seam", "--summaries"],
-                         ["--decider", "liquid", "--local-text", "on"], env).__enter__()
+                         ["--decider", "liquid", "--local-text", "on", "--lfm-port", str(self.args.lfm_port)], env)
+        self.rig.__enter__()
         return self
 
     def __exit__(self, *exc):
-        if self.rig is not None:
-            self.rig.__exit__()
-            self.rig = None
+        errors = []
+
+        def stop(name, close):
+            try:
+                close()
+            except (Exception, SystemExit) as failure:
+                errors.append(f"{name}: {type(failure).__name__}: {failure}")
+
+        try:
+            if self.rig is not None:
+                stop("live server", self.rig.__exit__)
+        finally:
+            stop("sandbox T3", self.world.down)
+        if errors:
+            raise RuntimeError("teardown failed: " + "; ".join(errors))
 
 
 def gate(args) -> int:
@@ -667,27 +720,56 @@ def gate(args) -> int:
         print("no decider key: set VOICE_ENV_FILE", file=sys.stderr)
         return 2
     started, results = time.time(), {}
-    session, count, after_launches = None, 0, False
+    session, owner, count, after_launches = None, None, 0, False
+
+    def close_session():
+        nonlocal session
+        if session is None:
+            return True
+        closing, session = session, None
+        try:
+            closing.__exit__()
+        except (Exception, SystemExit) as exc:
+            runs = results[owner]
+            if not runs:
+                runs.append(Result(owner, 1, (), (), 0, 0, 0, str(exc)))
+                return False
+            last = runs[-1]
+            runs[-1] = replace(last, error=f"{last.error}; {exc}" if last.error else str(exc))
+            return False
+        return True
+
     try:
         for sc in chosen:
             results[sc.id] = []
             for run in range(1, sc.runs + 1):
                 if session is None or sc.fresh or after_launches:
-                    if session is not None:
-                        session.__exit__()
+                    if not close_session():
+                        break
                     count += 1
-                    session = Session(world, out / f"s{count}", args).__enter__()
+                    session = Session(world, out / f"s{count}", args)
+                    owner = sc.id
+                    try:
+                        session.__enter__()
+                    except (Exception, SystemExit) as exc:
+                        results[sc.id].append(Result(sc.id, run, (), (), 0, 0, 0, f"startup failed: {exc}"))
+                        break
                 after_launches = sc.fresh
                 result = run_once(sc, run, world, session.rig, judge, pool, out, args.lfm_port)
                 results[sc.id].append(result)
-                print(f"{sc.id} run {run}: {'pass' if result.ok else 'FAIL'} in {result.seconds:.0f} s", flush=True)
-                done = sum(r.ok for r in results[sc.id])
-                if not args.spread and (done >= sc.passes or len(results[sc.id]) - done > sc.runs - sc.passes):
+                owner = sc.id
+                status = "ERROR" if result.error is not None else "FAIL" if unexpected(result) else "pass"
+                print(f"{sc.id} run {run}: {status} in {result.seconds:.0f} s", flush=True)
+                done = sum(not unexpected(r) for r in results[sc.id] if r.error is None)
+                if result.error is not None or (not args.spread and
+                                                (done >= sc.passes or run - done > sc.runs - sc.passes)):
                     break
+            if session is None or (results[sc.id] and results[sc.id][-1].error is not None):
+                if session is not None and close_session():
+                    continue
+                break
     finally:
-        if session is not None:
-            session.__exit__()
-        world.down()
+        close_session()
     attempts = [a for a in ledger(out) if a[0] >= started]
     table, green = rows(results, chosen, attempts)
     print(flush=True)
@@ -707,7 +789,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, default=VOICE / "evidence" / "scenarios" / time.strftime("%Y%m%d-%H%M%S"))
     parser.add_argument("--long", action="store_true", help="the long set too")
     parser.add_argument("--only", nargs="+", help="scenario ids")
-    parser.add_argument("--spread", type=int, help="run every scenario this many times, whatever the result")
+    parser.add_argument("--spread", type=int, help="run every scenario this many times unless an attempt errors")
     parser.add_argument("--port", type=int, default=8771)
     parser.add_argument("--lfm-port", type=int, default=8095)
     parser.add_argument("--max-minutes", type=float, default=24.0)

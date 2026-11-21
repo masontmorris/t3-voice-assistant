@@ -598,12 +598,19 @@ class Rig:
         return self
 
     def __exit__(self, *exc):
-        self.stop.touch()
+        if self.child is None or self.child.poll() is not None:
+            return
         try:
-            self.child.wait(timeout=30)
-        except subprocess.TimeoutExpired:
-            self.child.terminate()
-            self.child.wait(timeout=15)
+            self.stop.touch()
+            try:
+                self.child.wait(timeout=30)
+            except subprocess.TimeoutExpired:
+                self.child.terminate()
+                self.child.wait(timeout=15)
+        finally:
+            if self.child.poll() is None:
+                self.child.kill()
+                self.child.wait(timeout=15)
 
     def render(self, text_file, clips, lfm_port):
         """Renders the lines of `text_file` to `clips` with the server's own TTS, in order."""
@@ -758,6 +765,8 @@ def hold_call(rig, script, clips, load, log_dir, timeout_s=300):
          str(log_dir), "--output", "null", "--no-record"])
     caller = CallClient(args, script, clips, load)
     asyncio.run(asyncio.wait_for(caller.run(), timeout_s))
+    if not caller.finished.is_set():
+        raise RuntimeError("the live connection closed before the caller finished its script")
 
 
 ASKING = {"confirm_launch", "ask_which", "no_project"}

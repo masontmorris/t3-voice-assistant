@@ -75,12 +75,17 @@ def turn_of(index: int, record: dict, entries: Callable[[dict], list[dict]]) -> 
 
 @dataclass(frozen=True)
 class Verdict:
-    """One check's result. `turn` is the index of the turn it failed on, when one turn did."""
+    """One check's result. A failed precondition cannot be marked as a known fault."""
 
     check: str
     ok: bool
     why: str = ""
     turn: int | None = None
+    precondition: bool = False
+
+
+class JudgeError(RuntimeError):
+    pass
 
 
 @dataclass
@@ -92,7 +97,7 @@ class Judge:
     client: Any = None
     asked: list[dict] = field(default_factory=list)
 
-    def p_yes(self, question: str, text: str, context: str) -> float | None:
+    def p_yes(self, question: str, text: str, context: str) -> float:
         if self.client is None:
             self.client = LiquidClient(pacer=Pacer(first_s=0.0, cap_s=0.0), timeout_s=JUDGE_TIMEOUT_S, max_attempts=2)
         body = {"model": "d1.2", "state": {"context": context, "text": text},
@@ -102,14 +107,15 @@ class Judge:
             record = self.client.call("decisions", body, label="scenario_judge")
         except Exception as exc:
             self.asked.append({"question": question, "error": f"{type(exc).__name__}: {exc}"})
-            return None
+            raise JudgeError(f"{type(exc).__name__}: {exc}. Question: {question}") from exc
         answer = noul(record, "answers")
         self.asked.append({"question": question, "p_yes": answer})
+        if answer is None:
+            raise JudgeError(f"No valid probability in the judge response. Question: {question}")
         return answer
 
-    def yes(self, question: str, text: str, context: str, at: float = JUDGE_YES) -> bool | None:
-        answer = self.p_yes(question, text, context)
-        return None if answer is None else answer >= at
+    def yes(self, question: str, text: str, context: str, at: float = JUDGE_YES) -> bool:
+        return self.p_yes(question, text, context) >= at
 
 
 @dataclass
