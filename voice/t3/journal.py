@@ -62,6 +62,8 @@ class Kind(StrEnum):
     STOP = "stop"
     RESPOND = "respond"
     ANSWER = "answer"
+    # The thread a call was opened on: watched for the call, with no write of its own.
+    FOLLOW = "follow"
 
 
 @dataclass

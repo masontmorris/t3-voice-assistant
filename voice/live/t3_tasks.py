@@ -41,7 +41,7 @@ from voice.t3 import types as T
 from voice.t3.acts import NOTHING_NEW, Act, Outcome, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
-from voice.t3.journal import Kind, Status, T3Journal
+from voice.t3.journal import JournalTask, Kind, Status, T3Journal
 from voice.t3.pick.model import FREE_MODEL, PAID_MODEL, LiveClient
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
@@ -224,6 +224,7 @@ class T3Tasks:
     told: dict[str, int] = field(default_factory=dict, init=False)
     withdrawn: Question | None = field(default=None, init=False)
     call: int = field(default=0, init=False)
+    following: JournalTask | None = field(default=None, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
     reuse: Decider | None = field(default=None, kw_only=True)
@@ -243,7 +244,16 @@ class T3Tasks:
 
     def resume(self, now: float) -> None:
         with self.lock:
+            self._unfollow_calls()
             self.follow.resume(now)
+
+    def _unfollow_calls(self) -> None:
+        """A call's thread is followed for that call only, so one left by a call that ended or a server that stopped is
+        not followed any more."""
+        self.following = None
+        for task in self.follow.journal.live():
+            if task.kind is Kind.FOLLOW:
+                self.follow.unfollow(task)
 
     def wait(self, wait_s: float):
         """Block up to `wait_s` for the next seam item, outside the lock. Only the polling thread calls it."""
@@ -377,11 +387,15 @@ class T3Tasks:
                 return None
             self.recent = self.spoken_id = state.thread_id
             self.spoken_of = state.title
+            self._unfollow_calls()
+            self.following = self.follow.follow(state.thread_id, state.title, state.project_id,
+                                                self.project_names().get(state.project_id), now)
             return state.title
 
     def end_call(self) -> None:
         with self.lock:
             self._drop_question()
+            self._unfollow_calls()
 
     def _drop_question(self) -> None:
         self.question = self.unasked = None

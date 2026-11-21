@@ -108,8 +108,9 @@ are down, and **Toggle** always needs a second press. Change the chord itself in
 
 The live-voice button beside the microphone in a thread's composer opens a spoken
 call about that thread. Ask how it is going, tell it something, or stop it without
-naming it: on the call, "it" means this thread. The web and desktop apps have the
-button; the mobile app does not yet.
+naming it: on the call, "it" means this thread. During the call the voice also tells
+you, when you are both quiet, that the thread replied, finished or needs you. The web
+and desktop apps have the button; the mobile app does not yet.
 
 Calls run on a voice server you start yourself, on this device or a machine on your
 tailnet. In **Settings → Voice → Live voice**, enter its address, such as

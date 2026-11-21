@@ -2217,3 +2217,70 @@ class SpokenAbout(unittest.TestCase):
         self.assertIsNone(ask(3), "the thread reported something since")
         t3.begin_call()
         self.assertIsNone(ask(4), "a new call has heard nothing yet")
+
+
+class CallThreadFollow(unittest.TestCase):
+    """A call opened on a thread follows it for the call, as a thread the voice started or sent to is followed."""
+
+    def setUp(self):
+        self.seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
+        self.t3 = tasks_over(self, self.seam)
+        self.t3.begin_call()
+
+    def news(self, *items, now=2):
+        self.seam.push(*items)
+        self.t3.poll(now)
+        return [(a.kind, a.slots.get("thread")) for update in self.t3.take() for a in update.acts]
+
+    def test_news_after_the_call_begins_is_spoken_and_earlier_news_is_not(self):
+        self.t3.view("t5", 1)
+        self.assertIn(("watch", "t5", 140, None), self.seam.calls, "watched from the read at call start")
+        self.assertEqual(self.news(F.reply(130, message="old", thread="t5")), [], "said before the call began")
+        self.assertEqual(self.news(F.reply(141, thread="t5"), F.done(142, thread="t5")),
+                         [(S.REPLIED, "Add a clamp helper"), (S.DONE, "Add a clamp helper")])
+        self.assertEqual(self.news(F.run_event(150, thread="t5", run="r2"), F.reply(151, message="m2", thread="t5")),
+                         [(S.RUN_UPDATE, "Add a clamp helper"), (S.REPLIED, "Add a clamp helper")],
+                         "the follow outlives a run, since the thread can run again during the call")
+
+    def test_a_message_sent_to_it_takes_the_watch_and_nothing_is_said_twice(self):
+        self.t3.view("t5", 1)
+        follow = self.t3.follow
+        tell = follow.journal.begin(Kind.TELL, "Add tests too.", "p1", "Voice sandbox", thread_id="t5",
+                                    title="Add a clamp helper")
+        self.seam.answer("send", F.sent(thread="t5", run="r2", sequence=145))
+        follow.send(tell, 2)
+        self.assertEqual(follow.watching["t5"], tell.task_id)
+        self.t3.take()
+        self.seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=147)
+        said = self.news(F.reply(146, message="m2", thread="t5"), F.done(147, thread="t5", run="r2"))
+        self.assertEqual(said, [(S.REPLIED, "Add a clamp helper"), (S.DONE, "Add a clamp helper")], "once each")
+        self.assertEqual(follow.watching["t5"], self.t3.following.task_id, "the follow takes the watch back")
+        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 147, None), "from a fresh read, past the tell's news")
+
+    def test_the_follow_ends_with_the_call_and_drops_what_it_had_not_said(self):
+        self.t3.view("t5", 1)
+        self.seam.push(F.reply(141, thread="t5"))
+        self.t3.poll(2)
+        self.t3.end_call()
+        self.assertIn(("unwatch", "t5"), self.seam.calls)
+        self.assertEqual(self.t3.take(), [], "a line the call never heard is not said on the next call")
+        self.assertEqual(self.news(F.reply(160, message="m3", thread="t5")), [])
+        self.assertEqual(self.t3.following, None)
+
+    def test_a_call_with_no_thread_follows_nothing(self):
+        self.t3.poll(2)
+        self.assertFalse([c for c in self.seam.calls if c[0] == "watch"])
+        self.assertFalse([t for t in self.t3.follow.journal.tasks.values() if t.kind is Kind.FOLLOW])
+
+    def test_a_follow_left_by_a_stopped_server_is_not_resumed(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "journal.json"
+        first = tasks_over(self, self.seam, path=path)
+        first.begin_call()
+        first.view("t5", 1)
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
+        restarted = tasks_over(self, seam, path=path)
+        restarted.resume(5)
+        self.assertFalse([c for c in seam.calls if c[0] == "watch"], "no call is open to hear its news")
+        self.assertFalse([t for t in restarted.follow.journal.live() if t.kind is Kind.FOLLOW])
