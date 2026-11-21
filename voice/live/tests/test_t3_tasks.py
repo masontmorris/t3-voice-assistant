@@ -27,6 +27,8 @@ from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
 from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, Picked
 from voice.segmentation.gate import PLAN_A
+from voice.segmentation.tasks import Orchestrator
+from voice.segmentation.tests.test_orchestrator import step
 from voice.tools import registry as tool_registry
 
 TWO_PROJECTS = (("p1", "Voice sandbox", ("sandbox", "voice sandbox")),
@@ -1139,19 +1141,22 @@ class Service(unittest.IsolatedAsyncioTestCase):
 
     def test_one_request_cut_into_several_launch_segments_asks_one_question_and_launches_all_of_it(self):
         said_whole = ("Start a thread for the importer logging. Can you kick that off? Keep it under an hour, and use "
-                      "my old config as the base. Also look at the retry counts. And keep it organized.")
+                      "my old config as the base. Also look at the retry counts. And keep it organized and tidy.")
         seam = F.FakeSeam()
+        seam.listing = listing()
         t3 = tasks_over(self, seam)
         service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
                                     self.record("task_2", "Can you kick that off?", START),
                                     self.record("task_3", "Also look at the retry counts.", START),
-                                    self.record("task_4", "And keep it organized.", TELL)])
+                                    self.record("task_4", "And keep it organized.", TELL),
+                                    self.record("task_5", "And tidy.", TELL, confidence=0.49)])
         service.sync(0)
         tasks = {t["task_id"]: t for t in service.snapshot("utt_1", said_whole)["tasks"]}
         self.assertEqual([a["kind"] for a in tasks["task_1"]["acts"]], ["confirm_launch"])
         self.assertNotIn("acts", tasks["task_2"], "the second segment is the same request, already asked")
         self.assertNotIn("acts", tasks["task_3"])
         self.assertNotIn("acts", tasks["task_4"], "an instruction for the thread being started is part of the launch")
+        self.assertNotIn("acts", tasks["task_5"], "an unsure tell about the new thread is part of the launch too")
         service.record_delivery(tasks["task_1"], "sent")
         self.assertEqual(said(t3.answer("yes", 1)), [("launched", "Voice sandbox")])
         launch, = seam.ops("launch")
@@ -1167,6 +1172,27 @@ class Service(unittest.IsolatedAsyncioTestCase):
         service.sync(0)
         tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
         self.assertEqual([a["kind"] for a in tasks["task_2"]["acts"]], ["confirm_tell"])
+
+    def test_a_parked_continuation_does_not_clear_the_launch_confirmation(self):
+        request = "Start a thread for the importer logging, and keep it tidy."
+        orch = Orchestrator()
+        orch.gate = PLAN_A
+        step(orch, 1, request, final=True,
+             s1={"tool": START, "tool_confidence": 0.91, "side_effect": True},
+             s2={"tool": TELL, "tool_confidence": 0.61, "ready": "clarify"})
+        seam = F.FakeSeam()
+        seam.listing = listing()
+        t3 = tasks_over(self, seam)
+        segmenter = SimpleNamespace(records=orch.task_records, dispatch_log=orch.dispatch_log)
+        service = T3TaskService(segmenter, "conv_turn_001", 0.0, None, holds_side_effects=False, t3=t3)
+        service.sync(0)
+        for entry in service.snapshot("utt_1", request)["tasks"]:
+            if "acts" in entry:
+                service.record_delivery(entry, "sent")
+        service.close()
+        next_turn = self.service(t3, [])
+        next_turn.answer(next_turn.open_question(), "yes", 1)
+        self.assertEqual([launch[2:] for launch in seam.ops("launch")], [("p1", request)])
 
     def test_a_message_that_may_mean_several_threads_is_asked_about_beside_a_launch(self):
         seam = F.FakeSeam()

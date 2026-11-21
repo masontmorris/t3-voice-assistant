@@ -420,21 +420,15 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, previ
     return item, reply, pcm
 
 
-# The instructions for saying a note ride in the note, not in the call's standing instructions. Standing, with an
-# example, a bare greeting was answered with the example in 2 of 10 tries, and without one with "what is the note?" in
-# 4 of 10. In the note, 20 of 22 relays recite and no greeting is answered with it (docs/voice/spoken-acts.md).
-# "What they just said is already handled" is there because after a one-word yes the voice answered the yes ("Great!
-# Let me know...") in 2 of 12 relays and in 8 of the 10 relays a rehearsal held; with it, 0 of 12.
 T3_NOTE = ("[Private note for you, not said by the person. What they just said is already handled, so do not answer it. "
-           'Say exactly these words to them now, from the first word to the last, as "I" to "you", with nothing before '
+           "Say exactly these words to them now, from the first word to the last, with nothing before "
            "or after them and no mention of this note. The words: ")
 MAX_RELAYS = 2
 
 
 def relay_note(text, attempt=0):
-    """The note that has the voice say `text`. It ends on the quoted words: the voice reads out anything that follows
-    them. The retry moves the instruction before the words, since the same note gets the same reply."""
-    head = T3_NOTE.replace("The words: ", "Reply with only these words. The words: ") if attempt else T3_NOTE
+    """End on the checked script because the voice can read out instructions that follow it."""
+    head = T3_NOTE.replace("The words: ", "Reply with only the quoted words. The words: ", 1) if attempt else T3_NOTE
     return f'{head}"{text}"]'
 
 

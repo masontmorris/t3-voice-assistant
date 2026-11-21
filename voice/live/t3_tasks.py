@@ -1337,14 +1337,13 @@ class T3TaskService(MockTaskService):
     def _start(self, task_id, instruction, side_effect, now, choice=None):
         if choice is None or choice.tool not in T3_TOOLS:
             return super()._start(task_id, instruction, side_effect, now, choice)
+        picked = choice.fallback_from or choice.tool
         if choice.confidence < self._threshold():
-            # The word rules know no thread, so an unsure pick reaches T3 too, as a lookup that acts on nothing.
             choice = replace(choice, tool=ASK)
         key = f"{self.conversation_id}:{task_id}"
-        if (choice.tool in (START, TELL, *RESPONDS) and self.t3.asking_start(f"{self.conversation_id}:")
-                and not (choice.tool == TELL and self.t3.names_thread(instruction, now))):
-            # One long request is cut into several segments. The first already asked, and the launch carries the whole
-            # turn, so another launch, or an instruction that names no thread there is, is part of it.
+        if ((picked in (START, TELL) or choice.tool in RESPONDS) and self.t3.asking_start(f"{self.conversation_id}:")
+                and not (picked == TELL and self.t3.names_thread(instruction, now))):
+            # The launch carries the whole utterance, including continuations routed to a lookup.
             return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
                              tool={"tool": choice.tool, "arguments": {}})
         update = (self.t3.start(key, instruction, now) if choice.tool == START

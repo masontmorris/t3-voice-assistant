@@ -165,8 +165,9 @@ class RelayNoteTest(unittest.TestCase):
             with self.subTest(note=note[-60:]):
                 self.assertTrue(note.endswith(f'"{line}"]'), "no instruction follows the words")
                 self.assertEqual(note.count(line), 1)
-        self.assertNotIn("Reply with only these words", first)
-        self.assertLess(retry.index("Reply with only these words"), retry.index(line))
+                self.assertNotIn('as "I" to "you"', note, "a copy request cannot also direct a change of speaker")
+                self.assertIn("What they just said is already handled", note)
+        self.assertIn("Reply with only the quoted words", retry)
 
 
 class PlaceTest(unittest.TestCase):

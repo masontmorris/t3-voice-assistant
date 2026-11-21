@@ -21,7 +21,8 @@ from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Decider
 from voice.t3.speech import (LINE_SCHEMA, READER_VARIANTS, RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane,
-                              LocalText, RequestGate, Speech, local_messages, read_line, reader_messages, render_messages, text_model)
+                              LocalText, RequestGate, Speech, local_messages, read_line, reader_messages, render_messages,
+                              text_model, wording_direction)
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
@@ -208,6 +209,17 @@ class LocalTextTest(unittest.TestCase):
         local = Speech(Lane(LocalText("http://127.0.0.1:1")), Reads())
         self.assertIs(local._lane_messages(), local_messages)
         self.assertIs(Speech(Lane(Text()), Reads())._lane_messages(), render_messages)
+
+    def test_a_status_without_a_summary_has_a_short_frame_around_the_title(self):
+        for said in (act(Kind.THREAD_STATUS, thread="Make a seed sorter", status="working"),
+                     act(Kind.NEEDS_YOU, thread="Make a seed sorter", need="command_approval")):
+            with self.subTest(kind=said.kind):
+                self.assertIn("at most eight words besides the full thread title", wording_direction(said))
+                self.assertNotIn("at most eight words", wording_direction(said.with_slots(summary="It found the list.")))
+
+    def test_an_app_direction_gets_the_exact_unquoted_title_instructions(self):
+        said = act(Kind.NEEDS_THE_APP, thread="Could you update the seed sort…", decision="approve")
+        self.assertIn("including any ellipsis, without quotes", wording_direction(said))
 
     def test_the_local_renderer_refuses_to_run_without_its_think_ban(self):
         class OddTokenizer(LlamaServer):

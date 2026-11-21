@@ -39,6 +39,14 @@ SUMMARY = [
     act(Kind.THREAD_STATUS, thread="Show seed packets in a grid", status="idle",
         summary="It says it is waiting for the layout choice before it goes on.", asked="what is the status"),
 ]
+STATUS_WITHOUT_SUMMARY = [
+    act(Kind.THREAD_STATUS, thread="Move the kiln log to its own page", status="working",
+        asked="is it done"),
+    act(Kind.THREAD_STATUS, thread="Could you start a thread to change how missing samples are han…",
+        status="waiting_on_you", need="command_approval", asked="is it approved yet"),
+    act(Kind.NEEDS_YOU, thread="Could you start a thread to change how missing samples are han…",
+        need="command_approval"),
+]
 DONE = [
     act(Kind.DONE, thread="Add a harbour map legend", status="completed",
         summary="It reports that the legend shows five symbols."),
@@ -97,6 +105,7 @@ OTHER = [
 ]
 
 GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_status_summary": SUMMARY,
+          "status_without_summary": STATUS_WITHOUT_SUMMARY,
           "done_summary": DONE, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
           "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP}
 

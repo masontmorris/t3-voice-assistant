@@ -41,12 +41,12 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 | `thread-lines`                | 1 of 1 | The thread-status replies consistently used checked lines.                          |
 | `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                     |
 | `withdrawn-question`          | 1 of 1 | The initial thread question was asked in all three runs. Only marked checks varied. |
-| `news-permission`             | 1 of 2 | The known launch-dispatch fault can prevent the approval exchange from running.     |
+| `news-permission`             | 1 of 2 | 3 of 3 launches reached approval. Draft refusals caused fallback in two calls.      |
 | `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).         |
 | `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                     |
-| `short-yes`                   | 1 of 2 | Whether both requests got a confirmation question varied.                           |
-| `news-done` (`--long`)        | 1 of 2 | Some runs never reached a finished thread or its news.                              |
-| `short-yes-tell` (`--long`)   | 1 of 2 | Whether T3 started a new run with the message varied.                               |
+| `short-yes`                   | 1 of 2 | All six spoken yeses started a thread in the latest spread.                         |
+| `news-done` (`--long`)        | 1 of 2 | A lookup spoke after the launch question in 1 of 3 calls, clearing it.              |
+| `short-yes-tell` (`--long`)   | 1 of 2 | 3 of 3 confirmed messages reached their threads.                                    |
 | `withdrawn-launch` (`--long`) | 1 of 2 | Whether the assistant asked a launch question varied.                               |
 
 A check that reproduces a fault nobody has fixed is listed in `KNOWN` in `voice/live/scenarios.py` with the fault. Its

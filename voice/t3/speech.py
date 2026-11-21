@@ -106,8 +106,8 @@ MEANINGS: dict[Kind, str] = {
                           "words, from it: what the person would be allowing. A denial has no `summary`: name the "
                           "thread and ask whether to say no to its request. Never read out a command line, flag, path "
                           "or code. Nothing is answered yet.",
-    Kind.NEEDS_THE_APP: "You cannot tell them what this thread's request would do, so you cannot approve it for them: "
-                        "say that this one has to be approved in the app. Name the thread.",
+    Kind.NEEDS_THE_APP: "Say in one sentence that you can't describe the request from this thread and it needs "
+                        "approval in the app. Copy the thread title including any ellipsis, without quotes.",
     Kind.RESPONDED: "T3 accepted the answer: say that the request was approved or denied, as `decision` says, for the "
                     "thread. Do not say what the thread does next.",
     Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to answer. "
@@ -431,6 +431,9 @@ def wording_direction(a: Act) -> str:
         return f"Say only that you {outcome_meaning(outcomes)}. Do not say you could not answer."
     if a.slots.get("recap"):
         return MEANINGS[a.kind] + " Make clear this is a recap of the same action you already reported."
+    if a.kind in (Kind.THREAD_STATUS, Kind.NEEDS_YOU) and not (a.slots.get("summary") or a.slots.get("since_last_asked")):
+        return (MEANINGS[a.kind] + " Use at most eight words besides the full thread title. Copy the title as supplied, "
+                "including any ellipsis, without quotes or adding spaces.")
     return MEANINGS[a.kind]
 
 
@@ -788,8 +791,7 @@ READER_EXAMPLES = {
     Kind.RESPONDED: ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "file_change"},
                      "I approved the file changes for Example Mend Rail Maps."),
     Kind.NEEDS_THE_APP: ({"thread": "Example Tag Camera Clips", "decision": "approve"},
-                          "I can't tell what Example Tag Camera Clips would be allowed to do, so you'll need to approve "
-                          "that one in the app."),
+                          "I can't describe the request from Example Tag Camera Clips, so it needs approval in the app."),
     Kind.NOTHING_PENDING: ({"thread": "Example Tag Camera Clips"},
                            "Example Tag Camera Clips isn't waiting on any request, so there was nothing to answer."),
     Kind.ASK_QUESTION: ({"thread": "Example Pick Storage Layer", "question": "Which database should it use?",
