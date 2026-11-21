@@ -12227,5 +12227,17 @@
   "7e664283273943e0": "Un appel vocal utilise le micro.",
   "be2fe22cec8b1b50": "Un nom de tailnet nécessite une adresse wss://, par exemple via Tailscale Serve.",
   "eafbd616e90494c3": "La dictée utilise le micro.",
-  "e4a9284168a984bf": "Le serveur vocal fonctionne avec un autre environnement T3 que celui de ce fil."
+  "e4a9284168a984bf": "Le serveur vocal fonctionne avec un autre environnement T3 que celui de ce fil.",
+  "690ae7d3e7024619": "Appel vocal",
+  "606cb04bb6ac3ef6": "{count, plural, one {{count} ligne} other {{count} lignes}} · {minutes, plural, one {{minutes} min} other {{minutes} min}}",
+  "1648008fd32e4d32": "Afficher les {count} lignes",
+  "33b2e685c512c4b8": "La suite de cet appel était trop longue pour être conservée.",
+  "f5114fb9c40fd929": "Vous",
+  "2f1ef9e0c53c189e": "à propos d’un fil",
+  "5cc20371639788f7": "coupé",
+  "558a9d0b38fa9258": "Preuves",
+  "09c86b914196de0f": "Un élément du fil",
+  "d89ba336861d5726": "Une exécution du fil",
+  "b3527483bd2702a3": "Le fil tel qu’il était alors",
+  "fec208ea8cc10427": "Absent de la partie chargée de ce fil"
 }

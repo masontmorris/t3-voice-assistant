@@ -99,6 +99,27 @@ const items = Schema.decodeUnknownSync(Schema.Array(OrchestrationV2TurnItem))(
   })),
 );
 
+const voiceCall = Schema.decodeSync(OrchestrationV2TurnItem)({
+  id: "item-voice-call",
+  threadId: "source-thread",
+  runId: null,
+  nodeId: null,
+  providerThreadId: null,
+  providerTurnId: null,
+  nativeItemRef: null,
+  parentItemId: null,
+  ordinal: 200,
+  type: "voice_call",
+  status: "completed",
+  title: null,
+  callId: "call-1",
+  lines: [{ speaker: "caller", text: "Private words", relay: false }],
+  truncated: false,
+  startedAt: now,
+  completedAt: now,
+  updatedAt: now,
+});
+
 const rolledBackRun = Schema.decodeSync(OrchestrationV2Run)({
   id: "run:rolled-back",
   threadId: "source-thread",
@@ -212,7 +233,7 @@ it.effect("exports full history with size, scope, and missing-thread checks", ()
       (yield* decodeTranscript(yield* Effect.promise(() => emptyResponse.json()))).items,
     ).toEqual([]);
     yield* eventSink.write({
-      events: items.map((item) => ({
+      events: [...items, voiceCall].map((item) => ({
         id: EventId.make(`create-${item.id}`),
         type: "turn-item.updated" as const,
         threadId: thread.id,
@@ -225,6 +246,10 @@ it.effect("exports full history with size, scope, and missing-thread checks", ()
     expect(response.status).toBe(200);
     const transcript = yield* decodeTranscript(yield* Effect.promise(() => response.json()));
     expect(transcript.items).toHaveLength(200);
+    expect(
+      transcript.items.some((row) => row.item.type === "voice_call"),
+      "a voice call is never in a transcript handed to a model",
+    ).toBe(false);
     expect(transcript.items[0]?.item).toMatchObject({ output });
     expect(transcript.items[0]?.visibility).toBe("local");
     expect(transcript.items[199]?.position).toBe(199);

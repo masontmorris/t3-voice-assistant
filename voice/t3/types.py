@@ -136,6 +136,7 @@ class Operation(str, Enum):
     INTERRUPT = "interrupt"
     RESPOND = "respond"
     ANSWER = "answer"
+    RECORD = "record"
 
 
 WIRE_OPS: tuple[str, ...] = (
@@ -148,6 +149,7 @@ WIRE_OPS: tuple[str, ...] = (
     "interrupt",
     "respond",
     "answer_question",
+    "record_call",
 )
 
 
@@ -324,6 +326,18 @@ class AnswerResult:
     thread_id: str
     pending_request_id: str
     answers: tuple[RecordedAnswer, ...]
+    sequence: int
+    replayed: bool
+
+
+@dataclass(frozen=True)
+class RecordResult:
+    """A call's transcript as T3 recorded it on the thread, fresh or replayed."""
+
+    thread_id: str
+    turn_item_id: str
+    lines: int
+    truncated: bool
     sequence: int
     replayed: bool
 
@@ -726,6 +740,14 @@ RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
     "interrupt": decode_interrupt_result,
     "respond": decode_respond_result,
     "answer_question": decode_answer_result,
+    "record_call": lambda value: RecordResult(
+        thread_id=_need(value, "threadId"),
+        turn_item_id=_need(value, "turnItemId"),
+        lines=_need(value, "lines"),
+        truncated=_need(value, "truncated"),
+        sequence=_need(value, "sequence"),
+        replayed=_need(value, "replayed"),
+    ),
 }
 
 ResultValue = Union[

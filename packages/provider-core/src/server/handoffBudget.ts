@@ -8,7 +8,7 @@ import type {
   OrchestrationV2ProviderThread,
   OrchestrationV2TurnItem,
 } from "@t3tools/contracts";
-import { withMessageSenderNote } from "@t3tools/contracts";
+import { isCallerPrivateTurnItem, withMessageSenderNote } from "@t3tools/contracts";
 
 import * as Config from "effect/Config";
 
@@ -135,6 +135,7 @@ export function handoffBudget(input: {
 export function historicalMessage(
   item: OrchestrationV2TurnItem,
 ): OrchestrationV2HistoricalMessage | null {
+  if (isCallerPrivateTurnItem(item)) return null;
   let text: string;
   switch (item.type) {
     case "user_message":

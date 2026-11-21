@@ -144,6 +144,11 @@ class FakeSeam:
         self.calls.append(("answer_question", request_id, thread_id, pending_request_id, answers))
         return self._answer("answer_question", unavailable())
 
+    def record_call(self, request_id, thread_id, call_id, started_at, ended_at, lines):
+        self.calls.append(("record_call", request_id, thread_id, call_id, started_at, ended_at, lines))
+        return self._answer("record_call", T.RecordResult(thread_id, "turn-item:voice-call:x", len(lines), False, 99,
+                                                          False))
+
     def watch(self, thread_id, after_sequence, run_id=None):
         self.calls.append(("watch", thread_id, after_sequence, run_id))
         return self._answer("watch", T.WatchStarted(thread_id))

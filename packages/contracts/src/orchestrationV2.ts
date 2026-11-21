@@ -1747,6 +1747,55 @@ const OrchestrationV2LinkRequestFields = {
   failure: Schema.optional(Schema.String),
 } as const;
 
+/** Where a checked voice line's evidence lives in the thread, resolved from the event sequence it cites. */
+export const OrchestrationV2VoiceCallEvidence = Schema.Struct({
+  sequence: NonNegativeInt,
+  ref: Schema.NullOr(
+    Schema.Union([
+      Schema.Struct({ type: Schema.Literal("message"), messageId: MessageId }),
+      Schema.Struct({ type: Schema.Literal("request"), requestId: RuntimeRequestId }),
+      Schema.Struct({ type: Schema.Literal("turn_item"), turnItemId: TurnItemId }),
+      Schema.Struct({ type: Schema.Literal("run"), runId: RunId }),
+    ]),
+  ),
+});
+export type OrchestrationV2VoiceCallEvidence = typeof OrchestrationV2VoiceCallEvidence.Type;
+
+export const VOICE_CALL_LIMITS = {
+  lines: 400,
+  lineChars: 2_000,
+  totalChars: 60_000,
+  evidence: 8,
+} as const;
+
+/**
+ * One line of a live voice call on the thread: the caller's words as transcribed, or the voice's words as sent. A
+ * checked line names its spoken act and the thread events it rests on. Text only; never audio.
+ */
+export const OrchestrationV2VoiceCallLine = Schema.Struct({
+  speaker: Schema.Literals(["caller", "voice"]),
+  text: Schema.String,
+  /** The line reported on a T3 thread. */
+  relay: Schema.Boolean,
+  /** The caller spoke over it, so not all of it was heard. */
+  interrupted: Schema.optional(Schema.Boolean),
+  claim: Schema.optional(
+    Schema.Struct({
+      act: TrimmedNonEmptyString,
+      evidence: Schema.Array(OrchestrationV2VoiceCallEvidence),
+    }),
+  ),
+});
+export type OrchestrationV2VoiceCallLine = typeof OrchestrationV2VoiceCallLine.Type;
+
+const OrchestrationV2VoiceCallFields = {
+  type: Schema.Literal("voice_call"),
+  callId: TrimmedNonEmptyString,
+  lines: Schema.Array(OrchestrationV2VoiceCallLine),
+  /** Lines or text past VOICE_CALL_LIMITS were left out. */
+  truncated: Schema.Boolean,
+} as const;
+
 export const OrchestrationV2TurnItem = Schema.Union([
   Schema.Struct({
     ...OrchestrationV2TurnItemBaseFields,
@@ -1936,6 +1985,10 @@ export const OrchestrationV2TurnItem = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemBaseFields,
+    ...OrchestrationV2VoiceCallFields,
+  }),
+  Schema.Struct({
+    ...OrchestrationV2TurnItemBaseFields,
     type: Schema.Literal("thread_created"),
     targetThreadId: ThreadId,
     targetRunId: Schema.NullOr(RunId),
@@ -1978,6 +2031,13 @@ export const OrchestrationV2TurnItem = Schema.Union([
   }),
 ]);
 export type OrchestrationV2TurnItem = typeof OrchestrationV2TurnItem.Type;
+
+/**
+ * A voice call's transcript is the caller's own: their T3 shows it to them, and it is never handed to a model, an
+ * agent, a guest or any other service. Every path that assembles thread content for one of those leaves it out.
+ */
+export const isCallerPrivateTurnItem = (item: { readonly type: string }): boolean =>
+  item.type === "voice_call";
 
 const isUnknownTurnItem = hasUnknownUnionTag(OrchestrationV2TurnItem.members, "type");
 
@@ -2820,6 +2880,10 @@ export const OrchestrationV2TurnItemJson = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemJsonBaseFields,
+    ...OrchestrationV2VoiceCallFields,
+  }),
+  Schema.Struct({
+    ...OrchestrationV2TurnItemJsonBaseFields,
     type: Schema.Literal("thread_created"),
     targetThreadId: ThreadId,
     targetRunId: Schema.NullOr(RunId),
@@ -3652,6 +3716,18 @@ export type OrchestrationV2Command = typeof OrchestrationV2Command.Type;
 
 // Excluded from dispatchCommand so only the server can send these.
 const OrchestrationV2InternalCommand = Schema.Union([
+  // A live voice call's transcript, which the voice seam records on the thread the call was opened on.
+  Schema.Struct({
+    type: Schema.Literal("thread.voice-call.record"),
+    commandId: CommandId,
+    threadId: ThreadId,
+    turnItemId: TurnItemId,
+    callId: TrimmedNonEmptyString,
+    startedAt: Schema.DateTimeUtc,
+    endedAt: Schema.DateTimeUtc,
+    lines: Schema.Array(OrchestrationV2VoiceCallLine),
+    truncated: Schema.Boolean,
+  }),
   // Guest share commands the server issues after checking T3 Connect and the guest token.
   Schema.Struct({
     type: Schema.Literal("thread.guest-share.open"),

@@ -1,6 +1,7 @@
 """The browser path: the page over GET /, and the auth frame in place of the header."""
 
 import asyncio
+import io
 import base64
 import json
 import tempfile
@@ -251,6 +252,50 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                     self.assertEqual(heard["text"], "words in turn_001")
                     self.assertLess(log.index("heard"), log.index("reply_start"), "the caller's words show first")
                     self.assertIn("say", log)
+
+    async def talk_on_thread(self, seam, thread="t5"):
+        """One call opened on `thread` with one turn, then a hangup; returns once the server let the call go."""
+        self.live.t3 = tasks_over(self, seam)
+        released = asyncio.Event()
+        original = server.Conversation.record_transcript
+
+        async def record_transcript(conversation):
+            await original(conversation)
+            released.set()
+
+        with mock.patch.object(server.Conversation, "record_transcript", record_transcript):
+            async with await self.browser() as ws:
+                await ws.send(f"auth {test_server.SECRET}")
+                hello = {"type": "hello", "mode": "vad", **({"thread": thread} if thread else {})}
+                await ws.send(json.dumps(hello))
+                await self.until(ws, "ready", [])
+                await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
+                await self.until(ws, "turn_done", [])
+            await asyncio.wait_for(released.wait(), 5)
+
+    async def test_a_call_on_a_thread_records_its_transcript_there_once_at_the_end(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        await self.talk_on_thread(seam)
+        records = [call for call in seam.calls if call[0] == "record_call"]
+        self.assertEqual(len(records), 1)
+        _, _, thread, call_id, started, ended, lines = records[0]
+        self.assertEqual(thread, "t5")
+        self.assertTrue(call_id.startswith("call-") and started <= ended)
+        self.assertEqual(lines, [{"speaker": "caller", "text": "words in turn_001", "relay": False},
+                                 {"speaker": "voice", "text": "reply to turn_001", "relay": False}])
+
+    async def test_a_call_with_no_thread_records_nothing(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        await self.talk_on_thread(seam, thread=None)
+        self.assertFalse([call for call in seam.calls if call[0] == "record_call"])
+
+    async def test_a_transcript_t3_will_not_take_ends_the_call_cleanly_and_logs_no_words(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        seam.answer("record_call", F.unavailable())
+        with mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            await self.talk_on_thread(seam)
+        self.assertIn("call transcript was not recorded", out.getvalue())
+        self.assertNotIn("words in turn_001", out.getvalue(), "the caller's words never reach the log")
 
     async def test_a_thread_from_another_t3_environment_is_refused(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))

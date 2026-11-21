@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleTrigger, CollapsiblePanel } from "../ui/collaps
 import { EnvironmentSubagentAvatar, SubagentElapsed, V2LifecycleRow } from "./V2LifecycleRow";
 import { LinkRequestCard } from "./LinkRequestCard";
 import { SecretRequestCard } from "./SecretRequestCard";
+import { VoiceCallCard } from "./VoiceCallCard";
 import { TimelineRowCtx, type TimelineRow } from "./timelineRowContext";
 import { subagentGroupTiming } from "./TimelineV2EventRow.logic";
 
@@ -22,6 +23,9 @@ export function V2EventTimelineRow({ row }: { row: Extract<TimelineRow, { kind: 
   const { item, visibility } = row.projectedItem;
   if (item.type === "subagent" && (row.subagents?.length ?? 1) > 1) {
     return <V2SubagentGroup key={row.id} row={row} />;
+  }
+  if (item.type === "voice_call") {
+    return <VoiceCallCard rowId={row.id} item={item} continues={row.continuesWorkLog} />;
   }
   if (item.type === "secret_request") {
     return (

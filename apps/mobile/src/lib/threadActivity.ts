@@ -611,6 +611,7 @@ function itemIcon(item: OrchestrationV2TurnItem): ThreadFeedActivity["icon"] {
     case "handoff":
     case "fork":
     case "thread_created":
+    case "voice_call":
       return "zap";
     case "secret_request":
       return "lock";
@@ -686,6 +687,8 @@ function itemSummary(
       return resolve(msg("Thread forked"));
     case "thread_created":
       return resolve(msg("Thread created"));
+    case "voice_call":
+      return resolve(msg("Voice call"));
     case "secret_request":
       return item.label;
     case "link_request":
@@ -761,6 +764,8 @@ function itemPreview(item: OrchestrationV2TurnItem, resolve: MessageResolver): s
     case "subagent":
       return item.result ?? item.progress ?? item.prompt;
     case "dynamic_tool":
+    // The mobile app has no transcript card yet, so a call's words stay on the web and desktop card.
+    case "voice_call":
       return null;
     case "notification":
       return item.detail ?? null;

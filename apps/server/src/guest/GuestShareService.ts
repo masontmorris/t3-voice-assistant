@@ -19,6 +19,7 @@ import {
   type OrchestrationV2TurnItem,
   ThreadId,
   TurnItemId,
+  isCallerPrivateTurnItem,
 } from "@t3tools/contracts";
 import { chatMarkdownImageSources } from "@t3tools/shared/markdownPipeline";
 import { htmlRenderFromToolItem } from "@t3tools/shared/toolOutput";
@@ -94,6 +95,21 @@ const GUEST_ACCESS_MESSAGES = {
 } as const;
 
 /** What a guest is told. The message comes from `reason`, never from a cause. */
+
+/** A guest sees the thread without the owner's voice calls, which are the caller's own. */
+const withoutCallerPrivateItems = <
+  P extends {
+    readonly turnItems: ReadonlyArray<{ readonly type: string }>;
+    readonly visibleTurnItems: ReadonlyArray<{ readonly item: { readonly type: string } }>;
+  },
+>(
+  projection: P,
+): P => ({
+  ...projection,
+  turnItems: projection.turnItems.filter((item) => !isCallerPrivateTurnItem(item)),
+  visibleTurnItems: projection.visibleTurnItems.filter((row) => !isCallerPrivateTurnItem(row.item)),
+});
+
 export class GuestShareAccessError extends Schema.TaggedError<GuestShareAccessError>()(
   "GuestShareAccessError",
   {
@@ -565,6 +581,12 @@ const make = Effect.gen(function* () {
         Stream.map((item): ReadonlyArray<GuestStreamEvent> => {
           if (item.kind !== "event") return [];
           if (endsShare(item.event)) return [ended];
+          if (
+            item.event.type === "turn-item.updated" &&
+            isCallerPrivateTurnItem(item.event.payload)
+          ) {
+            return [];
+          }
           if (item.event.type === "turn-item.updated") rememberSent(share.id, [item.event.payload]);
           const updated = threadOf(item.event);
           const view = updated === null ? null : viewOf(updated);
@@ -585,7 +607,7 @@ const make = Effect.gen(function* () {
     );
     const openingSnapshot = buildBoundedThreadStreamSnapshot({
       snapshotSequence: snapshot.snapshotSequence,
-      projection: snapshot.projection,
+      projection: withoutCallerPrivateItems(snapshot.projection),
     });
     const opening: ReadonlyArray<GuestStreamEvent> = [
       { type: "view", view: initialView },

@@ -702,6 +702,7 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
       return command.parentThreadId;
     case "secret_request.record":
     case "link_request.record":
+    case "thread.voice-call.record":
       return command.threadId;
     case "thread.fork":
     case "thread.merge_back":
@@ -10857,6 +10858,68 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     },
   );
 
+  /** A live voice call's transcript on its thread: a card in the timeline, outside every run and any model's view. */
+  const dispatchVoiceCallRecord = Effect.fn("orchestrationV2.dispatch.voiceCallRecord")(function* (
+    command: Extract<OrchestrationV2InternalCommand, { readonly type: "thread.voice-call.record" }>,
+    events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
+  ) {
+    const projection = yield* projectionStore
+      .getThreadRecords(command.threadId, ["turnItems"], {
+        turnItemTypes: ["voice_call"],
+        turnItemRunIds: [null],
+      })
+      .pipe(
+        Effect.mapError(
+          (cause) => new OrchestratorProjectionError({ threadId: command.threadId, cause }),
+        ),
+      );
+    if (projection.thread.deletedAt !== null) {
+      return yield* new OrchestratorDispatchError({
+        commandId: command.commandId,
+        commandType: command.type,
+        cause: `Thread ${command.threadId} was deleted.`,
+      });
+    }
+    // The seam derives the card from its command, so a second command for one card is a bug, not a retry.
+    if (projection.turnItems.some((item) => item.id === command.turnItemId)) {
+      return yield* new OrchestratorDispatchError({
+        commandId: command.commandId,
+        commandType: command.type,
+        cause: `Voice call ${command.turnItemId} is already recorded.`,
+      });
+    }
+    const now = yield* DateTime.now;
+    const turnItem: OrchestrationV2TurnItem = {
+      id: command.turnItemId,
+      threadId: command.threadId,
+      runId: null,
+      nodeId: null,
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      parentItemId: null,
+      ordinal: yield* nextTurnItemOrdinal(projection),
+      status: "completed",
+      title: null,
+      startedAt: command.startedAt,
+      completedAt: command.endedAt,
+      updatedAt: now,
+      type: "voice_call",
+      callId: command.callId,
+      lines: command.lines,
+      truncated: command.truncated,
+    };
+    yield* emit(
+      events,
+      command,
+    )({
+      type: "turn-item.updated",
+      threadId: command.threadId,
+      occurredAt: now,
+      payload: turnItem,
+    });
+  });
+
   const dispatchSecretRequestRecord = Effect.fn("orchestrationV2.dispatch.secretRequestRecord")(
     function* (
       command: Extract<OrchestrationV2InternalCommand, { readonly type: "secret_request.record" }>,
@@ -15844,6 +15907,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         break;
       case "thread.created.record":
         yield* dispatchCreatedThreadRecord(command, events);
+        break;
+      case "thread.voice-call.record":
+        yield* dispatchVoiceCallRecord(command, events);
         break;
       case "secret_request.record":
         yield* dispatchSecretRequestRecord(command, events);
