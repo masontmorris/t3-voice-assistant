@@ -48,7 +48,7 @@ from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import (Launch, Lane, LocalText, Rendered, RequestGate, Speech, candidate_names, named, reference,
                              text_model, without_request)
-from voice.t3.verify import NEED, NO_ANSWER, NONE, Chosen, Decider, Listed, Picked, Reading, default_decider
+from voice.t3.verify import NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, Chosen, Decider, Listed, Picked, Reading, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 APPROVE, DENY = "t3_approve", "t3_deny"
@@ -225,6 +225,8 @@ class T3Tasks:
     told: dict[str, int] = field(default_factory=dict, init=False)
     withdrawn: Question | None = field(default=None, init=False)
     declined: dict | None = field(default=None, init=False)
+    before_call: frozenset = field(default_factory=frozenset, init=False)
+    before_pick: tuple | None = field(default=None, init=False)
     call: int = field(default=0, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
@@ -233,6 +235,7 @@ class T3Tasks:
 
     def __post_init__(self) -> None:
         self.lane = Lane(self.model) if self.model is not None else None
+        self.before_call = frozenset(self.follow.journal.tasks)
         self.speech = Speech(self.lane, self._read_quiet, self.decider, Lane(self.writer) if self.writer else None,
                              reuse=self.reuse)
 
@@ -354,6 +357,7 @@ class T3Tasks:
         """A new call starts: nothing asked on an earlier one can be answered on it."""
         with self.lock:
             self.call += 1
+            self.before_call = frozenset(self.follow.journal.tasks)
             self.spoken_of = self.spoken_id = None
             self.told.clear()
             self._drop_question()
@@ -362,6 +366,7 @@ class T3Tasks:
     def end_call(self) -> None:
         with self.lock:
             self._drop_question()
+            self.withdrawn = self.declined = self.before_pick = None
 
     def _drop_question(self) -> None:
         self.question = self.unasked = None
@@ -396,8 +401,9 @@ class T3Tasks:
         names = [question.titles.get(t, t) for t in question.candidates]
         self.declined = {"asked": "which of these threads they meant" if question.kind == "thread"
                          else "whether this is the thread they meant", "threads": names}
-        if question.kind == "thread_confirm" and self.spoken_id in question.candidates:
-            self.spoken_of = self.spoken_id = None
+        if question.kind == "thread_confirm" and self.before_pick is not None and self.spoken_id in question.candidates:
+            self.spoken_of, self.spoken_id, self.recent = self.before_pick
+        self.before_pick = None
 
     def declined_state(self) -> dict | None:
         """The question about threads the caller took back, as the decider is shown it, until a line about a thread is
@@ -424,6 +430,8 @@ class T3Tasks:
             begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
             if titles or started or begun:
                 self.declined = None
+                self.before_pick = ((self.spoken_of, self.spoken_id, self.recent)
+                                    if update.status == "needs_clarification" else None)
                 self.recent = update.thread_id or self.recent
                 self.spoken_of = titles[0] if titles else f"the new thread in {started or begun}"
                 self.spoken_id = update.thread_id
@@ -438,6 +446,12 @@ class T3Tasks:
                     self.unasked = None
             elif question.heard:
                 self._drop_question()
+
+    def news_spoken(self, update: L.Update) -> None:
+        """News about a thread was said: the thread is up again, so a question about it that was taken back is over."""
+        with self.lock:
+            if update.thread_id is not None or any("thread" in a.slots or "begun_in" in a.slots for a in update.acts):
+                self.declined = None
 
     def turn_closed(self, owner: object) -> None:
         """A turn ended. A question that an earlier turn asked and this one did not answer can no longer be."""
@@ -478,6 +492,12 @@ class T3Tasks:
                               "options": [option.label for option in first.options]})
         return found
 
+    def done_this_call(self) -> list:
+        """What the voice began on this call, from the journal and so from the moment it was begun: a start, a message,
+        a stop, an approval or an answer, in flight or ended."""
+        with self.lock:
+            return [task for task_id, task in self.follow.journal.tasks.items() if task_id not in self.before_call]
+
     def claim_facts(self) -> tuple[str | None, dict] | None:
         """The thread the call last spoke of and what is true of it now, for the check of a free reply: its state in T3,
         the end of its last reply, and what the voice itself sent to it or stopped. With no thread in view the facts say
@@ -486,10 +506,12 @@ class T3Tasks:
         with self.lock:
             thread_id = self.spoken_id
             did = [{"did": task.kind.value, "text": task.instruction, "outcome": task.status.value}
-                   for task in self.follow.journal.tasks.values()
-                   if thread_id is None or task.link.thread_id == thread_id][-5:]
+                   for task in self.follow.journal.tasks.values() if task.link.thread_id == thread_id][-5:]
         if thread_id is None:
-            return None, {"thread": None, "the_assistant_did": did}
+            began = [{"did": task.kind.value, "text": task.instruction, "outcome": task.status.value}
+                     for task in self.done_this_call()][-5:]
+            # The note says nothing was done, so it rides only while the journal holds nothing from this call.
+            return None, {"thread": None, **({} if began else {"note": NO_THREAD_NOTE}), "the_assistant_did": began}
         state = self._read_quiet(thread_id)
         if state is None:
             return None
@@ -504,8 +526,12 @@ class T3Tasks:
 
     def correction(self, thread_id: str | None, replying_to: str) -> L.Update | None:
         """The act that says a free reply was wrong, from a fresh read of the thread, as an update the voice words and
-        checks like any other. With no thread in view it says nothing was done. None when the thread cannot be read."""
+        checks like any other. With no thread in view it says nothing was done, and only when the journal holds nothing
+        the voice began on this call: with anything begun or in flight it is None, since the claim may be true. None
+        too when the thread cannot be read."""
         if thread_id is None:
+            if self.done_this_call():
+                return None
             return L.Update(f"correction:{replying_to}", (act(Say.NOTHING_DONE),), "completed", "correction")
         state = self._read_quiet(thread_id)
         if state is None:
@@ -1201,6 +1227,9 @@ class T3Tasks:
         """The text model's words for `update`'s acts, fitted to `turns`, off the T3 lock. A summarised act gets its
         thread's summary first, and the read it came from joins the update's evidence. A line that fails the slot
         check is not returned, and its problems go into the next attempt."""
+        if any(a.kind is Say.NOTHING_DONE for a in update.acts) and self.done_this_call():
+            # Worded later than it was built, and something was begun since: "nothing was done" is no longer true.
+            return Rendered(None, error="something was begun on this call since the reply was checked")
         acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences, self._asked_request(update))
         listing = self._listing()
         acts = self._offered(update, self._named(update, acts, listing), listing)
@@ -1553,7 +1582,9 @@ class T3TaskService(MockTaskService):
         if state != "sent":
             return
         if entry.get("type") == "task_update":
-            self.t3.ack_news(self.news.pop(id(entry)))
+            update = self.news.pop(id(entry))
+            self.t3.ack_news(update)
+            self.t3.news_spoken(update)
         else:
             task_id = entry["task_id"]
             self.delivered.add(task_id)

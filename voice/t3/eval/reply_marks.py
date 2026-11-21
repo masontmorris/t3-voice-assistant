@@ -88,3 +88,73 @@ HELD_OUT = cases([
               "wants_other": ["No, not the save slots one.", "Not that one, the audio one.", "No, the other thread.",
                               "That's the wrong one.", "No, I meant the one about shaders.", "Nah, a different one."]}),
 ])
+
+
+# Shapes a review found uncovered: the reply echoes the question, agrees to something else than what is pending, reverses
+# itself, or is cut off by end-of-turn detection mid-word or before a condition. `FRESH_SEEN` was written together with
+# `FRESH_HELD_OUT` and is the only one a wording or bar may be chosen on; `FRESH_HELD_OUT` was written before either was
+# run and is scored once, on the final wording.
+APPROVE = act(Kind.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve", need="command_approval",
+              summary="it wants to list the files in the folder")
+DENY = act(Kind.CONFIRM_RESPOND, thread="Add a clamp helper", decision="deny", need="command_approval")
+ANSWER = act(Kind.CONFIRM_ANSWER, thread="Add a clamp helper", questions=["Which database?"], answers=["Postgres"])
+SHAPES = {"echo": False, "other_question": False, "reversal_to_no": False, "reversal_to_yes": True,
+          "truncated_yes": True, "truncated_condition": False, "truncated_refusal": False, "cut_word": False}
+YES_GROUPS.update(SHAPES)
+
+FRESH_SEEN = cases([
+    (LAUNCH, {
+        "echo": ["Start a new coding thread in Voice sandbox?", "A new coding thread in Voice sandbox?",
+                 "Should you start a new thread?", "Start it in Voice sandbox, you mean?"],
+        "other_question": ["Yeah, I'm doing fine.", "Yes, I can hear you.", "Sure, it's nice weather.",
+                           "Yeah, that's what he said."],
+        "reversal_to_no": ["Yeah... actually wait.", "Yes, no, hold on.", "Sure, actually never mind.", "Okay, wait, no."],
+        "reversal_to_yes": ["No, wait, yes, go ahead.", "Actually, yes, do it.", "Hmm, no... okay, yes."],
+        "truncated_yes": ["Yeah, go", "Sure, do", "Yes, please", "Okay, go on"],
+        "truncated_condition": ["Yeah, but", "Yes, and", "Sure, if", "Okay, only", "Yes, unless"],
+        "truncated_refusal": ["No, don't sta", "Not ye", "No, plea", "Don't"],
+        "cut_word": ["Ye", "Oka", "Su"]}),
+    (STOP, {"echo": ["Stop the clamp helper?"], "other_question": ["Yes, it's running fine."],
+            "truncated_condition": ["Yes, but"], "truncated_refusal": ["No, leave"], "truncated_yes": ["Yes, stop"]}),
+    (TELL, {"echo": ["Send also add a test to it?"], "reversal_to_no": ["Yeah, send it... no wait."],
+            "truncated_yes": ["Yes, send"], "truncated_condition": ["Yes, but"]}),
+    (APPROVE, {"echo": ["Approve the request?"], "other_question": ["Yes, it's running a command."],
+               "truncated_condition": ["Yes, but only"], "truncated_yes": ["Yes, approve"],
+               "reversal_to_no": ["Yeah... actually no."], "truncated_refusal": ["No, don't appr"]}),
+    (DENY, {"echo": ["Deny the request?"], "truncated_yes": ["Yes, deny"], "truncated_condition": ["Yes, but"],
+            "reversal_to_no": ["Yes, deny it... no, wait."]}),
+    (ANSWER, {"echo": ["Give it the answer Postgres?"], "truncated_yes": ["Yes, send"],
+              "truncated_condition": ["Yes, but"], "other_question": ["Yeah, I like Postgres."]}),
+    (THREAD, {"echo": ["The clamp helper thread?", "Add a clamp helper?"], "other_question": ["Yes, it's a good thread."],
+              "reversal_to_no": ["Yeah... no, wait."], "truncated_condition": ["Yes, but"],
+              "truncated_refusal": ["No, not tha"], "truncated_yes": ["Yes, that one"]}),
+])
+
+FRESH_HELD_OUT = cases([
+    (LAUNCH, {
+        "echo": ["Open a coding thread in the sandbox?", "Voice sandbox, a new thread?", "You want to start it now?",
+                 "A thread, in Voice sandbox, new?"],
+        "other_question": ["Yes, my day was good.", "Sure, the music is loud.", "Yeah, it's raining here.",
+                           "Okay, I see the screen."],
+        "reversal_to_no": ["Yes, wait, actually don't.", "Okay... hmm, no, stop.", "Sure, wait, hold off.",
+                           "Yeah, go... no, cancel."],
+        "reversal_to_yes": ["Hmm, no. Well, yes, fine.", "Wait, yes, start it.", "No, I mean yes, go ahead."],
+        "truncated_yes": ["Yeah, start", "Sure, go", "Okay, yes", "Yes, go"],
+        "truncated_condition": ["Yes, but only", "Sure, as long", "Okay, provided", "Yeah, except", "Yes, though"],
+        "truncated_refusal": ["No, not", "Nope, don't", "Please don't sta", "No, hold"],
+        "cut_word": ["Yea", "Sur", "Ok"]}),
+    (STOP, {"echo": ["Stop it, you say?"], "other_question": ["Yes, the build is green."],
+            "truncated_condition": ["Sure, once"], "truncated_refusal": ["No, let it"], "truncated_yes": ["Yeah, stop"]}),
+    (TELL, {"echo": ["Tell it to add a test?"], "reversal_to_no": ["Yes, send it, actually no."],
+            "truncated_yes": ["Sure, send"], "truncated_condition": ["Yeah, and"]}),
+    (APPROVE, {"echo": ["Let it list the files?"], "other_question": ["Sure, the files are in the folder."],
+               "truncated_condition": ["Okay, as long"], "truncated_yes": ["Yeah, allow"],
+               "reversal_to_no": ["Yes, no, wait, deny."], "truncated_refusal": ["No, don't all"]}),
+    (DENY, {"echo": ["Say no to it?"], "truncated_yes": ["Yeah, say no"], "truncated_condition": ["Yes, but"],
+            "reversal_to_no": ["Yeah, deny... actually allow it."]}),
+    (ANSWER, {"echo": ["Postgres, you mean?"], "truncated_yes": ["Sure, give"], "truncated_condition": ["Yeah, but"],
+              "other_question": ["Yes, Postgres is fast."]}),
+    (THREAD, {"echo": ["That clamp thread?"], "other_question": ["Yeah, threads are useful."],
+              "reversal_to_no": ["Yes, hmm, no."], "truncated_condition": ["Yeah, though"],
+              "truncated_refusal": ["No, that's"], "truncated_yes": ["Yes, that one"]}),
+])

@@ -362,6 +362,12 @@ CLAIM_CRITERIA = {"nothing": "The reply says nothing about a coding thread.",
 # sure side: on voice/t3/fixtures/claims.json it flags 8 of 10 wrong replies and 0 of 10 others (seen), and the held-out
 # set is in docs/voice/live-reply-check.md.
 CLAIM_UNSUPPORTED_YES = 0.5
+# With no thread in view every claim is unsupported unless the voice did it, and the local d1-2B reads an offer or a
+# question about doing something as one (0.5 to 0.77 on 7 of 15 such replies, voice/t3/eval/claim_cases.py), so its bar
+# is set above the highest share of a reply that is no claim on the seen set.
+CLAIM_NO_THREAD_YES = 0.75
+NO_THREAD_NOTE = ("Nothing has been started, sent, stopped or approved. An offer, a question about doing something, or "
+                  "something that would happen only after a yes is not a claim.")
 CLAIM_TIMEOUT_S = 2.0
 
 
@@ -381,10 +387,11 @@ class Claim:
     nothing: float | None = None
     ms: float = 0.0
     error: str | None = None
+    bar: float = CLAIM_UNSUPPORTED_YES
 
     @property
     def wrong(self) -> bool:
-        return self.unsupported is not None and self.unsupported >= CLAIM_UNSUPPORTED_YES
+        return self.unsupported is not None and self.unsupported >= self.bar
 
 
 def noul(record: dict, name: str) -> float | None:
@@ -453,7 +460,8 @@ class Decider:
         scores = _scores((answers or {}).get("reading"), CLAIM_CRITERIA) if isinstance(answers, dict) else None
         if scores is None:
             return Claim(ms=_ms(started), error=f"decider status {record.get('status')}, no reading")
-        return Claim(scores.get("unsupported", 0.0), scores.get("nothing", 0.0), _ms(started))
+        return Claim(scores.get("unsupported", 0.0), scores.get("nothing", 0.0), _ms(started),
+                     bar=CLAIM_NO_THREAD_YES if facts.get("thread") is None else CLAIM_UNSUPPORTED_YES)
 
     def reads(self, said: Act, reply: str, options: tuple[str, ...] = ()) -> Reading:
         """What `reply` does about the question `said` asked, and which of `options` it changes to when it asks for
@@ -606,13 +614,19 @@ READ_CRITERIA = {
 # first question a hesitant "hmm, maybe?" was a yes at 0.66.
 AGREES = ("Do the person's words say yes to what the assistant asked? A bare yeah, sure or okay counts, however it is "
           "said. A condition, a change, or another target does not. A reply that is unsure, undecided or "
-          "non-committal, such as maybe, perhaps or I don't know, is not yes.")
+          "non-committal, such as maybe, perhaps or I don't know, is not yes. The words must answer this very "
+          "question: repeating the question back, agreeing with something else, or a word cut off before it is a whole "
+          "word is not yes.")
+ADDS = ("Beyond agreeing, do the person's words add a remark, a fact or an opinion about something other than what the "
+        "assistant asked? Words that only agree, however hesitantly or politely, add nothing.")
 ASKS = ("Do the person's words ask the assistant for information, an explanation or a different choice before "
         "deciding? A bare word of agreement is not asking, even said with a rising voice.")
 WITHDRAWS = ("Does the person take back what they asked about altogether, so that they no longer want any thread "
              "looked up? Saying this is not the thread they mean, or naming another one, does not.")
 AGREES_CONFIDENCE = 0.5
+ADDS_CEILING = 0.5
 ASKS_CEILING = 0.7
+YES_OR_QUESTION = 0.5
 WITHDRAWS_CONFIDENCE = 0.5
 # A reply with any real share of a no or of another target is not an unconditional yes, however much of it says yes.
 OTHER_CEILING = 0.2
@@ -638,6 +652,7 @@ def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dic
     if said.kind is not Kind.ASK_WHICH:
         questions["agrees"] = {"type": "noul", "instructions": AGREES, "criteria": YES_NO}
         questions["asks"] = {"type": "noul", "instructions": ASKS, "criteria": YES_NO}
+        questions["adds"] = {"type": "noul", "instructions": ADDS, "criteria": YES_NO}
     if said.kind is Kind.CONFIRM_THREAD:
         questions["withdraws"] = {"type": "noul", "instructions": WITHDRAWS, "criteria": YES_NO}
     if options and said.kind is Kind.ASK_WHICH:
@@ -677,15 +692,14 @@ class Reading:
     agrees: float | None = None
     asks: float | None = None
     withdraws: float | None = None
+    adds: float | None = None
+    complete: bool = False
+    kept: bool = False
 
     @property
     def yes(self) -> bool:
-        """An unconditional yes: the reply says yes and asks nothing in words, with no real share of a no or of a
-        changed target or condition, and no change of target read beside it. Anything short is not a yes."""
-        p = self.probabilities
-        return (self.agrees is not None and self.asks is not None and self.agrees >= AGREES_CONFIDENCE
-                and self.asks < ASKS_CEILING and p.get("no", 0.0) <= OTHER_CEILING
-                and p.get("other", 0.0) <= OTHER_CEILING and self.target is None and not self.elsewhere)
+        return reads_yes(self.label, self.probabilities if self.complete else None, self.agrees, self.asks, self.adds,
+                         self.kept)
 
     @property
     def withdrawing(self) -> bool:
@@ -696,6 +710,29 @@ class Reading:
     def kind(self) -> str | None:
         """"yes", "no", or None for a reply that neither agrees outright nor declines."""
         return "yes" if self.yes else "no" if self.label == "no" else None
+
+
+def reads_yes(label: str | None, shares: dict[str, float] | None, agrees: float | None, asks: float | None,
+              adds: float | None, kept: bool) -> bool:
+    """Whether the decider's answers together are an unconditional yes, the one function that can authorise an action.
+    Every answer it rests on must be there: `shares` is the choice's complete map (None when it is missing, partial or
+    not shares of one whole), `agrees`, `asks` and `adds` are probabilities, and `kept` says the target answer was present and
+    says the proposal is kept (or none was asked). Then all of these must hold: the choice's own label is yes, or
+    question when the transcript marked a yes with a question mark; the shares of yes and question together are at
+    least half; a no and another target each have at most OTHER_CEILING; the words say yes (`agrees`), do not ask
+    for anything in words (`asks`) and add nothing but the agreement (`adds`). Anything missing, malformed or in
+    disagreement is not a yes."""
+    if (shares is None or agrees is None or asks is None or adds is None or not kept
+            or label not in ("yes", "question")):
+        return False
+    return (shares.get("yes", 0.0) + shares.get("question", 0.0) >= YES_OR_QUESTION
+            and shares.get("no", 1.0) <= OTHER_CEILING and shares.get("other", 1.0) <= OTHER_CEILING
+            and agrees >= AGREES_CONFIDENCE and asks < ASKS_CEILING and adds < ADDS_CEILING)
+
+
+def _complete(shares: dict[str, float]) -> bool:
+    """The choice's shares name every label and are shares of one whole, within the decider's rounding."""
+    return set(shares) == set(READ_CRITERIA) and 0.95 <= sum(shares.values()) <= 1.05
 
 
 def _noul(answers: dict, name: str) -> float | None:
@@ -737,8 +774,11 @@ def judge_reading(answers: Any, options: tuple[str, ...] = ()) -> Reading:
     share = shares.get(picked["choice"], 0.0) if shares is not None else 0.0
     target = names.get(picked["choice"]) if share >= OPTION_CONFIDENCE else None
     elsewhere = shares is not None and picked["choice"] == ELSEWHERE and share >= ELSEWHERE_CONFIDENCE
+    # With alternatives on offer the proposal is kept only when the target answer is there and says so.
+    kept = not options or (shares is not None and picked["choice"] == KEEPS and share >= OPTION_CONFIDENCE)
     return Reading(answers["reading"]["choice"], scores, target=target, elsewhere=elsewhere,
-                   **{name: _noul(answers, name) for name in ("agrees", "asks", "withdraws")})
+                   complete=_complete(scores), kept=kept,
+                   **{name: _noul(answers, name) for name in ("agrees", "asks", "withdraws", "adds")})
 
 
 OWN_WORDS, NO_ANSWER = "own_words", "no_answer"

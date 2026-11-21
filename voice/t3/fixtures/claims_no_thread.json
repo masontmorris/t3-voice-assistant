@@ -1,9 +1,9 @@
 [
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "started",
     "want": "wrong",
-    "ms": 38.5,
+    "ms": 37.1,
     "request_hash": "00bcd6f48e4fd5413ca20fde8711f7040606f6dc5025097d33c2a592d3bddf44",
     "answers": {
       "reading": {
@@ -20,10 +20,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "starting",
     "want": "wrong",
-    "ms": 38.3,
+    "ms": 36.2,
     "request_hash": "9f26c51e7decf05eceab9fa88e555e73cc55ba46b81c25fad9673759120385a7",
     "answers": {
       "reading": {
@@ -40,10 +40,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "approved",
     "want": "wrong",
-    "ms": 36.4,
+    "ms": 34.1,
     "request_hash": "8661397ea6a1a7591aa37e9d6f59fda581232e2cf3a4a6b23f8f41b8bcd2b204",
     "answers": {
       "reading": {
@@ -60,10 +60,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "sent",
     "want": "wrong",
-    "ms": 37.2,
+    "ms": 36.6,
     "request_hash": "8418a0f6e10c4a2b366b4d28fe444e4ff021021bd4af178fb21c7e920a313d36",
     "answers": {
       "reading": {
@@ -80,10 +80,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "running",
     "want": "wrong",
-    "ms": 36.3,
+    "ms": 36.8,
     "request_hash": "5cd3d6d4c61603c27cee9a506b81e3d203c60a2d5f6779a7b4f0723bad6baecf",
     "answers": {
       "reading": {
@@ -100,10 +100,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "stopped",
     "want": "wrong",
-    "ms": 33.4,
+    "ms": 33.2,
     "request_hash": "111dcaf2099322e161fee81eeb4d2dbda04593e26e87ebccf36d2a41e411ff98",
     "answers": {
       "reading": {
@@ -120,10 +120,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "kicked_off",
     "want": "wrong",
-    "ms": 35.9,
+    "ms": 36.7,
     "request_hash": "d0fafe8aa1899f8bba11ed9397cfc6dfdd102c1df944d47d6b0d93b88ac1bbac",
     "answers": {
       "reading": {
@@ -140,10 +140,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "new_thread",
     "want": "wrong",
-    "ms": 35.8,
+    "ms": 36.8,
     "request_hash": "9d1710beb64433d10a274bea00eea0761ef020bed5d004b1b64b5f9796baf409",
     "answers": {
       "reading": {
@@ -160,10 +160,30 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
+    "name": "sent_along",
+    "want": "wrong",
+    "ms": 36.6,
+    "request_hash": "f5073ad8a03db4ba59c68abe0883aa3b3f11547a94b169b4ac5c205a8045fe54",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.4777705600617418,
+          "supported": 0.06751425388386462,
+          "unsupported": 0.4547151860543936
+        },
+        "confidence": 0.21665584009261268,
+        "top_probability": 0.4777705600617418
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
     "name": "what_next",
     "want": "chat",
-    "ms": 36.8,
+    "ms": 37.2,
     "request_hash": "8a2fcff07dc7b6b949eaa57f898928bb26fdafd5a09934ab78cf5c912b9c163f",
     "answers": {
       "reading": {
@@ -180,10 +200,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "hello",
     "want": "chat",
-    "ms": 36.0,
+    "ms": 36.7,
     "request_hash": "b316c9ebbbd7ffb22dc887bc82cb634cfafdef5e91250dc1aed7d3dd55a4d111",
     "answers": {
       "reading": {
@@ -200,10 +220,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "weather",
     "want": "chat",
-    "ms": 35.9,
+    "ms": 35.7,
     "request_hash": "cd27c7a6aefa11658efabf8a5768d4a8eec6abe55df1b37eab780e10a1b076a7",
     "answers": {
       "reading": {
@@ -220,30 +240,10 @@
     }
   },
   {
-    "split": "no_thread",
-    "name": "offer",
-    "want": "chat",
-    "ms": 36.5,
-    "request_hash": "952d40838a289ff3fe2d20786bb735ac835b3fcc893ef16eb79663de002b8d36",
-    "answers": {
-      "reading": {
-        "type": "choice",
-        "choice": "unsupported",
-        "probabilities": {
-          "nothing": 0.11734876572260441,
-          "supported": 0.16300861761353055,
-          "unsupported": 0.7196426166638651
-        },
-        "confidence": 0.5794639249957976,
-        "top_probability": 0.7196426166638651
-      }
-    }
-  },
-  {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "thanks",
     "want": "chat",
-    "ms": 37.0,
+    "ms": 36.0,
     "request_hash": "ddd48809a3611ad6e5b11310fe91f800f94d4f99fcb5922925d8368ea5a26fac",
     "answers": {
       "reading": {
@@ -260,10 +260,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "repeat",
     "want": "chat",
-    "ms": 37.0,
+    "ms": 36.8,
     "request_hash": "097f41857e92de067799c3aeb93b2348dfd6f464913b46d85f19c810cf456bb5",
     "answers": {
       "reading": {
@@ -280,10 +280,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "math",
     "want": "chat",
-    "ms": 33.7,
+    "ms": 33.4,
     "request_hash": "a69c7f50e37ff1e5707d5e56b260071498a96bc01272a9aa378be2008890eec8",
     "answers": {
       "reading": {
@@ -300,10 +300,10 @@
     }
   },
   {
-    "split": "no_thread",
+    "split": "plain_seen",
     "name": "understood",
     "want": "chat",
-    "ms": 36.9,
+    "ms": 36.4,
     "request_hash": "ac2604e4cd1f1fc99aa69a585a8c5bbfd7dc1851e279b3dca05f049213dc9fb4",
     "answers": {
       "reading": {
@@ -316,6 +316,986 @@
         },
         "confidence": 0.40540104251814935,
         "top_probability": 0.6036006950120996
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "offer",
+    "want": "offer",
+    "ms": 36.6,
+    "request_hash": "952d40838a289ff3fe2d20786bb735ac835b3fcc893ef16eb79663de002b8d36",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.11734876572260441,
+          "supported": 0.16300861761353055,
+          "unsupported": 0.7196426166638651
+        },
+        "confidence": 0.5794639249957976,
+        "top_probability": 0.7196426166638651
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "want_me",
+    "want": "offer",
+    "ms": 36.4,
+    "request_hash": "8c8099ec24fc637c78d81d1a6cc118de22921ab42ad7df864495352c7305f112",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.24194904132964354,
+          "supported": 0.1307221378501092,
+          "unsupported": 0.6273288208202473
+        },
+        "confidence": 0.440993231230371,
+        "top_probability": 0.6273288208202473
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "shall_i",
+    "want": "offer",
+    "ms": 36.2,
+    "request_hash": "eeeb7c54a5b92c4b160f6931af7ad8a0fb256a8359ece8e980fc617a9ae62ba1",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.2819815100866586,
+          "supported": 0.09324589529400948,
+          "unsupported": 0.6247725946193319
+        },
+        "confidence": 0.4371588919289978,
+        "top_probability": 0.6247725946193319
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "would_you_like",
+    "want": "offer",
+    "ms": 36.3,
+    "request_hash": "a775399278eb42527f99103a905395f0ae88acde9f61b3d7d26b7740f44a59c3",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.3468755673356261,
+          "supported": 0.093427828631091,
+          "unsupported": 0.5596966040332829
+        },
+        "confidence": 0.3395449060499244,
+        "top_probability": 0.5596966040332829
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "could_stop",
+    "want": "offer",
+    "ms": 37.5,
+    "request_hash": "767ae9599e684678cb03b8fac4a2efef994b24f0f0335d04bfea732aa72f24c9",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.42967509061958326,
+          "supported": 0.0767799633509066,
+          "unsupported": 0.4935449460295101
+        },
+        "confidence": 0.24031741904426515,
+        "top_probability": 0.4935449460295101
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "which_project",
+    "want": "question",
+    "ms": 36.9,
+    "request_hash": "e58e3281c44c03cfba95f3116036b642db13f50a70a6af2dc6bb25c6e3a38d92",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.11743489432607039,
+          "supported": 0.11007244614479224,
+          "unsupported": 0.7724926595291374
+        },
+        "confidence": 0.658738989293706,
+        "top_probability": 0.7724926595291374
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "should_approve",
+    "want": "question",
+    "ms": 34.0,
+    "request_hash": "202e8cc879d1faa54dcd3d4510cb6f5bf9770023f7928adda031502c7371f689",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.4012492905805328,
+          "supported": 0.08328318205516735,
+          "unsupported": 0.5154675273642999
+        },
+        "confidence": 0.27320129104644986,
+        "top_probability": 0.5154675273642999
+      }
+    }
+  },
+  {
+    "split": "plain_seen",
+    "name": "after_yes",
+    "want": "conditional",
+    "ms": 37.1,
+    "request_hash": "ba7e660636c7c596161d9d4c4040a316a15634199fc90105680ca1e76f7a5cdc",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.3904727781998084,
+          "supported": 0.07232763414712631,
+          "unsupported": 0.5371995876530652
+        },
+        "confidence": 0.3057993814795978,
+        "top_probability": 0.5371995876530652
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "started",
+    "want": "wrong",
+    "ms": 41.1,
+    "request_hash": "cf2f2120422c402affdfb2c1d62486e9f7ed48eaac9f4bd80bdf2e080c4d2a05",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.08863988734549705,
+          "supported": 0.03469588684482529,
+          "unsupported": 0.8766642258096776
+        },
+        "confidence": 0.8149963387145163,
+        "top_probability": 0.8766642258096776
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "starting",
+    "want": "wrong",
+    "ms": 40.4,
+    "request_hash": "c62ba0521a0785bea115b43af6d9b4b5e767cae4077830ce474f9f3f9af66ff3",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.2540178767757896,
+          "supported": 0.06236624055688282,
+          "unsupported": 0.6836158826673276
+        },
+        "confidence": 0.5254238240009914,
+        "top_probability": 0.6836158826673276
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "approved",
+    "want": "wrong",
+    "ms": 40.5,
+    "request_hash": "31c0dd450bc206a5ffb48dfdeda769617238b6a64b1017291ed545e2f91dd74e",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.534417611613184,
+          "supported": 0.03964756710877686,
+          "unsupported": 0.42593482127803917
+        },
+        "confidence": 0.301626417419776,
+        "top_probability": 0.534417611613184
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "sent",
+    "want": "wrong",
+    "ms": 40.5,
+    "request_hash": "dbcf22007bcf900270ee7a026d5b9425e880a50f9d4623c78daf67041b9b009f",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.18171705725361548,
+          "supported": 0.04124274184254345,
+          "unsupported": 0.7770402009038411
+        },
+        "confidence": 0.6655603013557616,
+        "top_probability": 0.7770402009038411
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "running",
+    "want": "wrong",
+    "ms": 40.5,
+    "request_hash": "554b8e35a9bfa2799762139eca9278f7c92a18620fc0697fd12e50e2c0069ba7",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.17713379604585985,
+          "supported": 0.0673782666725572,
+          "unsupported": 0.7554879372815829
+        },
+        "confidence": 0.6332319059223743,
+        "top_probability": 0.7554879372815829
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "stopped",
+    "want": "wrong",
+    "ms": 40.5,
+    "request_hash": "450064a7970fb66489918dbf13ff5807fa6267e561c5370b599d1d382bde4427",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.4237476353432586,
+          "supported": 0.053328112201969036,
+          "unsupported": 0.5229242524547724
+        },
+        "confidence": 0.28438637868215855,
+        "top_probability": 0.5229242524547724
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "kicked_off",
+    "want": "wrong",
+    "ms": 40.6,
+    "request_hash": "cf4dc60ee24aa35a358c4eec06aa015d1ccc59ce78cbd6e60873bc47f1b6185c",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.4439419515877026,
+          "supported": 0.048127325793962034,
+          "unsupported": 0.5079307226183353
+        },
+        "confidence": 0.2618960839275029,
+        "top_probability": 0.5079307226183353
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "new_thread",
+    "want": "wrong",
+    "ms": 41.0,
+    "request_hash": "9de46c6f328a7c2e761a34a0c812e55a1d04b7b958a0d514cc44f897b74f07b4",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.05107362545248313,
+          "supported": 0.04065355577594287,
+          "unsupported": 0.908272818771574
+        },
+        "confidence": 0.8624092281573608,
+        "top_probability": 0.908272818771574
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "sent_along",
+    "want": "wrong",
+    "ms": 40.6,
+    "request_hash": "c25c7434fa172942eeef5d32cb5f934b1f3d920594245d6987c47424c4b673a4",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.5009372447228162,
+          "supported": 0.0671975770945289,
+          "unsupported": 0.4318651781826549
+        },
+        "confidence": 0.2514058670842243,
+        "top_probability": 0.5009372447228162
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "what_next",
+    "want": "chat",
+    "ms": 41.0,
+    "request_hash": "3d532ca12414aeaedfa15c75ae59f418fa32dcbbb2f25a25858562135369fad6",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.7367226050012732,
+          "supported": 0.08734386018783208,
+          "unsupported": 0.17593353481089474
+        },
+        "confidence": 0.6050839075019098,
+        "top_probability": 0.7367226050012732
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "hello",
+    "want": "chat",
+    "ms": 40.9,
+    "request_hash": "111e8605b3c6a0e7b487310eb7f4f32b64fc8dfcae03f1a33e6c12ff1f0cd976",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.8046990540977199,
+          "supported": 0.07622503604713156,
+          "unsupported": 0.11907590985514853
+        },
+        "confidence": 0.7070485811465799,
+        "top_probability": 0.8046990540977199
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "weather",
+    "want": "chat",
+    "ms": 39.9,
+    "request_hash": "9646bf9d7f100c307ef1621e5ef466fbf7fc6d8918dd5a6ed516f9e470cd1625",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.8061960552680499,
+          "supported": 0.04298667297794493,
+          "unsupported": 0.15081727175400528
+        },
+        "confidence": 0.7092940829020749,
+        "top_probability": 0.8061960552680499
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "thanks",
+    "want": "chat",
+    "ms": 39.0,
+    "request_hash": "29b33611fdb5ed4eaa9aa38a9689e2b074b79b62704ed8b6baf22376160ed183",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.702752203521634,
+          "supported": 0.08985469136009733,
+          "unsupported": 0.20739310511826858
+        },
+        "confidence": 0.554128305282451,
+        "top_probability": 0.702752203521634
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "repeat",
+    "want": "chat",
+    "ms": 40.5,
+    "request_hash": "7283d184497158477bad19e9cd88f901932c46ac4fad4f747718b1b7e4e93cb4",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.6010807274370216,
+          "supported": 0.0870842452902592,
+          "unsupported": 0.3118350272727193
+        },
+        "confidence": 0.40162109115553235,
+        "top_probability": 0.6010807274370216
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "math",
+    "want": "chat",
+    "ms": 41.3,
+    "request_hash": "fbad1c47d45190fc3124e3004515042f262ac80e8b75f761bf330668bb785d4b",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.7962515486667784,
+          "supported": 0.06306230808120204,
+          "unsupported": 0.14068614325201953
+        },
+        "confidence": 0.6943773230001675,
+        "top_probability": 0.7962515486667784
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "understood",
+    "want": "chat",
+    "ms": 40.1,
+    "request_hash": "59b23ed7d5143c56fb04eb1e133d774c4304ad134d0eeca8b6908bb08251f188",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.6545324543286375,
+          "supported": 0.1047898353418965,
+          "unsupported": 0.24067771032946603
+        },
+        "confidence": 0.48179868149295624,
+        "top_probability": 0.6545324543286375
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "offer",
+    "want": "offer",
+    "ms": 40.6,
+    "request_hash": "f1c40574efe990368561c27322ba020f53e6d757a65d21d2cf6d13ff72cb4cee",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.16908623059073552,
+          "supported": 0.16602852874872537,
+          "unsupported": 0.6648852406605391
+        },
+        "confidence": 0.49732786099080867,
+        "top_probability": 0.6648852406605391
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "want_me",
+    "want": "offer",
+    "ms": 40.4,
+    "request_hash": "0f2040b2bee35b94a91740b8a532b9944aec48f8680a19c8ff8978148d019cad",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.3231915148730442,
+          "supported": 0.15823311007468088,
+          "unsupported": 0.5185753750522749
+        },
+        "confidence": 0.27786306257841237,
+        "top_probability": 0.5185753750522749
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "shall_i",
+    "want": "offer",
+    "ms": 40.2,
+    "request_hash": "5703860c5e420d763ef2b8cabaac2a9adf087b8e0c30e8da81e5c25ed5c0f79d",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.3363332403773824,
+          "supported": 0.0931170848828274,
+          "unsupported": 0.5705496747397901
+        },
+        "confidence": 0.3558245121096852,
+        "top_probability": 0.5705496747397901
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "would_you_like",
+    "want": "offer",
+    "ms": 40.5,
+    "request_hash": "0bc9b6f42a6fb17011174acdc8c463b7bd472919024fc9b0a0992f4f29cfa597",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.4793787555489478,
+          "supported": 0.10292777699499477,
+          "unsupported": 0.4176934674560574
+        },
+        "confidence": 0.21906813332342173,
+        "top_probability": 0.4793787555489478
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "could_stop",
+    "want": "offer",
+    "ms": 40.8,
+    "request_hash": "58995b09e254a98a6254f5da745c6a9374f1d5e2283ddaaabea2fb3b5deb30b0",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.4698549517194407,
+          "supported": 0.07543268420758674,
+          "unsupported": 0.45471236407297255
+        },
+        "confidence": 0.20478242757916104,
+        "top_probability": 0.4698549517194407
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "which_project",
+    "want": "question",
+    "ms": 40.9,
+    "request_hash": "5e2369bfe1fc5f36a4b72e17c32d9ac16bedba2132d5b475339712e9bff06400",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.10689987490075958,
+          "supported": 0.1567344643467612,
+          "unsupported": 0.7363656607524792
+        },
+        "confidence": 0.6045484911287188,
+        "top_probability": 0.7363656607524792
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "should_approve",
+    "want": "question",
+    "ms": 40.7,
+    "request_hash": "22150b502c66a320873902ba25c13bd838581c6f99ce56e76c72809e6d2c5a90",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.4271941146655902,
+          "supported": 0.10365490586760737,
+          "unsupported": 0.46915097946680245
+        },
+        "confidence": 0.20372646920020368,
+        "top_probability": 0.46915097946680245
+      }
+    }
+  },
+  {
+    "split": "noted_seen",
+    "name": "after_yes",
+    "want": "conditional",
+    "ms": 40.7,
+    "request_hash": "420b9a31f2be3d807162d916bd327a7e1de4f4d287c54dbe227d0141ab5b1c7e",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.4368173594344063,
+          "supported": 0.06867238939318368,
+          "unsupported": 0.49451025117241004
+        },
+        "confidence": 0.24176537675861506,
+        "top_probability": 0.49451025117241004
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_going",
+    "want": "wrong",
+    "ms": 42.6,
+    "request_hash": "f763d94d17b7682ccd5fb06b99c07e8fb44a7e3c4d2479eef7814fa934718224",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.22229040900430502,
+          "supported": 0.0642330832838612,
+          "unsupported": 0.7134765077118338
+        },
+        "confidence": 0.5702147615677506,
+        "top_probability": 0.7134765077118338
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_stop",
+    "want": "wrong",
+    "ms": 42.9,
+    "request_hash": "62f12b3ae279fb44a1b51f247cf74a2732999276e5ea8fab199878e26383a287",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.44372430522782896,
+          "supported": 0.07604886953353361,
+          "unsupported": 0.48022682523863747
+        },
+        "confidence": 0.2203402378579562,
+        "top_probability": 0.48022682523863747
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_approve",
+    "want": "wrong",
+    "ms": 39.1,
+    "request_hash": "0333941aae85f21ae7bdf0adc0122a13106c6538d66626942f6eec402f1305e5",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.5036838509563408,
+          "supported": 0.04317238052378754,
+          "unsupported": 0.45314376851987176
+        },
+        "confidence": 0.25552577643451124,
+        "top_probability": 0.5036838509563408
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_way",
+    "want": "wrong",
+    "ms": 40.1,
+    "request_hash": "5dcdc7f79e882b3bd2d6b33879971ac8f7a43328c2b4f22303e229fc01beda90",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.29926947389670544,
+          "supported": 0.06988803657450612,
+          "unsupported": 0.6308424895287885
+        },
+        "confidence": 0.4462637342931828,
+        "top_probability": 0.6308424895287885
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_opened",
+    "want": "wrong",
+    "ms": 39.9,
+    "request_hash": "c946e828725bd9d222879bd6fe3512e4ff526e6ac8624b66212dc1737a386614",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.13771376767185067,
+          "supported": 0.059548746885794444,
+          "unsupported": 0.8027374854423549
+        },
+        "confidence": 0.7041062281635323,
+        "top_probability": 0.8027374854423549
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_set",
+    "want": "wrong",
+    "ms": 39.9,
+    "request_hash": "5bd0412339ab164055967e9a716f0dc09935ec3eef067230b41c276ebf577d4c",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.3102022625540886,
+          "supported": 0.0475625630920147,
+          "unsupported": 0.6422351743538967
+        },
+        "confidence": 0.463352761530845,
+        "top_probability": 0.6422351743538967
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_hi",
+    "want": "chat",
+    "ms": 39.8,
+    "request_hash": "a2aca7a70c020288c9d66651ee728176c1d8b80c40ddf683ac83b0c337bab20a",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.7562656268957599,
+          "supported": 0.08667128747315439,
+          "unsupported": 0.15706308563108565
+        },
+        "confidence": 0.6343984403436399,
+        "top_probability": 0.7562656268957599
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_time",
+    "want": "chat",
+    "ms": 40.5,
+    "request_hash": "c3b4aa77d1a0ff03a8fc4d847d9989bda259ff0f76bb225e2167fe235d4eeb6c",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.4886127298262313,
+          "supported": 0.0746555901604393,
+          "unsupported": 0.4367316800133295
+        },
+        "confidence": 0.2329190947393469,
+        "top_probability": 0.4886127298262313
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_sorry",
+    "want": "chat",
+    "ms": 41.2,
+    "request_hash": "0a1772922c7272aace5334abe102d2c26daccf076142bd1221a8c2aa57b3527a",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.6443006390520187,
+          "supported": 0.09239504958113362,
+          "unsupported": 0.2633043113668477
+        },
+        "confidence": 0.4664509585780281,
+        "top_probability": 0.6443006390520187
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_open",
+    "want": "offer",
+    "ms": 40.3,
+    "request_hash": "3c645a148472bed61f086e7c91e4225bf8a2ade7605e26246be182c9a0de2fff",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.3011971007169273,
+          "supported": 0.27160149740073725,
+          "unsupported": 0.4272014018823356
+        },
+        "confidence": 0.14080210282350336,
+        "top_probability": 0.4272014018823356
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_ready",
+    "want": "offer",
+    "ms": 40.8,
+    "request_hash": "97b1f0fa401ca124a0d6e34e00f462314fe43a6c7a0885e8854e72177065055d",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.540158885602473,
+          "supported": 0.09197397379012641,
+          "unsupported": 0.3678671406074005
+        },
+        "confidence": 0.3102383284037096,
+        "top_probability": 0.540158885602473
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_tell",
+    "want": "offer",
+    "ms": 40.1,
+    "request_hash": "2ab87592c8732fb8e2387dc4685414b9de6384879a930c70c3c9628deedfba1f",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.35414037101405255,
+          "supported": 0.07732954597865309,
+          "unsupported": 0.5685300830072945
+        },
+        "confidence": 0.3527951245109417,
+        "top_probability": 0.5685300830072945
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_happy",
+    "want": "offer",
+    "ms": 39.7,
+    "request_hash": "fb421b95e742381360d2763dee34ffaf5ecb995cc44f88e541666c6e0a75c9ca",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.48674594006338223,
+          "supported": 0.07774243186860612,
+          "unsupported": 0.43551162806801164
+        },
+        "confidence": 0.23011891009507335,
+        "top_probability": 0.48674594006338223
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_stopq",
+    "want": "question",
+    "ms": 39.4,
+    "request_hash": "2b160dcb22ce088533b9885f95d6d093106baddf41c04e8615b86a904c391dcd",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.40314055356361983,
+          "supported": 0.10133770401660532,
+          "unsupported": 0.4955217424197748
+        },
+        "confidence": 0.24328261362966222,
+        "top_probability": 0.4955217424197748
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_work",
+    "want": "question",
+    "ms": 40.0,
+    "request_hash": "9f1945ed7082292c65ee62e3ede62452698978efa297e15e92ede37ea8b9772f",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unsupported",
+        "probabilities": {
+          "nothing": 0.17413391722132368,
+          "supported": 0.1873427411836694,
+          "unsupported": 0.638523341595007
+        },
+        "confidence": 0.4577850123925105,
+        "top_probability": 0.638523341595007
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_not",
+    "want": "conditional",
+    "ms": 39.8,
+    "request_hash": "1aaa1e66126643e6f2ad70e5ea414fd91a6878787a962eecbe6aedfc55726b06",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.5539281780950108,
+          "supported": 0.11401784726753217,
+          "unsupported": 0.33205397463745695
+        },
+        "confidence": 0.33089226714251624,
+        "top_probability": 0.5539281780950108
+      }
+    }
+  },
+  {
+    "split": "noted_held_out",
+    "name": "h_confirm",
+    "want": "conditional",
+    "ms": 39.4,
+    "request_hash": "9ed1aa0c93313294e2ae3af0b8c90ad40f1805963d593ac6a50352efdcd31d32",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "nothing",
+        "probabilities": {
+          "nothing": 0.5354098555227558,
+          "supported": 0.07325210885782989,
+          "unsupported": 0.39133803561941444
+        },
+        "confidence": 0.30311478328413366,
+        "top_probability": 0.5354098555227558
       }
     }
   }

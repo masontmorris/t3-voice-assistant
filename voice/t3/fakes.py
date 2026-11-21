@@ -263,7 +263,9 @@ class Reader(Agree):
         withdraws = 1.0 if label == "withdraw" else 0.0
         label = "no" if label == "withdraw" else label
         shares = {"agrees": 1.0 if label == "yes" else 0.0, "asks": 1.0 if label == "question" else 0.0,
-                  "withdraws": withdraws}
+                  "withdraws": withdraws, "adds": 0.0}
+        whole = {name: 1.0 if name == label else 0.0 for name in ("yes", "no", "question", "other", "unrelated")}
+        kept = target is None and label != "other"
         if target == ELSEWHERE:
-            return Reading(label, {label: 1.0}, elsewhere=True, **shares)
-        return Reading(label, {label: 1.0}, target=target, **shares)
+            return Reading(label, whole, elsewhere=True, complete=True, **shares)
+        return Reading(label, whole, target=target, complete=True, kept=kept, **shares)

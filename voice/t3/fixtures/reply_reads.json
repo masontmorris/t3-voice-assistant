@@ -15,8 +15,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.005, "other": 0.004, "question": 0.009, "unrelated": 0.013, "yes": 0.969 },
-      "noul": { "agrees": 0.998, "asks": 0.002 }
+      "p": { "no": 0.005, "other": 0.007, "question": 0.006, "unrelated": 0.008, "yes": 0.975 },
+      "noul": { "agrees": 0.996, "asks": 0.002, "adds": 0.003 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -26,8 +26,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.019, "other": 0.007, "question": 0.01, "unrelated": 0.038, "yes": 0.925 },
-      "noul": { "agrees": 0.992, "asks": 0.001 }
+      "p": { "no": 0.011, "other": 0.006, "question": 0.007, "unrelated": 0.04, "yes": 0.936 },
+      "noul": { "agrees": 0.993, "asks": 0.004, "adds": 0.001 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -37,8 +37,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.002, "other": 0.004, "question": 0.002, "unrelated": 0.003, "yes": 0.989 },
-      "noul": { "agrees": 0.997, "asks": 0.002 }
+      "p": { "no": 0.004, "other": 0.005, "question": 0.003, "unrelated": 0.011, "yes": 0.976 },
+      "noul": { "agrees": 0.995, "asks": 0.002, "adds": 0.006 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -48,8 +48,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.006, "other": 0.005, "question": 0.006, "unrelated": 0.02, "yes": 0.963 },
-      "noul": { "agrees": 0.997, "asks": 0.001 }
+      "p": { "no": 0.002, "other": 0.004, "question": 0.004, "unrelated": 0.02, "yes": 0.97 },
+      "noul": { "agrees": 0.996, "asks": 0.005, "adds": 0.002 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -59,8 +59,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.009, "other": 0.015, "question": 0.05, "unrelated": 0.013, "yes": 0.914 },
-      "noul": { "agrees": 0.994, "asks": 0.157 }
+      "p": { "no": 0.005, "other": 0.009, "question": 0.024, "unrelated": 0.024, "yes": 0.939 },
+      "noul": { "agrees": 0.994, "asks": 0.064, "adds": 0.019 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -70,8 +70,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.006, "other": 0.009, "question": 0.006, "unrelated": 0.012, "yes": 0.968 },
-      "noul": { "agrees": 0.994, "asks": 0.015 }
+      "p": { "no": 0.003, "other": 0.006, "question": 0.004, "unrelated": 0.011, "yes": 0.976 },
+      "noul": { "agrees": 0.996, "asks": 0.01, "adds": 0.007 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -81,8 +81,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.007, "other": 0.013, "question": 0.058, "unrelated": 0.032, "yes": 0.89 },
-      "noul": { "agrees": 0.962, "asks": 0.064 }
+      "p": { "no": 0.011, "other": 0.022, "question": 0.082, "unrelated": 0.046, "yes": 0.839 },
+      "noul": { "agrees": 0.941, "asks": 0.059, "adds": 0.023 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -92,8 +92,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.002, "other": 0.003, "question": 0.003, "unrelated": 0.011, "yes": 0.98 },
-      "noul": { "agrees": 0.995, "asks": 0.007 }
+      "p": { "no": 0.004, "other": 0.007, "question": 0.004, "unrelated": 0.011, "yes": 0.974 },
+      "noul": { "agrees": 0.996, "asks": 0.012, "adds": 0.005 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -103,8 +103,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.002, "other": 0.004, "question": 0.003, "unrelated": 0.005, "yes": 0.986 },
-      "noul": { "agrees": 0.998, "asks": 0.003 }
+      "p": { "no": 0.001, "other": 0.002, "question": 0.002, "unrelated": 0.003, "yes": 0.992 },
+      "noul": { "agrees": 0.998, "asks": 0.002, "adds": 0.001 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -114,8 +114,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.008, "other": 0.009, "question": 0.006, "unrelated": 0.03, "yes": 0.947 },
-      "noul": { "agrees": 0.992, "asks": 0.006 }
+      "p": { "no": 0.006, "other": 0.014, "question": 0.005, "unrelated": 0.046, "yes": 0.929 },
+      "noul": { "agrees": 0.995, "asks": 0.004, "adds": 0.01 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -125,8 +125,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.004, "other": 0.009, "question": 0.005, "unrelated": 0.018, "yes": 0.964 },
-      "noul": { "agrees": 0.996, "asks": 0.009 }
+      "p": { "no": 0.004, "other": 0.007, "question": 0.007, "unrelated": 0.015, "yes": 0.967 },
+      "noul": { "agrees": 0.996, "asks": 0.005, "adds": 0.005 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -136,8 +136,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.042, "other": 0.013, "question": 0.016, "unrelated": 0.157, "yes": 0.772 },
-      "noul": { "agrees": 0.953, "asks": 0.008 }
+      "p": { "no": 0.031, "other": 0.012, "question": 0.011, "unrelated": 0.16, "yes": 0.786 },
+      "noul": { "agrees": 0.967, "asks": 0.006, "adds": 0.012 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -147,8 +147,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.01, "other": 0.01, "question": 0.006, "unrelated": 0.048, "yes": 0.926 },
-      "noul": { "agrees": 0.988, "asks": 0.006 }
+      "p": { "no": 0.007, "other": 0.008, "question": 0.008, "unrelated": 0.08, "yes": 0.898 },
+      "noul": { "agrees": 0.986, "asks": 0.006, "adds": 0.028 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -158,8 +158,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.003, "other": 0.003, "question": 0.003, "unrelated": 0.01, "yes": 0.981 },
-      "noul": { "agrees": 0.996, "asks": 0.002 }
+      "p": { "no": 0.004, "other": 0.003, "question": 0.002, "unrelated": 0.015, "yes": 0.976 },
+      "noul": { "agrees": 0.998, "asks": 0.002, "adds": 0.001 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -169,8 +169,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.005, "other": 0.006, "question": 0.004, "unrelated": 0.029, "yes": 0.956 },
-      "noul": { "agrees": 0.989, "asks": 0.004 }
+      "p": { "no": 0.005, "other": 0.008, "question": 0.004, "unrelated": 0.025, "yes": 0.958 },
+      "noul": { "agrees": 0.991, "asks": 0.007, "adds": 0.007 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -180,8 +180,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.036, "other": 0.009, "question": 0.03, "unrelated": 0.09, "yes": 0.835 },
-      "noul": { "agrees": 0.911, "asks": 0.013 }
+      "p": { "no": 0.029, "other": 0.005, "question": 0.01, "unrelated": 0.109, "yes": 0.847 },
+      "noul": { "agrees": 0.944, "asks": 0.009, "adds": 0.007 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -191,8 +191,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.003, "other": 0.003, "question": 0.001, "unrelated": 0.002, "yes": 0.991 },
-      "noul": { "agrees": 0.997, "asks": 0.004 }
+      "p": { "no": 0.002, "other": 0.003, "question": 0.001, "unrelated": 0.002, "yes": 0.992 },
+      "noul": { "agrees": 0.998, "asks": 0.004, "adds": 0.009 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -202,8 +202,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.003, "other": 0.005, "question": 0.009, "unrelated": 0.003, "yes": 0.98 },
-      "noul": { "agrees": 0.993, "asks": 0.019 }
+      "p": { "no": 0.008, "other": 0.012, "question": 0.073, "unrelated": 0.008, "yes": 0.898 },
+      "noul": { "agrees": 0.993, "asks": 0.049, "adds": 0.007 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -213,8 +213,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.014, "other": 0.042, "question": 0.015, "unrelated": 0.09, "yes": 0.839 },
-      "noul": { "agrees": 0.946, "asks": 0.029 }
+      "p": { "no": 0.028, "other": 0.037, "question": 0.014, "unrelated": 0.114, "yes": 0.808 },
+      "noul": { "agrees": 0.944, "asks": 0.026, "adds": 0.079 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -224,8 +224,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.983, "other": 0.002, "question": 0.003, "unrelated": 0.004, "yes": 0.008 },
-      "noul": { "agrees": 0.004, "asks": 0.01 }
+      "p": { "no": 0.96, "other": 0.003, "question": 0.005, "unrelated": 0.012, "yes": 0.02 },
+      "noul": { "agrees": 0.007, "asks": 0.006, "adds": 0.003 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -235,8 +235,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.972, "other": 0.004, "question": 0.004, "unrelated": 0.005, "yes": 0.015 },
-      "noul": { "agrees": 0.005, "asks": 0.01 }
+      "p": { "no": 0.978, "other": 0.004, "question": 0.003, "unrelated": 0.005, "yes": 0.01 },
+      "noul": { "agrees": 0.008, "asks": 0.006, "adds": 0.011 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -246,8 +246,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.975, "other": 0.002, "question": 0.006, "unrelated": 0.009, "yes": 0.008 },
-      "noul": { "agrees": 0.003, "asks": 0.004 }
+      "p": { "no": 0.982, "other": 0.002, "question": 0.001, "unrelated": 0.008, "yes": 0.008 },
+      "noul": { "agrees": 0.004, "asks": 0.005, "adds": 0.001 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -257,8 +257,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.337, "other": 0.063, "question": 0.036, "unrelated": 0.531, "yes": 0.033 },
-      "noul": { "agrees": 0.041, "asks": 0.336 }
+      "p": { "no": 0.316, "other": 0.074, "question": 0.051, "unrelated": 0.522, "yes": 0.037 },
+      "noul": { "agrees": 0.035, "asks": 0.306, "adds": 0.211 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -268,8 +268,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.497, "other": 0.009, "question": 0.008, "unrelated": 0.475, "yes": 0.011 },
-      "noul": { "agrees": 0.049, "asks": 0.082 }
+      "p": { "no": 0.546, "other": 0.011, "question": 0.012, "unrelated": 0.416, "yes": 0.014 },
+      "noul": { "agrees": 0.029, "asks": 0.069, "adds": 0.182 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -279,8 +279,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.795, "other": 0.039, "question": 0.013, "unrelated": 0.141, "yes": 0.012 },
-      "noul": { "agrees": 0.02, "asks": 0.097 }
+      "p": { "no": 0.788, "other": 0.03, "question": 0.006, "unrelated": 0.16, "yes": 0.016 },
+      "noul": { "agrees": 0.026, "asks": 0.064, "adds": 0.089 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -290,8 +290,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "question",
-      "p": { "no": 0.011, "other": 0.005, "question": 0.929, "unrelated": 0.05, "yes": 0.004 },
-      "noul": { "agrees": 0.036, "asks": 0.977 }
+      "p": { "no": 0.013, "other": 0.006, "question": 0.906, "unrelated": 0.068, "yes": 0.007 },
+      "noul": { "agrees": 0.017, "asks": 0.974, "adds": 0.182 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -301,8 +301,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "question",
-      "p": { "no": 0.014, "other": 0.019, "question": 0.922, "unrelated": 0.035, "yes": 0.01 },
-      "noul": { "agrees": 0.101, "asks": 0.98 }
+      "p": { "no": 0.014, "other": 0.02, "question": 0.897, "unrelated": 0.058, "yes": 0.011 },
+      "noul": { "agrees": 0.105, "asks": 0.959, "adds": 0.74 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -312,8 +312,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "question",
-      "p": { "no": 0.008, "other": 0.041, "question": 0.908, "unrelated": 0.037, "yes": 0.005 },
-      "noul": { "agrees": 0.038, "asks": 0.988 }
+      "p": { "no": 0.009, "other": 0.036, "question": 0.91, "unrelated": 0.039, "yes": 0.005 },
+      "noul": { "agrees": 0.036, "asks": 0.982, "adds": 0.489 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -323,8 +323,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "question",
-      "p": { "no": 0.014, "other": 0.005, "question": 0.932, "unrelated": 0.042, "yes": 0.008 },
-      "noul": { "agrees": 0.056, "asks": 0.979 }
+      "p": { "no": 0.012, "other": 0.004, "question": 0.905, "unrelated": 0.071, "yes": 0.008 },
+      "noul": { "agrees": 0.04, "asks": 0.964, "adds": 0.278 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -334,8 +334,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "question",
-      "p": { "no": 0.016, "other": 0.016, "question": 0.935, "unrelated": 0.021, "yes": 0.011 },
-      "noul": { "agrees": 0.056, "asks": 0.991 }
+      "p": { "no": 0.017, "other": 0.02, "question": 0.931, "unrelated": 0.021, "yes": 0.01 },
+      "noul": { "agrees": 0.056, "asks": 0.976, "adds": 0.41 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -345,8 +345,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.078, "other": 0.873, "question": 0.006, "unrelated": 0.023, "yes": 0.021 },
-      "noul": { "agrees": 0.163, "asks": 0.388 }
+      "p": { "no": 0.08, "other": 0.888, "question": 0.004, "unrelated": 0.01, "yes": 0.019 },
+      "noul": { "agrees": 0.182, "asks": 0.664, "adds": 0.831 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -356,8 +356,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.651, "other": 0.329, "question": 0.004, "unrelated": 0.011, "yes": 0.005 },
-      "noul": { "agrees": 0.045, "asks": 0.218 }
+      "p": { "no": 0.789, "other": 0.184, "question": 0.004, "unrelated": 0.018, "yes": 0.006 },
+      "noul": { "agrees": 0.021, "asks": 0.182, "adds": 0.674 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -367,8 +367,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.005, "other": 0.972, "question": 0.002, "unrelated": 0.002, "yes": 0.02 },
-      "noul": { "agrees": 0.226, "asks": 0.134 }
+      "p": { "no": 0.009, "other": 0.963, "question": 0.001, "unrelated": 0.001, "yes": 0.025 },
+      "noul": { "agrees": 0.278, "asks": 0.119, "adds": 0.933 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -378,8 +378,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.101, "other": 0.822, "question": 0.012, "unrelated": 0.047, "yes": 0.017 },
-      "noul": { "agrees": 0.211, "asks": 0.399 }
+      "p": { "no": 0.095, "other": 0.807, "question": 0.016, "unrelated": 0.063, "yes": 0.018 },
+      "noul": { "agrees": 0.163, "asks": 0.557, "adds": 0.866 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -389,8 +389,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.007, "other": 0.007, "question": 0.32, "unrelated": 0.662, "yes": 0.004 },
-      "noul": { "agrees": 0.022, "asks": 0.684 }
+      "p": { "no": 0.007, "other": 0.007, "question": 0.255, "unrelated": 0.727, "yes": 0.004 },
+      "noul": { "agrees": 0.015, "asks": 0.811, "adds": 0.903 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -400,8 +400,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.063, "other": 0.009, "question": 0.036, "unrelated": 0.883, "yes": 0.009 },
-      "noul": { "agrees": 0.009, "asks": 0.089 }
+      "p": { "no": 0.029, "other": 0.009, "question": 0.025, "unrelated": 0.926, "yes": 0.011 },
+      "noul": { "agrees": 0.006, "asks": 0.051, "adds": 0.041 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -411,8 +411,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.261, "other": 0.45, "question": 0.016, "unrelated": 0.261, "yes": 0.012 },
-      "noul": { "agrees": 0.016, "asks": 0.051 }
+      "p": { "no": 0.288, "other": 0.414, "question": 0.019, "unrelated": 0.251, "yes": 0.028 },
+      "noul": { "agrees": 0.021, "asks": 0.056, "adds": 0.346 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -422,8 +422,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.073, "other": 0.053, "question": 0.053, "unrelated": 0.779, "yes": 0.042 },
-      "noul": { "agrees": 0.026, "asks": 0.072 }
+      "p": { "no": 0.015, "other": 0.012, "question": 0.019, "unrelated": 0.928, "yes": 0.025 },
+      "noul": { "agrees": 0.01, "asks": 0.033, "adds": 0.124 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -433,8 +433,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.039, "other": 0.007, "question": 0.01, "unrelated": 0.86, "yes": 0.084 },
-      "noul": { "agrees": 0.114, "asks": 0.014 }
+      "p": { "no": 0.027, "other": 0.007, "question": 0.011, "unrelated": 0.866, "yes": 0.089 },
+      "noul": { "agrees": 0.124, "asks": 0.019, "adds": 0.029 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -444,8 +444,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.019, "other": 0.008, "question": 0.104, "unrelated": 0.846, "yes": 0.022 },
-      "noul": { "agrees": 0.04, "asks": 0.287 }
+      "p": { "no": 0.022, "other": 0.01, "question": 0.22, "unrelated": 0.718, "yes": 0.031 },
+      "noul": { "agrees": 0.056, "asks": 0.41, "adds": 0.163 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -455,8 +455,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.004, "other": 0.983, "question": 0.001, "unrelated": 0.002, "yes": 0.011 },
-      "noul": { "agrees": 0.243, "asks": 0.278 }
+      "p": { "no": 0.003, "other": 0.984, "question": 0.001, "unrelated": 0.001, "yes": 0.011 },
+      "noul": { "agrees": 0.399, "asks": 0.269, "adds": 0.946 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -466,8 +466,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.008, "other": 0.944, "question": 0.003, "unrelated": 0.003, "yes": 0.043 },
-      "noul": { "agrees": 0.644, "asks": 0.377 }
+      "p": { "no": 0.007, "other": 0.953, "question": 0.002, "unrelated": 0.002, "yes": 0.036 },
+      "noul": { "agrees": 0.523, "asks": 0.336, "adds": 0.782 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -477,8 +477,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.007, "other": 0.786, "question": 0.004, "unrelated": 0.011, "yes": 0.192 },
-      "noul": { "agrees": 0.953, "asks": 0.016 }
+      "p": { "no": 0.004, "other": 0.885, "question": 0.002, "unrelated": 0.005, "yes": 0.104 },
+      "noul": { "agrees": 0.968, "asks": 0.017, "adds": 0.455 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -488,8 +488,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.006, "other": 0.977, "question": 0.002, "unrelated": 0.002, "yes": 0.013 },
-      "noul": { "agrees": 0.534, "asks": 0.367 }
+      "p": { "no": 0.004, "other": 0.98, "question": 0.001, "unrelated": 0.001, "yes": 0.014 },
+      "noul": { "agrees": 0.766, "asks": 0.196, "adds": 0.911 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -499,8 +499,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.009, "other": 0.92, "question": 0.005, "unrelated": 0.009, "yes": 0.057 },
-      "noul": { "agrees": 0.797, "asks": 0.196 }
+      "p": { "no": 0.023, "other": 0.806, "question": 0.009, "unrelated": 0.019, "yes": 0.143 },
+      "noul": { "agrees": 0.704, "asks": 0.114, "adds": 0.694 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -510,8 +510,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.005, "other": 0.942, "question": 0.002, "unrelated": 0.002, "yes": 0.049 },
-      "noul": { "agrees": 0.899, "asks": 0.306 }
+      "p": { "no": 0.005, "other": 0.962, "question": 0.001, "unrelated": 0.002, "yes": 0.03 },
+      "noul": { "agrees": 0.757, "asks": 0.278, "adds": 0.731 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -521,8 +521,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.005, "other": 0.703, "question": 0.004, "unrelated": 0.005, "yes": 0.283 },
-      "noul": { "agrees": 0.994, "asks": 0.069 }
+      "p": { "no": 0.006, "other": 0.805, "question": 0.005, "unrelated": 0.005, "yes": 0.179 },
+      "noul": { "agrees": 0.995, "asks": 0.082, "adds": 0.855 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -532,8 +532,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.134, "other": 0.023, "question": 0.004, "unrelated": 0.008, "yes": 0.83 },
-      "noul": { "agrees": 0.974, "asks": 0.004 }
+      "p": { "no": 0.065, "other": 0.017, "question": 0.005, "unrelated": 0.005, "yes": 0.908 },
+      "noul": { "agrees": 0.977, "asks": 0.006, "adds": 0.01 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -543,8 +543,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.052, "other": 0.014, "question": 0.008, "unrelated": 0.05, "yes": 0.876 },
-      "noul": { "agrees": 0.89, "asks": 0.005 }
+      "p": { "no": 0.036, "other": 0.01, "question": 0.007, "unrelated": 0.041, "yes": 0.907 },
+      "noul": { "agrees": 0.931, "asks": 0.01, "adds": 0.01 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -554,8 +554,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.064, "other": 0.03, "question": 0.016, "unrelated": 0.102, "yes": 0.788 },
-      "noul": { "agrees": 0.749, "asks": 0.018 }
+      "p": { "no": 0.022, "other": 0.022, "question": 0.011, "unrelated": 0.108, "yes": 0.837 },
+      "noul": { "agrees": 0.797, "asks": 0.008, "adds": 0.029 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -565,8 +565,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.08, "other": 0.015, "question": 0.007, "unrelated": 0.05, "yes": 0.848 },
-      "noul": { "agrees": 0.973, "asks": 0.003 }
+      "p": { "no": 0.081, "other": 0.011, "question": 0.009, "unrelated": 0.041, "yes": 0.859 },
+      "noul": { "agrees": 0.986, "asks": 0.001, "adds": 0.002 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -576,8 +576,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.872, "other": 0.071, "question": 0.005, "unrelated": 0.011, "yes": 0.041 },
-      "noul": { "agrees": 0.089, "asks": 0.02 }
+      "p": { "no": 0.873, "other": 0.06, "question": 0.005, "unrelated": 0.019, "yes": 0.043 },
+      "noul": { "agrees": 0.033, "asks": 0.022, "adds": 0.203 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -587,8 +587,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "question",
-      "p": { "no": 0.01, "other": 0.022, "question": 0.909, "unrelated": 0.052, "yes": 0.008 },
-      "noul": { "agrees": 0.043, "asks": 0.984 }
+      "p": { "no": 0.014, "other": 0.02, "question": 0.899, "unrelated": 0.061, "yes": 0.007 },
+      "noul": { "agrees": 0.02, "asks": 0.965, "adds": 0.287 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -598,8 +598,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.894, "other": 0.014, "question": 0.005, "unrelated": 0.01, "yes": 0.077 },
-      "noul": { "agrees": 0.151, "asks": 0.035 }
+      "p": { "no": 0.855, "other": 0.021, "question": 0.005, "unrelated": 0.019, "yes": 0.101 },
+      "noul": { "agrees": 0.196, "asks": 0.016, "adds": 0.021 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -609,8 +609,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.009, "other": 0.921, "question": 0.003, "unrelated": 0.004, "yes": 0.063 },
-      "noul": { "agrees": 0.936, "asks": 0.119 }
+      "p": { "no": 0.008, "other": 0.919, "question": 0.002, "unrelated": 0.002, "yes": 0.069 },
+      "noul": { "agrees": 0.907, "asks": 0.119, "adds": 0.866 }
     },
     {
       "act": {
@@ -623,8 +623,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.003, "other": 0.011, "question": 0.004, "unrelated": 0.005, "yes": 0.976 },
-      "noul": { "agrees": 0.999, "asks": 0.003 }
+      "p": { "no": 0.004, "other": 0.014, "question": 0.003, "unrelated": 0.003, "yes": 0.976 },
+      "noul": { "agrees": 0.998, "asks": 0.003, "adds": 0.017 }
     },
     {
       "act": {
@@ -637,8 +637,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.011, "other": 0.015, "question": 0.063, "unrelated": 0.024, "yes": 0.886 },
-      "noul": { "agrees": 0.967, "asks": 0.036 }
+      "p": { "no": 0.007, "other": 0.011, "question": 0.148, "unrelated": 0.035, "yes": 0.799 },
+      "noul": { "agrees": 0.946, "asks": 0.086, "adds": 0.013 }
     },
     {
       "act": {
@@ -651,8 +651,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "yes",
-      "p": { "no": 0.005, "other": 0.006, "question": 0.003, "unrelated": 0.01, "yes": 0.976 },
-      "noul": { "agrees": 0.997, "asks": 0.002 }
+      "p": { "no": 0.005, "other": 0.003, "question": 0.004, "unrelated": 0.013, "yes": 0.974 },
+      "noul": { "agrees": 0.995, "asks": 0.002, "adds": 0.001 }
     },
     {
       "act": {
@@ -665,8 +665,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.049, "other": 0.894, "question": 0.006, "unrelated": 0.022, "yes": 0.029 },
-      "noul": { "agrees": 0.316, "asks": 0.243 }
+      "p": { "no": 0.053, "other": 0.893, "question": 0.003, "unrelated": 0.014, "yes": 0.037 },
+      "noul": { "agrees": 0.203, "asks": 0.182, "adds": 0.774 }
     },
     {
       "act": {
@@ -679,8 +679,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "question",
-      "p": { "no": 0.014, "other": 0.01, "question": 0.912, "unrelated": 0.052, "yes": 0.013 },
-      "noul": { "agrees": 0.082, "asks": 0.972 }
+      "p": { "no": 0.013, "other": 0.01, "question": 0.909, "unrelated": 0.057, "yes": 0.011 },
+      "noul": { "agrees": 0.04, "asks": 0.907, "adds": 0.326 }
     },
     {
       "act": {
@@ -693,8 +693,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.982, "other": 0.002, "question": 0.003, "unrelated": 0.004, "yes": 0.008 },
-      "noul": { "agrees": 0.003, "asks": 0.006 }
+      "p": { "no": 0.975, "other": 0.002, "question": 0.003, "unrelated": 0.005, "yes": 0.014 },
+      "noul": { "agrees": 0.007, "asks": 0.006, "adds": 0.002 }
     },
     {
       "act": {
@@ -707,8 +707,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "other",
-      "p": { "no": 0.005, "other": 0.95, "question": 0.003, "unrelated": 0.002, "yes": 0.039 },
-      "noul": { "agrees": 0.911, "asks": 0.243 }
+      "p": { "no": 0.003, "other": 0.976, "question": 0.002, "unrelated": 0.001, "yes": 0.018 },
+      "noul": { "agrees": 0.818, "asks": 0.169, "adds": 0.962 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -718,11 +718,11 @@
       "expected_target": null,
       "target_answer": {
         "choice": "keeps",
-        "probabilities": { "elsewhere": 0.078, "keeps": 0.874, "option_1": 0.047 }
+        "probabilities": { "elsewhere": 0.035, "keeps": 0.934, "option_1": 0.031 }
       },
       "choice": "yes",
-      "p": { "no": 0.003, "other": 0.006, "question": 0.003, "unrelated": 0.007, "yes": 0.982 },
-      "noul": { "agrees": 0.996, "asks": 0.002 }
+      "p": { "no": 0.003, "other": 0.006, "question": 0.003, "unrelated": 0.007, "yes": 0.981 },
+      "noul": { "agrees": 0.997, "asks": 0.003, "adds": 0.001 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -732,11 +732,11 @@
       "expected_target": null,
       "target_answer": {
         "choice": "keeps",
-        "probabilities": { "elsewhere": 0.075, "keeps": 0.875, "option_1": 0.05 }
+        "probabilities": { "elsewhere": 0.04, "keeps": 0.934, "option_1": 0.026 }
       },
       "choice": "yes",
-      "p": { "no": 0.01, "other": 0.031, "question": 0.059, "unrelated": 0.03, "yes": 0.869 },
-      "noul": { "agrees": 0.955, "asks": 0.067 }
+      "p": { "no": 0.012, "other": 0.023, "question": 0.093, "unrelated": 0.049, "yes": 0.824 },
+      "noul": { "agrees": 0.921, "asks": 0.059, "adds": 0.008 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -746,11 +746,11 @@
       "expected_target": null,
       "target_answer": {
         "choice": "keeps",
-        "probabilities": { "elsewhere": 0.15, "keeps": 0.807, "option_1": 0.044 }
+        "probabilities": { "elsewhere": 0.21, "keeps": 0.719, "option_1": 0.071 }
       },
       "choice": "no",
-      "p": { "no": 0.972, "other": 0.006, "question": 0.004, "unrelated": 0.01, "yes": 0.008 },
-      "noul": { "agrees": 0.008, "asks": 0.008 }
+      "p": { "no": 0.97, "other": 0.006, "question": 0.003, "unrelated": 0.009, "yes": 0.013 },
+      "noul": { "agrees": 0.007, "asks": 0.004, "adds": 0.007 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -759,12 +759,12 @@
       "must_act": false,
       "expected_target": "Voice server",
       "target_answer": {
-        "choice": "keeps",
-        "probabilities": { "elsewhere": 0.328, "keeps": 0.473, "option_1": 0.199 }
+        "choice": "elsewhere",
+        "probabilities": { "elsewhere": 0.714, "keeps": 0.219, "option_1": 0.067 }
       },
       "choice": "other",
-      "p": { "no": 0.005, "other": 0.974, "question": 0.002, "unrelated": 0.002, "yes": 0.018 },
-      "noul": { "agrees": 0.388, "asks": 0.218 }
+      "p": { "no": 0.005, "other": 0.97, "question": 0.001, "unrelated": 0.001, "yes": 0.022 },
+      "noul": { "agrees": 0.175, "asks": 0.234, "adds": 0.895 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -774,11 +774,11 @@
       "expected_target": "Voice server",
       "target_answer": {
         "choice": "elsewhere",
-        "probabilities": { "elsewhere": 0.83, "keeps": 0.047, "option_1": 0.123 }
+        "probabilities": { "elsewhere": 0.806, "keeps": 0.069, "option_1": 0.125 }
       },
       "choice": "other",
-      "p": { "no": 0.114, "other": 0.673, "question": 0.012, "unrelated": 0.18, "yes": 0.021 },
-      "noul": { "agrees": 0.061, "asks": 0.782 }
+      "p": { "no": 0.111, "other": 0.718, "question": 0.012, "unrelated": 0.122, "yes": 0.037 },
+      "noul": { "agrees": 0.097, "asks": 0.664, "adds": 0.818 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -788,11 +788,11 @@
       "expected_target": "Voice server",
       "target_answer": {
         "choice": "elsewhere",
-        "probabilities": { "elsewhere": 0.836, "keeps": 0.035, "option_1": 0.129 }
+        "probabilities": { "elsewhere": 0.91, "keeps": 0.054, "option_1": 0.036 }
       },
       "choice": "no",
-      "p": { "no": 0.515, "other": 0.47, "question": 0.003, "unrelated": 0.008, "yes": 0.004 },
-      "noul": { "agrees": 0.02, "asks": 0.545 }
+      "p": { "no": 0.775, "other": 0.198, "question": 0.005, "unrelated": 0.015, "yes": 0.006 },
+      "noul": { "agrees": 0.021, "asks": 0.377, "adds": 0.296 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -802,11 +802,11 @@
       "expected_target": "Voice server",
       "target_answer": {
         "choice": "option_1",
-        "probabilities": { "elsewhere": 0.022, "keeps": 0.036, "option_1": 0.943 }
+        "probabilities": { "elsewhere": 0.022, "keeps": 0.013, "option_1": 0.965 }
       },
       "choice": "other",
-      "p": { "no": 0.056, "other": 0.789, "question": 0.009, "unrelated": 0.128, "yes": 0.018 },
-      "noul": { "agrees": 0.079, "asks": 0.326 }
+      "p": { "no": 0.055, "other": 0.844, "question": 0.006, "unrelated": 0.076, "yes": 0.019 },
+      "noul": { "agrees": 0.151, "asks": 0.129, "adds": 0.713 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -816,11 +816,11 @@
       "expected_target": null,
       "target_answer": {
         "choice": "keeps",
-        "probabilities": { "elsewhere": 0.177, "keeps": 0.796, "option_1": 0.026 }
+        "probabilities": { "elsewhere": 0.17, "keeps": 0.801, "option_1": 0.029 }
       },
       "choice": "question",
-      "p": { "no": 0.008, "other": 0.007, "question": 0.919, "unrelated": 0.063, "yes": 0.004 },
-      "noul": { "agrees": 0.045, "asks": 0.984 }
+      "p": { "no": 0.012, "other": 0.007, "question": 0.899, "unrelated": 0.077, "yes": 0.005 },
+      "noul": { "agrees": 0.02, "asks": 0.967, "adds": 0.203 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -830,11 +830,11 @@
       "expected_target": null,
       "target_answer": {
         "choice": "keeps",
-        "probabilities": { "elsewhere": 0.031, "keeps": 0.929, "option_1": 0.04 }
+        "probabilities": { "elsewhere": 0.041, "keeps": 0.938, "option_1": 0.021 }
       },
       "choice": "other",
-      "p": { "no": 0.005, "other": 0.97, "question": 0.002, "unrelated": 0.002, "yes": 0.02 },
-      "noul": { "agrees": 0.182, "asks": 0.399 }
+      "p": { "no": 0.005, "other": 0.955, "question": 0.002, "unrelated": 0.002, "yes": 0.036 },
+      "noul": { "agrees": 0.489, "asks": 0.151, "adds": 0.704 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -843,12 +843,12 @@
       "must_act": false,
       "expected_target": null,
       "target_answer": {
-        "choice": "keeps",
-        "probabilities": { "elsewhere": 0.373, "keeps": 0.447, "option_1": 0.18 }
+        "choice": "elsewhere",
+        "probabilities": { "elsewhere": 0.542, "keeps": 0.158, "option_1": 0.3 }
       },
       "choice": "other",
-      "p": { "no": 0.112, "other": 0.759, "question": 0.017, "unrelated": 0.094, "yes": 0.018 },
-      "noul": { "agrees": 0.129, "asks": 0.41 }
+      "p": { "no": 0.11, "other": 0.779, "question": 0.017, "unrelated": 0.073, "yes": 0.02 },
+      "noul": { "agrees": 0.182, "asks": 0.477, "adds": 0.837 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -858,11 +858,11 @@
       "expected_target": "Voice server",
       "target_answer": {
         "choice": "elsewhere",
-        "probabilities": { "elsewhere": 0.868, "keeps": 0.089, "option_1": 0.043 }
+        "probabilities": { "elsewhere": 0.813, "keeps": 0.091, "option_1": 0.096 }
       },
       "choice": "no",
-      "p": { "no": 0.489, "other": 0.372, "question": 0.009, "unrelated": 0.125, "yes": 0.006 },
-      "noul": { "agrees": 0.029, "asks": 0.59 }
+      "p": { "no": 0.576, "other": 0.242, "question": 0.012, "unrelated": 0.161, "yes": 0.009 },
+      "noul": { "agrees": 0.035, "asks": 0.306, "adds": 0.182 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -873,15 +873,15 @@
       "target_answer": {
         "choice": "elsewhere",
         "probabilities": {
-          "elsewhere": 0.873,
-          "keeps": 0.052,
-          "option_1": 0.043,
-          "option_2": 0.031
+          "elsewhere": 0.912,
+          "keeps": 0.038,
+          "option_1": 0.024,
+          "option_2": 0.026
         }
       },
       "choice": "other",
-      "p": { "no": 0.124, "other": 0.666, "question": 0.017, "unrelated": 0.178, "yes": 0.015 },
-      "noul": { "agrees": 0.061, "asks": 0.811 }
+      "p": { "no": 0.141, "other": 0.632, "question": 0.02, "unrelated": 0.193, "yes": 0.014 },
+      "noul": { "agrees": 0.072, "asks": 0.466, "adds": 0.189 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -891,11 +891,16 @@
       "expected_target": "Docs site",
       "target_answer": {
         "choice": "option_2",
-        "probabilities": { "elsewhere": 0.049, "keeps": 0.037, "option_1": 0.01, "option_2": 0.903 }
+        "probabilities": {
+          "elsewhere": 0.118,
+          "keeps": 0.065,
+          "option_1": 0.017,
+          "option_2": 0.799
+        }
       },
       "choice": "other",
-      "p": { "no": 0.052, "other": 0.735, "question": 0.014, "unrelated": 0.171, "yes": 0.028 },
-      "noul": { "agrees": 0.11, "asks": 0.226 }
+      "p": { "no": 0.05, "other": 0.616, "question": 0.018, "unrelated": 0.284, "yes": 0.032 },
+      "noul": { "agrees": 0.105, "asks": 0.11, "adds": 0.226 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -906,15 +911,15 @@
       "target_answer": {
         "choice": "elsewhere",
         "probabilities": {
-          "elsewhere": 0.917,
-          "keeps": 0.057,
-          "option_1": 0.014,
-          "option_2": 0.012
+          "elsewhere": 0.795,
+          "keeps": 0.177,
+          "option_1": 0.015,
+          "option_2": 0.013
         }
       },
       "choice": "no",
-      "p": { "no": 0.499, "other": 0.347, "question": 0.01, "unrelated": 0.14, "yes": 0.005 },
-      "noul": { "agrees": 0.019, "asks": 0.243 }
+      "p": { "no": 0.583, "other": 0.246, "question": 0.012, "unrelated": 0.149, "yes": 0.01 },
+      "noul": { "agrees": 0.041, "asks": 0.346, "adds": 0.145 }
     },
     {
       "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
@@ -925,15 +930,15 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.039,
-          "keeps": 0.942,
-          "option_1": 0.011,
-          "option_2": 0.008
+          "elsewhere": 0.041,
+          "keeps": 0.944,
+          "option_1": 0.009,
+          "option_2": 0.007
         }
       },
       "choice": "yes",
-      "p": { "no": 0.002, "other": 0.004, "question": 0.003, "unrelated": 0.005, "yes": 0.986 },
-      "noul": { "agrees": 0.997, "asks": 0.002 }
+      "p": { "no": 0.005, "other": 0.013, "question": 0.006, "unrelated": 0.012, "yes": 0.964 },
+      "noul": { "agrees": 0.997, "asks": 0.001, "adds": 0.002 }
     },
     {
       "act": {
@@ -947,14 +952,14 @@
       "target_answer": {
         "choice": "option_1",
         "probabilities": {
-          "elsewhere": 0.004,
+          "elsewhere": 0.006,
           "keeps": 0.005,
-          "option_1": 0.985,
-          "option_2": 0.006
+          "option_1": 0.981,
+          "option_2": 0.007
         }
       },
       "choice": "yes",
-      "p": { "no": 0.012, "other": 0.371, "question": 0.011, "unrelated": 0.048, "yes": 0.558 },
+      "p": { "no": 0.014, "other": 0.229, "question": 0.012, "unrelated": 0.061, "yes": 0.684 },
       "noul": {}
     },
     {
@@ -976,7 +981,7 @@
         }
       },
       "choice": "yes",
-      "p": { "no": 0.01, "other": 0.346, "question": 0.009, "unrelated": 0.039, "yes": 0.597 },
+      "p": { "no": 0.009, "other": 0.297, "question": 0.011, "unrelated": 0.04, "yes": 0.643 },
       "noul": {}
     },
     {
@@ -990,15 +995,10 @@
       "expected_target": "Voice server",
       "target_answer": {
         "choice": "option_1",
-        "probabilities": {
-          "elsewhere": 0.004,
-          "keeps": 0.006,
-          "option_1": 0.981,
-          "option_2": 0.009
-        }
+        "probabilities": { "elsewhere": 0.004, "keeps": 0.007, "option_1": 0.97, "option_2": 0.018 }
       },
       "choice": "yes",
-      "p": { "no": 0.024, "other": 0.277, "question": 0.028, "unrelated": 0.192, "yes": 0.478 },
+      "p": { "no": 0.021, "other": 0.181, "question": 0.037, "unrelated": 0.144, "yes": 0.618 },
       "noul": {}
     },
     {
@@ -1013,14 +1013,14 @@
       "target_answer": {
         "choice": "option_2",
         "probabilities": {
-          "elsewhere": 0.002,
-          "keeps": 0.006,
-          "option_1": 0.003,
-          "option_2": 0.989
+          "elsewhere": 0.004,
+          "keeps": 0.011,
+          "option_1": 0.006,
+          "option_2": 0.979
         }
       },
-      "choice": "other",
-      "p": { "no": 0.041, "other": 0.523, "question": 0.023, "unrelated": 0.16, "yes": 0.253 },
+      "choice": "yes",
+      "p": { "no": 0.028, "other": 0.273, "question": 0.031, "unrelated": 0.198, "yes": 0.471 },
       "noul": {}
     },
     {
@@ -1035,14 +1035,14 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.021,
-          "keeps": 0.971,
-          "option_1": 0.004,
-          "option_2": 0.004
+          "elsewhere": 0.012,
+          "keeps": 0.982,
+          "option_1": 0.002,
+          "option_2": 0.003
         }
       },
       "choice": "no",
-      "p": { "no": 0.811, "other": 0.011, "question": 0.014, "unrelated": 0.158, "yes": 0.007 },
+      "p": { "no": 0.808, "other": 0.015, "question": 0.01, "unrelated": 0.157, "yes": 0.011 },
       "noul": {}
     },
     {
@@ -1057,14 +1057,14 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.025,
-          "keeps": 0.972,
-          "option_1": 0.001,
-          "option_2": 0.001
+          "elsewhere": 0.033,
+          "keeps": 0.961,
+          "option_1": 0.002,
+          "option_2": 0.003
         }
       },
       "choice": "no",
-      "p": { "no": 0.652, "other": 0.229, "question": 0.01, "unrelated": 0.096, "yes": 0.012 },
+      "p": { "no": 0.699, "other": 0.149, "question": 0.018, "unrelated": 0.118, "yes": 0.016 },
       "noul": {}
     },
     {
@@ -1082,15 +1082,15 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.01,
-          "keeps": 0.983,
+          "elsewhere": 0.009,
+          "keeps": 0.984,
           "option_1": 0.002,
-          "option_2": 0.002,
+          "option_2": 0.003,
           "option_3": 0.002
         }
       },
       "choice": "no",
-      "p": { "no": 0.81, "other": 0.011, "question": 0.011, "unrelated": 0.157, "yes": 0.011 },
+      "p": { "no": 0.768, "other": 0.011, "question": 0.007, "unrelated": 0.205, "yes": 0.009 },
       "noul": {}
     },
     {
@@ -1108,15 +1108,15 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.022,
-          "keeps": 0.972,
-          "option_1": 0.002,
-          "option_2": 0.002,
-          "option_3": 0.002
+          "elsewhere": 0.043,
+          "keeps": 0.942,
+          "option_1": 0.005,
+          "option_2": 0.005,
+          "option_3": 0.005
         }
       },
       "choice": "no",
-      "p": { "no": 0.928, "other": 0.011, "question": 0.003, "unrelated": 0.05, "yes": 0.007 },
+      "p": { "no": 0.902, "other": 0.017, "question": 0.005, "unrelated": 0.067, "yes": 0.008 },
       "noul": {}
     },
     {
@@ -1136,13 +1136,13 @@
         "probabilities": {
           "elsewhere": 0.005,
           "keeps": 0.006,
-          "option_1": 0.972,
-          "option_2": 0.011,
-          "option_3": 0.006
+          "option_1": 0.978,
+          "option_2": 0.005,
+          "option_3": 0.005
         }
       },
       "choice": "yes",
-      "p": { "no": 0.013, "other": 0.282, "question": 0.021, "unrelated": 0.099, "yes": 0.584 },
+      "p": { "no": 0.011, "other": 0.289, "question": 0.008, "unrelated": 0.037, "yes": 0.655 },
       "noul": {}
     },
     {
@@ -1160,15 +1160,15 @@
       "target_answer": {
         "choice": "option_2",
         "probabilities": {
-          "elsewhere": 0.003,
-          "keeps": 0.003,
-          "option_1": 0.002,
-          "option_2": 0.985,
+          "elsewhere": 0.002,
+          "keeps": 0.002,
+          "option_1": 0.001,
+          "option_2": 0.987,
           "option_3": 0.007
         }
       },
       "choice": "yes",
-      "p": { "no": 0.026, "other": 0.26, "question": 0.024, "unrelated": 0.151, "yes": 0.539 },
+      "p": { "no": 0.026, "other": 0.378, "question": 0.021, "unrelated": 0.121, "yes": 0.454 },
       "noul": {}
     },
     {
@@ -1186,15 +1186,15 @@
       "target_answer": {
         "choice": "option_1",
         "probabilities": {
-          "elsewhere": 0.003,
-          "keeps": 0.006,
-          "option_1": 0.981,
-          "option_2": 0.005,
-          "option_3": 0.004
+          "elsewhere": 0.004,
+          "keeps": 0.007,
+          "option_1": 0.979,
+          "option_2": 0.004,
+          "option_3": 0.006
         }
       },
       "choice": "yes",
-      "p": { "no": 0.028, "other": 0.251, "question": 0.034, "unrelated": 0.191, "yes": 0.496 },
+      "p": { "no": 0.021, "other": 0.204, "question": 0.033, "unrelated": 0.213, "yes": 0.53 },
       "noul": {}
     },
     {
@@ -1212,15 +1212,15 @@
       "target_answer": {
         "choice": "option_3",
         "probabilities": {
-          "elsewhere": 0.001,
-          "keeps": 0.003,
+          "elsewhere": 0.002,
+          "keeps": 0.004,
           "option_1": 0.002,
           "option_2": 0.005,
-          "option_3": 0.989
+          "option_3": 0.987
         }
       },
       "choice": "yes",
-      "p": { "no": 0.021, "other": 0.158, "question": 0.017, "unrelated": 0.158, "yes": 0.647 },
+      "p": { "no": 0.017, "other": 0.198, "question": 0.019, "unrelated": 0.087, "yes": 0.678 },
       "noul": {}
     },
     {
@@ -1239,14 +1239,14 @@
         "choice": "option_2",
         "probabilities": {
           "elsewhere": 0.01,
-          "keeps": 0.009,
+          "keeps": 0.013,
           "option_1": 0.003,
-          "option_2": 0.972,
+          "option_2": 0.969,
           "option_3": 0.005
         }
       },
       "choice": "yes",
-      "p": { "no": 0.018, "other": 0.29, "question": 0.026, "unrelated": 0.117, "yes": 0.549 },
+      "p": { "no": 0.015, "other": 0.279, "question": 0.013, "unrelated": 0.089, "yes": 0.604 },
       "noul": {}
     },
     {
@@ -1264,15 +1264,15 @@
       "target_answer": {
         "choice": "option_3",
         "probabilities": {
-          "elsewhere": 0.002,
-          "keeps": 0.004,
-          "option_1": 0.003,
-          "option_2": 0.003,
-          "option_3": 0.988
+          "elsewhere": 0.003,
+          "keeps": 0.005,
+          "option_1": 0.006,
+          "option_2": 0.004,
+          "option_3": 0.982
         }
       },
       "choice": "yes",
-      "p": { "no": 0.01, "other": 0.184, "question": 0.015, "unrelated": 0.068, "yes": 0.723 },
+      "p": { "no": 0.012, "other": 0.324, "question": 0.014, "unrelated": 0.063, "yes": 0.586 },
       "noul": {}
     },
     {
@@ -1290,15 +1290,15 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.023,
-          "keeps": 0.964,
-          "option_1": 0.004,
+          "elsewhere": 0.049,
+          "keeps": 0.94,
+          "option_1": 0.005,
           "option_2": 0.004,
-          "option_3": 0.004
+          "option_3": 0.002
         }
       },
       "choice": "question",
-      "p": { "no": 0.012, "other": 0.006, "question": 0.926, "unrelated": 0.053, "yes": 0.004 },
+      "p": { "no": 0.014, "other": 0.008, "question": 0.897, "unrelated": 0.077, "yes": 0.005 },
       "noul": {}
     },
     {
@@ -1316,15 +1316,15 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.01,
-          "keeps": 0.978,
-          "option_1": 0.003,
-          "option_2": 0.006,
+          "elsewhere": 0.021,
+          "keeps": 0.965,
+          "option_1": 0.004,
+          "option_2": 0.007,
           "option_3": 0.003
         }
       },
       "choice": "unrelated",
-      "p": { "no": 0.137, "other": 0.013, "question": 0.029, "unrelated": 0.808, "yes": 0.013 },
+      "p": { "no": 0.204, "other": 0.019, "question": 0.055, "unrelated": 0.698, "yes": 0.024 },
       "noul": {}
     },
     {
@@ -1342,15 +1342,15 @@
       "target_answer": {
         "choice": "keeps",
         "probabilities": {
-          "elsewhere": 0.075,
-          "keeps": 0.921,
+          "elsewhere": 0.064,
+          "keeps": 0.933,
           "option_1": 0.001,
-          "option_2": 0.002,
+          "option_2": 0.001,
           "option_3": 0.001
         }
       },
       "choice": "no",
-      "p": { "no": 0.439, "other": 0.401, "question": 0.011, "unrelated": 0.141, "yes": 0.009 },
+      "p": { "no": 0.495, "other": 0.314, "question": 0.008, "unrelated": 0.174, "yes": 0.01 },
       "noul": {}
     },
     {
@@ -1368,15 +1368,15 @@
       "target_answer": {
         "choice": "elsewhere",
         "probabilities": {
-          "elsewhere": 0.94,
-          "keeps": 0.051,
-          "option_1": 0.003,
-          "option_2": 0.005,
+          "elsewhere": 0.912,
+          "keeps": 0.078,
+          "option_1": 0.002,
+          "option_2": 0.006,
           "option_3": 0.002
         }
       },
       "choice": "other",
-      "p": { "no": 0.058, "other": 0.748, "question": 0.012, "unrelated": 0.174, "yes": 0.006 },
+      "p": { "no": 0.05, "other": 0.701, "question": 0.013, "unrelated": 0.225, "yes": 0.011 },
       "noul": {}
     },
     {
@@ -1394,15 +1394,15 @@
       "target_answer": {
         "choice": "elsewhere",
         "probabilities": {
-          "elsewhere": 0.894,
-          "keeps": 0.092,
-          "option_1": 0.005,
+          "elsewhere": 0.931,
+          "keeps": 0.058,
+          "option_1": 0.004,
           "option_2": 0.004,
-          "option_3": 0.005
+          "option_3": 0.003
         }
       },
       "choice": "other",
-      "p": { "no": 0.02, "other": 0.731, "question": 0.036, "unrelated": 0.204, "yes": 0.008 },
+      "p": { "no": 0.019, "other": 0.749, "question": 0.022, "unrelated": 0.2, "yes": 0.01 },
       "noul": {}
     },
     {
@@ -1413,8 +1413,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.393, "other": 0.019, "question": 0.012, "unrelated": 0.54, "yes": 0.037 },
-      "noul": { "agrees": 0.211, "asks": 0.101 }
+      "p": { "no": 0.305, "other": 0.017, "question": 0.016, "unrelated": 0.577, "yes": 0.085 },
+      "noul": { "agrees": 0.163, "asks": 0.054, "adds": 0.243 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -1424,8 +1424,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.962, "other": 0.006, "question": 0.002, "unrelated": 0.016, "yes": 0.013 },
-      "noul": { "agrees": 0.019, "asks": 0.03 }
+      "p": { "no": 0.945, "other": 0.014, "question": 0.003, "unrelated": 0.019, "yes": 0.019 },
+      "noul": { "agrees": 0.027, "asks": 0.04, "adds": 0.061 }
     },
     {
       "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
@@ -1435,8 +1435,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.199, "other": 0.025, "question": 0.022, "unrelated": 0.712, "yes": 0.042 },
-      "noul": { "agrees": 0.045, "asks": 0.175 }
+      "p": { "no": 0.108, "other": 0.04, "question": 0.015, "unrelated": 0.804, "yes": 0.033 },
+      "noul": { "agrees": 0.032, "asks": 0.101, "adds": 0.124 }
     },
     {
       "act": {
@@ -1449,8 +1449,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.579, "other": 0.01, "question": 0.012, "unrelated": 0.385, "yes": 0.015 },
-      "noul": { "agrees": 0.038, "asks": 0.059 }
+      "p": { "no": 0.661, "other": 0.012, "question": 0.013, "unrelated": 0.291, "yes": 0.024 },
+      "noul": { "agrees": 0.067, "asks": 0.105, "adds": 0.189 }
     },
     {
       "act": {
@@ -1463,8 +1463,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "no",
-      "p": { "no": 0.978, "other": 0.005, "question": 0.004, "unrelated": 0.007, "yes": 0.006 },
-      "noul": { "agrees": 0.007, "asks": 0.049 }
+      "p": { "no": 0.98, "other": 0.005, "question": 0.002, "unrelated": 0.007, "yes": 0.006 },
+      "noul": { "agrees": 0.01, "asks": 0.045, "adds": 0.097 }
     },
     {
       "act": {
@@ -1477,8 +1477,8 @@
       "expected_target": null,
       "target_answer": null,
       "choice": "unrelated",
-      "p": { "no": 0.385, "other": 0.043, "question": 0.022, "unrelated": 0.529, "yes": 0.021 },
-      "noul": { "agrees": 0.049, "asks": 0.145 }
+      "p": { "no": 0.223, "other": 0.043, "question": 0.012, "unrelated": 0.696, "yes": 0.025 },
+      "noul": { "agrees": 0.02, "asks": 0.157, "adds": 0.139 }
     }
   ]
 }

@@ -39,10 +39,12 @@ class Recorded:
         raise KeyError(body["state"])
 
 
-def answered(shares, agrees=0.9, asks=0.1, withdraws=None):
+def answered(shares, agrees=0.9, asks=0.1, withdraws=None, adds=0.1):
     """A decider's answers: the choice's shares with the label that has the most, and the yes-or-no questions' shares."""
-    answers = {"reading": {"choice": max(shares, key=shares.get), "probabilities": shares},
-               "agrees": {"type": "noul", "noul": agrees}, "asks": {"type": "noul", "noul": asks}}
+    whole = {label: 0.0 for label in ("yes", "no", "question", "other", "unrelated")} | shares
+    answers = {"reading": {"choice": max(shares, key=shares.get), "probabilities": whole},
+               "agrees": {"type": "noul", "noul": agrees}, "asks": {"type": "noul", "noul": asks},
+               "adds": {"type": "noul", "noul": adds}}
     if withdraws is not None:
         answers["withdraws"] = {"type": "noul", "noul": withdraws}
     return answers
@@ -104,7 +106,7 @@ class Reads(unittest.TestCase):
                                                 agrees=0.6, asks=0.97)).yes)
 
     def test_a_reading_missing_one_of_the_yes_questions_is_not_a_yes(self):
-        for left_out in ("agrees", "asks"):
+        for left_out in ("agrees", "asks", "adds"):
             answers = answered({"yes": 0.9, "other": 0.1})
             del answers[left_out]
             self.assertFalse(judge_reading(answers).yes, left_out)

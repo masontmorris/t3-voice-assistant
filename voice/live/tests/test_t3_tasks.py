@@ -7,6 +7,7 @@ import io
 import json
 import tempfile
 import threading
+import time
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
@@ -26,7 +27,7 @@ from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal, launch_title
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
-from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, Picked
+from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, NO_THREAD_NOTE, Picked, reading_request
 from voice.segmentation.gate import PLAN_A
 from voice.segmentation.tasks import Orchestrator
 from voice.segmentation.tests.test_orchestrator import step
@@ -258,8 +259,9 @@ class TwinA(unittest.TestCase):
         seam = F.FakeSeam(projects=TWO_PROJECTS)
         t3 = tasks_over(self, seam, decider=ReplayReading())
         t3.start("k1", "Add a clamp helper in the sandbox project", 0)
-        self.assertIsNone(t3.answer("Yes, but in the other project.", 1))
-        self.assertEqual(seam.ops("launch"), [])
+        asked = t3.answer("Yes, but in the other project.", 1)
+        self.assertTrue(asked is None or [a.kind for a in asked.acts] == [S.CONFIRM_LAUNCH], asked)
+        self.assertEqual(seam.ops("launch"), [], "a change that is placed is confirmed first, and one that is not is dropped")
 
     def test_a_conditional_yes_launches_nothing(self):
         for reply in ("Yes, but only after the tests pass.", "Okay, if it's quick.", "Yeah, but make it about the build instead."):
@@ -1626,6 +1628,120 @@ class WithdrawnQuestion(unittest.TestCase):
         self.assertIsNone(t3.answer("Can we start over?", 2))
 
 
+class WithdrawalScope(unittest.TestCase):
+    """A reply read as taking a request back drops the one thread-pick question and nothing else."""
+
+    READINGS = {"Never mind.": "withdraw", "Yes.": "yes"}
+
+    def tasks(self, seam=None):
+        seam = seam or F.FakeSeam(read=F.state(thread="t3", title="Add Clamp Helper", as_of=150))
+        seam.listing = listing(("t3", "Add Clamp Helper"), ("t0", "Add Sum Helper"), ("t1", "Fix the Menu Blur"))
+        return seam, tasks_over(self, seam, decider=F.Reader(self.READINGS))
+
+    def heard(self, t3, question):
+        question = t3._ask(question)
+        question.heard, question.heard_at = True, time.monotonic()
+        return question
+
+    def test_only_a_thread_pick_confirmation_asks_whether_the_reply_withdraws(self):
+        said_by_kind = {
+            "pick": act(S.CONFIRM_THREAD, thread="X"), "launch": act(S.CONFIRM_LAUNCH, project="P"),
+            "tell": act(S.CONFIRM_TELL, thread="X", message="m"), "stop": act(S.CONFIRM_STOP, thread="X"),
+            "respond": act(S.CONFIRM_RESPOND, thread="X", decision="approve", need="command_approval"),
+            "answer": act(S.CONFIRM_ANSWER, thread="X", questions=["Q"], answers=["A"]),
+            "which": act(S.ASK_WHICH, of="thread", candidates=["X", "Y"])}
+        asked = {kind: "withdraws" in reading_request(said, "Never mind.")["questions"]
+                 for kind, said in said_by_kind.items()}
+        self.assertEqual(asked, {"pick": True, "launch": False, "tell": False, "stop": False, "respond": False,
+                                 "answer": False, "which": False})
+
+    def test_a_no_to_an_action_confirmation_read_as_a_withdrawal_cancels_it_and_leaves_nothing_to_say_yes_to(self):
+        for op in (TELL, STOP, APPROVE, DENY):
+            with self.subTest(op=op):
+                seam, t3 = self.tasks()
+                self.heard(t3, Question("k1", "thread_confirm", "do it", ("t3",), op=op, message="also add a test",
+                                        need="command_approval", titles={"t3": "Add Clamp Helper"},
+                                        projects={"t3": "p1"}))
+                update = t3.answer("Never mind.", 1)
+                self.assertEqual(update.status, "cancelled")
+                self.assertEqual([a.kind for a in update.acts], [S.CANCELLED])
+                self.assertEqual((t3.declined_state(), t3.take_withdrawn(), t3.question), (None, None, None))
+                self.assertIsNone(t3.answer("Yes.", 2))
+                self.assertEqual(list(t3.follow.journal.tasks), [])
+
+    def test_a_no_to_a_launch_confirmation_read_as_a_withdrawal_cancels_it_and_a_later_yes_starts_nothing(self):
+        seam, t3 = self.tasks()
+        t3.start("k1", TwinA.UNLISTED, 0)
+        update = t3.answer("Never mind.", 1)
+        self.assertEqual([a.kind for a in update.acts], [S.CANCELLED])
+        self.assertEqual((t3.declined_state(), t3.take_withdrawn(), t3.question), (None, None, None))
+        self.assertIsNone(t3.answer("Yes.", 2))
+        self.assertEqual(seam.ops("launch"), [])
+
+    def test_a_pick_wrongly_read_as_withdrawn_touches_no_follow_no_approval_and_not_the_thread_the_caller_named(self):
+        seam, t3 = self.tasks()
+        held = t3.follow.journal.begin(Kind.TELL, "also add a test", "p1", "Voice sandbox", thread_id="t0")
+        held.status = Status.HELD
+        t3.spoke(L.Update("k0", (act(S.THREAD_STATUS, thread="Add Sum Helper", status="working"),), "completed", "ask",
+                          "t0"))
+        before = (t3.spoken_of, t3.spoken_id, t3.recent, len(t3.follow.journal.held()))
+        asked = t3.about("k2", ASK, "How is the clamp helper thread going?", 0)
+        self.assertEqual(asked.acts, (act(S.CONFIRM_THREAD, thread="Add Clamp Helper"),))
+        t3.spoke(asked)
+        self.assertIsNone(t3.answer("Never mind.", 1))
+        self.assertEqual((t3.spoken_of, t3.spoken_id, t3.recent, len(t3.follow.journal.held())), before)
+        self.assertIs(held.status, Status.HELD)
+        self.assertEqual(seam.ops("respond"), [])
+        self.assertIsNone(t3.question)
+
+    def test_the_thread_a_withdrawn_question_named_is_forgotten_only_when_the_question_made_it_the_one_in_view(self):
+        for named_before in (False, True):
+            with self.subTest(named_before=named_before):
+                seam, t3 = self.tasks()
+                if named_before:
+                    t3.spoke(L.Update("k0", (act(S.THREAD_STATUS, thread="Add Clamp Helper", status="working"),),
+                                      "completed", "ask", "t3"))
+                before = (t3.spoken_of, t3.spoken_id, t3.recent)
+                t3.spoke(L.Update("k2", (act(S.CONFIRM_THREAD, thread="Add Clamp Helper"),), "needs_clarification",
+                                  "pick", "t3"))
+                self.assertEqual(t3.spoken_id, "t3")
+                self.heard(t3, Question("k2", "thread_confirm", "x", ("t3",), op=ASK, titles={"t3": "Add Clamp Helper"}))
+                self.assertIsNone(t3.answer("Never mind.", 1))
+                self.assertEqual((t3.spoken_of, t3.spoken_id, t3.recent), before)
+
+    def test_the_withdrawn_question_is_cleared_at_the_end_of_a_call_and_by_news_that_brings_the_thread_up(self):
+        done = L.Update("n1", (act(S.DONE, thread="Add Clamp Helper", status="finished"),), "completed", "run", "t3")
+        needs = L.Update("n2", (act(S.NEEDS_YOU, begun_in="Voice sandbox", need="command_approval"),), "completed", "run")
+        for clear in (lambda t3: t3.end_call(), lambda t3: t3.begin_call(), lambda t3: t3.news_spoken(done),
+                      lambda t3: t3.news_spoken(needs)):
+            seam, t3 = self.tasks()
+            self.heard(t3, Question("k2", "thread_confirm", "x", ("t3",), op=ASK, titles={"t3": "Add Clamp Helper"}))
+            t3.answer("Never mind.", 1)
+            self.assertIsNotNone(t3.declined_state())
+            clear(t3)
+            self.assertIsNone(t3.declined_state())
+
+    def test_news_that_names_no_thread_leaves_the_withdrawn_question_standing(self):
+        seam, t3 = self.tasks()
+        self.heard(t3, Question("k2", "thread_confirm", "x", ("t3",), op=ASK, titles={"t3": "Add Clamp Helper"}))
+        t3.answer("Never mind.", 1)
+        t3.news_spoken(L.Update("n3", (act(S.UNREACHABLE),), "failed", "ask"))
+        self.assertIsNotNone(t3.declined_state())
+
+    def test_the_pick_question_is_asked_again_when_the_caller_names_the_thread_or_asks_the_same_thing_again(self):
+        seam, t3 = self.tasks()
+        first = t3.about("k2", ASK, "How is the clamp helper thread going?", 0)
+        t3.spoke(first)
+        self.assertIsNone(t3.answer("Never mind.", 1))
+        self.assertIsNotNone(t3.declined_state())
+        for n, words in enumerate(("How is the clamp helper thread going?", "Check on the clamp helper thread again."), 3):
+            with self.subTest(words=words):
+                again = t3.about(f"k{n}", ASK, words, n)
+                self.assertEqual(again.acts, (act(S.CONFIRM_THREAD, thread="Add Clamp Helper"),))
+                self.assertEqual(t3.question.key, f"k{n}")
+                t3.question = None
+
+
 class ClaimFacts(unittest.TestCase):
     def tasks(self, **state):
         seam = F.FakeSeam(read=F.state(thread="t6", title="Fix the flaky ASR test", as_of=150, **state))
@@ -1638,7 +1754,7 @@ class ClaimFacts(unittest.TestCase):
         """A free reply that claims a start or an approval is judged even when no thread is in view: against facts that
         show nothing was done."""
         t3 = self.tasks()
-        self.assertEqual(t3.claim_facts(), (None, {"thread": None, "the_assistant_did": []}))
+        self.assertEqual(t3.claim_facts(), (None, {"thread": None, "note": NO_THREAD_NOTE, "the_assistant_did": []}))
         t3.recent = "t6"
         self.assertEqual(t3.claim_facts()[0], None,
                          "`recent` outlives the call; a reply is judged against this call's thread")
@@ -1646,6 +1762,36 @@ class ClaimFacts(unittest.TestCase):
     def test_a_correction_with_no_thread_in_view_says_nothing_was_done(self):
         update = self.tasks().correction(None, "turn_001")
         self.assertEqual((update.acts, update.thread_id, update.row), ((act(S.NOTHING_DONE),), None, "correction"))
+
+    def begin(self, t3, kind=Kind.START):
+        return t3.follow.journal.begin(kind, "Add a clamp helper", "p1", "Voice sandbox")
+
+    def test_what_the_voice_began_on_this_call_is_in_the_facts_and_stops_the_nothing_done_correction(self):
+        for kind in (Kind.START, Kind.TELL, Kind.STOP, Kind.RESPOND, Kind.ANSWER):
+            with self.subTest(kind=kind):
+                t3 = self.tasks()
+                t3.begin_call()
+                self.begin(t3, kind)
+                facts = t3.claim_facts()[1]
+                self.assertEqual([d["did"] for d in facts["the_assistant_did"]], [kind.value])
+                self.assertNotIn("note", facts, "the note says nothing was done")
+                self.assertIsNone(t3.correction(None, "turn_001"), "an action in flight may be what the reply claimed")
+
+    def test_a_task_of_an_earlier_call_is_not_what_the_reply_could_claim(self):
+        t3 = self.tasks()
+        self.begin(t3)
+        t3.begin_call()
+        self.assertEqual(t3.claim_facts()[1]["the_assistant_did"], [])
+        self.assertEqual(t3.correction(None, "turn_001").acts, (act(S.NOTHING_DONE),))
+
+    def test_a_nothing_done_correction_built_before_an_action_is_not_worded_after_it(self):
+        t3 = self.tasks()
+        t3.begin_call()
+        update = t3.correction(None, "turn_001")
+        self.begin(t3)
+        rendered = t3.say(update)
+        self.assertIsNone(rendered.line)
+        self.assertIn("since the reply was checked", rendered.error)
 
     def test_the_facts_are_the_thread_the_call_last_spoke_of(self):
         t3 = self.tasks(activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need(prompt="Run the formatter?"),

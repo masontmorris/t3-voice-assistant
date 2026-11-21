@@ -6,23 +6,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9985796646845094 },
-      "asks": { "type": "noul", "noul": 0.00178273678569136 },
+      "adds": { "type": "noul", "noul": 0.0015205592258872493 },
+      "agrees": { "type": "noul", "noul": 0.9968549411044059 },
+      "asks": { "type": "noul", "noul": 0.0030744965819586106 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.0039716971178560476,
-          "other": 0.005462249803611502,
-          "question": 0.003022396671533196,
-          "unrelated": 0.007512197438952667,
-          "yes": 0.9800314589680467
+          "no": 0.002422967996238011,
+          "other": 0.002422967996238011,
+          "question": 0.003649931105159046,
+          "unrelated": 0.005019727051370057,
+          "yes": 0.9864844058509948
         },
-        "confidence": 0.9750393237100583
+        "confidence": 0.9831055073137436
       },
-      "withdraws": { "type": "noul", "noul": 0.022346551925235315 }
+      "withdraws": { "type": "noul", "noul": 0.03328592059292115 }
     },
-    "request_hash": "becb0d5133139a5b2a51f769eaa24ae9ca9f98ad62cde68a84af382d1505a4e2"
+    "request_hash": "cf124b990f8b6481cbd4817e661979c6e8f7b08d74c1aa459071330dfcf0ed99"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -31,23 +32,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.997436027855803 },
-      "asks": { "type": "noul", "noul": 0.002807686913496793 },
+      "adds": { "type": "noul", "noul": 0.004128806700086117 },
+      "agrees": { "type": "noul", "noul": 0.996142669438176 },
+      "asks": { "type": "noul", "noul": 0.0036862988056489206 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.00487143777466542,
-          "other": 0.017427652971693883,
-          "question": 0.004447496411232476,
-          "unrelated": 0.015910995404870405,
-          "yes": 0.9573424174375378
+          "no": 0.0026440066764740902,
+          "other": 0.008635806231566963,
+          "question": 0.001755195748731042,
+          "unrelated": 0.004168410335197124,
+          "yes": 0.9827965810080308
         },
-        "confidence": 0.9466780217969222
+        "confidence": 0.9784957262600384
       },
-      "withdraws": { "type": "noul", "noul": 0.01709667378192435 }
+      "withdraws": { "type": "noul", "noul": 0.023363049754034117 }
     },
-    "request_hash": "7535b0e3f39e17ac1c367ec05fd918fe6c513cf34a5276ceb1486528d2ed9757"
+    "request_hash": "0814f03c26eec80c232a86c8ffbe3697f94b2a80256d6788222aef04e5a44a7c"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -56,23 +58,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9981762939251029 },
-      "asks": { "type": "noul", "noul": 0.0005985540792724574 },
+      "adds": { "type": "noul", "noul": 0.002563972553617866 },
+      "agrees": { "type": "noul", "noul": 0.9988424585121357 },
+      "asks": { "type": "noul", "noul": 0.0010569118591002551 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.0017673415646736604,
-          "other": 0.002662302993831697,
-          "question": 0.0013758820989311848,
-          "unrelated": 0.004597341861575562,
-          "yes": 0.9895971314809879
+          "no": 0.0023121723244950527,
+          "other": 0.003645255419528173,
+          "question": 0.0019272457308587012,
+          "unrelated": 0.006894754966030711,
+          "yes": 0.9852205715590874
         },
-        "confidence": 0.9869964143512349
+        "confidence": 0.9815257144488592
       },
-      "withdraws": { "type": "noul", "noul": 0.030477466139516032 }
+      "withdraws": { "type": "noul", "noul": 0.01429112578711559 }
     },
-    "request_hash": "8c495598393dc997f90c5fba28bf9327b8d3ee4d728364803ed041a7f8075910"
+    "request_hash": "e08e0de867ab70b3c084338becbd7ad888825c5875a4212d4f3af13241d31d02"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -81,23 +84,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9963137005914284 },
-      "asks": { "type": "noul", "noul": 0.002450146265852145 },
+      "adds": { "type": "noul", "noul": 0.004838520914671279 },
+      "agrees": { "type": "noul", "noul": 0.9953758118125825 },
+      "asks": { "type": "noul", "noul": 0.0013884157151090198 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.0033041292913467708,
-          "other": 0.006249537883649696,
-          "question": 0.0033041292913467708,
-          "unrelated": 0.008995268219403404,
-          "yes": 0.9781469353142535
+          "no": 0.004701595020137975,
+          "other": 0.00849699403036396,
+          "question": 0.002982204711447592,
+          "unrelated": 0.016820037577106584,
+          "yes": 0.9669991686609439
         },
-        "confidence": 0.9726836691428169
+        "confidence": 0.9587489608261799
       },
-      "withdraws": { "type": "noul", "noul": 0.02442462230064752 }
+      "withdraws": { "type": "noul", "noul": 0.033285924871250816 }
     },
-    "request_hash": "da9be351c8c006c8c8467d0dcf99fe7ffb7284ffb2d10deaf0ec662f101190ab"
+    "request_hash": "3d08739bf7dcedd3f5524a7e638b57d717e65b664f23379eecacf6ad4a283629"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -106,23 +110,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9967827655917273 },
-      "asks": { "type": "noul", "noul": 0.0036862989601166873 },
+      "adds": { "type": "noul", "noul": 0.0021380388509363753 },
+      "agrees": { "type": "noul", "noul": 0.9978619611924813 },
+      "asks": { "type": "noul", "noul": 0.0005985540025778771 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.002645661467268962,
-          "other": 0.0036385601373864823,
-          "question": 0.0024154203389825514,
-          "unrelated": 0.007889196238151775,
-          "yes": 0.9834111618182102
+          "no": 0.0028792527605700415,
+          "other": 0.003454321433639112,
+          "question": 0.0023999195613949643,
+          "unrelated": 0.014166312605296556,
+          "yes": 0.9771001936390994
         },
-        "confidence": 0.9792639522727629
+        "confidence": 0.9713752420488742
       },
-      "withdraws": { "type": "noul", "noul": 0.05375801939025961 }
+      "withdraws": { "type": "noul", "noul": 0.02553318412379125 }
     },
-    "request_hash": "77fa93c7d5576ac24812a2254e176797212bfd2ee0e14994098b8ecadddb92fa"
+    "request_hash": "95aeb4a53800470cfc5fda68e7997062075c8030408245de30013f3c16a03d71"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -131,23 +136,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9636565372880856 },
-      "asks": { "type": "noul", "noul": 0.003217234334308517 },
+      "adds": { "type": "noul", "noul": 0.002341363285475782 },
+      "agrees": { "type": "noul", "noul": 0.9547868931267455 },
+      "asks": { "type": "noul", "noul": 0.0019971969628702194 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.028122642874123138,
-          "other": 0.009430994555364145,
-          "question": 0.006857440659211556,
-          "unrelated": 0.060976056459734675,
-          "yes": 0.8946128654515665
+          "no": 0.019981515193257034,
+          "other": 0.0080392009798813,
+          "question": 0.0080392009798813,
+          "unrelated": 0.08975611460740747,
+          "yes": 0.8741839682395729
         },
-        "confidence": 0.8682660818144581
+        "confidence": 0.842729960299466
       },
-      "withdraws": { "type": "noul", "noul": 0.08934012639307046 }
+      "withdraws": { "type": "noul", "noul": 0.10967167098395432 }
     },
-    "request_hash": "6149d93220d1e2abb9e9b23fdc00f481f04fdfa16d22843085bb04aeb95cdbba"
+    "request_hash": "531f3e2d4f63dadd2540491440f0310f9b8b58a5bf3570c3573c571ad26c8b89"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -156,23 +162,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9667140801055815 },
-      "asks": { "type": "noul", "noul": 0.0019523381137351665 },
+      "adds": { "type": "noul", "noul": 0.008710434013966675 },
+      "agrees": { "type": "noul", "noul": 0.9485111934149011 },
+      "asks": { "type": "noul", "noul": 0.0036862989302196953 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.01636921186553192,
-          "other": 0.017929547244121515,
-          "question": 0.013036886571327908,
-          "unrelated": 0.053464801732321585,
-          "yes": 0.8991995525866971
+          "no": 0.0202529908965007,
+          "other": 0.02119629445726816,
+          "question": 0.012274692613871367,
+          "unrelated": 0.09964750355910483,
+          "yes": 0.8466285184732549
         },
-        "confidence": 0.8739994407333715
+        "confidence": 0.8082856480915686
       },
-      "withdraws": { "type": "noul", "noul": 0.056121341102148004 }
+      "withdraws": { "type": "noul", "noul": 0.07883440558777459 }
     },
-    "request_hash": "90715729e24fed19e8e7160cb961c41afabff1f25d5646129d14471da0c331a8"
+    "request_hash": "f7120a83ba3268026e6f399c082e0b316aafb0ef364c9672d6fe202e654f45f0"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -181,23 +188,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9652176738588195 },
-      "asks": { "type": "noul", "noul": 0.12875593067821053 },
+      "adds": { "type": "noul", "noul": 0.007606951235916664 },
+      "agrees": { "type": "noul", "noul": 0.9585585343465957 },
+      "asks": { "type": "noul", "noul": 0.1287559160676185 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.008936600226923223,
-          "other": 0.012290449494501235,
-          "question": 0.2264109708927193,
-          "unrelated": 0.012862889625978246,
-          "yes": 0.739499089759878
+          "no": 0.011153220243333891,
+          "other": 0.016801082619349227,
+          "question": 0.28256956118524,
+          "unrelated": 0.01840258450135358,
+          "yes": 0.6710735514507233
         },
-        "confidence": 0.6743738621998475
+        "confidence": 0.5888419393134041
       },
-      "withdraws": { "type": "noul", "noul": 0.03478232486582448 }
+      "withdraws": { "type": "noul", "noul": 0.051488799164092554 }
     },
-    "request_hash": "19cec851936466f7196499cb0e33446ccc2503c9057a40ebe1e3f1fce4a31838"
+    "request_hash": "3bf1554db52911d42c7ad3b8d2eb4bb8557fcc5eceff94b2f79a0ced9da28864"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -206,23 +214,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9959637363088566 },
-      "asks": { "type": "noul", "noul": 0.0029380744069190043 },
+      "adds": { "type": "noul", "noul": 0.00760695150220811 },
+      "agrees": { "type": "noul", "noul": 0.9969255025281436 },
+      "asks": { "type": "noul", "noul": 0.0015912681284716212 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.003151687331831433,
-          "other": 0.0056959113512417125,
-          "question": 0.0028774078367835966,
-          "unrelated": 0.011800370593597053,
-          "yes": 0.9764746228865461
+          "no": 0.0034479970153938433,
+          "other": 0.003952566731905309,
+          "question": 0.0031479318963399164,
+          "unrelated": 0.014140375909007501,
+          "yes": 0.9753111284473535
         },
-        "confidence": 0.9705932786081826
+        "confidence": 0.9691389105591919
       },
-      "withdraws": { "type": "noul", "noul": 0.03328592347424514 }
+      "withdraws": { "type": "noul", "noul": 0.029160671416899608 }
     },
-    "request_hash": "d9e311439c2ebcb275b5530f04f05e8e913ce448cba317e2edb53667846edef3"
+    "request_hash": "37d2055f79a2d1e241d23b9bf18e9c6b64eb1c53dd23257338f6354c98ab29f4"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -231,23 +240,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.7815409681912363 },
-      "asks": { "type": "noul", "noul": 0.17540245637881524 },
+      "adds": { "type": "noul", "noul": 0.027899137046542313 },
+      "agrees": { "type": "noul", "noul": 0.781540960778795 },
+      "asks": { "type": "noul", "noul": 0.13394958374117594 },
       "reading": {
         "type": "choice",
         "choice": "question",
         "probabilities": {
-          "no": 0.025345310210661005,
-          "other": 0.0265257937003664,
-          "question": 0.4669037160988474,
-          "unrelated": 0.05495419023426128,
-          "yes": 0.4262709897558639
+          "no": 0.024514734411547164,
+          "other": 0.029411034379861138,
+          "question": 0.4315052635696377,
+          "unrelated": 0.12061584744628208,
+          "yes": 0.3939531201926719
         },
-        "confidence": 0.3336296451235592
+        "confidence": 0.2893815794620471
       },
-      "withdraws": { "type": "noul", "noul": 0.1565158101401612 }
+      "withdraws": { "type": "noul", "noul": 0.09311378879182558 }
     },
-    "request_hash": "b9f6313d1e0440850f6233a93cc270d3a940c8887166980e9bcb65c9ae22aef9"
+    "request_hash": "7d76867403281b399e232e5deb2d725d8305dbd689ad628338aae5aa9d190266"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -256,23 +266,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9912895676963742 },
-      "asks": { "type": "noul", "noul": 0.0012677400560231063 },
+      "adds": { "type": "noul", "noul": 0.0017426864451641488 },
+      "agrees": { "type": "noul", "noul": 0.9966334248554504 },
+      "asks": { "type": "noul", "noul": 0.0018237056797384456 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.0037640125069777403,
-          "other": 0.006210543386804338,
-          "question": 0.004515794435725358,
-          "unrelated": 0.013465819905136522,
-          "yes": 0.9720438297653561
+          "no": 0.004322595513844301,
+          "other": 0.003442632905642814,
+          "question": 0.004322595513844301,
+          "unrelated": 0.01411837747688645,
+          "yes": 0.9737937985897821
         },
-        "confidence": 0.965054787206695
+        "confidence": 0.9672422482372276
       },
-      "withdraws": { "type": "noul", "noul": 0.019549639717203835 }
+      "withdraws": { "type": "noul", "noul": 0.013063673401965476 }
     },
-    "request_hash": "d2457ba3d0eb87e9993d2b1564829e931eefc510d055c49fafd330f3475f322d"
+    "request_hash": "1e0b3f484b7374228cb8d89ec3133f342d4be7bc4fbac1e4bf8042a0d2071410"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -281,23 +292,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9908875647578427 },
-      "asks": { "type": "noul", "noul": 0.012489560944407386 },
+      "adds": { "type": "noul", "noul": 0.058582115417991715 },
+      "agrees": { "type": "noul", "noul": 0.9795584292967869 },
+      "asks": { "type": "noul", "noul": 0.0079584316697842 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.0052374572636519744,
-          "other": 0.30110613694588595,
-          "question": 0.0038082465406813286,
-          "unrelated": 0.0065761903439385105,
-          "yes": 0.6832719689058423
+          "no": 0.005646658421867213,
+          "other": 0.4464635727405309,
+          "question": 0.0037484742170978357,
+          "unrelated": 0.008506061262955647,
+          "yes": 0.5356352333575484
         },
-        "confidence": 0.6040899611323028
+        "confidence": 0.4195440416969355
       },
-      "withdraws": { "type": "noul", "noul": 0.023363048206207892 }
+      "withdraws": { "type": "noul", "noul": 0.02789913719372326 }
     },
-    "request_hash": "fecf7b3a21400d60e0b27956c4e182b6f77fc531e60093c29e6a78c659ba3b13"
+    "request_hash": "17797249d2530a04becd13b9af9f875dd95b6b201d74aaec5b4b9011135d2dfb"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Add a greenhouse humidity alarm" } },
@@ -306,23 +318,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9547868920725218 },
-      "asks": { "type": "noul", "noul": 0.010912589958552663 },
+      "adds": { "type": "noul", "noul": 0.03478232814531148 },
+      "agrees": { "type": "noul", "noul": 0.9804503585664779 },
+      "asks": { "type": "noul", "noul": 0.004419305491562591 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.009421361451823698,
-          "other": 0.4313788242916122,
-          "question": 0.006254270730341529,
-          "unrelated": 0.011303079238507548,
-          "yes": 0.541642464287715
+          "no": 0.008706500203669856,
+          "other": 0.34775750937658034,
+          "question": 0.004603124724361571,
+          "unrelated": 0.010445439567878285,
+          "yes": 0.62848742612751
         },
-        "confidence": 0.42705308035964373
+        "confidence": 0.5356092826593875
       },
-      "withdraws": { "type": "noul", "noul": 0.04328809004148748 }
+      "withdraws": { "type": "noul", "noul": 0.031851771887569165 }
     },
-    "request_hash": "ff41eb78ea8022e1074abe4c6822138458b9cda4aaf0fbd66bf8f3daa34da0b7"
+    "request_hash": "e8ad3b34eb9c07088eaeb9669d43d7277457b2fdd4467a70438df5d3f55c6341"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Add a greenhouse humidity alarm" } },
@@ -331,23 +344,24 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.994200691161351 },
-      "asks": { "type": "noul", "noul": 0.001452988239975352 },
+      "adds": { "type": "noul", "noul": 0.0039457863053369594 },
+      "agrees": { "type": "noul", "noul": 0.9955806939473275 },
+      "asks": { "type": "noul", "noul": 0.0019523377449529196 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.004128480455006016,
-          "other": 0.007808742555274174,
-          "question": 0.003441177912023294,
-          "unrelated": 0.01123950843225226,
-          "yes": 0.9733820906454441
+          "no": 0.0052729920820348795,
+          "other": 0.022631949713272058,
+          "question": 0.0043951531515596595,
+          "unrelated": 0.02162475485689379,
+          "yes": 0.9460751501962397
         },
-        "confidence": 0.9667276133068052
+        "confidence": 0.9325939377452996
       },
-      "withdraws": { "type": "noul", "noul": 0.012489558467897507 }
+      "withdraws": { "type": "noul", "noul": 0.027899132042390293 }
     },
-    "request_hash": "2500ecaa028a8567b23a2516e20cf46fb67f24858fd6934ba6551d1945e43530"
+    "request_hash": "31b4d78d7a9df4ed9d6ffe9bdbddc7d75c053f2300b9c893e66137c36d8b01c3"
   },
   {
     "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
@@ -356,22 +370,23 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9244087791836507 },
-      "asks": { "type": "noul", "noul": 0.003857329738150794 },
+      "adds": { "type": "noul", "noul": 0.009112433870118758 },
+      "agrees": { "type": "noul", "noul": 0.9620280749968199 },
+      "asks": { "type": "noul", "noul": 0.004624187519233872 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.20338493782836609,
-          "other": 0.016631295330132006,
-          "question": 0.00840164693387452,
-          "unrelated": 0.010079698301901507,
-          "yes": 0.7615024216057258
+          "no": 0.10710212155908834,
+          "other": 0.012605835930089043,
+          "question": 0.00352362681485628,
+          "unrelated": 0.007299991113761908,
+          "yes": 0.8694684245822043
         },
-        "confidence": 0.7018780270071572
+        "confidence": 0.8368355307277553
       }
     },
-    "request_hash": "11e67a014d3512f1f912ebe0bf1bdff7dd4af2556284cb2dfe47edc9fcceed45"
+    "request_hash": "558e7fe918679e4609eea08e80abdf0bbf264a22eb80393685c700a965bc6e28"
   },
   {
     "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
@@ -380,22 +395,23 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9244087867679406 },
-      "asks": { "type": "noul", "noul": 0.16262021029559684 },
+      "adds": { "type": "noul", "noul": 0.0396703458562506 },
+      "agrees": { "type": "noul", "noul": 0.8606807870143617 },
+      "asks": { "type": "noul", "noul": 0.11419641692913773 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.014641482712732733,
-          "other": 0.03033314800665319,
-          "question": 0.15619439338267496,
-          "unrelated": 0.03033314800665319,
-          "yes": 0.768497827891286
+          "no": 0.027054511795524303,
+          "other": 0.028314603079915922,
+          "question": 0.3020584121659908,
+          "unrelated": 0.044639389216542556,
+          "yes": 0.5979330837420265
         },
-        "confidence": 0.7106222848641075
+        "confidence": 0.4974163546775331
       }
     },
-    "request_hash": "e36955cca8914ef357e25b6ef663337d074fba7fdf0234788589f682cb3e0b5c"
+    "request_hash": "de824898b5b771364b7a3e6230494072adcaa55903cd4d4f57cb45006c5a3645"
   },
   {
     "act": {
@@ -407,22 +423,23 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.9980915152469394 },
-      "asks": { "type": "noul", "noul": 0.003366575276560956 },
+      "adds": { "type": "noul", "noul": 0.03797192520142406 },
+      "agrees": { "type": "noul", "noul": 0.996633424641501 },
+      "asks": { "type": "noul", "noul": 0.002938074247941957 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.0025426310809612833,
-          "other": 0.0045951897225958585,
-          "question": 0.0014069000855569096,
-          "unrelated": 0.0023213562670294273,
-          "yes": 0.9891339228438565
+          "no": 0.004341602334233641,
+          "other": 0.0098519913158092,
+          "question": 0.002753861696719546,
+          "unrelated": 0.004976939618230554,
+          "yes": 0.978075605035007
         },
-        "confidence": 0.9864174035548205
+        "confidence": 0.9725945062937589
       }
     },
-    "request_hash": "524711b3599cfc8f014c44d2a4cb55a3b8525b92ab7a55972d29ca128067d945"
+    "request_hash": "652b677921158bd0a788d913cd4dc24848a798594f81c8bf38aef935ae263b86"
   },
   {
     "act": {
@@ -434,22 +451,23 @@
     "must_act": true,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.988059627896166 },
-      "asks": { "type": "noul", "noul": 0.009112434997150493 },
+      "adds": { "type": "noul", "noul": 0.07247095661883113 },
+      "agrees": { "type": "noul", "noul": 0.9620280740056003 },
+      "asks": { "type": "noul", "noul": 0.010912590427152376 },
       "reading": {
         "type": "choice",
         "choice": "yes",
         "probabilities": {
-          "no": 0.01428848479160841,
-          "other": 0.0205661211344356,
-          "question": 0.013045016229729593,
-          "unrelated": 0.0923821556215144,
-          "yes": 0.859718222222712
+          "no": 0.01889708942280737,
+          "other": 0.01805610791178846,
+          "question": 0.012544632096970761,
+          "unrelated": 0.16055407826176438,
+          "yes": 0.789948092306669
         },
-        "confidence": 0.82464777777839
+        "confidence": 0.7374351153833362
       }
     },
-    "request_hash": "9d522736bdeed99153f9a18de246409aa43b745e3a0b9e587ef41395a5caa1be"
+    "request_hash": "0113b1b364699e127c0081fd0c83acddffd385cf9d12d95001f503362ab94e44"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -458,23 +476,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.0021380393256366483 },
-      "asks": { "type": "noul", "noul": 0.005799309965074319 },
+      "adds": { "type": "noul", "noul": 0.0020430830899469195 },
+      "agrees": { "type": "noul", "noul": 0.007270879050972177 },
+      "asks": { "type": "noul", "noul": 0.004419306267565601 },
       "reading": {
         "type": "choice",
         "choice": "no",
         "probabilities": {
-          "no": 0.9618615128533057,
-          "other": 0.005122397108155242,
-          "question": 0.0061454876453522645,
-          "unrelated": 0.010139928489551114,
-          "yes": 0.016730673903635623
+          "no": 0.9710601373477135,
+          "other": 0.00328019050222694,
+          "question": 0.002861452797770663,
+          "unrelated": 0.0093460247745198,
+          "yes": 0.01345219457776907
         },
-        "confidence": 0.952326891066632
+        "confidence": 0.9638251716846418
       },
-      "withdraws": { "type": "noul", "noul": 0.33562362926689515 }
+      "withdraws": { "type": "noul", "noul": 0.39898043628907237 }
     },
-    "request_hash": "89869e2087a03b8d482041378766fb5451c2ddf6ccd0b574151315e135cc54b3"
+    "request_hash": "0b1550f919ad4049efa6c0494edb7fe0461f4621a140dfaf3a775f5706f3ecdf"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -483,23 +502,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.01494679822176536 },
-      "asks": { "type": "noul", "noul": 0.061143809576635295 },
+      "adds": { "type": "noul", "noul": 0.05148879439344616 },
+      "agrees": { "type": "noul", "noul": 0.006949549644969603 },
+      "asks": { "type": "noul", "noul": 0.039670347096722985 },
       "reading": {
         "type": "choice",
         "choice": "no",
         "probabilities": {
-          "no": 0.9487761914271643,
-          "other": 0.029825292532208163,
-          "question": 0.0026713669815024072,
-          "unrelated": 0.010001982130286118,
-          "yes": 0.00872516692883891
+          "no": 0.9540659601441562,
+          "other": 0.03285041719508612,
+          "question": 0.001953227103217657,
+          "unrelated": 0.005565197778769985,
+          "yes": 0.005565197778769985
         },
-        "confidence": 0.9359702392839553
+        "confidence": 0.9425824501801954
       },
-      "withdraws": { "type": "noul", "noul": 0.10530489769196884 }
+      "withdraws": { "type": "noul", "noul": 0.06658404554205145 }
     },
-    "request_hash": "61ec3d0b624e114443fb9da0aa4d1a30b04a8495c321a23fb1441316a6b8ae50"
+    "request_hash": "0115a4c1a5854e4cd848c3640b2e7a6aed6f407ce901a2456385d032eedc0ba7"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -508,23 +528,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.005799309933784732 },
-      "asks": { "type": "noul", "noul": 0.02234655204379716 },
+      "adds": { "type": "noul", "noul": 0.25979205366911523 },
+      "agrees": { "type": "noul", "noul": 0.004520591466850837 },
+      "asks": { "type": "noul", "noul": 0.021373311151306845 },
       "reading": {
         "type": "choice",
         "choice": "no",
         "probabilities": {
-          "no": 0.9510855453950352,
-          "other": 0.03928848385043356,
-          "question": 0.001737668480973998,
-          "unrelated": 0.003854390076249528,
-          "yes": 0.004033912197307762
+          "no": 0.9186064372187236,
+          "other": 0.054618692923193005,
+          "question": 0.004466307201755439,
+          "unrelated": 0.015267205764370467,
+          "yes": 0.007041356891957539
         },
-        "confidence": 0.938856931743794
+        "confidence": 0.8982580465234045
       },
-      "withdraws": { "type": "noul", "noul": 0.15059934882484172 }
+      "withdraws": { "type": "noul", "noul": 0.1889626685618056 }
     },
-    "request_hash": "f3e47c07d498c0ab70dc3bd7bd8f19bd3d34e378dd7dee8e4fb670d9e62d764e"
+    "request_hash": "5d010a835b34bce912b9a7daac65efe4829cebafdb5cf1ba2bf05a6f7fd9e5a0"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -533,23 +554,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.008710434154542654 },
-      "asks": { "type": "noul", "noul": 0.0970298463353057 },
+      "adds": { "type": "noul", "noul": 0.757330149396546 },
+      "agrees": { "type": "noul", "noul": 0.007606952055275008 },
+      "asks": { "type": "noul", "noul": 0.12373487651888776 },
       "reading": {
         "type": "choice",
         "choice": "no",
         "probabilities": {
-          "no": 0.8213198638230746,
-          "other": 0.16693028040820174,
-          "question": 0.003483526465332572,
-          "unrelated": 0.002774375441519392,
-          "yes": 0.005491953861871661
+          "no": 0.6022051763378989,
+          "other": 0.38197654805908876,
+          "question": 0.004214343146843457,
+          "unrelated": 0.005538020435115048,
+          "yes": 0.006065912021053742
         },
-        "confidence": 0.7766498297788433
+        "confidence": 0.5027564704223737
       },
-      "withdraws": { "type": "noul", "noul": 0.09311378604223801 }
+      "withdraws": { "type": "noul", "noul": 0.06658404385563466 }
     },
-    "request_hash": "a41af92abb9f172e9e3a172282f3092cd42a00b8319089d0560461a7fa496595"
+    "request_hash": "51aaf696673431a9da45442cc5cb7cda5a04c68c44d57f07f2c2e08676bdc087"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -558,23 +580,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.016348258018426636 },
-      "asks": { "type": "noul", "noul": 0.13931921689003465 },
+      "adds": { "type": "noul", "noul": 0.7223205902632495 },
+      "agrees": { "type": "noul", "noul": 0.04144146263532058 },
+      "asks": { "type": "noul", "noul": 0.07247096573854184 },
       "reading": {
         "type": "choice",
         "choice": "other",
         "probabilities": {
-          "no": 0.18840049766939806,
-          "other": 0.7382531438785961,
-          "question": 0.0056589029996556035,
-          "unrelated": 0.06318055083588538,
-          "yes": 0.004506904616464868
+          "no": 0.1684745350913742,
+          "other": 0.7231011948739653,
+          "question": 0.005060395613535677,
+          "unrelated": 0.09756295543452417,
+          "yes": 0.005800918986600693
         },
-        "confidence": 0.6728164298482451
+        "confidence": 0.6538764935924566
       },
-      "withdraws": { "type": "noul", "noul": 0.04521312034389423 }
+      "withdraws": { "type": "noul", "noul": 0.06658404082008458 }
     },
-    "request_hash": "e04bfc1cc694ba60741403b820c694845d89884ae589c0223260308dd782581e"
+    "request_hash": "d6ce9ae6e558a900d1b6d1d71902dabfbb8fa1ff9d8be7627f3f604b4b0110de"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -583,23 +606,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.01429112766008522 },
-      "asks": { "type": "noul", "noul": 0.2869020524032132 },
+      "adds": { "type": "noul", "noul": 0.7655982831528768 },
+      "agrees": { "type": "noul", "noul": 0.03967033903365316 },
+      "asks": { "type": "noul", "noul": 0.19603843348037223 },
       "reading": {
         "type": "choice",
         "choice": "other",
         "probabilities": {
-          "no": 0.35715439973791335,
-          "other": 0.6167445407688108,
-          "question": 0.007453152301994587,
-          "unrelated": 0.01346976724838859,
-          "yes": 0.005178139942892706
+          "no": 0.42353277019508195,
+          "other": 0.5565596000501418,
+          "question": 0.0023605781156509687,
+          "unrelated": 0.014583091148287838,
+          "yes": 0.0029639604908374808
         },
-        "confidence": 0.5209306759610135
+        "confidence": 0.44569950006267733
       },
-      "withdraws": { "type": "noul", "noul": 0.03328592495856367 }
+      "withdraws": { "type": "noul", "noul": 0.07247095917235 }
     },
-    "request_hash": "8cfaca73027bbca02a56dcc699c52c42eb5b97987a24fbc3c1a0bd4728a24fbb"
+    "request_hash": "3bdeb2c3aa1904e3eb098b6153ccd3e5c1c019a5d9f8b20b0dec3704e1abfbe0"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -608,23 +632,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.07883440795235602 },
-      "asks": { "type": "noul", "noul": 0.9620280783669662 },
+      "adds": { "type": "noul", "noul": 0.48862099125815583 },
+      "agrees": { "type": "noul", "noul": 0.05612133276549565 },
+      "asks": { "type": "noul", "noul": 0.9652176796890181 },
       "reading": {
         "type": "choice",
         "choice": "question",
         "probabilities": {
-          "no": 0.019883684075496198,
-          "other": 0.027345904335998438,
-          "question": 0.9104206585850615,
-          "unrelated": 0.031347623344733816,
-          "yes": 0.011002129658710056
+          "no": 0.015781640958463353,
+          "other": 0.027252194356089016,
+          "question": 0.9073007084499413,
+          "unrelated": 0.029849910321116245,
+          "yes": 0.019815545914390033
         },
-        "confidence": 0.888025823231327
+        "confidence": 0.8841258855624266
       },
-      "withdraws": { "type": "noul", "noul": 0.10109224177563948 }
+      "withdraws": { "type": "noul", "noul": 0.0724709668329072 }
     },
-    "request_hash": "f9e3485396cac0ca57219525cce04ff707f4c263f380c2f46872937f0bcd3bab"
+    "request_hash": "cc0e07de5829c93006dc525a1fd5d65fc72986c199bdc353ac1f4f0ac040d3bf"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -633,23 +658,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.01194037143157006 },
-      "asks": { "type": "noul", "noul": 0.7402079421565323 },
+      "adds": { "type": "noul", "noul": 0.9068862240395825 },
+      "agrees": { "type": "noul", "noul": 0.012489561245604564 },
+      "asks": { "type": "noul", "noul": 0.6941153656751077 },
       "reading": {
         "type": "choice",
         "choice": "unrelated",
         "probabilities": {
-          "no": 0.02017690266136769,
-          "other": 0.01760119559645035,
-          "question": 0.14954388809926994,
-          "unrelated": 0.8059116417910487,
-          "yes": 0.0067663718518633
+          "no": 0.009393727416719719,
+          "other": 0.014809681533077806,
+          "question": 0.2606781353854525,
+          "unrelated": 0.7096785842395258,
+          "yes": 0.005439871425224172
         },
-        "confidence": 0.7573895522388108
+        "confidence": 0.6370982302994073
       },
-      "withdraws": { "type": "noul", "noul": 0.6226385971152885 }
+      "withdraws": { "type": "noul", "noul": 0.5453985179817601 }
     },
-    "request_hash": "3c3531dd9fb2cfa404199a2bdd3980c7c5548c50e2fd55da6aad92d1d7315fb8"
+    "request_hash": "51817267d4ab755ce72da11a967fb54fc2e5a177159f104a718b9d113ef5d458"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -658,23 +684,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.030477465979159634 },
-      "asks": { "type": "noul", "noul": 0.3881158925070356 },
+      "adds": { "type": "noul", "noul": 0.21845903366187405 },
+      "agrees": { "type": "noul", "noul": 0.03634347212004496 },
+      "asks": { "type": "noul", "noul": 0.26864155650379024 },
       "reading": {
         "type": "choice",
         "choice": "unrelated",
         "probabilities": {
-          "no": 0.06628909487414221,
-          "other": 0.030573063815080265,
-          "question": 0.03348732954115326,
-          "unrelated": 0.8484096197949482,
-          "yes": 0.021240891974675994
+          "no": 0.10045381861232104,
+          "other": 0.021367811659886975,
+          "question": 0.06371749371552086,
+          "unrelated": 0.7792044253100534,
+          "yes": 0.03525645070221775
         },
-        "confidence": 0.8105120247436852
+        "confidence": 0.7240055316375668
       },
-      "withdraws": { "type": "noul", "noul": 0.1754024469597357 }
+      "withdraws": { "type": "noul", "noul": 0.23440170905597912 }
     },
-    "request_hash": "de3236a52a8055aa170269580d5cc9e99d2734378a9695ff2257a1ef5ec3c467"
+    "request_hash": "72aeacc7a5f1ff8c128b38944891df2fe4ee3d6db66156154a1b5ff492be8e09"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -683,23 +710,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.006642326347561559 },
-      "asks": { "type": "noul", "noul": 0.07247096209065744 },
+      "adds": { "type": "noul", "noul": 0.08220435725051087 },
+      "agrees": { "type": "noul", "noul": 0.007270878463403766 },
+      "asks": { "type": "noul", "noul": 0.043288087456866 },
       "reading": {
         "type": "choice",
         "choice": "unrelated",
         "probabilities": {
-          "no": 0.06324544364206862,
-          "other": 0.01473548358733941,
-          "question": 0.09970960804016299,
-          "unrelated": 0.8094550572337997,
-          "yes": 0.01285440749662932
+          "no": 0.052965505579066985,
+          "other": 0.012340374717097827,
+          "question": 0.03210071126512451,
+          "unrelated": 0.8908022202520846,
+          "yes": 0.011791188186626155
         },
-        "confidence": 0.7618188215422497
+        "confidence": 0.8635027753151057
       },
-      "withdraws": { "type": "noul", "noul": 0.23440170905597912 }
+      "withdraws": { "type": "noul", "noul": 0.31563471840083795 }
     },
-    "request_hash": "73c92ef062e59d7a15f148b1cc531550d16f1bf2703c5cabf0e5729a94a3f508"
+    "request_hash": "92ac3b8bd6e3f8efba1fe8db0eae6729698e0530627bf43d820e47f9ae690e76"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -708,23 +736,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.48862099125815583 },
-      "asks": { "type": "noul", "noul": 0.16891500433475856 },
+      "adds": { "type": "noul", "noul": 0.8660504351454897 },
+      "agrees": { "type": "noul", "noul": 0.3058846435427251 },
+      "asks": { "type": "noul", "noul": 0.11888292029409793 },
       "reading": {
         "type": "choice",
         "choice": "other",
         "probabilities": {
-          "no": 0.004098769459800484,
-          "other": 0.9663770568247334,
-          "question": 0.0013745315191849455,
-          "unrelated": 0.0016490651331677966,
-          "yes": 0.02650057706311342
+          "no": 0.006782421411679189,
+          "other": 0.9691688029517124,
+          "question": 0.00079828555617915,
+          "unrelated": 0.001097877051817903,
+          "yes": 0.022152613028611264
         },
-        "confidence": 0.9579713210309166
+        "confidence": 0.9614610036896405
       },
-      "withdraws": { "type": "noul", "noul": 0.05148880658509894 }
+      "withdraws": { "type": "noul", "noul": 0.06114381019969705 }
     },
-    "request_hash": "62d2fd56d8af8dd25347d379299ce4d54435f57f4d574c21c5cef98a692c75de"
+    "request_hash": "3e26bed8c368d2ebc6b629f37f53360862197c551de9549cc8701b65f9dda0ec"
   },
   {
     "act": { "kind": "confirm_thread", "slots": { "thread": "Fix the ferry timetable parser" } },
@@ -733,23 +762,24 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.025533177574968563 },
-      "asks": { "type": "noul", "noul": 0.12373487769570003 },
+      "adds": { "type": "noul", "noul": 0.009112433331103627 },
+      "agrees": { "type": "noul", "noul": 0.022346551332426055 },
+      "asks": { "type": "noul", "noul": 0.053758024359242644 },
       "reading": {
         "type": "choice",
         "choice": "unrelated",
         "probabilities": {
-          "no": 0.04104684174875609,
-          "other": 0.34874353902215843,
-          "question": 0.10677411478247381,
-          "unrelated": 0.4183976886612257,
-          "yes": 0.08503781578538598
+          "no": 0.1040874547184367,
+          "other": 0.14981820910581528,
+          "question": 0.060276644778869175,
+          "unrelated": 0.5609409679601277,
+          "yes": 0.12487672343675112
         },
-        "confidence": 0.2729971108265321
+        "confidence": 0.4511762099501596
       },
-      "withdraws": { "type": "noul", "noul": 0.051488806320062995 }
+      "withdraws": { "type": "noul", "noul": 0.06380991878921352 }
     },
-    "request_hash": "dff88426b21b11a90c8f4678b1cb30a92adce4bda1c639d2bcf3f1321fed835c"
+    "request_hash": "37c38004a45b944fb6b19136b46ada358663147b904d12ee97f8a4d113d84eee"
   },
   {
     "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
@@ -758,22 +788,23 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.10967167734275816 },
-      "asks": { "type": "noul", "noul": 0.03185177381209091 },
+      "adds": { "type": "noul", "noul": 0.40994538345739223 },
+      "agrees": { "type": "noul", "noul": 0.04931037095771738 },
+      "asks": { "type": "noul", "noul": 0.03967034937092245 },
       "reading": {
         "type": "choice",
         "choice": "no",
         "probabilities": {
-          "no": 0.809645451975816,
-          "other": 0.11965263562001756,
-          "question": 0.005666046882443949,
-          "unrelated": 0.01689580160900193,
-          "yes": 0.04814006391272049
+          "no": 0.8712853746070476,
+          "other": 0.05180507336823221,
+          "question": 0.006381408857731767,
+          "unrelated": 0.03285977061271782,
+          "yes": 0.037668372554270524
         },
-        "confidence": 0.7620568149697702
+        "confidence": 0.8391067182588094
       }
     },
-    "request_hash": "33c89e884e9220950da20d9d74e4f9241a5131ee9079b6a4176e3cb94ee7758e"
+    "request_hash": "8c902b315dd8db18158d407de2e76ee0c2a2742e355372672569aff9d92ce76d"
   },
   {
     "act": { "kind": "confirm_stop", "slots": { "thread": "Speed up the photo upload" } },
@@ -782,22 +813,23 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.061143812068882294 },
-      "asks": { "type": "noul", "noul": 0.48862099125815583 },
+      "adds": { "type": "noul", "noul": 0.8245975624593432 },
+      "agrees": { "type": "noul", "noul": 0.08934012904220204 },
+      "asks": { "type": "noul", "noul": 0.694115356457275 },
       "reading": {
         "type": "choice",
         "choice": "other",
         "probabilities": {
-          "no": 0.2345296390354743,
-          "other": 0.6682294115892223,
-          "question": 0.008451445743203332,
-          "unrelated": 0.07865006026143058,
-          "yes": 0.010139443370669457
+          "no": 0.14940048433916808,
+          "other": 0.7350708161611007,
+          "question": 0.006759883300721978,
+          "unrelated": 0.09476418670269561,
+          "yes": 0.014004629496313646
         },
-        "confidence": 0.5852867644865279
+        "confidence": 0.6688385202013759
       }
     },
-    "request_hash": "d9f27734e90be4063195397702e40315484641cade67e4fc406913e4093c90a4"
+    "request_hash": "b9581cdf670c4521cedbf2f84eb46cc399072bac08d27ece7007bd2b39dc8da9"
   },
   {
     "act": {
@@ -809,22 +841,23 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.10109225015925606 },
-      "asks": { "type": "noul", "noul": 0.35621952722040356 },
+      "adds": { "type": "noul", "noul": 0.8660504238134906 },
+      "agrees": { "type": "noul", "noul": 0.10967166462515084 },
+      "asks": { "type": "noul", "noul": 0.30588463432489227 },
       "reading": {
         "type": "choice",
         "choice": "other",
         "probabilities": {
-          "no": 0.1185174629430199,
-          "other": 0.8393165208171918,
-          "question": 0.005873691976335959,
-          "unrelated": 0.021013234728885898,
-          "yes": 0.015279089534566553
+          "no": 0.07387667155398056,
+          "other": 0.8632353940613916,
+          "question": 0.006616923089938295,
+          "unrelated": 0.01721243823166481,
+          "yes": 0.039058573063024876
         },
-        "confidence": 0.7991456510214898
+        "confidence": 0.8290442425767395
       }
     },
-    "request_hash": "25113846d858cc1240006b9b8a5acfbd82177f497109532e8a6a8e06de5c6d06"
+    "request_hash": "f037516b457d9d922988fc98f0cc7f98aa6867199ae1fc5d1c124a4a28cc111b"
   },
   {
     "act": {
@@ -836,22 +869,23 @@
     "must_act": false,
     "expected_target": null,
     "answers": {
-      "agrees": { "type": "noul", "noul": 0.694115356457275 },
-      "asks": { "type": "noul", "noul": 0.3773614130854831 },
+      "adds": { "type": "noul", "noul": 0.9142950400802649 },
+      "agrees": { "type": "noul", "noul": 0.7966872773011674 },
+      "asks": { "type": "noul", "noul": 0.40994538345739223 },
       "reading": {
         "type": "choice",
         "choice": "other",
         "probabilities": {
-          "no": 0.0031264864031132827,
-          "other": 0.9686667131682352,
-          "question": 0.0015091211968087392,
-          "unrelated": 0.0013164724938004603,
-          "yes": 0.02538120673804226
+          "no": 0.007957983943584714,
+          "other": 0.9478390824803141,
+          "question": 0.002125448263084468,
+          "unrelated": 0.0029231154876902,
+          "yes": 0.03915436982532653
         },
-        "confidence": 0.960833391460294
+        "confidence": 0.9347988531003926
       }
     },
-    "request_hash": "e2151ed57d10c1ec8c446cf6de6d01e041c4dee0a345e7129cba565a77ce192d"
+    "request_hash": "b6c4d7f4aa78d610ca822c5e15299fc7b09b667ae34fd2ebf2f0757806573f42"
   },
   {
     "act": {
