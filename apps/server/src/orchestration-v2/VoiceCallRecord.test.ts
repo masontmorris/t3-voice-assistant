@@ -12,6 +12,7 @@ import { historicalMessage } from "@t3tools/provider-core/server/handoffBudget";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
+import * as TestClock from "effect/testing/TestClock";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
 import { visibleConversationItems } from "./ContextHandoffService.ts";
@@ -92,6 +93,14 @@ it.effect("records a voice call as a card on its thread, once, outside every mod
       createdBy: "user",
       creationSource: "web",
     });
+    // Archived during the call: the transcript is still the caller's record of it.
+    yield* orchestrator.dispatch({
+      type: "thread.archive",
+      commandId: CommandId.make("archive-voice-call-record"),
+      threadId,
+    });
+    const before = (yield* orchestrator.getThreadSnapshot(threadId)).projection.thread;
+    yield* TestClock.adjust("1 minute");
     yield* orchestrator.dispatch(record);
     yield* orchestrator.dispatch(record);
     const again = yield* orchestrator
@@ -112,6 +121,12 @@ it.effect("records a voice call as a card on its thread, once, outside every mod
     );
     assert.deepStrictEqual([card.startedAt, card.completedAt], [startedAt, endedAt]);
     assert.strictEqual(projection.runs.length, 0, "recording starts no run");
+    assert.deepStrictEqual(
+      [projection.thread.archivedAt, projection.thread.updatedAt],
+      [before.archivedAt, before.updatedAt],
+      "the thread stays archived and is not touched, so it does not move or read as active",
+    );
+    assert.notStrictEqual(before.archivedAt, null);
     assert.strictEqual(projection.messages.length, 0, "and adds no message for a model");
 
     assert.strictEqual(historicalMessage(card), null, "never history handed to a provider");

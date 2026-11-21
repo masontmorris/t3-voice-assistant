@@ -8,9 +8,11 @@ import {
   TurnItemId,
   VOICE_CALL_LIMITS,
 } from "@t3tools/contracts";
-import type * as Digest from "effect/crypto/Digest";
+import * as Digest from "effect/crypto/Digest";
+import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 
 import type * as CommandReceiptStore from "../orchestration-v2/CommandReceiptStore.ts";
@@ -77,24 +79,6 @@ const refOf = (event: { readonly type: string; readonly payload?: unknown }) => 
   }
 };
 
-const sameLines = (
-  stored: ReadonlyArray<OrchestrationV2VoiceCallLine>,
-  given: ReadonlyArray<Given>,
-): boolean =>
-  stored.length === given.length &&
-  stored.every((line, index) => {
-    const other = given[index]!;
-    return (
-      line.speaker === other.speaker &&
-      line.text === other.text &&
-      line.relay === other.relay &&
-      (line.interrupted ?? false) === (other.interrupted ?? false) &&
-      line.claim?.act === other.act &&
-      JSON.stringify(line.claim?.evidence.map((evidence) => evidence.sequence) ?? []) ===
-        JSON.stringify(other.act === undefined ? [] : (other.sequences ?? []))
-    );
-  });
-
 const isCard = (
   item: OrchestrationV2TurnItem,
   id: TurnItemId,
@@ -102,21 +86,32 @@ const isCard = (
   item.type === "voice_call" && item.id === id;
 
 /**
- * Records a call's transcript on a visible thread, once per request id. A receipt does not hold the lines, so a replay
- * reports the card only when the one T3 recorded holds these same lines; any other copy of the id is refused.
+ * Records a call's transcript on a visible thread, once per request id. The command is the request id's alone, so the
+ * same id sent to another thread finds the first thread's receipt and is refused. A receipt does not hold the lines,
+ * so the card's id is a digest of the request as received, before any bound: a replay finds its card only when every
+ * field and every line, the cut tail too, is what was first sent, and any other copy of the id is refused.
  */
+const encodeReceived = Schema.encodeEffect(Schema.fromJsonString(Schema.Unknown));
+
 export const make = (sources: RecordSources) => {
   const { threads, receipts, eventStore } = sources;
   const unavailable = Effect.mapError(VoiceSeamRefusal.unavailable);
 
   const record = Effect.fn("VoiceSeam.recordCall")(function* (input: RequestInput<"record_call">) {
-    const commandId = yield* voiceCommandId(
-      sources.digest,
-      "record",
+    const commandId = yield* voiceCommandId(sources.digest, "record", input.requestId);
+    const received = yield* encodeReceived([
       input.requestId,
       input.threadId,
+      input.callId,
+      DateTime.formatIso(input.startedAt),
+      DateTime.formatIso(input.endedAt),
+      input.lines,
+    ]).pipe(unavailable);
+    const payload = yield* sources.digest.digestHex(
+      Digest.sha256,
+      new TextEncoder().encode(received),
     );
-    const turnItemId = TurnItemId.make(`turn-item:voice-call:${commandId}`);
+    const turnItemId = TurnItemId.make(`turn-item:voice-call:${payload}`);
     const bounded = boundCall(input.lines);
 
     const recorded = Effect.fn("VoiceSeam.recordCallRecorded")(function* (
@@ -130,11 +125,7 @@ export const make = (sources: RecordSources) => {
         })
         .pipe(unavailable);
       const card = turnItems.find((item) => isCard(item, turnItemId));
-      if (
-        card === undefined ||
-        card.callId !== input.callId ||
-        !sameLines(card.lines, bounded.lines)
-      ) {
+      if (card === undefined) {
         return yield* VoiceSeamRefusal.invalidRequest(
           "That request id already recorded something else.",
         );

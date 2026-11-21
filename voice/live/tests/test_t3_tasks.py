@@ -2175,7 +2175,7 @@ class SpokenAbout(unittest.TestCase):
         seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
         t3 = tasks_over(self, seam)
         t3.begin_call()
-        self.assertEqual(t3.view("t5", 1), "Add a clamp helper")
+        self.assertEqual(t3.view("t5", 1).title, "Add a clamp helper")
         self.assertEqual((t3.spoken_about(), t3.recent), ("Add a clamp helper", "t5"))
         update = t3.about("k1", ASK, "How is it doing?", 2)
         self.assertEqual(said(update), [("thread_status", "Add a clamp helper", "working")],
@@ -2184,6 +2184,14 @@ class SpokenAbout(unittest.TestCase):
         t3.begin_call()
         self.assertIsNone(t3.view("t9", 3), "a thread the seam cannot read opens nothing")
         self.assertIsNone(t3.spoken_about())
+
+    def test_an_archived_thread_is_not_opened_or_followed(self):
+        seam = F.FakeSeam(read=replace(F.state(thread="t5", title="Add a clamp helper"), archived=True))
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        self.assertTrue(t3.view("t5", 1).archived)
+        self.assertEqual((t3.spoken_about(), t3.following), (None, None))
+        self.assertFalse([call for call in seam.calls if call[0] == "watch"])
 
     def test_the_seam_says_which_t3_environment_it_serves(self):
         seam = F.FakeSeam()

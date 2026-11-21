@@ -12239,5 +12239,6 @@
   "09c86b914196de0f": "Ein Element des Threads",
   "d89ba336861d5726": "Ein Lauf des Threads",
   "b3527483bd2702a3": "Der Thread zu diesem Zeitpunkt",
-  "fec208ea8cc10427": "Nicht im geladenen Teil dieses Threads"
+  "fec208ea8cc10427": "Nicht im geladenen Teil dieses Threads",
+  "04b11228453baedb": "Dieser Thread ist archiviert. Hole ihn aus dem Archiv, um über ihn anzurufen."
 }

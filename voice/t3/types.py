@@ -258,6 +258,8 @@ class ThreadState:
     # Whether T3 stored what the pending request asks. When false its prompt is a fixed line about the kind of request,
     # which cannot tell one command from another, so the voice does not approve it.
     pending_detailed: bool = True
+    # An archived thread is refused at a call's start; an older seam does not say, and is taken as not archived.
+    archived: bool = False
 
 
 @dataclass(frozen=True)
@@ -612,6 +614,7 @@ def decode_thread_state(value: Any) -> ThreadState:
         last_reply=_decode_last_reply(value.get("lastReply")),
         as_of_sequence=_need(value, "asOfSequence"),
         pending_detailed=value.get("pendingDetailed", False),
+        archived=value.get("archived", False),
     )
 
 

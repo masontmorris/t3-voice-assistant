@@ -5,6 +5,7 @@ import io
 import base64
 import json
 import tempfile
+import threading
 import unittest
 from dataclasses import replace
 import urllib.request
@@ -23,6 +24,9 @@ from voice.live.tests import test_server
 from voice.live.tests.test_endpoint import noise, tone
 from voice.live.tests.test_t3_tasks import tasks_over
 from voice.t3 import fakes as F
+from voice.t3 import types as T
+from voice.t3.journal import Status
+from voice.live.t3_tasks import Question
 
 
 def make_live(tmp):
@@ -231,8 +235,9 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
     async def test_a_call_opened_on_a_thread_starts_only_when_the_seam_can_see_it(self):
         readable = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
         refusing = F.FakeSeam().answer("read", F.refusal("not_found"))
+        archived = F.FakeSeam(read=replace(F.state(thread="t5", title="Add a clamp helper"), archived=True))
         for t3, closed in ((None, server.CLOSE_NO_T3), (tasks_over(self, refusing), server.CLOSE_NO_THREAD),
-                           (tasks_over(self, readable), None)):
+                           (tasks_over(self, archived), server.CLOSE_ARCHIVED), (tasks_over(self, readable), None)):
             with self.subTest(closed=closed):
                 self.live.t3 = t3
                 async with await self.browser() as ws:
@@ -253,17 +258,18 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                     self.assertLess(log.index("heard"), log.index("reply_start"), "the caller's words show first")
                     self.assertIn("say", log)
 
-    async def talk_on_thread(self, seam, thread="t5"):
-        """One call opened on `thread` with one turn, then a hangup; returns once the server let the call go."""
-        self.live.t3 = tasks_over(self, seam)
+    async def call_on_thread(self, thread="t5", *, saved=True):
+        """One call opened on `thread` with one turn, then a hangup; returns once the server let the call go, and with
+        `saved`, once its transcript save ended too."""
         released = asyncio.Event()
-        original = server.Conversation.record_transcript
+        original = server.Conversation.finish_call
 
-        async def record_transcript(conversation):
-            await original(conversation)
+        def finish_call(conversation):
+            save = original(conversation)
             released.set()
+            return save
 
-        with mock.patch.object(server.Conversation, "record_transcript", record_transcript):
+        with mock.patch.object(server.Conversation, "finish_call", finish_call):
             async with await self.browser() as ws:
                 await ws.send(f"auth {test_server.SECRET}")
                 hello = {"type": "hello", "mode": "vad", **({"thread": thread} if thread else {})}
@@ -272,6 +278,54 @@ class BrowserPathTest(unittest.IsolatedAsyncioTestCase):
                 await self.send(ws, noise(500) + tone(600) + noise(900, seed=1))
                 await self.until(ws, "turn_done", [])
             await asyncio.wait_for(released.wait(), 5)
+        if saved:
+            await asyncio.wait_for(asyncio.gather(*self.live.saves), 5)
+
+    async def talk_on_thread(self, seam, thread="t5"):
+        self.live.t3 = tasks_over(self, seam)
+        await self.call_on_thread(thread)
+
+    async def test_a_second_call_keeps_its_t3_state_while_the_first_one_is_still_saving(self):
+        states = {tid: F.state(thread=tid, title=title) for tid, title in (("t5", "Add a clamp helper"),
+                                                                           ("t6", "Fix the flaky ASR test"))}
+        seam = F.FakeSeam()
+        seam.read_thread = lambda tid: states[tid]
+        stalled, saving = threading.Event(), threading.Event()
+
+        def record_call(*_args):
+            saving.set()
+            stalled.wait(5)
+            return T.RecordResult("t5", "turn-item:voice-call:x", 2, False, 99, False)
+
+        seam.record_call = record_call
+        self.addCleanup(stalled.set)
+        self.live.t3 = t3 = tasks_over(self, seam)
+        await self.call_on_thread("t5", saved=False)
+        await asyncio.to_thread(saving.wait, 5)
+        async with await self.browser() as ws:
+            await ws.send(f"auth {test_server.SECRET}")
+            await ws.send(json.dumps({"type": "hello", "mode": "vad", "thread": "t6"}))
+            await self.until(ws, "ready", [])
+            asked = t3._ask(Question("k1", "thread_confirm", "Stop it?", ("t6",)))
+            stalled.set()
+            await asyncio.wait_for(asyncio.gather(*self.live.saves), 5)
+            self.assertIs(t3.question, asked, "the first call's save left the second call's question alone")
+            self.assertEqual((t3.following.link.thread_id, t3.following.status), ("t6", Status.LIVE))
+
+    async def test_a_save_that_never_returns_does_not_hold_the_server(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        stalled = threading.Event()
+        seam.record_call = lambda *_args: stalled.wait(30)
+        self.addCleanup(stalled.set)
+        self.live.t3 = tasks_over(self, seam)
+        with mock.patch.object(server, "RECORD_TIMEOUT_S", 0.2), mock.patch("sys.stdout", new_callable=io.StringIO) as out:
+            await self.call_on_thread("t5", saved=False)
+            async with await self.browser() as ws:
+                await ws.send(f"auth {test_server.SECRET}")
+                await ws.send(json.dumps({"type": "hello", "mode": "vad", "thread": "t5"}))
+                self.assertEqual((await self.until(ws, "ready", []))["type"], "ready", "the next call starts at once")
+            await asyncio.wait_for(asyncio.gather(*self.live.saves), 5)
+        self.assertIn("T3 did not answer in time", out.getvalue())
 
     async def test_a_call_on_a_thread_records_its_transcript_there_once_at_the_end(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))

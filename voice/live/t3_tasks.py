@@ -377,9 +377,10 @@ class T3Tasks:
                 return None
             return self.follow.seam.hello.environment_id == environment_id
 
-    def view(self, thread_id: str, now: float) -> str | None:
+    def view(self, thread_id: str, now: float) -> T.ThreadState | None:
         """Open the call on `thread_id`, the thread the caller started it from, as if the call had just spoken about it:
-        "it" means this thread until a line about another one. Its title, or None when the seam cannot read it."""
+        "it" means this thread until a line about another one. Its state, or None when the seam cannot read it. An
+        archived thread is returned without being opened: a call on it would record onto an archive."""
         with self.lock:
             if self._down("", now) is not None:
                 return None
@@ -387,12 +388,14 @@ class T3Tasks:
                 state = self.follow.seam.read_thread(thread_id)
             except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
                 return None
+            if state.archived:
+                return state
             self.recent = self.spoken_id = state.thread_id
             self.spoken_of = state.title
             self._unfollow_calls()
             self.following = self.follow.follow(state.thread_id, state.title, state.project_id,
                                                 self.project_names().get(state.project_id), now)
-            return state.title
+            return state
 
     def record_call(self, thread_id: str, call_id: str, started_at: str, ended_at: str, lines: list[dict]) -> bool:
         """Record a call's transcript on the thread it was opened on, once. False when T3 did not take it."""

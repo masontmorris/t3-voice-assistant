@@ -395,6 +395,7 @@ const make = Effect.gen(function* () {
       pendingDetailed,
       lastReply,
       asOfSequence: read.asOfSequence,
+      archived: shell.archivedAt != null,
     } satisfies VoiceThreadState;
   });
 

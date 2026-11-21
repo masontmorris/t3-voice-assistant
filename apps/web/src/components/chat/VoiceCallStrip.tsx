@@ -49,6 +49,7 @@ export function VoiceCallStrip(props: {
     "wrong-secret": gt("The voice server refused the secret. Paste it again in Settings."),
     busy: gt("The voice server is already on another call."),
     "thread-unavailable": gt("The voice server can't see this thread."),
+    archived: gt("This thread is archived. Unarchive it to call about it."),
     "other-environment": gt(
       "The voice server works with a different T3 environment than this thread's.",
     ),

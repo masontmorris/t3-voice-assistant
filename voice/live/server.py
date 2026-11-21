@@ -160,7 +160,10 @@ WEB_FILES = {
 # A browser cannot set X-Voice-Secret on its WebSocket handshake, so the page sends `auth {secret}` as its first
 # text frame instead. The frame must arrive within this long after the socket opens, before any audio.
 AUTH_TIMEOUT_S = 5.0
-CLOSE_NO_THREAD, CLOSE_OTHER_ENVIRONMENT, CLOSE_NO_T3 = 4404, 4409, 4501
+CLOSE_NO_THREAD, CLOSE_OTHER_ENVIRONMENT, CLOSE_ARCHIVED, CLOSE_NO_T3 = 4404, 4409, 4410, 4501
+# How long a call's transcript may take to reach T3 after the call ended. A guess: a seam write is a local round trip,
+# so this only bounds a stalled seam, which must not hold a stopping server.
+RECORD_TIMEOUT_S = 15.0
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
@@ -848,26 +851,39 @@ class Conversation:
                 t3.serves, str(environment_id), time.monotonic()) is False:
             await self.ws.close(CLOSE_OTHER_ENVIRONMENT, "the voice server works with another T3 environment")
             return False
-        if await asyncio.to_thread(t3.view, str(thread_id), time.monotonic()) is None:
+        state = await asyncio.to_thread(t3.view, str(thread_id), time.monotonic())
+        if state is None:
             await self.ws.close(CLOSE_NO_THREAD, "the voice server cannot see this thread")
+            return False
+        if state.archived:
+            await self.ws.close(CLOSE_ARCHIVED, "the thread is archived")
             return False
         self.thread, self.call_started = str(thread_id), utc_now()
         t3.on_spoken = lambda update: self.transcript.spoken(tuple(a.kind.value for a in update.acts),
                                                              tuple(update.sequences))
         return True
 
-    async def record_transcript(self):
-        """Record the call's transcript on its thread once, however the call ended. A failure is logged without the
-        transcript and never spoken; the call has already ended."""
+    def finish_call(self):
+        """The call has ended: stop collecting its transcript and hand back the save to run once the call has let go
+        of the T3 state the next call needs, or None when there is nothing to record."""
         t3, lines = self.live.t3, self.transcript.wire()
         if t3 is None or self.thread is None:
-            return
+            return None
         t3.on_spoken = None
         if not lines:
-            return
+            return None
+        return self.save_transcript(t3, self.thread, f"call-{self.call_started}", self.call_started, utc_now(), lines)
+
+    @staticmethod
+    async def save_transcript(t3, thread, call_id, started, ended, lines):
+        """Record a finished call's transcript on its thread, within RECORD_TIMEOUT_S. A failure is logged without the
+        transcript and never spoken; the call has already ended."""
         try:
-            done = await asyncio.to_thread(t3.record_call, self.thread, f"call-{self.call_started}",
-                                           self.call_started, utc_now(), lines)
+            done = await asyncio.wait_for(
+                asyncio.to_thread(t3.record_call, thread, call_id, started, ended, lines), RECORD_TIMEOUT_S)
+        except TimeoutError:
+            print("call transcript was not recorded: T3 did not answer in time", flush=True)
+            return
         except Exception as exc:
             print(f"call transcript was not recorded: {type(exc).__name__}", flush=True)
             return
@@ -1231,6 +1247,7 @@ class Live:
                                  check_ms=check_ms)
         self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
         self.active, self.turns, self.overlaps = None, 0, 0
+        self.saves: set[asyncio.Task] = set()
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.barge_in_note = getattr(args, "barge_in_note", "off") == "on"
         self.record_calls = getattr(args, "call_recording", "off") == "on"
@@ -1283,11 +1300,16 @@ class Live:
         try:
             await conversation.run()
         finally:
-            self.active = None
-            await conversation.record_transcript()
+            # This call's own state goes before the next call may begin; its transcript saves after, never in the way.
+            save = conversation.finish_call()
             if self.t3 is not None:
                 self.t3.end_call()
+            self.active = None
             print("client disconnected", flush=True)
+            if save is not None:
+                task = asyncio.create_task(save)
+                self.saves.add(task)
+                task.add_done_callback(self.saves.discard)
 
 
 async def wait_for_stop(max_minutes, stop_file=STOP_FILE):
@@ -1390,6 +1412,8 @@ async def main_async(args):
             await wait_for_stop(args.max_minutes, args.stop_file)
             if live.active is not None:
                 await live.active.ws.close(1001, "server stopping")
+        if live.saves:
+            await asyncio.wait(live.saves, timeout=RECORD_TIMEOUT_S)
 
 
 def main():

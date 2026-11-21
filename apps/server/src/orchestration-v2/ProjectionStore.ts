@@ -1,5 +1,9 @@
 import type { ProjectThreadAwarenessV2Input } from "@t3tools/shared/agentAwareness";
-import { applyOrchestrationV2ThreadVisit, pendingGuestMessageCount } from "@t3tools/contracts";
+import {
+  applyOrchestrationV2ThreadVisit,
+  isCallerPrivateTurnItem,
+  pendingGuestMessageCount,
+} from "@t3tools/contracts";
 import { applyThreadPullRequestLinkUpdate } from "../sourceControl/threadPullRequests.ts";
 import { projectTurnItemForWire } from "./WireProjection.ts";
 import * as Stream from "effect/Stream";
@@ -3331,7 +3335,9 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             event.type !== "thread.interaction-mode-updated" &&
             event.type !== "thread.model-selection-updated" &&
             event.type !== "thread.provider-switched" &&
-            event.type !== "thread.guest-share-updated"
+            event.type !== "thread.guest-share-updated" &&
+            // A recorded call is the caller's record, not activity: it never reorders or touches the thread.
+            !(event.type === "turn-item.updated" && isCallerPrivateTurnItem(event.payload))
           ) {
             const updatedAt = yield* encodeThreadUpdatedAt(event.occurredAt);
             if (batch !== undefined) batch.threadTouches.set(event.threadId, updatedAt);

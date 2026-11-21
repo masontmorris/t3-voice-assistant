@@ -155,6 +155,8 @@ export const VoiceThreadState = Schema.Struct({
     Schema.Struct({ ...VoiceRunResult.fields, runId: RunId, at: Schema.String }),
   ),
   asOfSequence: Sequence,
+  /** The thread is archived. Older servers leave it out. */
+  archived: Schema.optionalKey(Schema.Boolean),
 }).annotate({ identifier: "VoiceThreadState" });
 export type VoiceThreadState = typeof VoiceThreadState.Type;
 

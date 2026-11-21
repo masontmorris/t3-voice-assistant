@@ -52,37 +52,41 @@ const LINES: RequestInput<"record_call">["lines"] = [
 ];
 
 /**
- * The seam's services, scripted: the thread's cards, the receipt for the voice's command, and the stored events the
- * evidence points at. A dispatch records the card as the orchestrator would, and a second one answers `replayed`.
+ * The seam's services, scripted: the thread's cards, a receipt per command naming its thread, and the stored events
+ * the evidence points at. A dispatch records the card as the orchestrator would; a command it already holds answers
+ * `replayed` without recording anything.
  */
-const rig = (receipt: { readonly threadId: ThreadId } | null = null) =>
+const rig = () =>
   Effect.gen(function* () {
     const digest = yield* Digest.Digest;
     const dispatched: Array<Record<string, unknown>> = [];
     const cards: Array<OrchestrationV2TurnItem> = [];
-    let recorded = receipt;
+    const receipts = new Map<string, ThreadId>();
     const sources = {
       digest,
       threads: {
-        getThreadRecords: () => Effect.succeed({ turnItems: cards }),
+        getThreadRecords: (threadId: ThreadId) =>
+          Effect.succeed({ turnItems: cards.filter((card) => card.threadId === threadId) }),
         getThreadEventSequence: () => Effect.succeed(77),
-        dispatch: (command: Record<string, unknown>) => {
-          dispatched.push(command);
-          if (recorded === null) {
-            recorded = { threadId: THREAD };
+        dispatch: (command: Record<string, unknown> & { commandId: string; threadId: ThreadId }) =>
+          Effect.suspend(() => {
+            dispatched.push(command);
+            if (receipts.has(command.commandId)) {
+              return Effect.succeed({ sequence: 77, replayed: true });
+            }
+            receipts.set(command.commandId, command.threadId);
             cards.push({ ...command, id: command.turnItemId, type: "voice_call" } as never);
             return Effect.succeed({ sequence: 42 });
-          }
-          return Effect.succeed({ sequence: 77, replayed: true });
-        },
+          }),
       },
       receipts: {
-        getByCommandId: () =>
-          Effect.succeed(
-            recorded === null
+        getByCommandId: (commandId: string) =>
+          Effect.sync(() => {
+            const threadId = receipts.get(commandId);
+            return threadId === undefined
               ? Option.none()
-              : Option.some({ threadId: recorded.threadId, status: "accepted" }),
-          ),
+              : Option.some({ threadId, status: "accepted" });
+          }),
       },
       eventStore: {
         readAgentEvents: (filter?: {
@@ -135,16 +139,75 @@ it.effect(
     }).pipe(Effect.provide(NodeCrypto.layer)),
 );
 
-it.effect("refuses a request id that recorded other lines, or went to another thread", () =>
+it.effect("binds a request id to the whole request as received, and to its one thread", () =>
   Effect.gen(function* () {
-    const { record } = yield* rig();
-    yield* record(input(LINES));
-    const changed = yield* record(input(LINES.slice(0, 2))).pipe(Effect.flip);
-    assert.strictEqual(changed.code, "invalid_request");
-    const elsewhere = yield* rig({ threadId: OTHER });
-    const moved = yield* elsewhere.record(input(LINES)).pipe(Effect.flip);
-    assert.strictEqual(moved.code, "invalid_request");
+    const { cards, record } = yield* rig();
+    const first = input(LINES);
+    yield* record(first);
+    const later = DateTime.makeUnsafe("2026-11-21T10:09:00.000Z");
+    const changes = {
+      "other lines": { ...first, lines: LINES.slice(0, 2) },
+      "a changed start": { ...first, startedAt: later },
+      "a changed end": { ...first, endedAt: later },
+      "another call id": { ...first, callId: "call-2" },
+    };
+    for (const [change, retry] of Object.entries(changes)) {
+      const refused = yield* record(retry).pipe(Effect.flip);
+      assert.strictEqual(refused.code, "invalid_request", change);
+    }
+    const elsewhere = yield* record({ ...first, threadId: OTHER }).pipe(Effect.flip);
+    assert.strictEqual(elsewhere.code, "invalid_request", "the same id on another thread");
+    assert.strictEqual(cards.length, 1, "no second card, on either thread");
+    assert.strictEqual(
+      (yield* record(first)).replayed,
+      true,
+      "the exact same request still replays",
+    );
   }).pipe(Effect.provide(NodeCrypto.layer)),
+);
+
+it.effect("binds the tail cut past the bounds too, though it is never recorded", () =>
+  Effect.gen(function* () {
+    const { cards, record } = yield* rig();
+    const many = (tail: string) =>
+      Array.from({ length: VOICE_CALL_LIMITS.lines + 1 }, (_, n) => ({
+        speaker: "caller" as const,
+        text: n === VOICE_CALL_LIMITS.lines ? tail : "hi",
+        relay: false,
+      }));
+    const first = yield* record(input(many("first tail")));
+    assert.strictEqual(first.truncated, true);
+    const refused = yield* record(input(many("another tail"))).pipe(Effect.flip);
+    assert.strictEqual(refused.code, "invalid_request");
+    assert.strictEqual(cards.length, 1);
+  }).pipe(Effect.provide(NodeCrypto.layer)),
+);
+
+it.effect(
+  "answers concurrent copies of one request once, and refuses a concurrent different one",
+  () =>
+    Effect.gen(function* () {
+      const { cards, record } = yield* rig();
+      const copies = yield* Effect.all([record(input(LINES)), record(input(LINES))], {
+        concurrency: "unbounded",
+      });
+      assert.deepStrictEqual(
+        copies.map((copy) => copy.turnItemId).filter((id, n, all) => all.indexOf(id) === n).length,
+        1,
+      );
+      assert.strictEqual(cards.length, 1);
+      const fresh = yield* rig();
+      const [kept, other] = yield* Effect.all(
+        [
+          Effect.result(fresh.record(input(LINES))),
+          Effect.result(fresh.record(input(LINES.slice(1)))),
+        ],
+        { concurrency: "unbounded" },
+      );
+      assert.strictEqual(kept._tag, "Success");
+      assert.strictEqual(other._tag === "Failure" ? other.failure.code : null, "invalid_request");
+      assert.strictEqual(fresh.cards.length, 1);
+    }).pipe(Effect.provide(NodeCrypto.layer)),
 );
 
 it("records a call past the bounds cut and marked, never refused whole", () => {
