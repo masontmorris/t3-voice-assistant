@@ -459,10 +459,15 @@ class T3Tasks:
                             if a.kind in (Say.LAUNCHED, Say.LAUNCH_PENDING) and isinstance(a.slots.get("project"), str)),
                            None)
             begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
+            on_call = self.following is not None and any(a.slots.get("on_call") for a in update.acts)
             if titles or started or begun:
                 self.recent = update.thread_id or self.recent
                 self.spoken_of = titles[0] if titles else f"the new thread in {started or begun}"
                 self.spoken_id = update.thread_id
+            elif on_call:
+                # The call's own thread, said as this thread: "it" means it again, by the title a confirmation names.
+                self.recent = self.spoken_id = update.thread_id
+                self.spoken_of = self.following.title or self.spoken_of
             if update.thread_id is not None and update.sequences and any(a.kind is Say.THREAD_STATUS for a in update.acts):
                 self.told[update.thread_id] = max(update.sequences)
             question = self.question
