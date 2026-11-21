@@ -75,6 +75,8 @@ class Task:
         if self.tool is not None:
             record["tool"] = {"tool": self.tool.tool, "confidence": self.tool.confidence,
                               "arguments": self.tool.arguments}
+            if self.tool.fallback_from is not None:
+                record["tool"]["fallback_from"] = self.tool.fallback_from
         if self.waiting:
             record["waiting"] = self.waiting
         return record
@@ -422,8 +424,8 @@ class Orchestrator:
             # keeps its act, which T3 reads back and confirms before acting. An unsure one goes as a lookup, which
             # acts on nothing.
             bar = getattr(self.gate, "named_tool_threshold", None)
-            if bar is None or task.tool.confidence < bar:
-                task.tool = replace(task.tool, tool=T3_ASK)
+            if task.tool.tool != T3_ASK and (bar is None or task.tool.confidence < bar):
+                task.tool = replace(task.tool, tool=T3_ASK, fallback_from=task.tool.tool)
             status, reason = Status.DISPATCHED, f"{reason}; T3 asks back"
         self._move(task, status, reason)
 

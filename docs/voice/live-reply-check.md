@@ -71,6 +71,8 @@ If the line that sends an approval to the app cannot be delivered, the `unanswer
 
 Denying is allowed without a description: nothing runs when a request is denied. The confirmation names the thread and asks whether to say no to its request. The request's prompt is never given to the line's writer, for a denial or an approval, so it cannot be read out.
 
+The same description is what a needs-you line, a status line for a waiting thread and a correction may say the request is about, and without one they say only its kind ([spoken-acts.md](spoken-acts.md#what-a-line-says-a-pending-request-is-about)).
+
 **A description is bound to its request.** It is cached by the lane's model, the thread, the request's id and a hash of its source and stored prompt, in a cache of its own: an ordinary summary of the same thread at the same sequence, or one the reuse check would substitute, is never a description, and a description is never a summary. A confirmation never keeps a summary it was given. The request a description is written for is the one the question was asked about, as it was read then. On a yes the request is read again, and the yes answers only when its id, its source and its stored prompt are all the ones that were asked about; otherwise nothing is sent and the changed request is asked about again, with its own description (or sent to the app, if that one does not pass).
 
 The decider chooses with two tools, `t3_approve` and `t3_deny`, offered only while a thread waits on the person for an approval, and told which (`T3Registry.approvals`). A yes sends the answer once, and the line afterwards says what T3 returned: its answer, its refusal, or that it could not be reached. After a restart an unanswered confirmation is never replayed.

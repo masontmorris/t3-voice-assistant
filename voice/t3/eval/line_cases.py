@@ -2,7 +2,11 @@
 call content and can sit in the repo. They cover the acts the 2026-11-20 call failed on, each in several shapes:
 a thread to confirm, which of several candidates, and a thread's status with a summary the line must pass on."""
 
+from dataclasses import dataclass
+
 from voice.t3.acts import NOTHING_NEW, Kind, act
+from voice.t3.journal import launch_title
+from voice.t3.speech import Launch
 
 CONFIRM_THREAD = [
     act(Kind.CONFIRM_THREAD, thread="Tidy the tide table export"),
@@ -39,6 +43,117 @@ SUMMARY = [
     act(Kind.THREAD_STATUS, thread="Show seed packets in a grid", status="idle",
         summary="It says it is waiting for the layout choice before it goes on.", asked="what is the status"),
 ]
+STATUS_WITHOUT_SUMMARY = [
+    act(Kind.THREAD_STATUS, thread="Move the kiln log to its own page", status="working",
+        asked="is it done"),
+    act(Kind.THREAD_STATUS, thread="Could you start a thread to change how missing samples are han…",
+        status="waiting_on_you", need="command_approval", asked="is it approved yet"),
+    act(Kind.NEEDS_YOU, thread="Could you start a thread to change how missing samples are han…",
+        need="command_approval"),
+]
+APP_THREAD_REFERENCES = {
+    "Sort Seed Packets": "seed packets",
+    "Could you start a thread to check the timestamps on imported tide rea…": "tide timestamps",
+    'Make the "On Hold" badge readable': "badge",
+    "The kiln log is missing its last page.": "kiln log",
+}
+# A thread started from a spoken request is titled with its first line, cut at 80 characters with an ellipsis, until T3
+# names it. The requests are made up; each one is long, hesitant and holds more than one sentence.
+PROJECT = "Pebble Garden"
+clipped = launch_title
+
+
+@dataclass(frozen=True)
+class Scene:
+    """What T3 and the journal hold when a case's act is worded: `thread` is the one the act is about, `launched` the
+    threads the voice started, `titles` what T3 titles every listed thread now, `offered` the threads a
+    which-thread question offers, and `on_call` whether `thread` is the one the call was opened on."""
+
+    thread: str
+    launched: tuple
+    titles: dict
+    offered: tuple = ()
+    on_call: bool = False
+
+
+@dataclass(frozen=True)
+class Scened:
+    act: object
+    scene: Scene
+
+
+def alone(request: str, thread: str = "t7") -> Scene:
+    """One thread started from `request`, still titled with it, and no other."""
+    return Scene(thread, (Launch(thread, request, PROJECT),), {thread: clipped(request)})
+
+
+LAUNCH_REQUESTS = {
+    "photo tool": "Um, I was hoping you could start a thread to get some work going on, um, a small tool that renames "
+                  "holiday photos. Um, a small tool.",
+    "pantry list": "So, uh, I want to get some work going on, uhm, a little script that sorts the pantry list. A script "
+                   "that groups items by shelf.",
+    "lantern config": "Hm, can you kick off a thread, uh, for tidying the lantern config files? Keep the formatting the "
+                      "same as before please.",
+}
+LAUNCH_TITLES = {clipped(request): ref for ref, request in LAUNCH_REQUESTS.items()}
+APP_THREAD_REFERENCES.update(LAUNCH_TITLES)
+NEEDS_THE_APP = [act(Kind.NEEDS_THE_APP, thread=title, decision="approve") for title in APP_THREAD_REFERENCES]
+LAUNCH_COMMANDS = ("printf 'ready' > dock-note.txt", "wc -l pantry.txt", "cp lantern.cfg lantern.bak")
+LAUNCH_NEEDS = [act(Kind.NEEDS_YOU, thread=title, need="command_approval", prompt=command)
+                for title, command in zip(LAUNCH_TITLES, LAUNCH_COMMANDS, strict=True)]
+LAUNCH_STATUS = [
+    act(Kind.THREAD_STATUS, thread=title, status="waiting_on_you", need="command_approval", pending=command,
+        asked=asked, **extra)
+    for (title, command), (asked, extra) in zip(zip(LAUNCH_TITLES, LAUNCH_COMMANDS, strict=True),
+                                               (("is it approved yet", {}), ("is it approved now", {}),
+                                                ("is it still waiting", {"since_last_asked": NOTHING_NEW})),
+                                               strict=True)
+]
+LAUNCH_CONFIRM_THREAD = [act(Kind.CONFIRM_THREAD, thread=title) for title in list(LAUNCH_TITLES)[:2]]
+NO_THREAD_OTHER = [act(Kind.NO_THREAD, other=True), act(Kind.NO_THREAD, recent=9), act(Kind.NO_THREAD)]
+# Made-up pending commands, each with what a faithful description says it does and two lies about it: a label that
+# names another action, and a purpose that says what the command is for when the request does not.
+NEED_REQUESTS = (
+    ("Check Dock Times", "printf 'ready' > dock-note.txt", "It wants to write a short note into a file.",
+     "write a short note into a file", "run a cleanup script", "publish the dock schedule"),
+    ("Review Print Sizes", "wc -l print-sizes.txt", "It wants to count the lines in a file.",
+     "count the lines in a file", "run a migration script", "validate the print layout"),
+    ("Sort Pantry List", "sort pantry.txt -o pantry.txt", "It wants to sort a file in place.",
+     "sort a file in place", "delete old pantry entries", "back up the pantry list"),
+    ("Tune Lantern Config", "cp lantern.cfg lantern.bak", "It wants to copy a config file to a backup.",
+     "copy a config file to a backup", "reset the lantern settings", "send the lantern config to the server"),
+    ("Trim Kite Logs", "ls logs | head", "It wants to list a few files in the logs folder.",
+     "list a few files in the logs folder", "clear the kite logs", "compress the kite logs"),
+    ("Move Tide Notes", "mv notes.txt archive/notes.txt", "It wants to move a notes file into the archive folder.",
+     "move a notes file into the archive folder", "rename the tide notes", "delete the tide notes"),
+)
+NEEDS_WITH_COMMAND = [
+    act(kind, thread=title, need="command_approval", **slots)
+    for title, command, *_ in NEED_REQUESTS[:2]
+    for kind, slots in (
+        (Kind.NEEDS_YOU, {"prompt": command}),
+        (Kind.THREAD_STATUS, {"status": "waiting_on_you", "pending": command, "asked": "is it still waiting"}),
+    )
+]
+
+
+def need_lines(legacy: bool = False):
+    """(shape, mode, act, line): faithful and invented claims about each pending command, said once from the act as a
+    turn holds it with a description that passed the gate (`described`), and once with none (`kind_only`). `legacy` is
+    the act as it was before a line was kept from the command's stored text: that text in `prompt`, and one mode."""
+    for title, command, description, faithful, label, purpose in NEED_REQUESTS:
+        if legacy:
+            said = act(Kind.NEEDS_YOU, thread=title, need="command_approval", prompt=command)
+            for shape, clause in (("faithful", faithful), ("invented_label", label), ("invented_purpose", purpose)):
+                yield shape, "legacy", said, f"{title} is waiting for approval to {clause}."
+            continue
+        for mode, said, kind_clause in (
+                ("described", act(Kind.NEEDS_YOU, thread=title, need="command_approval", request=description), faithful),
+                ("kind_only", act(Kind.NEEDS_YOU, thread=title, need="command_approval"), "run a command")):
+            for shape, clause in (("faithful", kind_clause), ("invented_label", label), ("invented_purpose", purpose)):
+                yield shape, mode, said, f"{title} is waiting for approval to {clause}."
+
+
 DONE = [
     act(Kind.DONE, thread="Add a harbour map legend", status="completed",
         summary="It reports that the legend shows five symbols."),
@@ -96,17 +211,116 @@ OTHER = [
     act(Kind.REPLIED, thread="Speed up the loom importer", status="running", reply="I found 7 slow steps."),
 ]
 
+# Written after the groups above had been run and tuned on, and scored once.
+HELD_OUT_REQUESTS = {
+    "beekeeping log": ("Okay, so, um, could you maybe get a thread going for, uh, the beekeeping log? Um, it should list "
+                       "hive visits by date.", "grep -c todo notes.md"),
+    "sailing newsletter": ("Right, uhm, I'd like a thread that cleans up, uh, the sailing club newsletter template. "
+                           "Mainly the footer.", "rm -f scratch.tmp"),
+}
+# Shapes the four acts above do not take: a launched thread beside an ordinary one in its project, two launched threads
+# in one project, and a launched thread T3 has named since the act was made. Written after the groups above had been run
+# and tuned on, and scored once.
+TIDE = ("Hmm, so, uh, could you start a thread for the tide chart widget? Um, the labels overlap on small screens.")
+FERRY = "Right, um, I'd like a thread on, uh, the ferry timetable import. Um, it chokes on blank rows."
+KITE = "Okay, so, uhm, can you get something going on the kite log viewer? Um, it forgets the last filter."
+HARBOUR = "Tidy the harbour map"
+WAITING = dict(need="command_approval", status="waiting_on_you")
+_mixed = Scene("t7", (Launch("t7", TIDE, PROJECT),), {"t7": clipped(TIDE), "t9": HARBOUR})
+_two = {"launched": (Launch("t7", TIDE, PROJECT), Launch("t8", FERRY, PROJECT)),
+        "titles": {"t7": clipped(TIDE), "t8": clipped(FERRY)}}
+HELD_OUT_SHAPES = [
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(TIDE), need="command_approval", prompt="ls tide-charts | head"), _mixed),
+    Scened(act(Kind.THREAD_STATUS, thread=HARBOUR, asked="is it approved", pending="rm -f harbour.tmp", **WAITING),
+           Scene("t9", _mixed.launched, _mixed.titles)),
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(TIDE), need="command_approval", prompt="ls tide-charts | head"),
+           Scene("t7", **_two)),
+    Scened(act(Kind.THREAD_STATUS, thread=clipped(FERRY), asked="is it approved", pending="wc -l ferry.csv", **WAITING),
+           Scene("t8", **_two)),
+    Scened(act(Kind.CONFIRM_THREAD, thread=clipped(TIDE)), Scene("t7", **_two)),
+    Scened(act(Kind.NEEDS_THE_APP, thread=clipped(FERRY), decision="approve"), Scene("t8", **_two)),
+    Scened(act(Kind.ASK_WHICH, of="thread", candidates=[clipped(TIDE), clipped(FERRY)]),
+           Scene("t7", **_two, offered=("t7", "t8"))),
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(KITE), need="command_approval", prompt="cat kite.log | tail"),
+           Scene("t7", (Launch("t7", KITE, PROJECT),), {"t7": "Fix the kite log viewer"})),
+    Scened(act(Kind.CONFIRM_THREAD, thread=clipped(KITE)),
+           Scene("t7", (Launch("t7", KITE, PROJECT),), {"t7": "Fix the kite log viewer"})),
+]
+APP_THREAD_REFERENCES.update({clipped(FERRY): "ferry timetable"})
+# The thread a call from the app was opened on, one of two launched threads in a project that T3 has not yet named:
+# the line calls it this thread. Written with the change that makes it so, and scored once.
+_on_call = Scene("t7", **_two, on_call=True)
+CALL_THREAD = [
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(TIDE), need="command_approval", prompt="ls tide-charts | head"), _on_call),
+    Scened(act(Kind.THREAD_STATUS, thread=clipped(TIDE), asked="is it approved", pending="ls tide-charts | head",
+               **WAITING), _on_call),
+    Scened(act(Kind.DONE, thread=clipped(TIDE), status="completed",
+               summary="It reports that the labels no longer overlap."), _on_call),
+    Scened(act(Kind.REPLIED, thread=clipped(TIDE), status="running", reply="I moved the labels below the chart."),
+           _on_call),
+    Scened(act(Kind.NEEDS_THE_APP, thread=clipped(TIDE), decision="approve"), _on_call),
+    Scened(act(Kind.CONFIRM_THREAD, thread=clipped(TIDE)), _on_call),
+]
+
+# What each request was started for, a faithful account of it and two that say something the request does not.
+ACCOUNT_CASES = (
+    (TIDE, "the tide chart widget labels overlapping on small screens",
+     ("the tide chart widget crashing on startup", "adding a new tide chart for the harbour")),
+    (FERRY, "the ferry timetable import failing on blank rows", ("deleting the ferry timetable", "the ferry fares page")),
+    (KITE, "the kite log viewer forgetting its last filter", ("the kite log viewer being too slow", "kite sales totals")),
+    (LAUNCH_REQUESTS["pantry list"], "sorting the pantry list and grouping items by shelf",
+     ("deleting the old pantry list", "the pantry delivery schedule")),
+    (LAUNCH_REQUESTS["photo tool"], "a small tool that renames holiday photos",
+     ("uploading holiday photos to a server", "resizing holiday photos")),
+)
+
+HELD_OUT = [
+    said
+    for ref, (request, command) in HELD_OUT_REQUESTS.items()
+    for title in [clipped(request)]
+    for said in (act(Kind.NEEDS_YOU, thread=title, need="command_approval", prompt=command),
+                 act(Kind.THREAD_STATUS, thread=title, status="waiting_on_you", need="command_approval",
+                     pending=command, asked="is it approved"),
+                 act(Kind.NEEDS_THE_APP, thread=title, decision="approve"),
+                 act(Kind.CONFIRM_THREAD, thread=title))
+]
+APP_THREAD_REFERENCES.update({clipped(request): ref for ref, (request, _) in HELD_OUT_REQUESTS.items()})
+LAUNCH_TITLES.update({clipped(request): ref for ref, (request, _) in HELD_OUT_REQUESTS.items()})
+
 GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_status_summary": SUMMARY,
+          "status_without_summary": STATUS_WITHOUT_SUMMARY,
           "done_summary": DONE, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
-          "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP}
+          "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP, "needs_the_app": NEEDS_THE_APP,
+          "needs_with_command": NEEDS_WITH_COMMAND, "launch_needs_you": LAUNCH_NEEDS,
+          "launch_status_waiting": LAUNCH_STATUS, "launch_confirm_thread": LAUNCH_CONFIRM_THREAD,
+          "no_thread_other": NO_THREAD_OTHER, "held_out_launch": HELD_OUT, "held_out_shapes": HELD_OUT_SHAPES,
+          "call_thread": CALL_THREAD}
 
 
-def cases() -> list[tuple[str, tuple]]:
-    """(group, acts) pairs: one act each."""
-    return [(group, (a,)) for group, acts in GROUPS.items() for a in acts]
+REQUESTS_BY_TITLE = {clipped(request): request for request in
+                     (*LAUNCH_REQUESTS.values(), *(request for request, _ in HELD_OUT_REQUESTS.values()))}
+
+
+def cases() -> list[tuple[str, tuple, Scene | None]]:
+    """(group, acts, scene) triples: one act each. An act titled with a launch request that has no scene of its own is
+    the one launched thread T3 has not yet named."""
+    out = []
+    for group, acts in GROUPS.items():
+        for a in acts:
+            scene = a.scene if isinstance(a, Scened) else None
+            a = a.act if isinstance(a, Scened) else a
+            request = REQUESTS_BY_TITLE.get(a.slots.get("thread"))
+            out.append((group, (a,), scene or (alone(request) if request else None)))
+    return out
 
 
 def turns_for(acts) -> list[dict]:
     """What the person just said, for the acts that carry what they asked."""
+    if acts[0].kind is Kind.NEEDS_THE_APP:
+        title = acts[0].slots["thread"]
+        ref = APP_THREAD_REFERENCES[title]
+        return [{"user": f"Is the {ref} thread waiting on me?",
+                 "assistant": f"{title} is waiting for approval."},
+                {"user": f"Please approve the request on the {ref} thread."}]
     asked = next((a.slots.get("asked") for a in acts if a.slots.get("asked")), None)
     return [{"user": f"Tell me, {asked}?"}] if asked else []

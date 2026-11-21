@@ -156,19 +156,6 @@ class NoteTurnTest(NoteTurn):
         self.assertTrue(check["repeated"])
 
 
-class RelayNoteTest(unittest.TestCase):
-    def test_the_note_quotes_the_words_and_ends_on_them_and_the_retry_is_another_wording(self):
-        line = "Do you mean the thread called Example Tidy Tides?"
-        first, retry = prototype.relay_note(line), prototype.relay_note(line, 1)
-        self.assertNotEqual(first, retry)
-        for note in (first, retry):
-            with self.subTest(note=note[-60:]):
-                self.assertTrue(note.endswith(f'"{line}"]'), "no instruction follows the words")
-                self.assertEqual(note.count(line), 1)
-        self.assertNotIn("Reply with only these words", first)
-        self.assertLess(retry.index("Reply with only these words"), retry.index(line))
-
-
 class PlaceTest(unittest.TestCase):
     def test_a_place_they_named_without_a_preposition_is_theirs(self):
         """20261116-152653 turn 22: "what about San Diego?" and a reply that said "in San Diego" was refused."""
@@ -692,7 +679,16 @@ class T3TurnTest(NoteTurn):
         record = await self.turn(["Great! Let's get started.", DRAFT], task_service=T3SnapshotService,
                                  send_checked=self.send_checked)
         self.assertEqual((self.spoken, record["replies"][0]["delivery"]), ([DRAFT], "sent"))
-        self.assertEqual(texts(self.voice), [prototype.relay_note(DRAFT), prototype.relay_note(DRAFT, 1)])
+        first, retry = texts(self.voice)
+        self.assertIn('as "I" to "you"', first)
+        self.assertNotIn('as "I" to "you"', retry)
+        self.assertIn("Reply with only the quoted words", retry)
+        self.assertEqual([note.count(DRAFT) for note in (first, retry)], [1, 1])
+        self.assertTrue(all(note.endswith(f'"{DRAFT}"]') for note in (first, retry)))
+        wire = [event["type"] for event in self.voice.sent
+                if event["type"] in ("response.cancel", "response.create", "conversation.item.create")]
+        self.assertEqual(wire, ["conversation.item.create", "response.create", "response.cancel",
+                                "conversation.item.create", "response.create"])
         attempts = [(e["attempt"], e["status"]) for e in record["timeline"] if e["kind"] == "t3_call_reply"]
         self.assertEqual(attempts, [(1, "cancelled"), (2, "completed")])
 

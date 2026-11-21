@@ -15,19 +15,22 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from voice.live.t3_tasks import (ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
-                                 T3Tasks, status_act, tell_parts, transcript_rows)
+                                 T3Tasks, Question, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
+from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.acts import QUESTIONS, RULES, Act, act, check
 from voice.t3.acts import Kind as S
-from voice.t3.journal import Kind, Status, T3Journal
+from voice.t3.journal import Kind, Status, T3Journal, launch_title
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
 from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, Picked
 from voice.segmentation.gate import PLAN_A
+from voice.segmentation.tasks import Orchestrator
+from voice.segmentation.tests.test_orchestrator import step
 from voice.tools import registry as tool_registry
 
 TWO_PROJECTS = (("p1", "Voice sandbox", ("sandbox", "voice sandbox")),
@@ -97,11 +100,29 @@ class FakeText:
         return f"About {facts}, any thoughts?" if ask else f"About {facts}, noted."
 
 
+class AccountText(FakeText):
+    """The text model, which also says what a thread was started for from the request that started it."""
+
+    ACCOUNTS = {"pantry": "sorting the pantry list", "lantern": "tidying the lantern config files"}
+
+    def complete(self, messages):
+        if messages[0]["content"] == LS.ACCOUNT_SYSTEM:
+            request = json.loads(messages[-1]["content"].split("\n")[0])["request"]
+            account = next(said for word, said in self.ACCOUNTS.items() if word in request)
+            self.accounted = [*getattr(self, "accounted", []), request]
+            return {"text": json.dumps({"gist": account}), "ms": 1, "tokens": {}}
+        return super().complete(messages)
+
+
 class FakeGate:
     """The approval gate: every description is doubted `doubt` much, and the requests it was asked about are kept."""
 
     def __init__(self, doubt=0.01):
-        self.doubt_of, self.asked = doubt, []
+        self.doubt_of, self.asked, self.accounts = doubt, [], []
+
+    def doubts_account(self, instruction, account):
+        self.accounts.append((instruction, account))
+        return self.doubt_of
 
     def doubt(self, need, description):
         self.asked.append((need, description))
@@ -1140,19 +1161,22 @@ class Service(unittest.IsolatedAsyncioTestCase):
 
     def test_one_request_cut_into_several_launch_segments_asks_one_question_and_launches_all_of_it(self):
         said_whole = ("Start a thread for the importer logging. Can you kick that off? Keep it under an hour, and use "
-                      "my old config as the base. Also look at the retry counts. And keep it organized.")
+                      "my old config as the base. Also look at the retry counts. And keep it organized and tidy.")
         seam = F.FakeSeam()
+        seam.listing = listing()
         t3 = tasks_over(self, seam)
         service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
                                     self.record("task_2", "Can you kick that off?", START),
                                     self.record("task_3", "Also look at the retry counts.", START),
-                                    self.record("task_4", "And keep it organized.", TELL)])
+                                    self.record("task_4", "And keep it organized.", TELL),
+                                    self.record("task_5", "And tidy.", TELL, confidence=0.49)])
         service.sync(0)
         tasks = {t["task_id"]: t for t in service.snapshot("utt_1", said_whole)["tasks"]}
         self.assertEqual([a["kind"] for a in tasks["task_1"]["acts"]], ["confirm_launch"])
         self.assertNotIn("acts", tasks["task_2"], "the second segment is the same request, already asked")
         self.assertNotIn("acts", tasks["task_3"])
         self.assertNotIn("acts", tasks["task_4"], "an instruction for the thread being started is part of the launch")
+        self.assertNotIn("acts", tasks["task_5"], "an unsure tell about the new thread is part of the launch too")
         service.record_delivery(tasks["task_1"], "sent")
         self.assertEqual(said(t3.answer("yes", 1)), [("launched", "Voice sandbox")])
         launch, = seam.ops("launch")
@@ -1168,6 +1192,57 @@ class Service(unittest.IsolatedAsyncioTestCase):
         service.sync(0)
         tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
         self.assertEqual([a["kind"] for a in tasks["task_2"]["acts"]], ["confirm_tell"])
+
+    async def test_a_parked_continuation_leaves_the_launch_question_as_the_turns_only_reply(self):
+        request = "Start a thread for the importer logging, and keep it tidy."
+        orch = Orchestrator()
+        orch.gate = PLAN_A
+        step(orch, 1, request, final=True,
+             s1={"tool": START, "tool_confidence": 0.91, "side_effect": True},
+             s2={"tool": TELL, "tool_confidence": 0.61, "ready": "clarify"})
+        seam = F.FakeSeam()
+        seam.listing = listing()
+        question = "Should I start a thread in Voice sandbox?"
+        t3 = worded(tasks_over(self, seam), FakeText(question))
+        segmenter = SimpleNamespace(records=orch.task_records, dispatch_log=orch.dispatch_log)
+        service = T3TaskService(segmenter, "conv_turn_001", 0.0, None, holds_side_effects=False, t3=t3)
+        service.sync(0)
+        entry, = [entry for entry in service.snapshot("utt_1", request)["tasks"] if "acts" in entry]
+        self.assertEqual([said["kind"] for said in entry["acts"]], ["confirm_launch"])
+        self.assertIsNotNone(service.unanswered(has_audio=False))
+        voice = await Scripted.open("ws://unused", "voice", lambda: 0)
+        voice.script = [question]
+
+        async def send(checked, pcm):
+            self.assertEqual(checked.text, question)
+            return pcm, 0
+
+        reply, pcm = await say_acts(voice, 24_000, 0, entry, service, [], lambda *args, **kwargs: None,
+                                    send_audio=send, record_delivery=lambda state: service.record_delivery(entry, state))
+        self.assertEqual(reply["delivery"], "sent")
+        self.assertTrue(pcm)
+        self.assertIsNone(service.unanswered(has_audio=True))
+        service.close()
+        next_turn = self.service(t3, [])
+        self.assertIs(next_turn.open_question(), T3_WAITING)
+        next_turn.answer(next_turn.open_question(), "yes", 1)
+        self.assertEqual([launch[2:] for launch in seam.ops("launch")], [("p1", request)])
+
+    def test_a_turn_with_only_a_parked_fragment_still_requires_a_reply(self):
+        fragment = "And keep it tidy."
+        seam = F.FakeSeam()
+        seam.listing = listing()
+        t3 = tasks_over(self, seam)
+        service = self.service(t3, [self.record("task_2", fragment, TELL, confidence=0.35)])
+        t3.start(f"{service.conversation_id}:task_1", "Start a thread for the importer logging.", 0)
+        service.sync(0)
+        entry, = service.snapshot("utt_1", fragment)["tasks"]
+        self.assertNotIn("acts", entry)
+        fallback, _, _ = service.unanswered(has_audio=False)
+        self.assertEqual([said["kind"] for said in fallback["acts"]], ["unanswered"])
+        service.close()
+        self.assertIs(self.service(t3, []).open_question(), T3_WAITING)
+        self.assertEqual(seam.ops("launch"), [])
 
     def test_a_message_that_may_mean_several_threads_is_asked_about_beside_a_launch(self):
         seam = F.FakeSeam()
@@ -1606,6 +1681,17 @@ class Respond(unittest.TestCase):
                 self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
                 self.assertIsNone(t3.answer("Yes.", 1))
                 self.assertEqual(seam.ops("respond"), [])
+
+    def test_a_second_draft_says_only_the_kind_of_request(self):
+        t3 = worded(tasks_over(self, self.seam()), FakeText(), None)
+        said = act(S.NEEDS_YOU, thread="Add a clamp helper", need="command_approval", request="It wants to run tests.")
+        update = L.Update("k1", (said,), "completed", thread_id="t7")
+        t3.say(update)
+        self.assertIn("request", update.acts[0].slots)
+        update.tries, update.refused = 1, ("It wants to run tests.",)
+        t3.say(update)
+        self.assertEqual(update.refused, ())
+        self.assertEqual(update.acts[0].slots, {"thread": "Add a clamp helper", "need": "command_approval"})
 
     def test_an_approval_whose_stored_prompt_is_not_an_action_goes_to_the_app_by_its_source_and_never_by_its_text(self):
         for source, prompt in ((T.NeedSource.PERMISSION, "mcp__github__create_issue"),
@@ -2340,3 +2426,113 @@ class CallThreadFollow(unittest.TestCase):
         self.assertEqual([request["thread"] for request in self.t3.pending_requests()],
                          ["Fix the login page", "Bump the parser", "Tidy the docs"],
                          "a call's thread that waits on nothing leaves the three places to the others")
+
+
+class LaunchedThreads(unittest.TestCase):
+    """How a line names a thread the voice started: by its id, by what T3 titles it now, and never by guessing."""
+
+    PANTRY = "Um, start a thread to sort the pantry list, a long hesitant request that runs well past the limit."
+    LANTERN = "Uh, I want a thread to tidy the lantern config files, and keep the formatting the same as before ok."
+
+    def over(self, launches, rows, gate=None):
+        seam = F.FakeSeam(read=F.state(thread="t7", title="x", as_of=1))
+        seam.listing = listing(*rows)
+        t3 = worded(tasks_over(self, seam), AccountText(), gate)
+        t3.follow.ensure(0.0)
+        for thread, request, project in launches:
+            t3.follow.journal.begin(Kind.START, request, "p1", project, thread_id=thread)
+        return t3
+
+    def slots(self, t3, thread, title, kind=S.NEEDS_YOU):
+        update = L.Update("k", (act(kind, thread=title, need="command_approval"),), "completed", thread_id=thread)
+        t3.say(update)
+        return {name: value for name, value in update.acts[0].slots.items() if name != "summary"}
+
+    def test_a_launched_thread_the_project_alone_names_is_named_by_it_even_beside_an_ordinary_thread(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", pantry), ("t9", "Tidy the harbour map")])
+        self.assertEqual(self.slots(t3, "t7", pantry), {"begun_in": "Voice sandbox", "need": "command_approval"})
+        self.assertEqual(self.slots(t3, "t9", "Tidy the harbour map"),
+                         {"thread": "Tidy the harbour map", "need": "command_approval"})
+
+    def test_two_launched_threads_in_one_project_are_told_apart_by_a_gated_account(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        gate = FakeGate()
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                       [("t7", pantry), ("t8", lantern)], gate)
+        self.assertEqual(self.slots(t3, "t7", pantry), {"begun_in": "Voice sandbox",
+                                                       "begun_for": "sorting the pantry list",
+                                                       "need": "command_approval"})
+        self.assertEqual(self.slots(t3, "t8", lantern)["begun_for"], "tidying the lantern config files")
+        self.assertEqual([request for request, _ in gate.accounts], [self.PANTRY, self.LANTERN],
+                         "each account was passed by the gate against its own request")
+
+    def test_without_a_gated_account_an_ambiguous_thread_is_not_guessed_at(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        for gate in (None, FakeGate(0.4), FakeGate(None)):
+            with self.subTest(gate=gate and gate.doubt_of):
+                t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                               [("t7", pantry), ("t8", lantern)], gate)
+                self.assertEqual(self.slots(t3, "t7", pantry), {"thread": pantry, "need": "command_approval"},
+                                 "the title is unsayable but it does not name the other thread")
+
+    def test_a_thread_another_client_made_is_never_called_the_one_the_voice_started(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", pantry), ("t9", pantry)])
+        self.assertEqual(self.slots(t3, "t9", pantry), {"thread": pantry, "need": "command_approval"})
+        self.assertEqual(self.slots(t3, "t7", pantry)["begun_in"], "Voice sandbox")
+
+    def test_duplicate_launch_titles_keep_each_threads_own_project(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.PANTRY, "Pebble Garden")],
+                       [("t7", pantry), ("t8", pantry)])
+        self.assertEqual(self.slots(t3, "t7", pantry)["begun_in"], "Voice sandbox")
+        self.assertEqual(self.slots(t3, "t8", pantry)["begun_in"], "Pebble Garden")
+
+    def test_an_act_built_before_a_retitle_is_worded_with_the_title_the_thread_has_now(self):
+        pantry = launch_title(self.PANTRY)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", "Sort the pantry list")])
+        self.assertEqual(self.slots(t3, "t7", pantry), {"thread": "Sort the pantry list", "need": "command_approval"})
+
+    def test_the_thread_a_call_was_opened_on_is_this_thread_and_its_news_is_named_and_described_by_the_same_rules(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        gate = FakeGate()
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                       [("t7", pantry), ("t8", lantern)], gate)
+        seam = t3.follow.seam
+        seam.read = F.state(thread="t7", title=pantry, as_of=1)
+        t3.begin_call()
+        t3.view("t7", 1)
+        self.assertEqual(self.slots(t3, "t7", pantry), {"on_call": True, "need": "command_approval"},
+                         "this thread names it alone, though another launch in the project is as unnamed")
+        self.assertEqual(self.slots(t3, "t8", lantern)["begun_for"], "tidying the lantern config files")
+        seam.read = F.state(thread="t7", title=pantry, as_of=3, pending=F.need("q1", "rm -rf build && pnpm test"))
+        seam.push(F.needs_you(3, thread="t7", prompt="rm -rf build && pnpm test"))
+        t3.poll(4)
+        news = t3.take()
+        for update in news:
+            t3.say(update)
+        needs = [a for update in news for a in update.acts if a.kind is S.NEEDS_YOU]
+        self.assertTrue(needs, "the follow spoke the need")
+        for need in needs:
+            self.assertTrue(need.slots.get("on_call"), need.slots)
+            self.assertFalse({"thread", "begun_in", "begun_for"} & set(need.slots), need.slots)
+            self.assertNotIn("rm -rf", json.dumps(need.slots), "the stored command is never said")
+            if "request" in need.slots:
+                self.assertIn(need.slots["request"], [d for _, d in gate.asked], "only a description the gate passed")
+        t3.end_call()
+        self.assertEqual(self.slots(t3, "t7", pantry)["begun_for"], "sorting the pantry list",
+                         "after the call the launch is named by what it was started for again")
+
+    def test_a_which_thread_question_offers_launched_threads_by_what_they_were_started_for(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        rows = [("t7", pantry), ("t8", lantern)]
+        launches = [("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")]
+        for gate, expected in ((FakeGate(), ["sorting the pantry list", "tidying the lantern config files"]),
+                               (None, [pantry, lantern])):
+            t3 = self.over(launches, rows, gate)
+            t3.question = Question("k", "thread", "which", ("t7", "t8"), ASK, titles=dict(rows))
+            update = L.Update("k", (act(S.ASK_WHICH, of="thread", candidates=[pantry, lantern]),), "needs_clarification",
+                              "pick")
+            t3.say(update)
+            self.assertEqual(update.acts[0].slots["candidates"], expected)

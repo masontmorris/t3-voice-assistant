@@ -46,7 +46,8 @@ from voice.t3.pick.model import FREE_MODEL, PAID_MODEL, LiveClient
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
-from voice.t3.speech import Lane, LocalText, Rendered, RequestGate, Speech, text_model
+from voice.t3.speech import (Launch, Lane, LocalText, Rendered, RequestGate, Speech, candidate_names, named, reference,
+                             text_model, without_request)
 from voice.t3.verify import NEED, NO_ANSWER, NONE, Chosen, Decider, Listed, Picked, Reading, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
@@ -457,9 +458,10 @@ class T3Tasks:
             started = next((a.slots["project"] for a in update.acts
                             if a.kind in (Say.LAUNCHED, Say.LAUNCH_PENDING) and isinstance(a.slots.get("project"), str)),
                            None)
-            if titles or started:
+            begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
+            if titles or started or begun:
                 self.recent = update.thread_id or self.recent
-                self.spoken_of = titles[0] if titles else f"the new thread in {started}"
+                self.spoken_of = titles[0] if titles else f"the new thread in {started or begun}"
                 self.spoken_id = update.thread_id
             if update.thread_id is not None and update.sequences and any(a.kind is Say.THREAD_STATUS for a in update.acts):
                 self.told[update.thread_id] = max(update.sequences)
@@ -1209,18 +1211,23 @@ class T3Tasks:
                 self.lane.use(client)
         return True
 
-    def known_names(self) -> frozenset[str]:
+    def _listing(self) -> T.ThreadList | None:
+        seam = self.follow.seam
+        if seam is None:
+            return None
+        try:
+            return seam.list_threads()
+        except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
+            return None
+
+    def known_names(self, listing: T.ThreadList | None = None) -> frozenset[str]:
         seam = self.follow.seam
         projects = {p.name for p in seam.hello.projects} if seam is not None else set()
         with self.lock:
             threads = {task.title for task in self.follow.journal.tasks.values() if task.title}
-        if seam is not None:
-            try:
-                listing = seam.list_threads()
-                if listing is not None:
-                    threads.update(thread.title for thread in listing.threads)
-            except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
-                pass
+        listing = listing or self._listing()
+        if listing is not None:
+            threads.update(thread.title for thread in listing.threads)
         return frozenset(projects | threads)
 
     def say(self, update: L.Update, turns=()) -> Rendered:
@@ -1228,12 +1235,59 @@ class T3Tasks:
         thread's summary first, and the read it came from joins the update's evidence. A line that fails the slot
         check is not returned, and its problems go into the next attempt."""
         acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences, self._asked_request(update))
+        listing = self._listing()
+        acts = self._offered(update, self._named(update, acts, listing), listing)
+        if update.tries and any("request" in a.slots for a in acts):
+            # A new request to the writer: the refused wording carried the description, and it was copied back.
+            acts, update.problems, update.refused = without_request(acts), (), ()
         acts = self._described(update, acts)
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
-        rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names())
+        rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names(listing))
         refuse(update, rendered)
         return rendered
+
+    def _launched(self) -> tuple[Launch, ...]:
+        """The threads this voice started on the person's request, in this call or an earlier one."""
+        with self.lock:
+            return tuple(Launch(task.link.thread_id, task.instruction, task.project_name)
+                         for task in self.follow.journal.tasks.values()
+                         if task.kind is Kind.START and task.project_name and task.link.thread_id)
+
+    def _named(self, update: L.Update, acts: tuple[Act, ...], listing: T.ThreadList | None) -> tuple[Act, ...]:
+        """The acts about `update`'s thread, named as T3 titles it at this moment. The thread is picked by its id; a
+        launched thread that T3 has not yet named is told by its project, and by what it was started for when another
+        launched thread in the project is as unnamed."""
+        launched = self._launched()
+        me = next((l for l in launched if l.thread_id == update.thread_id), None)
+        if me is None or listing is None:
+            return acts
+        ref = reference(me.thread_id, launched, {t.thread_id: t.title for t in listing.threads})
+        with self.lock:
+            on_call = self.following is not None and self.following.link.thread_id == update.thread_id
+        account = self.speech.account(me) if ref is not None and ref.unnamed and ref.shared and not on_call else None
+        return named(acts, ref, account, on_call)
+
+    def _offered(self, update: L.Update, acts: tuple[Act, ...], listing: T.ThreadList | None) -> tuple[Act, ...]:
+        """A which-thread question offers each launched thread that T3 has not yet named by what it was started for,
+        and any other by its title. Where there is no gated account the title is offered, as before."""
+        with self.lock:
+            question = self.question if self.question is not None and self.question.key == update.task_id else None
+        if question is None or listing is None:
+            return acts
+        now = {t.thread_id: t.title for t in listing.threads}
+        by_title = {question.titles[t]: t for t in question.candidates if t in question.titles}
+        out = []
+        for a in acts:
+            candidates = a.slots.get("candidates")
+            if (a.kind is not Say.ASK_WHICH or a.slots.get("of") != "thread" or not candidates
+                    or any(c not in by_title or by_title[c] not in now for c in candidates)):
+                out.append(a)
+                continue
+            ids = [by_title[c] for c in candidates]
+            names = candidate_names(ids, now, self._launched(), self.speech.account)
+            out.append(Act(a.kind, {**a.slots, "candidates": names}))
+        return tuple(out)
 
     def _asked_request(self, update: L.Update) -> T.PendingNeed | None:
         """The request an open approval question was asked about, as it was read when the question was made: what a
@@ -1262,7 +1316,8 @@ class T3Tasks:
                     if self.unasked is update:
                         self.unasked = None
                 update.status = "completed"
-                return (act(Say.NEEDS_THE_APP, thread=a.slots["thread"], decision="approve"),)
+                known = {name: a.slots[name] for name in ("thread", "begun_in", "begun_for") if name in a.slots}
+                return (act(Say.NEEDS_THE_APP, **known, decision="approve"),)
         return acts
 
     def say_entry(self, update: L.Update, entry: dict, turns=()) -> Rendered:
@@ -1398,14 +1453,13 @@ class T3TaskService(MockTaskService):
     def _start(self, task_id, instruction, side_effect, now, choice=None):
         if choice is None or choice.tool not in T3_TOOLS:
             return super()._start(task_id, instruction, side_effect, now, choice)
+        picked = choice.fallback_from or choice.tool
         if choice.confidence < self._threshold():
-            # The word rules know no thread, so an unsure pick reaches T3 too, as a lookup that acts on nothing.
             choice = replace(choice, tool=ASK)
         key = f"{self.conversation_id}:{task_id}"
-        if (choice.tool in (START, TELL, *RESPONDS) and self.t3.asking_start(f"{self.conversation_id}:")
-                and not (choice.tool == TELL and self.t3.names_thread(instruction, now))):
-            # One long request is cut into several segments. The first already asked, and the launch carries the whole
-            # turn, so another launch, or an instruction that names no thread there is, is part of it.
+        if ((picked in (START, TELL) or choice.tool in RESPONDS) and self.t3.asking_start(f"{self.conversation_id}:")
+                and not (picked == TELL and self.t3.names_thread(instruction, now))):
+            # The launch carries the whole utterance, including continuations routed to a lookup.
             return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
                              tool={"tool": choice.tool, "arguments": {}})
         update = (self.t3.start(key, instruction, now) if choice.tool == START
