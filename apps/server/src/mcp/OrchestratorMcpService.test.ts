@@ -25,6 +25,7 @@ import {
   ProviderTurnId,
   RunId,
   ThreadId,
+  TurnItemId,
   type OrchestrationV2ServerCommand,
   type OrchestrationV2StoredEvent,
   type OrchestrationV2ThreadProjection,
@@ -3257,6 +3258,130 @@ describe("OrchestratorMcpService provider resolution", () => {
           assert.equal(retryCommand.modelSelection.instanceId, codexInstanceId);
         }).pipe(Effect.provide(layerOrchestratorService.pipe(Layer.provide(layerDependencies))));
       }),
+  );
+
+  it.effect("tells an agent nothing of a voice call recorded on a thread it reads or lists", () =>
+    Effect.gen(function* () {
+      const driver = ProviderDriverKind.make("codex");
+      const cwd = yield* checkpointWorkspace("mcp-voice-call");
+      const layerRegistry = ProviderAdapterRegistry.layerFromAdapters([
+        {
+          instanceId: codexInstanceId,
+          driver,
+          getCapabilities: () => Effect.succeed(CodexProviderCapabilitiesV2),
+          planSelectionTransition: () => Effect.succeed({ type: "apply_on_next_turn" as const }),
+          openSession: () => Effect.die("A voice call record runs no provider"),
+        },
+      ]);
+      const layerDatabase = SqlitePersistence.layerMemory;
+      const layerOrchestrator = ProviderReplayHarness.layerWithRegistry(
+        { name: "mcp-voice-call", runtimePolicyOverride: { cwd } },
+        layerRegistry,
+        { databaseLayer: layerDatabase, runEffectWorker: false },
+      );
+      const layerSettings = ServerSettings.layerTest({
+        providerInstances: { [codexInstanceId]: { driver: "codex", enabled: true } },
+      });
+      const layerThreads = ThreadManagementService.layer.pipe(
+        Layer.provideMerge(layerOrchestrator),
+        Layer.provide(
+          LegacyV1ThreadImporter.layer.pipe(
+            Layer.provide(layerOrchestrator),
+            Layer.provide(layerDatabase),
+          ),
+        ),
+        Layer.provide(CommandReceiptStore.layer.pipe(Layer.provide(layerDatabase))),
+        Layer.provideMerge(layerSettings),
+      );
+      const layerTest = layerOrchestratorService.pipe(
+        Layer.provideMerge(layerThreads),
+        Layer.provide(
+          Layer.mergeAll(
+            NodeServices.layer,
+            NodeCrypto.layer,
+            layerRegistry,
+            layerSettings,
+            providerRegistryLayer([
+              providerSnapshot({ instanceId: codexInstanceId, driver, model: "gpt-5.4" }),
+            ]),
+            Layer.mock(ProjectService.ProjectService)({ getById: () => Effect.succeedNone }),
+            Layer.mock(SecretRequests.SecretRequests)({}),
+            Layer.mock(RemoteDelegation.RemoteDelegation)({}),
+            Layer.mock(ScheduledTaskService.ScheduledTaskService)({}),
+          ),
+        ),
+      );
+      yield* Effect.gen(function* () {
+        const orchestrator = yield* Orchestrator.OrchestratorV2;
+        const service = yield* OrchestratorMcpService.OrchestratorMcpService;
+        yield* orchestrator.dispatch({
+          type: "thread.create",
+          createdBy: "user",
+          creationSource: "web",
+          commandId: CommandId.make("voice-call:create"),
+          threadId: parentThreadId,
+          projectId,
+          title: "Voice call parent",
+          modelSelection: { instanceId: codexInstanceId, model: "gpt-5.4" },
+          runtimeMode: "approval-required",
+          interactionMode: "default",
+          branch: null,
+          worktreePath: cwd,
+        });
+        for (const index of [1, 2, 3]) {
+          yield* orchestrator.dispatch({
+            type: "message.dispatch",
+            createdBy: "user",
+            creationSource: "web",
+            commandId: CommandId.make(`voice-call:message-${index}`),
+            threadId: parentThreadId,
+            messageId: MessageId.make(`voice-call:message-${index}`),
+            text: `Message ${index}`,
+            attachments: [],
+            dispatchMode: { type: "defer_start" },
+          });
+        }
+        const reads = [
+          {},
+          { limit: 1 },
+          { limit: 2, view: "activity" as const },
+          { afterPosition: 0, limit: 1 },
+          { beforePosition: 3, limit: 1 },
+        ];
+        const look = Effect.all({
+          reads: Effect.forEach(reads, (read) =>
+            service.readThread(scope, { threadId: parentThreadId, ...read }),
+          ),
+          list: service.listThreads(scope, {}),
+        });
+        const before = yield* look;
+        const at = yield* DateTime.now;
+        yield* orchestrator.dispatch({
+          type: "thread.voice-call.record",
+          commandId: CommandId.make("voice:record:mcp"),
+          threadId: parentThreadId,
+          turnItemId: TurnItemId.make("turn-item:voice-call:mcp"),
+          callId: "call-mcp",
+          startedAt: at,
+          endedAt: at,
+          lines: [{ speaker: "caller", text: "Private words", relay: false }],
+          truncated: false,
+        });
+        assert.lengthOf(
+          yield* orchestrator.getThreadVoiceCalls(parentThreadId),
+          1,
+          "the call is on the thread, for its owner",
+        );
+        const after = yield* look;
+        assert.deepEqual(after, before);
+        const byId = yield* service.readThread(scope, {
+          threadId: parentThreadId,
+          itemId: TurnItemId.make("turn-item:voice-call:mcp"),
+        });
+        assert.deepEqual(byId.items, []);
+        assert.notInclude(JSON.stringify([after, byId]), "Private words");
+      }).pipe(Effect.provide(layerTest));
+    }),
   );
 
   it.effect.each([

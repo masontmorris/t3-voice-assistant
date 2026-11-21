@@ -37,6 +37,7 @@ export type VoiceCallError =
   | "busy"
   | "thread-unavailable"
   | "other-environment"
+  | "archived"
   | "no-t3"
   | "ended-by-server";
 
@@ -45,6 +46,7 @@ const CLOSE_ERRORS: Partial<Record<number, VoiceCallError>> = {
   1013: "busy",
   4404: "thread-unavailable",
   4409: "other-environment",
+  4410: "archived",
   4501: "no-t3",
 };
 

@@ -12,6 +12,7 @@ import {
   OrchestrationV2Run,
   OrchestrationV2TurnItem,
   OrchestrationV2ThreadTranscript,
+  OrchestrationV2VoiceCall,
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   ThreadId,
 } from "@t3tools/contracts";
@@ -98,6 +99,27 @@ const items = Schema.decodeUnknownSync(Schema.Array(OrchestrationV2TurnItem))(
     updatedAt: now,
   })),
 );
+
+const voiceCall = Schema.decodeSync(OrchestrationV2VoiceCall)({
+  id: "item-voice-call",
+  threadId: "source-thread",
+  runId: null,
+  nodeId: null,
+  providerThreadId: null,
+  providerTurnId: null,
+  nativeItemRef: null,
+  parentItemId: null,
+  ordinal: 200,
+  type: "voice_call",
+  status: "completed",
+  title: null,
+  callId: "call-1",
+  lineCount: 1,
+  truncated: false,
+  startedAt: now,
+  completedAt: now,
+  updatedAt: now,
+});
 
 const rolledBackRun = Schema.decodeSync(OrchestrationV2Run)({
   id: "run:rolled-back",
@@ -223,7 +245,27 @@ it.effect("exports full history with size, scope, and missing-thread checks", ()
 
     const response = yield* read(thread.id);
     expect(response.status).toBe(200);
-    const transcript = yield* decodeTranscript(yield* Effect.promise(() => response.json()));
+    const body: unknown = yield* Effect.promise(() => response.json());
+    yield* eventSink.write({
+      events: [
+        {
+          id: EventId.make("record-voice-call"),
+          type: "thread.voice-call.recorded" as const,
+          threadId: thread.id,
+          occurredAt: DateTime.add(now, { minutes: 1 }),
+          payload: {
+            call: voiceCall,
+            lines: [{ speaker: "caller" as const, text: "Private words", relay: false }],
+          },
+        },
+      ],
+    });
+    const afterCall = yield* read(thread.id);
+    expect(
+      yield* Effect.promise(() => afterCall.json()),
+      "a transcript attached as context reads the same, its time and positions too, after a call",
+    ).toEqual(body);
+    const transcript = yield* decodeTranscript(body);
     expect(transcript.items).toHaveLength(200);
     expect(transcript.items[0]?.item).toMatchObject({ output });
     expect(transcript.items[0]?.visibility).toBe("local");

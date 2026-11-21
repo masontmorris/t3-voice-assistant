@@ -855,3 +855,43 @@ it.effect("a need that commits as the read starts is in the read or after its as
     ),
   );
 });
+
+it.effect(
+  "records a call only on a thread of the credential's projects, and only with `record`",
+  () =>
+    Effect.gen(function* () {
+      yield* write([
+        thread({ id: "inside", minutes: 1 }),
+        thread({ id: "outside", minutes: 2, projectId: OUTSIDE }),
+      ]);
+      const seam = yield* VoiceSeam.VoiceSeam;
+      const at = DateTime.makeUnsafe("2026-11-21T10:00:00.000Z");
+      const input = (threadId: string) => ({
+        requestId: "01J0000000000000000000000C",
+        threadId: ThreadId.make(threadId),
+        callId: "call-1",
+        startedAt: at,
+        endedAt: at,
+        lines: [{ speaker: "caller" as const, text: "Private words", relay: false }],
+      });
+      const outside = yield* seam.recordCall(CALLER, input("outside")).pipe(Effect.flip);
+      assert.strictEqual(
+        outside.code,
+        "not_found",
+        "a thread past the credential is not even named",
+      );
+      const unlisted = yield* seam.recordCall(CALLER, input("never-created")).pipe(Effect.flip);
+      assert.strictEqual(unlisted.code, "not_found");
+      const noRecord = {
+        ...CALLER,
+        config: { ...CALLER.config, operations: VOICE_OPERATIONS.filter((op) => op !== "record") },
+      };
+      const refused = yield* seam.recordCall(noRecord, input("inside")).pipe(Effect.flip);
+      assert.strictEqual(refused.code, "operation_not_allowed");
+      const threads = yield* ThreadManagementService.ThreadManagementService;
+      const { turnItems } = yield* threads.getThreadRecords(ThreadId.make("outside"), [
+        "turnItems",
+      ]);
+      assert.deepStrictEqual(turnItems, [], "nothing was written on the thread outside");
+    }).pipe(provideSeam),
+);

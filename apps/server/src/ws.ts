@@ -46,6 +46,7 @@ import {
   type EditorId,
   type FileManagerRevealKind,
   type OrchestrationV2Command,
+  type OrchestrationV2ThreadProjection,
   type GitActionProgressEvent,
   type GitManagerServiceError,
   type MessageId,
@@ -158,6 +159,7 @@ import {
 } from "./orchestration-v2/ThreadLiveEventCoalescer.ts";
 import {
   buildBoundedThreadStreamSnapshot,
+  snapshotVoiceCallSpan,
   decideThreadResume,
   isThreadReplayRawPayloadSafe,
   threadReplayEncodedBytes,
@@ -911,17 +913,32 @@ const enrichProjectShells = Effect.fn("ws.orchestrationV2.enrichProjectShells")(
     ),
 );
 
+const VOICE_CALL_EVENT = "thread.voice-call.recorded";
+
+/**
+ * A thread's snapshot, then its live events. `reader.owner` is set by the owner's own subscription alone: only it
+ * gets the thread's voice call cards and their events. Any other reader (a linked environment) gets neither.
+ */
 export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subscribeThread")(
-  function* (input: {
-    readonly threadId: ThreadId;
-    readonly afterSequence?: number;
-    readonly requestCompletionMarker?: boolean;
-    readonly acceptBoundedSnapshot?: boolean;
-    readonly acceptDeferredWork?: boolean;
-    readonly acceptCompactTurnItems?: boolean;
-    readonly acceptDedupedBodies?: boolean;
-    readonly acceptCompactIds?: boolean;
-  }) {
+  function* (
+    input: {
+      readonly threadId: ThreadId;
+      readonly afterSequence?: number;
+      readonly requestCompletionMarker?: boolean;
+      readonly acceptBoundedSnapshot?: boolean;
+      readonly acceptDeferredWork?: boolean;
+      readonly acceptCompactTurnItems?: boolean;
+      readonly acceptDedupedBodies?: boolean;
+      readonly acceptCompactIds?: boolean;
+    },
+    reader: { readonly owner: boolean } = { owner: false },
+  ) {
+    const forReader = <A extends { readonly event: { readonly type: string } }>(
+      items: Iterable<A>,
+    ) =>
+      reader.owner
+        ? Array.from(items)
+        : Array.from(items).filter((item) => item.event.type !== VOICE_CALL_EVENT);
     const threadManagement = yield* ThreadManagementService.ThreadManagementService;
     const dedupeBodies = input.acceptDedupedBodies === true;
     // Replay, snapshot, and live tail share one deduper: it must see every delivered record.
@@ -950,6 +967,7 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
           afterSequence,
         })
         .pipe(
+          Stream.filter((stored) => reader.owner || stored.event.type !== VOICE_CALL_EVENT),
           Stream.map(threadStreamEventItem),
           coalesceThreadLiveStream,
           Stream.mapError(
@@ -979,7 +997,7 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
             event: projectDomainEventForWire(stored.event),
           })),
           Stream.runCollect,
-          Effect.map((items) => Array.from(items)),
+          Effect.map(forReader),
           Effect.mapError(
             (cause) =>
               new OrchestrationV2GetThreadProjectionError({
@@ -994,6 +1012,31 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
       input.requestCompletionMarker === true
         ? Stream.make({ kind: "synchronized" as const })
         : Stream.empty;
+
+    // The owner's snapshot carries the cards of the calls after its rows; no other reader's carries any.
+    const withOwnerVoiceCalls = Effect.fn("ws.orchestrationV2.ownerVoiceCalls")(function* <
+      Item extends {
+        readonly projection: OrchestrationV2ThreadProjection;
+        readonly hasMoreHistory?: boolean;
+      },
+    >(item: Item) {
+      if (!reader.owner) return item;
+      const span = snapshotVoiceCallSpan(item.projection, item.hasMoreHistory);
+      if (span === null) return item;
+      const voiceCalls = yield* threadManagement.getThreadVoiceCalls(input.threadId, span).pipe(
+        Effect.mapError(
+          (cause) =>
+            new OrchestrationV2GetThreadProjectionError({
+              threadId: input.threadId,
+              message: `Failed to load orchestration V2 thread ${input.threadId}`,
+              cause,
+            }),
+        ),
+      );
+      return voiceCalls.length === 0
+        ? item
+        : { ...item, projection: { ...item.projection, voiceCalls } };
+    });
 
     const snapshotThenLive = Effect.fn("ws.orchestrationV2.threadSnapshotThenLive")(function* () {
       const useBoundedSnapshot = shouldUseBoundedThreadSnapshot(input);
@@ -1031,7 +1074,7 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
               projection: dedupeBodies ? dedupeSnapshotBodies(projection) : projection,
             };
           })();
-      return rpcInitialItems([snapshotItem]).pipe(
+      return rpcInitialItems([yield* withOwnerVoiceCalls(snapshotItem)]).pipe(
         Stream.concat(completionMarker),
         Stream.concat(eventStreamFrom(snapshotSequence)),
         withLiveDedupe,
@@ -1040,16 +1083,19 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
 
     // Subscribe before reading persisted events to retain concurrent publishes; clients dedupe overlap by sequence.
     if (input.afterSequence !== undefined) {
-      const highWater = yield* applicationEvents.latestAgentSequence(input.threadId).pipe(
-        Effect.mapError(
-          (cause) =>
-            new OrchestrationV2GetThreadProjectionError({
-              threadId: input.threadId,
-              message: `Failed to prepare orchestration V2 thread ${input.threadId} replay`,
-              cause,
-            }),
-        ),
-      );
+      // A reader that never receives a call's event resumes as if there had been none: idle, not a fresh snapshot.
+      const highWater = yield* applicationEvents
+        .latestAgentSequence(input.threadId, reader.owner ? undefined : VOICE_CALL_EVENT)
+        .pipe(
+          Effect.mapError(
+            (cause) =>
+              new OrchestrationV2GetThreadProjectionError({
+                threadId: input.threadId,
+                message: `Failed to prepare orchestration V2 thread ${input.threadId} replay`,
+                cause,
+              }),
+          ),
+        );
       const prunedThrough = yield* applicationEvents.prunedThroughSequence.pipe(
         Effect.mapError(
           (cause) =>
@@ -2064,6 +2110,19 @@ export const layerWsRpc = (
           readWorkflowScript({ scriptPath: input.scriptPath }),
         [ORCHESTRATION_V2_WS_METHODS.getNativeChildWork]: (input) =>
           nativeChildWork.getNativeChildWork(input),
+        // The owner's own read of an opened voice call card's lines.
+        [ORCHESTRATION_V2_WS_METHODS.getVoiceCallLines]: (input) =>
+          threadManagement.getVoiceCallLines(input.threadId, input.voiceCallId).pipe(
+            Effect.map((lines) => ({ lines })),
+            Effect.mapError(
+              (cause) =>
+                new OrchestrationV2GetThreadProjectionError({
+                  threadId: input.threadId,
+                  message: "Failed to load voice call",
+                  cause,
+                }),
+            ),
+          ),
         [ORCHESTRATION_V2_WS_METHODS.getTurnItem]: (input) =>
           threadManagement.getTurnItem(input).pipe(
             Effect.mapError(
@@ -2342,7 +2401,7 @@ export const layerWsRpc = (
           Stream.unwrap(
             Effect.annotateCurrentSpan({ "orchestration_v2.thread_id": input.threadId }).pipe(
               Effect.andThen(threadViewers.view(input.threadId)),
-              Effect.andThen(subscribeOrchestrationV2Thread(input)),
+              Effect.andThen(subscribeOrchestrationV2Thread(input, { owner: true })),
             ),
           ),
         [ORCHESTRATION_V2_WS_METHODS.subscribeCommandOutput]: (input) =>

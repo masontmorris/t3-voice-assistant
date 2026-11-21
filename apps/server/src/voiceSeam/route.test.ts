@@ -9,6 +9,7 @@ import * as Digest from "effect/crypto/Digest";
 import * as DateTime from "effect/DateTime";
 import * as Deferred from "effect/Deferred";
 import * as Effect from "effect/Effect";
+import * as Schema from "effect/Schema";
 import * as Fiber from "effect/Fiber";
 import * as FileSystem from "effect/FileSystem";
 import * as Layer from "effect/Layer";
@@ -29,6 +30,7 @@ import * as Sqlite from "../persistence/Sqlite.ts";
 import * as ManagedPolicy from "../policy/ManagedPolicy.ts";
 import { VOICE_OPERATIONS, VOICE_SEAM_CONFIG_FILE } from "./ceiling.ts";
 import { voiceCommandId } from "./launch.ts";
+import { REQUESTS } from "./protocol.ts";
 import * as VoiceSeamRoute from "./route.ts";
 import { createdOf, FIXTURES, thread } from "./testFixtures.ts";
 import { seamLayer, TEST_ENVIRONMENT_ID, write } from "./testLayer.ts";
@@ -318,6 +320,42 @@ const seedProject = Effect.gen(function* () {
 
 const live = <A, E, R>(effect: Effect.Effect<A, E, R>) =>
   effect.pipe(Effect.scoped, Effect.provide(layerTest));
+
+const decodeRecordCall = Schema.decodeUnknownEffect(REQUESTS.record_call.input);
+
+it.effect("logs a request that does not decode by where and what, never by its words", () =>
+  Effect.gen(function* () {
+    const shapes = yield* Effect.forEach(
+      [
+        { lines: [{ speaker: "Private words", text: "Private words", relay: false }] },
+        { lines: [{ speaker: "caller", text: 5, relay: false }] },
+        { callId: "Private words ".repeat(20) },
+        { lines: [], "Private words": true },
+      ],
+      (bad) =>
+        decodeRecordCall(
+          {
+            requestId: "01ARZ3NDEKTSV4RRFFQ69G5FAV",
+            threadId: "thread-1",
+            callId: "call-1",
+            startedAt: "2026-11-21T10:00:00.000Z",
+            endedAt: "2026-11-21T10:04:00.000Z",
+            lines: [],
+            ...bad,
+          },
+          { onExcessProperty: "error" },
+        ).pipe(
+          Effect.flip,
+          Effect.map((failure) => VoiceSeamRoute.issueShape(failure.issue)),
+        ),
+    );
+    assert.notInclude(JSON.stringify(shapes), "Private words");
+    assert.deepStrictEqual(shapes.slice(1, 3), [
+      ["lines.0.text: expected String"],
+      ["callId: invalid"],
+    ]);
+  }),
+);
 
 it.live("answers 404 while voice-seam.json is absent or does not decode", () =>
   live(

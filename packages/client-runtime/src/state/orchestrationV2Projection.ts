@@ -476,5 +476,11 @@ export function applyOrchestrationV2ProjectionEvent(
     case "context-transfer.created":
     case "context-transfer.updated":
       return { ...base, contextTransfers: upsertEntity(base.contextTransfers, event.payload) };
+    // The owner's alone, and as on the server it moves nothing else.
+    case "thread.voice-call.recorded":
+      return {
+        ...projection,
+        voiceCalls: upsertEntity(projection.voiceCalls ?? [], event.payload.call),
+      };
   }
 }

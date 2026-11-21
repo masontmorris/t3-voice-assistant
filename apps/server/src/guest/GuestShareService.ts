@@ -565,6 +565,8 @@ const make = Effect.gen(function* () {
         Stream.map((item): ReadonlyArray<GuestStreamEvent> => {
           if (item.kind !== "event") return [];
           if (endsShare(item.event)) return [ended];
+          // The owner's own; a guest's stream reads as if it never happened.
+          if (item.event.type === "thread.voice-call.recorded") return [];
           if (item.event.type === "turn-item.updated") rememberSent(share.id, [item.event.payload]);
           const updated = threadOf(item.event);
           const view = updated === null ? null : viewOf(updated);

@@ -24,6 +24,7 @@ import { type VcsRefTarget } from "@t3tools/client-runtime/state/vcs";
 import type {
   EnvironmentId,
   OrchestrationV2GetTurnItemResult,
+  OrchestrationV2GetVoiceCallLinesResult,
   ProjectContentMatch,
   ProjectEntry,
   ProjectEntryKind,
@@ -502,6 +503,24 @@ export function useCheckpointDiff(
 }
 
 /** Reads one item's detail from somewhere other than the environment, as the guest page does. */
+/** An opened voice call card's lines, the owner's own read. */
+export function useVoiceCallLines(
+  target: {
+    readonly environmentId: EnvironmentId;
+    readonly threadId: ThreadId;
+    readonly voiceCallId: TurnItemId;
+  } | null,
+) {
+  return useEnvironmentQuery<OrchestrationV2GetVoiceCallLinesResult, unknown>(
+    target === null
+      ? null
+      : orchestrationEnvironment.voiceCallLines({
+          environmentId: target.environmentId,
+          input: { threadId: target.threadId, voiceCallId: target.voiceCallId },
+        }),
+  );
+}
+
 export type TurnItemDetailSource = (input: {
   readonly threadId: ThreadId;
   readonly itemId: TurnItemId;

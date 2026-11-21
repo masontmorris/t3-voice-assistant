@@ -138,6 +138,11 @@ you select **End call**. One call is open at a time. The command palette has **S
 voice call**, and **Composer: Start or End Voice Call** can be bound in
 [Keybindings settings](./keybindings.md); it has no default shortcut.
 
+When the call ends, its words stay in the thread as a collapsed **Voice call** card. Open
+it to read who said what, and for a line about a thread, select **Evidence** to see what
+it was based on. The transcript is text only and stays yours: agents, shared guests, and
+summaries handed to another model never see it, or that a call happened.
+
 ## Improve recognition
 
 - **Language** picks what you speak. **Auto** lets a multilingual model detect

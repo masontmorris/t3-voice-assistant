@@ -146,6 +146,8 @@ function shouldPublishAgentAwarenessEvent(
     case "context-handoff.updated":
     case "context-transfer.created":
     case "context-transfer.updated":
+    // The caller's own: no relay hears that a call happened.
+    case "thread.voice-call.recorded":
       return false;
   }
 }

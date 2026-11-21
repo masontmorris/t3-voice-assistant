@@ -12496,5 +12496,20 @@
   "7e664283273943e0": "Ett röstsamtal använder mikrofonen.",
   "be2fe22cec8b1b50": "Ett tailnet-namn kräver en wss://-adress, till exempel från Tailscale Serve.",
   "eafbd616e90494c3": "Diktering använder mikrofonen.",
-  "e4a9284168a984bf": "Röstservern arbetar med en annan T3-miljö än den här trådens."
+  "e4a9284168a984bf": "Röstservern arbetar med en annan T3-miljö än den här trådens.",
+  "690ae7d3e7024619": "Röstsamtal",
+  "606cb04bb6ac3ef6": "{count, plural, one {{count} rad} other {{count} rader}} · {minutes, plural, one {{minutes} min} other {{minutes} min}}",
+  "1648008fd32e4d32": "Visa alla {count} rader",
+  "33b2e685c512c4b8": "Resten av samtalet var för långt för att sparas.",
+  "f5114fb9c40fd929": "Du",
+  "2f1ef9e0c53c189e": "om en tråd",
+  "5cc20371639788f7": "avbruten",
+  "558a9d0b38fa9258": "Underlag",
+  "09c86b914196de0f": "Ett objekt i tråden",
+  "d89ba336861d5726": "En körning i tråden",
+  "b3527483bd2702a3": "Tråden som den var då",
+  "fec208ea8cc10427": "Inte i den inlästa delen av tråden",
+  "04b11228453baedb": "Den här tråden är arkiverad. Avarkivera den för att ringa om den.",
+  "d5e6a4ce55a458ec": "Läser in samtalet…",
+  "6e7a509cb2404b29": "Samtalet kunde inte läsas in."
 }

@@ -155,6 +155,8 @@ export const VoiceThreadState = Schema.Struct({
     Schema.Struct({ ...VoiceRunResult.fields, runId: RunId, at: Schema.String }),
   ),
   asOfSequence: Sequence,
+  /** The thread is archived. Older servers leave it out. */
+  archived: Schema.optionalKey(Schema.Boolean),
 }).annotate({ identifier: "VoiceThreadState" });
 export type VoiceThreadState = typeof VoiceThreadState.Type;
 
@@ -271,6 +273,32 @@ export const VoiceAnswerResult = Schema.Struct({
 }).annotate({ identifier: "VoiceAnswerResult" });
 export type VoiceAnswerResult = typeof VoiceAnswerResult.Type;
 
+export const VoiceRecordResult = Schema.Struct({
+  threadId: ThreadId,
+  /** The transcript card on the thread. */
+  turnItemId: TurnItemId,
+  /** Lines recorded, after the bounds. */
+  lines: NonNegativeInt,
+  /** Lines or text past the bounds were left out. */
+  truncated: Schema.Boolean,
+  /** A fresh record: its accepted write. A replay: the thread's sequence now. */
+  sequence: Sequence,
+  /** True when the request id had already recorded. */
+  replayed: Schema.Boolean,
+}).annotate({ identifier: "VoiceRecordResult" });
+export type VoiceRecordResult = typeof VoiceRecordResult.Type;
+
+/** One line of a call as the voice server kept it: who said it, its text, and for a checked line its act and evidence. */
+const VoiceCallLineInput = Schema.Struct({
+  speaker: Schema.Literals(["caller", "voice"]),
+  text: Schema.String,
+  relay: Schema.Boolean,
+  interrupted: Schema.optionalKey(Schema.Boolean),
+  act: Schema.optionalKey(TrimmedNonEmptyString),
+  /** The thread events the checked line rests on. */
+  sequences: Schema.optionalKey(Schema.Array(Sequence)),
+});
+
 /** Each op, its input, and the value an accepted request answers with. */
 export const REQUESTS = {
   list_threads: {
@@ -339,6 +367,18 @@ export const REQUESTS = {
       ),
     }),
     output: VoiceAnswerResult,
+  },
+  record_call: {
+    input: Schema.Struct({
+      requestId: VoiceRequestId,
+      threadId: ThreadId,
+      callId: TrimmedNonEmptyString.check(Schema.isMaxLength(128)),
+      startedAt: Schema.DateTimeUtcFromString,
+      endedAt: Schema.DateTimeUtcFromString,
+      /** Past the bounds in VOICE_CALL_LIMITS, the call is recorded cut and marked truncated, never refused. */
+      lines: Schema.Array(VoiceCallLineInput),
+    }),
+    output: VoiceRecordResult,
   },
 } as const;
 

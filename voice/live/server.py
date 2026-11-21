@@ -111,7 +111,7 @@ import threading
 import time
 from contextlib import AsyncExitStack, nullcontext
 from dataclasses import asdict, dataclass, field, replace
-from datetime import datetime
+from datetime import datetime, timezone
 from functools import partial
 from http import HTTPStatus
 from pathlib import Path
@@ -132,6 +132,7 @@ from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, by_ear, cr
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
 from voice.live.replycheck import ReplyCheck
+from voice.live.transcript import CallTranscript
 from voice.live.t3_tasks import local_summariser, summariser_choices
 from voice.live.t3_tasks import Poller, T3Registry, T3TaskService, T3Tasks, Words, default_journal, \
     default_model, default_origin, default_token_file, live_writer
@@ -159,7 +160,10 @@ WEB_FILES = {
 # A browser cannot set X-Voice-Secret on its WebSocket handshake, so the page sends `auth {secret}` as its first
 # text frame instead. The frame must arrive within this long after the socket opens, before any audio.
 AUTH_TIMEOUT_S = 5.0
-CLOSE_NO_THREAD, CLOSE_OTHER_ENVIRONMENT, CLOSE_NO_T3 = 4404, 4409, 4501
+CLOSE_NO_THREAD, CLOSE_OTHER_ENVIRONMENT, CLOSE_ARCHIVED, CLOSE_NO_T3 = 4404, 4409, 4410, 4501
+# How long a call's transcript may take to reach T3 after the call ended. A guess: a seam write is a local round trip,
+# so this only bounds a stalled seam, which must not hold a stopping server.
+RECORD_TIMEOUT_S = 15.0
 TAILNET = ipaddress.ip_network("100.64.0.0/10")
 UP_CHUNK_BYTES = RATE * 40 // 1000 * 2
 DOWN_CHUNK_MS = 40
@@ -184,6 +188,10 @@ QUIET_CHECK_S = 0.2
 # Held sound is transcribed this often while it lasts (`judge_held`). On the noise rehearsal every burst transcribed
 # empty, so the reply goes about this long after the sound starts instead of after it ends.
 HELD_CHECK_S = 1.0
+
+
+def utc_now():
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
 
 
 def slots(asr_stagger=1):
@@ -481,6 +489,8 @@ class Conversation:
         self.checks, self.read_backs = set(), set()
         self.heard_at, self.news = time.perf_counter(), None
         self.call_recording = None
+        # A call opened on a T3 thread: the thread, when it started, and its transcript for the thread at the end.
+        self.thread, self.call_started, self.transcript = None, None, CallTranscript()
 
     def voice_clock(self):
         """The voice session's clock is the turn's clock: the session outlives the turn, but its events arrive while a
@@ -823,6 +833,10 @@ class Conversation:
                 self.end_turn(0, False)
             self.ptt_down = down
 
+    def heard(self, turn, text):
+        self.transcript.heard(turn.n, text)
+        self.post({"type": "heard", "turn": turn.n, "text": text})
+
     async def view_thread(self, thread_id, environment_id=None):
         """A call opened from a T3 thread starts with that thread in view. One the seam cannot read, or one from another
         T3 environment than the seam's, ends the call, so the caller never talks about a thread the voice cannot see or
@@ -837,10 +851,44 @@ class Conversation:
                 t3.serves, str(environment_id), time.monotonic()) is False:
             await self.ws.close(CLOSE_OTHER_ENVIRONMENT, "the voice server works with another T3 environment")
             return False
-        if await asyncio.to_thread(t3.view, str(thread_id), time.monotonic()) is None:
+        state = await asyncio.to_thread(t3.view, str(thread_id), time.monotonic())
+        if state is None:
             await self.ws.close(CLOSE_NO_THREAD, "the voice server cannot see this thread")
             return False
+        if state.archived:
+            await self.ws.close(CLOSE_ARCHIVED, "the thread is archived")
+            return False
+        self.thread, self.call_started = str(thread_id), utc_now()
+        t3.on_spoken = lambda update: self.transcript.spoken(tuple(a.kind.value for a in update.acts),
+                                                             tuple(update.sequences))
         return True
+
+    def finish_call(self):
+        """The call has ended: stop collecting its transcript and hand back the save to run once the call has let go
+        of the T3 state the next call needs, or None when there is nothing to record."""
+        t3, lines = self.live.t3, self.transcript.wire()
+        if t3 is None or self.thread is None:
+            return None
+        t3.on_spoken = None
+        if not lines:
+            return None
+        return self.save_transcript(t3, self.thread, f"call-{self.call_started}", self.call_started, utc_now(), lines)
+
+    @staticmethod
+    async def save_transcript(t3, thread, call_id, started, ended, lines):
+        """Record a finished call's transcript on its thread, within RECORD_TIMEOUT_S. A failure is logged without the
+        transcript and never spoken; the call has already ended."""
+        try:
+            done = await asyncio.wait_for(
+                asyncio.to_thread(t3.record_call, thread, call_id, started, ended, lines), RECORD_TIMEOUT_S)
+        except TimeoutError:
+            print("call transcript was not recorded: T3 did not answer in time", flush=True)
+            return
+        except Exception as exc:
+            print(f"call transcript was not recorded: {type(exc).__name__}", flush=True)
+            return
+        print(f"call transcript {'recorded' if done else 'was not recorded: T3 did not take it'} "
+              f"({len(lines)} lines)", flush=True)
 
     def start_turn(self, pcm, barge_in=False):
         """A new turn starts. A barge-in stops the reply the client is playing. A turn that has spoken and is still
@@ -861,6 +909,8 @@ class Conversation:
         if prior is not None:
             if prior.reply_started:
                 if barge_in or not prior.task.done():
+                    if prior.speaking:
+                        self.transcript.interrupted(prior.n)
                     prior.mute("barge_in" if barge_in else "superseded")
             elif prior.idle:
                 if not prior.task.done():
@@ -881,6 +931,8 @@ class Conversation:
     def stop_playback(self, now):
         """Drop what the client has buffered of the reply and stop counting it as playing: a barge-in, or a reply
         replaced by its correction."""
+        if self.playback.turn is not None and self.playback.until > now:
+            self.transcript.interrupted(self.playback.turn)
         self.post({"type": "barge_in", "turn": self.playback.turn})
         self.playback.stop(now)
 
@@ -957,7 +1009,7 @@ class Conversation:
         if event.get("type") == "session.created":
             self.out_rate = turn.out_rate = event["session"]["audio"]["output"]["format"]["rate"]
 
-    def speak(self, turn, text, pcm, done, relay=False):
+    def speak(self, turn, text, pcm, done, relay=False, acts=()):
         """Send a reply to the client as its audio is released: `reply_start` before the first piece, each piece in
         40 ms frames, and `reply_end` once the reply is `done`. A muted turn sends no more audio but still ends the
         reply it started, so the client is not left waiting for the rest."""
@@ -977,6 +1029,7 @@ class Conversation:
             self.playback.add(len(pcm) / 2 / turn.out_rate, new_text.strip(), now, turn.n)
             caption = None
             if new_text.strip():
+                self.transcript.said(reply, turn.n, new_text, relay=relay, acts=acts)
                 caption = json.dumps({"type": "say", "turn": turn.n, "text": new_text, **({"relay": True} if relay else {})})
             self.post_audio(turn, pcm, reply, caption)
         if done and turn.speaking:
@@ -985,11 +1038,11 @@ class Conversation:
 
     async def speak_t3(self, turn, line, pcm):
         """Release a checked call reply and settle delivery from the frames the sender wrote."""
-        text = speakable(line, "speak_t3").text
+        checked = speakable(line, "speak_t3")
         await floor_free(self.voice)
         if turn.muted or (self.sender is not None and self.sender.done()):
             return b"", None
-        self.speak(turn, text, pcm, True, relay=True)
+        self.speak(turn, checked.text, pcm, True, relay=True, acts=tuple(a.kind.value for a in checked.acts))
         reply = turn.replies[-1]
         done = asyncio.get_running_loop().create_future()
         self.outbox.put_nowait((turn, AudioDelivery(done)))
@@ -1058,7 +1111,7 @@ class Conversation:
                                     task_service=live.task_service,
                                     send_checked=lambda line, pcm: self.speak_t3(turn, line, pcm),
                                     is_muted=lambda: turn.muted, reply_check=self.reply_check(turn),
-                                    on_heard=lambda text: self.post({"type": "heard", "turn": turn.n, "text": text}))
+                                    on_heard=lambda text: self.heard(turn, text))
             # Sound still being judged may continue this turn: until it is known, the turn has not finished.
             await floor_free(self.voice)
         except asyncio.CancelledError:
@@ -1194,6 +1247,7 @@ class Live:
                                  check_ms=check_ms)
         self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
         self.active, self.turns, self.overlaps = None, 0, 0
+        self.saves: set[asyncio.Task] = set()
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
         self.barge_in_note = getattr(args, "barge_in_note", "off") == "on"
         self.record_calls = getattr(args, "call_recording", "off") == "on"
@@ -1246,10 +1300,16 @@ class Live:
         try:
             await conversation.run()
         finally:
-            self.active = None
+            # This call's own state goes before the next call may begin; its transcript saves after, never in the way.
+            save = conversation.finish_call()
             if self.t3 is not None:
                 self.t3.end_call()
+            self.active = None
             print("client disconnected", flush=True)
+            if save is not None:
+                task = asyncio.create_task(save)
+                self.saves.add(task)
+                task.add_done_callback(self.saves.discard)
 
 
 async def wait_for_stop(max_minutes, stop_file=STOP_FILE):
@@ -1352,6 +1412,8 @@ async def main_async(args):
             await wait_for_stop(args.max_minutes, args.stop_file)
             if live.active is not None:
                 await live.active.ws.close(1001, "server stopping")
+        if live.saves:
+            await asyncio.wait(live.saves, timeout=RECORD_TIMEOUT_S)
 
 
 def main():

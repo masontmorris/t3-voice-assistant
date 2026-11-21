@@ -64,6 +64,8 @@ import {
   type OrchestrationV2Subagent,
   type OrchestrationV2ThreadProjection,
   type OrchestrationV2TurnItem,
+  type OrchestrationV2VoiceCall,
+  type OrchestrationV2VoiceCallLine,
   latestProviderTurnForAttempt,
   repositoryRewindCheckpoint,
   parseGoalCommand,
@@ -550,6 +552,15 @@ export interface OrchestratorV2Shape {
   readonly getThreadEventSequence: (
     threadId: ThreadId,
   ) => Effect.Effect<number, OrchestratorV2Error>;
+  /** The owner's own read of a thread's voice calls; see ProjectionStore.getThreadVoiceCalls. */
+  readonly getThreadVoiceCalls: (
+    threadId: ThreadId,
+    span?: Parameters<ProjectionStoreV2["Service"]["getThreadVoiceCalls"]>[1],
+  ) => Effect.Effect<ReadonlyArray<OrchestrationV2VoiceCall>, OrchestratorV2Error>;
+  readonly getVoiceCallLines: (
+    threadId: ThreadId,
+    voiceCallId: TurnItemId,
+  ) => Effect.Effect<ReadonlyArray<OrchestrationV2VoiceCallLine> | null, OrchestratorV2Error>;
   readonly streamStoredEvents: Stream.Stream<OrchestrationV2StoredEvent, OrchestratorV2Error>;
   /** Events arrive projected for the wire and shared by every subscriber; never mutate them. */
   readonly streamStoredEventsFrom: (input?: {
@@ -707,6 +718,7 @@ function commandThreadId(command: OrchestrationV2ServerCommand): ThreadId {
       return command.parentThreadId;
     case "secret_request.record":
     case "link_request.record":
+    case "thread.voice-call.record":
       return command.threadId;
     case "thread.fork":
     case "thread.merge_back":
@@ -10897,6 +10909,75 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     },
   );
 
+  /** A live voice call's transcript on its thread: the owner's card, and no turn item, so no other reader sees it. */
+  const dispatchVoiceCallRecord = Effect.fn("orchestrationV2.dispatch.voiceCallRecord")(function* (
+    command: Extract<OrchestrationV2InternalCommand, { readonly type: "thread.voice-call.record" }>,
+    events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
+  ) {
+    const projectionError = (cause: unknown) =>
+      new OrchestratorProjectionError({ threadId: command.threadId, cause });
+    const projection = yield* projectionStore
+      .getThreadRecords(command.threadId, [])
+      .pipe(Effect.mapError(projectionError));
+    const recorded = yield* projectionStore
+      .getThreadVoiceCalls(command.threadId)
+      .pipe(Effect.mapError(projectionError));
+    if (projection.thread.deletedAt !== null) {
+      return yield* new OrchestratorDispatchError({
+        commandId: command.commandId,
+        commandType: command.type,
+        cause: `Thread ${command.threadId} was deleted.`,
+      });
+    }
+    // The seam derives the card from its command, so a second command for one card is a bug, not a retry.
+    if (recorded.some((call) => call.id === command.turnItemId)) {
+      return yield* new OrchestratorDispatchError({
+        commandId: command.commandId,
+        commandType: command.type,
+        cause: `Voice call ${command.turnItemId} is already recorded.`,
+      });
+    }
+    const now = yield* DateTime.now;
+    // It follows the last item of the thread's own that shows now: a prompt still queued shows after it once sent.
+    const last = (yield* projectionStore
+      .getTimelinePage(command.threadId, {
+        beforePosition: Number.POSITIVE_INFINITY,
+        limit: 1,
+        view: "activity",
+      })
+      .pipe(Effect.mapError(projectionError))).items[0];
+    const call: OrchestrationV2VoiceCall = {
+      id: command.turnItemId,
+      threadId: command.threadId,
+      runId: null,
+      nodeId: null,
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      parentItemId: null,
+      // It takes no ordinal, so the next item numbers as if there had been no call.
+      ordinal: last?.sourceThreadId === command.threadId ? last.item.ordinal : 0,
+      status: "completed",
+      title: null,
+      startedAt: command.startedAt,
+      completedAt: command.endedAt,
+      updatedAt: now,
+      type: "voice_call",
+      callId: command.callId,
+      lineCount: command.lines.length,
+      truncated: command.truncated,
+    };
+    yield* emit(
+      events,
+      command,
+    )({
+      type: "thread.voice-call.recorded",
+      threadId: command.threadId,
+      occurredAt: now,
+      payload: { call, lines: command.lines },
+    });
+  });
+
   const dispatchSecretRequestRecord = Effect.fn("orchestrationV2.dispatch.secretRequestRecord")(
     function* (
       command: Extract<OrchestrationV2InternalCommand, { readonly type: "secret_request.record" }>,
@@ -16005,6 +16086,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       case "thread.created.record":
         yield* dispatchCreatedThreadRecord(command, events);
         break;
+      case "thread.voice-call.record":
+        yield* dispatchVoiceCallRecord(command, events);
+        break;
       case "secret_request.record":
         yield* dispatchSecretRequestRecord(command, events);
         break;
@@ -17127,6 +17211,16 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     }),
     getThreadTitles: Effect.fn("OrchestratorV2.getThreadTitles")(function (threadIds) {
       return projectionStore.getThreadTitles(threadIds).pipe(Effect.mapError(shellProjectionError));
+    }),
+    getVoiceCallLines: Effect.fn("OrchestratorV2.getVoiceCallLines")(function (threadId, id) {
+      return projectionStore
+        .getVoiceCallLines(threadId, id)
+        .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId, cause })));
+    }),
+    getThreadVoiceCalls: Effect.fn("OrchestratorV2.getThreadVoiceCalls")(function (threadId, span) {
+      return projectionStore
+        .getThreadVoiceCalls(threadId, span)
+        .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId, cause })));
     }),
     getThreadEventSequence: Effect.fn("OrchestratorV2.getThreadEventSequence")(function (threadId) {
       return eventSink

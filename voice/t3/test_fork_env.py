@@ -547,10 +547,24 @@ class SeamConfigTest(unittest.TestCase):
             doc = json.loads(paths.seam_config.read_text(encoding="utf-8"))
             self.assertEqual(doc["maxRuntimeMode"], "auto-accept-edits")
             self.assertEqual(
-                set(doc["operations"]), {"list", "read", "watch", "launch", "send", "interrupt", "respond", "answer"}
+                set(doc["operations"]),
+                {"list", "read", "watch", "launch", "send", "interrupt", "respond", "answer", "record"},
             )
             self.assertEqual([p["projectId"] for p in doc["projects"]], ["proj_sandbox"])
             self.assertEqual(doc["workspace"], {"proj_sandbox": {"type": "root"}})
+
+    def test_an_older_config_gains_a_new_operation_and_keeps_the_rest(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            paths = make_paths(Path(tmp))
+            paths.home.mkdir(parents=True)
+            older = {**fork_env.seam_config_document("proj_sandbox"), "operations": ["list", "read"]}
+            paths.seam_config.write_text(json.dumps(older), encoding="utf-8")
+            self.assertTrue(fork_env.ensure_seam_config(paths, "proj_other"))
+            doc = json.loads(paths.seam_config.read_text(encoding="utf-8"))
+            self.assertEqual(doc["operations"][:2], ["list", "read"])
+            self.assertEqual(set(doc["operations"]), set(fork_env.SEAM_OPERATIONS))
+            self.assertEqual([p["projectId"] for p in doc["projects"]], ["proj_sandbox"], "projects are kept")
+            self.assertFalse(fork_env.ensure_seam_config(paths, "proj_other"))
 
     def test_the_sandbox_launches_on_replay_and_a_model_already_set_stays(self):
         with tempfile.TemporaryDirectory() as tmp:

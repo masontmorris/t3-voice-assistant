@@ -12498,5 +12498,20 @@
   "7e664283273943e0": "A voice call is using the microphone.",
   "be2fe22cec8b1b50": "A tailnet name needs a wss:// address, such as one from Tailscale Serve.",
   "eafbd616e90494c3": "Dictation is using the microphone.",
-  "e4a9284168a984bf": "The voice server works with a different T3 environment than this thread's."
+  "e4a9284168a984bf": "The voice server works with a different T3 environment than this thread's.",
+  "690ae7d3e7024619": "Voice call",
+  "606cb04bb6ac3ef6": "{count, plural, one {{count} line} other {{count} lines}} · {minutes, plural, one {{minutes} min} other {{minutes} min}}",
+  "1648008fd32e4d32": "Show all {count} lines",
+  "33b2e685c512c4b8": "The rest of this call was too long to keep.",
+  "f5114fb9c40fd929": "You",
+  "2f1ef9e0c53c189e": "about a thread",
+  "5cc20371639788f7": "cut off",
+  "558a9d0b38fa9258": "Evidence",
+  "09c86b914196de0f": "A thread item",
+  "d89ba336861d5726": "A run of the thread",
+  "b3527483bd2702a3": "The thread as it stood then",
+  "fec208ea8cc10427": "Not in the loaded part of this thread",
+  "04b11228453baedb": "This thread is archived. Unarchive it to call about it.",
+  "d5e6a4ce55a458ec": "Loading the call…",
+  "6e7a509cb2404b29": "The call could not be loaded."
 }
