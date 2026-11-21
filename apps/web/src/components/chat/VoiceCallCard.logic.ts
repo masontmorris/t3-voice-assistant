@@ -4,6 +4,7 @@ import type {
   OrchestrationV2TurnItem,
   OrchestrationV2VoiceCall,
   OrchestrationV2VoiceCallEvidence,
+  OrchestrationV2VoiceCallLine,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 
@@ -19,9 +20,13 @@ export function voiceCallMinutes(item: VoiceCallItem): number {
 }
 
 /** The lines to show, each keyed by its place in the call: a recorded call never changes. */
-export function shownVoiceCallLines(item: VoiceCallItem, showAll: boolean) {
-  const lines = showAll ? item.lines : item.lines.slice(0, VOICE_CALL_SHOWN_LINES);
-  return lines.map((line, place) => ({ key: `${item.id}:${place}`, line }));
+export function shownVoiceCallLines(
+  item: VoiceCallItem,
+  lines: ReadonlyArray<OrchestrationV2VoiceCallLine>,
+  showAll: boolean,
+) {
+  const shown = showAll ? lines : lines.slice(0, VOICE_CALL_SHOWN_LINES);
+  return shown.map((line, place) => ({ key: `${item.id}:${place}`, line }));
 }
 
 const firstLine = (text: string) => text.trim().split("\n", 1)[0]?.slice(0, 200) ?? "";

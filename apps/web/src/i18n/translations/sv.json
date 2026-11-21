@@ -12509,5 +12509,7 @@
   "d89ba336861d5726": "En körning i tråden",
   "b3527483bd2702a3": "Tråden som den var då",
   "fec208ea8cc10427": "Inte i den inlästa delen av tråden",
-  "04b11228453baedb": "Den här tråden är arkiverad. Avarkivera den för att ringa om den."
+  "04b11228453baedb": "Den här tråden är arkiverad. Avarkivera den för att ringa om den.",
+  "d5e6a4ce55a458ec": "Läser in samtalet…",
+  "6e7a509cb2404b29": "Samtalet kunde inte läsas in."
 }

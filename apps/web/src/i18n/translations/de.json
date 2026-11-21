@@ -12502,5 +12502,7 @@
   "d89ba336861d5726": "Ein Lauf des Threads",
   "b3527483bd2702a3": "Der Thread zu diesem Zeitpunkt",
   "fec208ea8cc10427": "Nicht im geladenen Teil dieses Threads",
-  "04b11228453baedb": "Dieser Thread ist archiviert. Hole ihn aus dem Archiv, um über ihn anzurufen."
+  "04b11228453baedb": "Dieser Thread ist archiviert. Hole ihn aus dem Archiv, um über ihn anzurufen.",
+  "d5e6a4ce55a458ec": "Anruf wird geladen…",
+  "6e7a509cb2404b29": "Der Anruf konnte nicht geladen werden."
 }

@@ -480,7 +480,7 @@ export function applyOrchestrationV2ProjectionEvent(
     case "thread.voice-call.recorded":
       return {
         ...projection,
-        voiceCalls: upsertEntity(projection.voiceCalls ?? [], event.payload),
+        voiceCalls: upsertEntity(projection.voiceCalls ?? [], event.payload.call),
       };
   }
 }

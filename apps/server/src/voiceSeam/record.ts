@@ -121,7 +121,7 @@ export const make = (sources: RecordSources) => {
       return {
         threadId: input.threadId,
         turnItemId,
-        lines: card.lines.length,
+        lines: card.lineCount,
         truncated: card.truncated,
         sequence,
         replayed,

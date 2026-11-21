@@ -12511,5 +12511,7 @@
   "d89ba336861d5726": "A run of the thread",
   "b3527483bd2702a3": "The thread as it stood then",
   "fec208ea8cc10427": "Not in the loaded part of this thread",
-  "04b11228453baedb": "This thread is archived. Unarchive it to call about it."
+  "04b11228453baedb": "This thread is archived. Unarchive it to call about it.",
+  "d5e6a4ce55a458ec": "Loading the call…",
+  "6e7a509cb2404b29": "The call could not be loaded."
 }

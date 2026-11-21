@@ -145,8 +145,8 @@ const createFixtureSource = Effect.fn("createMigrateDevDbFixtureSource")(functio
       if (toMigrationInclusive === undefined) {
         yield* insertPeerLink(sql);
         yield* sql`INSERT INTO orchestration_v2_projection_voice_calls
-          (voice_call_id, thread_id, ordinal, payload_json)
-          VALUES ('call-1', 'stopped-thread', 0, '{"lines":[{"text":"Private words"}]}')`;
+          (voice_call_id, thread_id, ordinal, started_at, payload_json, lines_json)
+          VALUES ('call-1', 'stopped-thread', 0, '2026-08-02', '{}', '[{"text":"Private words"}]')`;
         yield* sql`INSERT INTO orchestration_events
           (event_id, aggregate_kind, stream_id, stream_version, event_type, occurred_at, actor_kind, payload_json, metadata_json, application_event_version)
           VALUES ('event-call-1', 'thread', 'stopped-thread', 1, 'thread.voice-call.recorded', '2026-08-02', 'server', '{}', '{}', 2)`;

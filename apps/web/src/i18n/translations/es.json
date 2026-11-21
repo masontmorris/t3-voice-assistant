@@ -12497,5 +12497,7 @@
   "d89ba336861d5726": "Una ejecución del hilo",
   "b3527483bd2702a3": "El hilo tal como estaba entonces",
   "fec208ea8cc10427": "No está en la parte cargada de este hilo",
-  "04b11228453baedb": "Este hilo está archivado. Desarchívalo para llamar sobre él."
+  "04b11228453baedb": "Este hilo está archivado. Desarchívalo para llamar sobre él.",
+  "d5e6a4ce55a458ec": "Cargando la llamada…",
+  "6e7a509cb2404b29": "No se pudo cargar la llamada."
 }

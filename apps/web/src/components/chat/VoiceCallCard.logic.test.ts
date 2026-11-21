@@ -40,12 +40,14 @@ const call = (lines: number): VoiceCallItem => ({
   type: "voice_call",
   callId: "call-1",
   truncated: false,
-  lines: Array.from({ length: lines }, (_, n) => ({
+  lineCount: lines,
+});
+const linesOf = (count: number) =>
+  Array.from({ length: count }, (_, n) => ({
     speaker: n % 2 === 0 ? ("caller" as const) : ("voice" as const),
     text: `line ${n}`,
     relay: false,
-  })),
-});
+  }));
 
 const row = (item: OrchestrationV2ProjectedTurnItem["item"]): OrchestrationV2ProjectedTurnItem => ({
   position: item.ordinal,
@@ -57,12 +59,9 @@ const row = (item: OrchestrationV2ProjectedTurnItem["item"]): OrchestrationV2Pro
 
 it("summarizes the call and bounds a long one until it is asked for in full", () => {
   expect(voiceCallMinutes(call(2))).toBe(4);
-  expect(shownVoiceCallLines(call(VOICE_CALL_SHOWN_LINES + 10), false)).toHaveLength(
-    VOICE_CALL_SHOWN_LINES,
-  );
-  expect(shownVoiceCallLines(call(VOICE_CALL_SHOWN_LINES + 10), true)).toHaveLength(
-    VOICE_CALL_SHOWN_LINES + 10,
-  );
+  const long = linesOf(VOICE_CALL_SHOWN_LINES + 10);
+  expect(shownVoiceCallLines(call(long.length), long, false)).toHaveLength(VOICE_CALL_SHOWN_LINES);
+  expect(shownVoiceCallLines(call(long.length), long, true)).toHaveLength(long.length);
 });
 
 it("points a checked line's evidence at the thread items it rests on, and never guesses one", () => {

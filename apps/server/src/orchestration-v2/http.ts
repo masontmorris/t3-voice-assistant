@@ -39,7 +39,11 @@ import {
   loadSubscriberShellSnapshot,
   projectIdentitiesDigest,
 } from "./ShellStream.ts";
-import { boundedSnapshotResponseFields, snapshotVoiceCallSpan } from "./ThreadStream.ts";
+import {
+  boundedSnapshotResponseFields,
+  historyVoiceCallSpan,
+  snapshotVoiceCallSpan,
+} from "./ThreadStream.ts";
 import { projectThreadProjectionForWire } from "./WireProjection.ts";
 
 const isInvalidThreadHistoryCursorError = Schema.is(InvalidThreadHistoryCursorError);
@@ -78,19 +82,15 @@ export const layer = HttpApiBuilder.group(
       workGroup: boolean,
     ) {
       // A work group's rows are one run's, which no voice call follows.
-      const oldest = workGroup
-        ? undefined
-        : page.items.find((row) => row.sourceThreadId === threadId);
-      if (oldest === undefined) return page;
+      if (workGroup) return page;
       const newer =
         cursor.st === threadId
           ? (yield* threadManagement.getTurnItem({ threadId, itemId: TurnItemId.make(cursor.si) }))
               .item
           : null;
-      const voiceCalls = yield* threadManagement.getThreadVoiceCalls(threadId, {
-        from: oldest.item.ordinal,
-        ...(newer === null ? {} : { before: newer.ordinal }),
-      });
+      const span = historyVoiceCallSpan(page, threadId, newer?.ordinal ?? null);
+      if (span === null) return page;
+      const voiceCalls = yield* threadManagement.getThreadVoiceCalls(threadId, span);
       return voiceCalls.length === 0 ? page : { ...page, voiceCalls };
     });
 

@@ -5,8 +5,8 @@ import { expect, it } from "vite-plus/test";
 
 /**
  * A voice call is no turn item, so no read of a thread's items, counts or positions sees one; that is the type's
- * work. This scan checks the rest: who may read calls, who handles their event, and which server code hands
- * them to a client. NOT_SEEN is what it cannot see.
+ * work. This scan checks the rest: who may read calls or their lines, who handles their event, which server code
+ * hands them to a client, and who may open the subscription that carries them. NOT_SEEN is what it cannot see.
  */
 const NOT_SEEN = [
   "SQL that names the table through a string built at run time",
@@ -14,13 +14,20 @@ const NOT_SEEN = [
   "code outside this repository",
 ] as const;
 
-const READ = /getThreadVoiceCalls|orchestration_v2_projection_voice_calls/;
+const READ = /getThreadVoiceCalls|getVoiceCallLines|orchestration_v2_projection_voice_calls/;
 const READERS: Record<string, string> = {
-  "apps/server/src/orchestration-v2/ProjectionStore.ts": "defines the read and projects the table",
-  "apps/server/src/orchestration-v2/Orchestrator.ts": "refuses a second record of one card",
-  "apps/server/src/orchestration-v2/ThreadManagementService.ts": "passes the read on",
+  "apps/server/src/orchestration-v2/ProjectionStore.ts": "defines the reads and projects the table",
+  "apps/server/src/orchestration-v2/Orchestrator.ts":
+    "refuses a second record of one card, and passes the reads on",
+  "apps/server/src/orchestration-v2/ThreadManagementService.ts": "passes the reads on",
+  "packages/contracts/src/orchestrationV2.ts": "names the owner's lines read",
+  "packages/contracts/src/rpc.ts": "types the owner's lines read",
+  "apps/server/src/auth/RpcAuthorization.ts": "gives the lines read the orchestration read scope",
+  "apps/server/src/observability/RpcInstrumentation.ts": "names the lines read's span",
+  "packages/client-runtime/src/state/orchestration.ts":
+    "the owner's client reads an opened card's lines",
   "apps/server/src/voiceSeam/record.ts": "the voice seam reads back the card it recorded",
-  "apps/server/src/ws.ts": "the owner's own thread subscription",
+  "apps/server/src/ws.ts": "the owner's own thread subscription and its lines read",
   "apps/server/src/orchestration-v2/http.ts": "the owner's own snapshot and history reads",
   "apps/server/src/persistence/Migrations/106_VoiceCalls.ts": "creates the table",
   "apps/server/scripts/migrate-dev-db.ts": "clears every call from a dev seed",
@@ -33,6 +40,8 @@ const EVENT_HANDLERS: Record<string, string> = {
   "apps/server/src/orchestration-v2/ProjectionStore.ts":
     "projects it, touches no thread, and leaves it out of a thread's latest sequence",
   "apps/server/src/guest/GuestShareService.ts": "drops it from a guest's stream",
+  "apps/server/src/ws.ts": "drops it from every subscription but the owner's",
+  "apps/server/src/orchestration-v2/WireProjection.ts": "takes the lines out of every wire copy",
   "apps/server/src/relay/AgentAwarenessRelay.ts": "never relays it",
   "packages/client-runtime/src/state/orchestrationV2Projection.ts": "the owner's client keeps it",
   "apps/server/scripts/migrate-dev-db.ts": "drops it from a dev seed",
@@ -44,6 +53,15 @@ const HANDS_OUT: Record<string, string> = {
   "apps/server/src/ws.ts": "the owner's own thread subscription",
   "apps/server/src/orchestration-v2/http.ts": "the owner's own snapshot and history reads",
 };
+
+/** Every opener of the thread subscription; only the owner's RPC handler may ask it for calls. */
+const SUBSCRIPTION = /subscribeOrchestrationV2Thread/;
+const SUBSCRIBERS: Record<string, string> = {
+  "apps/server/src/ws.ts": "defines it and opens it for the owner's own RPC",
+  "apps/server/src/peer/linkThreadHttp.ts":
+    "a linked environment's read, without the owner's calls",
+};
+const OWNER_SUBSCRIPTION = /subscribeOrchestrationV2Thread\([^;]*\{\s*owner:\s*true\s*\}/;
 
 const NOT_SOURCE =
   /\.test\.ts$|\.testkit\.ts$|\/testkit\/|[tT]estFixtures\.ts$|\/test[A-Z]\w*\.ts$/;
@@ -87,4 +105,13 @@ it("hands voice calls to a client only on the owner's own reads", () => {
     matching(HANDED_OUT, (path) => path.startsWith("apps/server/")),
     "server code that sends voiceCalls",
   ).toEqual(Object.keys(HANDS_OUT).toSorted());
+});
+
+it("opens the thread subscription for its owner only from the owner's RPC handler", () => {
+  expect(matching(SUBSCRIPTION), "a new opener of the thread subscription").toEqual(
+    Object.keys(SUBSCRIBERS).toSorted(),
+  );
+  expect(matching(OWNER_SUBSCRIPTION), "a subscription opened as the owner").toEqual([
+    "apps/server/src/ws.ts",
+  ]);
 });

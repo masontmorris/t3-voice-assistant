@@ -76,6 +76,7 @@ import {
   OrchestrationV2SubagentJson as OrchestrationV2SubagentJsonSchema,
   OrchestrationV2TurnItemJson as OrchestrationV2TurnItemJsonSchema,
   OrchestrationV2VoiceCallJson,
+  OrchestrationV2VoiceCallLine,
   orchestrationV2RunWorkStartedAt,
   RunId,
   MessageId,
@@ -587,13 +588,19 @@ export interface ProjectionStoreV2Shape {
     childThreadId: ThreadId,
   ) => Effect.Effect<boolean, ProjectionStoreV2Error>;
   /**
-   * The thread's voice calls, the caller's own: only the owner's own reads ask for them. `span` keeps the calls that
-   * follow an item with an ordinal from `from` up to, not including, `before`.
+   * The thread's voice call cards, the caller's own: only the owner's own reads ask for them. `span` keeps the calls
+   * that follow an item with an ordinal from `from` up to, not including, `before`. Calls after one item keep the
+   * order they were made in.
    */
   readonly getThreadVoiceCalls: (
     threadId: ThreadId,
     span?: { readonly from?: number; readonly before?: number },
   ) => Effect.Effect<ReadonlyArray<OrchestrationV2VoiceCall>, ProjectionStoreV2Error>;
+  /** One card's lines, read when the owner opens it; null when the thread has no such call. */
+  readonly getVoiceCallLines: (
+    threadId: ThreadId,
+    voiceCallId: TurnItemId,
+  ) => Effect.Effect<ReadonlyArray<OrchestrationV2VoiceCallLine> | null, ProjectionStoreV2Error>;
   readonly getNextTurnItemOrdinal: (
     threadId: ThreadId,
   ) => Effect.Effect<number, ProjectionStoreV2Error>;
@@ -1410,6 +1417,9 @@ const encodeVoiceCallPayload = Schema.encodeEffect(
 const decodeVoiceCallPayload = Schema.decodeUnknownEffect(
   Schema.fromJsonString(OrchestrationV2VoiceCallJson),
 );
+const VoiceCallLinesJson = Schema.fromJsonString(Schema.Array(OrchestrationV2VoiceCallLine));
+const encodeVoiceCallLines = Schema.encodeEffect(VoiceCallLinesJson);
+const decodeVoiceCallLines = Schema.decodeUnknownEffect(VoiceCallLinesJson);
 // The codec every *Json payload schema uses for timestamps, so index columns match payload_json.
 const encodePayloadTimestamp = Schema.encodeEffect(Schema.DateTimeUtcFromString);
 const encodeCheckpointScopePayload = Schema.encodeEffect(
@@ -3127,15 +3137,24 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               break;
             }
             case "thread.voice-call.recorded": {
+              const { call, lines } = event.payload;
+              if (lines === undefined) {
+                return yield* new ProjectionStoreReadError({
+                  threadId: call.threadId,
+                  cause: "A stored voice call event holds its lines.",
+                });
+              }
               yield* sql`
               INSERT INTO orchestration_v2_projection_voice_calls (
-                voice_call_id, thread_id, ordinal, payload_json
+                voice_call_id, thread_id, ordinal, started_at, payload_json, lines_json
               )
               VALUES (
-                ${event.payload.id},
-                ${event.payload.threadId},
-                ${event.payload.ordinal},
-                ${yield* encodeVoiceCallPayload(event.payload)}
+                ${call.id},
+                ${call.threadId},
+                ${call.ordinal},
+                ${yield* encodePayloadTimestamp(call.startedAt ?? call.updatedAt)},
+                ${yield* encodeVoiceCallPayload(call)},
+                ${yield* encodeVoiceCallLines(lines)}
               )
               ON CONFLICT(voice_call_id) DO NOTHING
             `;
@@ -6830,8 +6849,21 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         WHERE thread_id = ${threadId}
           AND ordinal >= ${span?.from ?? 0}
           AND ordinal < ${span?.before ?? Number.MAX_SAFE_INTEGER}
-        ORDER BY ordinal ASC, voice_call_id ASC`.pipe(
+        ORDER BY ordinal ASC, started_at ASC, voice_call_id ASC`.pipe(
         Effect.flatMap(Effect.forEach((row) => decodeVoiceCallPayload(row.payload_json))),
+        Effect.mapError(controlReadError(threadId)),
+      );
+
+    const getVoiceCallLines: ProjectionStoreV2Shape["getVoiceCallLines"] = (
+      threadId,
+      voiceCallId,
+    ) =>
+      sql<{ lines_json: string }>`SELECT lines_json
+        FROM orchestration_v2_projection_voice_calls
+        WHERE voice_call_id = ${voiceCallId} AND thread_id = ${threadId}`.pipe(
+        Effect.flatMap((rows) =>
+          rows[0] === undefined ? Effect.succeed(null) : decodeVoiceCallLines(rows[0].lines_json),
+        ),
         Effect.mapError(controlReadError(threadId)),
       );
 
@@ -9920,6 +9952,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       hasPendingDelegatedCompletion: readOnReader(hasPendingDelegatedCompletion),
       getNextTurnItemOrdinal: readOnReader(getNextTurnItemOrdinal),
       getThreadVoiceCalls: readOnReader(getThreadVoiceCalls),
+      getVoiceCallLines: readOnReader(getVoiceCallLines),
       getTurnItem: readOnReader(getTurnItem),
       getMessagesById: readOnReader(getMessagesById),
       getThreadRecords: (threadId, fields, filter) =>

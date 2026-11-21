@@ -92,7 +92,8 @@ const withLinkExpiry = (
         DateTime.formatIso(linkExpiresAt),
       );
 
-// The owner's thread subscription with a bounded snapshot: the same items, in the same order.
+// A linked environment's read: the thread subscription with a bounded snapshot, but not the owner's, so it carries
+// no voice call card and no call's event.
 const streamRoute = HttpRouter.add(
   "GET",
   PEER_LINK_THREAD_STREAM_ROUTE,

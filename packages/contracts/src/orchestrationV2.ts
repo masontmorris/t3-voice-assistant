@@ -1882,7 +1882,7 @@ export type OrchestrationV2VoiceCallLine = typeof OrchestrationV2VoiceCallLine.T
 const OrchestrationV2VoiceCallFields = {
   type: Schema.Literal("voice_call"),
   callId: TrimmedNonEmptyString,
-  lines: Schema.Array(OrchestrationV2VoiceCallLine),
+  lineCount: NonNegativeInt,
   /** Lines or text past VOICE_CALL_LIMITS were left out. */
   truncated: Schema.Boolean,
 } as const;
@@ -2121,15 +2121,22 @@ export const OrchestrationV2TurnItem = Schema.Union([
 export type OrchestrationV2TurnItem = typeof OrchestrationV2TurnItem.Type;
 
 /**
- * A live voice call's transcript, the caller's own. It is no turn item, so no read of a thread's items, counts or
- * positions sees it; only the owner's own clients get it, as `voiceCalls`. It takes no ordinal: `ordinal` is that of
- * the thread item it follows. Shaped as an item so the owner's timeline shows it as one.
+ * A live voice call's card, the caller's own. It is no turn item, so no read of a thread's items, counts or positions
+ * sees it; only the owner's own clients get it, as `voiceCalls`, and they read its lines with getVoiceCallLines when
+ * it is opened. It takes no ordinal: `ordinal` is that of the item it follows, 0 when none. Shaped as an item so the
+ * owner's timeline shows it as one.
  */
 export const OrchestrationV2VoiceCall = Schema.Struct({
   ...OrchestrationV2TurnItemBaseFields,
   ...OrchestrationV2VoiceCallFields,
 });
 export type OrchestrationV2VoiceCall = typeof OrchestrationV2VoiceCall.Type;
+/** A recorded call: the stored event holds its lines, which every wire copy leaves out. */
+export const OrchestrationV2VoiceCallRecorded = Schema.Struct({
+  call: OrchestrationV2VoiceCall,
+  lines: Schema.optionalKey(Schema.Array(OrchestrationV2VoiceCallLine)),
+});
+export type OrchestrationV2VoiceCallRecorded = typeof OrchestrationV2VoiceCallRecorded.Type;
 /** What the owner's timeline shows: the thread's items and its voice calls. */
 export type OrchestrationV2OwnerTurnItem = OrchestrationV2TurnItem | OrchestrationV2VoiceCall;
 
@@ -2309,7 +2316,7 @@ export const OrchestrationV2DomainEvent = Schema.Union([
   Schema.Struct({
     ...OrchestrationV2EventBase.fields,
     type: Schema.Literal("thread.voice-call.recorded"),
-    payload: OrchestrationV2VoiceCall,
+    payload: OrchestrationV2VoiceCallRecorded,
   }),
   Schema.Struct({
     ...OrchestrationV2EventBase.fields,
@@ -3273,7 +3280,10 @@ export const OrchestrationV2DomainEventJson = Schema.Union([
   Schema.Struct({
     ...OrchestrationV2JsonEventBaseFields,
     type: Schema.Literal("thread.voice-call.recorded"),
-    payload: OrchestrationV2VoiceCallJson,
+    payload: Schema.Struct({
+      call: OrchestrationV2VoiceCallJson,
+      lines: Schema.optionalKey(Schema.Array(OrchestrationV2VoiceCallLine)),
+    }),
   }),
   Schema.Struct({
     ...OrchestrationV2JsonEventBaseFields,
@@ -4121,6 +4131,7 @@ export const ORCHESTRATION_V2_WS_METHODS = {
   stopWorkflow: "orchestration.stopWorkflow",
   forceStopThread: "orchestration.forceStopThread",
   getTurnItem: "orchestration.getTurnItem",
+  getVoiceCallLines: "orchestration.getVoiceCallLines",
   launchThread: "orchestration.launchThread",
   subscribeShell: "orchestration.subscribeShell",
   subscribeThread: "orchestration.subscribeThread",
@@ -4682,6 +4693,19 @@ export const OrchestrationV2GetTurnItemInput = Schema.Struct({
 });
 export type OrchestrationV2GetTurnItemInput = typeof OrchestrationV2GetTurnItemInput.Type;
 
+export const OrchestrationV2GetVoiceCallLinesInput = Schema.Struct({
+  threadId: ThreadId,
+  voiceCallId: TurnItemId,
+});
+export type OrchestrationV2GetVoiceCallLinesInput =
+  typeof OrchestrationV2GetVoiceCallLinesInput.Type;
+/** Null when the thread has no such call. */
+export const OrchestrationV2GetVoiceCallLinesResult = Schema.Struct({
+  lines: Schema.NullOr(Schema.Array(OrchestrationV2VoiceCallLine)),
+});
+export type OrchestrationV2GetVoiceCallLinesResult =
+  typeof OrchestrationV2GetVoiceCallLinesResult.Type;
+
 export const OrchestrationV2GetTurnItemResult = Schema.Struct({
   item: Schema.NullOr(OrchestrationV2TurnItem),
 });
@@ -4837,6 +4861,10 @@ export const OrchestrationV2RpcSchemas = {
   getTurnItem: {
     input: OrchestrationV2GetTurnItemInput,
     output: OrchestrationV2GetTurnItemResult,
+  },
+  getVoiceCallLines: {
+    input: OrchestrationV2GetVoiceCallLinesInput,
+    output: OrchestrationV2GetVoiceCallLinesResult,
   },
   launchThread: {
     input: OrchestrationV2ThreadLaunchInput,

@@ -554,6 +554,7 @@ export interface ThreadManagementServiceShape {
   >;
   readonly getThreadEventSequence: Orchestrator.OrchestratorV2["Service"]["getThreadEventSequence"];
   readonly getThreadVoiceCalls: Orchestrator.OrchestratorV2["Service"]["getThreadVoiceCalls"];
+  readonly getVoiceCallLines: Orchestrator.OrchestratorV2["Service"]["getVoiceCallLines"];
   readonly recoverDelegatedTask: Orchestrator.OrchestratorV2["Service"]["recoverDelegatedTask"];
   readonly cancelDelegatedTask: Orchestrator.OrchestratorV2["Service"]["cancelDelegatedTask"];
   readonly delegatedTaskResultPending: Orchestrator.OrchestratorV2["Service"]["delegatedTaskResultPending"];
@@ -1880,6 +1881,7 @@ const make = Effect.gen(function* () {
     awaitBackgroundTasks,
     getThreadEventSequence: orchestrator.getThreadEventSequence,
     getThreadVoiceCalls: orchestrator.getThreadVoiceCalls,
+    getVoiceCallLines: orchestrator.getVoiceCallLines,
     recoverDelegatedTask: orchestrator.recoverDelegatedTask,
     cancelDelegatedTask: orchestrator.cancelDelegatedTask,
     delegatedTaskResultPending: orchestrator.delegatedTaskResultPending,

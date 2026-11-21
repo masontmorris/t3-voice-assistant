@@ -12502,5 +12502,7 @@
   "d89ba336861d5726": "Une exécution du fil",
   "b3527483bd2702a3": "Le fil tel qu’il était alors",
   "fec208ea8cc10427": "Absent de la partie chargée de ce fil",
-  "04b11228453baedb": "Ce fil est archivé. Désarchivez-le pour appeler à son sujet."
+  "04b11228453baedb": "Ce fil est archivé. Désarchivez-le pour appeler à son sujet.",
+  "d5e6a4ce55a458ec": "Chargement de l’appel…",
+  "6e7a509cb2404b29": "Impossible de charger l’appel."
 }

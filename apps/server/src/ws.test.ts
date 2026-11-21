@@ -36,6 +36,7 @@ import {
   type OrchestrationV2DomainEvent,
   type OrchestrationV2StoredEvent,
   type OrchestrationV2ThreadShell,
+  type OrchestrationV2ThreadStreamItem,
   type OrchestrationProjectShell,
   type ServerConfig,
   type ServerConfigStreamEvent,
@@ -182,6 +183,7 @@ import * as SqlitePersistence from "./persistence/Sqlite.ts";
 import * as ExternalLauncher from "./process/externalLauncher.ts";
 import * as ProjectEnrichment from "./project/ProjectEnrichmentService.ts";
 import * as ProjectService from "./project/ProjectService.ts";
+import { projectStoredEventForWire } from "./orchestration-v2/WireProjection.ts";
 import {
   layerWsRpc,
   resolveOpenDiscoveryForConfig,
@@ -484,6 +486,148 @@ it.effect("coalesces streaming replay before synchronization and the live tail",
       ],
     );
   }).pipe(Effect.scoped, Effect.provide(ReplayTestLayer)),
+);
+
+it.effect(
+  "only the owner's subscription carries a thread's voice calls: never a linked environment's snapshot, replay or live tail",
+  () =>
+    Effect.gen(function* () {
+      const store = yield* OrchestrationEventStore.OrchestrationEventStore;
+      const sql = yield* SqlClient.SqlClient;
+      const threadId = ThreadId.make("thread:voice-call-reader");
+      const now = "2026-11-21T10:00:00.000Z";
+      const call = {
+        id: "turn-item:voice-call:reader",
+        threadId,
+        runId: null,
+        nodeId: null,
+        providerThreadId: null,
+        providerTurnId: null,
+        nativeItemRef: null,
+        parentItemId: null,
+        ordinal: 1,
+        status: "completed",
+        title: null,
+        startedAt: now,
+        completedAt: now,
+        updatedAt: now,
+        type: "voice_call",
+        callId: "call-reader",
+        lineCount: 1,
+        truncated: false,
+      };
+      const insert = (version: number, type: string, payload: unknown) => sql<{
+        sequence: number;
+      }>`
+        INSERT INTO orchestration_events (
+          event_id, aggregate_kind, stream_id, stream_version, event_type,
+          occurred_at, actor_kind, payload_json, metadata_json, application_event_version
+        ) VALUES (
+          ${`voice-call-reader:${version}`}, 'thread', ${threadId}, ${version}, ${type},
+          ${now}, 'server', ${JSON.stringify(payload)}, '{}', 2
+        ) RETURNING sequence
+      `;
+      const detached = { providerSessionId: "session:reader", detachedAt: now };
+      const [first] = yield* insert(0, "provider-session.detached", detached);
+      const [recorded] = yield* insert(1, "thread.voice-call.recorded", {
+        call,
+        lines: [{ speaker: "caller", text: "Private words", relay: false }],
+      });
+      const [later] = yield* insert(2, "provider-session.detached", detached);
+      const snapshot = {
+        snapshotSequence: first!.sequence,
+        projection: {
+          thread: { id: threadId },
+          ...Object.fromEntries(
+            [
+              "runs",
+              "attempts",
+              "nodes",
+              "subagents",
+              "providerSessions",
+              "providerThreads",
+              "providerTurns",
+              "runtimeRequests",
+              "messages",
+              "plans",
+              "turnItems",
+              "checkpointScopes",
+              "checkpoints",
+              "contextHandoffs",
+              "contextTransfers",
+              "visibleTurnItems",
+            ].map((field) => [field, []]),
+          ),
+        } as never,
+      };
+      const read = (owner: boolean, afterSequence?: number) =>
+        subscribeOrchestrationV2Thread(
+          {
+            threadId,
+            requestCompletionMarker: true,
+            ...(afterSequence === undefined ? {} : { afterSequence }),
+          },
+          { owner },
+        ).pipe(
+          Effect.flatMap(Stream.runCollect),
+          Effect.map((items) => Array.from(items)),
+          Effect.provideService(ThreadManagement.ThreadManagementService, {
+            ensureLegacyTranscript: () => Effect.void,
+            getThreadSnapshot: () => Effect.succeed(snapshot),
+            getThreadVoiceCalls: () =>
+              owner ? Effect.succeed([call]) : Effect.die("only the owner reads calls"),
+            getThreadShell: () => Effect.succeed(null),
+            // As the event sink streams them: projected for the wire.
+            streamStoredEventsFrom: (input: { readonly afterSequence?: number }) =>
+              store
+                .readAgentEvents({ threadId, afterSequence: input.afterSequence ?? 0 })
+                .pipe(Stream.map(projectStoredEventForWire)),
+          } as unknown as ThreadManagement.ThreadManagementService["Service"]),
+        );
+      const shape = (items: ReadonlyArray<OrchestrationV2ThreadStreamItem>) =>
+        items.map((item) =>
+          item.kind === "event"
+            ? [item.sequence, item.event.type]
+            : item.kind === "snapshot"
+              ? ["snapshot", item.projection.voiceCalls?.length ?? 0]
+              : [item.kind],
+        );
+      // A fresh read: the snapshot, then the live tail from its sequence.
+      assert.deepEqual(shape(yield* read(false)), [
+        ["snapshot", 0],
+        ["synchronized"],
+        [later!.sequence, "provider-session.detached"],
+      ]);
+      const owned = yield* read(true);
+      assert.deepEqual(shape(owned), [
+        ["snapshot", 1],
+        ["synchronized"],
+        [recorded!.sequence, "thread.voice-call.recorded"],
+        [later!.sequence, "provider-session.detached"],
+      ]);
+      assert.notInclude(JSON.stringify(owned), "Private words", "no wire copy holds the lines");
+      // A resume: the replay from the reader's cursor, then the live tail.
+      assert.deepEqual(shape(yield* read(false, first!.sequence)), [
+        [later!.sequence, "provider-session.detached"],
+        ["synchronized"],
+      ]);
+      assert.deepEqual(shape(yield* read(true, first!.sequence)), [
+        [recorded!.sequence, "thread.voice-call.recorded"],
+        [later!.sequence, "provider-session.detached"],
+        ["synchronized"],
+      ]);
+      // A call is the thread's newest event and the log was pruned past the reader's cursor: a reader that never
+      // receives calls is idle at that cursor, so it resumes with nothing to replay instead of a full snapshot.
+      const [newest] = yield* insert(3, "thread.voice-call.recorded", {
+        call: { ...call, id: "turn-item:voice-call:newest" },
+        lines: [],
+      });
+      yield* sql`INSERT INTO orchestration_v2_projection_metadata (
+        projection_name, schema_version, last_sequence, updated_at
+      ) VALUES ('event-log-pruned-through', 2, ${newest!.sequence}, ${now})
+      ON CONFLICT(projection_name) DO UPDATE SET last_sequence = excluded.last_sequence`;
+      assert.deepEqual(shape(yield* read(false, later!.sequence)), [["synchronized"]]);
+    }).pipe(Effect.scoped, Effect.provide(ReplayTestLayer)),
 );
 
 it.effect("shell groups read distinct threads once and keep each event's own sequence", () =>

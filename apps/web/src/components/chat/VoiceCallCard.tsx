@@ -6,6 +6,7 @@ import { AudioLinesIcon, ChevronDownIcon } from "lucide-react";
 import { use, useState } from "react";
 
 import { cn } from "~/lib/utils";
+import { useVoiceCallLines } from "../../state/queries";
 import { environmentThreadDetails } from "../../state/threads";
 import { Button } from "../ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "../ui/collapsible";
@@ -35,7 +36,7 @@ export function VoiceCallCard(props: {
   const label = gt("Voice call");
   const summary = gt(
     "{count, plural, one {{count} line} other {{count} lines}} · {minutes, plural, one {{minutes} min} other {{minutes} min}}",
-    { count: item.lines.length, minutes: voiceCallMinutes(item) },
+    { count: item.lineCount, minutes: voiceCallMinutes(item) },
   );
   const toggle = (open: boolean) => {
     ctx.onToggleWorkEntry(props.rowId, expanded);
@@ -43,7 +44,18 @@ export function VoiceCallCard(props: {
     else ctx.workGroupViewState.expandedEntries.delete(viewKey);
     setExpanded(open);
   };
-  const lines = shownVoiceCallLines(item, showAll);
+  // The card holds only its header; its lines are read when it is opened, and kept.
+  const opened = useVoiceCallLines(
+    expanded
+      ? {
+          environmentId: ctx.activeThreadEnvironmentId,
+          threadId: item.threadId,
+          voiceCallId: item.id,
+        }
+      : null,
+  );
+  const allLines = opened.data?.lines ?? [];
+  const lines = shownVoiceCallLines(item, allLines, showAll);
   return (
     <WorkLogBlock continues={props.continues}>
       <Collapsible open={expanded} onOpenChange={toggle} data-v2-item-type="voice_call">
@@ -73,12 +85,23 @@ export function VoiceCallCard(props: {
         <CollapsiblePanel animate={false}>
           {expanded ? (
             <div className="mt-1 mb-1 flex flex-col gap-1.5 rounded-lg border border-border/60 bg-card/30 p-2">
+              {opened.data === null ? (
+                <span className="text-3xs text-muted-foreground">
+                  {opened.error === null
+                    ? gt("Loading the call…")
+                    : gt("The call could not be loaded.")}
+                </span>
+              ) : opened.data.lines === null ? (
+                <span className="text-3xs text-muted-foreground">
+                  {gt("The call could not be loaded.")}
+                </span>
+              ) : null}
               {lines.map(({ key, line }) => (
                 <VoiceCallLineRow key={key} line={line} threadId={item.threadId} />
               ))}
-              {lines.length < item.lines.length ? (
+              {lines.length < allLines.length ? (
                 <Button size="xs" variant="ghost" onClick={() => setShowAll(true)}>
-                  {gt("Show all {count} lines", { count: item.lines.length })}
+                  {gt("Show all {count} lines", { count: allLines.length })}
                 </Button>
               ) : null}
               {item.truncated ? (

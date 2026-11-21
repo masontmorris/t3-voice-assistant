@@ -5,6 +5,7 @@ import {
   MessageId,
   type OrchestrationV2StoredEvent,
   type OrchestrationV2VoiceCall,
+  type OrchestrationV2VoiceCallLine,
   ThreadId,
   VOICE_CALL_LIMITS,
 } from "@t3tools/contracts";
@@ -61,6 +62,7 @@ const rig = () =>
     const digest = yield* Digest.Digest;
     const dispatched: Array<Record<string, unknown>> = [];
     const cards: Array<OrchestrationV2VoiceCall> = [];
+    const sent = new Map<string, ReadonlyArray<OrchestrationV2VoiceCallLine>>();
     const receipts = new Map<string, ThreadId>();
     const sources = {
       digest,
@@ -75,7 +77,14 @@ const rig = () =>
               return Effect.succeed({ sequence: 77, replayed: true });
             }
             receipts.set(command.commandId, command.threadId);
-            cards.push({ ...command, id: command.turnItemId, type: "voice_call" } as never);
+            const lines = command.lines as ReadonlyArray<OrchestrationV2VoiceCallLine>;
+            sent.set(String(command.turnItemId), lines);
+            cards.push({
+              ...command,
+              id: command.turnItemId,
+              type: "voice_call",
+              lineCount: lines.length,
+            } as never);
             return Effect.succeed({ sequence: 42 });
           }),
       },
@@ -102,14 +111,14 @@ const rig = () =>
           ),
       },
     } as unknown as RecordSources;
-    return { dispatched, cards, record: make(sources).record };
+    return { dispatched, cards, sent, record: make(sources).record };
   });
 
 it.effect(
   "records the call once, with each checked line's evidence resolved, and a retry adds nothing",
   () =>
     Effect.gen(function* () {
-      const { dispatched, cards, record } = yield* rig();
+      const { dispatched, cards, sent, record } = yield* rig();
       const first = yield* record(input(LINES));
       assert.deepStrictEqual(
         {
@@ -123,15 +132,16 @@ it.effect(
       const card = cards[0];
       assert.strictEqual(card?.type, "voice_call");
       if (card === undefined) return;
-      assert.deepStrictEqual(card.lines[1]?.claim, {
+      const recorded = sent.get(card.id) ?? [];
+      assert.deepStrictEqual(recorded[1]?.claim, {
         act: "done",
         evidence: [
           { sequence: 41, ref: { type: "message", messageId: reply } },
           { sequence: 40, ref: null },
         ],
       });
-      assert.strictEqual(card.lines[2]?.interrupted, true);
-      assert.strictEqual(card.lines[0]?.claim, undefined, "a free line claims nothing");
+      assert.strictEqual(recorded[2]?.interrupted, true);
+      assert.strictEqual(recorded[0]?.claim, undefined, "a free line claims nothing");
 
       const again = yield* record(input(LINES));
       assert.deepStrictEqual([again.replayed, again.sequence], [true, 77]);
@@ -184,7 +194,7 @@ it.effect("binds the tail cut past the bounds too, though it is never recorded",
 );
 
 it.effect(
-  "answers concurrent copies of one request once, and refuses a concurrent different one",
+  "on a synchronous rig, answers copies of one request with one card and refuses another under its id; under real concurrency the orchestrator's command receipts hold this",
   () =>
     Effect.gen(function* () {
       const { cards, record } = yield* rig();

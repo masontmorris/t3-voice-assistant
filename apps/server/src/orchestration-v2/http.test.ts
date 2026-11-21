@@ -114,7 +114,7 @@ const voiceCall = Schema.decodeSync(OrchestrationV2VoiceCall)({
   status: "completed",
   title: null,
   callId: "call-1",
-  lines: [{ speaker: "caller", text: "Private words", relay: false }],
+  lineCount: 1,
   truncated: false,
   startedAt: now,
   completedAt: now,
@@ -253,7 +253,10 @@ it.effect("exports full history with size, scope, and missing-thread checks", ()
           type: "thread.voice-call.recorded" as const,
           threadId: thread.id,
           occurredAt: DateTime.add(now, { minutes: 1 }),
-          payload: voiceCall,
+          payload: {
+            call: voiceCall,
+            lines: [{ speaker: "caller" as const, text: "Private words", relay: false }],
+          },
         },
       ],
     });

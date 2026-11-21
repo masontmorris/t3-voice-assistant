@@ -24,6 +24,7 @@ import {
   ThreadId,
   TurnItemId,
   type OrchestrationV2DomainEvent,
+  type OrchestrationV2VoiceCallLine,
   type OrchestrationV2StoredEvent,
   type OrchestrationV2Subagent,
   type OrchestrationV2ThreadProjection,
@@ -91,6 +92,13 @@ const management = Layer.unwrap(
           .pipe(Effect.orDie),
       streamStoredEventsFrom: (input) =>
         input?.threadId === BODIES ? Stream.fromIterable(bodiesLiveTail()) : Stream.empty,
+      getThreadVoiceCalls: (id, span) =>
+        projections.getThreadVoiceCalls(id, span).pipe(Effect.orDie),
+      getTurnItem: (input) =>
+        projections.getTurnItem(input).pipe(
+          Effect.map((item) => ({ item })),
+          Effect.orDie,
+        ),
     });
   }),
 );
@@ -648,4 +656,96 @@ it.layer(TestLayer)("compact bounded snapshot transport", (it) => {
         }),
     );
   });
+});
+
+const voiceCallRecorded = (
+  id: string,
+  ordinal: number,
+  at: DateTime.Utc,
+  lines: ReadonlyArray<OrchestrationV2VoiceCallLine>,
+): OrchestrationV2DomainEvent => ({
+  id: EventId.make(`event:${id}`),
+  type: "thread.voice-call.recorded",
+  threadId: LONG,
+  occurredAt: at,
+  payload: {
+    call: {
+      id: TurnItemId.make(id),
+      threadId: LONG,
+      runId: null,
+      nodeId: null,
+      providerThreadId: null,
+      providerTurnId: null,
+      nativeItemRef: null,
+      parentItemId: null,
+      ordinal,
+      status: "completed",
+      title: null,
+      startedAt: at,
+      completedAt: at,
+      updatedAt: at,
+      type: "voice_call",
+      callId: id,
+      lineCount: lines.length,
+      truncated: false,
+    },
+    lines,
+  },
+});
+
+it.layer(TestLayer)("the owner's voice call cards over HTTP", (it) => {
+  it.effect(
+    "a snapshot and a history page carry the cards that follow their rows, each once, and never their lines",
+    () =>
+      Effect.gen(function* () {
+        const projections = yield* ProjectionStore.ProjectionStoreV2;
+        const at = yield* DateTime.now;
+        const line = (text: string) => ({ speaker: "caller" as const, text, relay: false });
+        const bounded = `/api/orchestration/threads/${encodeURIComponent(LONG)}/bounded?compactTurnItems=1`;
+        const read = withHttp(async (get) => {
+          const snapshotBody = await (await get(bounded)).text();
+          const snapshot = decodeBounded(snapshotBody);
+          const page = decodeHistoryPage(
+            await (
+              await get(
+                `/api/orchestration/threads/${encodeURIComponent(LONG)}/history?cursor=${encodeURIComponent(snapshot.historyCursor ?? "")}`,
+              )
+            ).text(),
+          );
+          const compact = decodeBounded(await (await get(`${bounded}&compactIds=1`)).text());
+          return { snapshotBody, snapshot, page, compact };
+        });
+        const before = yield* read;
+        yield* projections.apply(
+          voiceCallRecorded("turn-item:voice-call:newest", 92, at, [line("Private words")]),
+        );
+        yield* projections.apply(
+          voiceCallRecorded("turn-item:voice-call:first", 0, at, [line("Private words")]),
+        );
+        const after = yield* read;
+        assert.deepStrictEqual(
+          after.snapshot.projection.voiceCalls?.map((call) => call.id),
+          ["turn-item:voice-call:newest"],
+        );
+        assert.deepStrictEqual(
+          after.compact.projection.voiceCalls,
+          after.snapshot.projection.voiceCalls,
+        );
+        assert.isFalse(after.page.hasMoreHistory, "the thread's oldest page");
+        assert.deepStrictEqual(
+          after.page.voiceCalls?.map((call) => call.id),
+          ["turn-item:voice-call:first"],
+          "the call that follows no item comes with the oldest page",
+        );
+        assert.notInclude(JSON.stringify(after), "Private words");
+        assert.isUndefined(before.snapshot.projection.voiceCalls);
+
+        // A long transcript adds one card's header to the snapshot, not its lines.
+        const long = Array.from({ length: 400 }, (_, n) => line(`${n} ${"x".repeat(1_990)}`));
+        yield* projections.apply(voiceCallRecorded("turn-item:voice-call:long", 92, at, long));
+        const grown = yield* read;
+        const header = JSON.stringify(after.snapshot.projection.voiceCalls?.[0] ?? {}).length + 200;
+        assert.isBelow(grown.snapshotBody.length - after.snapshotBody.length, header);
+      }),
+  );
 });
