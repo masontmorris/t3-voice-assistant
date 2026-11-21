@@ -116,7 +116,7 @@ Revision numbers allow the receiver to discard out-of-order updates. A productio
 }
 ```
 
-`request_id` can make retries of the *same request* idempotent. Cross-source deduplication requires explicit reconciliation logic and cannot be guaranteed merely by issuing an ID.
+`request_id` can make retries of the _same request_ idempotent. Cross-source deduplication requires explicit reconciliation logic and cannot be guaranteed merely by issuing an ID.
 
 ### End-of-utterance snapshot
 
@@ -127,8 +127,13 @@ Revision numbers allow the receiver to discard out-of-order updates. A productio
   "utterance_id": "utt_456",
   "final_transcript": "Find the report and summarize it.",
   "tasks": [
-    {"task_id": "task_1", "description": "Find the report", "status": "running"},
-    {"task_id": "task_2", "description": "Summarize the report", "status": "pending", "depends_on": ["task_1"]}
+    { "task_id": "task_1", "description": "Find the report", "status": "running" },
+    {
+      "task_id": "task_2",
+      "description": "Summarize the report",
+      "status": "pending",
+      "depends_on": ["task_1"]
+    }
   ],
   "clarification_needed": null
 }

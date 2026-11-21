@@ -14,12 +14,15 @@ const LIMITS = [
   "SQL that names the table without `turn_items` in its text",
   "code outside this repository",
   "branding read results so text is unreadable before the rule narrows them would close the first; it would change every reader's signature",
+  "a count or cursor taken from a filtered read through an alias, a helper or another module, or outside COUNT_LEAD lines before and COUNT_REACH after the filter",
+  "whether a count a module passes on was made without voice calls: that is the read's own rule (getTimelinePage, and the history page and snapshot window asked withoutCallerPrivate)",
 ] as const;
 const APPLIES = "applies isCallerPrivateTurnItem";
 const OWNER = "the owner's own client state";
 const READERS: Record<string, string> = {
   "apps/server/src/guest/GuestShareService.ts": APPLIES,
-  "apps/server/src/mcp/OrchestratorMcpService.ts": APPLIES,
+  "apps/server/src/mcp/OrchestratorMcpService.ts":
+    "reads the timeline page and thread shells, whose rows, positions and counts leave voice calls out",
   "apps/server/src/orchestration-v2/ThreadManagementService.ts": APPLIES,
   "apps/server/src/orchestration-v2/ProjectionStore.ts": APPLIES,
   "packages/provider-core/src/server/handoffBudget.ts": APPLIES,
@@ -115,6 +118,28 @@ function sources(directory: string): Array<string> {
 
 const text = (path: string) => NodeFS.readFileSync(NodePath.join(root, path), "utf8");
 
+/** Readers for someone other than the owner, which must ask the shared reads to leave calls out. */
+const NOT_OWNER = ["apps/server/src/guest/GuestShareService.ts"];
+const COUNT_LEAD = 3;
+const COUNT_REACH = 40;
+const COUNT_FIELDS =
+  "totalItems|itemCount|visibleItemCount|hasMore|hasEarlier|hasMoreHistory|nextCursor|historyCursor|nextPosition|earlierPosition|snapshotSequence";
+const FILTERED_READ = /\b(\w+)\.\w+\.filter\(\s*\(?\s*\w+\s*\)?\s*=>\s*!isCallerPrivateTurnItem/g;
+
+/** Where rows of a read are filtered after it while the same read's counts or cursors go on. */
+function countsOfFilteredReads(source: string): Array<string> {
+  return Array.from(source.matchAll(FILTERED_READ)).flatMap((match) => {
+    const read = match[1]!;
+    const line = source.slice(0, match.index).split("\n").length - 1;
+    const after = source
+      .split("\n")
+      .slice(Math.max(0, line - COUNT_LEAD), line + COUNT_REACH)
+      .join("\n");
+    const passedOn = new RegExp(String.raw`\.\.\.${read}\b|\b${read}\.(?:${COUNT_FIELDS})\b`);
+    return passedOn.test(after) ? [read] : [];
+  });
+}
+
 it("every module that reads thread items is reviewed for the caller's private voice calls", () => {
   const packages = NodeFS.readdirSync(NodePath.join(root, "packages"), { withFileTypes: true })
     .filter(
@@ -138,7 +163,35 @@ it("every module that reads thread items is reviewed for the caller's private vo
   for (const [path, treatment] of Object.entries(READERS)) {
     if (treatment !== APPLIES) continue;
     expect(text(path), path).toContain("isCallerPrivateTurnItem");
+    expect(
+      countsOfFilteredReads(text(path)),
+      `${path}: rows filtered after a read leave that read's counts and cursors counting a voice call`,
+    ).toEqual([]);
   }
+  for (const path of NOT_OWNER) {
+    const source = text(path);
+    for (const call of source.matchAll(/getThreadSnapshotWindow\([^)]*\)/g)) {
+      expect(call[0], path).toContain("withoutCallerPrivate: true");
+    }
+    for (const call of source.matchAll(/getThreadHistoryPage\([^)]*\)/g)) {
+      expect(call[0], path).toMatch(/,\s*true\s*\)$/);
+    }
+  }
+});
+
+it("catches counts passed on from a read filtered after the fact", () => {
+  for (const sample of [
+    "const rows = timeline.items.filter((row) => !isCallerPrivateTurnItem(row.item));\nreturn { total: timeline.totalItems };",
+    "const page = { ...read, items: read.items.filter((row) => !isCallerPrivateTurnItem(row.item)) };",
+    "({\n  ...projection,\n  turnItems: projection.turnItems.filter((item) => !isCallerPrivateTurnItem(item)),\n})",
+  ]) {
+    expect(countsOfFilteredReads(sample), sample).not.toEqual([]);
+  }
+  expect(
+    countsOfFilteredReads(
+      "const rows = timeline.items.filter((row) => !isCallerPrivateTurnItem(row.item));\nreturn rows.length;",
+    ),
+  ).toEqual([]);
 });
 
 it("catches a re-export of a read function under another name", () => {

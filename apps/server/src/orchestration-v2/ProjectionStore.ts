@@ -1,6 +1,7 @@
 import type { ProjectThreadAwarenessV2Input } from "@t3tools/shared/agentAwareness";
 import {
   applyOrchestrationV2ThreadVisit,
+  CALLER_PRIVATE_TURN_ITEM_TYPES,
   isCallerPrivateTurnItem,
   pendingGuestMessageCount,
 } from "@t3tools/contracts";
@@ -558,7 +559,10 @@ export interface ProjectionStoreV2Shape {
     throughEntryId?: string,
     conversationOnly?: boolean,
     workMode?: "deferred" | "work",
+    /** For a reader other than the owner: its rows, positions and cursors skip voice calls. */
+    withoutCallerPrivate?: boolean,
   ) => Effect.Effect<OrchestrationV2ThreadHistoryPage, ProjectionStoreV2Error>;
+  /** Read by agents and guests, so its rows, positions and counts skip voice calls. */
   readonly getTimelinePage: (
     threadId: ThreadId,
     options: ProjectionTimelinePageOptions,
@@ -872,6 +876,8 @@ export interface ProjectionStoreV2Shape {
       readonly anchorItemId?: TurnItemId | undefined;
       readonly anchorThreadId?: ThreadId | undefined;
       readonly requiredRunId?: RunId | undefined;
+      /** For a reader other than the owner: the window and its sequence skip voice calls. */
+      readonly withoutCallerPrivate?: boolean | undefined;
     },
   ) => Effect.Effect<
     {
@@ -1979,8 +1985,11 @@ export function threadShellFromProjection(
       projection.providerThreads,
       projection.thread.activeProviderThreadId,
     ),
-    itemCount: activeLocalTurnItems(projection).length,
-    visibleItemCount: projection.visibleTurnItems.length,
+    itemCount: activeLocalTurnItems(projection).filter((row) => !isCallerPrivateTurnItem(row.item))
+      .length,
+    visibleItemCount: projection.visibleTurnItems.filter(
+      (row) => !isCallerPrivateTurnItem(row.item),
+    ).length,
     createdAt: projection.thread.createdAt,
     updatedAt: projection.thread.updatedAt,
     archivedAt: projection.thread.archivedAt,
@@ -2419,6 +2428,8 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       readonly local: ReadonlyArray<TimelineIndexRow>;
       readonly visible: ReadonlyArray<TimelineIndexRow>;
     };
+    const withoutCallerPrivateRows = (rows: ReadonlyArray<TimelineIndexRow>) =>
+      rows.filter((row) => !isCallerPrivateTurnItem(row.item));
     // Least recently used first; a few cover clients scrolling side by side without pinning every thread.
     const TIMELINE_INDEX_CACHE_LIMIT = 8;
     const timelineIndexes = new Map<
@@ -3356,6 +3367,19 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
           ),
       );
 
+    /** Keeps a reader other than the owner off voice calls, as `isCallerPrivateTurnItem` does. */
+    const callerPrivateFilter = (without: boolean | undefined, alias: string) =>
+      without === true
+        ? sql`AND ${sql.literal(alias)}.type NOT IN ${sql.in(CALLER_PRIVATE_TURN_ITEM_TYPES)}`
+        : sql``;
+
+    /** A thread's latest sequence as that reader saw it: a voice call's record moves it for the owner alone. */
+    const callerPrivateEventFilter = (without: boolean | undefined) =>
+      without === true
+        ? sql`AND NOT (event_type = 'turn-item.updated'
+            AND json_extract(payload_json, '$.type') IN ${sql.in(CALLER_PRIVATE_TURN_ITEM_TYPES)})`
+        : sql``;
+
     // Share selection so counting discarded ancestry preserves payload-read positions.
     const retainedWindowRows = Effect.fn("ProjectionStore.retainedWindowRows")(function* (
       threadId: ThreadId,
@@ -3379,6 +3403,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                       ORDER BY attempt_ordinal DESC LIMIT 1
                     )
                   WHERE item.thread_id = ${threadId}
+                    ${callerPrivateFilter(window.withoutCallerPrivate, "item")}
                     AND item.ordinal <= COALESCE(
                       (
                         SELECT ordinal
@@ -3722,6 +3747,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                     SELECT rowid AS item_rowid, ordinal, turn_item_id
                     FROM orchestration_v2_projection_turn_items
                     WHERE thread_id = ${threadId}
+                      ${callerPrivateFilter(window.withoutCallerPrivate, "orchestration_v2_projection_turn_items")}
                       AND ${window.anchorItemId ?? null} IS NULL
                       AND ${window.requiredRunId ?? null} IS NULL
                     ORDER BY ordinal DESC, turn_item_id DESC
@@ -4831,6 +4857,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                   rowLimit: window.rowLimit,
                   userTurnLimit: window.userTurnLimit,
                   deferWork: window.deferWork,
+                  withoutCallerPrivate: window.withoutCallerPrivate,
                   requiredRunId: forkedFrom.runId,
                   forkCreatedAt: projection.thread.createdAt,
                   suppressLocal: anchor === undefined || anchorIsInDescendant,
@@ -7140,7 +7167,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         Effect.mapError((cause) => new ProjectionStoreReadError({ threadId, cause })),
       );
     const readSnapshotTimelineIndex = Effect.fn("ProjectionStore.readSnapshotTimelineIndex")(
-      function* (threadId: ThreadId, includeAttempts: boolean) {
+      function* (threadId: ThreadId, includeAttempts: boolean, withoutCallerPrivate = false) {
         const key = `${includeAttempts ? "work" : "plain"}:${threadId}`;
         const cached = timelineIndexes.get(key);
         const index =
@@ -7157,7 +7184,10 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         const oldest = timelineIndexes.keys().next();
         if (timelineIndexes.size > TIMELINE_INDEX_CACHE_LIMIT && oldest.done !== true)
           timelineIndexes.delete(oldest.value);
-        return index;
+        // The owner's index is the one cached; another reader's drops voice calls before positions.
+        return withoutCallerPrivate
+          ? { ...index, visible: withoutCallerPrivateRows(index.visible) }
+          : index;
       },
     );
 
@@ -7245,6 +7275,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
     const openLocalTimeline = Effect.fn("ProjectionStore.openLocalTimeline")(function* (
       threadId: ThreadId,
       includePersistentOutput = false,
+      withoutCallerPrivate = false,
     ) {
       // A read that only the full index can answer left it cached, and it answers faster than
       // a window. The key is the one `readSnapshotTimelineIndex` uses.
@@ -7303,7 +7334,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       );
       type HiddenCandidate = {
         turn_item_id: string;
-        run_id: string;
+        run_id: string | null;
         node_id: string | null;
         type: OrchestrationV2TurnItem["type"];
         ordinal: number;
@@ -7336,15 +7367,25 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                   OR (item.type = 'run_interrupt_result'
                     AND item.run_id IN (SELECT value FROM json_each(${encodeIdList(steered)}))))`,
       ]);
-      const hidden = [...rolledBackRows, ...conversationRows].filter(
-        (row) =>
-          !isVisible({
-            type: row.type,
-            runId: RunId.make(row.run_id),
-            nodeId: row.node_id === null ? null : NodeId.make(row.node_id),
-            ...(row.input_intent === null ? {} : { inputIntent: row.input_intent }),
-          }),
-      );
+      // A reader other than the owner finds voice calls hidden, as every reader finds a rewound run.
+      const callerPrivateRows = withoutCallerPrivate
+        ? yield* sql<HiddenCandidate>`
+            SELECT turn_item_id, run_id, node_id, type, ordinal, NULL AS input_intent
+            FROM orchestration_v2_projection_turn_items
+            WHERE thread_id = ${threadId} AND type IN ${sql.in(CALLER_PRIVATE_TURN_ITEM_TYPES)}`
+        : [];
+      const hidden = [
+        ...[...rolledBackRows, ...conversationRows].filter(
+          (row) =>
+            !isVisible({
+              type: row.type,
+              runId: row.run_id === null ? null : RunId.make(row.run_id),
+              nodeId: row.node_id === null ? null : NodeId.make(row.node_id),
+              ...(row.input_intent === null ? {} : { inputIntent: row.input_intent }),
+            }),
+        ),
+        ...callerPrivateRows,
+      ];
       /** Counts the visible rows that sort before the given ordinal and item id. */
       const visibleBefore = Effect.fn("ProjectionStore.countVisibleTimelineRows")(function* (
         ordinal: number,
@@ -7363,7 +7404,10 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       });
       return {
         records,
-        isVisible,
+        isVisible: withoutCallerPrivate
+          ? (item: Parameters<typeof isVisible>[0]) =>
+              !isCallerPrivateTurnItem(item) && isVisible(item)
+          : isVisible,
         hidden,
         visibleBefore,
         read: (where: Statement.Fragment, limit?: Statement.Fragment) =>
@@ -7632,6 +7676,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
       throughEntryId,
       conversationOnly,
       workMode,
+      withoutCallerPrivate = false,
     ) =>
       sql
         .withTransaction(
@@ -7640,17 +7685,20 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
             // A jump to a target entry selects from the whole index.
             const local =
               (workMode === "work") === (throughEntryId !== undefined)
-                ? yield* openLocalTimeline(threadId, withWork)
+                ? yield* openLocalTimeline(threadId, withWork, withoutCallerPrivate)
                 : null;
             const full =
-              local === null ? yield* readSnapshotTimelineIndex(threadId, withWork) : null;
+              local === null
+                ? yield* readSnapshotTimelineIndex(threadId, withWork, withoutCallerPrivate)
+                : null;
             if ((local ?? full)?.records.thread.deletedAt !== null)
               return yield* new ProjectionStoreThreadNotFoundError({ threadId });
             const revisions = yield* sql<{
               sequence: number;
             }>`SELECT COALESCE(MAX(sequence), 0) AS sequence
           FROM orchestration_events WHERE application_event_version = 2
-          AND aggregate_kind = 'thread' AND stream_id = ${threadId}`;
+          AND aggregate_kind = 'thread' AND stream_id = ${threadId}
+          ${callerPrivateEventFilter(withoutCallerPrivate)}`;
             const snapshotSequence = revisions[0]?.sequence ?? 0;
             const select = (
               indexed: ReadonlyArray<IndexedTimelineRow>,
@@ -7702,7 +7750,9 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
                     select,
                   );
             const whole = Effect.gen(function* () {
-              const index = full ?? (yield* readSnapshotTimelineIndex(threadId, withWork));
+              const index =
+                full ??
+                (yield* readSnapshotTimelineIndex(threadId, withWork, withoutCallerPrivate));
               const indexed = index.visible.map((row, position): IndexedTimelineRow => ({
                 ...row,
                 position,
@@ -8009,10 +8059,10 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               (options.beforePosition === undefined ||
                 options.beforePosition === Number.POSITIVE_INFINITY ||
                 Number.isSafeInteger(options.beforePosition))
-                ? yield* openLocalTimeline(threadId)
+                ? yield* openLocalTimeline(threadId, false, true)
                 : null;
             const whole = Effect.gen(function* () {
-              const index = yield* readSnapshotTimelineIndex(threadId, false);
+              const index = yield* readSnapshotTimelineIndex(threadId, false, true);
               const attachmentOwners =
                 options.attachmentId === undefined
                   ? undefined
@@ -8149,6 +8199,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               rowLimit: options.rowLimit,
               userTurnLimit: options.userTurnLimit,
               deferWork: options.deferWork,
+              withoutCallerPrivate: options.withoutCallerPrivate,
               ...(historyAnchor?.threadId === threadId
                 ? { anchorItemId: historyAnchor.itemId }
                 : {}),
@@ -8187,6 +8238,7 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               WHERE application_event_version = 2
                 AND aggregate_kind = 'thread'
                 AND stream_id = ${threadId}
+                ${callerPrivateEventFilter(options.withoutCallerPrivate)}
             `;
             return {
               schemaVersion: ORCHESTRATION_V2_PROJECTION_SCHEMA_VERSION,
@@ -8569,6 +8621,13 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
         WHERE per_run.run_key <> '' AND per_run.thread_id IN (SELECT value FROM json_each(${encodeIdList(threadIds)}))
       `;
 
+    // A thread's counts are what a model, agent or guest could see, so they leave voice calls out.
+    // Voice calls carry no run; the type index answers this without reading the thread.
+    const callerPrivateCount = (alias: string) => sql`(
+      SELECT COUNT(*) FROM orchestration_v2_projection_turn_items caller_private
+      WHERE caller_private.thread_id = ${sql.literal(alias)}.thread_id
+        AND caller_private.type IN ${sql.in(CALLER_PRIVATE_TURN_ITEM_TYPES)}
+    )`;
     const selectShellItemCounts = (threadIds: ReadonlyArray<ThreadId>) =>
       sql<ShellItemCountRow>`
         -- Only the thread's hidden runs are visited, so settled history costs nothing here.
@@ -8589,12 +8648,12 @@ export const layer: Layer.Layer<ProjectionStoreV2, never, SqlClient.SqlClient> =
               ON counts.thread_id = r.thread_id AND counts.run_key = r.run_id
             WHERE r.thread_id = totals.thread_id
               AND r.status IN ('rolled_back', 'queued', 'cancelled')
-          ), 0) AS item_count,
+          ), 0) - ${callerPrivateCount("totals")} AS item_count,
           COALESCE((
             SELECT runless.item_count
             FROM orchestration_v2_projection_turn_item_counts runless
             WHERE runless.thread_id = totals.thread_id AND runless.run_key = ''
-          ), 0) AS runless_item_count
+          ), 0) - ${callerPrivateCount("totals")} AS runless_item_count
         FROM orchestration_v2_projection_thread_item_counts totals
         WHERE totals.thread_id IN (SELECT value FROM json_each(${encodeIdList(threadIds)}))
       `;

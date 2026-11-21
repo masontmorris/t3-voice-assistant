@@ -31,14 +31,14 @@ The decider can only pick among options the caller offers, so it cannot invent s
 2. Candidate segments. A proposer turns `text` into segments `{sid, start, end, text, open}`. Each segment is a `[start, end)` span of `text`, and only the last segment of a partial transcript is `open`.
 3. One decisions call. `state` holds the transcript, `transcript_is_final`, the segments by id, the open segment's id, the current task records, and any pending delegate submissions. The call asks these questions for each segment.
 
-| Question | Type | Options |
-| --- | --- | --- |
-| `<sid>_kind` | choice | `request`, `description`, `chitchat`, `correction`, `topic_change` |
-| `<sid>_ready` | choice | `dispatch_now`, `wait`, `clarify` |
-| `<sid>_side_effect` | noul | true when carrying it out sends, contacts, buys, books, posts, or changes someone's data |
-| `<sid>_depends` | choice, segments after the first | `none` or one earlier segment id |
-| `<sid>_corrects` | choice, segments after the first | `none`, `replace_<earlier sid>`, or `cancel_<earlier sid>` |
-| `<did>_same_as` | choice, per delegate submission | `new` or one segment id |
+| Question            | Type                             | Options                                                                                  |
+| ------------------- | -------------------------------- | ---------------------------------------------------------------------------------------- |
+| `<sid>_kind`        | choice                           | `request`, `description`, `chitchat`, `correction`, `topic_change`                       |
+| `<sid>_ready`       | choice                           | `dispatch_now`, `wait`, `clarify`                                                        |
+| `<sid>_side_effect` | noul                             | true when carrying it out sends, contacts, buys, books, posts, or changes someone's data |
+| `<sid>_depends`     | choice, segments after the first | `none` or one earlier segment id                                                         |
+| `<sid>_corrects`    | choice, segments after the first | `none`, `replace_<earlier sid>`, or `cancel_<earlier sid>`                               |
+| `<did>_same_as`     | choice, per delegate submission  | `new` or one segment id                                                                  |
 
 `voice/segmentation/contract.py` builds the request and parses the answers. Parsing is the trust boundary. A choice outside the offered set, a refusal, or a missing answer becomes a problem string. Any problem on a segment drops that segment's decision, and its task stays unchanged until the next decision point. No live response was malformed for option (a) (measured). Option (c) had 3 extraction answers with `"value": null` (measured).
 
@@ -46,11 +46,11 @@ The decider can only pick among options the caller offers, so it cannot invent s
 
 Each option ran once on the final transcript of all 11 scenarios. Per scenario, the requests count both live calls and cache hits.
 
-| Option | How it proposes segments | Passed | Requests | Decider calls per decision point | Failure pattern |
-| --- | --- | --- | --- | --- | --- |
-| (a) clause splitter | Cuts at sentence punctuation and at spoken markers: "and", "and then", "and also", "oh and", "but", "actually", "no wait", "never mind", "anyway". Drops filler-only pieces. | 10 of 11 | 11 | 1 | 09 only, a readiness answer with margin 0.33 |
-| (b) decider confirms boundaries | Cuts at (a)'s points plus every comma, then asks one `noul` per boundary and merges the pieces where the answer is false | 4 of 11 | 22 | 2 | Merged real boundaries ("and then summarize it", "now roll it again") and split "Actually" from its correction |
-| (c) decider extraction | One `list` field of `text`, using the returned `spans` | 5 of 11 | 19 | 2 | Returned no list on 3 transcripts, and dropped corrections and second requests |
+| Option                          | How it proposes segments                                                                                                                                                     | Passed   | Requests | Decider calls per decision point | Failure pattern                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------- | -------- | -------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| (a) clause splitter             | Cuts at sentence punctuation and at spoken markers: "and", "and then", "and also", "oh and", "but", "actually", "no wait", "never mind", "anyway". Drops filler-only pieces. | 10 of 11 | 11       | 1                                | 09 only, a readiness answer with margin 0.33                                                                   |
+| (b) decider confirms boundaries | Cuts at (a)'s points plus every comma, then asks one `noul` per boundary and merges the pieces where the answer is false                                                     | 4 of 11  | 22       | 2                                | Merged real boundaries ("and then summarize it", "now roll it again") and split "Actually" from its correction |
+| (c) decider extraction          | One `list` field of `text`, using the returned `spans`                                                                                                                       | 5 of 11  | 19       | 2                                | Returned no list on 3 transcripts, and dropped corrections and second requests                                 |
 
 The results files are in `voice/research/segmentation/results/final-a/`, `voice/research/segmentation/results/final-b/`, and `voice/research/segmentation/results/final-c/`. Options (b) and (c) failed at segmentation itself, and each needs two sequential calls per decision point. Streaming them would have cost about 130 more calls to confirm the same loss, so only option (a) ran on the full streams.
 
@@ -60,12 +60,12 @@ Bundling all segments into one call changed 1 of 115 answers compared with one s
 
 `voice/segmentation/tasks.py` owns the task records. Each record has `task_id`, `status`, `segment_text`, `instruction`, `sources`, `depends_on`, `revises`, `side_effect`, and an event `history`. A transition table defines the legal status changes. An illegal change raises `IllegalTransition`.
 
-| From | To |
-| --- | --- |
-| `proposed`, `ready`, `needs_clarification` | each other, `dispatched`, `superseded`, `withdrawn` |
-| `withdrawn` | `proposed`, `ready`, `needs_clarification` (a reclassified segment comes back) |
-| `dispatched` | `cancel_requested` only |
-| `superseded`, `cancel_requested` | nothing |
+| From                                       | To                                                                             |
+| ------------------------------------------ | ------------------------------------------------------------------------------ |
+| `proposed`, `ready`, `needs_clarification` | each other, `dispatched`, `superseded`, `withdrawn`                            |
+| `withdrawn`                                | `proposed`, `ready`, `needs_clarification` (a reclassified segment comes back) |
+| `dispatched`                               | `cancel_requested` only                                                        |
+| `superseded`, `cancel_requested`           | nothing                                                                        |
 
 At each decision point, the orchestrator applies these rules. The decider never changes a status itself.
 
@@ -79,15 +79,19 @@ The end-of-utterance snapshot follows the plan's section 5 shape. It maps `dispa
 
 ```json
 {
-	"type": "utterance_snapshot",
-	"conversation_id": "conv_stage2",
-	"utterance_id": "utt_05_correction_after_dispatch",
-	"final_transcript": "Find flights to Austin on Friday and check hotel prices downtown. Actually, make the flights Saturday.",
-	"tasks": [
-		{"task_id": "task_2", "description": "and check hotel prices downtown", "status": "running"},
-		{"task_id": "task_3", "description": "Find flights to Austin on Friday (corrected: Actually, make the flights Saturday.)", "status": "running"}
-	],
-	"clarification_needed": null
+  "type": "utterance_snapshot",
+  "conversation_id": "conv_stage2",
+  "utterance_id": "utt_05_correction_after_dispatch",
+  "final_transcript": "Find flights to Austin on Friday and check hotel prices downtown. Actually, make the flights Saturday.",
+  "tasks": [
+    { "task_id": "task_2", "description": "and check hotel prices downtown", "status": "running" },
+    {
+      "task_id": "task_3",
+      "description": "Find flights to Austin on Friday (corrected: Actually, make the flights Saturday.)",
+      "status": "running"
+    }
+  ],
+  "clarification_needed": null
 }
 ```
 
@@ -99,19 +103,19 @@ The runner calls the decider when the segment count changes, when a closed segme
 
 The streamed run is `stream-a`, option (a) over every revision. Its repeat, `stream-a-repeat1`, gave the same answers and the same scores. "Early" counts dispatches on partial revisions. The last column gives premature, duplicate, and missed corrections. Each row's task records, event history, decisions, and snapshot are in `voice/research/segmentation/results/stream-a/<scenario>.json`.
 
-| Scenario | Expected (hand-written) | Actual | Result | Revisions / points / calls | Early | Prem / dup / missed |
-| --- | --- | --- | --- | --- | --- | --- |
-| 01_two_independent | T1 dispatched; T2 dispatched | task_1 dispatched; task_2 dispatched | pass | 6 / 3 / 3 | 1 | 0 / 0 / 0 |
-| 02_two_dependent | T1 dispatched; T2 ready on T1 | task_1 dispatched; task_2 ready on task_1 | pass | 6 / 3 / 3 | 0 | 0 / 0 / 0 |
-| 03_topic_change | T1 dispatched; T2 dispatched | task_1 dispatched; task_2 dispatched | pass | 6 / 3 / 3 | 1 | 0 / 0 / 0 |
-| 04_mid_sentence_correction | T1 superseded or withdrawn; T2 dispatched on final, revises T1 | task_1 superseded; task_2 dispatched on final, revises task_1 | pass | 7 / 3 / 3 | 0 | 0 / 0 / 0 |
-| 05_correction_after_dispatch | T1 cancel_requested or superseded; T2 dispatched; T3 dispatched, revises T1 | task_1 superseded; task_2 dispatched; task_3 dispatched, revises task_1 | pass | 7 / 4 / 4 | 1 | 0 / 0 / 0 |
-| 06_description_not_request | T1 dispatched; no email task | task_1 dispatched | pass | 6 / 3 / 3 | 0 | 0 / 0 / 0 |
-| 07_intentional_repeat | T1 dispatched; T2 dispatched or ready | task_1 dispatched; task_2 ready on task_1 | pass | 4 / 2 / 2 | 0 | 0 / 0 / 0 |
-| 08_delegate_after_dispatch | T1 dispatched once, both sources; T2 ready on T1 | task_1 dispatched once, both sources; task_2 dispatched | FAIL | 5 / 4 / 4 | 1 | 1 / 0 / 0 |
-| 09_delegate_before_segment | T1 dispatched once, both sources; T2 dispatched | task_1 dispatched once, both sources; task_2 needs_clarification | FAIL | 6 / 4 / 4 | 1 | 0 / 0 / 0 |
-| 10_side_effect_email | T1 dispatched on final with "Thursday"; T2 dispatched or ready | task_1 held from revision 4, dispatched on final with "Thursday"; task_2 dispatched | pass | 6 / 4 / 4 | 0 | 0 / 0 / 0 |
-| 11_filler_false_starts | T1 dispatched | task_1 dispatched | pass | 6 / 3 / 2 | 0 | 0 / 0 / 0 |
+| Scenario                     | Expected (hand-written)                                                     | Actual                                                                              | Result | Revisions / points / calls | Early | Prem / dup / missed |
+| ---------------------------- | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ------ | -------------------------- | ----- | ------------------- |
+| 01_two_independent           | T1 dispatched; T2 dispatched                                                | task_1 dispatched; task_2 dispatched                                                | pass   | 6 / 3 / 3                  | 1     | 0 / 0 / 0           |
+| 02_two_dependent             | T1 dispatched; T2 ready on T1                                               | task_1 dispatched; task_2 ready on task_1                                           | pass   | 6 / 3 / 3                  | 0     | 0 / 0 / 0           |
+| 03_topic_change              | T1 dispatched; T2 dispatched                                                | task_1 dispatched; task_2 dispatched                                                | pass   | 6 / 3 / 3                  | 1     | 0 / 0 / 0           |
+| 04_mid_sentence_correction   | T1 superseded or withdrawn; T2 dispatched on final, revises T1              | task_1 superseded; task_2 dispatched on final, revises task_1                       | pass   | 7 / 3 / 3                  | 0     | 0 / 0 / 0           |
+| 05_correction_after_dispatch | T1 cancel_requested or superseded; T2 dispatched; T3 dispatched, revises T1 | task_1 superseded; task_2 dispatched; task_3 dispatched, revises task_1             | pass   | 7 / 4 / 4                  | 1     | 0 / 0 / 0           |
+| 06_description_not_request   | T1 dispatched; no email task                                                | task_1 dispatched                                                                   | pass   | 6 / 3 / 3                  | 0     | 0 / 0 / 0           |
+| 07_intentional_repeat        | T1 dispatched; T2 dispatched or ready                                       | task_1 dispatched; task_2 ready on task_1                                           | pass   | 4 / 2 / 2                  | 0     | 0 / 0 / 0           |
+| 08_delegate_after_dispatch   | T1 dispatched once, both sources; T2 ready on T1                            | task_1 dispatched once, both sources; task_2 dispatched                             | FAIL   | 5 / 4 / 4                  | 1     | 1 / 0 / 0           |
+| 09_delegate_before_segment   | T1 dispatched once, both sources; T2 dispatched                             | task_1 dispatched once, both sources; task_2 needs_clarification                    | FAIL   | 6 / 4 / 4                  | 1     | 0 / 0 / 0           |
+| 10_side_effect_email         | T1 dispatched on final with "Thursday"; T2 dispatched or ready              | task_1 held from revision 4, dispatched on final with "Thursday"; task_2 dispatched | pass   | 6 / 4 / 4                  | 0     | 0 / 0 / 0           |
+| 11_filler_false_starts       | T1 dispatched                                                               | task_1 dispatched                                                                   | pass   | 6 / 3 / 2                  | 0     | 0 / 0 / 0           |
 
 Totals: 9 of 11 pass, 5 early dispatches, 1 premature dispatch, 0 duplicate dispatches, and 0 missed corrections (measured).
 
@@ -123,14 +127,14 @@ Totals: 9 of 11 pass, 5 early dispatches, 1 premature dispatch, 0 duplicate disp
 
 Every model call ran inside `quiet_run.py --holder voice-stage2`, one request at a time, on one persistent HTTPS connection. The timer starts when the request is sent and stops when the whole response body has been read. Cache hits carry no timing, and each timed record comes from exactly one live attempt. The runs took place between 00:21:42 and 00:29:05 UTC on 2026-11-16.
 
-| Measurement | n | Median ms | p95 ms | Min ms | Max ms |
-| --- | --- | --- | --- | --- | --- |
-| Decisions call | 145 | 92.7 | 221.0 | 79.2 | 899.9 |
-| Extractions call | 12 | 109.5 | 208.6 | 96.8 | 302.8 |
-| `GET /api/v1/key` on the warm connection (network floor) | 80 | 11.4 | 20.2 | 7.5 | 1020.3 |
-| TCP and TLS connect | 11 | 52.5 | 301.5 | 28.1 | 301.5 |
-| Decisions call under 1,000 input tokens | 109 | 90.9 | 212.6 | 79.2 | 899.9 |
-| Decisions call at 1,500 input tokens or more | 8 | 111.8 | 163.9 | 86.8 | 163.9 |
+| Measurement                                              | n   | Median ms | p95 ms | Min ms | Max ms |
+| -------------------------------------------------------- | --- | --------- | ------ | ------ | ------ |
+| Decisions call                                           | 145 | 92.7      | 221.0  | 79.2   | 899.9  |
+| Extractions call                                         | 12  | 109.5     | 208.6  | 96.8   | 302.8  |
+| `GET /api/v1/key` on the warm connection (network floor) | 80  | 11.4      | 20.2   | 7.5    | 1020.3 |
+| TCP and TLS connect                                      | 11  | 52.5      | 301.5  | 28.1   | 301.5  |
+| Decisions call under 1,000 input tokens                  | 109 | 90.9      | 212.6  | 79.2   | 899.9  |
+| Decisions call at 1,500 input tokens or more             | 8   | 111.8     | 163.9  | 86.8   | 163.9  |
 
 - The network is not the dominant term (measured). A round trip to the OpenRouter edge with authentication costs about 11 ms. The other 81 ms of the median decision sits behind the edge, in routing to Perplexity and in inference. This client cannot split those two without direct access to the provider (inferred).
 - Doubling the input from about 700 to about 1,500 tokens moved the median by about 21 ms, on only 8 large calls (measured). The 305 ms and 900 ms outliers have no link to tokens or question count. They look like upstream jitter (inferred).
@@ -142,13 +146,13 @@ Every model call ran inside `quiet_run.py --holder voice-stage2`, one request at
 
 This round used 157 of its 400-call budget, counted from `voice/research/segmentation/calls.jsonl`. Each attempt was a distinct request, and each has one cache file in `voice/research/segmentation/cache/`.
 
-| Purpose | Calls |
-| --- | --- |
-| API probes (extraction spans, object state with several questions) | 2 |
-| Option comparison on final transcripts: (a), (b), (c) | 11 + 20 + 19 |
-| Option (a) over all revisions | 35 |
-| One segment per call, for the bundling comparison | 24 |
-| Repeat of the final and streamed runs, for determinism | 11 + 35 |
+| Purpose                                                            | Calls        |
+| ------------------------------------------------------------------ | ------------ |
+| API probes (extraction spans, object state with several questions) | 2            |
+| Option comparison on final transcripts: (a), (b), (c)              | 11 + 20 + 19 |
+| Option (a) over all revisions                                      | 35           |
+| One segment per call, for the bundling comparison                  | 24           |
+| Repeat of the final and streamed runs, for determinism             | 11 + 35      |
 
 Round 1 made 1 more call, recorded in `voice/research/segmentation/round1-probe.json`. The script that made it is gone, and `voice/research/segmentation/probes.py` makes the same kind of call through the shared client. The key endpoint and network-floor GETs are not model calls, so the budget does not count them. Re-running any command replays from the cache and makes no calls.
 

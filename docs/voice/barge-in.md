@@ -45,13 +45,13 @@ Until the first judgment lets the reply go, the call's voice session takes no ne
 
 Measured with `python -m voice.live.rehearse drive --noise` (five calls; synthetic road noise 2 to 4.4 s long, 4 to 12 dB below the speech, starting 1.0 to 1.3 s after a thread question; then a thread question continued after a 0.9 s pause), two runs each, GPU:
 
-| | Before | Judged at the end | Judged every second (shipped) |
-| --- | --- | --- | --- |
-| The noise cancelled the question's turn | 9 of 10 calls | 0 of 10 | 0 of 10 |
-| The question's status line was said | 8 of 10 (both misses were the decider asking a confirmation) | 10 of 10 | 10 of 10 |
-| Its first audio, after the question's speech ended | | 4.6 to 6.9 s | 1.4 to 2.8 s |
-| The continued question was joined into one turn | 10 of 10 | 8 of 10 | 8 of 10 |
-| Its status line was said | 10 of 10 | 8 of 10 | 9 of 10 |
+|                                                    | Before                                                       | Judged at the end | Judged every second (shipped) |
+| -------------------------------------------------- | ------------------------------------------------------------ | ----------------- | ----------------------------- |
+| The noise cancelled the question's turn            | 9 of 10 calls                                                | 0 of 10           | 0 of 10                       |
+| The question's status line was said                | 8 of 10 (both misses were the decider asking a confirmation) | 10 of 10          | 10 of 10                      |
+| Its first audio, after the question's speech ended |                                                              | 4.6 to 6.9 s      | 1.4 to 2.8 s                  |
+| The continued question was joined into one turn    | 10 of 10                                                     | 8 of 10           | 8 of 10                       |
+| Its status line was said                           | 10 of 10                                                     | 8 of 10           | 9 of 10                       |
 
 Every noise burst the endpointer took for speech transcribed empty. A plain thread status question takes a median of 2.0 s from the end of speech to first audio (99 rehearsed turns: 0.7 s endpointer silence, 0.36 s final transcript, decider pick and tools, 0.20 s draft, 0.52 s relay). The start and mixed calls scored as before on the shipped code (start: 4 of 5 threads started, 0 false claims; mixed: 10 of 10 first relays and both halves heard, 0 free lines naming a thread).
 
@@ -65,20 +65,20 @@ End to end, on 2026-11-16 17:05 ET. One live server from this branch with `--moc
 
 **Real audio.**
 
-| Case | Before (measured) | After (measured) |
-| --- | --- | --- |
-| Call 1 turns 1 to 5, 11, 13 and 14 replayed in order, each after the reply has played | live call: 16 `barge_in` in 19 turns, 15 with nothing playing | 0 `barge_in`. All 8 turns came back with their full transcripts. |
-| Mason's backchannels over a reply: "Uhm", "Hmm" (cut from turns 10 and 19), "Okay." (turn 14), "Okay, thanks." (turn 34) | every one would stop the reply (start rule) | 4 of 4 dismissed: "Uhm" by its empty transcript, "Hmm" as too short, the two "Okay" turns as backchannels. The reply kept playing. |
-| Cut clip that turned out to hold "Oh, did you?" (turn 36) | stops | stops. The transcript shows real words, so the label was wrong, not the gate. |
-| Mason's interruptions over a reply: turns 4, 11, 16, 21 and 29 | stops at 80 ms from onset (offline bench) | 5 of 5 stop. `barge_in` reached the client 696 to 1714 ms after onset, median 862 ms. "Can you hear me?" took the transcript path (1714 ms). Every interrupting turn's transcript was its whole clip. |
+| Case                                                                                                                     | Before (measured)                                             | After (measured)                                                                                                                                                                                      |
+| ------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Call 1 turns 1 to 5, 11, 13 and 14 replayed in order, each after the reply has played                                    | live call: 16 `barge_in` in 19 turns, 15 with nothing playing | 0 `barge_in`. All 8 turns came back with their full transcripts.                                                                                                                                      |
+| Mason's backchannels over a reply: "Uhm", "Hmm" (cut from turns 10 and 19), "Okay." (turn 14), "Okay, thanks." (turn 34) | every one would stop the reply (start rule)                   | 4 of 4 dismissed: "Uhm" by its empty transcript, "Hmm" as too short, the two "Okay" turns as backchannels. The reply kept playing.                                                                    |
+| Cut clip that turned out to hold "Oh, did you?" (turn 36)                                                                | stops                                                         | stops. The transcript shows real words, so the label was wrong, not the gate.                                                                                                                         |
+| Mason's interruptions over a reply: turns 4, 11, 16, 21 and 29                                                           | stops at 80 ms from onset (offline bench)                     | 5 of 5 stop. `barge_in` reached the client 696 to 1714 ms after onset, median 862 ms. "Can you hear me?" took the transcript path (1714 ms). Every interrupting turn's transcript was its whole clip. |
 
 **Synthetic audio (LFM3 TTS).**
 
-| Case | After (measured) |
-| --- | --- |
-| Backchannels "Yeah.", "Right.", "Okay.", "I see.", "Got it." | 5 of 5 dismissed |
-| Backchannels "Mm-hm.", "Uh-huh.", "Yeah, totally." | 3 of 3 stopped the reply: each reached 600 ms voiced |
-| Commands "Stop.", "Wait.", "No, no.", "Hold on." | 4 of 4 stop, 683 to 1360 ms after onset ("Wait." by transcript). Every transcript whole. |
+| Case                                                         | After (measured)                                                                         |
+| ------------------------------------------------------------ | ---------------------------------------------------------------------------------------- |
+| Backchannels "Yeah.", "Right.", "Okay.", "I see.", "Got it." | 5 of 5 dismissed                                                                         |
+| Backchannels "Mm-hm.", "Uh-huh.", "Yeah, totally."           | 3 of 3 stopped the reply: each reached 600 ms voiced                                     |
+| Commands "Stop.", "Wait.", "No, no.", "Hold on."             | 4 of 4 stop, 683 to 1360 ms after onset ("Wait." by transcript). Every transcript whole. |
 
 **Offline bench.** `python -m voice.research.live.overlap_bench` on Mason's three live records gives 40 of 40 turns as barge-ins and 4 of 5 cut backchannels dismissed. The miss is the "Oh" cut above. The old rule dismissed 0 of 5.
 
@@ -103,17 +103,17 @@ labels and the harness score.
 
 Hand labels, read from the saved replies of the `control`, `note-noquote` and `note` runs:
 
-| Case | No note | Note, no quote | Note, quoted |
-| --- | --- | --- | --- |
-| Call-1 turn 4 | answered | answered | answered |
-| Call-1 turn 11 | answered | answered | answered |
-| Call-1 turn 16 | restarted | restarted | restarted |
-| Call-1 turn 21 | answered | answered | answered |
-| Call-1 turn 29 | continued | continued | continued |
-| "Stop." | stopped | continued | continued |
-| "Wait." | continued | continued | read the note aloud |
-| "No, no." | stopped | continued | repeated the old reply |
-| "Hold on." | continued | answered | continued |
+| Case           | No note   | Note, no quote | Note, quoted           |
+| -------------- | --------- | -------------- | ---------------------- |
+| Call-1 turn 4  | answered  | answered       | answered               |
+| Call-1 turn 11 | answered  | answered       | answered               |
+| Call-1 turn 16 | restarted | restarted      | restarted              |
+| Call-1 turn 21 | answered  | answered       | answered               |
+| Call-1 turn 29 | continued | continued      | continued              |
+| "Stop."        | stopped   | continued      | continued              |
+| "Wait."        | continued | continued      | read the note aloud    |
+| "No, no."      | stopped   | continued      | repeated the old reply |
+| "Hold on."     | continued | answered       | continued              |
 
 **The control ran twice.** `control-badjoin` started at 06:12 and `control` at 06:15, with the same configuration. The
 first run joined the reply's text pieces with spaces inside words (measured in its saved texts), which breaks the
@@ -121,11 +121,11 @@ harness's word-based score but not the replies. Treat it as a second control sam
 
 Three readings of the same runs, each a count of nine, not a rate:
 
-| Reading | No note, 06:12 | No note, 06:15 | Note, no quote | Note, quoted |
-| --- | --- | --- | --- | --- |
-| Harness score `reused_old_answer`, named before the runs | 4 (invalid: split words) | 7 | 7 | 8 |
-| Hand labels above: continued or ignored the interruption | not labelled | 3 | 4 | 5 |
-| Independent review's content rule | 1 | 1 | 3 | not read |
+| Reading                                                  | No note, 06:12           | No note, 06:15 | Note, no quote | Note, quoted |
+| -------------------------------------------------------- | ------------------------ | -------------- | -------------- | ------------ |
+| Harness score `reused_old_answer`, named before the runs | 4 (invalid: split words) | 7              | 7              | 8            |
+| Hand labels above: continued or ignored the interruption | not labelled             | 3              | 4              | 5            |
+| Independent review's content rule                        | 1                        | 1              | 3              | not read     |
 
 The harness's own score puts no note and the unquoted note level at 7 of 9. The hand labels put the unquoted note one
 case worse. The review's content rule puts it two cases worse. The independent review reports that the same

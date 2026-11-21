@@ -16,13 +16,13 @@ Variant E lost to the round 2 baseline on both scenario sets. On the original 11
 
 Two systems ran over the same revision streams. They share the task state machine, the dispatch policy, and the scorer.
 
-| | Baseline (round 2 option a) | Variant E |
-| --- | --- | --- |
-| Who finds the break | A rule-based splitter at sentence punctuation and spoken markers | The decider picks a numbered marker after a cursor |
-| Calls | One per change in the segment list, plus delegate points and the final transcript | One per revision, plus delegate points and one per extra request on the final transcript |
-| Questions per call | Kind, readiness, side effect, dependency and correction for every segment (median 8) | Finished, marker, side effect, dependency and correction for the first finished request (median 3) |
-| Input tokens per call | Median 953 | Median 418 |
-| Code | `voice/segmentation/spans.py`, `contract.py` | `voice/segmentation/cursor.py` |
+|                       | Baseline (round 2 option a)                                                          | Variant E                                                                                          |
+| --------------------- | ------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Who finds the break   | A rule-based splitter at sentence punctuation and spoken markers                     | The decider picks a numbered marker after a cursor                                                 |
+| Calls                 | One per change in the segment list, plus delegate points and the final transcript    | One per revision, plus delegate points and one per extra request on the final transcript           |
+| Questions per call    | Kind, readiness, side effect, dependency and correction for every segment (median 8) | Finished, marker, side effect, dependency and correction for the first finished request (median 3) |
+| Input tokens per call | Median 953                                                                           | Median 418                                                                                         |
+| Code                  | `voice/segmentation/spans.py`, `contract.py`                                         | `voice/segmentation/cursor.py`                                                                     |
 
 Variants A, B, C and D did not run, for the reasons in [Variants not run](#variants-not-run).
 
@@ -34,24 +34,24 @@ Variants A, B, C and D did not run, for the reasons in [Variants not run](#varia
 2. `markers` numbers the candidate breaks after the cursor. A gap is a marker if clause punctuation precedes it or a connective starts there. The connectives are "and", "and then", "and also", "then", "also", "oh and", "actually", "no wait", "I mean", "but", "never mind" and "anyway". A stretch of more than 12 words with no marker falls back to every word gap, and the end of the speech is always the last marker.
 3. One decisions call asks these questions. `state` holds `new_speech` (the words after the cursor, with ` [k]` at each marker), `earlier_requests` (committed segments by id), and `speech_is_final`.
 
-| Question | Type | Options |
-| --- | --- | --- |
-| `finished` | noul | Has the speaker finished explicitly asking for a task, or for a change or withdrawal of an earlier request? |
-| `at` | choice | `m1` to `mN`, each naming the request it would close, plus `none` |
-| `side_effect` | noul | Would carrying out the first finished request change something outside the conversation? |
-| `depends` | choice, once a segment exists | `none` or an earlier segment id |
-| `corrects` | choice, once a segment exists | `none`, `replace_<sid>`, `cancel_<sid>` |
-| `implicit`, `preemptive` | noul, only with `--extra` | Measured separately, never used in decisions |
+| Question                 | Type                          | Options                                                                                                     |
+| ------------------------ | ----------------------------- | ----------------------------------------------------------------------------------------------------------- |
+| `finished`               | noul                          | Has the speaker finished explicitly asking for a task, or for a change or withdrawal of an earlier request? |
+| `at`                     | choice                        | `m1` to `mN`, each naming the request it would close, plus `none`                                           |
+| `side_effect`            | noul                          | Would carrying out the first finished request change something outside the conversation?                    |
+| `depends`                | choice, once a segment exists | `none` or an earlier segment id                                                                             |
+| `corrects`               | choice, once a segment exists | `none`, `replace_<sid>`, `cancel_<sid>`                                                                     |
+| `implicit`, `preemptive` | noul, only with `--extra`     | Measured separately, never used in decisions                                                                |
 
 4. `judge` applies the condition that the API cannot express.
 
-| `finished` at 0.5 or more | `at` | `at` margin | On a partial | On the final transcript |
-| --- | --- | --- | --- | --- |
-| yes | a marker | 0.2 or more | candidate | candidate |
-| any | any | under 0.2 | near-tie, wait | the earlier marker of the top two, if `finished` |
-| yes | `none` | 0.2 or more | disagree, wait | the runner-up marker |
-| no | a marker | 0.2 or more | disagree, wait | disagree, nothing commits |
-| no | `none` | 0.2 or more | nothing | nothing |
+| `finished` at 0.5 or more | `at`     | `at` margin | On a partial   | On the final transcript                          |
+| ------------------------- | -------- | ----------- | -------------- | ------------------------------------------------ |
+| yes                       | a marker | 0.2 or more | candidate      | candidate                                        |
+| any                       | any      | under 0.2   | near-tie, wait | the earlier marker of the top two, if `finished` |
+| yes                       | `none`   | 0.2 or more | disagree, wait | the runner-up marker                             |
+| no                        | a marker | 0.2 or more | disagree, wait | disagree, nothing commits                        |
+| no                        | `none`   | 0.2 or more | nothing        | nothing                                          |
 
 5. `commits` applies the stability rule. A candidate is the words from the cursor to its marker. It commits when the same words were the candidate on the previous revision, or when this revision is a pause. A pause is a revision whose words equal the previous revision's words. A side-effect request needs both. The final transcript commits, because no revision follows it. After a commit on the final transcript, the runner asks again about the words left, up to 8 times.
 6. `decision_for` turns the answer into the baseline's `SegmentDecision`. A near-tie between `none` and a dependency takes the dependency, so the task waits. `CursorOrchestrator` then reuses the baseline's `Orchestrator` for task creation, corrections, delegate links and the dispatch policy. The policy still holds a side-effect task until the final transcript.
@@ -67,10 +67,10 @@ Four choices go beyond the brief's description of E.
 
 All tuning used only the original 11 scenarios. Then the code, thresholds and break labels were committed (`34bdcd75f`, `6a0c24bec`) before the first held-out run. The thresholds are `finished` 0.5, choice margin 0.2 (the round 2 near-tie bound), and `side_effect` 0.5.
 
-| Version | Passed | What changed | Evidence |
-| --- | --- | --- | --- |
-| v1 | 3 of 11 | Marker options described by the words around the gap. A near-tie also covered `finished` within 0.1 of 0.5. | `results/stream-e-v1/`, code at `af980a971` |
-| Frozen E | 7 of 11 | Each marker option names the request it closes. The questions define a request as one action. The `finished` band was dropped, because the brief asks only for a threshold. The final-transcript rule was added. A marker bug that split "and then" at the cursor was fixed. | `results/stream-e/` |
+| Version  | Passed  | What changed                                                                                                                                                                                                                                                                 | Evidence                                    |
+| -------- | ------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------- |
+| v1       | 3 of 11 | Marker options described by the words around the gap. A near-tie also covered `finished` within 0.1 of 0.5.                                                                                                                                                                  | `results/stream-e-v1/`, code at `af980a971` |
+| Frozen E | 7 of 11 | Each marker option names the request it closes. The questions define a request as one action. The `finished` band was dropped, because the brief asks only for a threshold. The final-transcript rule was added. A marker bug that split "and then" at the cursor was fixed. | `results/stream-e/`                         |
 
 v1 lost 5 scenarios because a near-tie or a disagreement on the final transcript ended the run with speech left over (measured). One more prompt revision would have cost about 90 calls, which the held-out runs needed. So E froze at 7 of 11.
 
@@ -78,19 +78,19 @@ v1 lost 5 scenarios because a near-tie or a disagreement on the final transcript
 
 The baseline rows replay round 2's `stream-a`. "Calls" counts every request a run sent, and none were cache hits. "Early" counts dispatches on partial revisions. Break error is the distance in words from the nearest cut to each labeled break, with "miss" when no cut lands within 3 words.
 
-| Scenario | Baseline | E | Revisions | Calls, baseline / E | Early, baseline / E | Break error, baseline / E |
-| --- | --- | --- | --- | --- | --- | --- |
-| 01_two_independent | pass | pass | 6 | 3 / 6 | 1 / 1 | 0 / 0 |
-| 02_two_dependent | pass | pass | 6 | 3 / 6 | 0 / 1 | 0 / 0 |
-| 03_topic_change | pass | FAIL | 6 | 3 / 7 | 1 / 1 | 0 / 0 |
-| 04_mid_sentence_correction | pass | FAIL | 7 | 3 / 7 | 0 / 0 | 0 / miss |
-| 05_correction_after_dispatch | pass | pass | 7 | 4 / 7 | 1 / 2 | 0, 0 / 0, 0 |
-| 06_description_not_request | pass | pass | 6 | 3 / 6 | 0 / 0 | none labeled |
-| 07_intentional_repeat | pass | FAIL | 4 | 2 / 5 | 0 / 0 | 0 / 0 |
-| 08_delegate_after_dispatch | FAIL | FAIL | 5 | 4 / 6 | 1 / 1 | 0 / miss |
-| 09_delegate_before_segment | FAIL | pass | 6 | 4 / 7 | 1 / 1 | 0 / 0 |
-| 10_side_effect_email | pass | pass | 6 | 4 / 7 | 0 / 0 | 0 / 0 |
-| 11_filler_false_starts | pass | pass | 6 | 2 / 6 | 0 / 0 | none labeled |
+| Scenario                     | Baseline | E    | Revisions | Calls, baseline / E | Early, baseline / E | Break error, baseline / E |
+| ---------------------------- | -------- | ---- | --------- | ------------------- | ------------------- | ------------------------- |
+| 01_two_independent           | pass     | pass | 6         | 3 / 6               | 1 / 1               | 0 / 0                     |
+| 02_two_dependent             | pass     | pass | 6         | 3 / 6               | 0 / 1               | 0 / 0                     |
+| 03_topic_change              | pass     | FAIL | 6         | 3 / 7               | 1 / 1               | 0 / 0                     |
+| 04_mid_sentence_correction   | pass     | FAIL | 7         | 3 / 7               | 0 / 0               | 0 / miss                  |
+| 05_correction_after_dispatch | pass     | pass | 7         | 4 / 7               | 1 / 2               | 0, 0 / 0, 0               |
+| 06_description_not_request   | pass     | pass | 6         | 3 / 6               | 0 / 0               | none labeled              |
+| 07_intentional_repeat        | pass     | FAIL | 4         | 2 / 5               | 0 / 0               | 0 / 0                     |
+| 08_delegate_after_dispatch   | FAIL     | FAIL | 5         | 4 / 6               | 1 / 1               | 0 / miss                  |
+| 09_delegate_before_segment   | FAIL     | pass | 6         | 4 / 7               | 1 / 1               | 0 / 0                     |
+| 10_side_effect_email         | pass     | pass | 6         | 4 / 7               | 0 / 0               | 0 / 0                     |
+| 11_filler_false_starts       | pass     | pass | 6         | 2 / 6               | 0 / 0               | none labeled              |
 
 Totals, baseline then E: 9 and 7 pass, 1 and 2 premature dispatches, 0 and 0 duplicates, 0 and 1 missed corrections, 35 and 70 calls (measured). E's failures:
 
@@ -102,26 +102,26 @@ Totals, baseline then E: 9 and 7 pass, 1 and 2 premature dispatches, 0 and 0 dup
 
 Each system ran once on the held-out set, after the freeze.
 
-| Scenario | Covers | Baseline | E | Calls, baseline / E | Early, baseline / E | Break error, baseline / E |
-| --- | --- | --- | --- | --- | --- | --- |
-| actually | correction with "actually" | FAIL | FAIL | 3 / 3 | 0 / 0 | 0 / miss |
-| assistant_question | no task | pass | pass | 2 / 3 | 0 / 0 | none labeled |
-| buy_and_read | buy plus read | pass | FAIL | 3 / 4 | 1 / 0 | 0 / 0 |
-| cancel_second | cancellation | pass | FAIL | 3 / 4 | 1 / 1 | 0, 0 / 0, 0 |
-| delegate_overlap | delegate and orchestrator overlap | pass | pass | 3 / 4 | 1 / 1 | none labeled |
-| delete_and_read | delete plus read | pass | pass | 3 / 3 | 1 / 1 | 0 / 0 |
-| email_extension | apparent completion then continuation | pass | pass | 2 / 4 | 0 / 0 | none labeled |
-| i_mean | correction with "I mean" | FAIL | FAIL | 2 / 3 | 0 / 0 | miss / miss |
-| market_three | three independent requests | FAIL | FAIL | 3 / 6 | 1 / 0 | miss, 0 / 0, 0 |
-| mixed_chain | independent request and chain | FAIL | FAIL | 2 / 5 | 0 / 1 | miss, 0 / 0, 0 |
-| museum_chain | three chained requests | FAIL | pass | 3 / 5 | 1 / 1 | miss, 0 / 0, 0 |
-| near_duplicates | near duplicates are distinct | pass | FAIL | 2 / 4 | 0 / 0 | 0 / 0 |
-| no_wait | correction with "no wait" | FAIL | FAIL | 3 / 4 | 0 / 1 | 0 / 0 |
-| pause_correction | correction after a pause | FAIL | FAIL | 3 / 4 | 0 / 1 | 0 / 0 |
-| post_and_read | post plus read | pass | FAIL | 3 / 3 | 1 / 1 | 0 / 0 |
-| rain_wonder | implicit request | FAIL | FAIL | 2 / 3 | 0 / 0 | none labeled |
-| run_on | unpunctuated run-on | FAIL | pass | 2 / 6 | 0 / 0 | miss, miss / 0, 0 |
-| true_repeat | true repeat | FAIL | FAIL | 2 / 4 | 0 / 0 | none labeled |
+| Scenario           | Covers                                | Baseline | E    | Calls, baseline / E | Early, baseline / E | Break error, baseline / E |
+| ------------------ | ------------------------------------- | -------- | ---- | ------------------- | ------------------- | ------------------------- |
+| actually           | correction with "actually"            | FAIL     | FAIL | 3 / 3               | 0 / 0               | 0 / miss                  |
+| assistant_question | no task                               | pass     | pass | 2 / 3               | 0 / 0               | none labeled              |
+| buy_and_read       | buy plus read                         | pass     | FAIL | 3 / 4               | 1 / 0               | 0 / 0                     |
+| cancel_second      | cancellation                          | pass     | FAIL | 3 / 4               | 1 / 1               | 0, 0 / 0, 0               |
+| delegate_overlap   | delegate and orchestrator overlap     | pass     | pass | 3 / 4               | 1 / 1               | none labeled              |
+| delete_and_read    | delete plus read                      | pass     | pass | 3 / 3               | 1 / 1               | 0 / 0                     |
+| email_extension    | apparent completion then continuation | pass     | pass | 2 / 4               | 0 / 0               | none labeled              |
+| i_mean             | correction with "I mean"              | FAIL     | FAIL | 2 / 3               | 0 / 0               | miss / miss               |
+| market_three       | three independent requests            | FAIL     | FAIL | 3 / 6               | 1 / 0               | miss, 0 / 0, 0            |
+| mixed_chain        | independent request and chain         | FAIL     | FAIL | 2 / 5               | 0 / 1               | miss, 0 / 0, 0            |
+| museum_chain       | three chained requests                | FAIL     | pass | 3 / 5               | 1 / 1               | miss, 0 / 0, 0            |
+| near_duplicates    | near duplicates are distinct          | pass     | FAIL | 2 / 4               | 0 / 0               | 0 / 0                     |
+| no_wait            | correction with "no wait"             | FAIL     | FAIL | 3 / 4               | 0 / 1               | 0 / 0                     |
+| pause_correction   | correction after a pause              | FAIL     | FAIL | 3 / 4               | 0 / 1               | 0 / 0                     |
+| post_and_read      | post plus read                        | pass     | FAIL | 3 / 3               | 1 / 1               | 0 / 0                     |
+| rain_wonder        | implicit request                      | FAIL     | FAIL | 2 / 3               | 0 / 0               | none labeled              |
+| run_on             | unpunctuated run-on                   | FAIL     | pass | 2 / 6               | 0 / 0               | miss, miss / 0, 0         |
+| true_repeat        | true repeat                           | FAIL     | FAIL | 2 / 4               | 0 / 0               | none labeled              |
 
 Totals, baseline then E: 8 and 6 pass, 4 and 8 premature dispatches, 1 and 1 duplicates, 1 and 2 missed corrections, 46 and 72 calls (measured). Per-scenario records are in `voice/research/segmentation/results/stream-a-heldout/` and `voice/research/segmentation/results/stream-e-heldout/`.
 
@@ -139,12 +139,12 @@ The scorer matches an expected task by the words of the task's own segment. Seve
 
 ## Breaks, flips and extra questions
 
-| Measurement | Baseline, original | E, original | Baseline, held-out | E, held-out |
-| --- | --- | --- | --- | --- |
-| Labeled breaks found exactly | 10 of 10 | 8 of 10 | 12 of 18 | 16 of 18 |
-| Labeled breaks missed | 0 | 2 | 6 | 2 |
-| Cuts away from any labeled break | 1 | 0 | 3 | 1 |
-| Calls per utterance | 3.18 | 6.36 | 2.56 | 4.00 |
+| Measurement                      | Baseline, original | E, original | Baseline, held-out | E, held-out |
+| -------------------------------- | ------------------ | ----------- | ------------------ | ----------- |
+| Labeled breaks found exactly     | 10 of 10           | 8 of 10     | 12 of 18           | 16 of 18    |
+| Labeled breaks missed            | 0                  | 2           | 6                  | 2           |
+| Cuts away from any labeled break | 1                  | 0           | 3                  | 1           |
+| Calls per utterance              | 3.18               | 6.36        | 2.56               | 4.00        |
 
 No found break was off by 1 to 3 words. Each break was either exact or missed (measured). E missed only where the decider kept two requests together. The baseline missed where its splitter has no cut (measured).
 
@@ -158,12 +158,12 @@ Adding the `implicit` and `preemptive` questions changed no other answer (measur
 
 All live calls ran inside `quiet_run.py --holder voice-stage2`, one request in flight, between 01:03:36 and 01:28:28 UTC. The timer is round 2's, from send to the end of the response body. Each distinct request counts once.
 
-| Run | n | Median ms | p95 ms | Max ms |
-| --- | --- | --- | --- | --- |
-| Baseline, original (round 2) | 35 | 93.0 | 179.6 | 221.0 |
-| E, original | 70 | 94.6 | 185.2 | 655.5 |
-| Baseline, held-out | 46 | 94.9 | 212.1 | 340.1 |
-| E, held-out | 71 | 94.3 | 128.2 | 236.1 |
+| Run                          | n   | Median ms | p95 ms | Max ms |
+| ---------------------------- | --- | --------- | ------ | ------ |
+| Baseline, original (round 2) | 35  | 93.0      | 179.6  | 221.0  |
+| E, original                  | 70  | 94.6      | 185.2  | 655.5  |
+| Baseline, held-out           | 46  | 94.9      | 212.1  | 340.1  |
+| E, held-out                  | 71  | 94.3      | 128.2  | 236.1  |
 
 - E's calls cost the same as the baseline's, although E sends less than half the input tokens (median 418 against 953, measured). Round 2 put the network round trip at about 11 ms. So most of the 94 ms is a fixed cost per request behind the OpenRouter edge, and the size of the request does not drive it (inferred). The extra-question pairs point the same way.
 - E makes about twice the calls per utterance. Each dispatch decision still waits on one call, so a committed break dispatches about 94 ms after the revision that confirms it (inferred from the medians). E confirms a break on the second agreeing revision, and the baseline dispatches a segment when the next boundary appears. In 01 both dispatched the weather request at revision 3 (measured).
@@ -175,13 +175,13 @@ All live calls ran inside `quiet_run.py --holder voice-stage2`, one request in f
 
 This round used 363 of its 400 attempts, counted from `voice/research/segmentation/calls.jsonl` after round 2's 157. The client's cap is now `157 + 400`.
 
-| Purpose | Attempts | Of which 429 |
-| --- | --- | --- |
-| E v1, original 11 | 90 | 21 |
-| E frozen, original 11 (incl. 2 after the marker fix) | 94 | 24 |
-| Baseline, held-out 18 | 60 | 14 |
-| E, held-out 18 | 103 | 32 |
-| Extra-question pairs | 16 | 1 |
+| Purpose                                              | Attempts | Of which 429 |
+| ---------------------------------------------------- | -------- | ------------ |
+| E v1, original 11                                    | 90       | 21           |
+| E frozen, original 11 (incl. 2 after the marker fix) | 94       | 24           |
+| Baseline, held-out 18                                | 60       | 14           |
+| E, held-out 18                                       | 103      | 32           |
+| Extra-question pairs                                 | 16       | 1            |
 
 ## Variants not run
 

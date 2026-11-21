@@ -96,20 +96,6 @@ const GUEST_ACCESS_MESSAGES = {
 
 /** What a guest is told. The message comes from `reason`, never from a cause. */
 
-/** A guest sees the thread without the owner's voice calls, which are the caller's own. */
-const withoutCallerPrivateItems = <
-  P extends {
-    readonly turnItems: ReadonlyArray<{ readonly type: string }>;
-    readonly visibleTurnItems: ReadonlyArray<{ readonly item: { readonly type: string } }>;
-  },
->(
-  projection: P,
-): P => ({
-  ...projection,
-  turnItems: projection.turnItems.filter((item) => !isCallerPrivateTurnItem(item)),
-  visibleTurnItems: projection.visibleTurnItems.filter((row) => !isCallerPrivateTurnItem(row.item)),
-});
-
 export class GuestShareAccessError extends Schema.TaggedError<GuestShareAccessError>()(
   "GuestShareAccessError",
   {
@@ -548,6 +534,7 @@ const make = Effect.gen(function* () {
       .getThreadSnapshotWindow(thread.id, {
         rowLimit: SNAPSHOT_ROW_LIMIT,
         userTurnLimit: SNAPSHOT_USER_TURN_LIMIT,
+        withoutCallerPrivate: true,
       })
       .pipe(Effect.mapError(() => inactive));
     // The share can end between authorize and this read; the live tail starts after it.
@@ -607,7 +594,7 @@ const make = Effect.gen(function* () {
     );
     const openingSnapshot = buildBoundedThreadStreamSnapshot({
       snapshotSequence: snapshot.snapshotSequence,
-      projection: withoutCallerPrivateItems(snapshot.projection),
+      projection: snapshot.projection,
     });
     const opening: ReadonlyArray<GuestStreamEvent> = [
       { type: "view", view: initialView },
@@ -702,10 +689,9 @@ const make = Effect.gen(function* () {
     cursor: string,
   ) {
     const { thread, share } = yield* authorize(session, "session");
-    const read = yield* orchestrator
-      .getThreadHistoryPage(thread.id, cursor)
+    const page = yield* orchestrator
+      .getThreadHistoryPage(thread.id, cursor, undefined, undefined, undefined, true)
       .pipe(Effect.mapError(() => unavailable));
-    const page = { ...read, items: read.items.filter((row) => !isCallerPrivateTurnItem(row.item)) };
     rememberSent(
       share.id,
       page.items.map((row) => row.item),

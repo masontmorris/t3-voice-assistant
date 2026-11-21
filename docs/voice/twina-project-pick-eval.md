@@ -30,15 +30,15 @@ only the snapshot, the slice table, and the hand-written cases for wording avoid
 any picker output. The manifest froze the snapshot, the spec and both label files before any
 picker ran, and every run verifies it.
 
-| slice | cases | what the request does | gold |
-| --- | --- | --- | --- |
-| exact | 6 | says one project by its full name, plus a task | one |
-| variant | 3 | a folder name, a spelled-out digit, or another non-display spoken form | one |
-| partial | 6 | part of one project name or a nickname, plus a task | ask, every plausible project |
-| shared | 4 | one word or name sitting in two projects | ask, both |
-| nontarget | 4 | a second project named inside the task text rather than as the target | ask, both |
-| absent | 4 | no project anywhere in the words | ask, empty |
-| missing | 3 | an invented project with the word "project" next to it | none |
+| slice     | cases | what the request does                                                  | gold                         |
+| --------- | ----- | ---------------------------------------------------------------------- | ---------------------------- |
+| exact     | 6     | says one project by its full name, plus a task                         | one                          |
+| variant   | 3     | a folder name, a spelled-out digit, or another non-display spoken form | one                          |
+| partial   | 6     | part of one project name or a nickname, plus a task                    | ask, every plausible project |
+| shared    | 4     | one word or name sitting in two projects                               | ask, both                    |
+| nontarget | 4     | a second project named inside the task text rather than as the target  | ask, both                    |
+| absent    | 4     | no project anywhere in the words                                       | ask, empty                   |
+| missing   | 3     | an invented project with the word "project" next to it                 | none                         |
 
 **Arms.** (1) `match`: the deterministic `spokenNames` match alone, one repeat, since it makes
 no model call and cannot vary. (2) `model`: the match first, then `particle-ai/particle-1:free`
@@ -51,25 +51,25 @@ through a thin pick-type bridge, so one implementation defines correct.
 
 Cases that pass, over all repeats. A case passes only when every repeat passes.
 
-| slice | cases | match strict | model strict / lenient / confirm / confirm-lenient |
-| --- | --- | --- | --- |
-| exact | 6 | 6 | 6 / 6 / 6 / 6 |
-| variant | 3 | 2 | 3 / 3 / 3 / 3 |
-| partial | 6 | 6 | 0 / 0 / 6 / 6 |
-| shared | 4 | 4 | 4 / 4 / 4 / 4 |
-| nontarget | 4 | 2 | 1 / 1 / 1 / 2 |
-| absent | 4 | 4 | 0 / 0 / 0 / 0 |
-| missing | 3 | 3 | 3 / 3 / 3 / 3 |
-| total | 30 | 27 | 17 / 17 / 23 / 24 |
+| slice     | cases | match strict | model strict / lenient / confirm / confirm-lenient |
+| --------- | ----- | ------------ | -------------------------------------------------- |
+| exact     | 6     | 6            | 6 / 6 / 6 / 6                                      |
+| variant   | 3     | 2            | 3 / 3 / 3 / 3                                      |
+| partial   | 6     | 6            | 0 / 0 / 6 / 6                                      |
+| shared    | 4     | 4            | 4 / 4 / 4 / 4                                      |
+| nontarget | 4     | 2            | 1 / 1 / 1 / 2                                      |
+| absent    | 4     | 4            | 0 / 0 / 0 / 0                                      |
+| missing   | 3     | 3            | 3 / 3 / 3 / 3                                      |
+| total     | 30    | 27           | 17 / 17 / 23 / 24                                  |
 
 Runs, counted separately. The match arm ran 30 runs with no model call. The model arm ran 90
 runs with 60 model calls, since 10 deterministic ones per repeat never reach the model.
 
-| arm and view | correct runs | wrong runs | cheap non-correct runs |
-| --- | --- | --- | --- |
-| match strict | 27 | 2, both a pick where the gold asks | 1 unnecessary question |
-| model strict | 53 | 25, all a direct pick where the gold asks | 12 none answers where the gold asks |
-| model confirm | 66 correct + 3 confirmed + 3 `question_missing_gold` (lenient only) | 6, all a pick where the gold asks | 12 none answers where the gold asks |
+| arm and view  | correct runs                                                        | wrong runs                                | cheap non-correct runs              |
+| ------------- | ------------------------------------------------------------------- | ----------------------------------------- | ----------------------------------- |
+| match strict  | 27                                                                  | 2, both a pick where the gold asks        | 1 unnecessary question              |
+| model strict  | 53                                                                  | 25, all a direct pick where the gold asks | 12 none answers where the gold asks |
+| model confirm | 66 correct + 3 confirmed + 3 `question_missing_gold` (lenient only) | 6, all a pick where the gold asks         | 12 none answers where the gold asks |
 
 Wrong means `wrong_thread` or `picked_when_should_ask`. No run in either arm produced
 `wrong_thread` (measured, 0 of 120 runs on these 30 cases). As a confirming question the model was never
@@ -80,11 +80,11 @@ the shared, nontarget, absent and missing slices, at most two wrong overall, at 
 90 percent correct on the unambiguous exact and variant slices, at most 10 percent
 unnecessary questions, and single-request p95 at most 700 ms.
 
-| arm | view | zero wrong in shared, nontarget, absent, missing | overall wrong | unambiguous | unnecessary | p95 | passes |
-| --- | --- | --- | --- | --- | --- | --- | --- |
-| match | strict | 2, fail | 2, pass | 88.9 percent, fail | 3.3 percent, pass | no request, pass | no |
-| model | strict | 9, fail | 25, fail | 100 percent, pass | 0.0 percent, pass | 2341 ms, fail | no |
-| model | confirm | 6, fail | 6, fail | 100 percent, pass | 0.0 percent, pass | 2341 ms, fail | no |
+| arm   | view    | zero wrong in shared, nontarget, absent, missing | overall wrong | unambiguous        | unnecessary       | p95              | passes |
+| ----- | ------- | ------------------------------------------------ | ------------- | ------------------ | ----------------- | ---------------- | ------ |
+| match | strict  | 2, fail                                          | 2, pass       | 88.9 percent, fail | 3.3 percent, pass | no request, pass | no     |
+| model | strict  | 9, fail                                          | 25, fail      | 100 percent, pass  | 0.0 percent, pass | 2341 ms, fail    | no     |
+| model | confirm | 6, fail                                          | 6, fail       | 100 percent, pass  | 0.0 percent, pass | 2341 ms, fail    | no     |
 
 ## Sensitivity: the stated target as gold
 
@@ -93,11 +93,11 @@ the project named after "in" as a `one` gold, through the same outcome functions
 manifest and labels untouched and no picker re-run. Measured on the 30 match rows and 90
 model rows already on disk.
 
-| arm | view | zero wrong in shared, nontarget, absent, missing | overall wrong | unambiguous | unnecessary | p95 aside, what still fails |
-| --- | --- | --- | --- | --- | --- | --- |
-| match | strict | 0, pass | 0, pass | 8 of 9, fail, on A-015 | 3 of 30, pass | unambiguous only |
-| model | strict | 0, pass | 16, fail, all partial-slice fragment picks | 27 of 27, pass | 3 of 90, pass | wrong and p95 |
-| model | confirm | 0, pass | 0, pass | 27 of 27, pass | 3 of 90, pass | p95 only, 2341 ms |
+| arm   | view    | zero wrong in shared, nontarget, absent, missing | overall wrong                              | unambiguous            | unnecessary   | p95 aside, what still fails |
+| ----- | ------- | ------------------------------------------------ | ------------------------------------------ | ---------------------- | ------------- | --------------------------- |
+| match | strict  | 0, pass                                          | 0, pass                                    | 8 of 9, fail, on A-015 | 3 of 30, pass | unambiguous only            |
+| model | strict  | 0, pass                                          | 16, fail, all partial-slice fragment picks | 27 of 27, pass         | 3 of 90, pass | wrong and p95               |
+| model | confirm | 0, pass                                          | 0, pass                                    | 27 of 27, pass         | 3 of 90, pass | p95 only, 2341 ms           |
 
 The PM's ruling: a target stated with "in X" is X, so those four golds were too strict and
 the frozen manifest stands as recorded. Under that reading the model-confirm view has 0
@@ -197,27 +197,27 @@ all its repeats pass. Scores are in strict, lenient, confirm, and confirm-lenien
 Request and wall latencies are in milliseconds. Request timing includes a connection
 setup when observed and excludes pacing. Wall timing includes pacing and local work.
 
-| Arm | Cases | Runs | Cases passed in the four views | Request p50 / p95 | Wall p50 / p95 | d1.2 calls | Liquid spend |
-| --- | ---: | ---: | --- | --- | --- | ---: | ---: |
-| Deterministic match | 30 | 30 | 27 / 27 / 27 / 27 | None | 0.18 / 0.42 | 0 | $0 |
-| Match + particle-1 | 30 | 90 | 17 / 17 / 23 / 24 | 613 / 2341 | 2946 / 4341 | 0 | $0 |
-| `narrow+decider` | 30 | 90 | 8 / 15 / 17 / 25 | 93 / 243 | 118 / 381 | 90 | $0.00031884 |
-| `full+decider` | 30 | 90 | 8 / 15 / 18 / 26 | 93 / 159 | 125 / 424 | 90 | $0.00036276 |
+| Arm                 | Cases | Runs | Cases passed in the four views | Request p50 / p95 | Wall p50 / p95 | d1.2 calls | Liquid spend |
+| ------------------- | ----: | ---: | ------------------------------ | ----------------- | -------------- | ---------: | -----------: |
+| Deterministic match |    30 |   30 | 27 / 27 / 27 / 27              | None              | 0.18 / 0.42    |          0 |           $0 |
+| Match + particle-1  |    30 |   90 | 17 / 17 / 23 / 24              | 613 / 2341        | 2946 / 4341    |          0 |           $0 |
+| `narrow+decider`    |    30 |   90 | 8 / 15 / 17 / 25               | 93 / 243          | 118 / 381      |         90 |  $0.00031884 |
+| `full+decider`      |    30 |   90 | 8 / 15 / 18 / 26               | 93 / 159          | 125 / 424      |         90 |  $0.00036276 |
 
 Measured wrong counts by slice. Each cell gives distinct cases with a wrong result and then
 wrong runs, in strict, lenient, and confirm order. In the confirm view, a direct pick where
 gold says none becomes an unnecessary question. It still fails the case.
 
-| Slice | Cases | Match | Match + particle-1 | `narrow+decider` | `full+decider` |
-| --- | ---: | --- | --- | --- | --- |
-| Exact | 6 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
-| Variant | 3 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
-| Partial | 6 | 0/0 · 0/0 · 0/0 | 6/16 · 6/16 · 0/0 | 6/18 · 6/18 · 0/0 | 6/18 · 6/18 · 0/0 |
-| Shared | 4 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
-| Nontarget | 4 | 2/2 · 2/2 · 2/2 | 3/9 · 3/9 · 2/6 | 1/3 · 1/3 · 0/0 | 1/3 · 1/3 · 0/0 |
-| Absent | 4 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 3/6 · 3/6 · 0/0 | 4/12 · 4/12 · 0/0 |
-| Missing | 3 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 | 3/8 · 3/8 · 0/0 | 3/9 · 3/9 · 0/0 |
-| Total | 30 | 2/2 · 2/2 · 2/2 | 9/25 · 9/25 · 2/6 | 13/35 · 13/35 · 0/0 | 14/42 · 14/42 · 0/0 |
+| Slice     | Cases | Match           | Match + particle-1 | `narrow+decider`    | `full+decider`      |
+| --------- | ----: | --------------- | ------------------ | ------------------- | ------------------- |
+| Exact     |     6 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0    | 0/0 · 0/0 · 0/0     | 0/0 · 0/0 · 0/0     |
+| Variant   |     3 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0    | 0/0 · 0/0 · 0/0     | 0/0 · 0/0 · 0/0     |
+| Partial   |     6 | 0/0 · 0/0 · 0/0 | 6/16 · 6/16 · 0/0  | 6/18 · 6/18 · 0/0   | 6/18 · 6/18 · 0/0   |
+| Shared    |     4 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0    | 0/0 · 0/0 · 0/0     | 0/0 · 0/0 · 0/0     |
+| Nontarget |     4 | 2/2 · 2/2 · 2/2 | 3/9 · 3/9 · 2/6    | 1/3 · 1/3 · 0/0     | 1/3 · 1/3 · 0/0     |
+| Absent    |     4 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0    | 3/6 · 3/6 · 0/0     | 4/12 · 4/12 · 0/0   |
+| Missing   |     3 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0    | 3/8 · 3/8 · 0/0     | 3/9 · 3/9 · 0/0     |
+| Total     |    30 | 2/2 · 2/2 · 2/2 | 9/25 · 9/25 · 2/6  | 13/35 · 13/35 · 0/0 | 14/42 · 14/42 · 0/0 |
 
 **Retrieval.** Measured once per case, the top eight contained the gold project in all
 9 single-target cases and every named gold project in all 23 cases with named golds,
@@ -257,26 +257,26 @@ and confirm-lenient order. A case passes when all of its repeats pass. Request t
 includes connection setup when observed and excludes pacing. Wall timing includes pacing
 and local work.
 
-| Arm | Cases | Runs | Cases passed in the four views | Request p50 / p95 (ms) | Wall p50 / p95 (ms) | Liquid calls | Liquid spend |
-| --- | ---: | ---: | --- | --- | --- | ---: | ---: |
-| Deterministic match | 30 | 30 | 27 / 27 / 27 / 27 | None | 0.18 / 0.42 | 0 | $0 |
-| Match + particle-1 | 30 | 90 | 17 / 17 / 23 / 24 | 613 / 2341 | 2946 / 4341 | 0 | $0 |
-| `narrow+decider` | 30 | 90 | 20 / 20 / 26 / 30 | 101 / 220 | 126 / 259 | 91 | $0.00126036 |
-| `full+decider` | 30 | 90 | 18 / 18 / 24 / 30 | 120 / 232 | 152 / 257 | 90 | $0.00169338 |
+| Arm                 | Cases | Runs | Cases passed in the four views | Request p50 / p95 (ms) | Wall p50 / p95 (ms) | Liquid calls | Liquid spend |
+| ------------------- | ----: | ---: | ------------------------------ | ---------------------- | ------------------- | -----------: | -----------: |
+| Deterministic match |    30 |   30 | 27 / 27 / 27 / 27              | None                   | 0.18 / 0.42         |            0 |           $0 |
+| Match + particle-1  |    30 |   90 | 17 / 17 / 23 / 24              | 613 / 2341             | 2946 / 4341         |            0 |           $0 |
+| `narrow+decider`    |    30 |   90 | 20 / 20 / 26 / 30              | 101 / 220              | 126 / 259           |           91 |  $0.00126036 |
+| `full+decider`      |    30 |   90 | 18 / 18 / 24 / 30              | 120 / 232              | 152 / 257           |           90 |  $0.00169338 |
 
 Measured wrong counts give cases with at least one wrong result and wrong runs, in
 strict, lenient, and confirm order. The recorded baseline breakouts are in Round A above.
 
-| Slice | Cases / runs | `narrow+decider` wrong cases/runs | `full+decider` wrong cases/runs |
-| --- | ---: | --- | --- |
-| Exact | 6 / 18 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
-| Variant | 3 / 9 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
-| Partial | 6 / 18 | 6/18 · 6/18 · 0/0 | 6/18 · 6/18 · 0/0 |
-| Shared | 4 / 12 | 0/0 · 0/0 · 0/0 | 2/3 · 2/3 · 0/0 |
-| Nontarget | 4 / 12 | 4/12 · 4/12 · 0/0 | 4/12 · 4/12 · 0/0 |
-| Absent | 4 / 12 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
-| Missing | 3 / 9 | 0/0 · 0/0 · 0/0 | 0/0 · 0/0 · 0/0 |
-| Total | 30 / 90 | 10/30 · 10/30 · 0/0 | 12/33 · 12/33 · 0/0 |
+| Slice     | Cases / runs | `narrow+decider` wrong cases/runs | `full+decider` wrong cases/runs |
+| --------- | -----------: | --------------------------------- | ------------------------------- |
+| Exact     |       6 / 18 | 0/0 · 0/0 · 0/0                   | 0/0 · 0/0 · 0/0                 |
+| Variant   |        3 / 9 | 0/0 · 0/0 · 0/0                   | 0/0 · 0/0 · 0/0                 |
+| Partial   |       6 / 18 | 6/18 · 6/18 · 0/0                 | 6/18 · 6/18 · 0/0               |
+| Shared    |       4 / 12 | 0/0 · 0/0 · 0/0                   | 2/3 · 2/3 · 0/0                 |
+| Nontarget |       4 / 12 | 4/12 · 4/12 · 0/0                 | 4/12 · 4/12 · 0/0               |
+| Absent    |       4 / 12 | 0/0 · 0/0 · 0/0                   | 0/0 · 0/0 · 0/0                 |
+| Missing   |        3 / 9 | 0/0 · 0/0 · 0/0                   | 0/0 · 0/0 · 0/0                 |
+| Total     |      30 / 90 | 10/30 · 10/30 · 0/0               | 12/33 · 12/33 · 0/0             |
 
 Measured in the confirm view, both arms got 27 of 27 unambiguous runs right and
 asked unnecessarily zero times. The remaining strict errors were questions that

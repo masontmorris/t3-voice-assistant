@@ -65,7 +65,6 @@ import {
   latestProviderTurnForAttempt,
   resolveProjectProviderInstanceEnabled,
   SECRET_REQUEST_UNSAVED_NOTE,
-  isCallerPrivateTurnItem,
 } from "@t3tools/contracts";
 import { getProviderOptionCurrentValue, withLegacyUltracodeEffort } from "@t3tools/shared/model";
 import { backgroundWorkHoldsCompletion } from "@t3tools/shared/orchestrationV2PendingBackgroundWork";
@@ -3515,9 +3514,8 @@ const make = Effect.gen(function* () {
           ...(input.itemId === undefined ? {} : { itemId: input.itemId }),
         })
         .pipe(Effect.mapError(threadManagementFailure));
-      const rows = timeline.items.filter((row) => !isCallerPrivateTurnItem(row.item));
       const messageIdsByThread = new Map<ThreadId, Array<MessageId>>();
-      for (const row of rows) {
+      for (const row of timeline.items) {
         if (row.item.type !== "user_message" && row.item.type !== "assistant_message") continue;
         const ids = messageIdsByThread.get(row.sourceThreadId) ?? [];
         ids.push(row.item.messageId);
@@ -3550,7 +3548,7 @@ const make = Effect.gen(function* () {
         .map((run) => threadRun(target, run));
       const { items, start } = timelineItemsWithinBudget(
         { thread, recentRuns, nextPosition: null, hasMore: false, earlierPosition: null },
-        rows.map((row) => ({
+        timeline.items.map((row) => ({
           row,
           maxChars,
           messagesByThreadId,
@@ -3558,7 +3556,7 @@ const make = Effect.gen(function* () {
         })),
         newestFirst,
       );
-      const page = rows.slice(start, start + items.length);
+      const page = timeline.items.slice(start, start + items.length);
       const returnedRunIds = new Set(
         page.filter((row) => row.sourceThreadId === target.thread.id).map((row) => row.item.runId),
       );
@@ -3613,13 +3611,9 @@ const make = Effect.gen(function* () {
         thread,
         recentRuns,
         items,
-        // A page of only a voice call's rows still moves the cursor past them.
-        nextPosition: items.at(-1)?.position ?? timeline.items.at(-1)?.position ?? null,
-        hasMore: timeline.hasMore || (!newestFirst && items.length < rows.length),
-        earlierPosition:
-          timeline.hasEarlier || start > 0
-            ? (items[0]?.position ?? timeline.items[0]?.position ?? null)
-            : null,
+        nextPosition: items.at(-1)?.position ?? null,
+        hasMore: timeline.hasMore || (!newestFirst && items.length < timeline.items.length),
+        earlierPosition: timeline.hasEarlier || start > 0 ? (items[0]?.position ?? null) : null,
       } satisfies OrchestratorMcpThreadReadResult;
     }),
     sendToThread: Effect.fn("OrchestratorMcpService.sendToThread")(function* (scope, input) {

@@ -777,7 +777,7 @@ it.effect("pages the guest back through turns older than the stream's snapshot",
   }).pipe(Effect.scoped, Effect.provide(layerTest)),
 );
 
-it.effect("pages a guest back through history without the owner's voice calls", () =>
+it.effect("shows a guest the same thread, snapshot and history, before and after a call", () =>
   Effect.gen(function* () {
     const { guestShares, credential } = yield* shareThread;
     const { token: session } = yield* guestShares.redeem({ credential, name: "Sam" });
@@ -818,24 +818,32 @@ it.effect("pages a guest back through history without the owner's voice calls", 
         } as OrchestrationV2TurnItem,
       })),
     });
-    const [, opening] = Array.from(
-      yield* Stream.runCollect(Stream.take(yield* guestShares.stream(session), 2)),
-    );
-    if (opening?.type !== "thread" || opening.item.kind !== "snapshot") {
-      return assert.fail("Expected the thread snapshot second.");
-    }
-    const pages: Array<OrchestrationV2ThreadHistoryPage> = [];
-    let cursor = opening.item.historyCursor ?? null;
-    assert.isNotNull(cursor, "the call is older than the opening snapshot");
-    while (cursor !== null) {
-      const page: OrchestrationV2ThreadHistoryPage = yield* guestShares.history(session, cursor);
-      pages.push(page);
-      cursor = page.hasMoreHistory ? page.nextCursor : null;
-    }
-    const older = pages.flatMap((page) => page.items.map((row) => row.item.type));
+    const look = Effect.gen(function* () {
+      const opening = Array.from(
+        yield* Stream.runCollect(Stream.take(yield* guestShares.stream(session), 2)),
+      );
+      const snapshot = opening[1];
+      if (snapshot?.type !== "thread" || snapshot.item.kind !== "snapshot") {
+        return assert.fail("Expected the thread snapshot second.");
+      }
+      const pages: Array<OrchestrationV2ThreadHistoryPage> = [];
+      let cursor = snapshot.item.historyCursor ?? null;
+      while (cursor !== null) {
+        const page: OrchestrationV2ThreadHistoryPage = yield* guestShares.history(session, cursor);
+        pages.push(page);
+        cursor = page.hasMoreHistory ? page.nextCursor : null;
+      }
+      return { opening, pages };
+    });
+    const before = yield* look;
+    assert.isNotEmpty(before.pages, "the thread is long enough to page");
+    yield* recordCall("newest");
+    const after = yield* look;
+    assert.deepEqual(after, before);
+    const older = after.pages.flatMap((page) => page.items.map((row) => row.item.type));
     assert.include(older, "user_message", "history still pages the owner's own turns");
-    assert.notInclude(older, "voice_call");
-    assert.notInclude(JSON.stringify(pages), "Private words");
+    assert.notInclude(JSON.stringify(after), "voice_call");
+    assert.notInclude(JSON.stringify(after), "Private words");
   }).pipe(Effect.provide(layerTest)),
 );
 

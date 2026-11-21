@@ -13,12 +13,12 @@ Each run is one GPU lease under `quiet_run`, no priority, on loopback with synth
 the same five-turn and three-turn scripts, and persona `prompt.txt` sha256 `02700e254b8f` (measured). Scores come from
 `score.py`, which checks parroting, recall, third-person narration and clarification asks in code.
 
-| Run | Was in the voice session before the reply | Parrot turns | Narration | Clarification | Recall |
-| --- | --- | --- | --- | --- | --- |
-| run 5 | the snapshot item, after the tools turn, holding `final_transcript` | 3, 4, and the tail of 7 | none | 7 | 1 of 4 |
-| run 6 (A) | the snapshot item moved before the turn's audio, holding the prior turn's state | 3, 4, 5 | 7 | none | 2 of 4 |
-| run 7 (B) | nothing | none | none | 1, 2, 4, 7 | 3 of 4 |
-| run 8 (C) | the snapshot in its run 5 place, with the person's words removed | none | none | none | 3 of 4 |
+| Run       | Was in the voice session before the reply                                       | Parrot turns            | Narration | Clarification | Recall |
+| --------- | ------------------------------------------------------------------------------- | ----------------------- | --------- | ------------- | ------ |
+| run 5     | the snapshot item, after the tools turn, holding `final_transcript`             | 3, 4, and the tail of 7 | none      | 7             | 1 of 4 |
+| run 6 (A) | the snapshot item moved before the turn's audio, holding the prior turn's state | 3, 4, 5                 | 7         | none          | 2 of 4 |
+| run 7 (B) | nothing                                                                         | none                    | none      | 1, 2, 4, 7    | 3 of 4 |
+| run 8 (C) | the snapshot in its run 5 place, with the person's words removed                | none                    | none      | none          | 3 of 4 |
 
 Run 6 is the one that names the mechanism. Its snapshot went in before the audio, so it could not carry the current
 utterance, and the snapshot reply stopped echoing. The echo moved to the second reply of each turn, which follows the

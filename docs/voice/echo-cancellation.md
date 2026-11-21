@@ -11,18 +11,18 @@ no new dependency. The server's turn, barge-in and transcript paths stay exactly
 
 ## What ships
 
-| File | State | What it is |
-| --- | --- | --- |
-| `voice/live/aec.py` | New | The canceller. `EchoCanceller.playback` takes the played reply, `process` cleans one microphone frame, `stats` reports counts. |
-| `voice/live/client.py` | Changed | Feeds the player's audio to the canceller and sends the cleaned microphone. Three flags. |
-| `docs/voice/echo-cancellation-client.patch` | New | The `client.py` diff against reference head `1845b42978`. It applies cleanly with `git apply` to that head (measured). |
-| `docs/voice/echo-cancellation.md` | New | This file. |
-| `docs/voice/licenses.md` | New | The one dependency this branch touches, numpy, with no new package. |
-| `voice/live/tests/synthetic.py` | New | Generated scenes. No recorded audio. |
-| `voice/live/tests/test_aec.py` | New | 18 tests: echo-only, interruptions, rate and frame handling. |
-| `voice/live/tests/test_client_echo.py` | New | 10 tests: flag selection, player feed, send path, failure guard. |
-| `voice/research/live/echo_bench.py` | New | Rerunnable check that writes WAVs and a JSON summary. |
-| `voice/live/recording.py`, `endpoint.py`, `requirements-client.txt`, `__init__.py` | Copied | Unmodified copies of reference head `1845b42978`, added so the tests can run in this checkout. See "Parent checkout" below. |
+| File                                                                               | State   | What it is                                                                                                                     |
+| ---------------------------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `voice/live/aec.py`                                                                | New     | The canceller. `EchoCanceller.playback` takes the played reply, `process` cleans one microphone frame, `stats` reports counts. |
+| `voice/live/client.py`                                                             | Changed | Feeds the player's audio to the canceller and sends the cleaned microphone. Three flags.                                       |
+| `docs/voice/echo-cancellation-client.patch`                                        | New     | The `client.py` diff against reference head `1845b42978`. It applies cleanly with `git apply` to that head (measured).         |
+| `docs/voice/echo-cancellation.md`                                                  | New     | This file.                                                                                                                     |
+| `docs/voice/licenses.md`                                                           | New     | The one dependency this branch touches, numpy, with no new package.                                                            |
+| `voice/live/tests/synthetic.py`                                                    | New     | Generated scenes. No recorded audio.                                                                                           |
+| `voice/live/tests/test_aec.py`                                                     | New     | 18 tests: echo-only, interruptions, rate and frame handling.                                                                   |
+| `voice/live/tests/test_client_echo.py`                                             | New     | 10 tests: flag selection, player feed, send path, failure guard.                                                               |
+| `voice/research/live/echo_bench.py`                                                | New     | Rerunnable check that writes WAVs and a JSON summary.                                                                          |
+| `voice/live/recording.py`, `endpoint.py`, `requirements-client.txt`, `__init__.py` | Copied  | Unmodified copies of reference head `1845b42978`, added so the tests can run in this checkout. See "Parent checkout" below.    |
 
 ## How it works
 
@@ -58,43 +58,43 @@ because that is the live client's output rate; the microphone is 16 kHz, as on t
 **Echo only.** Six seconds of reply with no person. The last 3.5 s are scored. The endpointer in `endpoint.py` runs
 on what the client would send.
 
-| Scene | Echo at mic | Sent | Start? |
-| --- | --- | --- | --- |
-| Echo -40 dBFS | -39.9 | -60.0 | none |
-| Echo -32 dBFS | -31.9 | -60.0 | none |
-| Echo -26 dBFS | -25.9 | -60.0 | none |
-| Echo -20 dBFS | -19.9 | -60.0 | none |
-| Echo -14 dBFS | -13.9 | -60.0 | none |
-| 120 ms echo delay | -25.9 | -60.0 | none |
-| 220 ms echo delay | -25.8 | -54.0 | none |
-| 100 ms room tail | -25.9 | -60.0 | none |
-| Another random path (3 seeds) | -25.9 | -60.0 | none |
-| Reply with playback gaps | -26.0 | -58.6 | none |
-| Room path changes at 5 s | -25.9 | -44.5 | none |
+| Scene                         | Echo at mic | Sent  | Start? |
+| ----------------------------- | ----------- | ----- | ------ |
+| Echo -40 dBFS                 | -39.9       | -60.0 | none   |
+| Echo -32 dBFS                 | -31.9       | -60.0 | none   |
+| Echo -26 dBFS                 | -25.9       | -60.0 | none   |
+| Echo -20 dBFS                 | -19.9       | -60.0 | none   |
+| Echo -14 dBFS                 | -13.9       | -60.0 | none   |
+| 120 ms echo delay             | -25.9       | -60.0 | none   |
+| 220 ms echo delay             | -25.8       | -54.0 | none   |
+| 100 ms room tail              | -25.9       | -60.0 | none   |
+| Another random path (3 seeds) | -25.9       | -60.0 | none   |
+| Reply with playback gaps      | -26.0       | -58.6 | none   |
+| Room path changes at 5 s      | -25.9       | -44.5 | none   |
 
 The filter alone reaches 11.5 to 12.6 dB of echo return loss enhancement on these scenes (measured, `erle_db` in
 the stats). The suppressor takes the rest.
 
 **Interruptions.** The person starts at 2.00 s and speaks for one second.
 
-| Echo / person | Start | Onset held | Sent minus raw during speech (2.2 to 2.9 s) |
-| --- | --- | --- | --- |
-| -32 / -24 dBFS | 2.14 s | 40 ms | -0.8 dB |
-| -26 / -18 dBFS | 2.14 s | 40 ms | -0.7 dB |
-| -20 / -12 dBFS | 2.14 s | 40 ms | -0.7 dB |
-| -14 / -8 dBFS | 2.14 s | 40 ms | -1.2 dB |
+| Echo / person  | Start  | Onset held | Sent minus raw during speech (2.2 to 2.9 s) |
+| -------------- | ------ | ---------- | ------------------------------------------- |
+| -32 / -24 dBFS | 2.14 s | 40 ms      | -0.8 dB                                     |
+| -26 / -18 dBFS | 2.14 s | 40 ms      | -0.7 dB                                     |
+| -20 / -12 dBFS | 2.14 s | 40 ms      | -0.7 dB                                     |
+| -14 / -8 dBFS  | 2.14 s | 40 ms      | -1.2 dB                                     |
 
 The 140 ms start is mostly the endpointer's own 100 ms `start_ms` window, plus the 40 ms the level ratio takes to
 move (measured).
 
 **Other cases.**
 
-| Case | Result |
-| --- | --- |
-| Headphones, person at 2 s | Start at 2.10 s, sent level within 0.1 dB of the raw microphone |
-| Person talks inside a playback gap | Start at 3.10 s |
-| Person at the same level as the echo, or 2 dB above it | No start (limitation below) |
-| Person starts 50 ms into the first reply | No start (limitation below) |
+| Case                                                   | Result                                                          |
+| ------------------------------------------------------ | --------------------------------------------------------------- |
+| Headphones, person at 2 s                              | Start at 2.10 s, sent level within 0.1 dB of the raw microphone |
+| Person talks inside a playback gap                     | Start at 3.10 s                                                 |
+| Person at the same level as the echo, or 2 dB above it | No start (limitation below)                                     |
+| Person starts 50 ms into the first reply               | No start (limitation below)                                     |
 
 ## Verification
 
@@ -149,6 +149,7 @@ only `client.py` is changed. Port `aec.py`, the `client.py` change and the tests
 fork, which already has them.
 
 **Steps.**
+
 1. Copy `voice/live/aec.py` into the fork.
 2. Apply `docs/voice/echo-cancellation-client.patch` with `git apply` in the fork, or port the hunks by hand. It
    is measured to apply to `voice/live/client.py` at `1845b42978` without conflict.
@@ -161,6 +162,7 @@ fork, which already has them.
    raw microphone."
 
 **Behavior on the laptop.**
+
 - `--echo-cancel` is on by default when the microphone is the input. It is off with `--wav` unless passed.
 - `--no-echo-cancel` restores the earlier raw-microphone path.
 - `--echo-tail-ms` raises the modeled echo path from 256 ms.

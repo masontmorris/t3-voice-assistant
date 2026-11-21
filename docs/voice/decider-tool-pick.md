@@ -10,11 +10,11 @@ Measured on 2026-11-16, branch `voice/decider-tool-pick` from `3c0576b98a`, and 
 `voice/polish-toolpick` from `53ff4ff5a5`. Every claim says whether it is measured, inferred or a guess. The
 summarizer model for the text level was Liquid's hosted `d1.2`.
 
-| | Word rules | Decider, tool question at 0.30 |
-| --- | --- | --- |
-| Gate eval, train 46 items | 74% | 98% |
-| Gate eval, held-out 24 items | 62% | 92% |
-| Mason's 37 real turns, the named failure | San Diego re-run | the general worker, no re-run |
+|                                          | Word rules       | Decider, tool question at 0.30 |
+| ---------------------------------------- | ---------------- | ------------------------------ |
+| Gate eval, train 46 items                | 74%              | 98%                            |
+| Gate eval, held-out 24 items             | 62%              | 92%                            |
+| Mason's 37 real turns, the named failure | San Diego re-run | the general worker, no re-run  |
 
 Both decider values are the polish round's fresh sample. The first two rows sit beside the word rules scored on the same
 items, and the word rules' own number rose from 70% when a correction began running the corrected task's tool. The last
@@ -26,12 +26,12 @@ samples the earlier round measured.
 Each tool in the registry carries two lines. `label` is the short name a failure sentence speaks, unchanged in wording
 ("weather lookup"). `line` is what it does and when to use it, and that line is the option text the decider reads:
 
-| Option | Line |
-| --- | --- |
+| Option    | Line                                                                                                                                                                |
+| --------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `weather` | Weather forecast for a named city on a named day: the high temperature and the chance of precipitation. Use it for a forecast, or for anything that depends on one. |
-| `time` | The current local time in a named city. Use it when the speaker asks what time it is. |
-| `agent` | General lookup: information from outside this call that no tool above covers, including a request that asks the assistant to choose a detail first, such as a city. |
-| `none` | No tool: conversation, a reaction, or a question the assistant answers from this call's own words. |
+| `time`    | The current local time in a named city. Use it when the speaker asks what time it is.                                                                               |
+| `agent`   | General lookup: information from outside this call that no tool above covers, including a request that asks the assistant to choose a detail first, such as a city. |
+| `none`    | No tool: conversation, a reaction, or a question the assistant answers from this call's own words.                                                                  |
 
 `Registry.choices` builds that option set from the tools it holds plus the two fixed options, and
 `voice/segmentation/contract.py` puts it in a `choice` question per segment. A tool added to the registry therefore
@@ -74,10 +74,10 @@ correction turn whose words change a value of the call's newest task (`turn_inte
 those items score the registry on both sides: since the polish round, a correction runs the corrected task's own tool.
 A turn worded as a correction that changes nothing there is asked of the decider like a request.
 
-| Split | n | Word rules, before | Word rules, after | Decider, sample 1 | Decider, sample 2 | Decider, sample 3 |
-| --- | --- | --- | --- | --- | --- | --- |
-| Train | 46 | 32 (70%) | 34 (74%) | 42 (91%) | 42 (91%) | 45 (98%) |
-| Held-out | 24 | 15 (62%) | 15 (62%) | 21 (88%) | 22 (92%) | 22 (92%) |
+| Split    | n   | Word rules, before | Word rules, after | Decider, sample 1 | Decider, sample 2 | Decider, sample 3 |
+| -------- | --- | ------------------ | ----------------- | ----------------- | ----------------- | ----------------- |
+| Train    | 46  | 32 (70%)           | 34 (74%)          | 42 (91%)          | 42 (91%)          | 45 (98%)          |
+| Held-out | 24  | 15 (62%)           | 15 (62%)          | 21 (88%)          | 22 (92%)          | 22 (92%)          |
 
 Every value is measured; samples 1 and 2 are the earlier round's, sample 3 is the polish round's. The word rules' train
 number rose by two, both correction items, and held-out did not move. The decider's sample 3 rose by three on train and
@@ -86,11 +86,11 @@ one on held-out, which is more than the correction fix explains, so read that ri
 
 The wrong items at the shipped bar in sample 3 are:
 
-| Item | Words | Should be | Got | Margin | Who decided |
-| --- | --- | --- | --- | --- | --- |
-| t32 | "I'll check the weather later." | none | agent | 0.39 | the decider |
-| t33 | "My sister wants me to look up flights to Lisbon." | none | agent | 0.87 | the decider |
-| t51 | "What about Friday morning?" | agent | none | 0.46 | the decider |
+| Item | Words                                              | Should be | Got   | Margin | Who decided |
+| ---- | -------------------------------------------------- | --------- | ----- | ------ | ----------- |
+| t32  | "I'll check the weather later."                    | none      | agent | 0.39   | the decider |
+| t33  | "My sister wants me to look up flights to Lisbon." | none      | agent | 0.87   | the decider |
+| t51  | "What about Friday morning?"                       | agent     | none  | 0.46   | the decider |
 
 t32 is a description of a task, so no dispatch happens whatever the tool answer says; it is in the table because the
 tool question should still have said `none`. It answered `weather` at 0.22 in the earlier round and `agent` at 0.39
@@ -100,11 +100,11 @@ and the decider called it `none` at 0.46, above the bar, so that answer stands a
 
 The three items the earlier round read as low-margin, as sample 3 answered them:
 
-| Item | Should be | Answer | Margin | Label met |
-| --- | --- | --- | --- | --- |
-| t32 | none | agent | 0.39 | no, and the answer moved from `weather` at 0.22 in the earlier round |
-| t43 | agent | agent | 0.43 | yes, in this sample, where the earlier round's 0.33 fell under the bar |
-| t50 | agent | agent | 0.59 | yes, in this sample, where the earlier round's 0.40 was under it |
+| Item | Should be | Answer | Margin | Label met                                                              |
+| ---- | --------- | ------ | ------ | ---------------------------------------------------------------------- |
+| t32  | none      | agent  | 0.39   | no, and the answer moved from `weather` at 0.22 in the earlier round   |
+| t43  | agent     | agent  | 0.43   | yes, in this sample, where the earlier round's 0.33 fell under the bar |
+| t50  | agent     | agent  | 0.59   | yes, in this sample, where the earlier round's 0.40 was under it       |
 
 The last two clear the bar in sample 3 and were under it in both earlier samples, so they hold by a margin in the model's
 own spread rather than by anything this round changed (measured). Neither task runs either way: the decider read both as
@@ -127,10 +127,10 @@ sample scores the same 89% and 83% (measured).
 d1.2 reads the place as a `text` answer and the day as a `choice` over the same day names the weather tool already uses.
 Both ride in the same request. This is on by default (`VOICE_DECIDER_ARGS=off` turns it off).
 
-| Reading | n | Exact, before the polish round | Exact, after |
-| --- | --- | --- | --- |
-| Decider's place and day, filled for dispatch | 10 | 9 | 7 |
-| The word rules' place and day | 10 | 8 | 7 |
+| Reading                                      | n   | Exact, before the polish round | Exact, after |
+| -------------------------------------------- | --- | ------------------------------ | ------------ |
+| Decider's place and day, filled for dispatch | 10  | 9                              | 7            |
+| The word rules' place and day                | 10  | 8                              | 7            |
 
 Both columns are measured on the eval's ten labeled items that the decider answered; the second is the polish round's
 fresh sample. The two items the guard costs are `t52`, "And what about the day after?", and `t67`, "And s aturday?".
@@ -189,10 +189,10 @@ from the earlier Durham forecast even when the model reads one, because the word
 "Okay, and what about San Diego?" keeps its place, because those words do say it, which the preposition rule alone
 cannot read (measured, turn 022 of the replay).
 
-| Split | n | Arguments exact, polish round | Arguments exact, now |
-| --- | --- | --- | --- |
-| The polish round's recorded answers, scored again | 10 | 7 | 9 |
-| A fresh sample, three readings per item | 10 | not run | 9 |
+| Split                                             | n   | Arguments exact, polish round | Arguments exact, now |
+| ------------------------------------------------- | --- | ----------------------------- | -------------------- |
+| The polish round's recorded answers, scored again | 10  | 7                             | 9                    |
+| A fresh sample, three readings per item           | 10  | not run                       | 9                    |
 
 Both columns are measured. The first row scores the same 210 traces the polish round recorded, so the change is the
 code and not the model's spread. The second is a fresh 210-call sample at $0.00323. `t64` is the one item wrong in both
@@ -259,16 +259,16 @@ One 37-clip replay of Mason's recording on this branch, `--decider liquid`, real
 lock). The driver, the scorer, the reply differ and the records are in `$VOICE_HOME/evidence/toolpick-followups/`.
 Against the previous worker's `toolpick-polish2`:
 
-| Measurement | `toolpick-polish2` | This branch |
-| --- | --- | --- |
-| Clips sent | 37 | 37 |
-| Server turns | 37 | 37 |
-| Turns with a transcript | 37 | 37 |
-| Recording turns matched | 35 of 37 | 35 of 37 |
-| Lookups in the recording | 7 | 7 |
-| Lookups in the replay | 7 | 6 |
-| Replay lookups decided by the decider | 7 | 6 |
-| Turns whose tool or lookup arguments differ from the recording | 5 | 4 |
+| Measurement                                                    | `toolpick-polish2` | This branch |
+| -------------------------------------------------------------- | ------------------ | ----------- |
+| Clips sent                                                     | 37                 | 37          |
+| Server turns                                                   | 37                 | 37          |
+| Turns with a transcript                                        | 37                 | 37          |
+| Recording turns matched                                        | 35 of 37           | 35 of 37    |
+| Lookups in the recording                                       | 7                  | 7           |
+| Lookups in the replay                                          | 7                  | 6           |
+| Replay lookups decided by the decider                          | 7                  | 6           |
+| Turns whose tool or lookup arguments differ from the recording | 5                  | 4           |
 
 Every value is measured. The replay's lookups fall by one because turn 016 no longer runs one, and that turn now matches
 the recording, which ran nothing there either.
@@ -280,10 +280,10 @@ with `diff_replays.py`). Spoken replies differ in wording on 33 of 37 turns, whi
 between two runs of the same code as much as anything else, so only two turns' replies changed in kind (measured, text
 compared turn by turn):
 
-| Turn | Words | `toolpick-polish2` | This branch |
-| --- | --- | --- | --- |
-| 016 | "Wait, do it again." | failing weather lookup, empty reply | nothing runs, "Sure! Which city or place would you like the weather for?" |
-| 025 | "Pick a city on the east coast to check the weather for." | "I'm checking the weather in a city on the East Coast." then New York | "Sure! Which city on the East Coast would you like the weather for?" then New York |
+| Turn | Words                                                     | `toolpick-polish2`                                                    | This branch                                                                        |
+| ---- | --------------------------------------------------------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| 016  | "Wait, do it again."                                      | failing weather lookup, empty reply                                   | nothing runs, "Sure! Which city or place would you like the weather for?"          |
+| 025  | "Pick a city on the east coast to check the weather for." | "I'm checking the weather in a city on the East Coast." then New York | "Sure! Which city on the East Coast would you like the weather for?" then New York |
 
 Turn 025 is a cost of the change (inferred): its task and instruction are the same, so the first line is the voice
 model's own wording, and the earlier turn's question is now in the call's history. Asking a city there and then
@@ -308,17 +308,17 @@ The recording this is compared with ran without the general worker; `VOICE_AGENT
 uses the worker is therefore a change the worker's presence explains, not the tool question (inferred from the recorded
 turns 025 and 028, which ran no lookup at all).
 
-| Measurement | Tool question only | Tool question and arguments | Polish, before the guard | Polish, at the head |
-| --- | --- | --- | --- | --- |
-| Clips sent | 37 | 37 | 37 | 37 |
-| Server turns | 37 | 37 | 37 | 37 |
-| Turns with a transcript | 37 | 37 | 37 | 37 |
-| Recording turns matched | 35 of 37 | 35 of 37 | 35 of 37 | 35 of 37 |
-| Lookups in the recording | 7 | 7 | 7 | 7 |
-| Lookups in the replay | 9 | 7 | 7 | 7 |
-| Replay lookups decided by the decider | 9 | 7 | 7 | 7 |
-| Replay lookups decided by the word rules | 0 | 0 | 0 | 0 |
-| Turns whose tool or arguments changed | 5 | 5 | 6 | 5 |
+| Measurement                              | Tool question only | Tool question and arguments | Polish, before the guard | Polish, at the head |
+| ---------------------------------------- | ------------------ | --------------------------- | ------------------------ | ------------------- |
+| Clips sent                               | 37                 | 37                          | 37                       | 37                  |
+| Server turns                             | 37                 | 37                          | 37                       | 37                  |
+| Turns with a transcript                  | 37                 | 37                          | 37                       | 37                  |
+| Recording turns matched                  | 35 of 37           | 35 of 37                    | 35 of 37                 | 35 of 37            |
+| Lookups in the recording                 | 7                  | 7                           | 7                        | 7                   |
+| Lookups in the replay                    | 9                  | 7                           | 7                        | 7                   |
+| Replay lookups decided by the decider    | 9                  | 7                           | 7                        | 7                   |
+| Replay lookups decided by the word rules | 0                  | 0                           | 0                        | 0                   |
+| Turns whose tool or arguments changed    | 5                  | 5                           | 6                        | 5                   |
 
 Every value is measured, and the unmatched recording turns are the two wordless ones in every arm. Every dispatch in all
 four replays carried a tool answer over the bar, so the word rules decided nothing in any call. That is the strongest
@@ -326,9 +326,9 @@ statement the runs support and also their main risk, because the rules no longer
 
 Against the previous tool-pick replay, `toolpick-args`, this branch changes one turn's tool or arguments:
 
-| Turn | Words | Recording | `toolpick-args` | Head |
-| --- | --- | --- | --- | --- |
-| 016 | "Wait, do it again." | nothing | weather Durham, today, ok | weather no place, today, failed |
+| Turn | Words                | Recording | `toolpick-args`           | Head                            |
+| ---- | -------------------- | --------- | ------------------------- | ------------------------------- |
+| 016  | "Wait, do it again." | nothing   | weather Durham, today, ok | weather no place, today, failed |
 
 That is measured: `diff_replays.py` over the two record sets, comparing each turn's tool and its JSON arguments. Turn
 025's agent call also differs there, but only in the conversation text it carries, because the two replays' earlier
@@ -336,13 +336,13 @@ replies differ; its tool and instruction are the same, and both ran `ok`.
 
 The five turns of the head's replay that differ from the recording's own lookups:
 
-| Turn | Words | Recording | Head |
-| --- | --- | --- | --- |
-| 003 | "Are you checking the weather?" | weather Raleigh, today | nothing |
-| 016 | "Wait, do it again." | nothing | weather no place, today, failed |
-| 022 | "Okay, and what about San Diego?" | nothing | weather San Diego, today |
-| 023 | "You can't check the weather in San Diego?" | weather San Diego, today | nothing |
-| 025 | "Pick a city on the east coast to check the weather for." | weather San Diego, today | agent, ok |
+| Turn | Words                                                     | Recording                | Head                            |
+| ---- | --------------------------------------------------------- | ------------------------ | ------------------------------- |
+| 003  | "Are you checking the weather?"                           | weather Raleigh, today   | nothing                         |
+| 016  | "Wait, do it again."                                      | nothing                  | weather no place, today, failed |
+| 022  | "Okay, and what about San Diego?"                         | nothing                  | weather San Diego, today        |
+| 023  | "You can't check the weather in San Diego?"               | weather San Diego, today | nothing                         |
+| 025  | "Pick a city on the east coast to check the weather for." | weather San Diego, today | agent, ok                       |
 
 Every value is measured. Each change:
 
@@ -382,11 +382,11 @@ and only its place and day readings are used here (measured).
 Same ten decision bodies, three versions each, one fresh call per body to Liquid (measured; `cost_probe.py` in the same
 evidence directory):
 
-| Body | Questions | Input tokens | Change | Median latency |
-| --- | --- | --- | --- | --- |
-| As before | 3 | 410 | | 136 ms |
-| Plus the tool question | 4 | 624 | +214 tokens, +52% | 152 ms |
-| Plus the tool question and the arguments | 6 | 817 | +407 tokens, +99% | 128 ms |
+| Body                                     | Questions | Input tokens | Change            | Median latency |
+| ---------------------------------------- | --------- | ------------ | ----------------- | -------------- |
+| As before                                | 3         | 410          |                   | 136 ms         |
+| Plus the tool question                   | 4         | 624          | +214 tokens, +52% | 152 ms         |
+| Plus the tool question and the arguments | 6         | 817          | +407 tokens, +99% | 128 ms         |
 
 At $0.02 per million input tokens, +407 tokens is $0.0000081 per decision, so a call of 40 decisions costs about three
 tenths of a cent more (inferred from the measured token counts and the published price). The latency column is one

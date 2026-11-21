@@ -41,14 +41,14 @@ exact sample match of its own input audio, so a turn that ends early or covers t
 order (`score.py`). "Silence" is measured on the turn's own audio: the samples after its last speech frame. It is not
 the server's nominal number, which understates the wait whenever an answer came back late.
 
-| | `--eou silence` | `--eou audio` |
-|---|---|---|
-| Turns produced (37 expected) | 37 | 39 |
-| Clips with exactly one turn | 35 of 37 | 34 of 37 |
-| Turns that ended with speech still to come in the clip (mid-thought cuts) | 0 | 3: clips 4, 6 and 10 |
-| Silence from speech end to turn end, median / p90 | 0.70 s / 0.70 s | 0.22 s / 0.70 s |
-| Time to first reply audio, median / p90 | 2.04 s / 2.36 s (n 37) | 1.66 s / 2.12 s (n 37) |
-| VRAM during the call | 3.13 to 3.18 GB | 5.80 to 5.87 GB |
+|                                                                           | `--eou silence`        | `--eou audio`          |
+| ------------------------------------------------------------------------- | ---------------------- | ---------------------- |
+| Turns produced (37 expected)                                              | 37                     | 39                     |
+| Clips with exactly one turn                                               | 35 of 37               | 34 of 37               |
+| Turns that ended with speech still to come in the clip (mid-thought cuts) | 0                      | 3: clips 4, 6 and 10   |
+| Silence from speech end to turn end, median / p90                         | 0.70 s / 0.70 s        | 0.22 s / 0.70 s        |
+| Time to first reply audio, median / p90                                   | 2.04 s / 2.36 s (n 37) | 1.66 s / 2.12 s (n 37) |
+| VRAM during the call                                                      | 3.13 to 3.18 GB        | 5.80 to 5.87 GB        |
 
 - **The saving is real and close to the study's inference.** Median first audio came 0.38 s earlier. The study
   inferred about 0.35 s from silence alone. Measured here, 33 of 39 turns ended early: 30 at the 150 ms check, 2 at

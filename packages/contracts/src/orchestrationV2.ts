@@ -2036,8 +2036,11 @@ export type OrchestrationV2TurnItem = typeof OrchestrationV2TurnItem.Type;
  * A voice call's transcript is the caller's own: their T3 shows it to them, and it is never handed to a model, an
  * agent, a guest or any other service. Every path that assembles thread content for one of those leaves it out.
  */
+export const CALLER_PRIVATE_TURN_ITEM_TYPES: ReadonlyArray<OrchestrationV2TurnItem["type"]> = [
+  "voice_call",
+];
 export const isCallerPrivateTurnItem = (item: { readonly type: string }): boolean =>
-  item.type === "voice_call";
+  CALLER_PRIVATE_TURN_ITEM_TYPES.some((type) => type === item.type);
 
 const isUnknownTurnItem = hasUnknownUnionTag(OrchestrationV2TurnItem.members, "type");
 
