@@ -27,8 +27,10 @@ from types import SimpleNamespace
 from voice.prototype.run import MAX_DRAFTS
 from voice.t3 import fakes as F
 from voice.t3 import types as T
-from voice.t3.eval.line_cases import LAUNCH_TITLES, cases, need_lines, turns_for
-from voice.t3.speech import Lane, LocalText, RequestGate, Speech, untitled, without_request
+from voice.t3.eval.line_cases import ACCOUNT_CASES, cases, need_lines, turns_for
+from voice.t3.speech import (Lane, LocalText, RequestGate, Speech, candidate_names, named, reference, without_request)
+from voice.t3.acts import Act, Kind
+from voice.t3.speech import Launch
 from voice.t3.verify import Decider
 
 LFM_ARGS = ("-c", "32768", "-kvu")
@@ -43,26 +45,34 @@ def decider(out: Path) -> Decider:
     return Decider(liquid.LiquidClient(pacer=Pacer(first_s=0.0, cap_s=0.0), timeout_s=10.0, max_attempts=3))
 
 
-PROJECT = "Pebble Garden"
 STORED = {}
 
 
-def prepared(speech: Speech, acts) -> tuple:
+def prepared(speech: Speech, acts, scene) -> tuple:
     """The acts as a turn holds them when it words them: a pending request's stored text replaced by its gated
-    description, and a thread still titled with the request it started from carried by its project."""
+    description, and a launched thread named as T3 titles it now (or, in a which-thread question, each offered
+    thread by its title or by what it was started for)."""
     stored = acts[0].slots.get("prompt", acts[0].slots.get("pending"))
     if stored is not None:
         STORED["state"] = F.state(thread="t", title=acts[0].slots.get("thread", "t"),
                                   activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need(prompt=stored))
         acts, _ = speech.fill(acts, "t")
-    return untitled(acts, dict.fromkeys(LAUNCH_TITLES, PROJECT))
+    if scene is None:
+        return acts
+    ref = reference(scene.thread, scene.launched, scene.titles)
+    me = next((l for l in scene.launched if l.thread_id == scene.thread), None)
+    acts = named(acts, ref, speech.account(me) if ref is not None and ref.unnamed and ref.shared else None)
+    if acts[0].kind is Kind.ASK_WHICH and scene.offered:
+        acts = (Act(acts[0].kind, {**acts[0].slots, "candidates": candidate_names(
+            scene.offered, scene.titles, scene.launched, speech.account)}),)
+    return acts
 
 
-def word(speech: Speech, acts, turns) -> dict:
+def word(speech: Speech, acts, turns, scene=None) -> dict:
     """One case as a turn words it. Returns what each draft was and whether any passed."""
     from voice.live.t3_tasks import refuse
 
-    acts = prepared(speech, acts)
+    acts = prepared(speech, acts, scene)
     update = SimpleNamespace(problems=(), tries=0, refused=())
     drafts = []
     for _ in range(MAX_DRAFTS):
@@ -82,8 +92,8 @@ def word(speech: Speech, acts, turns) -> dict:
 
 def run_cases(speech: Speech, repeats: int, groups: list[str]) -> list[dict]:
     rows = []
-    for group, acts in [c for c in cases() if not groups or c[0] in groups] * repeats:
-        row = {"group": group, **word(speech, acts, turns_for(acts))}
+    for group, acts, scene in [c for c in cases() if not groups or c[0] in groups] * repeats:
+        row = {"group": group, **word(speech, acts, turns_for(acts), scene)}
         rows.append(row)
         print(json.dumps({"group": group, "kind": acts[0].kind.value, "first": row["first"], "any": row["any"],
                           "line": next((d["raw"] for d in reversed(row["drafts"])), None)})[:260], flush=True)
@@ -108,6 +118,19 @@ def check_need_lines(speech: Speech, legacy: bool = False) -> list[dict]:
         rows.append({"shape": shape, "mode": mode, "act": said.to_json(), "line": line, "passed": checked.line is not None,
                      "problems": checked.problems, "error": checked.error,
                      "invents": checked.verdict.answers.get("invents") if checked.verdict else None})
+    return rows
+
+
+def check_accounts(speech: Speech) -> list[dict]:
+    """The gate on accounts of what a thread was started for: the faithful account and two others for each request, and
+    the one the writer makes (empty when the gate did not pass it)."""
+    rows = []
+    for request, faithful, wrong in ACCOUNT_CASES:
+        made = speech.account(Launch("t", request, "Pebble Garden"))
+        for shape, account in (("faithful", faithful), *(("invented", w) for w in wrong)):
+            doubt = speech.gate.doubts_account(request, account)
+            rows.append({"shape": shape, "account": account, "doubt": doubt, "passed": doubt is not None and doubt < 0.10})
+        rows.append({"shape": "written", "account": made})
     return rows
 
 
@@ -141,7 +164,10 @@ async def main_async(args) -> int:
             lane.client.gate_url = f"http://127.0.0.1:{SUMMARY_GATE_PORT}"
         speech = Speech(lane, lambda thread_id: STORED.get("state"), check, Lane(writer) if writer else None, gate=gate)
         rows = await asyncio.to_thread(run_cases, speech, args.repeats, args.groups)
-    result = {"writer": args.writer, "report": report(rows), "rows": rows}
+        accounts = None
+        if gate is not None and (not args.groups or "held_out_shapes" in args.groups):
+            accounts = await asyncio.to_thread(check_accounts, speech)
+    result = {"writer": args.writer, "report": report(rows), "rows": rows, **({"account_checks": accounts} if accounts else {})}
     if not args.groups or "needs_with_command" in args.groups:
         result["need_checks"] = await asyncio.to_thread(check_need_lines, speech, args.legacy)
     (args.out / f"lines-{args.writer}.json").write_text(json.dumps(result, indent=1), encoding="utf-8")

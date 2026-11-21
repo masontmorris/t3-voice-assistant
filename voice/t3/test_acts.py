@@ -152,6 +152,15 @@ class NamesInTheForm(unittest.TestCase):
         self.assertIn(f"confirm_thread thread missing: {CLIPPED}",
                       check("Do you mean the thread called So, uh, I want to get some work going on?", [said]))
 
+    def test_only_the_names_own_characters_are_masked(self):
+        said = act(Kind.CONFIRM_THREAD, thread="Alpha Beta")
+        self.assertIn("not plain speech", check("Do you mean the thread called Alpha `Beta?", [said]))
+        self.assertIn("not plain speech", check("Do you mean the thread called Alpha ```Beta?", [said]))
+        self.assertEqual(check("Do you mean the thread called Alpha Beta?", [said]), [])
+        punctuated = act(Kind.CONFIRM_THREAD, thread="Alpha, then Beta. Gamma…")
+        self.assertEqual(check("Do you mean the thread called Alpha, then Beta. Gamma...?", [punctuated]), [])
+        self.assertIn("not plain speech", check("Do you mean the thread called Alpha, then `Beta. Gamma?", [punctuated]))
+
     def test_a_thread_with_no_title_is_named_by_its_project(self):
         said = act(Kind.NEEDS_YOU, begun_in="Voice sandbox", need="command_approval")
         self.assertEqual(check("The thread you started in Voice sandbox needs your approval to run a command.", [said]), [])

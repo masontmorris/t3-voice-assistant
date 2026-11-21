@@ -2,7 +2,11 @@
 call content and can sit in the repo. They cover the acts the 2026-11-20 call failed on, each in several shapes:
 a thread to confirm, which of several candidates, and a thread's status with a summary the line must pass on."""
 
+from dataclasses import dataclass
+
 from voice.t3.acts import NOTHING_NEW, Kind, act
+from voice.t3.journal import launch_title
+from voice.t3.speech import Launch
 
 CONFIRM_THREAD = [
     act(Kind.CONFIRM_THREAD, thread="Tidy the tide table export"),
@@ -55,12 +59,31 @@ APP_THREAD_REFERENCES = {
 }
 # A thread started from a spoken request is titled with its first line, cut at 80 characters with an ellipsis, until T3
 # names it. The requests are made up; each one is long, hesitant and holds more than one sentence.
-TITLE_MAX_CHARS = 80
+PROJECT = "Pebble Garden"
+clipped = launch_title
 
 
-def clipped(request: str) -> str:
-    first = request.strip().splitlines()[0].strip()
-    return first if len(first) <= TITLE_MAX_CHARS else first[:TITLE_MAX_CHARS - 1].rstrip() + "…"
+@dataclass(frozen=True)
+class Scene:
+    """What T3 and the journal hold when a case's act is worded: `thread` is the one the act is about, `launched` the
+    threads the voice started, `titles` what T3 titles every listed thread now, and `offered` the threads a
+    which-thread question offers."""
+
+    thread: str
+    launched: tuple
+    titles: dict
+    offered: tuple = ()
+
+
+@dataclass(frozen=True)
+class Scened:
+    act: object
+    scene: Scene
+
+
+def alone(request: str, thread: str = "t7") -> Scene:
+    """One thread started from `request`, still titled with it, and no other."""
+    return Scene(thread, (Launch(thread, request, PROJECT),), {thread: clipped(request)})
 
 
 LAUNCH_REQUESTS = {
@@ -194,6 +217,48 @@ HELD_OUT_REQUESTS = {
     "sailing newsletter": ("Right, uhm, I'd like a thread that cleans up, uh, the sailing club newsletter template. "
                            "Mainly the footer.", "rm -f scratch.tmp"),
 }
+# Shapes the four acts above do not take: a launched thread beside an ordinary one in its project, two launched threads
+# in one project, and a launched thread T3 has named since the act was made. Written after the groups above had been run
+# and tuned on, and scored once.
+TIDE = ("Hmm, so, uh, could you start a thread for the tide chart widget? Um, the labels overlap on small screens.")
+FERRY = "Right, um, I'd like a thread on, uh, the ferry timetable import. Um, it chokes on blank rows."
+KITE = "Okay, so, uhm, can you get something going on the kite log viewer? Um, it forgets the last filter."
+HARBOUR = "Tidy the harbour map"
+WAITING = dict(need="command_approval", status="waiting_on_you")
+_mixed = Scene("t7", (Launch("t7", TIDE, PROJECT),), {"t7": clipped(TIDE), "t9": HARBOUR})
+_two = {"launched": (Launch("t7", TIDE, PROJECT), Launch("t8", FERRY, PROJECT)),
+        "titles": {"t7": clipped(TIDE), "t8": clipped(FERRY)}}
+HELD_OUT_SHAPES = [
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(TIDE), need="command_approval", prompt="ls tide-charts | head"), _mixed),
+    Scened(act(Kind.THREAD_STATUS, thread=HARBOUR, asked="is it approved", pending="rm -f harbour.tmp", **WAITING),
+           Scene("t9", _mixed.launched, _mixed.titles)),
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(TIDE), need="command_approval", prompt="ls tide-charts | head"),
+           Scene("t7", **_two)),
+    Scened(act(Kind.THREAD_STATUS, thread=clipped(FERRY), asked="is it approved", pending="wc -l ferry.csv", **WAITING),
+           Scene("t8", **_two)),
+    Scened(act(Kind.CONFIRM_THREAD, thread=clipped(TIDE)), Scene("t7", **_two)),
+    Scened(act(Kind.NEEDS_THE_APP, thread=clipped(FERRY), decision="approve"), Scene("t8", **_two)),
+    Scened(act(Kind.ASK_WHICH, of="thread", candidates=[clipped(TIDE), clipped(FERRY)]),
+           Scene("t7", **_two, offered=("t7", "t8"))),
+    Scened(act(Kind.NEEDS_YOU, thread=clipped(KITE), need="command_approval", prompt="cat kite.log | tail"),
+           Scene("t7", (Launch("t7", KITE, PROJECT),), {"t7": "Fix the kite log viewer"})),
+    Scened(act(Kind.CONFIRM_THREAD, thread=clipped(KITE)),
+           Scene("t7", (Launch("t7", KITE, PROJECT),), {"t7": "Fix the kite log viewer"})),
+]
+APP_THREAD_REFERENCES.update({clipped(FERRY): "ferry timetable"})
+
+# What each request was started for, a faithful account of it and two that say something the request does not.
+ACCOUNT_CASES = (
+    (TIDE, "the tide chart widget labels overlapping on small screens",
+     ("the tide chart widget crashing on startup", "adding a new tide chart for the harbour")),
+    (FERRY, "the ferry timetable import failing on blank rows", ("deleting the ferry timetable", "the ferry fares page")),
+    (KITE, "the kite log viewer forgetting its last filter", ("the kite log viewer being too slow", "kite sales totals")),
+    (LAUNCH_REQUESTS["pantry list"], "sorting the pantry list and grouping items by shelf",
+     ("deleting the old pantry list", "the pantry delivery schedule")),
+    (LAUNCH_REQUESTS["photo tool"], "a small tool that renames holiday photos",
+     ("uploading holiday photos to a server", "resizing holiday photos")),
+)
+
 HELD_OUT = [
     said
     for ref, (request, command) in HELD_OUT_REQUESTS.items()
@@ -213,12 +278,24 @@ GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_stat
           "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP, "needs_the_app": NEEDS_THE_APP,
           "needs_with_command": NEEDS_WITH_COMMAND, "launch_needs_you": LAUNCH_NEEDS,
           "launch_status_waiting": LAUNCH_STATUS, "launch_confirm_thread": LAUNCH_CONFIRM_THREAD,
-          "no_thread_other": NO_THREAD_OTHER, "held_out_launch": HELD_OUT}
+          "no_thread_other": NO_THREAD_OTHER, "held_out_launch": HELD_OUT, "held_out_shapes": HELD_OUT_SHAPES}
 
 
-def cases() -> list[tuple[str, tuple]]:
-    """(group, acts) pairs: one act each."""
-    return [(group, (a,)) for group, acts in GROUPS.items() for a in acts]
+REQUESTS_BY_TITLE = {clipped(request): request for request in
+                     (*LAUNCH_REQUESTS.values(), *(request for request, _ in HELD_OUT_REQUESTS.values()))}
+
+
+def cases() -> list[tuple[str, tuple, Scene | None]]:
+    """(group, acts, scene) triples: one act each. An act titled with a launch request that has no scene of its own is
+    the one launched thread T3 has not yet named."""
+    out = []
+    for group, acts in GROUPS.items():
+        for a in acts:
+            scene = a.scene if isinstance(a, Scened) else None
+            a = a.act if isinstance(a, Scened) else a
+            request = REQUESTS_BY_TITLE.get(a.slots.get("thread"))
+            out.append((group, (a,), scene or (alone(request) if request else None)))
+    return out
 
 
 def turns_for(acts) -> list[dict]:

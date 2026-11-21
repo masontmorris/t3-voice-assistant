@@ -196,10 +196,11 @@ RULES: dict[Kind, Rule] = {
     Kind.ANSWER_IN_APP: Rule(("thread",), ("thread",), forbids=("answered",)),
 }
 # A thread this voice started whose title T3 has not replaced is titled with the person's own words, cut off, which is
-# no name to say. Such an act carries `begun_in`, the project it was started in, and no `thread`.
+# no name to say. Such an act carries `begun_in`, the project it was started in, and no `thread`. When another thread
+# the voice started in that project is just as unnamed, it also carries `begun_for`, what this one was started for.
 for _kind, _rule in list(RULES.items()):
     if "thread" in _rule.slots:
-        RULES[_kind] = replace(_rule, slots=(*_rule.slots, "begun_in"),
+        RULES[_kind] = replace(_rule, slots=(*_rule.slots, "begun_in", "begun_for"),
                                named=(*_rule.named, "begun_in") if "thread" in _rule.named else _rule.named)
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
 # A status asked again on a call with nothing new in T3's record since the last one was said: the line says so rather
@@ -284,25 +285,40 @@ def _word_spans(text: str) -> list[tuple[str, int, int]]:
 
 def masked(text: str, value: str) -> str:
     """`text` with each place `says` finds `value` replaced by "x". A name is said as given up to punctuation, so its
-    own punctuation (a clipped title's ellipsis, the stops inside a spoken request) is not the line's."""
+    own punctuation (a clipped title's ellipsis, the stops inside a spoken request) is not the line's. Only the
+    value's own characters are masked: a character the value does not have, between or after its words, stays for
+    the form checks to judge."""
     want = [word for word, _, _ in _word_spans(value)]
     have = _word_spans(text)
     if not want:
         return text
+    own = {c for c in value if not c.isalnum() and not c.isspace()}
+    if own & set(_DOTS):
+        own |= set(_DOTS)
     trail = re.search(r"[^\w\s]+$", value.rstrip())
     out, at, i = [], 0, 0
     while i <= len(have) - len(want):
         if [word for word, _, _ in have[i:i + len(want)]] != want:
             i += 1
             continue
-        start, end = have[i][1], have[i + len(want) - 1][2]
-        if trail and set(trail.group()) <= set(_DOTS):
-            while end < len(text) and text[end] in _DOTS:
-                end += 1
-        elif trail and text.startswith(trail.group(), end):
-            end += len(trail.group())
-        out += [text[at:start], "x"]
-        at, i = end, i + len(want)
+        start = have[i][1]
+        for k in range(len(want)):
+            end = have[i + k][2]
+            if k + 1 < len(want):
+                following = have[i + k + 1][1]
+                if all(c.isspace() or c in own for c in text[end:following]):
+                    continue
+                out += [text[at:start], "x"]
+                at, start = end, following
+                continue
+            if trail and set(trail.group()) <= set(_DOTS):
+                while end < len(text) and text[end] in _DOTS:
+                    end += 1
+            elif trail and text.startswith(trail.group(), end):
+                end += len(trail.group())
+            out += [text[at:start], "x"]
+            at = end
+        i += len(want)
     return "".join(out) + text[at:]
 
 

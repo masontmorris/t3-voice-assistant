@@ -386,8 +386,8 @@ def news_permission(pool: Pool) -> Plan:
         news_checks = [ok("permission news was said or reached the reply checks", bool(news) or refused,
                   "no needs-you line was said by itself" + (" (the wait ran out)" if notes.get("timed_out") else ""),
                   call.news()[0].index if call.news() else None),
-               ok("permission news was not lost to a refused line", bool(news) or not refused,
-                  "the checks refused the only attempt at permission news"),
+               ok("permission news was not lost to a refused line", bool(news),
+                  "no needs-you line was delivered as audio" + (" (the checks refused the attempt)" if refused else "")),
                ok("no duplicate permission news", len(news) <= 1, f"{len(news)} needs-you lines were said by themselves",
                   news[1].index if len(news) > 1 else None)]
         titles = ", ".join(v["title"] for v in made.values())

@@ -161,8 +161,7 @@ def _fill(template: str, slots: dict) -> str:
     for name, joiner in (("candidates", ", "), ("options", ", "), ("answers", "; "), ("questions", "; ")):
         if isinstance(slots.get(name), (list, tuple)):
             values[name] = joiner.join(slots[name])
-    values.setdefault("thread", f"the thread started for them in {slots['begun_in']}" if slots.get("begun_in")
-                      else "the thread")
+    values.setdefault("thread", begun_phrase(slots) or "the thread")
     values.setdefault("project", "the project")
     return template.format_map(_Blank(values))
 
@@ -170,6 +169,14 @@ def _fill(template: str, slots: dict) -> str:
 class _Blank(dict):
     def __missing__(self, key):
         return "it"
+
+
+def begun_phrase(slots: dict) -> str | None:
+    """How the checker's questions name a thread that has no title: by its project, and by what it was started for."""
+    if not slots.get("begun_in"):
+        return None
+    return f"the thread started for them in {slots['begun_in']}" + (
+        f" for {slots['begun_for']}" if slots.get("begun_for") else "")
 
 
 def act_meaning(a: Act) -> str:
@@ -218,6 +225,11 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            "own words, in the question." if confirming else
                            f"the line left out what the thread reported: \"{a.slots['summary']}\". Say that, in your "
                            "own words, after the status."))
+    for n, a in enumerate(acts, 1):
+        if account := a.slots.get("begun_for"):
+            out.append(Ask(f"a{n}_begun_for", f'Does the line say what the thread was started for, as: "{account}"?',
+                           True, f"the line left out what the thread was started for: \"{account}\". Say that, in "
+                           "your own words, to tell it from the other thread started in the same project."))
     # A request is described only from `request`, which the approval gate passed against the stored request. A thread
     # that has none is told only by the kind of thing it waits for.
     for n, a in enumerate(acts, 1):
@@ -259,8 +271,7 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots),
-                   next((f"the thread started for them in {a.slots['begun_in']}" for a in acts if "begun_in" in a.slots),
-                        "the thread"))
+                   next((begun_phrase(a.slots) for a in acts if "begun_in" in a.slots), "the thread"))
     for claim, wording in asked_claims(acts).items():
         out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(wording, {'thread': subject})}?", False,
                        bar=CLAIM_BARS.get(claim, YES)))
