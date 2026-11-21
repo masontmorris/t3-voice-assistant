@@ -33,7 +33,12 @@ export const make = (sources: RespondSources) => {
   const respond = Effect.fn("VoiceSeam.respondToRequest")(function* (
     input: RequestInput<"respond">,
   ) {
-    const commandId = yield* voiceCommandId(sources.digest, "respond", input.requestId);
+    const commandId = yield* voiceCommandId(
+      sources.digest,
+      "respond",
+      input.requestId,
+      input.pendingRequestId,
+    );
     const requestId = RuntimeRequestId.make(input.pendingRequestId);
     const result = (sequence: number, replayed: boolean) =>
       ({

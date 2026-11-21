@@ -72,6 +72,7 @@ const CODECS: { readonly [Op in WireOp]: ReturnType<typeof codec<Op>> } = {
   send: codec("send"),
   interrupt: codec("interrupt"),
   respond: codec("respond"),
+  answer_question: codec("answer_question"),
 };
 
 const close = (code: number, reason: string) => new Socket.CloseEvent(code, reason);
@@ -183,6 +184,7 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     send: (request) => seam.send(caller, request),
     interrupt: (request) => seam.interrupt(caller, request),
     respond: (request) => seam.respond(caller, request),
+    answer_question: (request) => seam.answer(caller, request),
   };
 
   const dispatch = Effect.fn("VoiceSeam.route.dispatch")(function* <Op extends WireOp>(

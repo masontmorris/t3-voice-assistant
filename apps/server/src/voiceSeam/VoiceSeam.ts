@@ -43,6 +43,7 @@ import {
   runResult,
   type PendingJoin,
 } from "./outcome.ts";
+import * as Answer from "./answer.ts";
 import * as Launch from "./launch.ts";
 import * as Respond from "./respond.ts";
 import * as Send from "./send.ts";
@@ -50,6 +51,7 @@ import {
   LIST_LIMIT,
   type RequestInput,
   type ThreadActivity as ThreadActivitySchema,
+  type VoiceAnswerResult,
   type VoiceHello,
   type VoiceInterruptResult,
   type VoiceLaunchResult,
@@ -110,6 +112,14 @@ export class VoiceSeam extends Context.Service<
       caller: VoiceCaller,
       input: RequestInput<"respond">,
     ) => Effect.Effect<VoiceRespondResult, VoiceSeamRefusal>;
+    /**
+     * Answers every question of one pending user-input request of a visible thread, at or below the ceiling. A retry
+     * answers from T3's record, and only for the same answers.
+     */
+    readonly answer: (
+      caller: VoiceCaller,
+      input: RequestInput<"answer_question">,
+    ) => Effect.Effect<VoiceAnswerResult, VoiceSeamRefusal>;
     /** Checks the thread now, then replays after `afterSequence` and follows live. */
     readonly watch: (
       caller: VoiceCaller,
@@ -201,6 +211,7 @@ const make = Effect.gen(function* () {
     managedMaxRuntimeMode: settings.managedPolicy?.limits?.maxRuntimeMode,
   });
   const answers = Respond.make({ digest, threads, receipts });
+  const questionAnswers = Answer.make({ digest, threads, receipts });
   const launchThread = Launch.make({
     digest,
     threads,
@@ -423,6 +434,16 @@ const make = Effect.gen(function* () {
     return yield* answers.respond(input);
   });
 
+  // The ceiling applies: an answer reaches the agent as the user's words, so a thread above the ceiling is the app's.
+  const answer = Effect.fn("VoiceSeam.answer")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"answer_question">,
+  ) {
+    yield* requireOperation(caller, "answer");
+    const shell = yield* requireVisible(caller, input.threadId);
+    return yield* questionAnswers.answer(caller.config, shell, input);
+  });
+
   const watch = Effect.fn("VoiceSeam.watch")(function* (
     caller: VoiceCaller,
     input: Watch.WatchInput,
@@ -435,7 +456,17 @@ const make = Effect.gen(function* () {
     );
   });
 
-  return VoiceSeam.of({ hello, listThreads, readThread, launch, send, interrupt, respond, watch });
+  return VoiceSeam.of({
+    hello,
+    listThreads,
+    readThread,
+    launch,
+    send,
+    interrupt,
+    respond,
+    answer,
+    watch,
+  });
 });
 
 /** The seam reads receipts through its own store, which the route's context does not carry. */

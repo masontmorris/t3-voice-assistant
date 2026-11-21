@@ -664,6 +664,92 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(len(L.ROWS), 31)
 
 
+class Questions(unittest.TestCase):
+    """A thread's question is told with its options, and answered once through the seam."""
+
+    ASKS = (F.question("db", "Which database should it use?", ("Postgres", "SQLite")),
+            F.question("name", "What should the table be called?", ("users", "accounts"), own_words=True))
+
+    def test_a_question_the_voice_can_ask_is_told_with_every_option_of_its_first_question(self):
+        seam = F.FakeSeam(read=F.state(as_of=120)).answer("launch", F.launched(sequence=118))
+        h = Harness(self, seam)
+        h.follow.launch(h.unstarted(), 0)
+        seam.push(F.needs_you(130, kind=T.PendingKind.QUESTION, source=T.NeedSource.USER_INPUT, questions=self.ASKS))
+        h.tick(1)
+        self.assertEqual(h.acts()[-1], Act(S.ASK_QUESTION, {"question": "Which database should it use?",
+                                                           "options": ["Postgres", "SQLite"], "number": 1, "count": 2}))
+
+    def test_a_question_with_its_own_words_allowed_says_so_and_one_question_has_no_count(self):
+        seam = F.FakeSeam(read=F.state(as_of=120)).answer("launch", F.launched(sequence=118))
+        h = Harness(self, seam)
+        h.follow.launch(h.unstarted(), 0)
+        seam.push(F.needs_you(130, kind=T.PendingKind.QUESTION, source=T.NeedSource.USER_INPUT,
+                              questions=self.ASKS[1:]))
+        h.tick(1)
+        self.assertEqual(h.acts()[-1].slots["own_words"], True)
+        self.assertNotIn("count", h.acts()[-1].slots)
+
+    def test_a_question_the_voice_cannot_ask_is_still_relayed_as_one_the_thread_needs_answered(self):
+        seam = F.FakeSeam(read=F.state(as_of=120)).answer("launch", F.launched(sequence=118))
+        h = Harness(self, seam)
+        h.follow.launch(h.unstarted(), 0)
+        seam.push(F.needs_you(130, prompt="Which one?", kind=T.PendingKind.QUESTION, source=T.NeedSource.USER_INPUT))
+        h.tick(1)
+        self.assertEqual((h.acts()[-1].kind, h.acts()[-1].slots["need"]), (S.NEEDS_YOU, "question"))
+
+    def answering(self, seam: F.FakeSeam | None = None):
+        seam = seam or F.FakeSeam()
+        h = Harness(self, seam)
+        task = h.unstarted(Kind.ANSWER, thread="t1")
+        task.title = "Fix the flaky test"
+        h.journal.ensure_answer(task, "q1", [{"questionId": "db", "kind": "option", "text": "Postgres"}],
+                                ["Postgres"], "question")
+        return h, seam, task
+
+    def test_an_answer_goes_to_the_named_request_with_its_saved_request_id_and_the_line_says_what_was_confirmed(self):
+        h, seam, task = self.answering(F.FakeSeam().answer("answer_question", F.answered("t1", "q1", (("db", "pg"),))))
+        said = h.follow.answer(task, 0)
+        self.assertEqual(seam.ops("answer_question"),
+                         [("answer_question", task.link.answer["request_id"], "t1", "q1",
+                           [{"questionId": "db", "kind": "option", "text": "Postgres"}])])
+        self.assertEqual(said, Act(S.ANSWERED, {"thread": "Fix the flaky test", "answers": ["Postgres"]}))
+        self.assertEqual((task.status, task.link.answer["answered"], task.link.answer["sequence"]),
+                         (Status.COMPLETED, True, 97))
+
+    def test_a_retry_after_the_answer_was_taken_reports_it_and_sends_nothing_more(self):
+        h, seam, task = self.answering(F.FakeSeam().answer("answer_question", F.answered(sequence=97)))
+        h.follow.answer(task, 0)
+        h.follow.answer(task, 1)
+        self.assertEqual(len(seam.ops("answer_question")), 1)
+
+    def test_a_retry_after_a_failure_sends_the_same_request_id(self):
+        h, seam, task = self.answering(F.FakeSeam().answer("answer_question", F.unavailable(), F.answered()))
+        failed = h.follow.answer(task, 0)
+        self.assertEqual((failed.kind, task.status), (S.UNREACHABLE, Status.FAILED))
+        h.follow.answer(task, 1)
+        ids = [call[1] for call in seam.ops("answer_question")]
+        self.assertEqual(ids, [task.link.answer["request_id"]] * 2)
+
+    def test_a_refusal_is_reported_as_t3s_and_nothing_is_said_given(self):
+        h, seam, task = self.answering(F.FakeSeam().answer(
+            "answer_question", F.refusal("invalid_request", "That request is not waiting any more.")))
+        said = h.follow.answer(task, 0)
+        self.assertEqual((said.kind, said.slots["op"], task.status), (S.REFUSED, "answer", Status.FAILED))
+        self.assertFalse(task.link.answer["answered"])
+
+    def test_answers_t3_recorded_for_other_questions_are_never_reported_given(self):
+        h, seam, task = self.answering(F.FakeSeam().answer("answer_question", F.answered(answers=(("other", "x"),))))
+        said = h.follow.answer(task, 0)
+        self.assertEqual((said.kind, task.link.answer["answered"]), (S.UNREACHABLE, False))
+
+    def test_a_restart_never_answers_for_a_confirmation_nobody_is_there_for(self):
+        h, seam, task = self.answering(F.FakeSeam().answer("answer_question", F.unavailable()))
+        h.follow.answer(task, 0)
+        task.status = Status.UNSTARTED
+        h.follow.resume(1)
+        self.assertEqual((task.status, len(seam.ops("answer_question"))), (Status.FAILED, 1))
+
+
 class SchemaCoverage(unittest.TestCase):
     def test_every_watch_ended_reason_has_a_row(self):
         for reason in SCHEMA["WatchEndReason"]["enum"]:

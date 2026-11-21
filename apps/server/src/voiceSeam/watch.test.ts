@@ -854,6 +854,8 @@ it.effect(
             event.event.payload.status === "pending",
         )!;
         const prompt = stored[promptAt]!.event;
+        if (asked.event.type !== "runtime-request.updated") return yield* Effect.die("no request");
+        const request = asked.event.payload;
 
         const needs = needsOf(yield* sentThrough(approval));
         assert.deepStrictEqual(needs, [
@@ -861,9 +863,9 @@ it.effect(
             type: "needs_you",
             threadId: asked.event.threadId,
             sequence: asked.sequence,
-            requestId: asked.event.type === "runtime-request.updated" ? asked.event.payload.id : "",
+            requestId: request.id,
             kind: "approval",
-            source: asked.event.type === "runtime-request.updated" ? asked.event.payload.kind : "",
+            source: request.kind,
             prompt:
               prompt.type === "turn-item.updated" && prompt.payload.type === "approval_request"
                 ? prompt.payload.prompt!

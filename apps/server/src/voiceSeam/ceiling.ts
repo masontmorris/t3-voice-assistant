@@ -25,6 +25,7 @@ export const VOICE_OPERATIONS = [
   "send",
   "interrupt",
   "respond",
+  "answer",
 ] as const;
 export const VoiceOperation = Schema.Literals(VOICE_OPERATIONS);
 export type VoiceOperation = typeof VoiceOperation.Type;

@@ -281,6 +281,10 @@ def asks_for(prompt, source=T.NeedSource.COMMAND):
     return T.PendingNeed("q1", T.PendingKind.APPROVAL, prompt, source)
 
 
+def asks_question(*questions):
+    return T.PendingNeed("q1", T.PendingKind.QUESTION, questions[0].question, T.NeedSource.USER_INPUT, questions)
+
+
 SCENARIOS = {
     "claims": (
         ((("Tidy the Save Slots", WAITING, None, asks_for("Run the formatter over the slot files?")),),
@@ -337,6 +341,39 @@ SCENARIOS = {
         ((("Clean Up the Audio Settings", WAITING, None, asks_for("Run the audio export script?")),
           ("Fix the Map Markers", WAITING, None, asks_for("Run the marker import?"))),
          ("Hey!", "I approve.", "The audio settings one.", "Yes.", "Thanks."), "approve"),
+    ),
+    # (threads, what the caller says, the answers the scripted T3 must receive: (question id, how, the words), and the
+    # thread they go to). The last call says no to the confirmation, so nothing may reach T3.
+    "answer": (
+        ((("Tidy the Save Slots", WAITING, None,
+           asks_question(F.question("storage", "Which storage should the save slots use?",
+                                    ("Postgres", "SQLite", "Keep the current store")))),),
+          ("Hey there.", "How is the save slots thread going?", "Postgres, I think.", "Yes.", "Okay, thanks."),
+          "Tidy the Save Slots", (("storage", "option", "Postgres"),)),
+        ((("Fix the Jump Timing", WAITING, None,
+           asks_question(F.question("buffer", "Should the jump buffer be shorter or longer?", ("Shorter", "Longer")))),),
+          ("Hello there.", "What's the jump timing thread up to?", "The second one.", "Yes please.", "Great."),
+          "Fix the Jump Timing", (("buffer", "option", "Longer"),)),
+        ((("Speed Up Level Loading", WAITING, None,
+           asks_question(F.question("folder", "What should the cache folder be called?", (), own_words=True))),),
+          ("Hi, can you hear me?", "How is the level loading thread going?", "Call it level cache.", "Yes.", "Okay."),
+          "Speed Up Level Loading", (("folder", "own_words", "Call it level cache."),)),
+        ((("Add Controller Rumble", WAITING, None,
+           asks_question(F.question("default", "Should rumble be on by default?", ("On", "Off")),
+                         F.question("strength", "How strong should the default be?", ("Light", "Medium", "Strong")))),),
+          ("Good morning.", "How's the controller rumble thread doing?", "On by default.", "Medium.", "Yes.", "Thanks."),
+          "Add Controller Rumble", (("default", "option", "On"), ("strength", "option", "Medium"))),
+        ((("Clean Up the Audio Settings", WAITING, None,
+           asks_question(F.question("curve", "Which volume curve should it use?", ("Linear", "Logarithmic")))),
+          ("Fix the Map Markers", WAITING, None,
+           asks_question(F.question("colour", "Which marker colour should it use?", ("Red", "Blue"))))),
+         ("Hey!", "How is the audio settings thread going?", "Logarithmic, please.", "The audio settings one.",
+          "Yes.", "Thanks."),
+          "Clean Up the Audio Settings", (("curve", "option", "Logarithmic"),)),
+        ((("Add a Retry Button", WAITING, None,
+           asks_question(F.question("place", "Where should the retry button go?", ("Top right", "Bottom left")))),),
+          ("Hi, can you hear me?", "How is the retry button thread going?", "Option one.", "No, not that one.", "Okay."),
+          None, ()),
     ),
 }
 
@@ -472,13 +509,21 @@ class ScriptedSeam(F.FakeSeam):
                         for tid, (_, _, *rest) in (threads or {}).items() if rest and rest[0]}
         self.pending = {tid: rest[1] for tid, (_, _, *rest) in (threads or {}).items() if len(rest) > 1 and rest[1]}
         self.responds = []
+        self.given = []
+
+    def current(self, thread_id):
+        """Whether a thread belongs to the call now running. Only the answer scenario names its call, so only there does
+        a call see just its own threads waiting."""
+        path = self.log_path.with_name("current-call.txt")
+        return not path.exists() or thread_id.startswith(f"s{path.read_text(encoding='utf-8').strip()}_")
 
     @property
     def listing(self):
+        threads = {tid: title for tid, title in self.threads.items() if self.current(tid)}
         return T.ThreadList(tuple(T.ThreadSummary(tid, "p1", title, self.activity.get(tid, T.ThreadActivity.WORKING),
                                                   "2026-11-18T10:00:00Z", False)
-                                  for tid, title in self.threads.items()),
-                            len(self.threads), False, 200)
+                                  for tid, title in threads.items()),
+                            len(threads), False, 200)
 
     @listing.setter
     def listing(self, _):
@@ -499,6 +544,17 @@ class ScriptedSeam(F.FakeSeam):
         self.responds.append({"at": time.time(), "thread": self.threads[thread_id], "decision": decision})
         self.log_path.with_name("seam-responds.json").write_text(json.dumps(self.responds), encoding="utf-8")
         return F.responded(thread_id, pending_request_id, decision, sequence=212)
+
+    def answer_question(self, request_id, thread_id, pending_request_id, answers):
+        self.calls.append(("answer_question", request_id, thread_id, pending_request_id, answers))
+        waiting = self.pending.pop(thread_id, None)
+        if waiting is None or waiting.request_id != pending_request_id:
+            raise F.refusal("invalid_request", "That request is not waiting any more.")
+        self.activity[thread_id] = T.ThreadActivity.WORKING
+        self.given.append({"at": time.time(), "thread": self.threads[thread_id], "answers": answers})
+        self.log_path.with_name("seam-answers.json").write_text(json.dumps(self.given), encoding="utf-8")
+        return F.answered(thread_id, pending_request_id, tuple((a["questionId"], a["text"]) for a in answers),
+                          sequence=213)
 
     def send(self, request_id, thread_id, text):
         self.calls.append(("send", request_id, thread_id, text))
@@ -633,6 +689,8 @@ def run_drive(args, rest=()):
         if not client.is_file():
             client = Path(sys.executable)
         for call in args.only or range(args.calls):
+            if args.scenario == "answer":
+                (out / "current-call.txt").write_text(str(call + 1), encoding="utf-8")
             text = out / f"call{call + 1}.txt"
             lines = turns(call, not args.no_tail, args.mixed, args.which, args.noise, args.follow, args.more,
                           args.scenario)
@@ -968,6 +1026,24 @@ def summarize(out):
     return rows, grades, started
 
 
+def answered_calls(received, windows):
+    """Per call of the answer scenario: what the scripted T3 received during it, and whether that is what the call must
+    deliver: the answers it expects to the thread it expects, none from a call that expects none, and nothing else.
+    Words of the caller's own count when they carry most of the scripted words."""
+    graded = []
+    for window in windows:
+        thread, expected = SCENARIOS["answer"][window["call"] - 1][2:]
+        got = [x for x in received if window["start"] <= x["at"] <= window["end"] + 5]
+        right = (not expected and not got) or (len(got) == 1 and got[0]["thread"] == thread
+                                               and len(got[0]["answers"]) == len(expected)
+                                               and all(a["questionId"] == q and a["kind"] == how
+                                                       and (a["text"] == words if how == "option"
+                                                            else overlap(words, a["text"]) >= 0.6)
+                                                       for a, (q, how, words) in zip(got[0]["answers"], expected)))
+        graded.append({"call": window["call"], "expected": [thread, expected], "received": got, "right": right})
+    return {"right": f"{sum(g['right'] for g in graded)} of {len(graded)}", "calls": graded}
+
+
 def scenario_summary(out, name):
     """Per call and turn: what was heard, what the voice said, the free replies the check read and what it did, and for
     each scenario its own count."""
@@ -997,6 +1073,11 @@ def scenario_summary(out, name):
     if name == "approve":
         summary["answers_the_scripted_t3_received"] = answered
         summary["expected"] = [(SCENARIOS["approve"][i][0][0][0], SCENARIOS["approve"][i][2]) for i in range(len(calls))]
+    if name == "answer":
+        given = out / "seam-answers.json"
+        received = json.loads(given.read_text(encoding="utf-8")) if given.exists() else []
+        summary["answers_the_scripted_t3_received"] = received
+        summary["delivered"] = answered_calls(received, windows)
     if name == "withdraw":
         titles = [[t[0] for t in SCENARIOS["withdraw"][i][0]] for i in range(len(calls))]
         after = []
@@ -1032,7 +1113,7 @@ def main():
                         help="the follow-up calls: questions about a thread just discussed that do not name it")
     parser.add_argument("--more", action="store_true",
                         help="the more calls: a garbled thread question, why it stopped, and more detail")
-    parser.add_argument("--scenario", choices=sorted(SCENARIOS), help="three faults: claims in free replies, withdrawn questions, approvals")
+    parser.add_argument("--scenario", choices=sorted(SCENARIOS), help="claims in free replies, withdrawn questions, approvals, or answers to a thread's question")
     parser.add_argument("--summaries", action="store_true",
                         help="the local LFM3-1.7B writes thread summaries, as on the 2026-11-19 calls")
     parser.add_argument("--real-seam", action="store_true",

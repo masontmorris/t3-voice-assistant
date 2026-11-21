@@ -1,5 +1,6 @@
 import { assert, it } from "@effect/vitest";
 import {
+  RuntimeRequestId,
   type OrchestrationV2RuntimeRequest,
   type OrchestrationV2StoredEvent,
   type OrchestrationV2TurnItem,
@@ -51,6 +52,8 @@ const rig = (
   pending: ReadonlyArray<OrchestrationV2RuntimeRequest>,
   receipt: { readonly threadId: ThreadId; readonly status: "accepted" | "rejected" } | null = null,
   resolved: ReadonlyArray<OrchestrationV2RuntimeRequest> = [],
+  /** The command the receipt was recorded for; another command id finds none. */
+  receiptId?: string,
 ): Effect.Effect<Rig> =>
   Effect.gen(function* () {
     const digest = yield* Digest.Digest;
@@ -87,9 +90,9 @@ const rig = (
         },
       },
       receipts: {
-        getByCommandId: () =>
+        getByCommandId: (id: string) =>
           Effect.succeed(
-            receipt === null
+            receipt === null || (receiptId !== undefined && id !== receiptId)
               ? Option.none()
               : Option.some({ ...receipt, error: receipt.status === "rejected" ? "no" : null }),
           ),
@@ -139,7 +142,7 @@ it.effect.each(["approve", "deny"] as const)(
       const digest = yield* Digest.Digest;
       assert.strictEqual(
         dispatched[0]!.commandId,
-        yield* voiceCommandId(digest, "respond", REQUEST_ID),
+        yield* voiceCommandId(digest, "respond", REQUEST_ID, APPROVAL.id),
         "the voice's request id fixes the command",
       );
     }).pipe(Effect.provide(NodeCrypto.layer)),
@@ -247,6 +250,30 @@ it.effect(
         2,
         "both reached the orchestrator, which recorded only the first",
       );
+    }).pipe(Effect.provide(NodeCrypto.layer)),
+);
+
+it.effect(
+  "a retry that names another pending approval is refused, though it was resolved the same way",
+  () =>
+    Effect.gen(function* () {
+      const digest = yield* Digest.Digest;
+      const second = {
+        ...APPROVAL,
+        id: RuntimeRequestId.make("runtime-request:second"),
+      } as OrchestrationV2RuntimeRequest;
+      const { dispatched, sources } = yield* rig(
+        [],
+        { threadId: THREAD, status: "accepted" },
+        [resolvedAs(APPROVAL, "accept"), resolvedAs(second, "accept")],
+        yield* voiceCommandId(digest, "respond", REQUEST_ID, APPROVAL.id),
+      );
+      assert.strictEqual(
+        yield* outcome(make(sources).respond(input("approve", second.id))),
+        "invalid_request",
+      );
+      assert.lengthOf(dispatched, 0);
+      assert.isTrue((yield* make(sources).respond(input("approve"))).replayed);
     }).pipe(Effect.provide(NodeCrypto.layer)),
 );
 

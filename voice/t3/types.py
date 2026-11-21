@@ -135,6 +135,7 @@ class Operation(str, Enum):
     SEND = "send"
     INTERRUPT = "interrupt"
     RESPOND = "respond"
+    ANSWER = "answer"
 
 
 WIRE_OPS: tuple[str, ...] = (
@@ -146,6 +147,7 @@ WIRE_OPS: tuple[str, ...] = (
     "send",
     "interrupt",
     "respond",
+    "answer_question",
 )
 
 
@@ -199,11 +201,30 @@ class RunInfo:
 
 
 @dataclass(frozen=True)
+class QuestionOption:
+    label: str
+    # Context for choosing the option, never said aloud.
+    description: str
+
+
+@dataclass(frozen=True)
+class Question:
+    """One question of a request the voice can ask and answer. Absent from a need the voice cannot answer."""
+
+    id: str
+    question: str
+    options: tuple[QuestionOption, ...]
+    # Whether the caller's own words are an answer when no option fits.
+    own_words: bool
+
+
+@dataclass(frozen=True)
 class PendingNeed:
     request_id: str
     kind: PendingKind
     prompt: str
     source: NeedSource
+    questions: tuple[Question, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -290,6 +311,23 @@ class RespondResult:
     sequence: int
     replayed: bool
 
+@dataclass(frozen=True)
+class RecordedAnswer:
+    question_id: str
+    answer: str
+
+
+@dataclass(frozen=True)
+class AnswerResult:
+    """An answer to one pending question, fresh or replayed. `answers` is what T3 recorded, in the request's order."""
+
+    thread_id: str
+    pending_request_id: str
+    answers: tuple[RecordedAnswer, ...]
+    sequence: int
+    replayed: bool
+
+
 INTERRUPT_KINDS: dict[str, type] = {
     "requested": InterruptRequested,
     "nothing_running": NothingRunning,
@@ -321,6 +359,7 @@ class NeedsYouEvent:
     kind: PendingKind
     prompt: str
     source: NeedSource
+    questions: tuple[Question, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -509,6 +548,21 @@ def _decode_run(raw: Any) -> RunInfo | None:
     )
 
 
+def _decode_questions(raw: Any) -> tuple[Question, ...]:
+    return tuple(
+        Question(
+            id=_need(q, "id"),
+            question=_need(q, "question"),
+            options=tuple(
+                QuestionOption(label=_need(o, "label"), description=_need(o, "description"))
+                for o in _need(q, "options")
+            ),
+            own_words=_need(q, "ownWords"),
+        )
+        for q in raw or ()
+    )
+
+
 def _decode_pending(raw: Any) -> PendingNeed | None:
     if raw is None:
         return None
@@ -517,6 +571,7 @@ def _decode_pending(raw: Any) -> PendingNeed | None:
         kind=PendingKind(_need(raw, "kind")),
         prompt=_need(raw, "prompt"),
         source=NeedSource(_need(raw, "source")),
+        questions=_decode_questions(raw.get("questions")),
     )
 
 
@@ -572,6 +627,7 @@ def decode_event(obj: Any) -> VoiceEvent:
             kind=PendingKind(_need(obj, "kind")),
             prompt=_need(obj, "prompt"),
             source=NeedSource(_need(obj, "source")),
+            questions=_decode_questions(obj.get("questions")),
         )
     if kind == "resolved":
         return ResolvedEvent(
@@ -647,6 +703,19 @@ def decode_respond_result(value: Any) -> RespondResult:
     )
 
 
+def decode_answer_result(value: Any) -> AnswerResult:
+    return AnswerResult(
+        thread_id=_need(value, "threadId"),
+        pending_request_id=_need(value, "pendingRequestId"),
+        answers=tuple(
+            RecordedAnswer(question_id=_need(a, "questionId"), answer=_need(a, "answer"))
+            for a in _need(value, "answers")
+        ),
+        sequence=_need(value, "sequence"),
+        replayed=_need(value, "replayed"),
+    )
+
+
 RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
     "list_threads": decode_thread_list,
     "read_thread": decode_thread_state,
@@ -656,11 +725,12 @@ RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
     "send": decode_send_result,
     "interrupt": decode_interrupt_result,
     "respond": decode_respond_result,
+    "answer_question": decode_answer_result,
 }
 
 ResultValue = Union[
     ThreadList, ThreadState, WatchStarted, LaunchResult, SendResult, InterruptRequested, NothingRunning,
-    RespondResult,
+    RespondResult, AnswerResult,
 ]
 
 DrainItem = Union[VoiceEvent, WatchEnded, SocketEnd]

@@ -113,7 +113,7 @@ class SchemaCoverageTest(unittest.TestCase):
                         self.assertEqual(properties["ok"]["enum"], [False])
                         self.assert_fields(node, ("type", "id", "ok", "error"))
                         self.assert_model_fields(properties["error"], T.ResultErr)
-        self.assertEqual(sorted(kinds), ["event", "hello"] + ["result"] * 9 + ["watch_ended"])
+        self.assertEqual(sorted(kinds), ["event", "hello"] + ["result"] * 10 + ["watch_ended"])
         self.assertEqual(len(ok_values), len(T.WIRE_OPS))
         models = {
             "list_threads": T.ThreadList,
@@ -123,6 +123,7 @@ class SchemaCoverageTest(unittest.TestCase):
             "launch": T.LaunchResult,
             "send": T.SendResult,
             "respond": T.RespondResult,
+            "answer_question": T.AnswerResult,
         }
         self.assertEqual(set(T.RESULT_DECODERS), set(T.WIRE_OPS))
         for op, node in zip(T.WIRE_OPS, ok_values, strict=True):
@@ -176,6 +177,18 @@ class SchemaCoverageTest(unittest.TestCase):
                "lastReply": None, "asOfSequence": 1}
         self.assertFalse(T.decode_thread_state(raw).pending_detailed, "an older seam is never taken as detailed")
         self.assertTrue(T.decode_thread_state({**raw, "pendingDetailed": True}).pending_detailed)
+
+    def test_a_question_comes_with_its_options_and_a_need_the_voice_cannot_answer_has_none(self):
+        raw = {"threadId": "t", "projectId": "p", "title": "x", "activity": "waiting_on_you", "run": None,
+               "pending": {"requestId": "q", "kind": "question", "source": "user_input", "prompt": "Which?",
+                           "questions": [{"id": "db", "question": "Which database?", "ownWords": False,
+                                          "options": [{"label": "Postgres", "description": "The default."}]}]},
+               "lastReply": None, "asOfSequence": 1}
+        asked = T.decode_thread_state(raw).pending.questions
+        self.assertEqual(asked, (T.Question("db", "Which database?", (T.QuestionOption("Postgres", "The default."),),
+                                            False),))
+        bare = {**raw, "pending": {k: v for k, v in raw["pending"].items() if k != "questions"}}
+        self.assertEqual(T.decode_thread_state(bare).pending.questions, ())
 
     def test_activity_matches(self):
         self.assertEqual(set(DEFS["ThreadActivity"]["enum"]), members(T.ThreadActivity))

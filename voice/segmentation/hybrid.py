@@ -40,6 +40,9 @@ T3_CHITCHAT = " A question about a thread's progress is not chitchat."
 # on the local d1-2B, 0 of 5 without it), so it rides in this criterion and in the approve and deny options only.
 T3_APPROVAL = (" With a coding thread waiting on the speaker for an approval, saying they approve, allow, deny or "
                "refuse what it asks is a request to answer it, not chitchat.")
+# Likewise while one waits on the answer to a question: saying which option they pick, or what they want, answers it.
+T3_QUESTION = (" With a coding thread waiting on the speaker for the answer to a question, a reply that answers it, such "
+               "as picking one of its options by name or by place, is a request to answer it, not chitchat.")
 # One request is cut into fragments at every pause and hesitation, and the decider then read "for that" as needing an
 # earlier fragment's result and "the part that writes slots" as replacing the request: 2 of 10 rehearsal calls never
 # dispatched (measured: 17 of 24 draws dispatched, 23 of 24 with these lines; docs/voice/spoken-acts.md).
@@ -244,6 +247,7 @@ class HybridSegmenter:
         self.reviewed: tuple = ()
         self.prior_resolved_tasks = ()
         self.pending_requests = ()
+        self.pending_questions = ()
         self.conversation_mode = False
 
     @property
@@ -364,6 +368,8 @@ class HybridSegmenter:
                         question["criteria"]["chitchat"] += T3_CHITCHAT
                         if self.pending_requests:
                             question["criteria"]["request"] += T3_APPROVAL
+                        if self.pending_questions:
+                            question["criteria"]["request"] += T3_QUESTION
                     if self.prior_resolved_tasks:
                         question["criteria"]["request"] += (" A short follow-up that continues an earlier request or "
                                                              "lookup in prior_resolved_tasks is external work, even "

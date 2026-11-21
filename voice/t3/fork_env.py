@@ -58,7 +58,7 @@ TOKEN_SCOPE = "orchestration:read"
 TOKEN_TTL = "30d"
 TOKEN_LABEL = "Voice server (ceiling in voice-seam.json)"
 
-SEAM_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt", "respond"]
+SEAM_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt", "respond", "answer"]
 
 PROJECT_ADD_RE = re.compile(r"Added project (\S+)")
 ALREADY_EXISTS_RE = re.compile(r"already exists", re.IGNORECASE)
