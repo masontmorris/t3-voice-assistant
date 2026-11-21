@@ -40,7 +40,7 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 | `approval-claim`              | 1 of 1 | The title-first app direction was heard in all three runs of the latest spread.                                        |
 | `thread-lines`                | 1 of 1 | The thread-status replies consistently used checked lines.                                                             |
 | `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                                                        |
-| `withdrawn-question`          | 1 of 1 | 12 of 12 over four runs of the gate, every check, no mark.                                                             |
+| `withdrawn-question`          | 1 of 1 | 13 of 13 over five gate invocations, no mark.                                                                          |
 | `news-permission`             | 1 of 2 | 3 of 3, no fallback; a new thread is named by its project, not its title.                                              |
 | `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).                                            |
 | `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                                                        |
