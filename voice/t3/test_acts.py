@@ -135,6 +135,12 @@ CASES = {
 
 
 class SlotRules(unittest.TestCase):
+    def test_unanswered_forbids_every_action_except_confirmed_outcomes(self):
+        forbidden = {"started", "sent", "stopped", "answered", "finished"}
+        self.assertEqual(forbidden_claims([act(Kind.UNANSWERED)]), forbidden)
+        self.assertEqual(forbidden_claims([act(Kind.UNANSWERED, outcomes=["started", "stop_requested"])]),
+                         forbidden - {"started"})
+
     def test_every_act_has_a_row(self):
         self.assertEqual(set(CASES), set(Kind))
 

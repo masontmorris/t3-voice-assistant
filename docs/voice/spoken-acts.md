@@ -53,11 +53,11 @@ The status check is not too strict on faithful paraphrases (voice/t3/fixtures/ve
 
 End to end, on the rehearsal (the real server, synthetic speech, a scripted T3, `--local-text on`), the call's failures did not appear before the change or after it, so it shows no gain and only that nothing broke. Per thread turn, the caller heard a checked T3 line on 7 of 8 turns of `--more` before (the eighth got only a free line) and 8 of 8 after, on 19 of 19 and then 20 of 20 of `--follow` (7 calls), and on the first relay of 9 of 10 and then 10 of 10 mixed turns of `--mixed` (5 calls). No turn was silent in either. The relay eval reproduces the read-out closing and the rehearsal's voice did not; why is not known (the call's persona, its history and its live audio are the differences, and none was tested).
 
-When a caller turn with a transcript ends without any audio, the text model words an `unanswered` act. The line only says that the assistant could not give an answer. It passes the same checks and plays in the same call voice. A question whose audio never reached the caller still needs to be asked before they can answer it.
+On a call with T3 enabled, the text model words an `unanswered` act when a caller turn with a transcript would end without audio. The line says the assistant could not answer. If T3 confirmed an action and its result went unspoken, the fallback reports only that outcome, even when the turn spoke about something else. A stop request means T3 was asked to stop the thread. Both lines pass the same checks and play in the same call voice. After the fallback is delivered whole, a later retry of the original result must recap the action already reported. A question whose audio never reached the caller still needs to be asked before they can answer it.
 
 ### What can still end silent
 
-A turn can still end in silence if the caller interrupts or the assistant cannot draft, check, or recite the acknowledgment.
+A turn can still end in silence if the caller interrupts, every text writer is unavailable, the decider is unavailable, or the call cannot recite a checked acknowledgment.
 
 ## Corrections, approvals and withdrawn questions
 

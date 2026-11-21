@@ -11,6 +11,7 @@ the text model is told not to make and the decider is asked about.
 from __future__ import annotations
 
 import re
+from collections import Counter
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, Iterable, Mapping
@@ -63,6 +64,35 @@ class Kind(StrEnum):
     ANSWER_IN_APP = "answer_in_app"
 
 
+class Outcome(StrEnum):
+    STARTED = "started"
+    SENT = "sent"
+    STOP_REQUESTED = "stop_requested"
+    ANSWERED = "answered"
+    APPROVED = "approved"
+    DENIED = "denied"
+
+
+OUTCOME_CLAIMS = {Outcome.STARTED: "started", Outcome.SENT: "sent", Outcome.ANSWERED: "answered",
+                  Outcome.APPROVED: "answered", Outcome.DENIED: "answered"}
+OUTCOME_WORDS = {
+    Outcome.STARTED: ("started", "coding thread"),
+    Outcome.SENT: ("sent", "follow-up message"),
+    Outcome.STOP_REQUESTED: ("asked T3 to stop", "coding thread"),
+    Outcome.ANSWERED: ("answered", "thread question"),
+    Outcome.APPROVED: ("approved", "permission request"),
+    Outcome.DENIED: ("denied", "permission request"),
+}
+
+
+def outcome_meaning(outcomes) -> str:
+    phrases = []
+    for outcome, count in Counter(outcomes).items():
+        verb, subject = OUTCOME_WORDS[Outcome(outcome)]
+        phrases.append(f"{verb} one {subject}" if count == 1 else f"{verb} {count} {subject}s")
+    return " and ".join(phrases)
+
+
 @dataclass(frozen=True)
 class Act:
     kind: Kind
@@ -111,7 +141,7 @@ RULES: dict[Kind, Rule] = {
     Kind.ASK_WHICH: Rule(("of", "candidates"), ("candidates",), True, ("started", "sent", "stopped")),
     Kind.NO_PROJECT: Rule(()),
     Kind.LAUNCH_PENDING: Rule(("project",)),
-    Kind.LAUNCHED: Rule(("project", "request"), ("project",)),
+    Kind.LAUNCHED: Rule(("project", "request", "recap"), ("project",)),
     Kind.LAUNCH_UNCONFIRMED: Rule(("project",)),
     Kind.NO_THREAD: Rule(("recent", "other")),
     Kind.CONFIRM_THREAD: Rule(("thread",), ("thread",), True),
@@ -123,11 +153,11 @@ RULES: dict[Kind, Rule] = {
                               "since_last_asked"), ("thread",),
                              plain=True),
     Kind.TELL_PENDING: Rule(("thread",), ("thread",), forbids=("sent",)),
-    Kind.SENT_FOLLOWUP: Rule(("thread",), ("thread",)),
+    Kind.SENT_FOLLOWUP: Rule(("thread", "recap"), ("thread",)),
     Kind.TELL_UNCONFIRMED: Rule(("thread",), ("thread",)),
     Kind.HELD_FOLLOWUP: Rule(("thread",), ("thread",), forbids=("sent", "finished")),
     Kind.DROPPED_FOLLOWUP: Rule(("thread",), ("thread",), forbids=("sent",)),
-    Kind.STOPPING: Rule(("thread",), ("thread",), forbids=("stopped", "finished")),
+    Kind.STOPPING: Rule(("thread", "recap"), ("thread",), forbids=("stopped", "finished")),
     Kind.NOTHING_RUNNING: Rule(("thread",), ("thread",), forbids=("stopped", "working")),
     Kind.STOP_UNCONFIRMED: Rule(("thread",), ("thread",), forbids=("stopped",)),
     Kind.RUN_UPDATE: Rule(("thread", "status"), ("thread",)),
@@ -143,13 +173,13 @@ RULES: dict[Kind, Rule] = {
     Kind.SEAM_DOWN: Rule(("reason",)),
     Kind.REFUSED: Rule(("op", "code", "reason"), forbids=("started", "sent")),
     Kind.LEGACY_UPDATE: Rule(("thread", "text")),
-    Kind.UNANSWERED: Rule(()),
+    Kind.UNANSWERED: Rule(("outcomes",), forbids=("started", "sent", "stopped", "answered", "finished")),
     Kind.CORRECTION: Rule(("thread", "status", "need", "pending", "waiting_for"), ("thread",), plain=True),
     # `decision` is approve or deny. `need` and `pending` say what is being answered, as a thread's status does.
     # An approval is confirmed only with a description of this request in `summary`, from the thread's own records.
     Kind.CONFIRM_RESPOND: Rule(("thread", "decision", "need", "pending", "summary", "asked"), ("thread",), True,
                                ("answered",), plain=True),
-    Kind.RESPONDED: Rule(("thread", "decision", "need"), ("thread",), forbids=("finished",)),
+    Kind.RESPONDED: Rule(("thread", "decision", "need", "recap"), ("thread",), forbids=("finished",)),
     Kind.NOTHING_PENDING: Rule(("thread",), (), forbids=("answered",)),
     Kind.NEEDS_THE_APP: Rule(("thread", "decision"), ("thread",), forbids=("answered",)),
     # A question a thread is waiting on, told with every option so the caller can pick one. `number` of `count` says which
@@ -159,7 +189,7 @@ RULES: dict[Kind, Rule] = {
                             ("thread", "options"), True),
     # The answers about to be given, one per question in `questions`' order. Nothing is sent until a yes to this.
     Kind.CONFIRM_ANSWER: Rule(("thread", "questions", "answers"), ("thread", "answers"), True, ("answered",)),
-    Kind.ANSWERED: Rule(("thread", "answers"), ("thread", "answers")),
+    Kind.ANSWERED: Rule(("thread", "answers", "recap"), ("thread", "answers")),
     Kind.ANSWER_IN_APP: Rule(("thread",), ("thread",), forbids=("answered",)),
 }
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
@@ -178,6 +208,8 @@ def act(kind: Kind, **slots) -> Act:
     if unknown:
         raise ValueError(f"{kind.value} has no slot {sorted(unknown)}")
     kept = {name: value for name, value in slots.items() if value is not None and value != ()}
+    if "outcomes" in kept:
+        kept["outcomes"] = [Outcome(value).value for value in kept["outcomes"]]
     for name in ("candidates", "available"):
         if name in kept:
             kept[name] = list(kept[name])[:MAX_NAMED]
@@ -331,6 +363,8 @@ def forbidden_claims(acts: Iterable[Act]) -> set[str]:
         forbidden |= set(RULES[a.kind].forbids) | set(STATUS_FORBIDS.get(status, ()))
         if a.kind in (Kind.CANCELLED, Kind.REFUSED):
             forbidden |= set(OP_FORBIDS.get(str(a.slots.get("op")), ()))
+        if a.kind is Kind.UNANSWERED:
+            claimed.update(OUTCOME_CLAIMS[value] for value in a.slots.get("outcomes", ()) if value in OUTCOME_CLAIMS)
         claimed |= set(CLAIMED.get(a.kind, ())) | (set(STATUS_CLAIMS.get(status, ())) if "status" in a.slots else set())
     return forbidden - claimed
 

@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable
 from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
+from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise, outcome_meaning,
                            recites)
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Decider, Verdict
@@ -374,7 +374,15 @@ def never_say(acts: Iterable[Act]) -> list[str]:
 
 
 def act_facts(a: Act) -> dict:
-    return {"act": a.kind.value, "means": MEANINGS[a.kind], "facts": dict(a.slots)}
+    return {"act": a.kind.value, "means": wording_direction(a), "facts": dict(a.slots)}
+
+
+def wording_direction(a: Act) -> str:
+    if a.kind is Kind.UNANSWERED and (outcomes := a.slots.get("outcomes")):
+        return f"Say only that you {outcome_meaning(outcomes)}. Do not say you could not answer."
+    if a.slots.get("recap"):
+        return MEANINGS[a.kind] + " Make clear this is a recap of the same action you already reported."
+    return MEANINGS[a.kind]
 
 
 @dataclass
@@ -727,6 +735,7 @@ assert set(READER_EXAMPLES) == set(Kind)
 # A kind whose example is chosen by a slot as well: shown only the project example, the writer restates the task for
 # thread candidates and names none.
 READER_VARIANTS = {
+    (Kind.UNANSWERED, "outcome"): ({"outcomes": ["sent"]}, "I sent the follow-up message."),
     (Kind.SAME_TITLE, "tell"): ({"thread": "Example Sort Photo Albums", "op": "tell"},
                                 "I didn't send anything, because more than one thread is called Example Sort Photo "
                                 "Albums. You can send it in the app."),
@@ -779,6 +788,10 @@ EXAMPLE_NAMES = frozenset(name for slots, _ in (*READER_EXAMPLES.values(), *READ
 def _shape(kind: Kind, slots: dict) -> str | None:
     if kind is Kind.ASK_WHICH and slots.get("of") == "thread" and len(slots.get("candidates") or ()) == 2:
         return "thread_pair"
+    if variant := (slots.get("of") or slots.get("op") or slots.get("decision") or slots.get("restated")):
+        return variant
+    if kind is Kind.UNANSWERED and slots.get("outcomes"):
+        return "outcome"
     if kind is Kind.ASK_QUESTION and slots.get("options") == []:
         return "open"
     if kind is Kind.CONFIRM_ANSWER and len(slots.get("answers") or ()) > 1:
@@ -792,7 +805,7 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     firsts = {}
     for a in acts:
         firsts.setdefault(a.kind, a)
-    directions = "\n".join(f"{kind.value}: {MEANINGS[kind]}" for kind in kinds)
+    directions = "\n".join(f"{kind.value}: {wording_direction(firsts[kind])}" for kind in kinds)
     head = f"{READER}\n\n{directions}"
     if banned := never_say(acts):
         head += f"\nDo not claim {', or '.join(banned)}."
@@ -803,9 +816,7 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     examples = []
     for kind in kinds:
         slots = firsts[kind].slots
-        shown = READER_VARIANTS.get((kind, slots.get("restated") or _shape(kind, slots)
-                                                or slots.get("of") or slots.get("op") or slots.get("decision")),
-                                    READER_EXAMPLES[kind])
+        shown = READER_VARIANTS.get((kind, _shape(kind, slots)), READER_EXAMPLES[kind])
         example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else shown
         examples.append((json.dumps({"kind": kind.value, **example}), reply))
     # The questions a confirmation answers are for the line check; the writer given them asked them again (3 of 3 drafts).

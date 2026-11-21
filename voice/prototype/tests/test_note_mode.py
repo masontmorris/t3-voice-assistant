@@ -527,11 +527,13 @@ class T3TurnTest(NoteTurn):
         deliveries = []
 
         class Unanswered(T3SnapshotService):
-            def unanswered(self):
+            def unanswered(self, *, has_audio):
+                if has_audio:
+                    return None
                 acts = (act(S.UNANSWERED),)
                 return {"acts": [a.to_json() for a in acts]}, SimpleNamespace(
                     say=lambda entry, turns: CHECKED.accept(acts, fallback, "text_model"),
-                    accept=self.accept, refuse=self.refuse)
+                    accept=self.accept, refuse=self.refuse), lambda _: None
 
             def record_delivery(self, entry, state):
                 deliveries.append((entry["task_id"], state))
@@ -549,25 +551,82 @@ class T3TurnTest(NoteTurn):
                 self.assertEqual([r["delivery"] for r in record["replies"]], ["unsent", "sent"])
                 self.assertEqual(deliveries, [("t3_1", "unsent")])
 
+    async def test_fallback_respects_delivery_and_never_releases_failed_recitals(self):
+        fallback = "I couldn't give you an answer."
+        fallback_act = act(S.UNANSWERED)
+
+        class WithFallback(T3SnapshotService):
+            def unanswered(inner, *, has_audio):
+                if has_audio:
+                    return None
+                return {"acts": [fallback_act.to_json()]}, SimpleNamespace(
+                    say=lambda entry, turns: CHECKED.accept((fallback_act,), fallback, "text_model"),
+                    accept=inner.accept, refuse=inner.refuse), lambda _: None
+
+        async def send_partial(line, pcm):
+            self.spoken.append(line.text)
+            return pcm[:2], CLOCK
+
+        for name, script, service, send, muted, heard, deliveries in (
+            ("muted", [], WithFallback, self.send_checked, True, [], ["unsent"]),
+            ("failed fallback", ["Wrong.", "Wrong.", "Wrong.", "Wrong."], WithFallback, self.send_checked,
+             False, [], ["unsent", "unsent"]),
+            ("partial", [DRAFT], WithFallback, send_partial, False, [DRAFT], ["partial"]),
+            ("no capability", ["Wrong.", "Wrong."], T3SnapshotService, self.send_checked, False, [], ["unsent"]),
+        ):
+            with self.subTest(name=name):
+                self.spoken.clear()
+                attempts = len(script)
+                record = await self.turn(script, task_service=service, send_checked=send, is_muted=lambda: muted)
+                self.assertEqual(self.spoken, heard)
+                self.assertEqual([r["delivery"] for r in record["replies"]], deliveries)
+                self.assertEqual(self.voice.asked, attempts)
+
+        class NoOrdinaryAudio(Scripted):
+            async def push(inner, event):
+                if event["type"] != "response.output_audio.delta" or inner.asked > 1:
+                    await super().push(event)
+
+        class Ordinary(WithFallback):
+            snapshot = MockTaskService.snapshot
+
+        self.spoken.clear()
+        self.voice = await NoOrdinaryAudio.open("ws://unused", "voice", lambda: CLOCK)
+        record = await self.turn(["Ordinary text.", fallback], task_service=Ordinary, send_checked=self.send_checked)
+        self.assertEqual(self.spoken, [fallback])
+        self.assertEqual(record["replies"][-1]["delivery"], "sent")
+
     async def test_a_relay_that_ends_incomplete_retries_before_releasing_audio(self):
         choice = act(S.ASK_WHICH, of="thread", candidates=["Mend Rail Maps", "Add a Rail Legend"])
         draft = "Which thread do you mean, Mend Rail Maps or Add a Rail Legend?"
+
+        refused = []
 
         class Choosing(asked_in_order({**T3_ENTRY, "acts": [choice.to_json()]})):
             def say(self, entry, turns=()):
                 return CHECKED.accept((choice,), draft, "text_model")
 
+            def refuse(self, entry, rendered):
+                refused.append(rendered.raw)
+
         class Incomplete(Scripted):
             async def push(inner, event):
                 if event["type"] == "response.done" and inner.asked == 1:
                     event["response"]["status"] = "incomplete"
+                    event["response"]["status_details"] = {"reason": inner.reason}
                 await super().push(event)
 
-        self.voice = await Incomplete.open("ws://unused", "voice", lambda: CLOCK)
-        record = await self.turn([draft, draft], task_service=Choosing, send_checked=self.send_checked)
-        self.assertEqual(self.spoken, [draft])
-        self.assertEqual(record["replies"][0]["delivery"], "sent")
-        self.assertEqual(self.voice.asked, 2)
+        for reason, expected in (("max_output_tokens", [draft]), ("turn_detected", [])):
+            with self.subTest(reason=reason):
+                self.spoken.clear()
+                refused.clear()
+                self.voice = await Incomplete.open("ws://unused", "voice", lambda: CLOCK)
+                self.voice.reason = reason
+                record = await self.turn([draft, draft], task_service=Choosing, send_checked=self.send_checked)
+                self.assertEqual(self.spoken, expected)
+                self.assertEqual(record["replies"][0]["delivery"], "sent" if expected else "unsent")
+                self.assertEqual(self.voice.asked, 2 if expected else 1)
+                self.assertEqual(refused, [None])
 
     async def test_call_audio_waits_for_response_done_and_the_reply_check(self):
         generating, finish = asyncio.Event(), asyncio.Event()

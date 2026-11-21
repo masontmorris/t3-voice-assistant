@@ -113,6 +113,12 @@ class OptionsAndAnswers(unittest.TestCase):
 
 
 class LineCheck(unittest.TestCase):
+    def test_an_unanswered_line_still_checks_each_unconfirmed_action(self):
+        line = "I couldn't give an answer, but I sent the follow-up."
+        decider = Decider(AnsweringAsks({"a1_means": 0.9, "claims_sent": 0.9}))
+        self.assertEqual(decider.verify([act(Kind.UNANSWERED)], line).failed, ("claims_sent",))
+        self.assertTrue(decider.verify([act(Kind.UNANSWERED, outcomes=["sent"])], "I sent the follow-up.").passed)
+
     def test_the_decider_refuses_the_reviewers_escapes(self):
         decider = Decider(Recorded())
         escapes = [row for row in FIXTURE if row["line"] in ESCAPES]

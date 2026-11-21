@@ -198,6 +198,7 @@ def reply_summary(session, mark, since, rate):
     return {
         "text": "".join(e.get("delta", "") for e in events if e["type"] == "response.output_text.delta"),
         "status": response.get("status") or done.get("error", {}).get("type"),
+        "status_reason": (response.get("status_details") or {}).get("reason"),
         "function_calls": [o for o in response.get("output", []) if o.get("type") == "function_call"],
         "first_audio_after_s": audio_events[0]["_t"] - since if audio_events else None,
         "speech_s": len(pcm) / 2 / rate,
@@ -476,12 +477,14 @@ async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio
                     sent, first_sent = await send_audio(spoken.line, pcm)
                     delivery = "sent" if len(sent) == len(pcm) else "partial" if sent else "unsent"
             else:
-                spoken = Rendered(None, raw=reply["text"], error="call reply missing audio or incomplete")
+                raw = None if recites(reply["text"], draft.line.text) else reply["text"]
+                spoken = Rendered(None, raw=raw, error="call reply missing audio or incomplete")
             if spoken.line is None:
                 words.refuse(entry, spoken)
             log("t3_call_reply", text=reply["text"], status=reply["status"], generated_audio_s=reply["speech_s"],
                 problems=spoken.problems, error=spoken.error, attempt=attempt + 1)
-            if spoken.line is not None or reply["status"] not in ("completed", "cancelled", "incomplete") or is_muted():
+            if (spoken.line is not None or reply["status"] not in ("completed", "cancelled", "incomplete")
+                    or reply.get("status_reason") == "turn_detected" or is_muted()):
                 break
     if delivery == "sent":
         entry["spoken"] = spoken.line.text
@@ -505,6 +508,9 @@ async def relay_draft(session, rate, since, line, abandoned=lambda: False, attem
 
     async def generate():
         try:
+            await floor_free(session)
+            if abandoned():
+                return {**fixed_reply("", b"", rate, 0), "status": "abandoned"}, b""
             item = await create_item(session, plain_text(relay_note(text, attempt)))
             if item["accepted"] is True:
                 # The floor can close while the note is acknowledged, and the sound can then continue the turn.
@@ -1167,10 +1173,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             await correct()
 
         unanswered = getattr(service, "unanswered", None)
+        interrupted = any(r.get("delivery") == "partial" or r.get("status_reason") == "turn_detected" for r in replies)
         if (unanswered is not None and send_checked is not None and adapter.text() and not is_muted()
-                and not any(r["speech_s"] for r in replies)):
-            entry, words = unanswered()
-            await say_t3([entry], "t3", audio_end, words=words, delivered=None, render_context=False)
+                and not interrupted):
+            fallback = unanswered(has_audio=any(r["speech_s"] for r in replies))
+            if fallback is not None:
+                entry, words, delivered = fallback
+                await say_t3([entry], "t3", audio_end, words=words, delivered=lambda _, state: delivered(state),
+                             render_context=False)
 
     finally:
         if worker is not None:
