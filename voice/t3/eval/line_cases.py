@@ -47,6 +47,38 @@ STATUS_WITHOUT_SUMMARY = [
     act(Kind.NEEDS_YOU, thread="Could you start a thread to change how missing samples are han…",
         need="command_approval"),
 ]
+APP_THREAD_REFERENCES = {
+    "Sort Seed Packets": "seed packets",
+    "Could you start a thread to check the timestamps on imported tide rea…": "tide timestamps",
+    'Make the "On Hold" badge readable': "badge",
+    "The kiln log is missing its last page.": "kiln log",
+}
+NEEDS_THE_APP = [act(Kind.NEEDS_THE_APP, thread=title, decision="approve") for title in APP_THREAD_REFERENCES]
+NEEDS_WITH_COMMAND = [
+    act(kind, thread=title, need="command_approval", **slots)
+    for title, command in (
+        ("Check Dock Times", "printf 'ready' > dock-note.txt"),
+        ("Review Print Sizes", "wc -l print-sizes.txt"),
+    )
+    for kind, slots in (
+        (Kind.NEEDS_YOU, {"prompt": command}),
+        (Kind.THREAD_STATUS, {"status": "waiting_on_you", "pending": command, "asked": "is it still waiting"}),
+    )
+]
+
+
+def need_lines():
+    """Faithful and invented claims about the same pending commands."""
+    details = {
+        "Check Dock Times": ("write a note", "run a cleanup script", "publish the dock schedule"),
+        "Review Print Sizes": ("count lines in a file", "run a migration script", "validate the print layout"),
+    }
+    for said in NEEDS_WITH_COMMAND:
+        title = said.slots["thread"]
+        for shape, detail in zip(("faithful", "invented_label", "invented_purpose"), details[title], strict=True):
+            yield shape, said, f"{title} is waiting for approval to {detail}."
+
+
 DONE = [
     act(Kind.DONE, thread="Add a harbour map legend", status="completed",
         summary="It reports that the legend shows five symbols."),
@@ -107,7 +139,8 @@ OTHER = [
 GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_status_summary": SUMMARY,
           "status_without_summary": STATUS_WITHOUT_SUMMARY,
           "done_summary": DONE, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
-          "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP}
+          "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP, "needs_the_app": NEEDS_THE_APP,
+          "needs_with_command": NEEDS_WITH_COMMAND}
 
 
 def cases() -> list[tuple[str, tuple]]:
@@ -117,5 +150,11 @@ def cases() -> list[tuple[str, tuple]]:
 
 def turns_for(acts) -> list[dict]:
     """What the person just said, for the acts that carry what they asked."""
+    if acts[0].kind is Kind.NEEDS_THE_APP:
+        title = acts[0].slots["thread"]
+        ref = APP_THREAD_REFERENCES[title]
+        return [{"user": f"Is the {ref} thread waiting on me?",
+                 "assistant": f"{title} is waiting for approval."},
+                {"user": f"Please approve the request on the {ref} thread."}]
     asked = next((a.slots.get("asked") for a in acts if a.slots.get("asked")), None)
     return [{"user": f"Tell me, {asked}?"}] if asked else []

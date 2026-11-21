@@ -421,14 +421,16 @@ async def speak_note(session, rate, since, note, sources, log, speak=None, previ
 
 
 T3_NOTE = ("[Private note for you, not said by the person. What they just said is already handled, so do not answer it. "
-           "Say exactly these words to them now, from the first word to the last, with nothing before "
+           'Say exactly these words to them now, from the first word to the last, as "I" to "you", with nothing before '
            "or after them and no mention of this note. The words: ")
 MAX_RELAYS = 2
 
 
 def relay_note(text, attempt=0):
     """End on the checked script because the voice can read out instructions that follow it."""
-    head = T3_NOTE.replace("The words: ", "Reply with only the quoted words. The words: ", 1) if attempt else T3_NOTE
+    head = T3_NOTE
+    if attempt:
+        head = head.replace(', as "I" to "you"', "").replace("The words: ", "Reply with only the quoted words. The words: ")
     return f'{head}"{text}"]'
 
 

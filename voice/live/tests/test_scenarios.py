@@ -223,6 +223,10 @@ class Silence(unittest.TestCase):
         self.assertFalse(silent.answered)
         self.assertFalse(S.no_silent_turn(call([silent])).ok)
 
+        absorbed = turn_of(0, {"clip": "turn_001", "final_transcript": "And keep it tidy.", "replies": []},
+                           lambda _: [])
+        self.assertFalse(S.no_silent_turn(call([absorbed])).ok)
+
         record["live"] = {"speech_end_to_first_audio_sent_s": 1.0}
         record["replies"].append({"kind": "t3", "text": "I couldn't answer.", "delivery": "sent", "speech_s": 1.0})
         heard = turn_of(0, record, lambda _: [{"kinds": [Kind.UNANSWERED], "delivery": "sent"}])

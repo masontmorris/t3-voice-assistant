@@ -106,8 +106,9 @@ MEANINGS: dict[Kind, str] = {
                           "words, from it: what the person would be allowing. A denial has no `summary`: name the "
                           "thread and ask whether to say no to its request. Never read out a command line, flag, path "
                           "or code. Nothing is answered yet.",
-    Kind.NEEDS_THE_APP: "Say in one sentence that you can't describe the request from this thread and it needs "
-                        "approval in the app. Copy the thread title including any ellipsis, without quotes.",
+    Kind.NEEDS_THE_APP: "Name the thread using the full thread title from the record exactly as supplied, without "
+                        "wrapping it in quotes. Say that you cannot describe what the request would do and that "
+                        "approval has to happen in the app.",
     Kind.RESPONDED: "T3 accepted the answer: say that the request was approved or denied, as `decision` says, for the "
                     "thread. Do not say what the thread does next.",
     Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to answer. "
@@ -791,7 +792,7 @@ READER_EXAMPLES = {
     Kind.RESPONDED: ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "file_change"},
                      "I approved the file changes for Example Mend Rail Maps."),
     Kind.NEEDS_THE_APP: ({"thread": "Example Tag Camera Clips", "decision": "approve"},
-                          "I can't describe the request from Example Tag Camera Clips, so it needs approval in the app."),
+                          "For Example Tag Camera Clips, I can't describe the request. It needs approval in the app."),
     Kind.NOTHING_PENDING: ({"thread": "Example Tag Camera Clips"},
                            "Example Tag Camera Clips isn't waiting on any request, so there was nothing to answer."),
     Kind.ASK_QUESTION: ({"thread": "Example Pick Storage Layer", "question": "Which database should it use?",
@@ -902,6 +903,8 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key not in ("asked", "questions")}}
                for a in acts]
     body = records[0] if len(records) == 1 else {"acts": records}
+    if body.get("kind") == Kind.NEEDS_THE_APP.value:
+        body = {"thread": body["thread"], **body}
     if problems:
         body["earlier draft problems"] = list(problems)
     if refused:
