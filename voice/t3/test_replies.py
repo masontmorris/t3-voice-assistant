@@ -116,7 +116,9 @@ class Reads(unittest.TestCase):
         self.assertTrue(judge_reading(answered(no, agrees=0.02, withdraws=0.93)).withdrawing)
         self.assertFalse(judge_reading(answered(no, agrees=0.02, withdraws=0.1)).withdrawing)
         self.assertFalse(judge_reading(answered(no, agrees=0.02)).withdrawing)
-        self.assertFalse(judge_reading(answered({"unrelated": 0.9, "no": 0.1}, agrees=0.02, withdraws=0.93)).withdrawing)
+        self.assertTrue(judge_reading(answered({"unrelated": 0.9, "no": 0.1}, agrees=0.02, withdraws=0.93)).withdrawing)
+        for label in ("yes", "question", "other"):
+            self.assertFalse(judge_reading(answered({label: 0.9, "no": 0.1}, agrees=0.5, withdraws=0.93)).withdrawing)
 
     def test_a_yes_read_beside_a_change_of_target_is_not_a_yes(self):
         yes = {"yes": 0.95, "other": 0.05}

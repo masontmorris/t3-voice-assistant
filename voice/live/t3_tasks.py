@@ -163,6 +163,7 @@ class Question:
     projects: dict[str, str] = field(default_factory=dict)
     message: str | None = None
     request_id: str | None = None
+    took_back: bool = False
     need: str | None = None
     prompt: str | None = None
     source: T.NeedSource | None = None
@@ -225,7 +226,9 @@ class T3Tasks:
     told: dict[str, int] = field(default_factory=dict, init=False)
     withdrawn: Question | None = field(default=None, init=False)
     declined: dict | None = field(default=None, init=False)
-    before_call: frozenset = field(default_factory=frozenset, init=False)
+    before_call: dict = field(default_factory=dict, init=False)
+    turns_closed: int = field(default=0, init=False)
+    declined_at: int = field(default=0, init=False)
     before_pick: tuple | None = field(default=None, init=False)
     call: int = field(default=0, init=False)
     lane: Lane | None = field(default=None, init=False)
@@ -235,7 +238,7 @@ class T3Tasks:
 
     def __post_init__(self) -> None:
         self.lane = Lane(self.model) if self.model is not None else None
-        self.before_call = frozenset(self.follow.journal.tasks)
+        self.before_call = self._statuses()
         self.speech = Speech(self.lane, self._read_quiet, self.decider, Lane(self.writer) if self.writer else None,
                              reuse=self.reuse)
 
@@ -357,16 +360,25 @@ class T3Tasks:
         """A new call starts: nothing asked on an earlier one can be answered on it."""
         with self.lock:
             self.call += 1
-            self.before_call = frozenset(self.follow.journal.tasks)
+            self.before_call = self._statuses()
             self.spoken_of = self.spoken_id = None
             self.told.clear()
             self._drop_question()
             self.withdrawn = self.declined = None
+            self._drop_held_corrections()
 
     def end_call(self) -> None:
         with self.lock:
             self._drop_question()
             self.withdrawn = self.declined = self.before_pick = None
+            self._drop_held_corrections()
+
+    def _statuses(self) -> dict:
+        return {task_id: task.status for task_id, task in self.follow.journal.tasks.items()}
+
+    def _drop_held_corrections(self) -> None:
+        """A correction held for a quiet moment belongs to the call whose reply it corrects."""
+        self.follow.outbox = [update for update in self.follow.outbox if update.row != "correction"]
 
     def _drop_question(self) -> None:
         self.question = self.unasked = None
@@ -388,19 +400,24 @@ class T3Tasks:
             since = question.heard_at if question.heard else question.asked_at
             if question.call != self.call or question.expired or time.monotonic() - since > CONFIRM_TTL_S:
                 if question.heard and question.call == self.call:
-                    self._withdraw(question)
+                    self._withdraw(question, False)
                 self._drop_question()
                 return None
             return question
 
-    def _withdraw(self, question: Question) -> None:
-        """A heard question was dropped unanswered. The voice is told once (`take_withdrawn`), the decider keeps it as
-        typed state for the rest of the call (`declined_state`), and a thread the question only named is no longer the
-        thread the call last spoke about."""
+    def _withdraw(self, question: Question, took_back: bool) -> None:
+        """A heard question was dropped unanswered. The voice is told once (`take_withdrawn`). Only a thread-pick
+        question that the reply read as taking the request back (`took_back`) also becomes typed state for the decider
+        (`declined_state`) and gives the thread it named back to what it was before the question. A drop from a call that
+        has ended does nothing."""
+        if question.call != self.call:
+            return
         self.withdrawn = question
-        names = [question.titles.get(t, t) for t in question.candidates]
-        self.declined = {"asked": "which of these threads they meant" if question.kind == "thread"
-                         else "whether this is the thread they meant", "threads": names}
+        question.took_back = took_back
+        if not took_back:
+            return
+        self.declined = {"threads": [question.titles.get(t, t) for t in question.candidates]}
+        self.declined_at = self.turns_closed
         if question.kind == "thread_confirm" and self.before_pick is not None and self.spoken_id in question.candidates:
             self.spoken_of, self.spoken_id, self.recent = self.before_pick
         self.before_pick = None
@@ -453,9 +470,14 @@ class T3Tasks:
             if update.thread_id is not None or any("thread" in a.slots or "begun_in" in a.slots for a in update.acts):
                 self.declined = None
 
-    def turn_closed(self, owner: object) -> None:
-        """A turn ended. A question that an earlier turn asked and this one did not answer can no longer be."""
+    def turn_closed(self, owner: object, request: bool = False) -> None:
+        """A turn ended. A question that an earlier turn asked and this one did not answer can no longer be. A turn after
+        the one that took a pick question back, which the decider read as a request of any kind, ends the typed state:
+        the caller has moved on."""
         with self.lock:
+            if request and self.declined is not None and self.turns_closed > self.declined_at:
+                self.declined = None
+            self.turns_closed += 1
             question = self.question
             if question is not None and question.owner is not None and question.owner is not owner:
                 question.expired = True
@@ -493,10 +515,11 @@ class T3Tasks:
         return found
 
     def done_this_call(self) -> list:
-        """What the voice began on this call, from the journal and so from the moment it was begun: a start, a message,
-        a stop, an approval or an answer, in flight or ended."""
+        """What the voice did on this call, from the journal: a start, a message, a stop, an approval or an answer begun
+        on it, and one begun before it whose state has moved since, such as a held follow-up sent during it."""
         with self.lock:
-            return [task for task_id, task in self.follow.journal.tasks.items() if task_id not in self.before_call]
+            return [task for task_id, task in self.follow.journal.tasks.items()
+                    if self.before_call.get(task_id) != task.status]
 
     def claim_facts(self) -> tuple[str | None, dict] | None:
         """The thread the call last spoke of and what is true of it now, for the check of a free reply: its state in T3,
@@ -667,7 +690,8 @@ class T3Tasks:
         if update is None and question is not None and question.heard:
             with self.lock:
                 if self.question is None or self.question is not question:
-                    self._withdraw(question)
+                    pick = question.op == ASK and question.kind in ("thread", "thread_confirm")
+                    self._withdraw(question, pick and isinstance(reading, Reading) and reading.withdrawing)
         if isinstance(update, Choose):
             return self._choose(update)
         if not isinstance(update, Lookup):
@@ -714,10 +738,12 @@ class T3Tasks:
     def _answer_start(self, question: Question, text: str, reading: Reading | None, now: float) -> L.Update | None:
         projects = self.projects()
         names = {p["projectId"]: p["name"] for p in projects}
-        if reading is None or reading.label in (None, "question", "unrelated"):
+        if reading is None:
             return None
         if question.kind == "confirm" and reading.yes and question.candidates[0] in names:
             return self._launch(question, question.candidates[0], names[question.candidates[0]], now)
+        if reading.label in (None, "question", "unrelated"):
+            return None
         # The reply asks for another project: the one it names, else the one the decider read it as changing to.
         others = self.alternatives(question)
         if question.kind == "project":
@@ -1595,7 +1621,8 @@ class T3TaskService(MockTaskService):
 
     def close(self):
         super().close()
-        self.t3.turn_closed(self)
+        asked = any((record.get("tool") or {}).get("tool") not in (None, "none") for record in self.segmenter.records())
+        self.t3.turn_closed(self, asked)
         # A question nobody heard goes back too, to be asked when the call is quiet: no reply can answer it unheard.
         with self.t3.lock:
             unsent = [update for task_id, update in self.spoken.items()

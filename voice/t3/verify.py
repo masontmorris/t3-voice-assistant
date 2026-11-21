@@ -627,6 +627,9 @@ AGREES_CONFIDENCE = 0.5
 ADDS_CEILING = 0.5
 ASKS_CEILING = 0.7
 YES_OR_QUESTION = 0.5
+# A choice that says question counts for a yes the transcript marked as one only when the choice still gives yes a real
+# share. The recorded question-labelled replies that are taken give yes 0.32 to 0.42 (0.34 and up on the seen rows).
+QUESTION_LABEL_YES_FLOOR = 0.3
 WITHDRAWS_CONFIDENCE = 0.5
 # A reply with any real share of a no or of another target is not an unconditional yes, however much of it says yes.
 OTHER_CEILING = 0.2
@@ -653,7 +656,7 @@ def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dic
         questions["agrees"] = {"type": "noul", "instructions": AGREES, "criteria": YES_NO}
         questions["asks"] = {"type": "noul", "instructions": ASKS, "criteria": YES_NO}
         questions["adds"] = {"type": "noul", "instructions": ADDS, "criteria": YES_NO}
-    if said.kind is Kind.CONFIRM_THREAD:
+    if said.kind is Kind.CONFIRM_THREAD or (said.kind is Kind.ASK_WHICH and said.slots.get("of") == "thread"):
         questions["withdraws"] = {"type": "noul", "instructions": WITHDRAWS, "criteria": YES_NO}
     if options and said.kind is Kind.ASK_WHICH:
         # The assistant listed the options aloud, so "the second one" answers by place as well as by name.
@@ -703,8 +706,10 @@ class Reading:
 
     @property
     def withdrawing(self) -> bool:
-        """A no that takes the whole request back, as against one that says this is not the one and asks for another."""
-        return self.label == "no" and self.withdraws is not None and self.withdraws >= WITHDRAWS_CONFIDENCE
+        """A reply that takes the whole request back, as against one that says this is not the one and asks for
+        another. Its choice is a no, or unrelated for a "never mind" that declines nothing in particular."""
+        return (self.label in ("no", "unrelated") and self.withdraws is not None
+                and self.withdraws >= WITHDRAWS_CONFIDENCE)
 
     @property
     def kind(self) -> str | None:
@@ -718,12 +723,14 @@ def reads_yes(label: str | None, shares: dict[str, float] | None, agrees: float 
     Every answer it rests on must be there: `shares` is the choice's complete map (None when it is missing, partial or
     not shares of one whole), `agrees`, `asks` and `adds` are probabilities, and `kept` says the target answer was present and
     says the proposal is kept (or none was asked). Then all of these must hold: the choice's own label is yes, or
-    question when the transcript marked a yes with a question mark; the shares of yes and question together are at
-    least half; a no and another target each have at most OTHER_CEILING; the words say yes (`agrees`), do not ask
+    question, which counts only when yes still has at least QUESTION_LABEL_YES_FLOOR of the choice; the shares of yes
+    and question together are at least half; a no and another target each have at most OTHER_CEILING; the words say yes (`agrees`), do not ask
     for anything in words (`asks`) and add nothing but the agreement (`adds`). Anything missing, malformed or in
     disagreement is not a yes."""
     if (shares is None or agrees is None or asks is None or adds is None or not kept
             or label not in ("yes", "question")):
+        return False
+    if label == "question" and shares.get("yes", 0.0) < QUESTION_LABEL_YES_FLOOR:
         return False
     return (shares.get("yes", 0.0) + shares.get("question", 0.0) >= YES_OR_QUESTION
             and shares.get("no", 1.0) <= OTHER_CEILING and shares.get("other", 1.0) <= OTHER_CEILING

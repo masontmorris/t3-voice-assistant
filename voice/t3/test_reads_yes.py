@@ -37,6 +37,17 @@ class Pure(unittest.TestCase):
             with self.subTest(**{name: value}):
                 self.assertFalse(reads_yes(**{**good, name: value}))
 
+    def test_a_question_label_is_a_yes_only_with_a_real_share_of_yes(self):
+        marked = {"yes": 0.36, "question": 0.5, "no": 0.04, "other": 0.04, "unrelated": 0.06}
+        self.assertTrue(reads_yes("question", marked, 0.8, 0.2, 0.1, True))
+        for yes in (0.0, 0.1, 0.29):
+            shares = {**marked, "yes": yes, "question": 0.86 - yes}
+            with self.subTest(yes=yes):
+                self.assertFalse(reads_yes("question", shares, 0.9, 0.1, 0.1, True))
+        self.assertTrue(reads_yes("question", {**marked, "yes": 0.3, "question": 0.56}, 0.9, 0.1, 0.1, True))
+        self.assertTrue(reads_yes("yes", {**marked, "yes": 0.55, "question": 0.31}, 0.9, 0.1, 0.1, True),
+                        "the floor is for the question label only")
+
     def test_every_combination_of_a_missing_answer_is_not_a_yes(self):
         names = ("label", "shares", "agrees", "asks", "adds")
         for gone in itertools.chain.from_iterable(itertools.combinations(names, n) for n in (1, 2, 3, 4, 5)):
@@ -116,6 +127,10 @@ def mutations():
             choice="no", probabilities={**WHOLE, "no": 0.55, "yes": 0.05})),
         edit("the choice says other", lambda a: a["reading"].update(
             choice="other", probabilities={**WHOLE, "other": 0.55, "yes": 0.05})),
+        edit("the choice says question with no share of yes", lambda a: a["reading"].update(
+            choice="question", probabilities={"yes": 0.0, "question": 0.9, "no": 0.03, "other": 0.03, "unrelated": 0.04})),
+        edit("the choice says question with too little yes", lambda a: a["reading"].update(
+            choice="question", probabilities={"yes": 0.25, "question": 0.65, "no": 0.03, "other": 0.03, "unrelated": 0.04})),
         edit("the choice says unrelated", lambda a: a["reading"].update(
             choice="unrelated", probabilities={**WHOLE, "unrelated": 0.55, "yes": 0.05})),
         edit("a real share of no", lambda a: a["reading"]["probabilities"].update(no=0.3, yes=0.3)),

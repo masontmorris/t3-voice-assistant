@@ -42,12 +42,14 @@ STATUS = act(Kind.THREAD_STATUS, thread="Polish the Main Menu", status="working"
 STATUS_LINE = "The Polish the Main Menu thread is working."
 TURNS = ("How is the volume slider thread going?", "Never mind.",
          "Can you tell me something interesting about octopuses?", "Can we start over?",
-         "Okay. Hello again, how are you?", "How is the main menu thread going?")
+         "Okay. Hello again, how are you?", "How is the main menu thread going?",
+         "Sorry, can you say that again?")
 QUESTION = "Does the reply ask the person to choose between threads, or list threads as options to choose from?"
 CONTEXT = f"The threads are {THREADS[0]} and {THREADS[1]}."
 READ_OUT = ("Does the reply speak instructions or notes meant for the assistant itself, such as being told what to do "
             "or not to do, instead of words said to a person?")
 NGRAM = 4
+AGAIN = "Does the reply repeat or restate what the assistant said before about octopuses?"
 
 SHIPPED = (run.NOTE_OPEN + "they did not answer your last question and have moved on. Answer what they said in this "
            "turn, and do not repeat or ask that question again.]")
@@ -124,11 +126,16 @@ async def trial(url: str, clips: list[Path], arm: tuple, shape: str, judge: Judg
             await person(clips[turn], None)
             relayed, _ = await run.relay_draft(voice, rate, clock(), checked(acts, line))
             out.append({"turn": TURNS[turn], "said": relayed["text"], "relay": True})
-        for i, clip in enumerate(clips[1:5], 1):
+        octopus = ""
+        for i in (1, 2, 6, 3, 4):
             note = first if i == 1 else later
-            await person(clip, note)
+            await person(clips[i], note)
             reply, _ = await run.respond(voice, rate, clock())
+            if i == 2:
+                octopus = reply["text"]
             row = {"turn": TURNS[i], "said": reply["text"], "offers": judge.yes(QUESTION, reply["text"], CONTEXT)}
+            if i == 6:
+                row["said_again"] = judge.yes(AGAIN, reply["text"], f"Earlier the assistant said: {octopus}")
             if note is not None:
                 row["read_out_ngram"] = shares_a_run(note, reply["text"])
                 row["read_out_judged"] = judge.yes(READ_OUT, reply["text"], "A voice assistant said this to a person.")
@@ -159,13 +166,15 @@ async def main_async(args) -> int:
         noted = [t for t in replies if "read_out_ngram" in t]
         summary[name] = {
             "trials": len(mine),
-            "offered_on_the_withdrawing_turn": sum(r["turns"][-4]["offers"] for r in mine),
+            "offered_on_the_withdrawing_turn": sum(r["turns"][-5]["offers"] for r in mine),
             "offered_on_any_turn": sum(any(t.get("offers") for t in r["turns"]) for r in mine),
+            "asked_to_say_it_again": len([t for r in mine for t in r["turns"] if "said_again" in t]),
+            "said_it_again": sum(t["said_again"] for r in mine for t in r["turns"] if "said_again" in t),
             "replies_with_the_note": len(noted),
             "note_read_out_by_ngram": sum(t["read_out_ngram"] for t in noted),
             "note_read_out_by_judge": sum(t["read_out_judged"] for t in noted),
             "by_shape": {shape: {"trials": sum(r["shape"] == shape for r in mine),
-                                 "offered_on_the_withdrawing_turn": sum(r["turns"][-4]["offers"] for r in mine
+                                 "offered_on_the_withdrawing_turn": sum(r["turns"][-5]["offers"] for r in mine
                                                                          if r["shape"] == shape)}
                          for shape in args.shapes}}
     (args.out / "withdraw.json").write_text(json.dumps({"summary": summary, "rows": rows}, indent=1), encoding="utf-8")

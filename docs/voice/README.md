@@ -34,21 +34,23 @@ set takes about 13 minutes and about 100 hosted decider calls (under a cent); a 
 a second only when its rule allows it. `--long` adds four more scenarios (about 12 minutes more), `--only ID` runs some,
 and `--spread N` runs each scenario N times unless it errors. `python -m voice.live.scenarios list` shows the rules.
 
-| Scenario                      | Rule   | Baseline reason                                                                                                        |
-| ----------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------- |
-| `speak-over`                  | 1 of 1 | 9 of 9; the words said over a question are answered (2 of 3 before).                                                   |
-| `approval-claim`              | 1 of 1 | The title-first app direction was heard in all three runs of the latest spread.                                        |
-| `thread-lines`                | 1 of 1 | The thread-status replies consistently used checked lines.                                                             |
-| `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                                                        |
-| `withdrawn-question`          | 1 of 1 | 13 of 13 over five gate invocations, no mark.                                                                          |
-| `news-permission`             | 1 of 2 | 3 of 3, no fallback; a new thread is named by its project, not its title.                                              |
-| `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).                                            |
-| `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                                                        |
-| `short-yes`                   | 1 of 2 | 3 of 6 runs complete: the ASR split a request or heard the yes as nothing (marked).                                    |
-| `news-done` (`--long`)        | 1 of 2 | 2 of 3; in 1 the yes transcribed as nothing (marked).                                                                  |
-| `short-yes-tell` (`--long`)   | 1 of 2 | 6 of 6 reached their threads; the mark stays for the questioning "Yeah?" (see `questioning-yes`).                      |
-| `questioning-yes` (`--long`)  | 1 of 3 | 3 of the 4 runs whose yes the recogniser marked as a question took it; 2 of 6 yeses came back unmarked (precondition). |
-| `withdrawn-launch` (`--long`) | 1 of 2 | Whether the assistant asked a launch question varied.                                                                  |
+| Scenario                            | Rule   | Baseline reason                                                                                                                                |
+| ----------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| `speak-over`                        | 1 of 1 | 9 of 9; the words said over a question are answered (2 of 3 before).                                                                           |
+| `approval-claim`                    | 1 of 1 | The title-first app direction was heard in all three runs of the latest spread.                                                                |
+| `thread-lines`                      | 1 of 1 | The thread-status replies consistently used checked lines.                                                                                     |
+| `follow-up`                         | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                                                                                |
+| `withdrawn-question`                | 1 of 1 | 17 of 17 over seven gate invocations, no mark.                                                                                                 |
+| `news-permission`                   | 1 of 2 | 3 of 3, no fallback; a new thread is named by its project, not its title.                                                                      |
+| `approve-waiting`                   | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).                                                                    |
+| `deny-waiting`                      | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                                                                                |
+| `short-yes`                         | 1 of 2 | 3 of 6 runs complete: the ASR split a request or heard the yes as nothing (marked).                                                            |
+| `news-done` (`--long`)              | 1 of 2 | 2 of 3; in 1 the yes transcribed as nothing (marked).                                                                                          |
+| `short-yes-tell` (`--long`)         | 1 of 2 | 6 of 6 reached their threads; the mark stays for the questioning "Yeah?" (see `questioning-yes`).                                              |
+| `questioning-yes` (`--long`)        | 1 of 3 | 4 of the 5 runs whose yes the recogniser marked as a question took it; 4 of 9 yeses came back unmarked (precondition).                         |
+| `questioning-yes-launch` (`--long`) | 1 of 3 | The same for a launch: every marked run started the thread (2 of 2) where the answer path dropped it before; 1 of 3 unmarked.                  |
+| `tell-question-back` (`--long`)     | 1 of 2 | 3 of 3 (0 of 3 before): a question back over a message confirmation is answered with a checked line about the thread, and "it" still means it. |
+| `withdrawn-launch` (`--long`)       | 1 of 2 | Whether the assistant asked a launch question varied.                                                                                          |
 
 A check that reproduces a fault nobody has fixed is listed in `KNOWN` in `voice/live/scenarios.py` with the fault. Its
 failure is XFAIL and does not turn the gate red. XPASS means every marked check passed in the runs it made: confirm

@@ -27,7 +27,7 @@ from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal, launch_title
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
-from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, NO_THREAD_NOTE, Picked, reading_request
+from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, NO_THREAD_NOTE, Picked, judge_reading, reading_request
 from voice.segmentation.gate import PLAN_A
 from voice.segmentation.tasks import Orchestrator
 from voice.segmentation.tests.test_orchestrator import step
@@ -1603,8 +1603,7 @@ class WithdrawnQuestion(unittest.TestCase):
         t3 = self.confirming({"Never mind.": "withdraw"})
         self.assertIsNone(t3.declined_state(), "an open question is not a withdrawn one")
         t3.answer("Never mind.", 1)
-        self.assertEqual(t3.declined_state(), {"asked": "whether this is the thread they meant",
-                                               "threads": ["Add Clamp Helper"]})
+        self.assertEqual(t3.declined_state(), {"threads": ["Add Clamp Helper"]})
         t3.spoke(L.Update("k3", (act(S.THREAD_STATUS, thread="Add Sum Helper", status="working"),), "completed",
                           "ask", "t0"))
         self.assertIsNone(t3.declined_state())
@@ -1653,7 +1652,8 @@ class WithdrawalScope(unittest.TestCase):
         asked = {kind: "withdraws" in reading_request(said, "Never mind.")["questions"]
                  for kind, said in said_by_kind.items()}
         self.assertEqual(asked, {"pick": True, "launch": False, "tell": False, "stop": False, "respond": False,
-                                 "answer": False, "which": False})
+                                 "answer": False, "which": True})
+        self.assertNotIn("withdraws", reading_request(act(S.ASK_WHICH, of="project", candidates=["P", "Q"]), "x")["questions"])
 
     def test_a_no_to_an_action_confirmation_read_as_a_withdrawal_cancels_it_and_leaves_nothing_to_say_yes_to(self):
         for op in (TELL, STOP, APPROVE, DENY):
@@ -1740,6 +1740,176 @@ class WithdrawalScope(unittest.TestCase):
                 self.assertEqual(again.acts, (act(S.CONFIRM_THREAD, thread="Add Clamp Helper"),))
                 self.assertEqual(t3.question.key, f"k{n}")
                 t3.question = None
+
+
+class DroppedConfirmations(unittest.TestCase):
+    """Only a pick question that the reply took back is a withdrawal. Any other drop keeps what a drop always did."""
+
+    READINGS = {"Never mind.": "withdraw", "Wait, what's it doing right now?": "question", "Hold on.": "unrelated",
+                "Yes.": "yes"}
+
+    def tasks(self):
+        seam = F.FakeSeam(read=F.state(thread="t3", title="Add Clamp Helper", as_of=150))
+        seam.listing = listing(("t3", "Add Clamp Helper"), ("t0", "Add Sum Helper"), ("t1", "Fix the Menu Blur"))
+        return seam, tasks_over(self, seam, decider=F.Reader(self.READINGS))
+
+    def asked(self, op, words):
+        seam, t3 = self.tasks()
+        update = t3.about("k1", op, words, 0)
+        self.assertEqual(update.status, "needs_clarification", update.acts)
+        t3.spoke(update)
+        return seam, t3
+
+    def test_a_question_back_about_a_thread_being_confirmed_leaves_it_in_view_and_sends_the_old_note(self):
+        for op, words in ((TELL, "Tell the clamp helper thread to also add a test."),
+                          (STOP, "Stop the clamp helper thread."), (ASK, "How is the clamp helper thread going?")):
+            with self.subTest(op=op):
+                seam, t3 = self.asked(op, words)
+                self.assertEqual((t3.spoken_of, t3.spoken_id), ("Add Clamp Helper", "t3"))
+                self.assertIsNone(t3.answer("Wait, what's it doing right now?", 1))
+                self.assertIsNone(t3.declined_state(), "a question back is not a withdrawal")
+                self.assertEqual((t3.spoken_of, t3.spoken_id), ("Add Clamp Helper", "t3"), "the named thread stays in view")
+                dropped = t3.take_withdrawn()
+                self.assertIsNotNone(dropped)
+                self.assertFalse(dropped.took_back, "so the voice is not told they took anything back")
+
+    def test_a_pick_read_as_unrelated_is_dropped_without_the_withdrawal(self):
+        seam, t3 = self.asked(ASK, "How is the clamp helper thread going?")
+        self.assertIsNone(t3.answer("Hold on.", 1))
+        self.assertIsNone(t3.declined_state())
+        self.assertFalse(t3.take_withdrawn().took_back)
+        self.assertEqual(t3.spoken_id, "t3")
+
+    def test_an_expired_question_is_not_a_withdrawal(self):
+        seam, t3 = self.asked(ASK, "How is the clamp helper thread going?")
+        with patch("voice.live.t3_tasks.time.monotonic", return_value=t3.question.heard_at + CONFIRM_TTL_S + 1):
+            self.assertIsNone(t3.live_question())
+        self.assertIsNone(t3.declined_state())
+        self.assertFalse(t3.take_withdrawn().took_back)
+
+    def test_a_dropped_launch_confirmation_sets_no_thread_state(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=F.Reader(self.READINGS))
+        t3.spoke(t3.start("k1", TwinA.UNLISTED, 0))
+        self.assertIsNone(t3.answer("Wait, what's it doing right now?", 1))
+        self.assertIsNone(t3.declined_state())
+        self.assertFalse(t3.take_withdrawn().took_back)
+
+    def test_a_pick_read_as_taking_the_request_back_is_the_one_withdrawal(self):
+        seam, t3 = self.asked(ASK, "How is the clamp helper thread going?")
+        self.assertIsNone(t3.answer("Never mind.", 1))
+        self.assertEqual(t3.declined_state(), {"threads": ["Add Clamp Helper"]})
+        self.assertTrue(t3.take_withdrawn().took_back)
+
+    def test_a_which_thread_question_taken_back_is_a_withdrawal_too(self):
+        seam = F.FakeSeam()
+        seam.listing = listing(("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam, decider=F.Reader(self.READINGS))
+        update = t3.about("k2", ASK, "How is the flaky test thread going?", 0)
+        t3.spoke(update)
+        self.assertEqual(update.acts[0].kind, S.ASK_WHICH)
+        self.assertIsNone(t3.answer("Never mind.", 1))
+        self.assertEqual(sorted(t3.declined_state()["threads"]), ["Fix the flaky ASR test", "Fix the flaky UI test"])
+        self.assertTrue(t3.take_withdrawn().took_back)
+
+    def test_the_withdrawn_state_ends_after_a_later_turn_the_decider_read_as_a_request(self):
+        seam, t3 = self.asked(ASK, "How is the clamp helper thread going?")
+        t3.answer("Never mind.", 1)
+        t3.turn_closed(object(), True)
+        self.assertIsNotNone(t3.declined_state(), "the turn that took it back is not a later one")
+        t3.turn_closed(object(), False)
+        self.assertIsNotNone(t3.declined_state(), "chat leaves it standing")
+        t3.turn_closed(object(), True)
+        self.assertIsNone(t3.declined_state(), "a request of any kind ends it")
+
+    def test_a_turn_with_a_dispatched_tool_ends_the_state_through_the_service(self):
+        seam, t3 = self.asked(ASK, "How is the clamp helper thread going?")
+        t3.answer("Never mind.", 1)
+        for tool, ends in (("none", False), ("weather", True)):
+            t3.declined_at = t3.turns_closed - 1
+            t3.declined = {"threads": ["Add Clamp Helper"]}
+            segmenter = SimpleNamespace(records=lambda tool=tool: [{"task_id": "task_1", "tool": {"tool": tool}}],
+                                        dispatch_log=[])
+            T3TaskService(segmenter, "conv_turn_009", 0.0, None, holds_side_effects=False, t3=t3).close()
+            self.assertEqual(t3.declined_state() is None, ends, tool)
+
+    def test_a_late_withdrawal_from_a_call_that_has_ended_does_nothing(self):
+        seam, t3 = self.asked(ASK, "How is the clamp helper thread going?")
+        question = t3.live_question()
+        reading = t3.read_reply("Never mind.", question)
+        t3.begin_call()
+        self.assertIsNone(t3.answer("Never mind.", 1, reading, question))
+        self.assertIsNone(t3.declined_state())
+        self.assertIsNone(t3.take_withdrawn())
+
+    def test_a_marked_yes_to_a_launch_confirmation_starts_it(self):
+        class Marked(F.Reader):
+            def reads(self, said_, reply, options=()):
+                whole = {"yes": 0.36, "no": 0.04, "question": 0.5, "other": 0.04, "unrelated": 0.06}
+                return judge_reading({"reading": {"choice": "question", "probabilities": whole},
+                                      "agrees": {"noul": 0.8}, "asks": {"noul": 0.2}, "adds": {"noul": 0.1}})
+
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=Marked({}))
+        t3.start("k1", TwinA.UNLISTED, 0)
+        self.assertEqual(said(t3.answer("Okay?", 1)), [("launched", "Voice sandbox")])
+        self.assertEqual(len(seam.ops("launch")), 1)
+
+    def test_a_question_labelled_reply_with_no_yes_share_starts_nothing(self):
+        class Shares(F.Reader):
+            def reads(self, said_, reply, options=()):
+                whole = {"yes": 0.0, "no": 0.02, "question": 0.9, "other": 0.03, "unrelated": 0.05}
+                return judge_reading({"reading": {"choice": "question", "probabilities": whole},
+                                      "agrees": {"noul": 0.9}, "asks": {"noul": 0.1}, "adds": {"noul": 0.1}})
+
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam, decider=Shares({}))
+        t3.start("k1", TwinA.UNLISTED, 0)
+        self.assertIsNone(t3.answer("Wait.", 1))
+        self.assertEqual(seam.ops("launch"), [])
+
+
+class CorrectionsBelongToTheirCall(unittest.TestCase):
+    def tasks(self):
+        seam = F.FakeSeam(read=F.state(thread="t6", title="Fix the flaky ASR test", as_of=150))
+        seam.listing = listing(("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        t3.follow.ensure(0)
+        return t3
+
+    def held(self, t3):
+        update = t3.correction(None, "turn_001")
+        t3.hold_news(update)
+        self.assertIn(update, t3.follow.outbox)
+        return update
+
+    def test_a_held_correction_is_dropped_at_the_end_of_its_call_and_never_carried_into_another(self):
+        for end in (lambda t3: t3.end_call(), lambda t3: t3.begin_call()):
+            t3 = self.tasks()
+            t3.begin_call()
+            update = self.held(t3)
+            end(t3)
+            self.assertNotIn(update, t3.follow.outbox)
+            t3.begin_call()
+            self.assertEqual([u for u in t3.reserve_news(idle=True) if u.row == "correction"], [])
+
+    def test_other_held_news_survives_the_end_of_a_call(self):
+        t3 = self.tasks()
+        news = L.Update("n1", (act(S.DONE, thread="Fix the flaky ASR test", status="finished"),), "completed", "run", "t6")
+        t3.follow.outbox.append(news)
+        t3.end_call()
+        self.assertIn(news, t3.follow.outbox)
+
+    def test_a_follow_up_sent_during_the_call_counts_though_it_was_begun_before_it(self):
+        t3 = self.tasks()
+        held = t3.follow.journal.begin(Kind.TELL, "also add a test", "p1", "Voice sandbox", thread_id="t6")
+        held.status = Status.HELD
+        t3.begin_call()
+        self.assertEqual(t3.done_this_call(), [])
+        held.status = Status.COMPLETED
+        self.assertEqual(t3.done_this_call(), [held])
+        self.assertIsNone(t3.correction(None, "turn_001"), "the reply's 'I sent your follow-up' may be true")
+        self.assertEqual([d["did"] for d in t3.claim_facts()[1]["the_assistant_did"]], ["tell"])
 
 
 class ClaimFacts(unittest.TestCase):
