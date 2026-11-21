@@ -36,8 +36,9 @@ from typing import Callable
 
 from voice.prototype.tasks import Execution, MockTaskService, Run
 from voice.t3 import lifecycle as L
+from voice.t3 import local_summary as LS
 from voice.t3 import types as T
-from voice.t3.acts import NOTHING_NEW, Act, act
+from voice.t3.acts import NOTHING_NEW, Act, Outcome, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
@@ -45,7 +46,7 @@ from voice.t3.pick.model import FREE_MODEL, PAID_MODEL, LiveClient
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
-from voice.t3.speech import Lane, LocalText, Rendered, Speech, text_model
+from voice.t3.speech import Lane, LocalText, Rendered, RequestGate, Speech, text_model
 from voice.t3.verify import NEED, NO_ANSWER, NONE, Chosen, Decider, Listed, Picked, Reading, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
@@ -62,7 +63,6 @@ WAITS = frozenset({*RESPONDS, ANSWER})
 # The caller's own words as an answer are told back in a confirmation, so they are kept to what is easy to say and hear.
 OWN_WORDS_MAX = 240
 # What the decider's approve and deny options say is waiting on the person. Text for the decider, never spoken.
-DESCRIBE_REQUEST = "What would approving this request let the thread do?"
 WAITING_ASKS = "{thread} asks for {asks_for}."
 WAITING_QUESTIONS = "{thread} asks: {question} The options are {options}."
 WAITING_NOW = " Waiting on them now: "
@@ -122,8 +122,9 @@ def confirm_act(op: str, title: str, message: str | None = None, need: str | Non
                 prompt: str | None = None) -> Act:
     """The confirming question for one picked thread. Only a yes to it acts."""
     if op in RESPONDS:
-        return act(Say.CONFIRM_RESPOND, thread=title, decision=RESPONDS[op], need=need, pending=prompt,
-                   asked=DESCRIBE_REQUEST)
+        # The request's own prompt is never given to the line's writer, which could read a command out. An approval's
+        # description is added by `Speech.fill` from the request itself, and a denial names the thread only.
+        return act(Say.CONFIRM_RESPOND, thread=title, decision=RESPONDS[op], need=need)
     if op == TELL:
         return act(Say.CONFIRM_TELL, thread=title, message=message)
     if op == STOP:
@@ -163,6 +164,7 @@ class Question:
     request_id: str | None = None
     need: str | None = None
     prompt: str | None = None
+    source: T.NeedSource | None = None
     # An answer in progress ("answer": a question of the request is open, "answer_confirm": all are answered and
     # confirmed back): the request's questions as the voice told them, the answers so far as (question id, "option" or
     # "own_words", text), the question being asked, and how many times it has been asked again.
@@ -871,13 +873,14 @@ class T3Tasks:
                             (state.as_of_sequence,))
         if need.kind is not T.PendingKind.APPROVAL:
             return self._read(question.key, thread, question.instruction)
-        if question.op == APPROVE and not state.pending_detailed:
-            # T3 stored nothing that says what this request does, so a yes could approve anything. Denying is safe
-            # without detail: nothing runs. Approving is left to the app.
+        if question.op == APPROVE and not (state.pending_detailed and LS.describable(need)):
+            # What this request does is not stored, or not stored as an action the voice can describe (a tool permission
+            # is only the tool's name): a yes could approve anything. Denying is safe without detail: nothing runs.
+            # Approving is left to the app. The source is a typed field, never the prompt's text.
             return L.Update(question.key, (act(Say.NEEDS_THE_APP, thread=state.title, decision="approve"),),
                             "completed", "ask", thread, (state.as_of_sequence,))
         return replace(question, request_id=need.request_id, need=L.need_of(need.kind, need.source),
-                       prompt=need.prompt)
+                       prompt=need.prompt, source=need.source)
 
     def _which(self, question: Question, evidence, now: float | None = None) -> L.Update | Choose:
         """Ask which of the candidates. Threads that share a title cannot be told apart by voice, so the newest of
@@ -960,7 +963,9 @@ class T3Tasks:
         again = self._approval(question, thread)
         if isinstance(again, L.Update):
             return again
-        if again.request_id != question.request_id:
+        if (again.request_id, again.prompt, again.source) != (question.request_id, question.prompt, question.source):
+            # Another request, or the same one with other content: the description no longer matches what a yes would
+            # answer, so it is asked about again, and described again, before anything is sent.
             return self._ask_back(replace(again, kind="thread_confirm", candidates=(thread,)), question.evidence)
         task = self.follow.journal.begin(Kind.RESPOND, question.instruction, project, name, thread_id=thread,
                                          title=title)
@@ -1183,7 +1188,7 @@ class T3Tasks:
         """The text model's words for `update`'s acts, fitted to `turns`, off the T3 lock. A summarised act gets its
         thread's summary first, and the read it came from joins the update's evidence. A line that fails the slot
         check is not returned, and its problems go into the next attempt."""
-        acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences)
+        acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences, self._asked_request(update))
         acts = self._described(update, acts)
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
@@ -1191,9 +1196,25 @@ class T3Tasks:
         refuse(update, rendered)
         return rendered
 
+    def _asked_request(self, update: L.Update) -> T.PendingNeed | None:
+        """The request an open approval question was asked about, as it was read when the question was made: what a
+        description is written for and what a yes would answer."""
+        with self.lock:
+            question = self.question
+        if (question is None or question.key != update.task_id or question.op not in RESPONDS
+                or question.request_id is None or question.prompt is None or question.source is None):
+            return None
+        return T.PendingNeed(question.request_id, T.PendingKind.APPROVAL, question.prompt, question.source)
+
+    def use_approval_gate(self, url: str | None) -> None:
+        """The d1-2B that checks an approval's description. With none, no approval is described and every one goes to
+        the app."""
+        self.speech.gate = RequestGate(url) if url else None
+
     def _described(self, update: L.Update, acts: tuple[Act, ...]) -> tuple[Act, ...]:
-        """An approval is confirmed only with a description of the request that passed the summariser's gate. Without
-        one, nothing is asked and the voice says this one has to be approved in the app. A denial needs none."""
+        """An approval is confirmed only with a description of the request that passed the approval gate, whichever
+        model wrote it. Without one, nothing is asked and the voice says this one has to be approved in the app. A
+        denial needs none."""
         for a in acts:
             if a.kind is Say.CONFIRM_RESPOND and a.slots.get("decision") == "approve" and not a.slots.get("summary"):
                 with self.lock:
@@ -1237,6 +1258,16 @@ class Words:
 
     def refuse(self, entry, rendered) -> None:
         refuse(self.update_for(entry), rendered)
+
+
+OUTCOMES = {Say.LAUNCHED: Outcome.STARTED, Say.SENT_FOLLOWUP: Outcome.SENT,
+            Say.STOPPING: Outcome.STOP_REQUESTED, Say.ANSWERED: Outcome.ANSWERED}
+
+
+def confirmed_outcome(said: Act) -> Outcome | None:
+    if said.kind is Say.RESPONDED:
+        return {"approve": Outcome.APPROVED, "deny": Outcome.DENIED}.get(said.slots.get("decision"))
+    return OUTCOMES.get(said.kind)
 
 
 def refuse(update: L.Update, rendered: Rendered) -> None:
@@ -1362,6 +1393,26 @@ class T3TaskService(MockTaskService):
                 self.prefetched.add(record["task_id"])
                 self.t3.prefetch(record["instruction"])
         return events
+
+    def unanswered(self, *, has_audio: bool = False) -> tuple[dict, Words, Callable[[str], None]] | None:
+        with self.t3.lock:
+            pending = [update for key, update in self.spoken.items() if key not in self.delivered
+                       and any(confirmed_outcome(said) for said in update.acts)]
+            outcomes = tuple(outcome for update in pending for said in update.acts
+                             if (outcome := confirmed_outcome(said)) is not None)
+        if has_audio and not outcomes:
+            return None
+        update = L.Update("unanswered", (act(Say.UNANSWERED, outcomes=outcomes),), "completed")
+
+        def delivered(state):
+            if state == "sent" and pending:
+                with self.t3.lock:
+                    for original in pending:
+                        original.acts = tuple(said.with_slots(recap=True) if confirmed_outcome(said) else said
+                                              for said in original.acts)
+                    self.t3.follow.journal.save()
+
+        return update_entry(update, self.conversation_id), Words(self.t3, lambda _: update), delivered
 
     def correction_entry(self, update: L.Update) -> dict:
         """The task update that carries a correction to be worded, said, and given back if it is not heard."""

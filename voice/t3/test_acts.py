@@ -122,6 +122,8 @@ CASES = {
     Kind.ANSWER_IN_APP: ({"thread": "Add clamp helper"},
                          "Add clamp helper has a question you'll need to answer in the app.",
                          {"You'll need to answer that in the app.": "thread missing"}),
+    Kind.UNANSWERED: ({}, "I couldn't give you an answer just now.",
+                      {"Could you say that again?": "unrequested question"}),
     Kind.CORRECTION: ({"thread": "Add clamp helper", "status": "working"},
                       "Sorry, I got that wrong. Add clamp helper is still working.",
                       {"Add clamp helper is still working. Want me to check?": "unrequested question",
@@ -133,6 +135,12 @@ CASES = {
 
 
 class SlotRules(unittest.TestCase):
+    def test_unanswered_forbids_every_action_except_confirmed_outcomes(self):
+        forbidden = {"started", "sent", "stopped", "answered", "finished"}
+        self.assertEqual(forbidden_claims([act(Kind.UNANSWERED)]), forbidden)
+        self.assertEqual(forbidden_claims([act(Kind.UNANSWERED, outcomes=["started", "stop_requested"])]),
+                         forbidden - {"started"})
+
     def test_every_act_has_a_row(self):
         self.assertEqual(set(CASES), set(Kind))
 

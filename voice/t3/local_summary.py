@@ -5,6 +5,10 @@ worked examples on made-up threads, at most 20 words asked for, the model card's
 `gist` cannot hold markdown or code characters. The examples teach how to read a record; none is ever spoken. The
 gate asks the local d1-2B whether the last reply and status support the gist; when they may not, the gist is
 dropped and the voice says the thread's status with no summary.
+
+An approval's description is a different job: the source is the request, not a reply, and an omission is the danger,
+so it has its own prompt, its own gate question and its own bar (`request_messages`, `request_gate`). It is written
+and gated for one request, by its id and its stored content, and it is spoken only after that gate passed it.
 """
 
 from __future__ import annotations
@@ -180,3 +184,87 @@ def gate_request(state: T.ThreadState, gist: str) -> dict:
 def unsupported(record: dict[str, Any]) -> float | None:
     """The gate's P(the gist is unsupported), or None when the decider gave no valid answer, which drops the gist."""
     return noul(record, "unsupported")
+
+
+# What approving a request lets a thread do. The request is shown as JSON with its own field names and no thread
+# title, which the summariser borrowed facts from; the last reply is left out. Examples are made-up requests as chat
+# turns and teach how to read one, never wording to be spoken.
+#
+# Only a request whose stored prompt is the action itself is described: a command, or a change to a file. A tool
+# permission stores only the tool's name, a file read only a path, and the others nothing the voice can describe, so
+# those go to the app. The choice is made on the request's source, a typed field, never on its text.
+REQUEST_KINDS = {T.NeedSource.COMMAND: "a shell command", T.NeedSource.FILE_CHANGE: "a change to a file"}
+REQUEST_SYSTEM = ("You help a voice assistant tell a person what they would be approving. A coding agent asks "
+                  "permission to do one thing. The request is JSON: `kind` is what sort of request it is and `text` "
+                  "is the request as the agent wrote it. Say in one plain spoken sentence of at most 20 words what "
+                  "approving it lets the agent do. Say every effect it has, and say plainly when it deletes, "
+                  "overwrites or publishes something. Use only what the request says. Describe code, file names and "
+                  "paths in words; never repeat them.")
+REQUEST_ADJACENT = "Say what approving this request lets the agent do, in one plain spoken sentence of at most 20 words."
+REQUEST_EXAMPLES = (
+    ({"kind": "a shell command", "text": "rm -f session.lock && ./start-server.sh"},
+     "It wants to delete a lock file and then start the server."),
+    ({"kind": "a shell command", "text": "ls -la src | head"},
+     "It wants to list the first few files in the source folder."),
+    ({"kind": "a change to a file", "text": "Rename function getUser to fetchUser in lib/users.ts"},
+     "It wants to rename one function in a users file."),
+    ({"kind": "a change to a file", "text": "Add a section about caching to docs/guide.md"},
+     "It wants to add a new section about caching to the guide."),
+)
+REQUEST_SCHEMA = {"type": "object", "properties": {"gist": {"type": "string", "maxLength": 220}},
+                  "required": ["gist"], "additionalProperties": False}
+
+REQUEST_GATE_CONTEXT = ("A voice assistant will tell a person what approving a coding agent's `request` would let the "
+                        "agent do, in `description`. The person will say yes on the strength of it alone, so it must "
+                        "not leave out or soften anything that deletes, overwrites, installs, publishes or sends.")
+REQUEST_GATE_QUESTION = "Is `description` an accurate and complete account of what `request` would do?"
+# Chosen on the seen made-up requests (docs/voice/live-reply-check.md): the lowest score of a misleading description
+# there was 0.129, a harmless-sounding account of a deletion, so a bar above that lets it through.
+REQUEST_THRESHOLD = 0.10
+
+
+def describable(need: T.PendingNeed) -> bool:
+    """Whether the voice can describe this request: an approval whose stored prompt is a command or a file change."""
+    return need.kind is T.PendingKind.APPROVAL and need.source in REQUEST_KINDS
+
+
+def request_view(need: T.PendingNeed) -> dict:
+    return {"kind": REQUEST_KINDS[need.source], "text": need.prompt}
+
+
+def request_messages(need: T.PendingNeed) -> list[dict]:
+    def asked(request: dict) -> str:
+        return f"{json.dumps({'request': request})}\n\n{REQUEST_ADJACENT}"
+
+    out = [{"role": "system", "content": REQUEST_SYSTEM}]
+    for request, description in REQUEST_EXAMPLES:
+        out += [{"role": "user", "content": asked(request)},
+                {"role": "assistant", "content": json.dumps({"gist": description})}]
+    out.append({"role": "user", "content": asked(request_view(need))})
+    return out
+
+
+def read_description(text: str) -> str | None:
+    """The `gist` of the model's JSON, or the text itself from a model that answered in prose. What it says is the
+    gate's to judge: nothing here decides whether it is good."""
+    try:
+        record = json.loads(text)
+    except ValueError:
+        record = {"gist": text}
+    gist = record.get("gist") if isinstance(record, dict) else None
+    if not isinstance(gist, str) or len(gist) > _MAX_CHARS:
+        return None
+    return " ".join(gist.split()) or None
+
+
+def request_gate(need: T.PendingNeed, description: str) -> dict:
+    return {"model": "d1.2", "state": {"context": REQUEST_GATE_CONTEXT, "request": request_view(need),
+                                       "description": description},
+            "questions": {"accurate": {"type": "noul", "instructions": REQUEST_GATE_QUESTION,
+                                       "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
+def doubt(record: dict[str, Any]) -> float | None:
+    """The gate's P(the description is not accurate and complete), or None when the decider gave no valid answer."""
+    accurate = noul(record, "accurate")
+    return None if accurate is None else 1 - accurate

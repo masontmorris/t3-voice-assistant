@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import os
 import shutil
+import sqlite3
 import tempfile
 import time
 from concurrent.futures import ThreadPoolExecutor
@@ -172,6 +173,20 @@ class World:
         run = self.state(thread_id).run
         return run.run_id if run else None
 
+    def requests(self, thread_id: str) -> list[dict]:
+        """The runtime requests T3 holds for a thread, as the sandbox's own database has them: id, status and the
+        decision it was resolved with. The database is opened read-only; T3 is the one that writes it."""
+        path = self.home / "userdata" / "statev2.sqlite"
+        db = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True, timeout=10)
+        try:
+            found = db.execute("select runtime_request_id, status, payload_json from "
+                               "orchestration_v2_projection_runtime_requests where thread_id = ? order by created_at",
+                               (thread_id,)).fetchall()
+        finally:
+            db.close()
+        return [{"id": rid, "status": status, "decision": json.loads(payload).get("decision")}
+                for rid, status, payload in found]
+
     def snapshot(self, seeded: dict[str, str], before: set[str]) -> dict:
         """What the sandbox holds when the call is over: each seeded thread's activity and whether it still waits on an
         answer, and the threads the call made (any that was not there before the call and was not seeded)."""
@@ -182,6 +197,8 @@ class World:
             out["seeded"][title] = {"thread": thread_id, "activity": state.activity.value,
                                     "waiting_on": need.kind.value if need else None,
                                     "need": need.prompt if need else None,
+                                    "request_id": need.request_id if need else None,
+                                    "requests": self.requests(thread_id),
                                     "new_run": self.run_of(thread_id) != self.runs.get(title)}
         for thread_id, title in self.titles().items():
             if thread_id not in before and thread_id not in seeded.values():

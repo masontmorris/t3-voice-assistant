@@ -14,7 +14,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, DESCRIBE_REQUEST, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
+from voice.live.t3_tasks import (ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
                                  T3Tasks, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
@@ -97,9 +97,20 @@ class FakeText:
         return f"About {facts}, any thoughts?" if ask else f"About {facts}, noted."
 
 
-def worded(t3: T3Tasks, text: FakeText) -> T3Tasks:
+class FakeGate:
+    """The approval gate: every description is doubted `doubt` much, and the requests it was asked about are kept."""
+
+    def __init__(self, doubt=0.01):
+        self.doubt_of, self.asked = doubt, []
+
+    def doubt(self, need, description):
+        self.asked.append((need, description))
+        return self.doubt_of
+
+
+def worded(t3: T3Tasks, text: FakeText, gate=FakeGate()) -> T3Tasks:
     t3.lane = Lane(text)
-    t3.speech = Speech(t3.lane, t3._read_quiet, F.Agree())
+    t3.speech = Speech(t3.lane, t3._read_quiet, F.Agree(), gate=gate)
     return t3
 
 
@@ -1056,6 +1067,53 @@ class Service(unittest.IsolatedAsyncioTestCase):
                 "side_effect": tool in (START, TELL, STOP), "sources": ["orchestrator"], "history": [],
                 "tool": {"tool": tool, "confidence": confidence} if tool else None}
 
+    async def test_an_approval_sent_to_the_app_whose_line_was_not_heard_is_never_recapped_as_approved(self):
+        for pending, why in ((F.need("q1", "mcp__github__create_issue", source=T.NeedSource.PERMISSION),
+                              "a tool permission goes to the app"),
+                             (F.need("q1", "Read the notes", source=T.NeedSource.FILE_READ), "a file read goes to the app")):
+            with self.subTest(why):
+                seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
+                                               activity=T.ThreadActivity.WAITING_ON_YOU, pending=pending))
+                seam.listing = waiting_listing(("t5", "Add a clamp helper"))
+                t3 = worded(tasks_over(self, seam), FakeText(), None)
+                service = self.service(t3, [self.record("task_1", "Approve it.", APPROVE)])
+                service.sync(0)
+                entry, = service.snapshot("utt_1", "...")["tasks"]
+                self.assertEqual(entry["acts"][0]["kind"], "needs_the_app", "the line that could not be said")
+                fallback = service.unanswered(has_audio=False)
+                self.assertEqual(fallback[0]["acts"], [{"kind": "unanswered", "slots": {}}],
+                                 "the fallback reports no outcome, so it cannot say the request was approved")
+                self.assertEqual(seam.ops("respond"), [])
+
+    async def test_checked_fallback_reports_a_real_launch_and_preserves_its_retry(self):
+        seam = F.FakeSeam()
+        line = "I started the thread."
+        t3 = worded(tasks_over(self, seam), FakeText(line))
+        first = self.service(t3, [self.record("task_1", "Start a thread to add a clamp helper.", START)])
+        first.sync(0)
+        first.record_delivery(first.snapshot("utt_1", "...")["tasks"][0], "sent")
+        second = self.service(t3, [])
+        second.answer(second.open_question(), "yes", 1)
+        fallback = second.unanswered(has_audio=True)
+        entry, words = fallback[:2]
+        self.assertEqual(entry["acts"][0]["slots"], {"outcomes": ["started"]})
+        self.assertEqual(len(seam.ops("launch")), 1)
+        voice = await Scripted.open("ws://unused", "voice", lambda: 0)
+        voice.script = [line]
+
+        async def send(checked, pcm):
+            self.assertEqual(checked.text, line)
+            return pcm, 0
+
+        reply, _ = await say_acts(voice, 24_000, 0, entry, words, [], lambda *args, **kwargs: None,
+                                  send_audio=send, record_delivery=fallback[2])
+        self.assertEqual(reply["delivery"], "sent")
+        second.close()
+        retries = t3.reserve_news(idle=True)
+        launched = [a for update in retries for a in update.acts if a.kind is S.LAUNCHED]
+        self.assertEqual([a.slots.get("recap") for a in launched], [True])
+        self.assertEqual(len(seam.ops("launch")), 1)
+
     def test_t3_records_go_to_t3_and_others_to_the_mock(self):
         seam = F.FakeSeam()
         seam.listing = listing(*THREADS)
@@ -1520,21 +1578,57 @@ class Respond(unittest.TestCase):
     def test_the_confirmation_names_the_thread_and_what_is_asked_and_answers_nothing_yet(self):
         seam, t3, update = self.asked()
         self.assertEqual(update.acts, (act(S.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve",
-                                           need="command_approval", pending="Run the formatter?",
-                                           asked=DESCRIBE_REQUEST),))
+                                           need="command_approval"),), "the request's own prompt is not given on")
         self.assertEqual((update.status, seam.ops("respond")), ("needs_clarification", []))
 
-    def test_the_confirmation_carries_a_description_of_this_request_from_its_own_records(self):
+    def test_the_confirmation_carries_a_description_of_this_request_that_the_gate_passed_whoever_wrote_it(self):
         seam = self.seam()
-        text = FakeText()
-        t3 = worded(tasks_over(self, seam), text)
+        text, gate = FakeText(), FakeGate(0.02)
+        t3 = worded(tasks_over(self, seam), text, gate)
         update = t3.about("k1", APPROVE, "I approve.", 0)
         t3.say(update)
         self.assertEqual(update.acts[0].kind, S.CONFIRM_RESPOND)
         self.assertEqual(update.acts[0].slots["summary"], FakeText.GIST)
         described = [m["content"] for m in text.seen if "Run the formatter?" in m["content"]]
-        self.assertTrue(described, "the summariser was given this request's own prompt")
-        self.assertIn(DESCRIBE_REQUEST, described[0], "and asked what approving it would let the thread do")
+        self.assertTrue(described, "the model was given this request's own prompt")
+        self.assertEqual([(n.request_id, n.prompt, d) for n, d in gate.asked],
+                         [("q1", "Run the formatter?", FakeText.GIST)], "the gate saw the request and the description")
+
+    def test_a_description_the_gate_doubts_or_no_gate_at_all_sends_the_approval_to_the_app(self):
+        for gate, why in ((FakeGate(0.4), "the gate doubts it"), (FakeGate(None), "the gate gives no answer"),
+                          (None, "there is no gate")):
+            with self.subTest(why):
+                seam = self.seam()
+                t3 = worded(tasks_over(self, seam), FakeText(), gate)
+                update = t3.about("k1", APPROVE, "I approve.", 0)
+                t3.spoke(update)
+                t3.say(update)
+                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+                self.assertIsNone(t3.answer("Yes.", 1))
+                self.assertEqual(seam.ops("respond"), [])
+
+    def test_an_approval_whose_stored_prompt_is_not_an_action_goes_to_the_app_by_its_source_and_never_by_its_text(self):
+        for source, prompt in ((T.NeedSource.PERMISSION, "mcp__github__create_issue"),
+                               (T.NeedSource.FILE_READ, "Read the project notes"),
+                               (T.NeedSource.PERMISSION, "rm -rf dist && pnpm build")):
+            with self.subTest(source=source, prompt=prompt):
+                seam = self.seam(pending=F.need("q1", prompt, source=source))
+                update = tasks_over(self, seam).about("k1", APPROVE, "I approve.", 0)
+                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+                self.assertEqual(seam.ops("respond"), [])
+        seam = self.seam(pending=F.need("q1", "mcp__github__create_issue", source=T.NeedSource.PERMISSION))
+        self.assertEqual(tasks_over(self, seam).about("k1", DENY, "No.", 0).acts[0].kind, S.CONFIRM_RESPOND,
+                         "a denial needs no description, whatever the request is")
+
+    def test_a_denial_names_the_thread_and_neither_describes_the_request_nor_hands_its_prompt_to_the_writer(self):
+        seam = self.seam(pending=F.need("q1", "printf 'x' > .probe.txt"))
+        text = FakeText()
+        t3 = worded(tasks_over(self, seam), text)
+        update = t3.about("k1", DENY, "No, do not allow that.", 0)
+        t3.say(update)
+        self.assertEqual(update.acts, (act(S.CONFIRM_RESPOND, thread="Add a clamp helper", decision="deny",
+                                           need="command_approval"),))
+        self.assertFalse([m for m in text.seen if ".probe.txt" in m["content"]], "no model was shown the command")
 
     def test_a_request_with_nothing_stored_about_what_it_does_cannot_be_approved_by_voice(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
@@ -1613,6 +1707,16 @@ class Respond(unittest.TestCase):
         self.assertEqual(seam.ops("respond"), [])
         self.assertEqual(again.acts[0].kind, S.CONFIRM_RESPOND)
         self.assertEqual(again.acts[0].slots["need"], "file_change")
+
+    def test_a_request_whose_content_changed_under_the_same_id_is_asked_about_again_and_not_answered(self):
+        seam, t3, _ = self.asked()
+        seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=150, activity=T.ThreadActivity.WAITING_ON_YOU,
+                            pending=F.need("q1", "Run the formatter and delete dist?"))
+        again = t3.answer("Yes.", 1)
+        self.assertEqual(seam.ops("respond"), [])
+        self.assertEqual(again.acts[0].kind, S.CONFIRM_RESPOND)
+        self.assertEqual((t3.live_question().request_id, t3.live_question().prompt),
+                         ("q1", "Run the formatter and delete dist?"))
 
     def test_a_request_that_is_gone_before_the_yes_says_nothing_is_waiting(self):
         seam, t3, _ = self.asked()
