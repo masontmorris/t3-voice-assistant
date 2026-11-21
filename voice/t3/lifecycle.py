@@ -589,6 +589,8 @@ class Follow:
                 return self.run("ended-after-terminal", task, now)
             return self.run(WATCH_ENDED_ROWS[item.reason], task, now, code=item.reason)
         if isinstance(item, T.DoneEvent):
+            if task.kind is Kind.FOLLOW and task.link.cursor is not None and item.sequence <= task.link.cursor:
+                return
             if task.status is Status.LIVE:
                 if task.link.run_id is not None and item.run_id != task.link.run_id:
                     return
@@ -807,7 +809,9 @@ def _deleted(f: Follow, name, row, task, now, event):
 
 def _done(f: Follow, name, row, task, now, event):
     if task.kind is Kind.FOLLOW:
-        # A call's thread can run again during the call, so its follow outlives each run.
+        # A call's thread can run again during the call, so its follow outlives each run. The cursor moves past the
+        # finish, so a reconnect does not replay it.
+        task.link.cursor = max(task.link.cursor or 0, event.sequence)
         f.speak(task, act(Say.DONE, status=event.status.value), name, (event.sequence, event.as_of_sequence))
         return f.journal.save()
     task.status = DONE_STATUS[event.status]
@@ -816,6 +820,9 @@ def _done(f: Follow, name, row, task, now, event):
     f.windows[task.task_id] = now + DONE_WINDOW_S
     waiting = next((t for t in f.journal.by_thread(task.link.thread_id) if t.status is Status.LIVE), None)
     if waiting is not None:
+        if waiting.kind is Kind.FOLLOW:
+            # It goes on from where this watch stopped, so what follows the finish is not lost to a fresh read.
+            waiting.link.cursor = max(event.sequence, task.link.cursor or 0)
         f.watch(waiting, now)
 
 
