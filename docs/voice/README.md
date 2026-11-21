@@ -30,7 +30,7 @@ It starts a sandbox T3 of its own (a copy of a template home, so no thread outli
 and holds one synthetic call per scenario. Each scenario is a caller who picks its next line from what the assistant did,
 and states what must be true afterwards. It is scored from the turns' records and the T3's state, and a model answers a
 stated question only about a free reply. It prints one row per scenario and exits non-zero when one fails. The default
-set takes 9 to 13 minutes and about 100 hosted decider calls (under a cent); a scenario whose first run fails gets
+set takes about 13 minutes and about 100 hosted decider calls (under a cent); a scenario whose first run fails gets
 a second. `--long` adds three more scenarios (about 8 minutes more), `--only ID` runs some, and `--spread N` runs every
 scenario N times to measure its spread. `python -m voice.live.scenarios list` shows each scenario and its pass rule.
 
