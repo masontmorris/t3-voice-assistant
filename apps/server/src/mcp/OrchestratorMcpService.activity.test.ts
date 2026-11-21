@@ -1293,7 +1293,7 @@ it("requestSecret cancels its card when a steering restart supersedes the reques
 });
 
 it("never hands an agent a voice call on the thread, by page or by id", async () => {
-  const row = (position: number, item: Record<string, unknown>) => ({
+  const row = (position: number, item: { readonly id: string } & Record<string, unknown>) => ({
     position,
     visibility: "local",
     sourceThreadId: parentThreadId,
