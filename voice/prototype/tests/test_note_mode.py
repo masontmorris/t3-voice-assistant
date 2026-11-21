@@ -12,7 +12,10 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from types import SimpleNamespace
+
 from voice.live.facts import ungrounded
+from voice.live.replycheck import ReplyCheck
 from voice.prototype import run as prototype
 from voice.prototype.tasks import MockTaskService
 from voice.prototype.tests import isolate_decider_cache
@@ -23,7 +26,7 @@ from voice.t3.acts import act
 from voice.t3.acts import Kind as S
 from voice.t3.speech import Speech
 from voice.t3.test_verify import Failing
-from voice.t3.verify import Decider
+from voice.t3.verify import Claim, Decider
 from voice.tools.registry import ToolCall
 
 EARLIER = ("Could you check the weather in Raleigh today?", "Okay, and these are decent results.")
@@ -42,7 +45,7 @@ class TaskNoteTest(unittest.TestCase):
         note = prototype.task_note({"status": "running", "capability": "weather", "arguments": {"place": "Seattle"},
                                     "description": "and how is the weather in Seattle right now?"})
         self.assertIn("the weather lookup for Seattle is running", note)
-        self.assertIn("Tell them you're checking, in a few words.", note)
+        self.assertIn("Tell them you're checking.", note)
         self.assertNotIn("right now", note, "the person's own words stay out of the note")
 
     def test_a_finished_lookup_carries_its_result(self):
@@ -69,7 +72,7 @@ class TaskNoteTest(unittest.TestCase):
                                     "arguments": {"place": None, "when": "today"}, "needs": ["place"]})
         self.assertIn("the weather lookup has not started because they have not said which city or place they mean",
                       note)
-        self.assertIn("Ask them in one short sentence, and don't guess one.", note)
+        self.assertIn("Ask them for it, and don't guess one.", note)
         self.assertNotIn("today", note, "an argument the words did not say is not handed to the model")
 
     def test_every_note_says_who_it_is_for(self):
@@ -173,6 +176,130 @@ class PlaceTest(unittest.TestCase):
         self.assertEqual(ungrounded(reply, ["Okay, and what about San Diego?"]), [])
         self.assertEqual([fact.surface for fact in ungrounded(reply, ["Okay, and what about Portland?"])],
                          ["San"])
+
+
+CORRECTION = act(S.CORRECTION, thread="clamp helper", status="working")
+CORRECTED = "Sorry, I got that wrong. The clamp helper thread is still working."
+
+
+class CorrectingService(MockTaskService):
+    """A T3 service that can say a correction, and holds one it cannot."""
+
+    withdrawn_question = None
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.news, self.delivered = {}, []
+        self.t3 = SimpleNamespace(held=[], spoken=[], hold_news=lambda update: self.t3.held.append(update),
+                                  spoke=lambda update: self.t3.spoken.append(update))
+
+    def correction_entry(self, update):
+        entry = {"type": "task_update", "task_id": "correction", "acts": [CORRECTION.to_json()], "row": "correction"}
+        self.news[id(entry)] = update
+        return entry
+
+    def withdrawn(self):
+        return self.withdrawn_question
+
+    def say(self, entry, turns=()):
+        return CHECKED.accept((CORRECTION,), CORRECTED, "text_model")
+
+    def accept(self, entry, text, draft):
+        return CHECKED.recite(draft, text)
+
+    def refuse(self, entry, rendered):
+        pass
+
+    def record_delivery(self, entry, state):
+        self.delivered.append(state)
+
+
+class ReplyCheckTurn(NoteTurn):
+    """A free reply that says something T3 does not support is corrected after it, never held in front of it."""
+
+    async def send_checked(self, line, pcm):
+        self.spoken.append(line.text)
+        self.events.append("correction spoken")
+        return pcm, CLOCK
+
+    def checker(self, **state):
+        self.stopped = []
+        self.events = []
+        state = {"muted": False, "speaking": False, **state}
+        return ReplyCheck(facts=lambda: ("t1", {"thread": "clamp helper"}), judge=lambda text, facts: Claim(0.9, 0.05),
+                          correction=lambda thread, text: "update", playing=lambda: (1.0, 6.0),
+                          muted=lambda: state["muted"], speaking=lambda: state["speaking"],
+                          stop_playback=lambda: self.events.append("audio stopped"))
+
+    async def test_a_wrong_reply_is_spoken_whole_then_its_rest_is_stopped_and_a_held_line_covers_the_correction(self):
+        holding = "Hold on, let me double check that."
+        record = await self.turn(["That thread will carry on now.", holding, CORRECTED], task_service=CorrectingService,
+                                 send_checked=self.send_checked, reply_check=self.checker())
+        self.assertEqual(self.spoken, ["That thread will carry on now.", holding, CORRECTED])
+        self.assertEqual(self.events, ["audio stopped", "correction spoken"])
+        self.assertEqual([r["kind"] for r in record["replies"]], ["snapshot", "transition", "correction"])
+        self.assertEqual(texts(self.voice), [prototype.TRANSITION_NOTE, prototype.relay_note(CORRECTED)],
+                         "the holding line is worded by the voice from the note's meaning, then the checked line "
+                         "is relayed")
+        self.assertEqual([e["action"] for e in record["timeline"] if e["kind"] == "claim_check"],
+                         ["replaced the rest"])
+        transition = next(e for e in record["timeline"] if e["kind"] == "reply" and e["reply"] == "transition")
+        self.assertIn("flag_to_audio_s", transition)
+
+    async def test_a_reply_the_check_finds_fine_gets_no_correction(self):
+        check = self.checker()
+        check.judge = lambda text, facts: Claim(0.1, 0.05)
+        record = await self.turn(["It is waiting on you."], task_service=CorrectingService,
+                                 send_checked=self.send_checked, reply_check=check)
+        self.assertEqual(self.spoken, ["It is waiting on you."])
+        self.assertEqual(self.voice.asked, 1)
+        self.assertEqual([r["kind"] for r in record["replies"]], ["snapshot"])
+
+    async def test_a_correction_while_the_caller_talks_is_held_for_a_quiet_moment_and_not_spoken(self):
+        holder = {}
+
+        class Holding(CorrectingService):
+            def __init__(inner, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                holder["service"] = inner
+
+        await self.turn(["That thread will carry on now."], task_service=Holding, send_checked=self.send_checked,
+                        reply_check=self.checker(speaking=True))
+        self.assertEqual(self.spoken, ["That thread will carry on now."])
+        self.assertEqual(self.voice.asked, 1, "no holding line and no relay is made over the caller")
+        self.assertEqual(holder["service"].t3.held, ["update"])
+        self.assertEqual(self.events, [], "and the barge-in path is theirs, not ours")
+
+    async def test_a_correction_that_is_not_heard_goes_back_to_be_said_when_the_call_is_quiet(self):
+        async def unheard(line, pcm):
+            return b"", None
+
+        holder = {}
+
+        class Unheard(CorrectingService):
+            def __init__(inner, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                holder["service"] = inner
+
+        record = await self.turn(["That thread will carry on now.", "Let me check.", CORRECTED], task_service=Unheard,
+                                 send_checked=unheard, reply_check=self.checker())
+        self.assertEqual(record["replies"][-1]["delivery"], "unsent")
+        self.assertEqual(holder["service"].t3.spoken, [], "a line the caller never heard is not spoken of")
+
+
+class WithdrawnQuestionTurn(NoteTurn):
+    async def test_a_dropped_question_tells_the_voice_to_answer_fresh_and_names_no_choice(self):
+        class Dropped(CorrectingService):
+            withdrawn_question = object()
+
+        record = await self.turn(["Sure, no problem."], task_service=Dropped)
+        self.assertEqual(texts(self.voice), [prototype.WITHDRAWN_NOTE])
+        self.assertNotIn("thread", prototype.WITHDRAWN_NOTE.lower().replace("they did not answer", ""))
+        self.assertEqual(self.spoken, ["Sure, no problem."])
+
+    async def test_no_dropped_question_sends_no_note(self):
+        await self.turn(["Sure, no problem."], task_service=CorrectingService)
+        self.assertEqual(texts(self.voice), [])
 
 
 if __name__ == "__main__":

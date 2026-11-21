@@ -170,7 +170,18 @@ UPDATE_PREFIX = "[task service update, machine-generated, not spoken by the user
 HISTORY_TURNS = 8
 NOTE_OPEN = "[Note for you, not said by the person: "
 ASK_NOTE = (NOTE_OPEN + "they said your last answer was not what they wanted, and did not say what they want "
-            "instead. Ask them what they would like instead, in one short sentence.]")
+            "instead. Ask them what they would like instead.]")
+# After a question the person heard is dropped unanswered, the voice session still holds its words as the nearest thing
+# to answer, and a free reply can say them again. The note names no choices.
+WITHDRAWN_NOTE = (NOTE_OPEN + "they did not answer your last question and have moved on. Answer what they said in this "
+                  "turn, and do not repeat or ask that question again.]")
+# The holding line before a correction: the voice model words it each time from this meaning alone, as it words the
+# line that holds a running lookup (`task_note`). It names no thread and no word to say. Said after a free reply, a note
+# that only asked for it was not followed (12 of 12 answered the audio again, with a fresh claim about the thread); one
+# that states the situation was, and closing it with "nothing else, ask nothing" stopped a made-up fact and cut the
+# questions from 6 of 12 replies to 1 of 12 (docs/voice/live-reply-check.md, GPU).
+TRANSITION_NOTE = (NOTE_OPEN + "your last reply about their coding thread was wrong. Take it back now: say you need "
+                   "to double check it. Say nothing else about the thread, and ask them nothing.]")
 # A line this short is not logged as a repeat: "I understand." twice is conversation, not a stale reply.
 REPEAT_WORDS = 8
 # What a task that could not start is missing, in the words a note asks for it with.
@@ -232,16 +243,16 @@ def task_note(entry):
         return None
     status, name = entry["status"], lookup_name(entry)
     if status == "running":
-        body = f"{name} is running and has no answer yet. Tell them you're checking, in a few words."
+        body = f"{name} is running and has no answer yet. Tell them you're checking."
     elif status == "completed":
-        body = f"{name} finished. Result: {entry['result_summary']} Tell them this result in one or two sentences."
+        body = f"{name} finished. Result: {entry['result_summary']} Tell them this result."
     elif status == "failed":
         body = f"{name} could not be done. Tell them briefly that you couldn't check that."
     elif status == "cancelled":
-        body = f"{name} was dropped, as they asked. Tell them so in a few words."
+        body = f"{name} was dropped, as they asked. Tell them so."
     elif status == "needs_clarification" and entry.get("needs"):
         asked = " and ".join(NEEDS_ASK.get(field, f"the {field}") for field in entry["needs"])
-        body = (f"{name} has not started because they have not said {asked}. Ask them in one short sentence, and "
+        body = (f"{name} has not started because they have not said {asked}. Ask them for it, and "
                 "don't guess one.")
     else:
         return None
@@ -295,7 +306,7 @@ def interrupted_note():
     """The note after the person talked over a reply. It does not quote the words they heard: quoting them primed
     the model to go on with the old reply, and one reply read the note back (measured, docs/voice/barge-in.md)."""
     return (NOTE_OPEN + "they interrupted your last reply and heard only its start. Answer what they said in this "
-            "turn in one short sentence, and do not repeat or continue that reply.]")
+            "turn, and do not repeat or continue that reply.]")
 
 
 async def stream_reply(session, rate, since, out=None, stop=None, **response):
@@ -362,7 +373,7 @@ def by_ear(url, rate):
     return transcribe
 
 
-async def answer(session, rate, since, sources, log, speak=None, previous=(), **response):
+async def answer(session, rate, since, sources, log, speak=None, previous=(), watch=None, **response):
     """A reply, spoken to `speak` as it is generated: each piece of audio goes out the moment it arrives.
 
     Nothing holds, cuts, mutes or regenerates it. `fact_check` reads the finished text against `sources`, which is the
@@ -379,6 +390,9 @@ async def answer(session, rate, since, sources, log, speak=None, previous=(), **
             speak(text, chunk, False)
 
     reply, _ = await stream_reply(session, rate, since, out, **response)
+    if watch is not None:
+        # The text is complete here and its audio is still playing: the reply check starts now and never holds it.
+        watch(reply["text"])
     found = fact_check(reply["text"], sources, previous)
     if any(found.values()):
         log("fact_check", reply=reply["text"], **found)
@@ -396,11 +410,12 @@ async def answer_unheard(session, rate, since, log):
     return reply
 
 
-async def speak_note(session, rate, since, note, sources, log, speak=None, previous=(), **response):
+async def speak_note(session, rate, since, note, sources, log, speak=None, previous=(), watch=None, **response):
     """`note` goes in the session and the reply it asks for is spoken. A task update takes this path at the end of a
     turn. Returns the item's answer, the reply, and its audio."""
     item = await create_item(session, plain_text(note))
-    reply, pcm = await answer(session, rate, since, [*sources, note], log, speak=speak, previous=previous, **response)
+    reply, pcm = await answer(session, rate, since, [*sources, note], log, speak=speak, previous=previous, watch=watch,
+                              **response)
     return item, reply, pcm
 
 
@@ -433,11 +448,17 @@ def _verdict(rendered):
                                          "error": verdict.error}
 
 
-async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio, record_delivery=None, is_muted=lambda: False):
-    """Check the draft before handing it to the call, and say its audio only when the call's reply is the draft's words."""
+async def say_acts(session, rate, since, entry, words, turns, log, *, send_audio, record_delivery=None,
+                   is_muted=lambda: False, lead=None):
+    """Check the draft before handing it to the call, and say its audio only when the call's reply is the draft's words.
+    `lead` is said while the first draft is made, and finishes before the line is relayed: the call's one voice session
+    cannot say two things at once."""
     for attempt in range(MAX_DRAFTS):
         started = session.clock()
-        draft = await asyncio.to_thread(words.say, entry, turns)
+        drafting = asyncio.ensure_future(asyncio.to_thread(words.say, entry, turns))
+        if attempt == 0 and lead is not None:
+            await lead()
+        draft = await drafting
         log("t3_words", acts=entry.get("acts"), started=started, line=draft.raw,
             problems=draft.problems, error=draft.error,
             decider=_verdict(draft), attempt=attempt + 1)
@@ -667,8 +688,10 @@ def segmenter_for(name, decider, label, tools):
     if name != "hybrid" or tools is None:
         return SEGMENTERS[name](decider, label)
     choices = tools.choices()
-    return SEGMENTERS[name](decider, label, tools=choices,
-                            arguments=decider_arguments(decider, t3_enabled=bool(T3_TOOLS & choices.keys())))
+    segmenter = SEGMENTERS[name](decider, label, tools=choices,
+                                 arguments=decider_arguments(decider, t3_enabled=bool(T3_TOOLS & choices.keys())))
+    segmenter.pending_requests = list(getattr(tools, "approvals", ()))
+    return segmenter
 
 
 def with_thread(resolved, thread):
@@ -717,7 +740,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                    snapshot_mode="reply", prior_snapshot=None, speak=None, prior_utterances=(),
                    prior_tasks=(), ask_pcm=b"", simulate_tasks=True, final_decider=False,
                    recall="off", context=(), prior_results=(), asr_stagger=1, prior_replies=(),
-                   task_service=None, send_checked=None, is_muted=lambda: False):
+                   task_service=None, send_checked=None, is_muted=lambda: False, reply_check=None):
     """One turn. `source` is a WavInput or voice/live's microphone turn: it has `name`, `stem`, `rate`, `audio_s`
     once streamed, and `stream(voice, asr)`, which returns the clock time the input ended.
 
@@ -757,6 +780,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     T3 entries go through the draft check and then the call's own voice. In note mode a turn that also has a lookup
     to speak about says the lookup's reply and then the T3 line. A turn whose words answered a T3 question, and a turn
     in any other mode, says only its T3 line.
+
+    `reply_check` (voice/live/replycheck.py) watches each free reply once its text is complete. A reply that says
+    something about a thread that T3 does not support is corrected after it: the turn says a typed correction in the
+    call's voice, or leaves it for the quiet moment when the caller is already talking.
 
     `prior_tasks` is what earlier turns of the call ran, oldest first, as `carried_tasks` gives it. `ask_pcm` is the
     audio for `ASK_INSTEAD_LINE`, which a correction that names no value speaks in place of a composed reply.
@@ -912,6 +939,46 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     suffix = f"_{index + 1}" if index else ""
                     write_pcm16(out / f"{stem}_{kind}{suffix}.wav", pcm, out_rate)
 
+        watch = reply_check.watch if reply_check is not None else None
+
+        async def correct():
+            """Say the correction for each free reply the check found wrong, in the call's voice."""
+            if reply_check is None:
+                return
+            plans = await reply_check.settled()
+            for record in reply_check.take_records():
+                log("claim_check", **record)
+            for plan in plans:
+                if plan.hold:
+                    service.t3.hold_news(plan.update)
+                    continue
+                entry = service.correction_entry(plan.update)
+                said = [r["text"] for r in replies if r.get("text") and r.get("delivery", "sent") == "sent"]
+                turns = [*context, {"user": adapter.text(), "assistant": said}]
+                flagged = voice.clock()
+
+                async def transition():
+                    """The holding line: the voice, in its own words, takes back what it said and says it is checking.
+                    It is a free reply, so it is not itself checked against T3."""
+                    if is_muted():
+                        return
+                    _, held, held_pcm = await speak_note(voice, out_rate, flagged, TRANSITION_NOTE, [], log,
+                                                         speak=speak, previous=said)
+                    replies.append({"kind": "transition", **held})
+                    log("reply", reply="transition", text=held["text"], flag_to_audio_s=held["first_audio_after_s"])
+                    if held_pcm:
+                        write_pcm16(out / f"{stem}_transition.wav", held_pcm, out_rate)
+
+                reply, pcm = await say_acts(voice, out_rate, flagged, entry, service, turns, log,
+                                            send_audio=send_checked, is_muted=is_muted, lead=transition,
+                                            record_delivery=lambda state: record_delivery(entry, state))
+                replies.append({"kind": "correction", "row": entry.get("row"), **reply})
+                log("reply", reply="correction", text=reply["text"])
+                if reply["delivery"] == "sent":
+                    service.t3.spoke(plan.update)
+                if pcm:
+                    write_pcm16(out / f"{stem}_correction.wav", pcm, out_rate)
+
         if snapshot_mode == "before-audio" and prior_snapshot is not None:
             injection.append(await create_item(voice, user_text(SNAPSHOT_PREFIX, prior_snapshot)))
             log("snapshot_before_audio", snapshot=prior_snapshot)
@@ -974,6 +1041,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             service.poll(clock())
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
+            dropped_question = getattr(service, "withdrawn", lambda: None)()
             t3_entries = [entry for entry in answered["tasks"] if entry.get("acts")]
             ordinary = {**answered, "tasks": [entry for entry in answered["tasks"] if not entry.get("acts")]}
             # A turn with a T3 line speaks nothing free about the person's words: what it says about T3 work is the
@@ -1005,6 +1073,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if noted and not t3_entries:
                 asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
                 item = ASK_NOTE if asks else task_notes(ordinary["tasks"])
+                if item is None and dropped_question is not None:
+                    item = WITHDRAWN_NOTE
                 if item is not None:
                     injection.append(await create_item(voice, plain_text(item)))
                     log("task_note", note=item)
@@ -1017,7 +1087,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 reply = None
             elif noted:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, speak=speak,
-                                                previous=prior_replies)
+                                                previous=prior_replies, watch=watch)
             elif service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
                 if reply_pcm and speak is not None:
@@ -1027,12 +1097,13 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                         voice, out_rate, audio_end, ASK_NOTE, sources, log, speak=speak)
             else:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, speak=speak,
-                                                previous=prior_replies)
+                                                previous=prior_replies, watch=watch)
             if reply is not None:
                 replies.append({"kind": "snapshot", **reply})
                 log("reply", reply="snapshot", text=reply["text"])
                 if reply_pcm:
                     write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+                await correct()
         elif (item := shown(snapshot, snapshot_mode, adapter.text())) is None:
             pass
         elif inject == "a":
@@ -1084,7 +1155,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if snapshot_mode == "note":
                 injection_update, update_reply, update_pcm = await speak_note(
                     voice, out_rate, boundary, updates, [adapter.text(), *prior_utterances], log,
-                    speak=speak, previous=said, **extra)
+                    speak=speak, previous=said, watch=watch, **extra)
             else:
                 injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
                 update_reply, update_pcm = await answer(voice, out_rate, boundary,
@@ -1094,6 +1165,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             log("reply", reply="update", text=update_reply["text"])
             if update_pcm:
                 write_pcm16(out / f"{stem}_update.wav", update_pcm, out_rate)
+            await correct()
 
     finally:
         if worker is not None:

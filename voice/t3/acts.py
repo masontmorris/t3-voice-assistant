@@ -51,6 +51,11 @@ class Kind(StrEnum):
     SEAM_DOWN = "seam_down"
     REFUSED = "refused"
     LEGACY_UPDATE = "legacy_update"
+    CORRECTION = "correction"
+    CONFIRM_RESPOND = "confirm_respond"
+    RESPONDED = "responded"
+    NOTHING_PENDING = "nothing_pending"
+    NEEDS_THE_APP = "needs_the_app"
 
 
 @dataclass(frozen=True)
@@ -133,13 +138,21 @@ RULES: dict[Kind, Rule] = {
     Kind.SEAM_DOWN: Rule(("reason",)),
     Kind.REFUSED: Rule(("op", "code", "reason"), forbids=("started", "sent")),
     Kind.LEGACY_UPDATE: Rule(("thread", "text")),
+    Kind.CORRECTION: Rule(("thread", "status", "need", "pending", "waiting_for"), ("thread",), plain=True),
+    # `decision` is approve or deny. `need` and `pending` say what is being answered, as a thread's status does.
+    # An approval is confirmed only with a description of this request in `summary`, from the thread's own records.
+    Kind.CONFIRM_RESPOND: Rule(("thread", "decision", "need", "pending", "summary", "asked"), ("thread",), True,
+                               ("answered",), plain=True),
+    Kind.RESPONDED: Rule(("thread", "decision", "need"), ("thread",), forbids=("finished",)),
+    Kind.NOTHING_PENDING: Rule(("thread",), (), forbids=("answered",)),
+    Kind.NEEDS_THE_APP: Rule(("thread", "decision"), ("thread",), forbids=("answered",)),
 }
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
 # A status asked again on a call with nothing new in T3's record since the last one was said: the line says so rather
 # than offering the same status as news.
 NOTHING_NEW = "nothing new since they last heard its status"
 # The acts whose words come from a read of the thread: the voice summarises it before it speaks them.
-SUMMARISED = frozenset({Kind.THREAD_STATUS, Kind.DONE, Kind.NEEDS_YOU})
+SUMMARISED = frozenset({Kind.THREAD_STATUS, Kind.DONE, Kind.NEEDS_YOU, Kind.CONFIRM_RESPOND})
 MAX_NAMED = 3
 
 

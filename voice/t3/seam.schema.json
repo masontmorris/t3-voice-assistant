@@ -212,6 +212,42 @@
           },
           "required": ["id", "op", "input"],
           "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "op": {
+              "type": "string",
+              "enum": ["respond"]
+            },
+            "input": {
+              "type": "object",
+              "properties": {
+                "requestId": {
+                  "type": "string"
+                },
+                "threadId": {
+                  "type": "string"
+                },
+                "pendingRequestId": {
+                  "type": "string"
+                },
+                "decision": {
+                  "type": "string",
+                  "enum": ["approve", "deny"]
+                }
+              },
+              "required": ["requestId", "threadId", "pendingRequestId", "decision"],
+              "additionalProperties": true
+            }
+          },
+          "required": ["id", "op", "input"],
+          "additionalProperties": true
         }
       ]
     },
@@ -237,7 +273,7 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "enum": ["list", "read", "watch", "launch", "send", "interrupt"]
+                "enum": ["list", "read", "watch", "launch", "send", "interrupt", "respond"]
               }
             },
             "maxWatches": {
@@ -471,6 +507,29 @@
             },
             "value": {
               "$ref": "#/$defs/VoiceInterruptResult"
+            }
+          },
+          "required": ["type", "id", "ok", "value"],
+          "additionalProperties": true
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "type": "string",
+              "enum": ["result"]
+            },
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 9007199254740991
+            },
+            "ok": {
+              "type": "boolean",
+              "enum": [true]
+            },
+            "value": {
+              "$ref": "#/$defs/VoiceRespondResult"
             }
           },
           "required": ["type", "id", "ok", "value"],
@@ -861,6 +920,31 @@
       "required": ["threadId", "runId", "runtimeMode", "model", "sequence", "replayed"],
       "additionalProperties": true
     },
+    "VoiceRespondResult": {
+      "type": "object",
+      "properties": {
+        "threadId": {
+          "type": "string"
+        },
+        "pendingRequestId": {
+          "type": "string"
+        },
+        "decision": {
+          "type": "string",
+          "enum": ["approve", "deny"]
+        },
+        "sequence": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "replayed": {
+          "type": "boolean"
+        }
+      },
+      "required": ["threadId", "pendingRequestId", "decision", "sequence", "replayed"],
+      "additionalProperties": true
+    },
     "VoiceSeamConfig": {
       "type": "object",
       "properties": {
@@ -872,7 +956,7 @@
           "type": "array",
           "items": {
             "type": "string",
-            "enum": ["list", "read", "watch", "launch", "send", "interrupt"]
+            "enum": ["list", "read", "watch", "launch", "send", "interrupt", "respond"]
           }
         },
         "projects": {
@@ -1165,6 +1249,9 @@
               "type": "null"
             }
           ]
+        },
+        "pendingDetailed": {
+          "type": "boolean"
         },
         "lastReply": {
           "anyOf": [

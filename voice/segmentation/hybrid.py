@@ -35,6 +35,11 @@ from voice.tools.registry import T3_TOOLS
 T3_REQUEST = (" Asking how a coding thread or other work outside this call is going, or asking to start one, "
               "pass it a message, or stop it, is external work.")
 T3_CHITCHAT = " A question about a thread's progress is not chitchat."
+# Only while a coding thread waits on the person for an approval: saying yes or no to what it asks is then a request to
+# answer it. In the shared state it moved the read of ordinary thread questions (5 of 5 status questions read as chat
+# on the local d1-2B, 0 of 5 without it), so it rides in this criterion and in the approve and deny options only.
+T3_APPROVAL = (" With a coding thread waiting on the speaker for an approval, saying they approve, allow, deny or "
+               "refuse what it asks is a request to answer it, not chitchat.")
 # One request is cut into fragments at every pause and hesitation, and the decider then read "for that" as needing an
 # earlier fragment's result and "the part that writes slots" as replacing the request: 2 of 10 rehearsal calls never
 # dispatched (measured: 17 of 24 draws dispatched, 23 of 24 with these lines; docs/voice/spoken-acts.md).
@@ -238,6 +243,7 @@ class HybridSegmenter:
         self.points: list[dict] = []
         self.reviewed: tuple = ()
         self.prior_resolved_tasks = ()
+        self.pending_requests = ()
         self.conversation_mode = False
 
     @property
@@ -356,6 +362,8 @@ class HybridSegmenter:
                     if T3_TOOLS & set(self.tool_choices or ()):
                         question["criteria"]["request"] += T3_REQUEST
                         question["criteria"]["chitchat"] += T3_CHITCHAT
+                        if self.pending_requests:
+                            question["criteria"]["request"] += T3_APPROVAL
                     if self.prior_resolved_tasks:
                         question["criteria"]["request"] += (" A short follow-up that continues an earlier request or "
                                                              "lookup in prior_resolved_tasks is external work, even "

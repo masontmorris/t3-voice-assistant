@@ -19,7 +19,7 @@ import * as Schema from "effect/Schema";
 import type * as SqlClient from "effect/sql/SqlClient";
 
 import * as ThreadManagementService from "../orchestration-v2/ThreadManagementService.ts";
-import { cardNeed, requestNeed, type VoicePending } from "./pending.ts";
+import { cardNeed, requestIsDetailed, requestNeed, type VoicePending } from "./pending.ts";
 import type { SettleAnswer, SettleCheck, SettleTrigger, VoiceRunResult } from "./watch.ts";
 
 /** A check reads current state; it does not wait (`waitForThread` waits at least 1 ms). */
@@ -41,7 +41,7 @@ export interface OutcomeSources extends ReadSources {
 
 export type PendingJoin =
   | { readonly kind: "none" }
-  | { readonly kind: "need"; readonly pending: VoicePending }
+  | { readonly kind: "need"; readonly pending: VoicePending; readonly detailed: boolean }
   /** The shell picked a request that asks no one, and its pick can hide a waiting card. */
   | { readonly kind: "blind" };
 
@@ -57,15 +57,24 @@ const pendingJoin = (
   },
 ): PendingJoin => {
   const pick = shell.pendingRuntimeRequest;
-  if (pick?.userOnly === true) return { kind: "need", pending: cardNeed(pick.id, "card") };
+  if (pick?.userOnly === true) {
+    return { kind: "need", pending: cardNeed(pick.id, "card"), detailed: false };
+  }
   const newest = records.runtimeRequests
     .filter((request) => request.status === "pending")
     .toSorted(
       (left, right) =>
         DateTime.toEpochMillis(right.createdAt) - DateTime.toEpochMillis(left.createdAt),
     )
-    .flatMap((request) => requestNeed(request, records.turnItems) ?? [])[0];
-  if (newest !== undefined) return { kind: "need", pending: newest };
+    .flatMap((request) => {
+      const need = requestNeed(request, records.turnItems);
+      return need === null
+        ? []
+        : [{ need, detailed: requestIsDetailed(request, records.turnItems) }];
+    })[0];
+  if (newest !== undefined) {
+    return { kind: "need", pending: newest.need, detailed: newest.detailed };
+  }
   return pick?.kind === "dynamic_tool_call" || pick?.kind === "auth_refresh"
     ? { kind: "blind" }
     : { kind: "none" };

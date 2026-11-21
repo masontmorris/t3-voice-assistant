@@ -17,7 +17,15 @@ import {
   exceededDispatchModeLimit,
 } from "../orchestration-v2/DispatchModeLimit.ts";
 
-export const VOICE_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt"] as const;
+export const VOICE_OPERATIONS = [
+  "list",
+  "read",
+  "watch",
+  "launch",
+  "send",
+  "interrupt",
+  "respond",
+] as const;
 export const VoiceOperation = Schema.Literals(VOICE_OPERATIONS);
 export type VoiceOperation = typeof VoiceOperation.Type;
 

@@ -15,6 +15,7 @@ by default, with the text model available as an override.
 
 from __future__ import annotations
 
+import dataclasses
 import json
 import os
 import threading
@@ -61,9 +62,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_TELL: "Ask whether to send this message to the thread. Say the message exactly as given, in quotes, "
                         "leaving words like my and I as they are. Nothing is sent yet.",
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
-    Kind.SAME_TITLE: "More than one of their threads has this name, so you cannot tell which one they mean and did "
-                     "nothing. `op` is what they asked for: tell (send it a message) or stop. They can do it in the "
-                     "app.",
+    Kind.SAME_TITLE: "Say that you did nothing, because more than one of their threads has this name. `op` is what "
+                     "they asked for: tell (send it a message) or stop. Say they can do it in the app.",
     Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
                     "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then say what `summary` says, in answer to "
@@ -101,10 +101,22 @@ MEANINGS: dict[Kind, str] = {
                   "respectively. If the record gives a reason, attribute it to T3 as its reason for refusing.",
     Kind.LEGACY_UPDATE: "News about one of their threads, saved before an upgrade as an older line, `text`. Say the "
                         "same news in your own words, adding nothing. Attribute any work or results to the thread.",
+    Kind.CONFIRM_RESPOND: "Ask whether to approve or deny the request the thread is waiting on, as `decision` says, "
+                          "naming the thread. Say what this request would do, in your own words, from `summary`: "
+                          "what the person would be allowing. Never read out a command line, flag, path or code. "
+                          "Nothing is answered yet.",
+    Kind.NEEDS_THE_APP: "You cannot tell them what this thread's request would do, so you cannot approve it for them: "
+                        "say that this one has to be approved in the app. Name the thread.",
+    Kind.RESPONDED: "T3 accepted the answer: say that the request was approved or denied, as `decision` says, for the "
+                    "thread. Do not say what the thread does next.",
+    Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to approve or deny. "
+                          "Name the thread when it is given.",
+    Kind.CORRECTION: "What you said a moment ago about this thread was wrong. Say so in a few words, then say its real "
+                     "status. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
 }
 assert set(MEANINGS) == set(Kind)
 
-CLAIM_WORDS = {"finished": "that the thread is finished, done or completed",
+CLAIM_WORDS = {"answered": "that the request was already approved or denied", "finished": "that the thread is finished, done or completed",
                "stopped": "that the thread stopped or was cancelled", "started": "that the thread started",
                "sent": "that the message was sent or passed on",
                "working": "that the thread is still working or running"}
@@ -493,7 +505,8 @@ class Speech:
         if thread_id is None or not any(a.kind in SUMMARISED and "summary" not in a.slots for a in acts):
             return acts, ()
         state, read = None, ()
-        if any(a.kind is Kind.THREAD_STATUS for a in acts):
+        confirming = any(a.kind is Kind.CONFIRM_RESPOND for a in acts)
+        if not confirming and any(a.kind is Kind.THREAD_STATUS for a in acts):
             with self.lock:
                 state = next((self.states[(thread_id, s)] for s in sequences if (thread_id, s) in self.states), None)
         if state is None:
@@ -503,6 +516,9 @@ class Speech:
             self.remember(state)
             read = (state.as_of_sequence,)
         question = next((a.slots.get("asked") for a in acts if a.slots.get("asked")), None)
+        if confirming:
+            # The request, not the thread's last reply: what approving would allow.
+            state = dataclasses.replace(state, last_reply=None)
         gist = self.summary(state, question)
         filled = []
         for a in acts:
@@ -622,8 +638,10 @@ READER_EXAMPLES = {
     Kind.CONFIRM_TELL: ({"thread": "Example Trim Image Margins", "message": "keep the captions"},
                         "Should I send 'keep the captions' to Example Trim Image Margins as a follow-up?"),
     Kind.CONFIRM_STOP: ({"thread": "Example Split Export Files"}, "Should I stop Example Split Export Files?"),
+    # Said to the call's voice, the older shape ("More than one thread is called X, so I can't tell which to stop")
+    # was refused on 20 of 24 relays: it opened on a refusal of its own ("I can't help"). This shape recited 24 of 24.
     Kind.SAME_TITLE: ({"thread": "Example Sort Photo Albums", "op": "stop"},
-                      "More than one thread is called Example Sort Photo Albums, so I can't tell which to stop. You "
+                      "I didn't stop anything, because more than one thread is called Example Sort Photo Albums. You "
                       "can stop it in the app."),
     Kind.CANCELLED: ({"op": "start"}, "I won't start the thread."),
     # "The ... thread" and not the bare title first: after "the second one", the call's voice said a line that opens
@@ -663,6 +681,18 @@ READER_EXAMPLES = {
                    "T3 refused to send your follow-up message, citing an archived thread."),
     Kind.LEGACY_UPDATE: ({"thread": "Example Revise Column Labels", "text": "Example Revise Column Labels is still running."},
                          "Example Revise Column Labels is still running."),
+    Kind.CONFIRM_RESPOND: ({"thread": "Example Archive Old Invoices", "decision": "approve", "need": "command_approval",
+                            "summary": "It wants to run a script that deletes the old invoice folder."},
+                           "Should I approve Example Archive Old Invoices deleting the old invoice folder?"),
+    Kind.RESPONDED: ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "file_change"},
+                     "I approved the file changes for Example Mend Rail Maps."),
+    Kind.NEEDS_THE_APP: ({"thread": "Example Tag Camera Clips", "decision": "approve"},
+                          "I can't tell what Example Tag Camera Clips would be allowed to do, so you'll need to approve "
+                          "that one in the app."),
+    Kind.NOTHING_PENDING: ({"thread": "Example Tag Camera Clips"},
+                           "Example Tag Camera Clips isn't waiting on any request, so there was nothing to answer."),
+    Kind.CORRECTION: ({"thread": "Example Bake Menu Cards", "status": "working"},
+                      "Sorry, I got that wrong. The Example Bake Menu Cards thread is still working."),
 }
 
 
@@ -670,6 +700,15 @@ assert set(READER_EXAMPLES) == set(Kind)
 # A kind whose example is chosen by a slot as well: shown only the project example, the writer restates the task for
 # thread candidates and names none.
 READER_VARIANTS = {
+    (Kind.SAME_TITLE, "tell"): ({"thread": "Example Sort Photo Albums", "op": "tell"},
+                                "I didn't send anything, because more than one thread is called Example Sort Photo "
+                                "Albums. You can send it in the app."),
+    (Kind.CONFIRM_RESPOND, "deny"): ({"thread": "Example Archive Old Invoices", "decision": "deny",
+                                     "need": "command_approval",
+                                     "summary": "It wants to run a script that deletes the old invoice folder."},
+                                    "Should I say no to Example Archive Old Invoices deleting the old invoice folder?"),
+    (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
+                               "I said no to the file changes for Example Mend Rail Maps."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
     (Kind.ASK_WHICH, "thread"): ({"of": "thread", "candidates": ["Example Mend Rail Maps", "Example Mend Rail Labels",
                                                                  "Example Add Rail Legend"]},
@@ -705,7 +744,8 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     examples = []
     for kind in kinds:
         slots = firsts[kind].slots
-        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op")), READER_EXAMPLES[kind])
+        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op") or slots.get("decision")),
+                                    READER_EXAMPLES[kind])
         example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else shown
         examples.append((json.dumps({"kind": kind.value, **example}), reply))
     records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]
