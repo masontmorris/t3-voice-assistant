@@ -41,6 +41,33 @@ DRAFTS = [
 ]
 
 
+# A same_title line whose writer put the person in the third person ("which one they mean") and the voice refused twice,
+# stopping at its first word off the line. The same line said to "you", and the example's own shape.
+SAME_TITLE = [
+    (act(Kind.SAME_TITLE, thread="Trim Harbour Tiles", op="stop"),
+     "More than one thread is called Trim Harbour Tiles, so I can't tell which one they mean and did nothing. You can "
+     "stop it in the app."),
+    (act(Kind.SAME_TITLE, thread="Trim Harbour Tiles", op="stop"),
+     "More than one thread is called Trim Harbour Tiles, so I can't tell which one you mean and did nothing. You can "
+     "stop it in the app."),
+    (act(Kind.SAME_TITLE, thread="Trim Harbour Tiles", op="stop"),
+     "More than one thread is called Trim Harbour Tiles, so I can't tell which to stop. You can stop it in the app."),
+]
+
+
+# Other shapes of that line, the writer copying the shape of its example: one that opens on what was done, one that opens
+# on "I can't tell", and one that says the two threads share the name.
+SAME_TITLE_FORMS = [
+    (act(Kind.SAME_TITLE, thread="Trim Harbour Tiles", op="stop"),
+     "I didn't stop anything, because more than one thread is called Trim Harbour Tiles. You can stop it in the app."),
+    (act(Kind.SAME_TITLE, thread="Trim Harbour Tiles", op="stop"),
+     "I can't tell which Trim Harbour Tiles thread to stop, because more than one has that name. You can stop it in "
+     "the app."),
+    (act(Kind.SAME_TITLE, thread="Trim Harbour Tiles", op="stop"),
+     "Two threads share the name Trim Harbour Tiles, so I didn't stop either one. You can stop it in the app."),
+]
+
+
 def checked(acts, line):
     """The line as a RenderedLine, minted by the same `Speech.accept` the call uses, with a decider that agrees: this
     eval scores the voice's saying of a line, not the line."""
@@ -90,12 +117,13 @@ async def main_async(args) -> int:
     args.out.mkdir(parents=True, exist_ok=True)
     wordings = notes()
     chosen = {name: wordings[name] for name in args.notes}
+    drafts = {"same_title": SAME_TITLE, "same_title_forms": SAME_TITLE_FORMS}.get(args.set, DRAFTS)
     rows = []
     with Server(args.port, args.out / "lfm3-audio.log", LFM_ARGS, LFM_SLOTS):
         url = f"ws://127.0.0.1:{args.port}/v1/realtime"
         for name, relay in chosen.items():
             for _ in range(args.repeats):
-                for acts, line in DRAFTS:
+                for acts, line in drafts:
                     row = {"note": name, **await trial(url, args.chat, args.ask, acts, line, relay)}
                     rows.append(row)
                     print(json.dumps({k: row[k] for k in ("note", "recited", "status")} | {"said": row["said"][-70:]}),
@@ -115,6 +143,7 @@ def main(argv=None) -> int:
     parser.add_argument("--repeats", type=int, default=6)
     parser.add_argument("--port", type=int, default=8095)
     parser.add_argument("--notes", nargs="+", default=["old", "first", "retry"])
+    parser.add_argument("--set", choices=["lines", "same_title", "same_title_forms"], default="lines", help="which drafts to relay")
     return asyncio.run(main_async(parser.parse_args(argv)))
 
 

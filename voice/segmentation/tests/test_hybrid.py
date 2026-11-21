@@ -212,6 +212,20 @@ class Hybrid(unittest.TestCase):
         self.assertIn("follow-up", body["questions"]["s1_kind"]["criteria"]["request"])
         self.assertIn("earlier resolved task", body["questions"]["s1_ready"]["criteria"]["dispatch_now"])
 
+    def test_a_waiting_approval_changes_the_kind_question_only_while_one_waits_and_never_the_state(self):
+        tools = {"weather": "w", "t3_ask": "a", "none": "n"}
+        asked = []
+        for waiting in ((), [{"thread": "Add clamp helper", "asks_for": "approval to run a command"}]):
+            decider = FakeDecider()
+            seg = HybridSegmenter(decider, "test", tools=tools)
+            seg.conversation_mode, seg.pending_requests = True, waiting
+            seg.update(TranscriptUpdate(1, "I approve.", True))
+            asked.append(decider.bodies[-1])
+        self.assertNotIn("pending_requests", asked[1]["state"])
+        self.assertEqual(asked[0]["state"], asked[1]["state"], "the shared state is what it always was")
+        self.assertNotIn("approve", asked[0]["questions"]["s1_kind"]["criteria"]["request"])
+        self.assertIn("approve", asked[1]["questions"]["s1_kind"]["criteria"]["request"])
+
     def test_live_side_effect_criteria_do_not_change_recorded_decision_contract(self):
         live = FakeDecider()
         segmenter = HybridSegmenter(live, "live")

@@ -150,7 +150,7 @@ export type ThreadActivity =
 // A run in `waiting` counts as an activity run (isActivityRunForShell, ProjectionStore.ts:1993). With no
 // pendingRuntimeRequest, or with a dynamic_tool_call or auth_refresh one, nothing asks Mason, so it reads as "working".
 
-export const VOICE_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt"] as const;
+export const VOICE_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt"] as const; // and "respond": docs/voice/live-reply-check.md
 export type VoiceOperation = (typeof VOICE_OPERATIONS)[number];
 
 export interface VoiceProject {

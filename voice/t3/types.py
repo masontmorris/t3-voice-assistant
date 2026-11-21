@@ -134,6 +134,7 @@ class Operation(str, Enum):
     LAUNCH = "launch"
     SEND = "send"
     INTERRUPT = "interrupt"
+    RESPOND = "respond"
 
 
 WIRE_OPS: tuple[str, ...] = (
@@ -144,6 +145,7 @@ WIRE_OPS: tuple[str, ...] = (
     "launch",
     "send",
     "interrupt",
+    "respond",
 )
 
 
@@ -228,6 +230,9 @@ class ThreadState:
     pending: PendingNeed | None
     last_reply: LastReply | None
     as_of_sequence: int
+    # Whether T3 stored what the pending request asks. When false its prompt is a fixed line about the kind of request,
+    # which cannot tell one command from another, so the voice does not approve it.
+    pending_detailed: bool = True
 
 
 @dataclass(frozen=True)
@@ -271,6 +276,17 @@ class NothingRunning:
 
 
 InterruptResult = Union[InterruptRequested, NothingRunning]
+
+
+@dataclass(frozen=True)
+class RespondResult:
+    """An answer to one pending approval, fresh or replayed. `decision` is what the voice sent: approve or deny."""
+
+    thread_id: str
+    pending_request_id: str
+    decision: str
+    sequence: int
+    replayed: bool
 
 INTERRUPT_KINDS: dict[str, type] = {
     "requested": InterruptRequested,
@@ -523,6 +539,7 @@ def decode_thread_state(value: Any) -> ThreadState:
         pending=_decode_pending(value.get("pending")),
         last_reply=_decode_last_reply(value.get("lastReply")),
         as_of_sequence=_need(value, "asOfSequence"),
+        pending_detailed=value.get("pendingDetailed", False),
     )
 
 
@@ -617,6 +634,16 @@ def decode_interrupt_result(value: Any) -> InterruptResult:
     raise ValueError(f"unknown interrupt result kind: {kind!r}")
 
 
+def decode_respond_result(value: Any) -> RespondResult:
+    return RespondResult(
+        thread_id=_need(value, "threadId"),
+        pending_request_id=_need(value, "pendingRequestId"),
+        decision=_need(value, "decision"),
+        sequence=_need(value, "sequence"),
+        replayed=_need(value, "replayed"),
+    )
+
+
 RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
     "list_threads": decode_thread_list,
     "read_thread": decode_thread_state,
@@ -625,10 +652,12 @@ RESULT_DECODERS: dict[str, Callable[[Any], Any]] = {
     "launch": decode_launch_result,
     "send": decode_send_result,
     "interrupt": decode_interrupt_result,
+    "respond": decode_respond_result,
 }
 
 ResultValue = Union[
-    ThreadList, ThreadState, WatchStarted, LaunchResult, SendResult, InterruptRequested, NothingRunning
+    ThreadList, ThreadState, WatchStarted, LaunchResult, SendResult, InterruptRequested, NothingRunning,
+    RespondResult,
 ]
 
 DrainItem = Union[VoiceEvent, WatchEnded, SocketEnd]

@@ -113,7 +113,7 @@ class SchemaCoverageTest(unittest.TestCase):
                         self.assertEqual(properties["ok"]["enum"], [False])
                         self.assert_fields(node, ("type", "id", "ok", "error"))
                         self.assert_model_fields(properties["error"], T.ResultErr)
-        self.assertEqual(sorted(kinds), ["event", "hello"] + ["result"] * 8 + ["watch_ended"])
+        self.assertEqual(sorted(kinds), ["event", "hello"] + ["result"] * 9 + ["watch_ended"])
         self.assertEqual(len(ok_values), len(T.WIRE_OPS))
         models = {
             "list_threads": T.ThreadList,
@@ -122,6 +122,7 @@ class SchemaCoverageTest(unittest.TestCase):
             "unwatch": T.WatchStarted,
             "launch": T.LaunchResult,
             "send": T.SendResult,
+            "respond": T.RespondResult,
         }
         self.assertEqual(set(T.RESULT_DECODERS), set(T.WIRE_OPS))
         for op, node in zip(T.WIRE_OPS, ok_values, strict=True):
@@ -168,6 +169,13 @@ class SchemaCoverageTest(unittest.TestCase):
             set(ceiling["properties"]["operations"]["items"]["enum"]),
             members(T.Operation),
         )
+
+    def test_a_read_from_a_server_that_does_not_say_the_request_is_detailed_is_not_detailed(self):
+        raw = {"threadId": "t", "projectId": "p", "title": "x", "activity": "waiting_on_you", "run": None,
+               "pending": {"requestId": "q", "kind": "approval", "source": "command", "prompt": "Run it?"},
+               "lastReply": None, "asOfSequence": 1}
+        self.assertFalse(T.decode_thread_state(raw).pending_detailed, "an older seam is never taken as detailed")
+        self.assertTrue(T.decode_thread_state({**raw, "pendingDetailed": True}).pending_detailed)
 
     def test_activity_matches(self):
         self.assertEqual(set(DEFS["ThreadActivity"]["enum"]), members(T.ThreadActivity))

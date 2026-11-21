@@ -2,7 +2,7 @@
 
 Written 2026-11-16, rewritten 2026-11-18. Every number below is measured from records under `$VOICE_HOME/evidence/live/` except where it says inferred or guess.
 
-**The check is a log. It never holds, cuts, mutes or regenerates an ordinary reply, and never asks the model again.** It reads each finished reply and the turn's record keeps what it would have refused. Measured on a live call (`$VOICE_HOME/evidence/live/20261118-175037`, turn 3): a legitimate reply that named a project was cut after "but I", because the project's name read as a place no one had said (`ungrounded: ["place Voice"]`), after a first attempt had been refused and asked again. First audio came 4.4 s after the speech ended.
+**The check is a log. It never holds, cuts, mutes or regenerates an ordinary reply, and never asks the model again.** (This page's check of days, dates, times, numbers and places is that log. A reply that claims something about a thread T3 does not support is corrected after it, by a separate check: [live-reply-check.md](live-reply-check.md).) It reads each finished reply and the turn's record keeps what it would have refused. Measured on a live call (`$VOICE_HOME/evidence/live/20261118-175037`, turn 3): a legitimate reply that named a project was cut after "but I", because the project's name read as a place no one had said (`ungrounded: ["place Voice"]`), after a first attempt had been refused and asked again. First audio came 4.4 s after the speech ended.
 
 The check was added on 2026-11-16 because the assistant invented a day. The rest of this note is that history: the failure, how often it happened, what the check reads, and two fixes that did not remove the cause. T3 lines are a separate path with their own gate: the draft is checked against its act, and the call's reply must say the draft's words and no others ([Spoken acts](spoken-acts.md)).
 
@@ -10,14 +10,14 @@ The check was added on 2026-11-16 because the assistant invented a day. The rest
 
 `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-runC/server/turn_003.json`. The person's three turns were "What's the weather in Denver tomorrow?", "And what about Saturday?" and "That's not what I meant."
 
-| Field | Value |
-| --- | --- |
-| `tasks[0].segment_text` and `tasks[0].instruction` | `"That's not what I meant."` |
-| `tasks[0].history[0].segment_text` | `"That's not what I meant."` |
-| `task_updates[0].description` | `"That's not what I meant."` |
+| Field                                                 | Value                                                                                                                      |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `tasks[0].segment_text` and `tasks[0].instruction`    | `"That's not what I meant."`                                                                                               |
+| `tasks[0].history[0].segment_text`                    | `"That's not what I meant."`                                                                                               |
+| `task_updates[0].description`                         | `"That's not what I meant."`                                                                                               |
 | the injected snapshot item (`events.voice_sent[106]`) | `{"type": "utterance_snapshot", ..., "tasks": [{"task_id": "task_1", "status": "running"}], "clarification_needed": null}` |
-| first `response.output_text.delta` | `" Sunday"`, at `_t` 2.6718 |
-| `response.output_text.done` | `"I'm running the task to get the weather in Denver for Sunday."`, at `_t` 2.8997 |
+| first `response.output_text.delta`                    | `" Sunday"`, at `_t` 2.6718                                                                                                |
+| `response.output_text.done`                           | `"I'm running the task to get the weather in Denver for Sunday."`, at `_t` 2.8997                                          |
 
 The word is in the record 14 times and in none of it before `_t` 2.6718. Turns 1 and 2 contain no "Sunday".
 
@@ -40,10 +40,10 @@ Why the correction mattered: on the 8-turn run C the same words came after a tur
 
 Measured before this fix: 13 runs, 81 turns, 2 ungrounded facts. Both are turn 3 of `demo-runC`, one in each of its two replies, and both are the same word.
 
-| Run | Turn | Person | Reply | Ungrounded |
-| --- | --- | --- | --- | --- |
-| `ablation/demo-runC` | 3 (snapshot) | "That's not what I meant." | "I'm running the task to get the weather in Denver for Sunday." | weekday Sunday |
-| `ablation/demo-runC` | 3 (update) | "That's not what I meant." | "The task to get the weather in Denver for Sunday has been completed, ..." | weekday Sunday |
+| Run                  | Turn         | Person                     | Reply                                                                      | Ungrounded     |
+| -------------------- | ------------ | -------------------------- | -------------------------------------------------------------------------- | -------------- |
+| `ablation/demo-runC` | 3 (snapshot) | "That's not what I meant." | "I'm running the task to get the weather in Denver for Sunday."            | weekday Sunday |
+| `ablation/demo-runC` | 3 (update)   | "That's not what I meant." | "The task to get the weather in Denver for Sunday has been completed, ..." | weekday Sunday |
 
 No description, number, date, time or place was ungrounded in any of those turns (measured). One turn in 81 is one case, not a pattern in the demos on disk (measured). The mechanism is not specific to demos: any turn whose note loses the subject, followed by a person who says only that they meant something else, reaches the same state (inferred).
 
@@ -75,18 +75,17 @@ What the free decision model can produce for that request (measured, 16 probe ca
 
 The run (`ablation/demo-subject/`, the same three-turn call as `demo-runC` and `demo-facts`, one GPU run, one server start). The latency column is turn end to the first audio the client received; on turn 3 that is the fixed line, since the re-ask's audio was dropped (the record's own `first_reply_audio_after_audio_end_s` of 1.029 s there belongs to the re-ask nobody heard):
 
-| Turn | Person | Reply, as spoken | First reply audio after the turn's audio | Check fires | Subject |
-| --- | --- | --- | --- | --- | --- |
-| 1 | "What's the weather in Denver tomorrow?" | "I'm running the task to get the weather in Denver tomorrow." then the forecast | 0.638 s (was 0.586 s) | 0 | "weather" |
-| 2 | "And what about Saturday?" | "I'm running the task to get the weather in Denver for Saturday." then the task update | 0.534 s (was 0.492 s) | 0 | "weather" |
-| 3 | "That's not what I meant." | "Sorry, I can't confirm that right now." once; the task update said nothing | 2.266 s after the turn ended (was 1.637 s) | 4 | "weather" |
+| Turn | Person                                   | Reply, as spoken                                                                       | First reply audio after the turn's audio   | Check fires | Subject   |
+| ---- | ---------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------ | ----------- | --------- |
+| 1    | "What's the weather in Denver tomorrow?" | "I'm running the task to get the weather in Denver tomorrow." then the forecast        | 0.638 s (was 0.586 s)                      | 0           | "weather" |
+| 2    | "And what about Saturday?"               | "I'm running the task to get the weather in Denver for Saturday." then the task update | 0.534 s (was 0.492 s)                      | 0           | "weather" |
+| 3    | "That's not what I meant."               | "Sorry, I can't confirm that right now." once; the task update said nothing            | 2.266 s after the turn ended (was 1.637 s) | 4           | "weather" |
 
 Turn 3's first answer was the same Sunday sentence as `demo-facts`, and the update's first answer was too (`ungrounded: ["weekday Sunday"]`, at `t` 2.812 and 7.706). Both re-asks came back with "I do not have the information needed to answer the fact check ..." and were refused for naming the check, so the turn said the fixed line once and dropped the update. Measured: 4 check events, 2 of them blocked, exactly 1 spoken line, and no spoken word naming the machinery.
 
 Verdict, and it is why the subject is not in this branch: the model still invents. The subject does not remove the guess at its cause, because the reply was not missing a subject, it was missing a day, and a subject does not supply one. Latency was not the problem: the turn waited 0.1 ms for the extraction, since the tool turn covered it in full (measured at all three turns, `subject.waited_s`; the extractions themselves took 195.5, 117.1 and 343.9 ms and cost one extra decider call per turn). The screen and the fixed line are what made the turn shippable, so those stayed and the subject came out in `5949f98c32`.
 
 What this does not say: one word from one free model on one call is not proof that no subject-shaped note can help. A note that names the value the model is reaching for, or a persona line that says not to add a day the call has not stated, is a different change and untested (inferred).
-
 
 ## A persona line that forbids unstated values, tried and dropped
 
@@ -98,11 +97,11 @@ Measured: it changed nothing on the failing turn.
 
 The run (`ablation/demo-persona/`) used the same three-turn call as `demo-subject`, with the line in a copy of the shared persona (`ablation/persona-fact-line.txt`, `sha256:fb60db533ad0`, against `prompt.txt`'s `02700e254b8f`). The copy went in through the server's own `--prompt`, so no other lane's persona moved, and every turn record carries `live.prompt: persona-fact-line.txt sha256:fb60db533ad0` (measured), which is how the run knows the line reached the model.
 
-| Turn | Person | Reply, as spoken | First reply audio after the turn's audio | Check fires |
-| --- | --- | --- | --- | --- |
-| 1 | "What's the weather in Denver tomorrow?" | "I'm running the task to get the weather in Denver tomorrow." then "The forecast for Denver, Colorado on Tuesday, November 17th shows a high of 69 degrees Fahrenheit and a 0 percent chance of precipitation." | 0.620 s, and 1.076 s from the client's own turn end (was 0.638 s and 1.051 s) | 0 |
-| 2 | "And what about Saturday?" | "I'm running the task to get the weather in Denver for Saturday." then "The task to get the weather in Denver for Saturday has been completed, but no real work was done." | 0.523 s, and 1.030 s from the client's turn end (was 0.534 s and 1.012 s) | 0 |
-| 3 | "That's not what I meant." | "Sorry, I can't confirm that right now." once; the task update said nothing | 2.538 s from the client's turn end (was 2.266 s) | 4, 2 of them blocked |
+| Turn | Person                                   | Reply, as spoken                                                                                                                                                                                                | First reply audio after the turn's audio                                      | Check fires          |
+| ---- | ---------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- | -------------------- |
+| 1    | "What's the weather in Denver tomorrow?" | "I'm running the task to get the weather in Denver tomorrow." then "The forecast for Denver, Colorado on Tuesday, November 17th shows a high of 69 degrees Fahrenheit and a 0 percent chance of precipitation." | 0.620 s, and 1.076 s from the client's own turn end (was 0.638 s and 1.051 s) | 0                    |
+| 2    | "And what about Saturday?"               | "I'm running the task to get the weather in Denver for Saturday." then "The task to get the weather in Denver for Saturday has been completed, but no real work was done."                                      | 0.523 s, and 1.030 s from the client's turn end (was 0.534 s and 1.012 s)     | 0                    |
+| 3    | "That's not what I meant."               | "Sorry, I can't confirm that right now." once; the task update said nothing                                                                                                                                     | 2.538 s from the client's turn end (was 2.266 s)                              | 4, 2 of them blocked |
 
 Turn 3's first reply was, word for word, `demo-subject`'s: "I'm running the task to get the weather in Denver for Sunday." The check dropped it at t 2.87 with `ungrounded: ["weekday Sunday"]`. The update's first reply said "for Sunday" too ("The task to get the weather in Denver for Sunday has been completed, but no real work was done.") and was dropped at t 7.34 (measured, `server/turn_003.json`).
 
@@ -141,19 +140,18 @@ The GPU run is `ablation/run.py --snapshot reply-no-utterance --turns-a turns-de
 
 ## Files
 
-| Path | Contents | Size |
-| --- | --- | --- |
-| `voice/live/facts.py` | the extractor, `ungrounded`, `names_machinery` and `speaks_of_person` | |
-| `voice/live/tests/test_facts.py` | the three-turn fixture, the fact cases and the machinery words | |
-| `$VOICE_HOME/evidence/live/scan_facts.py` | the scan over every record | 4.6 KB |
-| `$VOICE_HOME/evidence/live/subject-probe/` | the 16 subject probes' cached requests and answers | 25 KB |
-| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts/` | the run's records, client logs and audio | 5.1 MB |
-| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-subject/` | the subject run's records, client logs and audio | 6.4 MB |
-| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-persona/` | the persona line's run, records, client log and audio | 5.7 MB |
-| `$VOICE_HOME/evidence/live/memory-20261116/ablation/persona-fact-line.txt` | the persona copy that run used, one paragraph longer than `prompt.txt` | 1.8 KB |
-| `$VOICE_HOME/evidence/live/memory-20261116/ablation/run_persona.py` | `run.py` with the server's `--prompt` passed through, so a persona test need not touch the shared file | 5.9 KB |
-| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts-cutshort/` | the aborted first attempt | 1.6 MB |
-| `$VOICE_HOME/evidence/live/memory-20261116/ablation/scores-demo-facts.json` | `score.py`'s output for both demos | 4.7 KB |
+| Path                                                                        | Contents                                                                                               | Size   |
+| --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ | ------ |
+| `voice/live/facts.py`                                                       | the extractor, `ungrounded`, `names_machinery` and `speaks_of_person`                                  |        |
+| `voice/live/tests/test_facts.py`                                            | the three-turn fixture, the fact cases and the machinery words                                         |        |
+| `$VOICE_HOME/evidence/live/scan_facts.py`                                   | the scan over every record                                                                             | 4.6 KB |
+| `$VOICE_HOME/evidence/live/subject-probe/`                                  | the 16 subject probes' cached requests and answers                                                     | 25 KB  |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts/`            | the run's records, client logs and audio                                                               | 5.1 MB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-subject/`          | the subject run's records, client logs and audio                                                       | 6.4 MB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-persona/`          | the persona line's run, records, client log and audio                                                  | 5.7 MB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/persona-fact-line.txt`  | the persona copy that run used, one paragraph longer than `prompt.txt`                                 | 1.8 KB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/run_persona.py`         | `run.py` with the server's `--prompt` passed through, so a persona test need not touch the shared file | 5.9 KB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/demo-facts-cutshort/`   | the aborted first attempt                                                                              | 1.6 MB |
+| `$VOICE_HOME/evidence/live/memory-20261116/ablation/scores-demo-facts.json` | `score.py`'s output for both demos                                                                     | 4.7 KB |
 
 No model, package or venv was added.
-

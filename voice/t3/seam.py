@@ -167,6 +167,20 @@ class T3Seam:
         """Interrupt the thread's active run. A retry with the same request id answers NothingRunning."""
         return self._call("interrupt", {"requestId": request_id, "threadId": thread_id})
 
+    def respond(
+        self, request_id: str, thread_id: str, pending_request_id: str, decision: str
+    ) -> T.RespondResult:
+        """Approve or deny one pending approval of a thread. A retry with the same request id answers the first answer."""
+        return self._call(
+            "respond",
+            {
+                "requestId": request_id,
+                "threadId": thread_id,
+                "pendingRequestId": pending_request_id,
+                "decision": decision,
+            },
+        )
+
     def drain(self, timeout: float | None = None) -> Iterator[T.DrainItem]:
         """Yield events, then the socket's end, then stop.
 

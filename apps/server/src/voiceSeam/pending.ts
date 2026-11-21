@@ -131,6 +131,22 @@ const isPromptOf = (requestId: string) => (item: OrchestrationV2TurnItem) =>
   (item.type === "approval_request" || item.type === "user_input_request") &&
   item.requestId === requestId;
 
+/**
+ * Whether T3 stored anything for this request that says what it asks: its prompt or reason, or its question. Without
+ * it the prompt is a fixed line about the kind of request, which cannot tell one command from another.
+ */
+export const requestIsDetailed = (
+  request: OrchestrationV2RuntimeRequest,
+  turnItems: ReadonlyArray<OrchestrationV2TurnItem>,
+): boolean => {
+  const item = turnItems.find(isPromptOf(request.id));
+  if (item?.type === "user_input_request") return item.questions.length > 0;
+  return (
+    item?.type === "approval_request" &&
+    (nonEmpty(item.prompt) ?? nonEmpty(item.reason)) !== undefined
+  );
+};
+
 /** A pending request as the voice relays it, with its prompt from the turn item of the same id. */
 export const requestNeed = (
   request: OrchestrationV2RuntimeRequest,

@@ -573,7 +573,7 @@ class Session:
     def __enter__(self):
         self.world.up()
         env = {"VOICE_T3_ORIGIN": self.world.origin, "VOICE_T3_TOKEN_FILE": str(self.world.token_file)}
-        self.rig = R.Rig(self.out, self.args.port, self.args.max_minutes, ["--scenario", "--summaries"],
+        self.rig = R.Rig(self.out, self.args.port, self.args.max_minutes, ["--real-seam", "--summaries"],
                          ["--decider", "liquid", "--local-text", "on"], env).__enter__()
         return self
 
