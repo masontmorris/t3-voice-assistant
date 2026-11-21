@@ -1074,8 +1074,9 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         conversation = await self.conversation()
         turn = server.MicTurn(1, b"")
         turn.out_rate = OUT_RATE
-        frames = []
+        frames, sent = [], []
         async def send(payload):
+            sent.append("audio" if isinstance(payload, bytes) else json.loads(payload))
             if isinstance(payload, bytes):
                 frames.append(payload)
                 turn.mute("barge_in")
@@ -1086,6 +1087,10 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
             line = Speech(None, lambda thread_id: None, F.Agree()).accept(DONE.acts, DONE_LINE, "text_model").line
             pcm, first_sent = await conversation.speak_t3(turn, line, bytes(9600))
             self.assertEqual(frames, [pcm])
+            captions = [m for m in sent if m != "audio" and m["type"] == "say"]
+            self.assertEqual(captions, [{"type": "say", "turn": 1, "text": DONE_LINE, "relay": True}],
+                             "a T3 line is captioned once, as a relay, and nothing after the barge-in")
+            self.assertLess(sent.index(captions[0]), sent.index("audio"), "the caption goes out before its audio")
             self.assertEqual(len(pcm), 1920)
             self.assertIsNotNone(first_sent)
         finally:
