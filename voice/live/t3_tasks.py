@@ -38,7 +38,7 @@ from voice.prototype.tasks import Execution, MockTaskService, Run
 from voice.t3 import lifecycle as L
 from voice.t3 import local_summary as LS
 from voice.t3 import types as T
-from voice.t3.acts import NOTHING_NEW, Act, act
+from voice.t3.acts import NOTHING_NEW, Act, Outcome, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import Kind, Status, T3Journal
@@ -1238,6 +1238,16 @@ class Words:
         refuse(self.update_for(entry), rendered)
 
 
+OUTCOMES = {Say.LAUNCHED: Outcome.STARTED, Say.SENT_FOLLOWUP: Outcome.SENT,
+            Say.STOPPING: Outcome.STOP_REQUESTED, Say.ANSWERED: Outcome.ANSWERED}
+
+
+def confirmed_outcome(said: Act) -> Outcome | None:
+    if said.kind is Say.RESPONDED:
+        return {"approve": Outcome.APPROVED, "deny": Outcome.DENIED}.get(said.slots.get("decision"))
+    return OUTCOMES.get(said.kind)
+
+
 def refuse(update: L.Update, rendered: Rendered) -> None:
     """Keep a failed wording's problems and the wording itself on the update, for the next attempt to avoid."""
     update.problems = tuple(rendered.problems or ([rendered.error] if rendered.error else []))
@@ -1361,6 +1371,26 @@ class T3TaskService(MockTaskService):
                 self.prefetched.add(record["task_id"])
                 self.t3.prefetch(record["instruction"])
         return events
+
+    def unanswered(self, *, has_audio: bool = False) -> tuple[dict, Words, Callable[[str], None]] | None:
+        with self.t3.lock:
+            pending = [update for key, update in self.spoken.items() if key not in self.delivered
+                       and any(confirmed_outcome(said) for said in update.acts)]
+            outcomes = tuple(outcome for update in pending for said in update.acts
+                             if (outcome := confirmed_outcome(said)) is not None)
+        if has_audio and not outcomes:
+            return None
+        update = L.Update("unanswered", (act(Say.UNANSWERED, outcomes=outcomes),), "completed")
+
+        def delivered(state):
+            if state == "sent" and pending:
+                with self.t3.lock:
+                    for original in pending:
+                        original.acts = tuple(said.with_slots(recap=True) if confirmed_outcome(said) else said
+                                              for said in original.acts)
+                    self.t3.follow.journal.save()
+
+        return update_entry(update, self.conversation_id), Words(self.t3, lambda _: update), delivered
 
     def correction_entry(self, update: L.Update) -> dict:
         """The task update that carries a correction to be worded, said, and given back if it is not heard."""

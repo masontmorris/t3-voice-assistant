@@ -1066,6 +1066,53 @@ class Service(unittest.IsolatedAsyncioTestCase):
                 "side_effect": tool in (START, TELL, STOP), "sources": ["orchestrator"], "history": [],
                 "tool": {"tool": tool, "confidence": confidence} if tool else None}
 
+    async def test_an_approval_sent_to_the_app_whose_line_was_not_heard_is_never_recapped_as_approved(self):
+        for pending, why in ((F.need("q1", "mcp__github__create_issue", source=T.NeedSource.PERMISSION),
+                              "a tool permission goes to the app"),
+                             (F.need("q1", "Read the notes", source=T.NeedSource.FILE_READ), "a file read goes to the app")):
+            with self.subTest(why):
+                seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
+                                               activity=T.ThreadActivity.WAITING_ON_YOU, pending=pending))
+                seam.listing = waiting_listing(("t5", "Add a clamp helper"))
+                t3 = worded(tasks_over(self, seam), FakeText(), None)
+                service = self.service(t3, [self.record("task_1", "Approve it.", APPROVE)])
+                service.sync(0)
+                entry, = service.snapshot("utt_1", "...")["tasks"]
+                self.assertEqual(entry["acts"][0]["kind"], "needs_the_app", "the line that could not be said")
+                fallback = service.unanswered(has_audio=False)
+                self.assertEqual(fallback[0]["acts"], [{"kind": "unanswered", "slots": {}}],
+                                 "the fallback reports no outcome, so it cannot say the request was approved")
+                self.assertEqual(seam.ops("respond"), [])
+
+    async def test_checked_fallback_reports_a_real_launch_and_preserves_its_retry(self):
+        seam = F.FakeSeam()
+        line = "I started the thread."
+        t3 = worded(tasks_over(self, seam), FakeText(line))
+        first = self.service(t3, [self.record("task_1", "Start a thread to add a clamp helper.", START)])
+        first.sync(0)
+        first.record_delivery(first.snapshot("utt_1", "...")["tasks"][0], "sent")
+        second = self.service(t3, [])
+        second.answer(second.open_question(), "yes", 1)
+        fallback = second.unanswered(has_audio=True)
+        entry, words = fallback[:2]
+        self.assertEqual(entry["acts"][0]["slots"], {"outcomes": ["started"]})
+        self.assertEqual(len(seam.ops("launch")), 1)
+        voice = await Scripted.open("ws://unused", "voice", lambda: 0)
+        voice.script = [line]
+
+        async def send(checked, pcm):
+            self.assertEqual(checked.text, line)
+            return pcm, 0
+
+        reply, _ = await say_acts(voice, 24_000, 0, entry, words, [], lambda *args, **kwargs: None,
+                                  send_audio=send, record_delivery=fallback[2])
+        self.assertEqual(reply["delivery"], "sent")
+        second.close()
+        retries = t3.reserve_news(idle=True)
+        launched = [a for update in retries for a in update.acts if a.kind is S.LAUNCHED]
+        self.assertEqual([a.slots.get("recap") for a in launched], [True])
+        self.assertEqual(len(seam.ops("launch")), 1)
+
     def test_t3_records_go_to_t3_and_others_to_the_mock(self):
         seam = F.FakeSeam()
         seam.listing = listing(*THREADS)

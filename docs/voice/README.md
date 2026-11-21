@@ -41,7 +41,7 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 | `thread-lines`                | 1 of 1 | The thread-status replies consistently used checked lines.                          |
 | `follow-up`                   | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                     |
 | `withdrawn-question`          | 1 of 1 | The initial thread question was asked in all three runs. Only marked checks varied. |
-| `news-permission`             | 1 of 2 | Launch confirmation and the checks after launch varied.                             |
+| `news-permission`             | 1 of 2 | The known launch-dispatch fault can prevent the approval exchange from running.     |
 | `approve-waiting`             | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).         |
 | `deny-waiting`                | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                     |
 | `short-yes`                   | 1 of 2 | Whether both requests got a confirmation question varied.                           |
@@ -51,8 +51,9 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 
 A check that reproduces a fault nobody has fixed is listed in `KNOWN` in `voice/live/scenarios.py` with the fault. Its
 failure is XFAIL and does not turn the gate red. XPASS means every marked check passed in the runs it made: confirm
-with `--spread 3`, then delete the mark. If the caller never reaches a check's precondition, the check fails even if
-it has a mark. A missing turn record, an unanswered judge question, or a startup, runtime, or teardown error makes the
+with `--spread 3`, then delete the mark. An unmet precondition fails unless it explicitly names a failed marked check
+that blocked it. The table counts turns that attempted a fallback. The scripted calls expect substantive replies, so
+a fallback fails their reply check. A missing turn record, an unanswered judge question, or a startup, runtime, or teardown error makes the
 scenario `ERROR` and the gate red. The pass rule counts completed runs with product-check outcomes. What the gate cannot
 catch is in the docstring of `voice/live/scenarios.py`.
 

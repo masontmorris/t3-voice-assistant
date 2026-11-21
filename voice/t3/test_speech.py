@@ -199,7 +199,7 @@ class LocalTextTest(unittest.TestCase):
         system, example_in, example_out, record = local_messages(acts)
         self.assertEqual((system["role"], example_in["role"], example_out["role"], record["role"]),
                          ("system", "user", "assistant", "user"))
-        self.assertEqual(json.loads(example_out["content"]), {"line": READER_VARIANTS[(Kind.ASK_WHICH, "thread")][1]})
+        self.assertEqual(json.loads(example_out["content"]), {"line": READER_VARIANTS[(Kind.ASK_WHICH, "thread_pair")][1]})
         self.assertNotIn("Respond with interleaved", system["content"])
         self.assertEqual(json.loads(record["content"].removeprefix("New record: ")),
                          {"kind": "ask_which", "of": "thread", "candidates": ["Alpha", "Beta"]})
