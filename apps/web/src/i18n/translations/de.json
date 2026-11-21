@@ -12489,5 +12489,20 @@
   "7e664283273943e0": "Ein Sprachanruf verwendet das Mikrofon.",
   "be2fe22cec8b1b50": "Ein Tailnet-Name braucht eine wss://-Adresse, etwa von Tailscale Serve.",
   "eafbd616e90494c3": "Die Diktierfunktion verwendet das Mikrofon.",
-  "e4a9284168a984bf": "Der Sprachserver arbeitet mit einer anderen T3-Umgebung als der dieses Threads."
+  "e4a9284168a984bf": "Der Sprachserver arbeitet mit einer anderen T3-Umgebung als der dieses Threads.",
+  "690ae7d3e7024619": "Sprachanruf",
+  "606cb04bb6ac3ef6": "{count, plural, one {{count} Zeile} other {{count} Zeilen}} · {minutes, plural, one {{minutes} Min.} other {{minutes} Min.}}",
+  "1648008fd32e4d32": "Alle {count} Zeilen anzeigen",
+  "33b2e685c512c4b8": "Der Rest dieses Anrufs war zu lang, um ihn zu behalten.",
+  "f5114fb9c40fd929": "Du",
+  "2f1ef9e0c53c189e": "über einen Thread",
+  "5cc20371639788f7": "abgebrochen",
+  "558a9d0b38fa9258": "Belege",
+  "09c86b914196de0f": "Ein Element des Threads",
+  "d89ba336861d5726": "Ein Lauf des Threads",
+  "b3527483bd2702a3": "Der Thread zu diesem Zeitpunkt",
+  "fec208ea8cc10427": "Nicht im geladenen Teil dieses Threads",
+  "04b11228453baedb": "Dieser Thread ist archiviert. Hole ihn aus dem Archiv, um über ihn anzurufen.",
+  "d5e6a4ce55a458ec": "Anruf wird geladen…",
+  "6e7a509cb2404b29": "Der Anruf konnte nicht geladen werden."
 }

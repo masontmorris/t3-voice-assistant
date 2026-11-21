@@ -215,6 +215,13 @@ export function createOrchestrationEnvironmentAtoms<R, E>(
       target.input.revision === undefined || target.input.revision === "live"
         ? liveTurnItem(target)
         : settledTurnItem(target),
+    // A recorded call never changes, so an opened card's lines are read once and kept.
+    voiceCallLines: createEnvironmentRpcQueryAtomFamily(runtime, {
+      label: "environment-data:orchestration:voice-call-lines",
+      tag: ORCHESTRATION_V2_WS_METHODS.getVoiceCallLines,
+      staleTimeMs: Number.POSITIVE_INFINITY,
+      idleTtlMs: 5 * 60_000,
+    }),
     fullThreadDiff: createEnvironmentRpcQueryAtomFamily(runtime, {
       label: "environment-data:orchestration:full-thread-diff",
       tag: ORCHESTRATION_V2_WS_METHODS.getFullThreadDiff,

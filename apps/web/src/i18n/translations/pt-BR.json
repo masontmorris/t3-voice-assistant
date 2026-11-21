@@ -12489,5 +12489,20 @@
   "7e664283273943e0": "Uma chamada de voz está usando o microfone.",
   "be2fe22cec8b1b50": "Um nome de tailnet precisa de um endereço wss://, como um do Tailscale Serve.",
   "eafbd616e90494c3": "O ditado está usando o microfone.",
-  "e4a9284168a984bf": "O servidor de voz trabalha com um ambiente T3 diferente do desta conversa."
+  "e4a9284168a984bf": "O servidor de voz trabalha com um ambiente T3 diferente do desta conversa.",
+  "690ae7d3e7024619": "Chamada de voz",
+  "606cb04bb6ac3ef6": "{count, plural, one {{count} linha} other {{count} linhas}} · {minutes, plural, one {{minutes} min} other {{minutes} min}}",
+  "1648008fd32e4d32": "Mostrar todas as {count} linhas",
+  "33b2e685c512c4b8": "O restante desta chamada era longo demais para ser guardado.",
+  "f5114fb9c40fd929": "Você",
+  "2f1ef9e0c53c189e": "sobre uma conversa",
+  "5cc20371639788f7": "interrompido",
+  "558a9d0b38fa9258": "Evidências",
+  "09c86b914196de0f": "Um item da conversa",
+  "d89ba336861d5726": "Uma execução da conversa",
+  "b3527483bd2702a3": "A conversa como estava naquele momento",
+  "fec208ea8cc10427": "Não está na parte carregada desta conversa",
+  "04b11228453baedb": "Esta conversa está arquivada. Desarquive-a para ligar sobre ela.",
+  "d5e6a4ce55a458ec": "Carregando a chamada…",
+  "6e7a509cb2404b29": "Não foi possível carregar a chamada."
 }

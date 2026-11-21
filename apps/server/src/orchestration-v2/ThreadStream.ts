@@ -1,6 +1,8 @@
 import type {
+  OrchestrationV2ThreadHistoryPage,
   OrchestrationV2ThreadProjection,
   OrchestrationV2ThreadStreamItem,
+  ThreadId,
 } from "@t3tools/contracts";
 
 import { omitLocalVisibleTurnItems } from "@t3tools/shared/orchestrationV2BoundedSnapshot";
@@ -62,6 +64,38 @@ export function boundedSnapshotResponseFields(input: {
     latestLocalTurnOrdinal: bounded.latestLocalTurnOrdinal,
     ...(compactProjection === null ? {} : { turnItemsOmitLocalVisible: true as const }),
     ...(input.compactIds ? { idTable: true as const } : {}),
+  };
+}
+
+/**
+ * The voice calls an owner's snapshot shows: those after its oldest local row, or all of them when it holds the
+ * whole thread. Null when no local row is loaded yet, so older pages bring them.
+ */
+export function snapshotVoiceCallSpan(
+  projection: Pick<OrchestrationV2ThreadProjection, "thread" | "visibleTurnItems">,
+  hasMoreHistory: boolean | undefined,
+): { readonly from: number } | null {
+  if (hasMoreHistory !== true) return { from: 0 };
+  const oldest = projection.visibleTurnItems.find(
+    (row) => row.sourceThreadId === projection.thread.id,
+  );
+  return oldest === undefined ? null : { from: oldest.item.ordinal };
+}
+
+/**
+ * The voice calls an owner's history page shows: from its oldest own row, or from the start on the thread's oldest
+ * page, up to the row its cursor names, where the newer page's calls begin. Null when it shows none.
+ */
+export function historyVoiceCallSpan(
+  page: Pick<OrchestrationV2ThreadHistoryPage, "items" | "hasMoreHistory">,
+  threadId: ThreadId,
+  newerOrdinal: number | null,
+): { readonly from: number; readonly before?: number } | null {
+  const oldest = page.items.find((row) => row.sourceThreadId === threadId);
+  if (page.hasMoreHistory && oldest === undefined) return null;
+  return {
+    from: page.hasMoreHistory && oldest !== undefined ? oldest.item.ordinal : 0,
+    ...(newerOrdinal === null ? {} : { before: newerOrdinal }),
   };
 }
 

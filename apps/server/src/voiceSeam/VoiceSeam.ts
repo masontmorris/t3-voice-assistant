@@ -44,6 +44,7 @@ import {
   type PendingJoin,
 } from "./outcome.ts";
 import * as Answer from "./answer.ts";
+import * as Record from "./record.ts";
 import * as Launch from "./launch.ts";
 import * as Respond from "./respond.ts";
 import * as Send from "./send.ts";
@@ -52,6 +53,7 @@ import {
   type RequestInput,
   type ThreadActivity as ThreadActivitySchema,
   type VoiceAnswerResult,
+  type VoiceRecordResult,
   type VoiceHello,
   type VoiceInterruptResult,
   type VoiceLaunchResult,
@@ -120,6 +122,10 @@ export class VoiceSeam extends Context.Service<
       caller: VoiceCaller,
       input: RequestInput<"answer_question">,
     ) => Effect.Effect<VoiceAnswerResult, VoiceSeamRefusal>;
+    readonly recordCall: (
+      caller: VoiceCaller,
+      input: RequestInput<"record_call">,
+    ) => Effect.Effect<VoiceRecordResult, VoiceSeamRefusal>;
     /** Checks the thread now, then replays after `afterSequence` and follows live. */
     readonly watch: (
       caller: VoiceCaller,
@@ -212,6 +218,7 @@ const make = Effect.gen(function* () {
   });
   const answers = Respond.make({ digest, threads, receipts });
   const questionAnswers = Answer.make({ digest, threads, receipts });
+  const transcripts = Record.make({ digest, threads, receipts, eventStore });
   const launchThread = Launch.make({
     digest,
     threads,
@@ -388,6 +395,7 @@ const make = Effect.gen(function* () {
       pendingDetailed,
       lastReply,
       asOfSequence: read.asOfSequence,
+      archived: shell.archivedAt != null,
     } satisfies VoiceThreadState;
   });
 
@@ -444,6 +452,16 @@ const make = Effect.gen(function* () {
     return yield* questionAnswers.answer(caller.config, shell, input);
   });
 
+  // No ceiling check: a transcript starts no work, and no model reads it (`isCallerPrivateTurnItem`).
+  const recordCall = Effect.fn("VoiceSeam.recordCall")(function* (
+    caller: VoiceCaller,
+    input: RequestInput<"record_call">,
+  ) {
+    yield* requireOperation(caller, "record");
+    yield* requireVisible(caller, input.threadId);
+    return yield* transcripts.record(input);
+  });
+
   const watch = Effect.fn("VoiceSeam.watch")(function* (
     caller: VoiceCaller,
     input: Watch.WatchInput,
@@ -465,6 +483,7 @@ const make = Effect.gen(function* () {
     interrupt,
     respond,
     answer,
+    recordCall,
     watch,
   });
 });

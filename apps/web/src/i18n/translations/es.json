@@ -12484,5 +12484,20 @@
   "7e664283273943e0": "Una llamada de voz está usando el micrófono.",
   "be2fe22cec8b1b50": "Un nombre de tailnet necesita una dirección wss://, como una de Tailscale Serve.",
   "eafbd616e90494c3": "El dictado está usando el micrófono.",
-  "e4a9284168a984bf": "El servidor de voz trabaja con un entorno de T3 distinto al de este hilo."
+  "e4a9284168a984bf": "El servidor de voz trabaja con un entorno de T3 distinto al de este hilo.",
+  "690ae7d3e7024619": "Llamada de voz",
+  "606cb04bb6ac3ef6": "{count, plural, one {{count} línea} other {{count} líneas}} · {minutes, plural, one {{minutes} min} other {{minutes} min}}",
+  "1648008fd32e4d32": "Mostrar las {count} líneas",
+  "33b2e685c512c4b8": "El resto de esta llamada era demasiado largo para guardarlo.",
+  "f5114fb9c40fd929": "Tú",
+  "2f1ef9e0c53c189e": "sobre un hilo",
+  "5cc20371639788f7": "interrumpido",
+  "558a9d0b38fa9258": "Pruebas",
+  "09c86b914196de0f": "Un elemento del hilo",
+  "d89ba336861d5726": "Una ejecución del hilo",
+  "b3527483bd2702a3": "El hilo tal como estaba entonces",
+  "fec208ea8cc10427": "No está en la parte cargada de este hilo",
+  "04b11228453baedb": "Este hilo está archivado. Desarchívalo para llamar sobre él.",
+  "d5e6a4ce55a458ec": "Cargando la llamada…",
+  "6e7a509cb2404b29": "No se pudo cargar la llamada."
 }

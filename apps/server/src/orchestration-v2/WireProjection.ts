@@ -334,7 +334,10 @@ export function projectDomainEventForWire(
       ? { ...event, payload: projectContextHandoffForWire(event.payload) }
       : event.type === "checkpoint.captured"
         ? { ...event, payload: capCheckpointFiles(event.payload) }
-        : event;
+        : // A call's lines go only to its owner, and only when the card is opened.
+          event.type === "thread.voice-call.recorded"
+          ? { ...event, payload: { call: event.payload.call } }
+          : event;
 }
 
 // Keyed on the stored event PubSub hands every subscriber, so all of them share one projection

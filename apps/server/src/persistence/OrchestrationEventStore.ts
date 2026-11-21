@@ -91,8 +91,10 @@ export class OrchestrationEventStore extends Context.Service<
       OrchestrationEventStoreError
     >;
 
+    /** `withoutEventType` leaves one event type out, for a reader that never receives it. */
     readonly latestAgentSequence: (
       threadId?: ThreadId,
+      withoutEventType?: string,
     ) => Effect.Effect<number, OrchestrationEventStoreError>;
 
     readonly latestApplicationSequence: Effect.Effect<number, OrchestrationEventStoreError>;
@@ -646,6 +648,7 @@ const makeEventStore = Effect.gen(function* () {
 
   const latestAgentSequence: OrchestrationEventStore["Service"]["latestAgentSequence"] = (
     threadId,
+    withoutEventType,
   ) =>
     sql<{ readonly sequence: number | null }>`
       SELECT MAX(sequence) AS sequence
@@ -659,6 +662,7 @@ const makeEventStore = Effect.gen(function* () {
       WHERE application_event_version = 2
         AND aggregate_kind = 'thread'
         ${threadId === undefined ? sql`` : sql`AND stream_id = ${threadId}`}
+        ${withoutEventType === undefined ? sql`` : sql`AND event_type <> ${withoutEventType}`}
     `.pipe(
       NodeSqliteClient.readOnly,
       Effect.map((rows) => rows[0]?.sequence ?? 0),

@@ -58,7 +58,7 @@ TOKEN_SCOPE = "orchestration:read"
 TOKEN_TTL = "30d"
 TOKEN_LABEL = "Voice server (ceiling in voice-seam.json)"
 
-SEAM_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt", "respond", "answer"]
+SEAM_OPERATIONS = ["list", "read", "watch", "launch", "send", "interrupt", "respond", "answer", "record"]
 
 PROJECT_ADD_RE = re.compile(r"Added project (\S+)")
 ALREADY_EXISTS_RE = re.compile(r"already exists", re.IGNORECASE)
@@ -520,9 +520,16 @@ def seam_config_document(project_id: str) -> dict:
 
 
 def ensure_seam_config(paths: EnvPaths, project_id: str) -> bool:
-    """Write voice-seam.json once. True when it wrote it. Never overwrites."""
+    """Write voice-seam.json once. True when it wrote or changed it. An existing file keeps its projects and ceiling and
+    only gains an operation the voice added since it was written."""
     if paths.seam_config.exists():
-        return False
+        doc = json.loads(paths.seam_config.read_text(encoding="utf-8"))
+        missing = [op for op in SEAM_OPERATIONS if op not in doc.get("operations", [])]
+        if not missing:
+            return False
+        doc["operations"] = [*doc.get("operations", []), *missing]
+        paths.seam_config.write_text(json.dumps(doc, indent=2) + "\n", encoding="utf-8")
+        return True
     paths.seam_config.write_text(
         json.dumps(seam_config_document(project_id), indent=2) + "\n",
         encoding="utf-8",

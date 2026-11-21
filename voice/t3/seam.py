@@ -196,6 +196,17 @@ class T3Seam:
             },
         )
 
+    def record_call(self, request_id: str, thread_id: str, call_id: str, started_at: str, ended_at: str,
+                    lines: list[dict]) -> T.RecordResult:
+        """Record a call's transcript on its thread. Each line is {speaker, text, relay, interrupted?, act?,
+        sequences?}. T3 cuts a call past its bounds and marks it truncated; a retry with the same request id answers
+        the first record, and only when it is the same lines."""
+        return self._call(
+            "record_call",
+            {"requestId": request_id, "threadId": thread_id, "callId": call_id, "startedAt": started_at,
+             "endedAt": ended_at, "lines": lines},
+        )
+
     def drain(self, timeout: float | None = None) -> Iterator[T.DrainItem]:
         """Yield events, then the socket's end, then stop.
 

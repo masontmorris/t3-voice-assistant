@@ -435,6 +435,15 @@ const pruneSnapshot = Effect.fn("pruneDevDbSnapshot")(function* (input: RunMigra
       for (const table of CLEARED_TABLES) {
         yield* sql`DELETE FROM ${sql(table)}`;
       }
+      // Voice calls are the caller's own: a dev server's agents never read one, nor learn one was made.
+      const voiceCallTable = yield* sql`SELECT 1 FROM sqlite_master
+        WHERE type = 'table' AND name = 'orchestration_v2_projection_voice_calls'`;
+      if (voiceCallTable.length > 0)
+        yield* sql`DELETE FROM orchestration_v2_projection_voice_calls`;
+      yield* sql`DELETE FROM orchestration_v2_projection_turn_items WHERE type = 'voice_call'`;
+      yield* sql`DELETE FROM orchestration_events
+        WHERE event_type = 'thread.voice-call.recorded'
+          OR (event_type = 'turn-item.updated' AND json_extract(payload_json, '$.type') = 'voice_call')`;
     }),
   );
 

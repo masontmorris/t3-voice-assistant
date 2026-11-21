@@ -41,7 +41,7 @@ from voice.t3 import types as T
 from voice.t3.acts import NOTHING_NEW, Act, Outcome, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
-from voice.t3.journal import JournalTask, Kind, Status, T3Journal
+from voice.t3.journal import JournalTask, Kind, Status, T3Journal, ulid
 from voice.t3.pick.model import FREE_MODEL, PAID_MODEL, LiveClient
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
@@ -226,6 +226,8 @@ class T3Tasks:
     withdrawn: Question | None = field(default=None, init=False)
     call: int = field(default=0, init=False)
     following: JournalTask | None = field(default=None, init=False)
+    # Told of each line said aloud, whole, with the update it was for: the call's transcript keeps its evidence.
+    on_spoken: Callable[[L.Update], None] | None = field(default=None, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
     reuse: Decider | None = field(default=None, kw_only=True)
@@ -376,9 +378,10 @@ class T3Tasks:
                 return None
             return self.follow.seam.hello.environment_id == environment_id
 
-    def view(self, thread_id: str, now: float) -> str | None:
+    def view(self, thread_id: str, now: float) -> T.ThreadState | None:
         """Open the call on `thread_id`, the thread the caller started it from, as if the call had just spoken about it:
-        "it" means this thread until a line about another one. Its title, or None when the seam cannot read it."""
+        "it" means this thread until a line about another one. Its state, or None when the seam cannot read it. An
+        archived thread is returned without being opened: a call on it would record onto an archive."""
         with self.lock:
             if self._down("", now) is not None:
                 return None
@@ -386,12 +389,26 @@ class T3Tasks:
                 state = self.follow.seam.read_thread(thread_id)
             except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
                 return None
+            if state.archived:
+                return state
             self.recent = self.spoken_id = state.thread_id
             self.spoken_of = state.title
             self._unfollow_calls()
             self.following = self.follow.follow(state.thread_id, state.title, state.project_id,
                                                 self.project_names().get(state.project_id), now)
-            return state.title
+            return state
+
+    def record_call(self, thread_id: str, call_id: str, started_at: str, ended_at: str, lines: list[dict]) -> bool:
+        """Record a call's transcript on the thread it was opened on, once. False when T3 did not take it."""
+        with self.lock:
+            seam = self.follow.ensure(time.monotonic())
+        if seam is None:
+            return False
+        try:
+            seam.record_call(ulid(), thread_id, call_id, started_at, ended_at, lines)
+        except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
+            return False
+        return True
 
     def end_call(self) -> None:
         with self.lock:
@@ -434,6 +451,8 @@ class T3Tasks:
         """`update` was said aloud, whole. If it is the open question, the person has heard it and the next turn may
         answer it. Anything else said after it moves the conversation on, so the question is dropped. A line about one
         thread makes it the thread the call last spoke about (`spoken_about`)."""
+        if self.on_spoken is not None:
+            self.on_spoken(update)
         with self.lock:
             titles = [a.slots["thread"] for a in update.acts if isinstance(a.slots.get("thread"), str)]
             started = next((a.slots["project"] for a in update.acts

@@ -28,7 +28,9 @@ import {
 } from "@t3tools/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import * as Effect from "effect/Effect";
+import * as Exit from "effect/Exit";
 import * as Layer from "effect/Layer";
+import * as Schema from "effect/Schema";
 import * as Stream from "effect/Stream";
 import * as RpcTest from "effect/rpc/RpcTest";
 
@@ -831,3 +833,35 @@ it.effect("requires provider management to send /logout through chat", () =>
     ]);
   }).pipe(Effect.scoped),
 );
+
+it("never lets a client send the server's own voice-call record over dispatchCommand", () => {
+  const rpc = WsRpcGroup.requests.get(ORCHESTRATION_V2_WS_METHODS.dispatchCommand);
+  if (rpc === undefined) return expect.fail("dispatchCommand is an RPC");
+  const decode = Schema.decodeUnknownExit(rpc.payloadSchema);
+  const record = {
+    type: "thread.voice-call.record",
+    commandId: "command:voice-call",
+    threadId: "thread:voice-call",
+    turnItemId: "turn-item:voice-call",
+    callId: "call-1",
+    startedAt: "2026-11-21T10:00:00.000Z",
+    endedAt: "2026-11-21T10:04:00.000Z",
+    lines: [{ speaker: "caller", text: "Private words", relay: false }],
+    truncated: false,
+  };
+  // The server decodes every payload with this schema before a handler runs, so the command never reaches one.
+  expect(Exit.isFailure(decode(record))).toBe(true);
+  expect(
+    Exit.isSuccess(
+      decode({
+        type: "thread.archive",
+        commandId: "command:archive",
+        threadId: "thread:voice-call",
+      }),
+    ),
+    "a client command still decodes",
+  ).toBe(true);
+  expect(RPC_REQUIRED_SCOPES[ORCHESTRATION_V2_WS_METHODS.dispatchCommand]).toBe(
+    AuthOrchestrationOperateScope,
+  );
+});
