@@ -134,6 +134,8 @@ MEANINGS: dict[Kind, str] = {
                         "the thread.",
     Kind.UNANSWERED: "Say in one short sentence that you could not give an answer just now. Give no reason, report "
                      "no outcome, and make no other claim.",
+    Kind.NOTHING_DONE: "What you said a moment ago about starting, sending, stopping or approving something was "
+                       "wrong: nothing has been done. Say so in one short sentence, and make no other claim.",
     Kind.CORRECTION: "What you said a moment ago about this thread was wrong. Say so in a few words, then say its real "
                      "status. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
 }
@@ -978,6 +980,7 @@ READER_EXAMPLES = {
                          "Example Tag Camera Clips has a question I can't take by voice, so you'll need to answer it "
                          "in the app."),
     Kind.UNANSWERED: ({}, "I couldn't give you an answer just now."),
+    Kind.NOTHING_DONE: ({}, "Sorry, I got that wrong. I haven't started or changed anything."),
     Kind.CORRECTION: ({"thread": "Example Bake Menu Cards", "status": "working"},
                       "Sorry, I got that wrong. The Example Bake Menu Cards thread is still working."),
 }

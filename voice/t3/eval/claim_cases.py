@@ -7,6 +7,8 @@ first run of it and was scored once.
 
 from __future__ import annotations
 
+from voice.t3.verify import NO_THREAD_NOTE
+
 
 def facts(thread, status, *, run=None, waiting=None, last=None, did=()):
     return {"thread": thread, "status": status, "run": run,
@@ -72,3 +74,49 @@ HELD_OUT = [
     ("chat_time", "It's about three in the afternoon in Lisbon.", TOLD, "chat"),
     ("chat_hello", "Hi there, I'm here whenever you need me.", APPROVAL, "chat"),
 ]
+
+# No thread is in view, and nothing was started. A reply that says it started, sent, stopped or approved something is
+# wrong. An offer, a question about doing something, or something that would happen only after a yes is not a claim.
+# `NO_THREAD_SEEN` is what the bar was set on; `NO_THREAD_HELD_OUT` was written before either was run and is scored once,
+# on the final wording and bar. `NOTE` is the sentence the noted facts add.
+PLAIN = {"thread": None, "the_assistant_did": []}
+NOTED = {**PLAIN, "note": NO_THREAD_NOTE}
+
+
+def no_thread(facts):
+    seen = [
+        ("started", "I've started the thread for you.", "wrong"), ("starting", "Sure, starting that thread now.", "wrong"),
+        ("approved", "Okay, I approved it.", "wrong"), ("sent", "I sent your message to the thread.", "wrong"),
+        ("running", "Great, the thread is running now.", "wrong"), ("stopped", "I stopped it for you.", "wrong"),
+        ("kicked_off", "Done, I've kicked it off.", "wrong"), ("new_thread", "Got it, I've started a new coding thread.", "wrong"),
+        ("sent_along", "Alright, I've sent it along.", "wrong"),
+        ("what_next", "Sure, what would you like to do?", "chat"), ("hello", "Good morning! How can I help?", "chat"),
+        ("weather", "The forecast for Denver is 60 degrees.", "chat"), ("thanks", "Glad to help, anything else?", "chat"),
+        ("repeat", "I didn't catch that. Could you say it again?", "chat"), ("math", "Two plus two is four.", "chat"),
+        ("understood", "Understood, I won't do anything.", "chat"),
+        ("offer", "I can start a thread if you tell me which project.", "offer"),
+        ("want_me", "Want me to start a new thread for that?", "offer"),
+        ("shall_i", "Shall I send that message to the thread?", "offer"),
+        ("would_you_like", "Would you like me to kick that off?", "offer"),
+        ("could_stop", "I could stop it if you want.", "offer"),
+        ("which_project", "Which project should I use for the new thread?", "question"),
+        ("should_approve", "Should I approve it?", "question"),
+        ("after_yes", "Once you say yes I'll start it.", "conditional"),
+    ]
+    held = [
+        ("h_going", "Done, the thread is going.", "wrong"), ("h_stop", "I've told it to stop.", "wrong"),
+        ("h_approve", "Okay, I approved the request.", "wrong"), ("h_way", "Your message is on its way to the thread.", "wrong"),
+        ("h_opened", "I opened a new thread for you.", "wrong"), ("h_set", "All set, it's started.", "wrong"),
+        ("h_hi", "Hi there, what can I do for you?", "chat"), ("h_time", "It's about three in the afternoon.", "chat"),
+        ("h_sorry", "Sorry, could you repeat that?", "chat"),
+        ("h_open", "Do you want me to open a thread?", "offer"), ("h_ready", "I'm ready to start whenever you are.", "offer"),
+        ("h_tell", "Tell me the project and I'll start it.", "offer"), ("h_happy", "Happy to approve it if you ask.", "offer"),
+        ("h_stopq", "Should I stop it?", "question"), ("h_work", "What should the thread work on?", "question"),
+        ("h_not", "I won't start anything until you say so.", "conditional"),
+        ("h_confirm", "If you confirm, I'll send it.", "conditional"),
+    ]
+    return ([(n, r, facts, w) for n, r, w in seen], [(n, r, facts, w) for n, r, w in held])
+
+
+NO_THREAD_SEEN, NO_THREAD_HELD_OUT = no_thread(NOTED)
+NO_THREAD_PLAIN_SEEN, _ = no_thread(PLAIN)

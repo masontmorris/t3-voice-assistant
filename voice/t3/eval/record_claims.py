@@ -2,9 +2,11 @@
 
     python -m voice.t3.eval.record_claims     # starts the local d1-2B, under the GPU lease
     python -m voice.t3.eval.record_claims --cpu   # the same with no GPU layers, while the GPU is held
+    python -m voice.t3.eval.record_claims --no-thread plain_seen noted_seen   # cases with no thread in view
 
 The cases are made up (voice/t3/eval/claim_cases.py). Each row keeps the answers and the call's time, so the replay can
-score the thresholds without a model server and the time of one check is on record.
+score the thresholds without a model server and the time of one check is on record. A no-thread split that is not asked
+for keeps its recorded rows, so a held-out split is recorded once, when its wording and bar are final.
 """
 
 import hashlib
@@ -15,10 +17,14 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from voice.local_decider.client import FLAGS, MODEL, VOICE_HOME, D1Client, LlamaServer, decider
-from voice.t3.eval.claim_cases import HELD_OUT, SEEN
+from voice.t3.eval.claim_cases import HELD_OUT, NO_THREAD_HELD_OUT, NO_THREAD_PLAIN_SEEN, NO_THREAD_SEEN, PLAIN, SEEN, no_thread
 from voice.t3.verify import claim_request
 
-FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "claims.json"
+FIXTURES = Path(__file__).resolve().parents[1] / "fixtures"
+FIXTURE = FIXTURES / "claims.json"
+NO_THREAD_FIXTURE = FIXTURES / "claims_no_thread.json"
+NO_THREAD_SPLITS = {"plain_seen": NO_THREAD_PLAIN_SEEN, "noted_seen": NO_THREAD_SEEN,
+                    "noted_held_out": NO_THREAD_HELD_OUT, "plain_held_out": no_thread(PLAIN)[1]}
 
 
 def key(body):
@@ -36,10 +42,15 @@ def cpu_decider(port=8196):
 
 
 def main():
-    rows = []
+    no_thread_run = "--no-thread" in sys.argv
+    asked = sys.argv[sys.argv.index("--no-thread") + 1:] if no_thread_run else []
+    kept = json.loads(NO_THREAD_FIXTURE.read_text(encoding="utf-8")) if no_thread_run and NO_THREAD_FIXTURE.exists() else []
+    rows = [row for row in kept if row["split"] not in asked]
     with (cpu_decider() if "--cpu" in sys.argv else decider("d1")) as client:
         client.call("decisions", claim_request("Hello.", SEEN[0][2]))  # the first call loads the prompt
-        for split, cases in (("seen", SEEN), ("held_out", HELD_OUT)):
+        sets = (tuple((name, NO_THREAD_SPLITS[name]) for name in asked) if no_thread_run
+                else (("seen", SEEN), ("held_out", HELD_OUT)))
+        for split, cases in sets:
             for name, reply, facts, want in cases:
                 body = claim_request(reply, facts)
                 started = time.perf_counter()
@@ -49,7 +60,8 @@ def main():
                     raise RuntimeError(f"decider status {result['status']}")
                 rows.append({"split": split, "name": name, "want": want, "ms": ms, "request_hash": key(body),
                              "answers": result["response"]["answers"]})
-    FIXTURE.write_text(json.dumps(rows, separators=(",", ":")) + "\n", encoding="utf-8")
+    out = NO_THREAD_FIXTURE if no_thread_run else FIXTURE
+    out.write_text(json.dumps(rows, separators=(",", ":")) + "\n", encoding="utf-8")
     times = sorted(row["ms"] for row in rows)
     print(f"{len(rows)} rows, median {times[len(times) // 2]} ms, p95 {times[int(len(times) * 0.95)]} ms")
 
