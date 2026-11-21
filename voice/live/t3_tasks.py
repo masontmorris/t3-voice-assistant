@@ -41,7 +41,7 @@ from voice.t3 import types as T
 from voice.t3.acts import NOTHING_NEW, Act, Outcome, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
-from voice.t3.journal import Kind, Status, T3Journal
+from voice.t3.journal import JournalTask, Kind, Status, T3Journal
 from voice.t3.pick.model import FREE_MODEL, PAID_MODEL, LiveClient
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
@@ -225,6 +225,7 @@ class T3Tasks:
     told: dict[str, int] = field(default_factory=dict, init=False)
     withdrawn: Question | None = field(default=None, init=False)
     call: int = field(default=0, init=False)
+    following: JournalTask | None = field(default=None, init=False)
     lane: Lane | None = field(default=None, init=False)
     writer: RealtimeWriter | None = field(default=None, kw_only=True)
     reuse: Decider | None = field(default=None, kw_only=True)
@@ -244,7 +245,16 @@ class T3Tasks:
 
     def resume(self, now: float) -> None:
         with self.lock:
+            self._unfollow_calls()
             self.follow.resume(now)
+
+    def _unfollow_calls(self) -> None:
+        """A call's thread is followed for that call only, so one left by a call that ended or a server that stopped is
+        not followed any more."""
+        self.following = None
+        for task in self.follow.journal.live():
+            if task.kind is Kind.FOLLOW:
+                self.follow.unfollow(task)
 
     def wait(self, wait_s: float):
         """Block up to `wait_s` for the next seam item, outside the lock. Only the polling thread calls it."""
@@ -358,9 +368,35 @@ class T3Tasks:
             self._drop_question()
             self.withdrawn = None
 
+    def serves(self, environment_id: str, now: float) -> bool | None:
+        """Whether the seam is T3 environment `environment_id`, so a thread id from another environment is never
+        opened here. None when the seam cannot be reached to say."""
+        with self.lock:
+            if self._down("", now) is not None:
+                return None
+            return self.follow.seam.hello.environment_id == environment_id
+
+    def view(self, thread_id: str, now: float) -> str | None:
+        """Open the call on `thread_id`, the thread the caller started it from, as if the call had just spoken about it:
+        "it" means this thread until a line about another one. Its title, or None when the seam cannot read it."""
+        with self.lock:
+            if self._down("", now) is not None:
+                return None
+            try:
+                state = self.follow.seam.read_thread(thread_id)
+            except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
+                return None
+            self.recent = self.spoken_id = state.thread_id
+            self.spoken_of = state.title
+            self._unfollow_calls()
+            self.following = self.follow.follow(state.thread_id, state.title, state.project_id,
+                                                self.project_names().get(state.project_id), now)
+            return state.title
+
     def end_call(self) -> None:
         with self.lock:
             self._drop_question()
+            self._unfollow_calls()
 
     def _drop_question(self) -> None:
         self.question = self.unasked = None
@@ -404,10 +440,15 @@ class T3Tasks:
                             if a.kind in (Say.LAUNCHED, Say.LAUNCH_PENDING) and isinstance(a.slots.get("project"), str)),
                            None)
             begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
+            on_call = self.following is not None and any(a.slots.get("on_call") for a in update.acts)
             if titles or started or begun:
                 self.recent = update.thread_id or self.recent
                 self.spoken_of = titles[0] if titles else f"the new thread in {started or begun}"
                 self.spoken_id = update.thread_id
+            elif on_call:
+                # The call's own thread, said as this thread: "it" means it again, by the title a confirmation names.
+                self.recent = self.spoken_id = update.thread_id
+                self.spoken_of = self.following.title or self.spoken_of
             if update.thread_id is not None and update.sequences and any(a.kind is Say.THREAD_STATUS for a in update.acts):
                 self.told[update.thread_id] = max(update.sequences)
             question = self.question
@@ -437,17 +478,23 @@ class T3Tasks:
         """What threads are waiting on the person for, up to three, as the decider is shown them: an approval by the
         thread's title and what it asks for in a few words, a question by its text and options. A thread whose request
         only the app can take, or whose question the voice cannot ask (see `answerableQuestions` in the seam), is not
-        listed: the voice cannot answer it. Off the lock: each is a seam read."""
+        listed: the voice cannot answer it. The thread the call was opened on is always among them, since the voice
+        speaks up when it waits. Off the lock: each is a seam read."""
         seam = self.follow.seam
         if seam is None:
             return []
         try:
-            waiting = [t for t in seam.list_threads().threads if t.activity is T.ThreadActivity.WAITING_ON_YOU][:3]
+            listed = [t.thread_id for t in seam.list_threads().threads if t.activity is T.ThreadActivity.WAITING_ON_YOU]
         except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
             return []
+        own = self.following.link.thread_id if self.following is not None else None
+        waiting = ([own] if own is not None else []) + [thread for thread in listed if thread != own]
         found = []
-        for thread in waiting:
-            state = self._read_quiet(thread.thread_id)
+        # The call's own thread reads first and may not be waiting, so it never takes one of the three places.
+        for thread_id in waiting[:3 + (own is not None)]:
+            if len(found) == 3:
+                break
+            state = self._read_quiet(thread_id)
             if state is None or state.pending is None:
                 continue
             if state.pending.kind is T.PendingKind.APPROVAL:
@@ -1202,8 +1249,10 @@ class T3Tasks:
         if me is None or listing is None:
             return acts
         ref = reference(me.thread_id, launched, {t.thread_id: t.title for t in listing.threads})
-        account = self.speech.account(me) if ref is not None and ref.unnamed and ref.shared else None
-        return named(acts, ref, account)
+        with self.lock:
+            on_call = self.following is not None and self.following.link.thread_id == update.thread_id
+        account = self.speech.account(me) if ref is not None and ref.unnamed and ref.shared and not on_call else None
+        return named(acts, ref, account, on_call)
 
     def _offered(self, update: L.Update, acts: tuple[Act, ...], listing: T.ThreadList | None) -> tuple[Act, ...]:
         """A which-thread question offers each launched thread that T3 has not yet named by what it was started for,

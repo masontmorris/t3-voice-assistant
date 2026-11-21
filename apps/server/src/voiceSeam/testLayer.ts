@@ -1,4 +1,4 @@
-import { type OrchestrationV2DomainEvent, ThreadId } from "@t3tools/contracts";
+import { EnvironmentId, type OrchestrationV2DomainEvent, ThreadId } from "@t3tools/contracts";
 import { delegatedTaskProgress } from "@t3tools/provider-core/server/subagentProjection";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
@@ -7,6 +7,7 @@ import * as SqlClient from "effect/sql/SqlClient";
 import * as Stream from "effect/Stream";
 import * as TestClock from "effect/testing/TestClock";
 
+import * as ServerEnvironment from "../environment/ServerEnvironment.ts";
 import * as ServerSettings from "../serverSettings.ts";
 import * as ProjectService from "../project/ProjectService.ts";
 import * as ProviderRegistry from "../provider/ProviderRegistry.ts";
@@ -86,6 +87,11 @@ const storeOrchestrator = Layer.unwrap(
 );
 
 /** What only a launch reads. These tests never launch; launch.test.ts builds the real ones. */
+export const TEST_ENVIRONMENT_ID = EnvironmentId.make("voice-seam-test");
+export const testEnvironment = Layer.mock(ServerEnvironment.ServerEnvironment)({
+  getEnvironmentId: Effect.succeed(TEST_ENVIRONMENT_ID),
+});
+
 const launchStubs = Layer.mergeAll(
   Layer.mock(ThreadLaunch.ThreadLaunchService)({}),
   Layer.mock(ProjectService.ProjectService)({}),
@@ -97,7 +103,7 @@ export const seamLayer = ThreadManagementService.layer.pipe(
   Layer.provide(Layer.mock(ProviderSessionManager.ProviderSessionManagerV2)({})),
   Layer.provide(storeOrchestrator),
   Layer.provide(CommandReceiptStore.layer.pipe(Layer.provide(Sqlite.layerMemory))),
-  Layer.provideMerge(Layer.merge(ServerSettings.layerTest(), launchStubs)),
+  Layer.provideMerge(Layer.mergeAll(ServerSettings.layerTest(), launchStubs, testEnvironment)),
   Layer.provideMerge(stores),
 );
 

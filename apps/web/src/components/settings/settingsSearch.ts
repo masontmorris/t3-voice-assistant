@@ -620,6 +620,18 @@ export const SETTINGS_SEARCH_ITEMS = [
     searchTerms: [msg("speech voice transcript cleanup provider model post-processing")],
   },
   {
+    id: "live-voice-server",
+    title: msg("Voice server"),
+    to: "/settings/voice",
+    searchTerms: [msg("live voice call talk server address tailnet")],
+  },
+  {
+    id: "live-voice-secret",
+    title: msg("Voice server secret"),
+    to: "/settings/voice",
+    searchTerms: [msg("live voice call secret password")],
+  },
+  {
     id: "speech-correction-word",
     title: msg("Correction cue"),
     to: "/settings/voice",

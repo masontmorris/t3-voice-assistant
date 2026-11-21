@@ -1901,6 +1901,66 @@ export function VoiceSettingsPanel() {
           />
         ) : null}
       </SettingsSection>
+
+      <SettingsSection id="live-voice" title={gt("Live voice")}>
+        <SettingsRow
+          {...setting("live-voice-server")}
+          title={gt("Voice server")}
+          description={gt(
+            "The address of a voice server on this device or your tailnet. Calls go straight to it, never through a relay.",
+          )}
+          control={
+            <Input
+              key={settings.liveVoiceServer}
+              defaultValue={settings.liveVoiceServer}
+              maxLength={512}
+              placeholder="127.0.0.1:8770"
+              aria-label={gt("Voice server")}
+              className="@min-[32rem]/settings-row:w-56"
+              onBlur={(event) => {
+                const next = event.target.value.trim();
+                if (next !== settings.liveVoiceServer)
+                  void updateClientSettings({ liveVoiceServer: next });
+              }}
+            />
+          }
+        />
+        <SettingsRow
+          {...setting("live-voice-secret")}
+          title={gt("Voice server secret")}
+          description={gt("Kept on this device only.")}
+          control={
+            <div className="flex items-center gap-2">
+              <Input
+                key={settings.liveVoiceSecret === "" ? "empty" : "set"}
+                type="password"
+                autoComplete="off"
+                defaultValue=""
+                maxLength={512}
+                placeholder={settings.liveVoiceSecret ? gt("Saved") : gt("Paste the secret")}
+                aria-label={gt("Voice server secret")}
+                className="@min-[32rem]/settings-row:w-56"
+                onBlur={(event) => {
+                  const next = event.target.value.trim();
+                  event.target.value = "";
+                  if (next && next !== settings.liveVoiceSecret)
+                    void updateClientSettings({ liveVoiceSecret: next });
+                }}
+              />
+              {settings.liveVoiceSecret ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void updateClientSettings({ liveVoiceSecret: "" })}
+                >
+                  {gt("Forget")}
+                </Button>
+              ) : null}
+            </div>
+          }
+        />
+      </SettingsSection>
     </SettingsPageContainer>
   );
 }

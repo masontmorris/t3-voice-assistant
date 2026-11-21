@@ -231,6 +231,11 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
   --animate-stash-pulse-row: stash-pulse-row 1400ms;
   --animate-stash-pulse-row-alt: stash-pulse-row-alt 1400ms;
   --animate-stash-pulse-count: stash-pulse-count 1400ms step-start;
+  /* A live call's shape pulses once per caption phrase, alternating two identical keyframes so
+     each phrase restarts it, and ripples once when the call starts waiting on the caller. */
+  --animate-voice-call-pulse: voice-call-pulse 240ms ease-out;
+  --animate-voice-call-pulse-alt: voice-call-pulse-alt 240ms ease-out;
+  --animate-voice-call-ripple: voice-call-ripple 600ms ease-out forwards;
   --color-warning-foreground: var(--warning-foreground);
   --color-warning: var(--warning);
   --color-warning-surface: var(--warning-surface);
@@ -328,6 +333,26 @@ html[data-mobile-composer-route-transition="true"]::view-transition-old(t3-mobil
     from,
     85.7% {
       color: var(--color-primary);
+    }
+  }
+  @keyframes voice-call-pulse {
+    50% {
+      scale: 1.15;
+    }
+  }
+  @keyframes voice-call-pulse-alt {
+    50% {
+      scale: 1.15;
+    }
+  }
+  @keyframes voice-call-ripple {
+    from {
+      opacity: 0.6;
+      scale: 1;
+    }
+    to {
+      opacity: 0;
+      scale: 2.2;
     }
   }
   @keyframes status-pulse {

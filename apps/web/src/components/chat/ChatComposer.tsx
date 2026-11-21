@@ -146,6 +146,8 @@ import { useDictationShortcut } from "../../speech/useDictationShortcut";
 import { useDictationSubmissionShortcut } from "../../speech/useDictationSubmissionShortcut";
 import { useEnvironmentSpeechInput } from "../../speech/useEnvironmentSpeechInput";
 import { ComposerSpeechButton, ComposerSpeechRecordingPill } from "./ComposerSpeechButton";
+import { LiveVoiceButton } from "./LiveVoiceButton";
+import { useMicrophoneUser } from "../../speech/microphoneOwner";
 import type { AssistantCitationSourceAnchor } from "~/lib/assistantTextSelection";
 import { shortcutLabelForCommand, type ShortcutMatchContext } from "../../keybindings";
 import {
@@ -1850,7 +1852,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   };
   const readComposerSnapshotStable = useStableCallback(readComposerSnapshot);
 
+  const voiceCallLive = useMicrophoneUser(({ user }) => user === "call");
   const dictationDisabled =
+    voiceCallLive ||
     !canOperateThread ||
     environmentUnavailable !== null ||
     projectSelectionRequired ||
@@ -1930,6 +1934,9 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
   const primaryActionEnvironmentUnavailable =
     environmentUnavailable !== null ||
     (!activePendingProgress && (noProviderAvailable || projectSelectionRequired));
+  const liveVoiceShortcutLabel = shortcutLabelForCommand(keybindings, "composer.voiceCall", {
+    context: { terminalFocus: false, terminalOpen },
+  });
   const dictationShortcutLabel = useDictationShortcut({
     keybindings,
     speech: speechInput,
@@ -3891,6 +3898,13 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
                     keepFullHistory={props.keepFullHistory}
                     onToggleKeepFullHistory={props.onToggleKeepFullHistory}
                   >
+                    {routeKind !== "draft" && activeThreadId !== null ? (
+                      <LiveVoiceButton
+                        environmentId={environmentId}
+                        threadId={activeThreadId}
+                        shortcutLabel={liveVoiceShortcutLabel}
+                      />
+                    ) : null}
                     {speechInput.available ? (
                       <>
                         <ComposerSpeechRecordingPill

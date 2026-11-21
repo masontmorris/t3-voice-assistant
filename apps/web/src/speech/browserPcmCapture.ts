@@ -7,6 +7,7 @@ import {
   type VoiceTranscriptionOptions,
 } from "@t3tools/client-runtime/voice-input";
 import * as Schema from "effect/Schema";
+import { claimMicrophone } from "./microphoneOwner";
 import { requestMicrophone } from "./requestMicrophone";
 import workletUrl from "./pcmWorklet.ts?worker&url";
 import { msg } from "gt-react";
@@ -39,6 +40,7 @@ export function createBrowserPcmCapture(
   let signal: AbortSignal | undefined;
   let stopAcceptingAudio: (() => void) | undefined;
   let feed: ((pcm: Float32Array) => void) | undefined;
+  let releaseMicrophone: (() => void) | undefined;
   let stopped:
     | { readonly resolve: () => void; readonly reject: (error: Error) => void }
     | undefined;
@@ -59,6 +61,8 @@ export function createBrowserPcmCapture(
     stopAcceptingAudio?.();
     stopAcceptingAudio = undefined;
     feed = undefined;
+    releaseMicrophone?.();
+    releaseMicrophone = undefined;
     input.onLevel(0);
   };
 
@@ -75,6 +79,9 @@ export function createBrowserPcmCapture(
       chunks = [];
       const microphoneId = await input.getMicrophoneId();
       captureSignal.throwIfAborted();
+      releaseMicrophone?.();
+      releaseMicrophone = claimMicrophone("dictation") ?? undefined;
+      if (!releaseMicrophone) throw new Error(m(msg("A voice call is using the microphone.")));
       const captured = await new Promise<MediaStream>((resolve, reject) => {
         const onAbort = () => reject(captureSignal.reason);
         const permission = requestMicrophone(microphoneId, captureSignal);
@@ -90,9 +97,15 @@ export function createBrowserPcmCapture(
             reject(error);
           },
         );
+      }).catch((error: unknown) => {
+        releaseMicrophone?.();
+        releaseMicrophone = undefined;
+        throw error;
       });
       if (captureSignal.aborted) {
         captured.getTracks().forEach((track) => track.stop());
+        releaseMicrophone?.();
+        releaseMicrophone = undefined;
         captureSignal.throwIfAborted();
       }
       stream = captured;

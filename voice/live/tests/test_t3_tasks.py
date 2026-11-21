@@ -8,6 +8,7 @@ import json
 import tempfile
 import threading
 import unittest
+from dataclasses import replace
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
@@ -2255,6 +2256,30 @@ class SpokenAbout(unittest.TestCase):
         t3.begin_call()
         self.assertIsNone(t3.spoken_about())
 
+    def test_a_call_opened_on_a_thread_starts_with_it_in_view(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))
+        seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        self.assertEqual(t3.view("t5", 1), "Add a clamp helper")
+        self.assertEqual((t3.spoken_about(), t3.recent), ("Add a clamp helper", "t5"))
+        update = t3.about("k1", ASK, "How is it doing?", 2)
+        self.assertEqual(said(update), [("thread_status", "Add a clamp helper", "working")],
+                         "a question that names no thread is about the one the call opened on, without asking back")
+        seam.answer("read", F.refusal("not_found"))
+        t3.begin_call()
+        self.assertIsNone(t3.view("t9", 3), "a thread the seam cannot read opens nothing")
+        self.assertIsNone(t3.spoken_about())
+
+    def test_the_seam_says_which_t3_environment_it_serves(self):
+        seam = F.FakeSeam()
+        seam.hello = replace(seam.hello, environment_id="env-a")
+        t3 = tasks_over(self, seam)
+        self.assertIs(t3.serves("env-a", 1), True)
+        self.assertIs(t3.serves("env-b", 1), False)
+        quiet = F.FakeSeam()
+        self.assertIs(tasks_over(self, quiet).serves("env-a", 1), False, "a seam that does not say serves no one")
+
     def test_a_status_asked_again_with_nothing_new_says_so(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
         seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
@@ -2278,6 +2303,121 @@ class SpokenAbout(unittest.TestCase):
         self.assertIsNone(ask(3), "the thread reported something since")
         t3.begin_call()
         self.assertIsNone(ask(4), "a new call has heard nothing yet")
+
+
+class CallThreadFollow(unittest.TestCase):
+    """A call opened on a thread follows it for the call, as a thread the voice started or sent to is followed."""
+
+    def setUp(self):
+        self.seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
+        self.t3 = tasks_over(self, self.seam)
+        self.t3.begin_call()
+
+    def news(self, *items, now=2):
+        self.seam.push(*items)
+        self.t3.poll(now)
+        return [(a.kind, a.slots.get("thread")) for update in self.t3.take() for a in update.acts]
+
+    def test_news_after_the_call_begins_is_spoken_and_earlier_news_is_not(self):
+        self.t3.view("t5", 1)
+        self.assertIn(("watch", "t5", 140, None), self.seam.calls, "watched from the read at call start")
+        self.assertEqual(self.news(F.reply(130, message="old", thread="t5")), [], "said before the call began")
+        self.assertEqual(self.news(F.reply(141, thread="t5"), F.done(142, thread="t5")),
+                         [(S.REPLIED, "Add a clamp helper"), (S.DONE, "Add a clamp helper")])
+        self.assertEqual(self.news(F.run_event(150, thread="t5", run="r2"), F.reply(151, message="m2", thread="t5")),
+                         [(S.RUN_UPDATE, "Add a clamp helper"), (S.REPLIED, "Add a clamp helper")],
+                         "the follow outlives a run, since the thread can run again during the call")
+
+    def test_a_message_sent_to_it_takes_the_watch_and_nothing_is_said_twice(self):
+        self.t3.view("t5", 1)
+        follow = self.t3.follow
+        tell = follow.journal.begin(Kind.TELL, "Add tests too.", "p1", "Voice sandbox", thread_id="t5",
+                                    title="Add a clamp helper")
+        self.seam.answer("send", F.sent(thread="t5", run="r2", sequence=145))
+        follow.send(tell, 2)
+        self.assertEqual(follow.watching["t5"], tell.task_id)
+        self.t3.take()
+        self.seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=147)
+        said = self.news(F.reply(146, message="m2", thread="t5"), F.done(147, thread="t5", run="r2"))
+        self.assertEqual(said, [(S.REPLIED, "Add a clamp helper"), (S.DONE, "Add a clamp helper")], "once each")
+        self.assertEqual(follow.watching["t5"], self.t3.following.task_id, "the follow takes the watch back")
+        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 147, None), "from where the tell's watch stopped")
+
+    def test_the_follow_ends_with_the_call_and_drops_what_it_had_not_said(self):
+        self.t3.view("t5", 1)
+        self.seam.push(F.reply(141, thread="t5"))
+        self.t3.poll(2)
+        self.t3.end_call()
+        self.assertIn(("unwatch", "t5"), self.seam.calls)
+        self.assertEqual(self.t3.take(), [], "a line the call never heard is not said on the next call")
+        self.assertEqual(self.news(F.reply(160, message="m3", thread="t5")), [])
+        self.assertEqual(self.t3.following, None)
+
+    def test_a_call_with_no_thread_follows_nothing(self):
+        self.t3.poll(2)
+        self.assertFalse([c for c in self.seam.calls if c[0] == "watch"])
+        self.assertFalse([t for t in self.t3.follow.journal.tasks.values() if t.kind is Kind.FOLLOW])
+
+    def test_a_follow_left_by_a_stopped_server_is_not_resumed(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        path = Path(tmp.name) / "journal.json"
+        first = tasks_over(self, self.seam, path=path)
+        first.begin_call()
+        first.view("t5", 1)
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
+        restarted = tasks_over(self, seam, path=path)
+        restarted.resume(5)
+        self.assertFalse([c for c in seam.calls if c[0] == "watch"], "no call is open to hear its news")
+        self.assertFalse([t for t in restarted.follow.journal.live() if t.kind is Kind.FOLLOW])
+
+    def test_news_after_the_handed_off_task_finishes_is_not_lost_in_the_hand_back(self):
+        self.t3.view("t5", 1)
+        follow = self.t3.follow
+        tell = follow.journal.begin(Kind.TELL, "Add tests too.", "p1", "Voice sandbox", thread_id="t5",
+                                    title="Add a clamp helper")
+        self.seam.answer("send", F.sent(thread="t5", run="r2", sequence=145))
+        follow.send(tell, 2)
+        self.t3.take()
+        # The read when the follow takes the watch back already covers the reply after the finish.
+        self.seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=149)
+        said = self.news(F.done(147, thread="t5", run="r2"), F.reply(148, message="m3", thread="t5"))
+        self.assertEqual(said, [(S.DONE, "Add a clamp helper"), (S.REPLIED, "Add a clamp helper")])
+        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 147, None), "resumed where the handed-off watch stopped")
+
+    def test_a_finish_is_said_once_even_when_the_seam_reconnects_right_after_it(self):
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        t3 = T3Tasks(L.Follow(T3Journal(Path(tmp.name) / "journal.json"), F.Connector(self.seam, self.seam)), None,
+                     F.Reader(READINGS))
+        t3.begin_call()
+        t3.view("t5", 1)
+        self.seam.push(F.done(142, thread="t5"), T.CLOSE_1013)
+        t3.poll(2)
+        self.assertEqual([a.kind for u in t3.take() for a in u.acts], [S.DONE])
+        self.assertEqual(self.seam.calls[-1], ("watch", "t5", 142, None), "the reconnect watches past the finish")
+        self.seam.push(F.done(142, thread="t5"))
+        t3.poll(3)
+        self.assertEqual(t3.take(), [], "a replayed finish is not said again")
+
+    def test_the_calls_own_thread_is_always_among_the_waiting_requests_the_decider_sees(self):
+        waiting = T.ThreadActivity.WAITING_ON_YOU
+        rows = [("t1", "Fix the login page"), ("t2", "Bump the parser"), ("t3", "Tidy the docs"),
+                ("t5", "Add a clamp helper")]
+        self.seam.listing = T.ThreadList(tuple(T.ThreadSummary(tid, "p1", title, waiting, "2026-11-17T10:00:00Z", False)
+                                               for tid, title in rows), 4, False, 77)
+        reads = {tid: F.state(thread=tid, title=title, activity=waiting, pending=F.need(f"q-{tid}"))
+                 for tid, title in rows}
+        self.seam.read = None
+        self.seam.read_thread = lambda tid: reads[tid]
+        self.t3.view("t5", 1)
+        offered = [request["thread"] for request in self.t3.pending_requests()]
+        self.assertIn("Add a clamp helper", offered)
+        self.assertEqual(len(offered), 3, "still at most three")
+        reads["t5"] = F.state(thread="t5", title="Add a clamp helper", activity=waiting)
+        self.assertEqual([request["thread"] for request in self.t3.pending_requests()],
+                         ["Fix the login page", "Bump the parser", "Tidy the docs"],
+                         "a call's thread that waits on nothing leaves the three places to the others")
 
 
 class LaunchedThreads(unittest.TestCase):
@@ -2345,6 +2485,41 @@ class LaunchedThreads(unittest.TestCase):
         pantry = launch_title(self.PANTRY)
         t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", "Sort the pantry list")])
         self.assertEqual(self.slots(t3, "t7", pantry), {"thread": "Sort the pantry list", "need": "command_approval"})
+
+    def test_the_thread_a_call_was_opened_on_is_this_thread_and_its_news_is_named_and_described_by_the_same_rules(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        gate = FakeGate()
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                       [("t7", pantry), ("t8", lantern)], gate)
+        seam = t3.follow.seam
+        seam.read = F.state(thread="t7", title=pantry, as_of=1)
+        t3.begin_call()
+        t3.view("t7", 1)
+        self.assertEqual(self.slots(t3, "t7", pantry), {"on_call": True, "need": "command_approval"},
+                         "this thread names it alone, though another launch in the project is as unnamed")
+        self.assertEqual(self.slots(t3, "t8", lantern)["begun_for"], "tidying the lantern config files")
+        seam.read = F.state(thread="t7", title=pantry, as_of=3, pending=F.need("q1", "rm -rf build && pnpm test"))
+        seam.push(F.needs_you(3, thread="t7", prompt="rm -rf build && pnpm test"))
+        t3.poll(4)
+        news = t3.take()
+        for update in news:
+            t3.say(update)
+        needs = [a for update in news for a in update.acts if a.kind is S.NEEDS_YOU]
+        self.assertTrue(needs, "the follow spoke the need")
+        for need in needs:
+            self.assertTrue(need.slots.get("on_call"), need.slots)
+            self.assertFalse({"thread", "begun_in", "begun_for"} & set(need.slots), need.slots)
+            self.assertNotIn("rm -rf", json.dumps(need.slots), "the stored command is never said")
+            if "request" in need.slots:
+                self.assertIn(need.slots["request"], [d for _, d in gate.asked], "only a description the gate passed")
+        t3.spoke(L.Update("k2", (act(S.NEEDS_YOU, thread=lantern, need="command_approval"),), "completed",
+                          thread_id="t8"))
+        self.assertEqual(t3.spoken_id, "t8")
+        t3.spoke(news[-1])
+        self.assertEqual((t3.spoken_id, t3.recent), ("t7", "t7"), "said as this thread, it is \"it\" again")
+        t3.end_call()
+        self.assertEqual(self.slots(t3, "t7", pantry)["begun_for"], "sorting the pantry list",
+                         "after the call the launch is named by what it was started for again")
 
     def test_a_which_thread_question_offers_launched_threads_by_what_they_were_started_for(self):
         pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
