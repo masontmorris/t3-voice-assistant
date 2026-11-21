@@ -5,9 +5,10 @@
 Each case in voice/t3/eval/line_cases.py is worded the way a turn words it: up to MAX_DRAFTS drafts, the second
 carrying what the first was refused for, each checked by the slot check and by Liquid's d1.2. The report counts, per
 group, the cases whose first draft passed both checks and the cases where some draft within the turn's drafts did.
+The JSON also records checks of fixed command descriptions under `need_checks`.
 
-`local` is LFM3-1.7B on its own llama-server, `realtime` the LFM3-Audio text-only session the live call words its
-lines with, `hosted` the cloud text model named by VOICE_PAID_TEXT_MODEL, and `realtime+local` the live writer with
+`local` is LFM3-1.7B on its own llama-server, `realtime` the LFM3-Audio text-only session the gate words its
+lines with, `hosted` the cloud text model named by VOICE_PAID_TEXT_MODEL, and `realtime+local` the realtime writer with
 the local model behind it. The Liquid ledger and cache for the run stay under --out. Nothing from a call is read.
 """
 
@@ -24,7 +25,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from voice.prototype.run import MAX_DRAFTS
-from voice.t3.eval.line_cases import cases, turns_for
+from voice.t3.eval.line_cases import cases, need_lines, turns_for
 from voice.t3.speech import Lane, LocalText, Speech
 from voice.t3.verify import Decider
 
@@ -80,6 +81,16 @@ def report(rows: list[dict]) -> dict:
             for key, (n, first, any_) in by.items()}
 
 
+def check_need_lines(speech: Speech) -> list[dict]:
+    rows = []
+    for shape, said, line in need_lines():
+        checked = speech.accept((said,), line, "eval")
+        rows.append({"shape": shape, "act": said.to_json(), "line": line, "passed": checked.line is not None,
+                     "problems": checked.problems, "error": checked.error,
+                     "invents": checked.verdict.answers.get("invents") if checked.verdict else None})
+    return rows
+
+
 async def main_async(args) -> int:
     from voice.local_decider.client import LlamaServer
     from voice.live.t3_tasks import LOCAL_TEXT_FLAGS, LOCAL_TEXT_MODEL
@@ -105,6 +116,8 @@ async def main_async(args) -> int:
         speech = Speech(lane, lambda thread_id: None, check, Lane(writer) if writer else None)
         rows = await asyncio.to_thread(run_cases, speech, args.repeats, args.groups)
     result = {"writer": args.writer, "report": report(rows), "rows": rows}
+    if not args.groups or "needs_with_command" in args.groups:
+        result["need_checks"] = await asyncio.to_thread(check_need_lines, speech)
     (args.out / f"lines-{args.writer}.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
     print(json.dumps({"writer": args.writer, **result["report"]}, indent=1))
     return 0

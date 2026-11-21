@@ -660,7 +660,7 @@ KNOWN: dict[tuple[str, str], str] = {
     ("withdrawn-question", "no free reply offers the old choices"):
         "after the fix in #90, 1 of 3 baseline runs still offered the old choices in a free reply",
     ("news-permission", "permission news was not lost to a refused line"):
-        "the needs-you line is refused by its checks in some runs (1 of 3 in the baseline) and nothing is said",
+        "permission news failed its checks in 2 of 3 baseline runs; all 3 calls reached a fallback",
     ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
 
 

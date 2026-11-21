@@ -73,10 +73,11 @@ class ToolCall:
 @dataclass(frozen=True)
 class ToolChoice:
     """The decider's tool answer for one segment: a registry name or `none`, the margin it answered at, and the
-    arguments it read (`place`, `when`), when the request asked it to read them."""
+    arguments it read. When dispatch falls back to a lookup, `fallback_from` keeps the decider's original pick."""
     tool: str
     confidence: float
     arguments: dict | None = None
+    fallback_from: str | None = None
 
 
 @dataclass(frozen=True)

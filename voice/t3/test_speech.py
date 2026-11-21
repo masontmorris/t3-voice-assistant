@@ -21,7 +21,8 @@ from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Decider
 from voice.t3.speech import (LINE_SCHEMA, READER_VARIANTS, RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane,
-                              LocalText, RequestGate, Speech, local_messages, read_line, reader_messages, render_messages, text_model)
+                              LocalText, RequestGate, Speech, local_messages, read_line, reader_messages, render_messages,
+                              text_model)
 
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
