@@ -246,7 +246,7 @@ HELD_OUT_SHAPES = [
     Scened(act(Kind.CONFIRM_THREAD, thread=clipped(KITE)),
            Scene("t7", (Launch("t7", KITE, PROJECT),), {"t7": "Fix the kite log viewer"})),
 ]
-APP_THREAD_REFERENCES.update({clipped(FERRY): "ferry timetable"})
+APP_THREAD_REFERENCES.update({clipped(FERRY): "ferry timetable", clipped(TIDE): "tide chart"})
 # The thread a call from the app was opened on, one of two launched threads in a project that T3 has not yet named:
 # the line calls it this thread. Written with the change that makes it so, and scored once.
 _on_call = Scene("t7", **_two, on_call=True)
