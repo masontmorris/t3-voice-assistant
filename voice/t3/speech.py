@@ -52,6 +52,8 @@ NEED_WORDS = ("`need` is what it waits for: command_approval (approve a command 
 BEGUN = (" When `begun_in` is given, the thread has no name yet: it is the one you started for them in that project, "
          "so say that in place of a thread name. The project is not the thread's name. When `begun_for` is given, more "
          "than one thread was started in that project, so also say what this one was started for, from it.")
+ON_CALL = (" When `on_call` is given, the thread has no name yet but it is the one this call was opened on: call it this "
+           "thread, and give no name or project for it.")
 # What each act means, for the model that words it. These are directions, never wording to repeat.
 MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread in this project. Nothing has started yet. Do not "
@@ -488,11 +490,12 @@ def reference(thread_id: str, launched: Iterable[Launch], titles: Mapping[str, s
     return Reference(title, me.instruction, me.project, unnamed, shared)
 
 
-def named(acts: Iterable[Act], ref: Reference | None, account: str | None) -> tuple[Act, ...]:
+def named(acts: Iterable[Act], ref: Reference | None, account: str | None, on_call: bool = False) -> tuple[Act, ...]:
     """`acts` about the thread `ref` names, with its title as T3 holds it now. One still titled with the launch title
     is carried by its project (`begun_in`) and, when another launched thread in the project is as unnamed, by what it
     was started for (`begun_for`, a gated account). With no gated account to tell them apart the title stays: it is
-    unsayable but it does not name another thread."""
+    unsayable but it does not name another thread. The thread the call was opened on (`on_call`) is this thread,
+    which names it alone, so it takes neither."""
     acts = tuple(acts)
     if ref is None:
         return acts
@@ -503,7 +506,9 @@ def named(acts: Iterable[Act], ref: Reference | None, account: str | None) -> tu
             out.append(a)
             continue
         slots = {k: v for k, v in a.slots.items() if k != "thread"}
-        if not ref.unnamed or (ref.shared and not account):
+        if ref.unnamed and on_call:
+            out.append(Act(a.kind, {**slots, "on_call": True}))
+        elif not ref.unnamed or (ref.shared and not account):
             out.append(Act(a.kind, {**slots, "thread": ref.title}))
         else:
             out.append(Act(a.kind, {**slots, "begun_in": ref.project, **({"begun_for": account} if ref.shared else {})}))
@@ -552,7 +557,7 @@ def act_facts(a: Act) -> dict:
 
 def wording_direction(a: Act) -> str:
     direction = _direction(a)
-    return direction + BEGUN if a.slots.get("begun_in") else direction
+    return direction + BEGUN if a.slots.get("begun_in") else direction + ON_CALL if a.slots.get("on_call") else direction
 
 
 def _direction(a: Act) -> str:
@@ -1022,6 +1027,17 @@ READER_VARIANTS = {
                                     "The thread you started in Example Fleet Notes is waiting for your approval to run "
                                     "a command."),
     (Kind.NO_THREAD, "other"): ({"other": True}, "I couldn't find any other thread that matches, besides the one you turned down."),
+    (Kind.NEEDS_YOU, "on_call"): ({"on_call": True, "need": "command_approval"},
+                                  "This thread needs your approval to run a command."),
+    (Kind.THREAD_STATUS, "on_call"): ({"on_call": True, "status": "waiting_on_you", "need": "command_approval"},
+                                      "This thread is waiting for your approval to run a command."),
+    (Kind.DONE, "on_call"): ({"on_call": True, "status": "completed", "summary": "It reports that 22 tests passed."},
+                             "This thread finished and reports that 22 tests passed."),
+    (Kind.REPLIED, "on_call"): ({"on_call": True, "status": "running", "reply": "I found 12 duplicates."},
+                                "This thread reports that it found 12 duplicates."),
+    (Kind.NEEDS_THE_APP, "on_call"): ({"on_call": True, "decision": "approve"},
+                                      "I can't describe the request this thread is waiting on. It needs approval in the "
+                                      "app."),
     (Kind.CONFIRM_THREAD, "begun"): ({"begun_in": "Example Fleet Notes"},
                                      "Do you mean the thread you started in Example Fleet Notes?"),
     (Kind.NEEDS_THE_APP, "begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve"},
@@ -1086,6 +1102,8 @@ def _shape(kind: Kind, slots: dict) -> str | None:
         return "begun_for"
     if slots.get("begun_in") and (kind, "begun") in READER_VARIANTS:
         return "begun"
+    if slots.get("on_call") and (kind, "on_call") in READER_VARIANTS:
+        return "on_call"
     if kind is Kind.NEEDS_YOU and slots.get("request"):
         return "request"
     if kind is Kind.NO_THREAD and slots.get("other"):

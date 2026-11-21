@@ -198,9 +198,10 @@ RULES: dict[Kind, Rule] = {
 # A thread this voice started whose title T3 has not replaced is titled with the person's own words, cut off, which is
 # no name to say. Such an act carries `begun_in`, the project it was started in, and no `thread`. When another thread
 # the voice started in that project is just as unnamed, it also carries `begun_for`, what this one was started for.
+# When it is the thread the call was opened on, it carries `on_call` instead, and the line calls it this thread.
 for _kind, _rule in list(RULES.items()):
     if "thread" in _rule.slots:
-        RULES[_kind] = replace(_rule, slots=(*_rule.slots, "begun_in", "begun_for"),
+        RULES[_kind] = replace(_rule, slots=(*_rule.slots, "begun_in", "begun_for", "on_call"),
                                named=(*_rule.named, "begun_in") if "thread" in _rule.named else _rule.named)
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
 # A status asked again on a call with nothing new in T3's record since the last one was said: the line says so rather

@@ -2486,6 +2486,36 @@ class LaunchedThreads(unittest.TestCase):
         t3 = self.over([("t7", self.PANTRY, "Voice sandbox")], [("t7", "Sort the pantry list")])
         self.assertEqual(self.slots(t3, "t7", pantry), {"thread": "Sort the pantry list", "need": "command_approval"})
 
+    def test_the_thread_a_call_was_opened_on_is_this_thread_and_its_news_is_named_and_described_by_the_same_rules(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        gate = FakeGate()
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                       [("t7", pantry), ("t8", lantern)], gate)
+        seam = t3.follow.seam
+        seam.read = F.state(thread="t7", title=pantry, as_of=1)
+        t3.begin_call()
+        t3.view("t7", 1)
+        self.assertEqual(self.slots(t3, "t7", pantry), {"on_call": True, "need": "command_approval"},
+                         "this thread names it alone, though another launch in the project is as unnamed")
+        self.assertEqual(self.slots(t3, "t8", lantern)["begun_for"], "tidying the lantern config files")
+        seam.read = F.state(thread="t7", title=pantry, as_of=3, pending=F.need("q1", "rm -rf build && pnpm test"))
+        seam.push(F.needs_you(3, thread="t7", prompt="rm -rf build && pnpm test"))
+        t3.poll(4)
+        news = t3.take()
+        for update in news:
+            t3.say(update)
+        needs = [a for update in news for a in update.acts if a.kind is S.NEEDS_YOU]
+        self.assertTrue(needs, "the follow spoke the need")
+        for need in needs:
+            self.assertTrue(need.slots.get("on_call"), need.slots)
+            self.assertFalse({"thread", "begun_in", "begun_for"} & set(need.slots), need.slots)
+            self.assertNotIn("rm -rf", json.dumps(need.slots), "the stored command is never said")
+            if "request" in need.slots:
+                self.assertIn(need.slots["request"], [d for _, d in gate.asked], "only a description the gate passed")
+        t3.end_call()
+        self.assertEqual(self.slots(t3, "t7", pantry)["begun_for"], "sorting the pantry list",
+                         "after the call the launch is named by what it was started for again")
+
     def test_a_which_thread_question_offers_launched_threads_by_what_they_were_started_for(self):
         pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
         rows = [("t7", pantry), ("t8", lantern)]

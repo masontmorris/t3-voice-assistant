@@ -172,7 +172,10 @@ class _Blank(dict):
 
 
 def begun_phrase(slots: dict) -> str | None:
-    """How the checker's questions name a thread that has no title: by its project, and by what it was started for."""
+    """How the checker's questions name a thread that has no title: as the call's own, or by its project and what it
+    was started for."""
+    if slots.get("on_call"):
+        return "this thread, the one the call was opened on"
     if not slots.get("begun_in"):
         return None
     return f"the thread started for them in {slots['begun_in']}" + (
@@ -271,7 +274,8 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots),
-                   next((begun_phrase(a.slots) for a in acts if "begun_in" in a.slots), "the thread"))
+                   next((begun_phrase(a.slots) for a in acts if "begun_in" in a.slots or "on_call" in a.slots),
+                        "the thread"))
     for claim, wording in asked_claims(acts).items():
         out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(wording, {'thread': subject})}?", False,
                        bar=CLAIM_BARS.get(claim, YES)))

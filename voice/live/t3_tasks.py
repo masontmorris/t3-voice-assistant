@@ -1244,8 +1244,10 @@ class T3Tasks:
         if me is None or listing is None:
             return acts
         ref = reference(me.thread_id, launched, {t.thread_id: t.title for t in listing.threads})
-        account = self.speech.account(me) if ref is not None and ref.unnamed and ref.shared else None
-        return named(acts, ref, account)
+        with self.lock:
+            on_call = self.following is not None and self.following.link.thread_id == update.thread_id
+        account = self.speech.account(me) if ref is not None and ref.unnamed and ref.shared and not on_call else None
+        return named(acts, ref, account, on_call)
 
     def _offered(self, update: L.Update, acts: tuple[Act, ...], listing: T.ThreadList | None) -> tuple[Act, ...]:
         """A which-thread question offers each launched thread that T3 has not yet named by what it was started for,
