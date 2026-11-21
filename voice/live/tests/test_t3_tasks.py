@@ -18,6 +18,7 @@ from voice.live.t3_tasks import (ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, STAR
                                  T3Tasks, Question, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
+from voice.live.transcript import CallTranscript
 from voice.t3 import fakes as F
 from voice.t3 import lifecycle as L
 from voice.t3 import local_summary as LS
@@ -2528,6 +2529,38 @@ class LaunchedThreads(unittest.TestCase):
         t3.end_call()
         self.assertEqual(self.slots(t3, "t7", pantry)["begun_for"], "sorting the pantry list",
                          "after the call the launch is named by what it was started for again")
+
+    def test_a_call_transcript_holds_each_line_as_said_with_its_evidence_and_never_a_stored_command(self):
+        pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
+        t3 = self.over([("t7", self.PANTRY, "Voice sandbox"), ("t8", self.LANTERN, "Voice sandbox")],
+                       [("t7", pantry), ("t8", lantern)], FakeGate())
+        seam = t3.follow.seam
+        seam.read = F.state(thread="t7", title=pantry, as_of=1)
+        t3.begin_call()
+        t3.view("t7", 1)
+        transcript = CallTranscript()
+        t3.on_spoken = lambda update: transcript.spoken(tuple(a.kind.value for a in update.acts),
+                                                        tuple(update.sequences))
+        command = "rm -rf build && pnpm test"
+        seam.read = F.state(thread="t7", title=pantry, as_of=3, pending=F.need("q1", command))
+        seam.push(F.needs_you(3, thread="t7", prompt=command))
+        t3.poll(4)
+        other = L.Update("k2", (act(S.NEEDS_YOU, thread=lantern, need="command_approval"),), "completed",
+                         thread_id="t8", sequences=(9,))
+        said = []
+        for turn, update in enumerate([*t3.take(), other], 1):
+            text = t3.say(update).text
+            said.append((update, text))
+            transcript.said(update, turn, text, relay=True, acts=tuple(a.kind.value for a in update.acts))
+            t3.spoke(update)
+        lines = transcript.wire()
+        self.assertEqual([line["text"] for line in lines], [text.strip() for _, text in said],
+                         "each line as it was said, the call's thread and the other launch alike")
+        news = next(line for line in lines if line.get("act") == "needs_you")
+        self.assertIn(3, news["sequences"], "the need's event is its evidence")
+        self.assertIn("begun_for", said[-1][0].acts[0].slots, "the other launch, named by what it was started for")
+        self.assertEqual(lines[-1]["sequences"][:1], [9])
+        self.assertNotIn("rm -rf", json.dumps(lines))
 
     def test_a_which_thread_question_offers_launched_threads_by_what_they_were_started_for(self):
         pantry, lantern = launch_title(self.PANTRY), launch_title(self.LANTERN)
