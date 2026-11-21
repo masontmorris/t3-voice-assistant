@@ -42,6 +42,7 @@ import * as ServerSettings from "../serverSettings.ts";
 import * as TerminalManager from "../terminal/Manager.ts";
 import * as TextGeneration from "../textGeneration/TextGeneration.ts";
 import { ThreadWorktreeRestore } from "../workspace/restoreMissingWorktree.ts";
+import { layerNoTaskFolders } from "../orchestration-v2/ProviderTurnStartService.testkit.ts";
 import { VOICE_OPERATIONS, type VoiceSeamConfig } from "./ceiling.ts";
 import { voiceCommandId } from "./launch.ts";
 import { testEnvironment } from "./testLayer.ts";
@@ -198,6 +199,7 @@ const layerProjects = Layer.mock(ProjectService.ProjectService)({
   getById: (id) => Effect.succeed(Option.fromNullishOr(PROJECTS.get(id))),
 });
 const layerExternal = Layer.mergeAll(
+  layerNoTaskFolders,
   WorktreeSetupTracker.layer,
   Layer.mock(ProjectCloneTracker.ProjectCloneTracker)({ get: () => Effect.succeed(null) }),
   Layer.mock(TerminalManager.TerminalManager)({ close: () => Effect.void }),

@@ -1360,6 +1360,28 @@
                         "type": "null"
                       }
                     ]
+                  },
+                  "repositories": {
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "path": {
+                              "type": "string"
+                            }
+                          },
+                          "required": ["path"],
+                          "additionalProperties": true
+                        },
+                        "maxItems": 128,
+                        "description": "Tracked Git folders to give a worktree. Default: all, or none above 8."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   }
                 },
                 "required": ["type", "baseRef"],
