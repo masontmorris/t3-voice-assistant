@@ -23,21 +23,21 @@ Run the whole-call gate before merging any change to `voice/live`, `voice/protot
 the decider key, so CI cannot run it. Run it under the lease:
 
 ```
-python C:/Users/mason/.gpu/gpu_lease.py run --holder <name> --purpose "whole-call gate" --max-minutes 30 -- \
-  python -m voice.live.scenarios gate
+python gpu_lease.py run --holder <name> --purpose "whole-call gate" --max-minutes 30 -- python -m voice.live.scenarios gate
 ```
 
-It starts a sandbox T3 of its own (a copy of a template home, so no thread outlives a run), starts the live server on it,
+It starts a sandbox T3 of its own (a copy of a template home, so no thread outlives a run) and the live server on it,
 and holds one synthetic call per scenario. Each scenario is a caller who picks its next line from what the assistant did,
 and states what must be true afterwards. It is scored from the turns' records and the T3's state, and a model answers a
-stated question only about a free reply. It prints one row per scenario and exits non-zero when one fails. `--long` adds
-the long set, `--only ID` runs one, and `--spread N` runs every scenario N times to measure its spread.
-`python -m voice.live.scenarios list` shows the scenarios, their pass rules and what each covers.
+stated question only about a free reply. It prints one row per scenario and exits non-zero when one fails. The default
+set takes 9 to 13 minutes and about 100 hosted decider calls (under a cent); a scenario whose first run fails gets
+a second. `--long` adds three more scenarios (about 8 minutes more), `--only ID` runs some, and `--spread N` runs every
+scenario N times to measure its spread. `python -m voice.live.scenarios list` shows each scenario and its pass rule.
 
 A check that reproduces a fault nobody has fixed is listed in `KNOWN` in `voice/live/scenarios.py` with the fault. Its
-failure is XFAIL and does not turn the gate red. When the fix lands the row says XPASS: delete the mark. Do not add a
-mark without saying what the fault is. How long it takes, what it spends, and which scenarios pass today are in the PR
-that added it; what it cannot catch is in the docstring of `voice/live/scenarios.py`.
+failure is XFAIL and does not turn the gate red. XPASS means every marked check passed in the runs it made: confirm
+with `--spread 3`, then delete the mark. Do not add a mark without saying what the fault is. What the gate cannot catch is
+in the docstring of `voice/live/scenarios.py`.
 
 ## Development defaults
 

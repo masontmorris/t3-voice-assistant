@@ -77,6 +77,12 @@ class Approval(unittest.TestCase):
         resolved = S.claims_approval(call(turns, self.world(None), Yes(0.9)), "x", tuple(turns))
         self.assertEqual((failed(pending), failed(resolved)), (["no approval claimed while T3 still holds it"], []))
 
+    def test_a_response_said_done_while_T3_still_holds_the_request_fails(self):
+        turns = [turn(0, [Kind.RESPONDED])]
+        found = S.claims_approval(call(turns, self.world("approval")), "x", tuple(turns))
+        self.assertEqual(failed(found), ["a response said done is done in T3"])
+        self.assertEqual(failed(S.claims_approval(call(turns, self.world(None)), "x", tuple(turns))), [])
+
     def test_no_claim_passes_while_pending(self):
         turns = [turn(0, free=("I can't approve that.",))]
         self.assertEqual(failed(S.claims_approval(call(turns, self.world("approval"), Yes(0.1)), "x", tuple(turns))), [])
@@ -113,14 +119,15 @@ class Silence(unittest.TestCase):
         self.assertTrue(S.no_silent_turn(call([turn(0, [Kind.CONFIRM_TELL], delivery="unsent")])).ok is False)
         self.assertTrue(S.no_silent_turn(call([turn(0, [Kind.CONFIRM_TELL], delivery="unsent", free=("Hm.",))])).ok)
         self.assertTrue(S.no_silent_turn(call([turn(0, [Kind.THREAD_STATUS])])).ok)
+        self.assertTrue(S.no_silent_turn(call([turn(0, [Kind.CANCELLED], delivery="unsent", cancelled="continued")])).ok)
 
 
 class ShortYes(unittest.TestCase):
-    def test_all_three_yeses_must_start_a_thread_and_say_so(self):
+    def test_both_yeses_must_start_a_thread_and_say_so(self):
         plan = S.short_yes(S.Pool())
-        plan.notes.update(asked=[True] * 3, answered=[True] * 3)
-        turns = [turn(i, [Kind.LAUNCHED]) for i in range(3)]
-        made = {f"t{i}": {} for i in range(3)}
+        plan.notes.update(asked=[True] * 2, answered=[True] * 2)
+        turns = [turn(i, [Kind.LAUNCHED]) for i in range(2)]
+        made = {f"t{i}": {} for i in range(2)}
         self.assertEqual(failed(plan.check(call(turns, {"seeded": {}, "made": made}))), [])
         self.assertEqual(len(failed(plan.check(call(turns, {"seeded": {}, "made": {"t0": {}}})))), 2)
 
@@ -161,6 +168,15 @@ class LongSet(unittest.TestCase):
         self.assertEqual(failed(plan.check(call([turn(0)], world))), ["the assistant said it finished, unprompted"])
         twice = [*said, turn(2, [Kind.DONE], idle=True)]
         self.assertEqual(failed(plan.check(call(twice, world))), ["it said the run ended once"])
+
+
+class FalseStart(unittest.TestCase):
+    def test_a_free_claim_of_a_start_fails_only_when_no_thread_was_made(self):
+        turns = [turn(0, free=("I will start a new coding thread.",))]
+        none = {"seeded": {}, "made": {}}
+        self.assertFalse(S.no_false_start(call(turns, none, Yes(0.9))).ok)
+        self.assertTrue(S.no_false_start(call(turns, none, Yes(0.1))).ok)
+        self.assertTrue(S.no_false_start(call(turns, {"seeded": {}, "made": {"t": {}}}, Yes(0.9))).ok)
 
 
 class Pooling(unittest.TestCase):

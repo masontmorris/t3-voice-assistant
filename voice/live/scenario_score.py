@@ -107,9 +107,9 @@ class Judge:
         self.asked.append({"question": question, "p_yes": answer})
         return answer
 
-    def yes(self, question: str, text: str, context: str) -> bool | None:
+    def yes(self, question: str, text: str, context: str, at: float = JUDGE_YES) -> bool | None:
         answer = self.p_yes(question, text, context)
-        return None if answer is None else answer >= JUDGE_YES
+        return None if answer is None else answer >= at
 
 
 @dataclass

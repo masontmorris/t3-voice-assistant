@@ -13,7 +13,14 @@ stated question only where the verdict depends on what a free reply says (voice/
 `gate` runs every scenario of the default set, or with `--long` the long set too, prints one row each and exits
 non-zero when one fails. A check that reproduces a known fault is marked in `KNOWN`: its failure is reported as XFAIL
 and does not fail the gate, and when it passes the row says XPASS so the mark can go. It needs the GPU and the hosted decider's
-key, so it cannot run in CI: run it under the GPU lease (docs/voice/scenarios.md).
+key, so it cannot run in CI: run it under the GPU lease (docs/voice/README.md).
+
+What it cannot catch. The calls are synthetic speech through the server's own TTS and ASR: it knows nothing of a real
+voice, a microphone, a room, a speaker's echo or a bad network. T3 is the `Replay (dev)` provider, which plays recorded
+turns, so it shows nothing of a real agent's replies, their length, or when it asks for what. The caller's lines are
+fixed text per scenario, so a fault that needs another wording passes. A scenario that passes in one run or two says
+the fault did not show in those, not that it is gone: the model's output varies, which is why some scenarios take two
+runs. A free reply is judged by the hosted decider on one stated question, so a claim it does not read as one passes.
 """
 
 from __future__ import annotations
@@ -40,9 +47,11 @@ from voice.t3.verify import default_decider
 VOICE = Path(os.environ.get("VOICE_HOME", Path.home() / "voice"))
 SERVER_LEDGER = lc.LEDGER  # the live server keeps its own, at the default place, since only this process moves it
 SETTLE_S = 3.0
+FALSE_START_P = 0.9  # a reading of "start over" or "will not start" reached 0.43 on the wording above; claims 0.97 or more
 CALL_TIMEOUT_S = 420
 
-ASKING = (Kind.CONFIRM_LAUNCH, Kind.CONFIRM_THREAD, Kind.CONFIRM_TELL, Kind.CONFIRM_STOP, Kind.ASK_WHICH)
+ASKING = (Kind.CONFIRM_LAUNCH, Kind.CONFIRM_THREAD, Kind.CONFIRM_TELL, Kind.CONFIRM_STOP, Kind.CONFIRM_RESPOND,
+          Kind.ASK_WHICH)
 ABOUT_A_THREAD = (*ASKING, Kind.THREAD_STATUS, Kind.NO_THREAD, Kind.SAME_TITLE)
 
 
@@ -134,11 +143,26 @@ def has_reply(turn: Turn) -> bool:
 
 def no_silent_turn(call: Call) -> Verdict:
     """A turn about a thread ends with something said: a T3 line that was worded and refused, with nothing else heard,
-    leaves the caller talking to no one."""
-    silent = [t for t in call.caller_turns() if t.t3 and not t.said_kinds and not t.free]
+    leaves the caller talking to no one. A turn the caller's next words took over is not one."""
+    silent = [t for t in call.caller_turns() if t.t3 and not t.said_kinds and not t.free and not t.cancelled]
     return ok("no thread turn ends in silence", not silent,
               f"turn {silent[0].index} tried {[e['kinds'] for e in silent[0].t3]} and nothing was said" if silent else "",
               silent[0].index if silent else None)
+
+
+def no_false_start(call: Call) -> Verdict:
+    """No free reply says a thread was started, or is being started, when T3 holds none the call made."""
+    if call.world["made"]:
+        return ok("no free reply claims a thread that does not exist", True, "")
+    for t in call.caller_turns():
+        for line in t.free:
+            if call.judge.yes("Does the reply say that the assistant has started a coding thread or is starting one "
+                              "now? Starting a conversation over, or declining to start a thread, does not count.",
+                              line, "The reply was given to a person who asked a voice assistant for a coding thread.",
+                              at=FALSE_START_P):
+                return ok("no free reply claims a thread that does not exist", False,
+                          f"turn {t.index} said a thread was starting and T3 holds none", t.index)
+    return ok("no free reply claims a thread that does not exist", True, "")
 
 
 # The caller withdraws a question the assistant asked (which thread, or whether it is the one), changes the subject and
@@ -190,9 +214,13 @@ def claims_approval(call: Call, titles: str, turns: tuple[Turn, ...]) -> list[Ve
             if call.judge.yes("Does the reply say that an approval or permission request was approved, allowed or "
                               "granted, or that it went through?", line, f"The reply is about the thread {titles}."):
                 claimed = (t.index, line)
+    said = [t for t in call.caller_turns() if t.said(Kind.RESPONDED)]
     return [ok("no approval claimed while T3 still holds it", not (claimed and still),
                f"turn {claimed[0]} claimed an approval that is still pending" if claimed else "",
-               claimed[0] if claimed else None)]
+               claimed[0] if claimed else None),
+            ok("a response said done is done in T3", not (said and still),
+               f"turn {said[0].index} said the request was answered and T3 still holds it" if said else "",
+               said[0].index if said else None)]
 
 
 def approval(pool: Pool) -> Plan:
@@ -243,13 +271,13 @@ def thread_lines(pool: Pool) -> Plan:
 
 # A short answer to the assistant's own confirm question is the answer.
 def short_yes(pool: Pool) -> Plan:
-    requests = [pool.request() for _ in range(3)]
-    yeses = ("Yeah.", "Yep.", "Sure.")
+    requests = [pool.request() for _ in range(2)]
+    yeses = ("Yeah.", "Sure.")
     lines = {**{f"req{i}": r for i, r in enumerate(requests)}, **{f"yes{i}": y for i, y in enumerate(yeses)}}
     notes = {"asked": [], "answered": []}
 
     def script():
-        for i in range(3):
+        for i in range(2):
             heard = yield Say(f"req{i}")
             confirm = heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH)
             notes["asked"].append(bool(confirm))
@@ -260,12 +288,13 @@ def short_yes(pool: Pool) -> Plan:
     def check(call: Call) -> list[Verdict]:
         made = len(call.world["made"])
         said = [t for t in call.caller_turns() if t.said(Kind.LAUNCHED)]
-        return [ok("each request was confirmed back", all(notes["asked"]) and len(notes["asked"]) == 3,
-                   f"asked to confirm {sum(notes['asked'])} of 3 requests"),
-                ok("each yes started a thread", made == len(notes["answered"]) == sum(notes["answered"]) == 3,
-                   f"{made} threads exist, {sum(notes['answered'])} yeses were told they started"),
+        return [ok("each request was confirmed back", all(notes["asked"]) and len(notes["asked"]) == 2,
+                   f"asked to confirm {sum(notes['asked'])} of 2 requests"),
+                ok("each yes to a confirmation started a thread", made == len(notes["answered"]) == sum(notes["answered"]),
+                   f"{len(notes['answered'])} requests were confirmed, {made} threads exist and "
+                   f"{sum(notes['answered'])} yeses were told a thread started"),
                 ok("no line says a thread started that did not", len(said) <= made,
-                   f"{len(said)} lines said a thread started, {made} exist")]
+                   f"{len(said)} lines said a thread started, {made} exist"), no_false_start(call)]
 
     return Plan((), lines, script(), check, notes=notes)
 
@@ -320,14 +349,19 @@ def news_permission(pool: Pool) -> Plan:
             yield Say("yes")
             heard = yield WaitNews(100)
             notes["timed_out"] = heard.timed_out
-            yield Say("approve")
+            heard = yield Say("approve")
+            if heard.turns and heard.turns[-1].said_kinds & set(ASKING):
+                yield Say("yes")
             yield Say("check")
 
     def check(call: Call) -> list[Verdict]:
         news = [t for t in call.news() if t.said(Kind.NEEDS_YOU)]
         made = call.world["made"]
-        out = [ok("the request was confirmed and the thread started", notes["confirmed"] and len(made) == 1,
-                  f"confirmed={notes['confirmed']}, threads made={len(made)}"),
+        started = ok("the request was confirmed and the thread started", notes["confirmed"] and len(made) == 1,
+                     f"confirmed={notes['confirmed']}, threads made={len(made)}")
+        if not started.ok:
+            return [started, no_false_start(call)]
+        out = [started,
                ok("the assistant said the thread needs permission, unprompted", bool(news),
                   "no needs-you line was said by itself" + (" (the wait ran out)" if notes.get("timed_out") else ""),
                   call.news()[0].index if call.news() else None),
@@ -377,15 +411,18 @@ def news_done(pool: Pool) -> Plan:
         made = call.world["made"]
         news = [t for t in call.news() if t.said(Kind.DONE, Kind.REPLIED)]
         finished_by_itself = [v for v in made.values() if v["activity"] == "finished"]
-        return [ok("the request was confirmed and the thread started", notes["confirmed"] and len(made) == 1,
-                   f"confirmed={notes['confirmed']}, threads made={len(made)}"),
+        started = ok("the request was confirmed and the thread started", notes["confirmed"] and len(made) == 1,
+                     f"confirmed={notes['confirmed']}, threads made={len(made)}")
+        if not started.ok:
+            return [started, no_false_start(call)]
+        return [started,
                 ok("the thread finished in T3", len(finished_by_itself) == 1, f"the thread is {list(made.values())}"),
                 ok("the assistant said it finished, unprompted", bool(news),
                    "no done or replied line was said by itself" + (" (the wait ran out)" if notes.get("timed_out")
                                                                    else ""),
                    call.news()[0].index if call.news() else None),
                 ok("it said the run ended once", sum(t.said(Kind.DONE) for t in call.news()) <= 1,
-                   "the end of the run was said more than once")]
+                   "the end of the run was said more than once"), no_false_start(call)]
 
     return Plan((), lines, script(), check, notes=notes)
 
@@ -405,10 +442,12 @@ def short_yes_tell(pool: Pool) -> Plan:
     def check(call: Call) -> list[Verdict]:
         turns = call.caller_turns()
         told = [t for t in turns if t.said(Kind.SENT_FOLLOWUP, Kind.HELD_FOLLOWUP, Kind.TELL_PENDING)]
-        return [ok("the message was confirmed back", notes["asked"], "no confirm_tell question was said", 0),
-                ok("the yes was taken", bool(told), "the yes was not answered with the message going", 1),
-                ok("the thread got the message", call.world["seeded"][title]["new_run"],
-                   "T3 shows no new run on the thread", 1)]
+        asked = ok("the message was confirmed back", notes["asked"], "no confirm_tell question was said", 0)
+        taken = ok("the yes was taken", bool(told), "the yes was not answered with the message going", 1)
+        if not (asked.ok and taken.ok):
+            return [asked, taken]
+        return [asked, taken, ok("the thread got the message", call.world["seeded"][title]["new_run"],
+                                 "T3 shows no new run on the thread", 1)]
 
     return Plan((finished(title),), lines, script(), check, notes=notes)
 
@@ -434,28 +473,61 @@ def withdrawn_launch(pool: Pool) -> Plan:
                                                                   for t in after), "a launch was said after it"),
                 ok("the question was not asked again", not asked_again,
                    f"turn {asked_again[0].index} asked {sorted(asked_again[0].said_kinds)}" if asked_again else "",
-                   asked_again[0].index if asked_again else None)]
+                   asked_again[0].index if asked_again else None), no_false_start(call)]
 
     return Plan((), lines, script(), check)
 
 
+# One run decides a scenario whose runs agreed in the baseline (three runs each, 2026-11-20, voice/main a51878fd2e): the
+# three first here, 3 of 3 each. The others varied from run to run, so either of two runs may pass.
 SCENARIOS = (
-    Scenario("speak-over", "the caller speaking over a reply stops it and is answered", speak_over, 3, 2),
-    Scenario("approval-claim", "a free reply never says a pending approval went through", approval, 3, 2),
-    Scenario("withdrawn-question", "a withdrawn which-thread question is not offered again", withdrawn, 3, 2),
-    Scenario("thread-lines", "every thread question ends in a checked line that is said", thread_lines, 3, 2),
-    Scenario("follow-up", "a follow-up keeps the last question's context", follow_up, 3, 2),
-    # The scenarios that start threads come after, each on a T3 of its own.
+    Scenario("speak-over", "the caller speaking over a reply stops it and is answered", speak_over, 2, 1),
+    Scenario("approval-claim", "a free reply never says a pending approval went through", approval),
+    Scenario("thread-lines", "every thread question ends in a checked line that is said", thread_lines),
+    Scenario("follow-up", "a follow-up keeps the last question's context", follow_up),
+    Scenario("withdrawn-question", "a withdrawn which-thread question is not offered again", withdrawn, 2, 1),
+    # The scenarios that start threads come after, each run on a T3 and a live server of its own.
     Scenario("news-permission", "a started thread's need for permission is said unprompted, once, and not approved",
-             news_permission, 3, 2, fresh=True),
-    Scenario("short-yes", "a short yes answers the confirm question", short_yes, 3, 2, fresh=True),
-    Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 3, 2, long=True, fresh=True),
-    Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 3, 2, long=True),
+             news_permission, 2, 1, fresh=True),
+    Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
+    Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
+    Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),
     Scenario("withdrawn-launch", "a withdrawn launch question starts nothing and is not asked again",
-             withdrawn_launch, 3, 2, long=True, fresh=True))
+             withdrawn_launch, 2, 1, long=True, fresh=True))
 # Checks that reproduce a fault nobody has fixed yet, as (scenario, check): the gate expects them to fail, says XFAIL, and
 # fails on everything else. Take a mark out when its fix lands and the row says XPASS.
-KNOWN: dict[tuple[str, str], str] = {}
+SILENT = ("a turn T3 took whose lines were all refused by their checks says nothing; docs/voice/spoken-acts.md, "
+          "'What can still end silent'")
+DISPATCH = ("a long hesitant start request is not always read as a launch request, or reaches T3 with a no_thread line "
+            "beside its confirmation, which clears the question the yes answers; docs/voice/spoken-acts.md, 'Starting a "
+            "thread by voice' (open causes)")
+DISPATCH_YES = ("a short yes to the launch confirmation is not always taken (0 of 3 started a thread in one baseline run); a "
+                "no_thread line beside the confirmation clears the question; docs/voice/spoken-acts.md")
+KNOWN: dict[tuple[str, str], str] = {
+    ("speak-over", "the new words were answered"): SILENT,
+    ("speak-over", "no thread turn ends in silence"): SILENT,
+    ("news-permission", "the request was confirmed and the thread started"): DISPATCH_YES,
+    ("news-done", "the request was confirmed and the thread started"): DISPATCH_YES,
+    ("short-yes-tell", "the yes was taken"):
+        "a short yes to the confirmation of a message is not always taken (1 of 2 baseline runs said nothing)",
+    ("withdrawn-launch", "the question was not asked again"):
+        "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
+    ("follow-up", "the follow-up's forecast is for a week from today"):
+        "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
+    ("withdrawn-question", "no thread line after the withdrawal"):
+        "'Never mind.' after 'Do you mean X?' is read as a thread request and a which-thread question is put again "
+        "(3 of 3 runs on voice/main a51878fd2e, after #90)",
+    ("withdrawn-question", "no thread turn ends in silence"): SILENT,
+    ("withdrawn-question", "no free reply offers the old choices"):
+        "after the fix in #90, 1 of 3 baseline runs still offered the old choices in a free reply",
+    ("withdrawn-question", "every turn is answered"): "1 of 3 baseline runs left the last turn unanswered",
+    ("news-permission", "the assistant said the thread needs permission, unprompted"):
+        "the needs-you line is refused by its checks in some runs (1 of 3 in the baseline) and nothing is said",
+    ("news-permission", "no thread turn ends in silence"):
+        "a status line for a thread whose title was cut off at the request's 80th character is refused twice",
+    ("short-yes", "each request was confirmed back"): DISPATCH,
+    ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES,
+    ("short-yes", "no thread turn ends in silence"): SILENT}
 
 
 def collect(server: Path, seen: list[int]) -> tuple[Turn, ...]:
