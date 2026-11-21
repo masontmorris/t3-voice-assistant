@@ -422,6 +422,81 @@ it.effect("serves no render for an item outside the shared thread", () =>
   }).pipe(Effect.provide(layerTest)),
 );
 
+const recordCall = (callId: string) =>
+  Effect.gen(function* () {
+    const orchestrator = yield* Orchestrator.OrchestratorV2;
+    const at = yield* DateTime.now;
+    const turnItemId = TurnItemId.make(`turn-item:voice-call:${callId}`);
+    yield* orchestrator.dispatch({
+      type: "thread.voice-call.record",
+      commandId: CommandId.make(`voice:record:${callId}`),
+      threadId,
+      turnItemId,
+      callId,
+      startedAt: at,
+      endedAt: at,
+      lines: [{ speaker: "caller", text: `Private words of ${callId}`, relay: false }],
+      truncated: false,
+    });
+    return turnItemId;
+  });
+
+it.effect(
+  "never shows a guest the owner's voice calls: not in the snapshot, the stream or by id",
+  () =>
+    Effect.gen(function* () {
+      const { orchestrator, guestShares, credential } = yield* shareThread;
+      const { token: session } = yield* guestShares.redeem({ credential, name: "Sam" });
+      const before = yield* recordCall("before");
+      const events = yield* guestShares.stream(session);
+      const during = yield* recordCall("during");
+      yield* orchestrator.dispatch({
+        type: "message.dispatch",
+        commandId: CommandId.make("owner-message-after-call"),
+        threadId,
+        messageId: MessageId.make("message:after-call"),
+        text: "Carry on",
+        attachments: [],
+        dispatchMode: { type: "defer_start" },
+        createdBy: "user",
+        creationSource: "web",
+      });
+      // While the share is open, so a refusal is the rule's and not the closed share's.
+      for (const id of [before, during]) {
+        assert.isTrue(Exit.isFailure(yield* Effect.exit(guestShares.item(session, id))));
+      }
+      yield* orchestrator.dispatch({
+        type: "thread.guest-share.close",
+        commandId: CommandId.make("close-after-call"),
+        threadId,
+      });
+      const received = Array.from(yield* Stream.runCollect(events));
+      const snapshot = received.find(
+        (event) => event.type === "thread" && event.item.kind === "snapshot",
+      );
+      if (snapshot?.type !== "thread" || snapshot.item.kind !== "snapshot") {
+        return assert.fail("Expected the thread snapshot.");
+      }
+      const { projection } = snapshot.item;
+      assert.deepEqual(
+        [...projection.turnItems, ...projection.visibleTurnItems.map((row) => row.item)].filter(
+          (item) => item.type === "voice_call",
+        ),
+        [],
+      );
+      const live = received.flatMap((event) =>
+        event.type === "thread" &&
+        event.item.kind === "event" &&
+        event.item.event.type === "turn-item.updated"
+          ? [event.item.event.payload.type]
+          : [],
+      );
+      assert.include(live, "user_message", "the stream still carries the owner's other items");
+      assert.notInclude(live, "voice_call");
+      assert.notInclude(JSON.stringify(received), "Private words", "not a word of either call");
+    }).pipe(Effect.provide(layerTest)),
+);
+
 const ownerRun = Effect.gen(function* () {
   const orchestrator = yield* Orchestrator.OrchestratorV2;
   yield* orchestrator.dispatch({
@@ -700,6 +775,68 @@ it.effect("pages the guest back through turns older than the stream's snapshot",
       mimeType: "image/png",
     });
   }).pipe(Effect.scoped, Effect.provide(layerTest)),
+);
+
+it.effect("pages a guest back through history without the owner's voice calls", () =>
+  Effect.gen(function* () {
+    const { guestShares, credential } = yield* shareThread;
+    const { token: session } = yield* guestShares.redeem({ credential, name: "Sam" });
+    const runId = yield* ownerRun;
+    yield* recordCall("older");
+    const eventSink = yield* EventSink.EventSinkV2;
+    const now = yield* DateTime.now;
+    yield* eventSink.write({
+      events: Array.from({ length: 30 }, (_, index) => ({
+        id: EventId.make(`event:later-${index}`),
+        type: "turn-item.updated" as const,
+        threadId,
+        driver: ProviderDriverKind.make("codex"),
+        providerInstanceId: instanceId,
+        occurredAt: now,
+        payload: {
+          threadId,
+          runId,
+          nodeId: null,
+          providerThreadId: null,
+          providerTurnId: null,
+          id: TurnItemId.make(`item:later-${index}`),
+          nativeItemRef: null,
+          parentItemId: null,
+          ordinal: 100 + index,
+          title: null,
+          status: "completed" as const,
+          startedAt: now,
+          completedAt: now,
+          updatedAt: now,
+          messageId: MessageId.make(`item:later-${index}`),
+          type: "user_message",
+          text: `Later ${index}`,
+          createdBy: "user",
+          creationSource: "web",
+          inputIntent: "turn_start",
+          attachments: [],
+        } as OrchestrationV2TurnItem,
+      })),
+    });
+    const [, opening] = Array.from(
+      yield* Stream.runCollect(Stream.take(yield* guestShares.stream(session), 2)),
+    );
+    if (opening?.type !== "thread" || opening.item.kind !== "snapshot") {
+      return assert.fail("Expected the thread snapshot second.");
+    }
+    const pages: Array<OrchestrationV2ThreadHistoryPage> = [];
+    let cursor = opening.item.historyCursor ?? null;
+    assert.isNotNull(cursor, "the call is older than the opening snapshot");
+    while (cursor !== null) {
+      const page: OrchestrationV2ThreadHistoryPage = yield* guestShares.history(session, cursor);
+      pages.push(page);
+      cursor = page.hasMoreHistory ? page.nextCursor : null;
+    }
+    const older = pages.flatMap((page) => page.items.map((row) => row.item.type));
+    assert.include(older, "user_message", "history still pages the owner's own turns");
+    assert.notInclude(older, "voice_call");
+    assert.notInclude(JSON.stringify(pages), "Private words");
+  }).pipe(Effect.provide(layerTest)),
 );
 
 it.effect("ends a running command's output once the owner stops sharing", () =>

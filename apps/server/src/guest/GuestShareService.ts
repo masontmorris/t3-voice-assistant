@@ -673,7 +673,7 @@ const make = Effect.gen(function* () {
             Effect.map((page) => page.items[0]?.item ?? null),
             Effect.mapError(() => unavailable),
           ));
-    return item === null ? yield* unavailable : { thread, item };
+    return item === null || isCallerPrivateTurnItem(item) ? yield* unavailable : { thread, item };
   });
 
   const render = Effect.fn("GuestShareService.render")(function* (session: string, itemId: string) {
@@ -702,9 +702,10 @@ const make = Effect.gen(function* () {
     cursor: string,
   ) {
     const { thread, share } = yield* authorize(session, "session");
-    const page = yield* orchestrator
+    const read = yield* orchestrator
       .getThreadHistoryPage(thread.id, cursor)
       .pipe(Effect.mapError(() => unavailable));
+    const page = { ...read, items: read.items.filter((row) => !isCallerPrivateTurnItem(row.item)) };
     rememberSent(
       share.id,
       page.items.map((row) => row.item),
