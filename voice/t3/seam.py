@@ -181,6 +181,21 @@ class T3Seam:
             },
         )
 
+    def answer_question(
+        self, request_id: str, thread_id: str, pending_request_id: str, answers: list[dict[str, str]]
+    ) -> T.AnswerResult:
+        """Answer every question of one pending request. Each answer is {questionId, kind: option or own_words, text}.
+        A retry with the same request id answers the first answer, and only when it is the same answers."""
+        return self._call(
+            "answer_question",
+            {
+                "requestId": request_id,
+                "threadId": thread_id,
+                "pendingRequestId": pending_request_id,
+                "answers": answers,
+            },
+        )
+
     def drain(self, timeout: float | None = None) -> Iterator[T.DrainItem]:
         """Yield events, then the socket's end, then stop.
 

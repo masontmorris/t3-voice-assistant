@@ -64,7 +64,7 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_STOP: "Ask whether to stop the work this thread is doing. Nothing is stopped yet.",
     Kind.SAME_TITLE: "Say that you did nothing, because more than one of their threads has this name. `op` is what "
                      "they asked for: tell (send it a message) or stop. Say they can do it in the app.",
-    Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell or stop). Name the "
+    Kind.CANCELLED: "Acknowledge that you will not do what was asked (`op`: start, ask, tell, stop or answer). Name the "
                     "thread only when the record gives its title.",
     Kind.THREAD_STATUS: "Answer how the thread is going: say its status, then say what `summary` says, in answer to "
                         "what they asked. Say the content of `summary` itself, in your own words, and never say the "
@@ -109,8 +109,21 @@ MEANINGS: dict[Kind, str] = {
                         "say that this one has to be approved in the app. Name the thread.",
     Kind.RESPONDED: "T3 accepted the answer: say that the request was approved or denied, as `decision` says, for the "
                     "thread. Do not say what the thread does next.",
-    Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to approve or deny. "
+    Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to answer. "
                           "Name the thread when it is given.",
+    Kind.ASK_QUESTION: "The thread is asking them a question and waiting for the answer. Ask it, naming the thread, and "
+                       "say every value in `options` exactly as given and in the order given, so they can pick one by name or "
+                       "place. Say the question in your own words. When `own_words` is true, say they can also answer in their own words. When `count` "
+                       "is set, this is question `number` of `count`: say which. `restated` unheard means you did not "
+                       "catch which option they meant, and changed means the thread now asks something different: say "
+                       "so, then ask. Nothing is answered yet.",
+    Kind.CONFIRM_ANSWER: "Ask whether to give the thread this answer to its question. Name the thread, and say every "
+                         "value in `answers` exactly as given, in the order given. Do not ask the thread's "
+                         "questions again: ask whether to give it these answers. Nothing is sent yet.",
+    Kind.ANSWERED: "T3 took the answer: say the thread has been given it, and say every value in `answers` exactly as "
+                   "given. Do not say what the thread does next.",
+    Kind.ANSWER_IN_APP: "You cannot take this thread's question by voice: say they have to answer it in the app. Name "
+                        "the thread.",
     Kind.CORRECTION: "What you said a moment ago about this thread was wrong. Say so in a few words, then say its real "
                      "status. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
 }
@@ -691,6 +704,17 @@ READER_EXAMPLES = {
                           "that one in the app."),
     Kind.NOTHING_PENDING: ({"thread": "Example Tag Camera Clips"},
                            "Example Tag Camera Clips isn't waiting on any request, so there was nothing to answer."),
+    Kind.ASK_QUESTION: ({"thread": "Example Pick Storage Layer", "question": "Which database should it use?",
+                         "options": ["Postgres", "SQLite", "MySQL"], "own_words": False},
+                        "The Example Pick Storage Layer thread is asking which database it should use: Postgres, SQLite, or "
+                        "MySQL?"),
+    Kind.CONFIRM_ANSWER: ({"thread": "Example Pick Storage Layer", "answers": ["Postgres"]},
+                          "Should I answer Example Pick Storage Layer with Postgres?"),
+    Kind.ANSWERED: ({"thread": "Example Mend Rail Maps", "answers": ["Postgres"]},
+                    "I gave Example Mend Rail Maps the answer Postgres."),
+    Kind.ANSWER_IN_APP: ({"thread": "Example Tag Camera Clips"},
+                         "Example Tag Camera Clips has a question I can't take by voice, so you'll need to answer it "
+                         "in the app."),
     Kind.CORRECTION: ({"thread": "Example Bake Menu Cards", "status": "working"},
                       "Sorry, I got that wrong. The Example Bake Menu Cards thread is still working."),
 }
@@ -710,6 +734,25 @@ READER_VARIANTS = {
     (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
                                "I said no to the file changes for Example Mend Rail Maps."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
+    # Worded without an example, "I will not answer the thread "X"." came out with quotes around the name (2 of 2 drafts).
+    (Kind.CANCELLED, "answer"): ({"op": "answer", "thread": "Example Pick Storage Layer"},
+                                 "I won't give Example Pick Storage Layer that answer."),
+    # No options to say: ask the question itself as a question. Worded from the options example it ended on a colon.
+    (Kind.ASK_QUESTION, "open"): ({"thread": "Example Rename Job Queue", "question": "What should the job be called?",
+                                   "options": [], "own_words": True},
+                                  "The Example Rename Job Queue thread is asking what the job should be called. What name do you "
+                                  "want to give it?"),
+    # Several answers go in one question, every one as given, not the thread's questions asked again.
+    (Kind.CONFIRM_ANSWER, "several"): ({"thread": "Example Pick Storage Layer", "answers": ["Postgres", "Keep one"]},
+                                       "Should I answer Example Pick Storage Layer with Postgres and Keep one?"),
+    (Kind.ASK_QUESTION, "unheard"): ({"thread": "Example Pick Storage Layer", "question": "Which database should it use?",
+                                      "options": ["Postgres", "SQLite", "MySQL"], "own_words": False, "restated": "unheard"},
+                                     "I didn't catch which one you meant. The Example Pick Storage Layer thread is asking which "
+                                     "database it should use: Postgres, SQLite, or MySQL?"),
+    (Kind.ASK_QUESTION, "changed"): ({"thread": "Example Pick Storage Layer", "question": "Which database should it use?",
+                                      "options": ["Postgres", "SQLite", "MySQL"], "own_words": False, "restated": "changed"},
+                                     "The Example Pick Storage Layer thread is asking something different now: which database "
+                                     "should it use, Postgres, SQLite, or MySQL?"),
     (Kind.ASK_WHICH, "thread"): ({"of": "thread", "candidates": ["Example Mend Rail Maps", "Example Mend Rail Labels",
                                                                  "Example Add Rail Legend"]},
                                  "Which thread do you mean, Example Mend Rail Maps, Example Mend Rail Labels, or "
@@ -725,6 +768,15 @@ SAID_AGAIN_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": "working
 EXAMPLE_NAMES = frozenset(name for slots, _ in (*READER_EXAMPLES.values(), *READER_VARIANTS.values())
                           for key in ("thread", "project", "available", "candidates") if key in slots
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
+
+
+def _shape(kind: Kind, slots: dict) -> str | None:
+    """The variant a question's or a confirmation's own shape picks: no options to say, or several answers."""
+    if kind is Kind.ASK_QUESTION and slots.get("options") == []:
+        return "open"
+    if kind is Kind.CONFIRM_ANSWER and len(slots.get("answers") or ()) > 1:
+        return "several"
+    return None
 
 
 def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
@@ -744,11 +796,14 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     examples = []
     for kind in kinds:
         slots = firsts[kind].slots
-        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op") or slots.get("decision")),
+        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op") or slots.get("decision")
+                                                or slots.get("restated") or _shape(kind, slots)),
                                     READER_EXAMPLES[kind])
         example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else shown
         examples.append((json.dumps({"kind": kind.value, **example}), reply))
-    records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key != "asked"}} for a in acts]
+    # The questions a confirmation answers are for the line check; the writer given them asked them again (3 of 3 drafts).
+    records = [{"kind": a.kind.value, **{key: value for key, value in a.slots.items() if key not in ("asked", "questions")}}
+               for a in acts]
     body = records[0] if len(records) == 1 else {"acts": records}
     if problems:
         body["earlier draft problems"] = list(problems)

@@ -57,7 +57,7 @@ What can still end silent: a call with neither a local text server nor a cloud k
 
 ## Corrections, approvals and withdrawn questions
 
-[live-reply-check.md](live-reply-check.md) covers three more kinds of line: a free reply that claimed something about a thread is checked against T3 and corrected (a `correction` act); a pending permission request can be approved or denied by voice (acts `confirm_respond`, `responded`, `nothing_pending` and `needs_the_app`, and a `respond` seam operation), with the confirmation carrying a description of the request; and a question the caller never answered is told to the voice model once as withdrawn. The `same_title` line has an example shape that the voice recites (24 of 24 relays).
+[live-reply-check.md](live-reply-check.md) covers three more kinds of line: a free reply that claimed something about a thread is checked against T3 and corrected (a `correction` act); a pending permission request can be approved or denied by voice (acts `confirm_respond`, `responded`, `nothing_pending` and `needs_the_app`, and a `respond` seam operation), with the confirmation carrying a description of the request; and a question the caller never answered is told to the voice model once as withdrawn. [answer-by-voice.md](answer-by-voice.md) covers a thread's own question: told with every option (`ask_question`), answered by a decider choice among them, confirmed back (`confirm_answer`), and reported (`answered`, `answer_in_app`). The `same_title` line has an example shape that the voice recites (24 of 24 relays).
 
 ## A lookup and T3 work in one turn
 

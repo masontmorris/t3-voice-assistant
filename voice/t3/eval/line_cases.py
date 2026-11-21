@@ -45,6 +45,44 @@ DONE = [
     act(Kind.DONE, thread="Fix the loom importer crash", status="failed",
         summary="It says the crash came from an empty thread list and it could not fix it."),
 ]
+ASK_QUESTION = [
+    act(Kind.ASK_QUESTION, thread="Tidy the tide table export", question="Which file format should the export use?",
+        options=["CSV", "JSON", "Keep the current format"]),
+    act(Kind.ASK_QUESTION, thread="Move the kiln log to its own page", question="Should the log page need a sign-in?",
+        options=["Public", "Require sign-in"]),
+    act(Kind.ASK_QUESTION, thread="Lantern app: fix the dimmer slider", question="What should the slider step be?",
+        options=["One percent", "Five percent", "Ten percent", "Smooth"], own_words=True),
+    act(Kind.ASK_QUESTION, thread="Rename the orchard sync job", question="What should the job be called?",
+        options=[], own_words=True),
+    act(Kind.ASK_QUESTION, thread="Sort the seed catalogue", question="Which sort order do you want first?",
+        options=["By name", "By colour"], number=1, count=2),
+    act(Kind.ASK_QUESTION, thread="Sort the seed catalogue", question="Should empty packets be shown?",
+        options=["Show them", "Hide them"], number=2, count=2),
+    act(Kind.ASK_QUESTION, thread="Trim the harbour map tiles", question="Which tile size should it use?",
+        options=["Small", "Large"], restated="unheard"),
+    act(Kind.ASK_QUESTION, thread="Speed up the loom importer", question="Which parser should it use?",
+        options=["The fast one", "The strict one"], restated="changed"),
+]
+CONFIRM_ANSWER = [
+    act(Kind.CONFIRM_ANSWER, thread="Tidy the tide table export", questions=["Which file format should the export use?"],
+        answers=["CSV"]),
+    act(Kind.CONFIRM_ANSWER, thread="Lantern app: fix the dimmer slider", questions=["What should the slider step be?"],
+        answers=["Call it half a percent"]),
+    act(Kind.CONFIRM_ANSWER, thread="Sort the seed catalogue",
+        questions=["Which sort order do you want first?", "Should empty packets be shown?"],
+        answers=["By colour", "Hide them"]),
+    act(Kind.CONFIRM_ANSWER, thread="Move the kiln log to its own page", questions=["Should the log page need a sign-in?"],
+        answers=["Require sign-in"]),
+]
+ANSWERED = [
+    act(Kind.ANSWERED, thread="Tidy the tide table export", answers=["CSV"]),
+    act(Kind.ANSWERED, thread="Sort the seed catalogue", answers=["By colour", "Hide them"]),
+    act(Kind.ANSWERED, thread="Rename the orchard sync job", answers=["Call it orchard nightly"]),
+]
+ANSWER_IN_APP = [
+    act(Kind.ANSWER_IN_APP, thread="Trim the harbour map tiles"),
+    act(Kind.ANSWER_IN_APP, thread="Speed up the loom importer"),
+]
 OTHER = [
     act(Kind.CONFIRM_LAUNCH, project="Moss Notes"),
     act(Kind.CONFIRM_LAUNCH, project="Kite Planner"),
@@ -59,7 +97,8 @@ OTHER = [
 ]
 
 GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_status_summary": SUMMARY,
-          "done_summary": DONE, "other": OTHER}
+          "done_summary": DONE, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
+          "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP}
 
 
 def cases() -> list[tuple[str, tuple]]:

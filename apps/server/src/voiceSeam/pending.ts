@@ -17,6 +17,7 @@ import {
   type VoicePendingSource,
   type VoiceSignal,
 } from "./events.ts";
+import type { VoiceQuestion } from "./protocol.ts";
 
 /**
  * What raised a need: a runtime request kind, a link or secret card, or `card` when only the shell's
@@ -31,7 +32,68 @@ export interface VoicePending {
   readonly kind: VoicePendingKind;
   readonly source: VoiceNeedSource;
   readonly prompt: string;
+  /** What a question asks, when the voice can answer it. See `answerableQuestions`. */
+  readonly questions?: ReadonlyArray<VoiceQuestion>;
 }
+
+/** What a question may carry to be told and answered by voice. Past any of these it is answered in the app. */
+export const VOICE_QUESTION_LIMITS = {
+  questions: 4,
+  options: 6,
+  questionChars: 300,
+  labelChars: 80,
+  /** A description is context for the voice's choice, so it is cut rather than refused. */
+  descriptionChars: 160,
+  /** The caller's own words as an answer. */
+  ownWordsChars: 500,
+} as const;
+
+type UserInputQuestion = Extract<
+  OrchestrationV2TurnItem,
+  { readonly type: "user_input_request" }
+>["questions"][number];
+
+/**
+ * The questions of a user-input request when the voice can ask and answer all of them well, else undefined. A multi-select
+ * question is never answerable: one spoken reply picks one option or says its own words, and a set of options read
+ * from speech has no choice to score, so it would be a guess. A question that can be answered with neither an option
+ * nor words, a duplicate or empty label, and anything past `VOICE_QUESTION_LIMITS` are the app's too.
+ */
+export const answerableQuestions = (
+  item: OrchestrationV2TurnItem | undefined,
+): ReadonlyArray<UserInputQuestion> | undefined => {
+  if (item?.type !== "user_input_request") return undefined;
+  const { questions } = item;
+  const limits = VOICE_QUESTION_LIMITS;
+  if (questions.length === 0 || questions.length > limits.questions) return undefined;
+  const fits = questions.every((question) => {
+    const labels = question.options.map((option) => option.label.trim());
+    return (
+      question.multiSelect !== true &&
+      question.question.length <= limits.questionChars &&
+      question.options.length <= limits.options &&
+      (question.options.length > 0 || question.allowCustomAnswer !== false) &&
+      labels.every((label) => label.length > 0 && label.length <= limits.labelChars) &&
+      new Set(labels.map((label) => label.toLowerCase())).size === labels.length
+    );
+  });
+  const ids = new Set(questions.map((question) => question.id));
+  return fits && ids.size === questions.length ? questions : undefined;
+};
+
+/** The questions as the voice is told them. */
+const voiceQuestionsOf = (
+  questions: ReadonlyArray<UserInputQuestion>,
+): ReadonlyArray<VoiceQuestion> =>
+  questions.map((question) => ({
+    id: question.id,
+    question: question.question.trim(),
+    options: question.options.map((option) => ({
+      label: option.label.trim(),
+      description: option.description.trim().slice(0, VOICE_QUESTION_LIMITS.descriptionChars),
+    })),
+    ownWords: question.allowCustomAnswer !== false,
+  }));
 
 /** A signal that asks Mason for something, before the pending read checks that it still waits. */
 export type NeedSignal = Extract<VoiceSignal, { readonly type: "pending" | "secret_card" }>;
@@ -154,11 +216,14 @@ export const requestNeed = (
 ): VoicePending | null => {
   const kind = pendingKindOf(request);
   if (kind === null) return null;
+  const item = turnItems.find(isPromptOf(request.id));
+  const questions = kind === "question" ? answerableQuestions(item) : undefined;
   return {
     requestId: request.id,
     kind,
     source: request.kind,
-    prompt: promptFor(request, kind, turnItems.find(isPromptOf(request.id))),
+    prompt: promptFor(request, kind, item),
+    ...(questions === undefined ? {} : { questions: voiceQuestionsOf(questions) }),
   };
 };
 

@@ -9,7 +9,7 @@ from voice.t3 import types as T
 from voice.t3.acts import Kind
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable
 from voice.t3.pick.prefilter import prefilter
-from voice.t3.verify import ELSEWHERE, NONE, UNCLEAR, Picked, Reading, Verdict
+from voice.t3.verify import ELSEWHERE, NO_ANSWER, NONE, OWN_WORDS, UNCLEAR, Chosen, Picked, Reading, Verdict
 
 
 def hello(max_watches: int = 16, projects=(("p1", "Voice sandbox", ("sandbox", "voice sandbox")),)) -> T.Hello:
@@ -44,6 +44,15 @@ def responded(thread="t1", pending="q1", decision="approve", sequence=96, replay
     return T.RespondResult(thread, pending, decision, sequence, replayed)
 
 
+def answered(thread="t1", pending="q1", answers=(("db", "pg"),), sequence=97, replayed=False) -> T.AnswerResult:
+    return T.AnswerResult(thread, pending, tuple(T.RecordedAnswer(q, a) for q, a in answers), sequence, replayed)
+
+
+def question(qid="db", text="Which database should it use?", options=("Postgres", "SQLite"), own_words=False):
+    return T.Question(qid, text, tuple(T.QuestionOption(label, f"{label} in more words") for label in options),
+                      own_words)
+
+
 def busy() -> SeamRefused:
     return refusal("thread_busy", "That thread is busy.")
 
@@ -54,8 +63,8 @@ def state(thread="t1", as_of=120, pending=None, activity=T.ThreadActivity.WORKIN
 
 
 def need(request_id="q1", prompt="Run the tests?", kind=T.PendingKind.APPROVAL,
-         source=T.NeedSource.COMMAND) -> T.PendingNeed:
-    return T.PendingNeed(request_id, kind, prompt, source)
+         source=T.NeedSource.COMMAND, questions=()) -> T.PendingNeed:
+    return T.PendingNeed(request_id, kind, prompt, source, tuple(questions))
 
 
 def run_event(seq, status=T.RunStatus.RUNNING, thread="t1", run="r1"):
@@ -67,8 +76,8 @@ def reply(seq, message="m1", text="I added the helper. The tests pass.", thread=
 
 
 def needs_you(seq, request_id="q1", prompt="Run the tests?", thread="t1", kind=T.PendingKind.APPROVAL,
-              source=T.NeedSource.COMMAND):
-    return T.NeedsYouEvent(thread, seq, request_id, kind, prompt, source)
+              source=T.NeedSource.COMMAND, questions=()):
+    return T.NeedsYouEvent(thread, seq, request_id, kind, prompt, source, tuple(questions))
 
 
 def resolved(seq, request_id="q1", thread="t1"):
@@ -130,6 +139,10 @@ class FakeSeam:
     def respond(self, request_id, thread_id, pending_request_id, decision):
         self.calls.append(("respond", request_id, thread_id, pending_request_id, decision))
         return self._answer("respond", unavailable())
+
+    def answer_question(self, request_id, thread_id, pending_request_id, answers):
+        self.calls.append(("answer_question", request_id, thread_id, pending_request_id, answers))
+        return self._answer("answer_question", unavailable())
 
     def watch(self, thread_id, after_sequence, run_id=None):
         self.calls.append(("watch", thread_id, after_sequence, run_id))
@@ -195,15 +208,30 @@ class Reader(Agree):
     unrelated, except one that names a thread it was asked to choose. What d1.2 really reads is in
     voice/t3/test_replies.py."""
 
-    def __init__(self, readings: dict, picking: dict | None = None):
+    def __init__(self, readings: dict, picking: dict | None = None, choosing: dict | None = None):
         self.readings, self.asked = readings, []
         self.picking, self.picked = picking or {}, []
+        self.choosing, self.chosen = choosing or {}, []
+        self.answering = []  # the words each pick was made for as an answer to a thread's question
 
-    def picks(self, request, threads, recent=None):
+    def chooses(self, question, options, reply, own_words=False):
+        """The test's choice for `reply`: the 0-based index of an option, OWN_WORDS, UNCLEAR or NO_ANSWER, or a Chosen
+        as it is. A reply the test did not script answers nothing. What d1.2 really chooses is measured by
+        voice/t3/eval/answer_choice.py."""
+        self.chosen.append((question, tuple(options), reply, own_words))
+        scripted = self.choosing.get(reply, NO_ANSWER)
+        if isinstance(scripted, Chosen):
+            return scripted
+        label = f"option_{scripted + 1:02d}" if isinstance(scripted, int) else scripted
+        return Chosen(label, {label: 0.9})
+
+    def picks(self, request, threads, recent=None, answering=False):
         """The test's pick for `request`: a thread id, NONE or UNCLEAR, or each thread's share. A request the test
         did not script is picked by matching its words against the titles, and leans (0.8) to a lone match, so it is
         confirmed. What d1.2 really picks is in voice/t3/test_picks.py."""
         self.picked.append((request, tuple(threads), recent))
+        if answering:
+            self.answering.append(request)
         scripted = self.picking.get(request)
         if isinstance(scripted, dict):
             return Picked(max(scripted, key=scripted.get), dict(scripted))

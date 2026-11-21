@@ -1,0 +1,783 @@
+{
+  "questions": {
+    "storage": [
+      "Which storage should it use?",
+      [
+        ["Postgres", "A hosted relational database."],
+        ["SQLite", "A single local file."],
+        ["Keep the current store", "Leave the storage as it is."]
+      ],
+      false
+    ],
+    "storage_words": [
+      "Which storage should it use?",
+      [
+        ["Postgres", "A hosted relational database."],
+        ["SQLite", "A single local file."],
+        ["Keep the current store", "Leave the storage as it is."]
+      ],
+      true
+    ],
+    "access": [
+      "Should the new endpoint be public or require login?",
+      [
+        ["Public", "Anyone can call it."],
+        ["Require login", "Only signed-in users can."]
+      ],
+      false
+    ],
+    "naming": [
+      "How should the export be named?",
+      [
+        ["By date", "The file is named for the day it was made."],
+        ["By project name", "The file is named for the project."]
+      ],
+      true
+    ],
+    "runner": [
+      "Which test runner should it set up?",
+      [
+        ["Vitest", "Fast and built on Vite."],
+        ["Jest", "The long-standing default."]
+      ],
+      false
+    ],
+    "table": ["What should the table be called?", [], true],
+    "commits": [
+      "Do you want the changes in one commit or several?",
+      [
+        ["One commit", "Everything together."],
+        ["Several commits", "One per step."]
+      ],
+      false
+    ]
+  },
+  "rows": [
+    {
+      "question": "storage",
+      "reply": "Postgres.",
+      "want": "option:1",
+      "set": "seen",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.004546384677600698,
+        "option_01": 0.9786283658307168,
+        "option_02": 0.007501441411525201,
+        "option_03": 0.004344055876043179,
+        "unclear": 0.0049797522041140135
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "The second one.",
+      "want": "option:2",
+      "set": "seen",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.0036276002416506924,
+        "option_01": 0.0030236834014999684,
+        "option_02": 0.9804486867322822,
+        "option_03": 0.007180936241833742,
+        "unclear": 0.0057190933827333725
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "I'd say keep the current store.",
+      "want": "option:3",
+      "set": "seen",
+      "choice": "option_03",
+      "p": {
+        "no_answer": 0.006477154769430169,
+        "option_01": 0.0029873153660140888,
+        "option_02": 0.0034244702883155236,
+        "option_03": 0.9686561409053901,
+        "unclear": 0.018454918670850206
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "Whichever it's already using.",
+      "want": "option:3",
+      "set": "seen",
+      "choice": "option_03",
+      "p": {
+        "no_answer": 0.008209672269380098,
+        "option_01": 0.0049756208395213206,
+        "option_02": 0.004053953692690674,
+        "option_03": 0.934300452270222,
+        "unclear": 0.048460300928185984
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "Let's go with the first.",
+      "want": "option:1",
+      "set": "seen",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.0030510355713828353,
+        "option_01": 0.9893179135339066,
+        "option_02": 0.0014727018957787126,
+        "option_03": 0.0017668429672088298,
+        "unclear": 0.004391506031723047
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "Last one.",
+      "want": "option:3",
+      "set": "seen",
+      "choice": "option_03",
+      "p": {
+        "no_answer": 0.0027615169965504813,
+        "option_01": 0.001712200291130283,
+        "option_02": 0.007868203461810013,
+        "option_03": 0.9807943008773723,
+        "unclear": 0.0068637783731369945
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "SQLite, I think.",
+      "want": "option:2",
+      "set": "seen",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.00712606229986492,
+        "option_01": 0.003943024898277205,
+        "option_02": 0.9729567153761439,
+        "option_03": 0.008168869245008167,
+        "unclear": 0.00780532818070588
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "Use Mongo.",
+      "want": "not option",
+      "set": "seen",
+      "choice": "unclear",
+      "p": {
+        "no_answer": 0.44242061640538993,
+        "option_01": 0.013907732157708961,
+        "option_02": 0.007695489018873231,
+        "option_03": 0.02881301752382003,
+        "unclear": 0.5071631448942078
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "What's the weather like?",
+      "want": "none",
+      "set": "seen",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9892987634077882,
+        "option_01": 0.002785462276271525,
+        "option_02": 0.0030509763016929262,
+        "option_03": 0.0025430548536960235,
+        "unclear": 0.0023217431605512427
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "Which one do you recommend?",
+      "want": "none",
+      "set": "seen",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.981903997685332,
+        "option_01": 0.003169211715392354,
+        "option_02": 0.0018352783177807788,
+        "option_03": 0.0017536025052630735,
+        "unclear": 0.011337909776231952
+      }
+    },
+    {
+      "question": "storage",
+      "reply": "Hmm, either of the first two.",
+      "want": "not option",
+      "set": "seen",
+      "choice": "unclear",
+      "p": {
+        "no_answer": 0.01706244228523795,
+        "option_01": 0.11545530337236136,
+        "option_02": 0.0443841087351588,
+        "option_03": 0.005467285850786115,
+        "unclear": 0.8176308597564557
+      }
+    },
+    {
+      "question": "access",
+      "reply": "Make it public.",
+      "want": "option:1",
+      "set": "seen",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.01104859962643185,
+        "option_01": 0.9568487337723359,
+        "option_02": 0.0138727039706136,
+        "unclear": 0.0182299626306186
+      }
+    },
+    {
+      "question": "access",
+      "reply": "Require login for sure.",
+      "want": "option:2",
+      "set": "seen",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.008212036668780608,
+        "option_01": 0.006844910495595892,
+        "option_02": 0.9780981423400276,
+        "unclear": 0.006844910495595892
+      }
+    },
+    {
+      "question": "access",
+      "reply": "Behind a login.",
+      "want": "option:2",
+      "set": "seen",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.024868466653347295,
+        "option_01": 0.027238962474969583,
+        "option_02": 0.9068601112750171,
+        "unclear": 0.04103245959666618
+      }
+    },
+    {
+      "question": "access",
+      "reply": "Anyone can hit it.",
+      "want": "option:1",
+      "set": "seen",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.023757890745693577,
+        "option_01": 0.9067132687275575,
+        "option_02": 0.028503027191085918,
+        "unclear": 0.04102581333566291
+      }
+    },
+    {
+      "question": "naming",
+      "reply": "By date.",
+      "want": "option:1",
+      "set": "seen",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.005386833162221401,
+        "option_01": 0.9665005419916537,
+        "option_02": 0.011160045113102621,
+        "own_words": 0.006763747834594668,
+        "unclear": 0.010188831898427661
+      }
+    },
+    {
+      "question": "naming",
+      "reply": "Name it after the project.",
+      "want": "option:2",
+      "set": "seen",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.0055509263165107155,
+        "option_01": 0.0030714635591831438,
+        "option_02": 0.9516193777042794,
+        "own_words": 0.01897476604916902,
+        "unclear": 0.020783466370857786
+      }
+    },
+    {
+      "question": "naming",
+      "reply": "Call it export underscore final.",
+      "want": "own_words",
+      "set": "seen",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.1973439830210234,
+        "option_01": 0.011733720579696202,
+        "option_02": 0.0154191488652173,
+        "own_words": 0.7388842591777156,
+        "unclear": 0.03661888835634754
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Call it orders.",
+      "want": "own_words",
+      "set": "seen",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.09883254019781346,
+        "own_words": 0.802334919604373,
+        "unclear": 0.09883254019781346
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Orders table.",
+      "want": "own_words",
+      "set": "seen",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.12295197255131678,
+        "own_words": 0.7595678147724172,
+        "unclear": 0.11748021267626603
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Never mind.",
+      "want": "none",
+      "set": "seen",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9809413804262126,
+        "own_words": 0.008235907338163135,
+        "unclear": 0.010822712235624143
+      }
+    },
+    {
+      "question": "commits",
+      "reply": "One commit.",
+      "want": "option:1",
+      "set": "seen",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.004356795938150135,
+        "option_01": 0.9814983994920745,
+        "option_02": 0.007873853217772309,
+        "unclear": 0.006270951352003116
+      }
+    },
+    {
+      "question": "commits",
+      "reply": "Split it up.",
+      "want": "option:2",
+      "set": "seen",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.04813075833329605,
+        "option_01": 0.02323219686704138,
+        "option_02": 0.8866504769974665,
+        "unclear": 0.04198656780219616
+      }
+    },
+    {
+      "question": "commits",
+      "reply": "Several.",
+      "want": "option:2",
+      "set": "seen",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.011485635070038535,
+        "option_01": 0.01202059015467816,
+        "option_02": 0.9504304994554015,
+        "unclear": 0.026063275319881906
+      }
+    },
+    {
+      "question": "commits",
+      "reply": "Doesn't matter.",
+      "want": "not option",
+      "set": "seen",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.785181949134721,
+        "option_01": 0.007220717402097226,
+        "option_02": 0.007220717402097226,
+        "unclear": 0.20037661606108462
+      }
+    },
+    {
+      "question": "runner",
+      "reply": "Vitest please.",
+      "want": "option:1",
+      "set": "held",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.003819715215638695,
+        "option_01": 0.9864286874222092,
+        "option_02": 0.003997622319949504,
+        "unclear": 0.005753975042202515
+      }
+    },
+    {
+      "question": "runner",
+      "reply": "The Jest one.",
+      "want": "option:2",
+      "set": "held",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.002917314719551112,
+        "option_01": 0.003053192667349265,
+        "option_02": 0.9900173268271245,
+        "unclear": 0.004012165785975028
+      }
+    },
+    {
+      "question": "runner",
+      "reply": "Let's stay with what we have.",
+      "want": "not option",
+      "set": "held",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.8549820140428233,
+        "option_01": 0.013577388787335108,
+        "option_02": 0.030809896007622788,
+        "unclear": 0.10063070116221877
+      }
+    },
+    {
+      "question": "runner",
+      "reply": "I prefer the first one.",
+      "want": "option:1",
+      "set": "held",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.0021238652142944268,
+        "option_01": 0.9912468157791303,
+        "option_02": 0.002790947141312471,
+        "unclear": 0.0038383718652628272
+      }
+    },
+    {
+      "question": "runner",
+      "reply": "Number two.",
+      "want": "option:2",
+      "set": "held",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.0024865107806677114,
+        "option_01": 0.0021690922208299043,
+        "option_02": 0.9895720861158727,
+        "unclear": 0.00577231088262979
+      }
+    },
+    {
+      "question": "runner",
+      "reply": "Mocha.",
+      "want": "not option",
+      "set": "held",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9182831044124216,
+        "option_01": 0.011097143817939288,
+        "option_02": 0.02299024712763144,
+        "unclear": 0.04762950464200761
+      }
+    },
+    {
+      "question": "storage_words",
+      "reply": "Use Postgres.",
+      "want": "option:1",
+      "set": "held",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.004355102846597637,
+        "option_01": 0.9811169720696016,
+        "option_02": 0.0033141621722773355,
+        "option_03": 0.0030257441538311023,
+        "own_words": 0.003630072585696599,
+        "unclear": 0.0045579461719957555
+      }
+    },
+    {
+      "question": "storage_words",
+      "reply": "A plain JSON file is fine.",
+      "want": "own_words",
+      "set": "held",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.05451120435555763,
+        "option_01": 0.002581330849058209,
+        "option_02": 0.02095557320493889,
+        "option_03": 0.02193160024821166,
+        "own_words": 0.8759981413438275,
+        "unclear": 0.024022149998406184
+      }
+    },
+    {
+      "question": "storage_words",
+      "reply": "Can you remind me what the options were?",
+      "want": "none",
+      "set": "held",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9897271857272492,
+        "option_01": 0.0012563094384845973,
+        "option_02": 0.0012852334225336214,
+        "option_03": 0.0015072306910088446,
+        "own_words": 0.0020262348308630355,
+        "unclear": 0.004197805889860711
+      }
+    },
+    {
+      "question": "storage_words",
+      "reply": "Yeah, go ahead.",
+      "want": "not option",
+      "set": "held",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.4814213188119158,
+        "option_01": 0.02385910142715373,
+        "option_02": 0.009172078761513346,
+        "option_03": 0.02497036323771597,
+        "own_words": 0.059302037460838807,
+        "unclear": 0.4012751003008624
+      }
+    },
+    {
+      "question": "access",
+      "reply": "I think it should need a login.",
+      "want": "option:2",
+      "set": "held",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.009682539282848186,
+        "option_01": 0.020993868343995702,
+        "option_02": 0.9612529860870022,
+        "unclear": 0.008070606286153895
+      }
+    },
+    {
+      "question": "commits",
+      "reply": "Let's do it in one go.",
+      "want": "option:1",
+      "set": "held",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.05073603505750431,
+        "option_01": 0.8153308263813959,
+        "option_02": 0.04632068483188489,
+        "unclear": 0.08761245372921486
+      }
+    },
+    {
+      "question": "commits",
+      "reply": "I'd rather have a few smaller ones.",
+      "want": "option:2",
+      "set": "held",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.03184413112975646,
+        "option_01": 0.03650410738407459,
+        "option_02": 0.8836821288258438,
+        "unclear": 0.04796963266032514
+      }
+    },
+    {
+      "question": "commits",
+      "reply": "Can you put it in a pull request?",
+      "want": "not option",
+      "set": "held",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.977058689661253,
+        "option_01": 0.007838235407421667,
+        "option_02": 0.009403757233304423,
+        "unclear": 0.005699317698020834
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Let's name it customer orders.",
+      "want": "own_words",
+      "set": "held",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.16060891449530118,
+        "own_words": 0.7902177740234496,
+        "unclear": 0.04917331148124928
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Actually, wait, how's the other thread going?",
+      "want": "none",
+      "set": "held",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9941169076935223,
+        "own_words": 0.002674462481374855,
+        "unclear": 0.0032086298251028174
+      }
+    },
+    {
+      "question": "naming",
+      "reply": "By the project name, thanks.",
+      "want": "option:2",
+      "set": "held",
+      "choice": "option_02",
+      "p": {
+        "no_answer": 0.0041382707827092085,
+        "option_01": 0.00496480289038359,
+        "option_02": 0.9756904043511935,
+        "own_words": 0.006233843482387241,
+        "unclear": 0.008972678493326525
+      }
+    },
+    {
+      "question": "naming",
+      "reply": "Do it by date.",
+      "want": "option:1",
+      "set": "held",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.008883283540881085,
+        "option_01": 0.9659696192069487,
+        "option_02": 0.0034149725439821975,
+        "own_words": 0.007074889179439884,
+        "unclear": 0.014657235528748234
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Call it level cache.",
+      "want": "own_words",
+      "set": "late",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.11726605226886769,
+        "own_words": 0.7934963962401504,
+        "unclear": 0.08923755149098186
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Let's call it level cache.",
+      "want": "own_words",
+      "set": "late",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.10385094589606245,
+        "own_words": 0.805555327094845,
+        "unclear": 0.09059372700909257
+      }
+    },
+    {
+      "question": "table",
+      "reply": "The invoices table.",
+      "want": "own_words",
+      "set": "late",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.09743521375557586,
+        "own_words": 0.7557895015619753,
+        "unclear": 0.14677528468244877
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Name it audit log.",
+      "want": "own_words",
+      "set": "late",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.11296473938766367,
+        "own_words": 0.83725366059677,
+        "unclear": 0.049781600015566335
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Let's go with sessions.",
+      "want": "own_words",
+      "set": "late",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.16878506332264492,
+        "own_words": 0.5769590597264138,
+        "unclear": 0.25425587695094126
+      }
+    },
+    {
+      "question": "table",
+      "reply": "customers_archive",
+      "want": "own_words",
+      "set": "late",
+      "choice": "own_words",
+      "p": {
+        "no_answer": 0.10282008979952739,
+        "own_words": 0.7620651986999051,
+        "unclear": 0.13511471150056742
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Yes.",
+      "want": "none",
+      "set": "late",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.8657104368263284,
+        "own_words": 0.02268352030406721,
+        "unclear": 0.11160604286960432
+      }
+    },
+    {
+      "question": "table",
+      "reply": "I don't know, what do you think?",
+      "want": "none",
+      "set": "late",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9827119749780433,
+        "own_words": 0.008250775003734076,
+        "unclear": 0.009037250018222545
+      }
+    },
+    {
+      "question": "table",
+      "reply": "What are my options?",
+      "want": "none",
+      "set": "late",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9802521677540686,
+        "own_words": 0.009873916122965704,
+        "unclear": 0.009873916122965704
+      }
+    },
+    {
+      "question": "table",
+      "reply": "Hmm, let me think.",
+      "want": "not option",
+      "set": "late",
+      "choice": "no_answer",
+      "p": {
+        "no_answer": 0.9650557428493322,
+        "own_words": 0.008479917801608823,
+        "unclear": 0.026464339349058986
+      }
+    },
+    {
+      "question": "naming",
+      "reply": "Both, I guess.",
+      "want": "not option",
+      "set": "late",
+      "choice": "unclear",
+      "p": {
+        "no_answer": 0.10101017284248757,
+        "option_01": 0.08811559629694758,
+        "option_02": 0.04451343775451425,
+        "own_words": 0.05102740298373892,
+        "unclear": 0.7153333901223117
+      }
+    },
+    {
+      "question": "naming",
+      "reply": "Call it something with the date in it.",
+      "want": "either",
+      "set": "late",
+      "choice": "option_01",
+      "p": {
+        "no_answer": 0.0099686495858325,
+        "option_01": 0.9035313108575139,
+        "option_02": 0.005035871985024415,
+        "own_words": 0.05884324525095282,
+        "unclear": 0.02262092232067646
+      }
+    }
+  ]
+}

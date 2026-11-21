@@ -70,6 +70,22 @@ export const VoiceTerminalStatus = Schema.Literals([
 /** A ULID that Python mints once per write and journals before the call. */
 const VoiceRequestId = Schema.String.check(Schema.isPattern(/^[0-7][0-9A-HJKMNP-TV-Z]{25}$/));
 
+/** One option of a spoken question. The description is context for the voice's choice, never read out. */
+const VoiceQuestionOption = Schema.Struct({ label: Schema.String, description: Schema.String });
+
+/**
+ * One question of a request the voice may answer. Only a request that fits the bounds in pending.ts and asks only
+ * single-choice questions carries them; any other question is answered in the app.
+ */
+export const VoiceQuestion = Schema.Struct({
+  id: Schema.String,
+  question: Schema.String,
+  options: Schema.Array(VoiceQuestionOption),
+  /** Whether the caller's own words are an answer when no option fits. */
+  ownWords: Schema.Boolean,
+}).annotate({ identifier: "VoiceQuestion" });
+export type VoiceQuestion = typeof VoiceQuestion.Type;
+
 const VoicePending = Schema.Struct({
   requestId: Schema.String,
   /** approval and question can be relayed. in_app means only the app can act on it. */
@@ -81,6 +97,8 @@ const VoicePending = Schema.Struct({
   ]),
   /** Context for the voice's own words, never read out. */
   prompt: Schema.String,
+  /** What a question asks, for the voice to say and answer. Absent for any request the voice cannot answer. */
+  questions: Schema.optionalKey(Schema.Array(VoiceQuestion)),
 });
 
 /** T3's own result for a run. Empty text when the run stored no message and no result item. */
@@ -239,6 +257,19 @@ export const VoiceRespondResult = Schema.Struct({
 }).annotate({ identifier: "VoiceRespondResult" });
 export type VoiceRespondResult = typeof VoiceRespondResult.Type;
 
+export const VoiceAnswerResult = Schema.Struct({
+  threadId: ThreadId,
+  /** The runtime request that was answered. */
+  pendingRequestId: Schema.String,
+  /** Each question's answer as T3 recorded it, in the request's order. */
+  answers: Schema.Array(Schema.Struct({ questionId: Schema.String, answer: Schema.String })),
+  /** A fresh answer: its accepted write. A replay: the thread's sequence now. */
+  sequence: Sequence,
+  /** True when the request id had already answered. */
+  replayed: Schema.Boolean,
+}).annotate({ identifier: "VoiceAnswerResult" });
+export type VoiceAnswerResult = typeof VoiceAnswerResult.Type;
+
 /** Each op, its input, and the value an accepted request answers with. */
 export const REQUESTS = {
   list_threads: {
@@ -290,6 +321,23 @@ export const REQUESTS = {
       decision: Schema.Literals(["approve", "deny"]),
     }),
     output: VoiceRespondResult,
+  },
+  answer_question: {
+    input: Schema.Struct({
+      requestId: VoiceRequestId,
+      threadId: ThreadId,
+      /** The pending question to answer: `pending.requestId` of a read of the thread. */
+      pendingRequestId: Schema.String,
+      /** One per question of the request. `option` names an offered label, `own_words` is the caller's own text. */
+      answers: Schema.Array(
+        Schema.Struct({
+          questionId: Schema.String,
+          kind: Schema.Literals(["option", "own_words"]),
+          text: TrimmedNonEmptyString,
+        }),
+      ),
+    }),
+    output: VoiceAnswerResult,
   },
 } as const;
 

@@ -691,6 +691,7 @@ def segmenter_for(name, decider, label, tools):
     segmenter = SEGMENTERS[name](decider, label, tools=choices,
                                  arguments=decider_arguments(decider, t3_enabled=bool(T3_TOOLS & choices.keys())))
     segmenter.pending_requests = list(getattr(tools, "approvals", ()))
+    segmenter.pending_questions = list(getattr(tools, "questions", ()))
     return segmenter
 
 

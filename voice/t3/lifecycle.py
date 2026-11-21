@@ -341,6 +341,29 @@ class Follow:
         said = act(Say.RESPONDED, decision=record["decision"], need=record.get("need"))
         return self._stopped(task, Status.COMPLETED, said, record["sequence"], row="respond")
 
+    def answer(self, task: JournalTask, now: float) -> Act:
+        """Give the answers an answer task was confirmed for, once, and speak what T3 returned: that it took them, its
+        refusal, or that it could not be reached. T3's own record of the answers must be the ones sent. A retry reports
+        the first saved result again."""
+        record = task.link.answer
+        if not record["answered"]:
+            seam = self.ensure(now)
+            try:
+                if seam is None:
+                    raise SeamUnavailable("no seam")
+                result = seam.answer_question(record["request_id"], task.link.thread_id,
+                                              record["pending_request_id"], record["answers"])
+            except SeamRefused as refusal:
+                return self._stopped(task, Status.FAILED, refused(refusal, "answer"), row="answer-refused")
+            except (SeamUnavailable, SeamConnectionEnded):
+                return self._stopped(task, Status.FAILED, act(Say.UNREACHABLE), row="answer-unavailable")
+            if [a.question_id for a in result.answers] != [a["questionId"] for a in record["answers"]]:
+                # T3 recorded answers to other questions than the ones sent: never reported as given.
+                return self._stopped(task, Status.FAILED, act(Say.UNREACHABLE), row="answer-unavailable")
+            record["answered"], record["sequence"] = True, result.sequence
+        said = act(Say.ANSWERED, answers=record["spoken"])
+        return self._stopped(task, Status.COMPLETED, said, record["sequence"], row="answer")
+
     def _stopped(self, task: JournalTask, status: Status, said: Act, sequence: int | None = None,
                  row: str = "stop") -> Act:
         task.status = status
@@ -627,7 +650,17 @@ def need_of(kind: T.PendingKind, source: T.NeedSource) -> str:
     return NEEDS.get(source, kind.value)
 
 
+def question_act(question: T.Question, number: int = 1, count: int = 1, restated: str | None = None,
+                 thread: str | None = None) -> Act:
+    """One question of a request, told with every option. `restated` is why it is asked again: "unheard" or "changed"."""
+    return act(Say.ASK_QUESTION, thread=thread, question=question.question,
+               options=[option.label for option in question.options], own_words=True if question.own_words else None,
+               number=number if count > 1 else None, count=count if count > 1 else None, restated=restated)
+
+
 def need_act(need: T.PendingNeed | T.NeedsYouEvent, ended: bool) -> Act:
+    if need.kind is T.PendingKind.QUESTION and need.questions:
+        return question_act(need.questions[0], count=len(need.questions))
     return act(Say.NEEDS_YOU, need=need_of(need.kind, need.source), prompt=need.prompt, waiting_for=need.kind.value,
                after_end=ended)
 
@@ -692,8 +725,8 @@ REISSUE_OPS = {Kind.START: "launch", Kind.TELL: "send", Kind.STOP: "interrupt"}
 
 def _reissue(f: Follow, name, row, task, now, **_):
     f.begun_at.setdefault(task.task_id, now)
-    if task.kind is Kind.RESPOND:
-        # An approval is confirmed once, by a person on a call. After a restart nobody is there to confirm it again.
+    if task.kind in (Kind.RESPOND, Kind.ANSWER):
+        # An answer is confirmed once, by a person on a call. After a restart nobody is there to confirm it again.
         task.status = Status.FAILED
         f.journal.save()
         return
@@ -846,4 +879,5 @@ OPS: dict[str, Callable[[Follow, JournalTask, float], None]] = {
     "read": Follow.read_first,
     "interrupt": Follow.stop,
     "respond": Follow.respond,
+    "answer": Follow.answer,
 }

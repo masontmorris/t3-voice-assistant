@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (APPROVE, ASK, CONFIRM_TTL_S, DENY, DESCRIBE_REQUEST, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
+from voice.live.t3_tasks import (ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, DESCRIBE_REQUEST, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
                                  T3Tasks, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
@@ -25,7 +25,7 @@ from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
-from voice.t3.verify import ELSEWHERE, Decider, Picked
+from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, Picked
 from voice.segmentation.gate import PLAN_A
 from voice.tools import registry as tool_registry
 
@@ -1710,7 +1710,8 @@ class Respond(unittest.TestCase):
         seam = self.seam(("t5", "Add a clamp helper"))
         t3 = tasks_over(self, seam)
         t3.follow.ensure(0)
-        self.assertEqual(t3.pending_requests(), [{"thread": "Add a clamp helper", "asks_for": "approval to run a command"}])
+        self.assertEqual(t3.pending_requests(), [{"kind": "approval", "thread": "Add a clamp helper",
+                                                   "asks_for": "approval to run a command"}])
         seam.read = F.state(thread="t5", title="Add a clamp helper", activity=T.ThreadActivity.WAITING_ON_YOU,
                             pending=F.need("q1", "Which?", kind=T.PendingKind.QUESTION, source=T.NeedSource.USER_INPUT))
         self.assertEqual(t3.pending_requests(), [])
@@ -1718,6 +1719,332 @@ class Respond(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class Answer(unittest.TestCase):
+    """Answering what a thread asks: the options are chosen by the decider, the answers are confirmed back with the
+    thread, a request with several questions is asked one at a time and answered together, and nothing is sent for a
+    request that was not the one named."""
+
+    ASKS = (F.question("db", "Which database should it use?", ("Postgres", "SQLite")),)
+    TWO = (*ASKS, F.question("name", "What should the table be called?", ("users", "accounts"), own_words=True))
+
+    def need(self, questions, request="q1"):
+        return F.need(request, "Which database should it use?", kind=T.PendingKind.QUESTION,
+                      source=T.NeedSource.USER_INPUT, questions=questions)
+
+    def state(self, questions, request="q1", thread="t5", title="Add a clamp helper", **more):
+        return F.state(thread=thread, title=title, as_of=140, activity=T.ThreadActivity.WAITING_ON_YOU,
+                       pending=self.need(questions, request), **more)
+
+    def seam(self, questions=None, *rows):
+        seam = F.FakeSeam(read=self.state(self.ASKS if questions is None else questions))
+        seam.listing = waiting_listing(*(rows or (("t5", "Add a clamp helper"),)))
+        return seam
+
+    def asked(self, words="Postgres.", choosing=None, questions=None, seam=None):
+        seam = seam or self.seam(questions)
+        decider = F.Reader(READINGS, choosing={words: 0, **(choosing or {})})
+        t3 = tasks_over(self, seam, decider=decider)
+        update = t3.about("k1", ANSWER, words, 0)
+        t3.spoke(update)
+        return seam, t3, update
+
+    def sent(self, seam):
+        return [c[2:] for c in seam.ops("answer_question")]
+
+    def test_the_caller_is_asked_to_confirm_the_option_the_decider_chose_naming_the_thread_and_nothing_is_sent(self):
+        seam, t3, update = self.asked()
+        self.assertEqual(update.acts, (act(S.CONFIRM_ANSWER, thread="Add a clamp helper",
+                                           questions=["Which database should it use?"], answers=["Postgres"]),))
+        self.assertEqual((update.status, self.sent(seam)), ("needs_clarification", []))
+
+    def test_asking_how_a_thread_is_going_that_waits_on_a_question_tells_the_question_and_its_options(self):
+        seam = self.seam(self.TWO)
+        sure = F.Reader(READINGS, {"How is the clamp helper thread going?": {"t5": 0.95}})
+        t3 = tasks_over(self, seam, decider=sure)
+        update = t3.about("k1", ASK, "How is the clamp helper thread going?", 0)
+        self.assertEqual(update.acts, (act(S.ASK_QUESTION, thread="Add a clamp helper",
+                                           question="Which database should it use?", options=["Postgres", "SQLite"],
+                                           number=1, count=2),))
+        self.assertEqual(self.sent(seam), [])
+
+    def test_the_decider_chooses_among_the_options_it_was_given_and_the_callers_own_words(self):
+        seam, t3, _ = self.asked()
+        question, options, reply, own_words = t3.decider.chosen[0]
+        self.assertEqual((question, [label for label, _ in options], reply, own_words),
+                         ("Which database should it use?", ["Postgres", "SQLite"], "Postgres.", False))
+
+    def test_a_yes_sends_the_confirmed_option_to_the_request_that_was_named_and_says_what_t3_recorded(self):
+        seam, t3, _ = self.asked()
+        seam.answer("answer_question", F.answered("t5", "q1", (("db", "Postgres"),), sequence=141))
+        update = t3.answer("Yes.", 1)
+        self.assertEqual(self.sent(seam), [("t5", "q1", [{"questionId": "db", "kind": "option", "text": "Postgres"}])])
+        self.assertEqual(update.acts, (act(S.ANSWERED, thread="Add a clamp helper", answers=["Postgres"]),))
+        self.assertEqual((update.status, update.sequences), ("completed", (141,)))
+
+    def test_the_callers_own_words_are_sent_only_where_the_question_takes_them(self):
+        takes = (F.question("name", "What should the table be called?", ("users", "accounts"), own_words=True),)
+        seam, t3, update = self.asked("Call it orders.", {"Call it orders.": OWN_WORDS}, takes)
+        self.assertEqual(update.acts[0].slots["answers"], ["Call it orders."])
+        seam.answer("answer_question", F.answered("t5", "q1", (("name", "Call it orders."),)))
+        t3.answer("Yes.", 1)
+        self.assertEqual(self.sent(seam), [("t5", "q1", [{"questionId": "name", "kind": "own_words",
+                                                            "text": "Call it orders."}])])
+        seam, t3, update = self.asked("Use Mongo.", {"Use Mongo.": OWN_WORDS})
+        self.assertEqual(update.acts[0].kind, S.ASK_QUESTION, "the question takes an option only: it is asked again")
+        self.assertEqual(self.sent(seam), [])
+
+    def test_the_callers_own_words_too_long_to_say_back_are_not_sent(self):
+        takes = (F.question("name", "What should the table be called?", (), own_words=True),)
+        long = "Call it " + "very " * 60 + "long."
+        seam, t3, update = self.asked(long, {long: OWN_WORDS}, takes)
+        self.assertEqual((update.acts[0].kind, self.sent(seam)), (S.ASK_QUESTION, []))
+
+    def test_words_that_fit_no_option_are_asked_again_once_and_then_left_to_the_app(self):
+        seam, t3, first = self.asked("Hmm, maybe.", {"Hmm, maybe.": UNCLEAR, "Not sure.": UNCLEAR, "Dunno.": UNCLEAR})
+        self.assertEqual((first.acts[0].kind, "restated" in first.acts[0].slots), (S.ASK_QUESTION, False))
+        again = t3.answer("Not sure.", 1)
+        self.assertEqual((again.acts[0].kind, again.acts[0].slots["restated"]), (S.ASK_QUESTION, "unheard"))
+        t3.spoke(again)
+        app = t3.answer("Dunno.", 2)
+        self.assertEqual(app.acts, (act(S.ANSWER_IN_APP, thread="Add a clamp helper"),))
+        self.assertEqual((t3.live_question(), self.sent(seam)), (None, []))
+
+    def test_a_reply_that_answers_nothing_drops_the_question_and_sends_nothing(self):
+        seam, t3, first = self.asked("Hmm.", {"Hmm.": UNCLEAR})
+        self.assertIsNone(t3.answer("What time is it?", 1))
+        self.assertEqual((t3.live_question(), self.sent(seam)), (None, []))
+
+    def test_an_option_the_decider_is_not_sure_of_is_never_taken_for_an_answer(self):
+        seam, t3, update = self.asked("Maybe Postgres.", {"Maybe Postgres.": Chosen("option_01", {"option_01": 0.55})})
+        self.assertEqual(update.acts[0].kind, S.ASK_QUESTION)
+        self.assertEqual(self.sent(seam), [])
+
+    def test_with_no_decider_the_question_is_asked_and_nothing_is_ever_sent(self):
+        seam = self.seam()
+        t3 = tasks_over(self, seam, decider=F.Agree())
+        update = t3.about("k1", ANSWER, "Postgres.", 0)
+        t3.spoke(update)
+        self.assertEqual(update.acts[0].kind, S.ASK_QUESTION)
+        t3.answer("Postgres.", 1)
+        self.assertEqual(self.sent(seam), [])
+
+    def test_a_request_with_two_questions_is_asked_one_at_a_time_and_answered_together(self):
+        seam, t3, first = self.asked("Postgres.", {"Call it users.": 0}, self.TWO)
+        self.assertEqual(first.acts, (act(S.ASK_QUESTION, thread="Add a clamp helper",
+                                          question="What should the table be called?", options=["users", "accounts"],
+                                          own_words=True, number=2, count=2),))
+        t3.spoke(first)
+        confirm = t3.answer("Call it users.", 1)
+        self.assertEqual(confirm.acts[0].slots["answers"], ["Postgres", "users"])
+        self.assertEqual(self.sent(seam), [], "nothing goes until every answer is confirmed")
+        t3.spoke(confirm)
+        seam.answer("answer_question", F.answered("t5", "q1", (("db", "Postgres"), ("name", "users"))))
+        done = t3.answer("Yes.", 2)
+        self.assertEqual(self.sent(seam), [("t5", "q1", [{"questionId": "db", "kind": "option", "text": "Postgres"},
+                                                          {"questionId": "name", "kind": "option", "text": "users"}])])
+        self.assertEqual(done.acts[0].slots["answers"], ["Postgres", "users"])
+
+    def test_a_no_to_the_confirmation_sends_nothing_and_is_told(self):
+        seam, t3, _ = self.asked()
+        update = t3.answer("No.", 1)
+        self.assertEqual(update.acts, (act(S.CANCELLED, op="answer", thread="Add a clamp helper"),))
+        self.assertEqual(self.sent(seam), [])
+
+    def test_a_reply_that_is_not_a_yes_to_the_confirmation_sends_nothing(self):
+        for reply in ("What do you mean?", "Hold on."):
+            with self.subTest(reply=reply):
+                seam, t3, _ = self.asked()
+                self.assertIsNone(t3.answer(reply, 1))
+                self.assertEqual(self.sent(seam), [])
+
+    def test_a_request_that_changed_before_the_yes_is_asked_about_again_and_nothing_is_sent(self):
+        seam, t3, _ = self.asked()
+        seam.read = self.state((F.question("cache", "Which cache should it use?", ("Redis", "None")),), request="q2")
+        again = t3.answer("Yes.", 1)
+        self.assertEqual(self.sent(seam), [])
+        self.assertEqual((again.acts[0].kind, again.acts[0].slots["restated"], again.acts[0].slots["options"]),
+                         (S.ASK_QUESTION, "changed", ["Redis", "None"]))
+
+    def test_the_same_request_with_other_options_is_not_the_one_that_was_named(self):
+        seam, t3, _ = self.asked()
+        seam.read = self.state((F.question("db", "Which database should it use?", ("Postgres", "Mongo")),))
+        again = t3.answer("Yes.", 1)
+        self.assertEqual((again.acts[0].slots["restated"], self.sent(seam)), ("changed", []))
+
+    def test_a_request_gone_before_the_yes_says_nothing_is_waiting_and_sends_nothing(self):
+        seam, t3, _ = self.asked()
+        seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=150, activity=T.ThreadActivity.WORKING)
+        update = t3.answer("Yes.", 1)
+        self.assertEqual((update.acts, self.sent(seam)), ((act(S.NOTHING_PENDING, thread="Add a clamp helper"),), []))
+
+    def test_a_question_the_voice_cannot_ask_is_left_to_the_app_and_nothing_is_asked(self):
+        seam = self.seam(())
+        t3 = tasks_over(self, seam, decider=F.Reader(READINGS, choosing={"Postgres.": 0}))
+        update = t3.about("k1", ANSWER, "Postgres.", 0)
+        self.assertEqual(update.acts, (act(S.ANSWER_IN_APP, thread="Add a clamp helper"),))
+        self.assertEqual((update.status, t3.live_question(), t3.decider.chosen), ("completed", None, []))
+
+    def test_a_thread_waiting_on_an_approval_is_read_out_and_not_answered(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
+                                       activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need("q1", "Run it?")))
+        seam.listing = waiting_listing(("t5", "Add a clamp helper"))
+        update = tasks_over(self, seam, decider=F.Reader(READINGS, choosing={"Postgres.": 0})).about(
+            "k1", ANSWER, "Postgres.", 0)
+        self.assertEqual((update.acts[0].kind, self.sent(seam)), (S.THREAD_STATUS, []))
+
+    def test_a_request_only_the_app_can_take_is_read_out_as_that_and_never_answered(self):
+        for source in (T.NeedSource.SECRET_REQUEST, T.NeedSource.LINK_REQUEST, T.NeedSource.CARD):
+            with self.subTest(source=source.value):
+                seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
+                                               activity=T.ThreadActivity.WAITING_ON_YOU,
+                                               pending=F.need("c1", "It needs something from you in the app.",
+                                                              kind=T.PendingKind.IN_APP, source=source)))
+                seam.listing = waiting_listing(("t5", "Add a clamp helper"))
+                update = tasks_over(self, seam, decider=F.Reader(READINGS, choosing={"Postgres.": 0})).about(
+                    "k1", ANSWER, "Postgres.", 0)
+                self.assertEqual((update.acts[0].kind, update.acts[0].slots["need"], self.sent(seam)),
+                                 (S.THREAD_STATUS, L.need_of(T.PendingKind.IN_APP, source), []))
+
+    def test_with_no_thread_waiting_nothing_is_asked_or_answered(self):
+        seam = F.FakeSeam()
+        seam.listing = listing(("t5", "Add a clamp helper"))
+        update = tasks_over(self, seam).about("k1", ANSWER, "Postgres.", 0)
+        self.assertEqual((update.acts, self.sent(seam)), ((act(S.NOTHING_PENDING),), []))
+
+    def test_only_the_thread_waiting_on_a_question_is_considered_when_several_wait(self):
+        approval = F.state(thread="t5", title="Add a clamp helper", as_of=140, activity=T.ThreadActivity.WAITING_ON_YOU,
+                           pending=F.need("q1", "Run it?"))
+        asking = self.state(self.ASKS, thread="t6", title="Fix the flaky ASR test")
+        seam = self.seam(None, ("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        seam.read = asking
+        seam.answer("read", approval, asking)
+        t3 = tasks_over(self, seam, decider=F.Reader(READINGS, choosing={"Postgres.": 0}))
+        update = t3.about("k1", ANSWER, "Postgres.", 0)
+        self.assertEqual((update.acts[0].kind, update.acts[0].slots["thread"]),
+                         (S.CONFIRM_ANSWER, "Fix the flaky ASR test"))
+
+    def waiting_two(self, picking, choosing):
+        seam = self.seam(None, ("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        asking_t5 = self.state(self.ASKS, thread="t5", title="Add a clamp helper")
+        asking_t6 = self.state(self.ASKS, thread="t6", title="Fix the flaky ASR test")
+        seam.read = asking_t6
+        seam.answer("read", asking_t5, asking_t6)
+        decider = F.Reader(READINGS, picking, choosing)
+        return seam, decider, tasks_over(self, seam, decider=decider)
+
+    def test_a_thread_the_caller_names_wins_over_the_one_the_call_last_spoke_about(self):
+        words = "Answer the ASR one with SQLite."
+        seam, decider, t3 = self.waiting_two({words: {"t6": 0.95}}, {words: 1})
+        t3.spoken_id = "t5"
+        update = t3.about("k1", ANSWER, words, 0)
+        self.assertEqual((update.acts[0].kind, update.acts[0].slots["thread"], update.acts[0].slots["answers"]),
+                         (S.CONFIRM_ANSWER, "Fix the flaky ASR test", ["SQLite"]))
+        self.assertEqual(decider.answering, [words], "the decider chose the thread, told the words are an answer")
+        self.assertEqual(self.sent(seam), [])
+
+    def test_with_several_questions_waiting_and_no_thread_named_it_asks_which_even_after_one_was_spoken_about(self):
+        """"The second one" picked the second thread of the listing once, and a yes sent the answer to the wrong one."""
+        words = "The second one."
+        seam, decider, t3 = self.waiting_two({words: {"unclear": 0.9}}, {words: 1})
+        t3.spoken_id = "t5"
+        update = t3.about("k1", ANSWER, words, 0)
+        self.assertEqual(update.acts[0].kind, S.ASK_WHICH)
+        self.assertEqual(self.sent(seam), [])
+
+    def test_two_threads_waiting_on_questions_ask_which_and_the_words_are_kept_for_the_one_chosen(self):
+        seam = self.seam(None, ("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        decider = F.Reader({"The ASR one.": ("other", "Fix the flaky ASR test")},
+                           {"Postgres.": {"unclear": 0.4, "t5": 0.3, "t6": 0.3}}, {"Postgres.": 0})
+        t3 = tasks_over(self, seam, decider=decider)
+        update = t3.about("k1", ANSWER, "Postgres.", 0)
+        self.assertEqual(update.acts[0].kind, S.ASK_WHICH)
+        t3.spoke(update)
+        seam.read = self.state(self.ASKS, thread="t6", title="Fix the flaky ASR test")
+        confirm = t3.answer("The ASR one.", 1)
+        self.assertEqual((confirm.acts[0].kind, confirm.acts[0].slots["thread"], confirm.acts[0].slots["answers"]),
+                         (S.CONFIRM_ANSWER, "Fix the flaky ASR test", ["Postgres"]))
+        self.assertEqual(self.sent(seam), [], "a choice of thread is not a yes")
+
+    def test_two_threads_with_one_title_are_never_offered_for_an_answer(self):
+        seam = self.seam(None, ("t5", "Add a clamp helper"), ("t6", "Add a clamp helper"))
+        update = tasks_over(self, seam, decider=F.Reader(READINGS, choosing={"Postgres.": 0})).about(
+            "k1", ANSWER, "Postgres.", 0)
+        self.assertEqual((update.acts[0].kind, self.sent(seam)), (S.SAME_TITLE, []))
+
+    def test_a_refusal_is_reported_as_t3s_and_a_dead_seam_as_unreachable(self):
+        for failure, kind in ((F.refusal("invalid_request", "That request is not waiting any more."), S.REFUSED),
+                              (F.unavailable(), S.UNREACHABLE)):
+            with self.subTest(kind=kind):
+                seam, t3, _ = self.asked()
+                seam.answer("answer_question", failure)
+                update = t3.answer("Yes.", 1)
+                self.assertEqual((update.acts[0].kind, update.status), (kind, "failed"))
+
+    def test_one_confirmation_answers_one_request_and_a_second_yes_answers_nothing(self):
+        seam, t3, _ = self.asked()
+        seam.answer("answer_question", F.answered("t5", "q1", (("db", "Postgres"),)))
+        t3.answer("Yes.", 1)
+        self.assertIsNone(t3.answer("Yes.", 2))
+        self.assertEqual(len(seam.ops("answer_question")), 1)
+
+    def test_a_retry_of_the_journaled_answer_sends_the_same_request_id_and_the_same_answers(self):
+        seam, t3, _ = self.asked()
+        seam.answer("answer_question", F.unavailable(), F.answered("t5", "q1", (("db", "Postgres"),)))
+        t3.answer("Yes.", 1)
+        task = next(t for t in t3.follow.journal.tasks.values() if t.kind is Kind.ANSWER)
+        t3.follow.answer(task, 2)
+        calls = seam.ops("answer_question")
+        self.assertEqual((len(calls), calls[0][1] == calls[1][1] == task.link.answer["request_id"],
+                          calls[0][2:] == calls[1][2:]), (2, True, True))
+
+    def test_the_options_are_chosen_off_the_t3_lock(self):
+        class Probe(F.Reader):
+            held = None
+
+            def chooses(self, question, options, reply, own_words=False):
+                got = []
+                worker = threading.Thread(target=lambda: got.append(t3.lock.acquire(timeout=1)) or t3.lock.release())
+                worker.start()
+                worker.join()
+                Probe.held = not got[0]
+                return super().chooses(question, options, reply, own_words)
+
+        seam = self.seam()
+        t3 = tasks_over(self, seam, decider=Probe(READINGS, choosing={"Postgres.": 0}))
+        t3.about("k1", ANSWER, "Postgres.", 0)
+        self.assertIs(Probe.held, False, "another thread could take the lock while the decider chose")
+
+    def test_a_second_segment_of_the_utterance_that_answered_is_part_of_it(self):
+        seam = self.seam()
+        t3 = tasks_over(self, seam, decider=F.Reader(READINGS, choosing={"Postgres": 0}))
+        t3.about("conv_turn_001:task_1", ANSWER, "Postgres", 0)
+        self.assertTrue(t3.asking_start("conv_turn_001:"))
+        self.assertFalse(t3.asking_start("conv_turn_002:"))
+
+    def test_the_tool_is_offered_only_while_a_thread_waits_on_a_question_and_the_decider_is_shown_it(self):
+        base = SimpleNamespace(choices=lambda: {"weather": "w", "none": "n"})
+        waiting = [{"kind": "question", "thread": "Add a clamp helper", "question": "Which database should it use?",
+                    "options": ["Postgres", "SQLite"]}]
+        self.assertNotIn(ANSWER, T3Registry(base, lambda: []).choices())
+        registry = T3Registry(base, lambda: waiting)
+        offered = registry.choices()
+        self.assertIn(ANSWER, offered)
+        self.assertTrue({APPROVE, DENY}.isdisjoint(offered), "no approval waits")
+        self.assertIn("Add a clamp helper asks: Which database should it use? The options are Postgres, SQLite.",
+                      offered[ANSWER])
+        self.assertEqual((registry.questions, registry.approvals), (waiting, []))
+
+    def test_the_pending_requests_the_decider_sees_include_questions_the_voice_can_ask(self):
+        seam = self.seam()
+        t3 = tasks_over(self, seam)
+        t3.follow.ensure(0)
+        self.assertEqual(t3.pending_requests(), [{"kind": "question", "thread": "Add a clamp helper",
+                                                   "question": "Which database should it use?",
+                                                   "options": ["Postgres", "SQLite"]}])
+        seam.read = self.state(())
+        self.assertEqual(t3.pending_requests(), [])
 
 
 class SpokenAbout(unittest.TestCase):

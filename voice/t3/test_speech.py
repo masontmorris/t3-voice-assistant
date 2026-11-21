@@ -25,6 +25,30 @@ from voice.t3.speech import (LINE_SCHEMA, READER_VARIANTS, RENDER_SYSTEM, SUMMAR
 REPLY = T.LastReply("I added clamp next to sum. All 12 tests pass.", "m1", None, "r1", "2026-11-18T10:00:00Z")
 
 
+class SpokenOrder(unittest.TestCase):
+    """"The second one" is read against the order the options were stored in, so a line may only tell them in that
+    order: a line that tells them in another is never minted, however well it names each."""
+
+    ASK = act(Kind.ASK_QUESTION, thread="Tidy the Save Slots", question="Which storage should it use?",
+              options=["Postgres", "SQLite"])
+
+    def test_a_line_that_tells_the_options_in_another_order_is_refused_and_one_in_order_is_minted(self):
+        speech = Speech(None, lambda thread_id: None, F.Agree())
+        reordered = speech.accept((self.ASK,), "Tidy the Save Slots asks which storage to use: SQLite or Postgres?",
+                                  "test")
+        self.assertIsNone(reordered.line)
+        self.assertIn("ask_question options out of order", reordered.problems[0])
+        said = speech.accept((self.ASK,), "Tidy the Save Slots asks which storage to use: Postgres or SQLite?", "test")
+        self.assertIsNotNone(said.line)
+
+    def test_the_decider_is_asked_for_each_option_by_its_place_in_the_order_stored(self):
+        from voice.t3.verify import asks
+
+        names = {a.name: a.question for a in asks([self.ASK])}
+        self.assertIn("choice number 2 of 2", names["a1_options_2"])
+        self.assertIn("Postgres, SQLite", names["a1_options_2"])
+
+
 class Text:
     """A free text model that answers summaries with a gist and renders with `line`, counting each kind."""
 

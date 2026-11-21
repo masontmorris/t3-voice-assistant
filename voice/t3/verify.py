@@ -76,8 +76,13 @@ MEANS: dict[Kind, str] = {
     Kind.CORRECTION: "what the assistant said a moment ago about {thread} was wrong, and {thread} is {status}",
     Kind.CONFIRM_RESPOND: "whether to {decision} the request {thread} is waiting on, which is {need}",
     Kind.RESPONDED: "the request {thread} was waiting on was {decided}",
-    Kind.NOTHING_PENDING: "{thread} is not waiting on any request, so there was nothing to approve or deny",
+    Kind.NOTHING_PENDING: "{thread} is not waiting on any request, so there was nothing to answer",
     Kind.NEEDS_THE_APP: "the assistant cannot say what {thread}'s request would do, so it has to be approved in the app",
+    Kind.ASK_QUESTION: ("which option they choose for the question {thread} is asking them, \"{question}\", the options "
+                        "being: {options}"),
+    Kind.CONFIRM_ANSWER: "whether to give {thread} the answer: {answers}",
+    Kind.ANSWERED: "{thread} was given the answer: {answers}",
+    Kind.ANSWER_IN_APP: "{thread}'s question cannot be answered by voice, so they have to answer it in the app",
 }
 assert set(MEANS) == set(Kind)
 
@@ -105,7 +110,7 @@ CLAIM_BARS = {"answered": 0.75}
 CLAIMS_ONCE_ENDED = {"finished": "{thread} completed its work successfully"}
 ENDED_UNFINISHED = frozenset({"interrupted", "cancelled"})
 OPS = {"start": "start the thread", "ask": "look the thread up", "tell": "send the message", "stop": "stop the thread",
-       "respond": "answer the request"}
+       "respond": "answer the request", "answer": "give the answer"}
 
 
 @dataclass(frozen=True)
@@ -132,6 +137,16 @@ class Verdict:
     problems: tuple[str, ...] = ()
 
 
+# A question with no options to choose among asks for what they want to say.
+OPEN_QUESTION = "what they want to answer to the question {thread} is asking them, \"{question}\""
+
+# Per value of a list slot, the question that it is said as what it is: an option offered, an answer asked about or given.
+OFFERED: dict[Kind, tuple[tuple[str, str], ...]] = {
+    Kind.CONFIRM_ANSWER: (("answers", 'Does the line say that the answer "{value}" would be given?'),),
+    Kind.ANSWERED: (("answers", 'Does the line say that the answer "{value}" was given?'),),
+}
+
+
 def _fill(template: str, slots: dict) -> str:
     values = dict(slots)
     values["status"] = STATUS.get(str(slots.get("status")), str(slots.get("status")))
@@ -139,8 +154,9 @@ def _fill(template: str, slots: dict) -> str:
     values["decided"] = {"approve": "approved", "deny": "denied"}.get(str(slots.get("decision")), "answered")
     values["need"] = NEED.get(str(slots.get("need")), "something from them")
     values["op"] = OPS.get(str(slots.get("op")), "do it")
-    if isinstance(slots.get("candidates"), (list, tuple)):
-        values["candidates"] = ", ".join(slots["candidates"])
+    for name, joiner in (("candidates", ", "), ("options", ", "), ("answers", "; "), ("questions", "; ")):
+        if isinstance(slots.get(name), (list, tuple)):
+            values[name] = joiner.join(slots[name])
     values.setdefault("thread", "the thread")
     values.setdefault("project", "the project")
     return template.format_map(_Blank(values))
@@ -158,7 +174,8 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     acts = list(acts)
     out = []
     for n, a in enumerate(acts, 1):
-        means = _fill(MEANS[a.kind], a.slots)
+        means = _fill(OPEN_QUESTION if a.kind is Kind.ASK_QUESTION and not a.slots.get("options") else MEANS[a.kind],
+                      a.slots)
         if "thread" in a.slots:
             out.append(Ask(f"a{n}_about", f"Is the line about the thread named \"{a.slots['thread']}\"?", True))
         elif a.kind is Kind.CANCELLED:
@@ -181,6 +198,21 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            "own words, in the question." if confirming else
                            f"the line left out what the thread reported: \"{a.slots['summary']}\". Say that, in your "
                            "own words, after the status."))
+    # The slot check finds an option anywhere in the line, so "Strong" is found in "how strong should it be" and a line
+    # that leaves the option out passes it (rehearsal). Each option and answer is asked about on its own.
+    for n, a in enumerate(acts, 1):
+        options = a.slots.get("options") if a.kind is Kind.ASK_QUESTION else None
+        for i, value in enumerate(options or (), 1):
+            # A reply by place is read against this order, so the line must tell the options in it.
+            out.append(Ask(f"a{n}_options_{i}",
+                           f'Does the line offer "{value}" as choice number {i} of {len(options)}, the choices in '
+                           f'order being {", ".join(options)}?', True,
+                           f"the line left out {value!r} or told the options in another order. Say every option, each as "
+                           f"given, in this order: {', '.join(options)}."))
+        for key, template in OFFERED.get(a.kind, ()):
+            for i, value in enumerate(a.slots.get(key) or (), 1):
+                out.append(Ask(f"a{n}_{key}_{i}", template.format(value=value), True,
+                               f"the line left out {value!r}. Say every option or answer, each as given."))
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
     subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")
@@ -375,7 +407,22 @@ class Decider:
             return Reading(None, error=f"decider status {record.get('status')}")
         return judge_reading((record.get("response") or {}).get("answers"), options)
 
-    def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None) -> Picked:
+    def chooses(self, question: str, options: tuple[tuple[str, str], ...], reply: str, own_words: bool = False) -> Chosen:
+        """Which of `options` (label and description) `reply` chooses for `question`, or that it gives the caller's own
+        words or no answer. A timeout or any error chooses nothing, and nothing is ever sent on it."""
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", choice_request(question, options, reply, own_words),
+                                          label="t3_answer")
+        except Exception as exc:
+            return Chosen(None, error=f"{type(exc).__name__}: {exc}")
+        if record.get("status") != 200:
+            return Chosen(None, error=f"decider status {record.get('status')}")
+        return judge_choice((record.get("response") or {}).get("answers"), len(options), own_words)
+
+    def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None,
+              answering: bool = False) -> Picked:
         """Which of `threads` the words `request` mean, with how sure it is. `recent` is the title the call was just
         about. A timeout or any error picks nothing, and nothing is always asked about."""
         if not threads:
@@ -383,7 +430,8 @@ class Decider:
         try:
             with self.lock:
                 self.calls += 1
-                record = self.client.call("decisions", pick_request(request, threads, recent), label="t3_pick")
+                record = self.client.call("decisions", pick_request(request, threads, recent, answering),
+                                          label="t3_pick")
         except Exception as exc:
             return Picked(None, error=f"{type(exc).__name__}: {exc}")
         if record.get("status") != 200:
@@ -442,7 +490,15 @@ class Picked:
         return tuple(thread for _, thread in sorted(fits, key=lambda fit: -fit[0]))
 
 
-def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None) -> dict:
+ANSWERING_CONTEXT = ("A person on a voice call is answering a question one of their coding threads asked. `request` is a "
+                     "transcript of what they said, and may mishear a word.")
+ANSWERING_PICK = ("Which of the person's threads does `request` name or describe, by its title, project or subject? "
+                  "Most of `request` is the answer, not a thread. Words that only pick an option, or a place such as "
+                  "\"the second one\", name no thread: choose unclear. The options list the threads, newest first.")
+
+
+def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None,
+                 answering: bool = False) -> dict:
     """One decisions body asking which listed thread the person's words mean. The threads are the options, so the
     answer's shares say how sure the pick is and which others the words fit."""
     criteria = {f"thread_{i:02d}": f"{t.title!r} in the project {t.project!r}, {t.activity.replace('_', ' ')}."
@@ -455,6 +511,9 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
                         "is a transcript of what they said, and may mishear a word."}
     instructions = ("Which of the person's threads does `request` mean? The options list them, newest first. "
                     "`last_discussed` is the thread the conversation was just about, when there is one.")
+    if answering:
+        state = {"request": request, "last_discussed": None, "context": ANSWERING_CONTEXT}
+        instructions = ANSWERING_PICK
     return {"model": "d1.2", "state": state,
             "questions": {"pick": {"type": "choice", "instructions": instructions, "criteria": criteria}}}
 
@@ -585,6 +644,78 @@ def judge_reading(answers: Any, options: tuple[str, ...] = ()) -> Reading:
     target = names.get(picked["choice"]) if share >= OPTION_CONFIDENCE else None
     elsewhere = shares is not None and picked["choice"] == ELSEWHERE and share >= ELSEWHERE_CONFIDENCE
     return Reading(answers["reading"]["choice"], scores, target=target, elsewhere=elsewhere)
+
+
+OWN_WORDS, NO_ANSWER = "own_words", "no_answer"
+# An option is the answer only with at least this share of the choice. An answer steers a coding agent, so a lean is not
+# enough: below it the question is asked again.
+ANSWER_SURE = 0.7
+# The caller's own words are the answer with this share, lower because the choice has fewer rivals to separate from: a
+# question with no options gave a plain answer ("Call it level cache.") 0.61 to 0.67 and no reply that answers nothing
+# more than 0.06 (voice/t3/fixtures/answer_choices.json). The confirmation reads the words back before anything is sent.
+WORDS_SURE = 0.5
+
+
+@dataclass(frozen=True)
+class Chosen:
+    """The decider's choice among the options a question was told with. `choice` is `option_NN` (NN from 1), OWN_WORDS
+    (the reply answers in words no option says), NO_ANSWER (it answers nothing), UNCLEAR (it may answer but does not
+    say which option), or None when there was no answer. `shares` is each label's share of the choice."""
+
+    choice: str | None
+    shares: dict[str, float] = field(default_factory=dict)
+    error: str | None = None
+    sure_threshold: float = ANSWER_SURE
+
+    @property
+    def share(self) -> float:
+        return self.shares.get(self.choice, 0.0) if self.choice is not None else 0.0
+
+    @property
+    def option(self) -> int | None:
+        """The 0-based index of the option the reply chooses, only when the decider is sure of it."""
+        if self.choice is None or not self.choice.startswith("option_") or self.share < self.sure_threshold:
+            return None
+        return int(self.choice[len("option_"):]) - 1
+
+    @property
+    def own_words(self) -> bool:
+        return self.choice == OWN_WORDS and self.share >= WORDS_SURE
+
+    @property
+    def declined(self) -> bool:
+        """The reply answers nothing: another request, a refusal, or talk about something else."""
+        return self.choice == NO_ANSWER and self.share >= PICK_CONFIRM
+
+
+def choice_request(question: str, options: tuple[tuple[str, str], ...], reply: str, own_words: bool) -> dict:
+    """One decisions body asking which option a reply chooses for a question a thread asked. The options are listed in
+    the order the voice read them out, so "the second one" answers by place as well as by name."""
+    criteria = {f"option_{i:02d}": f"It picks {label!r}" + (f" ({note})" if note and note != label else "") +
+                f", number {i} of the {len(options)} read out."
+                for i, (label, note) in enumerate(options, 1)}
+    if own_words:
+        criteria[OWN_WORDS] = "It answers the question in its own words, with something none of the options says."
+    criteria[NO_ANSWER] = ("It does not answer the question: it asks for something else, declines to answer, takes "
+                           "the question back, or talks about something else.")
+    criteria[UNCLEAR] = "It may be an answer, but does not say which option, or fits several of them equally well."
+    state = {"question": question, "options": [label for label, _ in options], "reply": reply,
+             "context": "A voice assistant on a call told the person a question that one of their coding threads is "
+                        "waiting on, and read out its options in order. `reply` is a speech recognition transcript of "
+                        "what they said back: it may mishear a word, and a rising voice may add a question mark."}
+    instructions = "Which option does `reply` choose for `question`? `options` are in the order they were read out."
+    return {"model": "d1.2", "state": state,
+            "questions": {"choice": {"type": "choice", "instructions": instructions, "criteria": criteria}}}
+
+
+def judge_choice(answers: Any, count: int, own_words: bool) -> Chosen:
+    """The decider's answer as a Chosen. A label that is not offered, or shares that are not numbers from 0 to 1, is no
+    choice at all."""
+    labels = {f"option_{i:02d}" for i in range(1, count + 1)} | {NO_ANSWER, UNCLEAR} | ({OWN_WORDS} if own_words else set())
+    scores = _scores(answers.get("choice") if isinstance(answers, dict) else None, labels)
+    if scores is None:
+        return Chosen(None, error="the decider gave no choice")
+    return Chosen(answers["choice"]["choice"], scores)
 
 
 def _ms(started: float) -> float:

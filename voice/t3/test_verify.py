@@ -81,6 +81,37 @@ class ConfirmingAnApproval(unittest.TestCase):
         self.assertNotIn("a1_summary", [ask.name for ask in asks([deny])])
 
 
+class OptionsAndAnswers(unittest.TestCase):
+    """Each option of a question and each answer is asked about on its own: the slot check finds "Strong" in "how strong
+    should it be", so a line that left the option out passed it."""
+
+    ASK = act(Kind.ASK_QUESTION, thread="Add Controller Rumble", question="How strong should the default be?",
+              options=["Light", "Medium", "Strong"])
+    OK = {"a1_about": 0.9, "a1_means": 0.9}
+
+    def test_a_line_that_leaves_one_option_out_is_refused_and_told_which(self):
+        self.assertEqual([a.name for a in asks([self.ASK]) if "_options_" in a.name],
+                         ["a1_options_1", "a1_options_2", "a1_options_3"])
+        said = {**self.OK, "a1_options_1": 0.9, "a1_options_2": 0.9, "a1_options_3": 0.1}
+        verdict = Decider(AnsweringAsks(said)).verify([self.ASK], "How strong: Light or Medium?")
+        self.assertEqual((verdict.passed, verdict.failed), (False, ("a1_options_3",)))
+        self.assertIn("'Strong'", verdict.problems[0])
+        said["a1_options_3"] = 0.9
+        self.assertTrue(Decider(AnsweringAsks(said)).verify([self.ASK], "Light, Medium or Strong?").passed)
+
+    def test_every_answer_in_a_confirmation_and_a_report_is_asked_about(self):
+        for kind in (Kind.CONFIRM_ANSWER, Kind.ANSWERED):
+            with self.subTest(kind=kind.value):
+                names = [a.name for a in asks([act(kind, thread="T", answers=["On", "Medium"])])]
+                self.assertEqual([n for n in names if "_answers_" in n], ["a1_answers_1", "a1_answers_2"])
+
+    def test_a_question_with_no_options_asks_about_none(self):
+        free = act(Kind.ASK_QUESTION, thread="T", question="Name?", options=[], own_words=True)
+        self.assertEqual([a.name for a in asks([free]) if "_options_" in a.name], [])
+        means = next(a.question for a in asks([free]) if a.name == "a1_means")
+        self.assertNotIn("options being", means, "it is not asked which option they choose")
+
+
 class LineCheck(unittest.TestCase):
     def test_the_decider_refuses_the_reviewers_escapes(self):
         decider = Decider(Recorded())

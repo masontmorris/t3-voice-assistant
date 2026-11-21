@@ -226,6 +226,40 @@ class Hybrid(unittest.TestCase):
         self.assertNotIn("approve", asked[0]["questions"]["s1_kind"]["criteria"]["request"])
         self.assertIn("approve", asked[1]["questions"]["s1_kind"]["criteria"]["request"])
 
+    def test_a_waiting_question_adds_its_sentence_to_the_kind_question_only_while_one_waits(self):
+        tools = {"weather": "w", "t3_ask": "a", "t3_answer": "r", "none": "n"}
+        asked = []
+        for waiting in ((), [{"kind": "question", "thread": "Add clamp helper", "question": "Which one?",
+                               "options": ["A", "B"]}]):
+            decider = FakeDecider()
+            seg = HybridSegmenter(decider, "test", tools=tools)
+            seg.conversation_mode, seg.pending_questions = True, waiting
+            seg.update(TranscriptUpdate(1, "The second one.", True))
+            asked.append(decider.bodies[-1]["questions"]["s1_kind"]["criteria"]["request"])
+        self.assertNotIn("answer to a question", asked[0])
+        self.assertIn("answer to a question", asked[1])
+
+    def test_giving_a_thread_an_answer_waits_for_the_final_transcript_however_the_decider_reads_it(self):
+        class Answering(FakeDecider):
+            def call(self, route, body, label=""):
+                record = super().call(route, body, label)
+                for name, question in body["questions"].items():
+                    if name.endswith("_tool"):
+                        record["response"]["answers"][name] = choice("t3_answer", list(question["criteria"]))
+                return record
+
+        tools = {"t3_answer": "r", "none": "n"}
+        decider = Answering(starters={"check"})
+        seg = HybridSegmenter(decider, "test", tools=tools)
+        seg.conversation_mode = True
+        texts = ["go with the second one and then check the room",
+                 "go with the second one and then check the room is free",
+                 "Go with the second one, and then check the room is free."]
+        for n, text in enumerate(texts, 1):
+            seg.update(TranscriptUpdate(n, text, n == len(texts)))
+        answer = next(d for d in seg.dispatch_log if "second one" in d["instruction"])
+        self.assertTrue(answer["is_final"], "no answer goes on words still being spoken")
+
     def test_live_side_effect_criteria_do_not_change_recorded_decision_contract(self):
         live = FakeDecider()
         segmenter = HybridSegmenter(live, "live")
