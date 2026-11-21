@@ -20,7 +20,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any, Iterable
 
-from voice.t3.acts import QUESTIONS, Act, Kind, forbidden_claims
+from voice.t3.acts import QUESTIONS, Act, Kind, forbidden_claims, outcome_meaning
 
 VERIFY_TIMEOUT_S = 2.0
 YES = 0.5
@@ -73,6 +73,7 @@ MEANS: dict[Kind, str] = {
     Kind.SEAM_DOWN: "the assistant stopped following their threads",
     Kind.REFUSED: "T3 refused to {op}",
     Kind.LEGACY_UPDATE: "the same news as this older line: {text}",
+    Kind.UNANSWERED: "the assistant could not give an answer",
     Kind.CORRECTION: "what the assistant said a moment ago about {thread} was wrong, and {thread} is {status}",
     Kind.CONFIRM_RESPOND: "whether to {decision} the request {thread} is waiting on, which is {need}",
     Kind.RESPONDED: "the request {thread} was waiting on was {decided}",
@@ -167,6 +168,12 @@ class _Blank(dict):
         return "it"
 
 
+def act_meaning(a: Act) -> str:
+    if a.kind is Kind.UNANSWERED and (outcomes := a.slots.get("outcomes")):
+        return "the assistant " + outcome_meaning(outcomes)
+    return _fill(OPEN_QUESTION if a.kind is Kind.ASK_QUESTION and not a.slots.get("options") else MEANS[a.kind], a.slots)
+
+
 def asks(acts: Iterable[Act]) -> list[Ask]:
     """The questions a line for `acts` must answer as given: per act, whether it is about the act's thread and says
     what the act means; per status claim the acts forbid, whether the line makes it; then once whether it claims
@@ -174,8 +181,7 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     acts = list(acts)
     out = []
     for n, a in enumerate(acts, 1):
-        means = _fill(OPEN_QUESTION if a.kind is Kind.ASK_QUESTION and not a.slots.get("options") else MEANS[a.kind],
-                      a.slots)
+        means = act_meaning(a)
         if "thread" in a.slots:
             out.append(Ask(f"a{n}_about", f"Is the line about the thread named \"{a.slots['thread']}\"?", True))
         elif a.kind is Kind.CANCELLED:
@@ -185,9 +191,14 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
         if a.kind in QUESTIONS:
             out.append(Ask(f"a{n}_means", f"Is the line a question that asks {means}?", True))
         else:
-            out.append(Ask(f"a{n}_means", f"Does the line tell them that {means}?", True))
+            meaning = (f"Does the line tell them only that {means}, without a reason, outcome or other claim?"
+                       if a.kind is Kind.UNANSWERED else f"Does the line tell them that {means}?")
+            out.append(Ask(f"a{n}_means", meaning, True))
             out.append(Ask(f"a{n}_asks_unrequested",
                            "Does the line ask the person a question the act did not call for?", False))
+        if a.slots.get("recap"):
+            out.append(Ask(f"a{n}_recap", f"Does the line recap that {means} as an action already reported, "
+                           "without saying another action happened?", True))
         # The meaning question alone passes a status line that leaves the summary out.
         if a.kind in SAYS_SUMMARY and "summary" in a.slots:
             confirming = a.kind is Kind.CONFIRM_RESPOND
@@ -240,7 +251,10 @@ def asked_claims(acts: Iterable[Act]) -> dict[str, str]:
         ended = str(a.slots.get("status")) in ENDED_UNFINISHED
         for claim in sorted(forbidden_claims([a]) - UNASKED.get(a.kind, frozenset())):
             if claim in allowed and claim not in asked:
-                asked[claim] = (CLAIMS_ONCE_ENDED if ended else {}).get(claim, CLAIMS[claim])
+                if a.kind is Kind.UNANSWERED and claim == "answered":
+                    asked[claim] = "a thread question was answered or a permission request was approved or denied"
+                else:
+                    asked[claim] = (CLAIMS_ONCE_ENDED if ended else {}).get(claim, CLAIMS[claim])
     return dict(sorted(asked.items()))
 
 
@@ -249,7 +263,7 @@ def request(acts: Iterable[Act], line: str) -> dict:
     carries what it means ("says"), because the unsupported-claim question is about a thread and refused "Should I
     start a new coding thread in Voice sandbox?" three times in three on the 2026-11-18 rehearsal."""
     acts = list(acts)
-    state = {"line": line, "facts": [{"act": a.kind.value, **a.slots, **({} if "thread" in a.slots else {"says": _fill(MEANS[a.kind], a.slots)})}
+    state = {"line": line, "facts": [{"act": a.kind.value, **a.slots, **({} if "thread" in a.slots else {"says": act_meaning(a)})}
                          for a in acts],
              "context": "A voice assistant is about to say `line` to the person it is talking to, about their coding "
                         "threads in an app called T3. `facts` is everything it may say."}

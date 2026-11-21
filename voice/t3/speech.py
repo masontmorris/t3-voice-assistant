@@ -30,7 +30,7 @@ from typing import Any, Callable, Iterable
 from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise,
+from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise, outcome_meaning,
                            recites)
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.verify import Decider, Verdict
@@ -51,7 +51,7 @@ MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread in this project. Nothing has started yet. Do not "
                          "repeat what they asked for.",
     Kind.ASK_WHICH: "Ask which one they mean, saying whether `of` is project or thread, and name every candidate. "
-                    "Do not say the word candidates, and do not repeat what they asked.",
+                    "Join the final two choices with or. Do not say the word candidates or repeat what they asked.",
     Kind.NO_PROJECT: "In one sentence, tell them you can't find any project to use.",
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
     Kind.LAUNCHED: "A new thread started in this project.",
@@ -124,6 +124,8 @@ MEANINGS: dict[Kind, str] = {
                    "given. Do not say what the thread does next.",
     Kind.ANSWER_IN_APP: "You cannot take this thread's question by voice: say they have to answer it in the app. Name "
                         "the thread.",
+    Kind.UNANSWERED: "Say in one short sentence that you could not give an answer just now. Give no reason, report "
+                     "no outcome, and make no other claim.",
     Kind.CORRECTION: "What you said a moment ago about this thread was wrong. Say so in a few words, then say its real "
                      "status. When `need` is set, the thread is waiting on them: " + NEED_WORDS,
 }
@@ -372,7 +374,15 @@ def never_say(acts: Iterable[Act]) -> list[str]:
 
 
 def act_facts(a: Act) -> dict:
-    return {"act": a.kind.value, "means": MEANINGS[a.kind], "facts": dict(a.slots)}
+    return {"act": a.kind.value, "means": wording_direction(a), "facts": dict(a.slots)}
+
+
+def wording_direction(a: Act) -> str:
+    if a.kind is Kind.UNANSWERED and (outcomes := a.slots.get("outcomes")):
+        return f"Say only that you {outcome_meaning(outcomes)}. Do not say you could not answer."
+    if a.slots.get("recap"):
+        return MEANINGS[a.kind] + " Make clear this is a recap of the same action you already reported."
+    return MEANINGS[a.kind]
 
 
 @dataclass
@@ -715,6 +725,7 @@ READER_EXAMPLES = {
     Kind.ANSWER_IN_APP: ({"thread": "Example Tag Camera Clips"},
                          "Example Tag Camera Clips has a question I can't take by voice, so you'll need to answer it "
                          "in the app."),
+    Kind.UNANSWERED: ({}, "I couldn't give you an answer just now."),
     Kind.CORRECTION: ({"thread": "Example Bake Menu Cards", "status": "working"},
                       "Sorry, I got that wrong. The Example Bake Menu Cards thread is still working."),
 }
@@ -724,6 +735,7 @@ assert set(READER_EXAMPLES) == set(Kind)
 # A kind whose example is chosen by a slot as well: shown only the project example, the writer restates the task for
 # thread candidates and names none.
 READER_VARIANTS = {
+    (Kind.UNANSWERED, "outcome"): ({"outcomes": ["sent"]}, "I sent the follow-up message."),
     (Kind.SAME_TITLE, "tell"): ({"thread": "Example Sort Photo Albums", "op": "tell"},
                                 "I didn't send anything, because more than one thread is called Example Sort Photo "
                                 "Albums. You can send it in the app."),
@@ -753,6 +765,9 @@ READER_VARIANTS = {
                                       "options": ["Postgres", "SQLite", "MySQL"], "own_words": False, "restated": "changed"},
                                      "The Example Pick Storage Layer thread is asking something different now: which database "
                                      "should it use, Postgres, SQLite, or MySQL?"),
+    (Kind.ASK_WHICH, "thread_pair"): ({"of": "thread", "candidates": ["Example Mend Rail Maps",
+                                                                      "Example Mend Rail Labels"]},
+                                      "Which thread do you mean, Example Mend Rail Maps or Example Mend Rail Labels?"),
     (Kind.ASK_WHICH, "thread"): ({"of": "thread", "candidates": ["Example Mend Rail Maps", "Example Mend Rail Labels",
                                                                  "Example Add Rail Legend"]},
                                  "Which thread do you mean, Example Mend Rail Maps, Example Mend Rail Labels, or "
@@ -771,7 +786,12 @@ EXAMPLE_NAMES = frozenset(name for slots, _ in (*READER_EXAMPLES.values(), *READ
 
 
 def _shape(kind: Kind, slots: dict) -> str | None:
-    """The variant a question's or a confirmation's own shape picks: no options to say, or several answers."""
+    if kind is Kind.ASK_WHICH and slots.get("of") == "thread" and len(slots.get("candidates") or ()) == 2:
+        return "thread_pair"
+    if variant := (slots.get("of") or slots.get("op") or slots.get("decision") or slots.get("restated")):
+        return variant
+    if kind is Kind.UNANSWERED and slots.get("outcomes"):
+        return "outcome"
     if kind is Kind.ASK_QUESTION and slots.get("options") == []:
         return "open"
     if kind is Kind.CONFIRM_ANSWER and len(slots.get("answers") or ()) > 1:
@@ -785,7 +805,7 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     firsts = {}
     for a in acts:
         firsts.setdefault(a.kind, a)
-    directions = "\n".join(f"{kind.value}: {MEANINGS[kind]}" for kind in kinds)
+    directions = "\n".join(f"{kind.value}: {wording_direction(firsts[kind])}" for kind in kinds)
     head = f"{READER}\n\n{directions}"
     if banned := never_say(acts):
         head += f"\nDo not claim {', or '.join(banned)}."
@@ -796,9 +816,7 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
     examples = []
     for kind in kinds:
         slots = firsts[kind].slots
-        shown = READER_VARIANTS.get((kind, slots.get("of") or slots.get("op") or slots.get("decision")
-                                                or slots.get("restated") or _shape(kind, slots)),
-                                    READER_EXAMPLES[kind])
+        shown = READER_VARIANTS.get((kind, _shape(kind, slots)), READER_EXAMPLES[kind])
         example, reply = SAID_AGAIN_EXAMPLE if again and kind is Kind.THREAD_STATUS else shown
         examples.append((json.dumps({"kind": kind.value, **example}), reply))
     # The questions a confirmation answers are for the line check; the writer given them asked them again (3 of 3 drafts).

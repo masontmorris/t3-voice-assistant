@@ -15,7 +15,7 @@ import websockets
 
 from voice.live import rehearse as R
 from voice.live import scenarios as S
-from voice.live.scenario_score import Call, Judge, Result, Turn, Verdict
+from voice.live.scenario_score import Call, Judge, Result, Turn, Verdict, turn_of
 from voice.t3.acts import Kind
 
 
@@ -23,7 +23,8 @@ def turn(index, kinds=(), delivery="sent", free=(), idle=False, tools=(), cancel
     entries = tuple({"kinds": [k], "delivery": delivery, "draft": "", "draft_problems": [], "reply": "", "status": None,
                      "relays": 1} for k in kinds)
     said = replies if replies is not None else [("snapshot", None, line) for line in free]
-    return Turn(index, index + 1, idle, None, entries, tuple(said), tuple(tools), cancelled, barge, 1.0, 1)
+    audio = 1.0 if said or (entries and delivery in ("sent", "partial")) else None
+    return Turn(index, index + 1, idle, None, entries, tuple(said), tuple(tools), cancelled, barge, audio, 1)
 
 
 class Yes(Judge):
@@ -69,6 +70,11 @@ class Withdrawn(unittest.TestCase):
         found = plan.check(call([turn(0, [Kind.THREAD_STATUS])]))
         self.assertEqual(failed(found)[0], "asked a thread question")
         self.assertTrue(all(v.precondition for v in found[1:]))
+
+    def test_a_fallback_does_not_answer_the_turn_after_withdrawal(self):
+        held = self.held(turn(1, [Kind.UNANSWERED]))
+        self.assertEqual(failed(self.plan().check(held)), ["every completed turn was answered"])
+        self.assertTrue(S.no_silent_turn(held).ok)
 
 
 class Approval(unittest.TestCase):
@@ -125,6 +131,19 @@ class Silence(unittest.TestCase):
         self.assertTrue(S.no_silent_turn(call([turn(0, [Kind.THREAD_STATUS])])).ok)
         self.assertTrue(S.no_silent_turn(call([turn(0, [Kind.CANCELLED], delivery="unsent", cancelled="continued")])).ok)
 
+    def test_a_text_only_ordinary_reply_was_not_heard(self):
+        record = {"clip": "turn_001", "final_transcript": "Hello.",
+                  "replies": [{"kind": "snapshot", "text": "Hi.", "speech_s": 0.0}]}
+        silent = turn_of(0, record, lambda _: [])
+        self.assertFalse(silent.answered)
+        self.assertFalse(S.no_silent_turn(call([silent])).ok)
+
+        record["live"] = {"speech_end_to_first_audio_sent_s": 1.0}
+        record["replies"].append({"kind": "t3", "text": "I couldn't answer.", "delivery": "sent", "speech_s": 1.0})
+        heard = turn_of(0, record, lambda _: [{"kinds": [Kind.UNANSWERED], "delivery": "sent"}])
+        self.assertFalse(heard.answered)
+        self.assertTrue(S.no_silent_turn(call([heard])).ok)
+
 
 class ShortYes(unittest.TestCase):
     def test_both_yeses_must_start_a_thread_and_say_so(self):
@@ -140,8 +159,19 @@ class Speaking(unittest.TestCase):
     def test_the_first_reply_is_stopped_and_the_second_answered(self):
         plan = S.speak_over(S.Pool())
         answered = turn(1, barge={"heard": True}, replies=[("snapshot", "sent", "Four.")])
-        self.assertEqual(failed(plan.check(call([turn(0), answered]))), [])
-        self.assertEqual(len(failed(plan.check(call([turn(0), turn(1, replies=[("snapshot", "sent", "Four.")])])))), 1)
+        self.assertEqual(failed(plan.check(call([turn(0), answered], judge=Yes(0.9)))), [])
+        without_barge = turn(1, replies=[("snapshot", "sent", "Four.")])
+        self.assertEqual(failed(plan.check(call([turn(0), without_barge], judge=Yes(0.9)))),
+                         ["the first reply was stopped"])
+
+    def test_an_acknowledgment_breaks_silence_but_does_not_answer(self):
+        plan = S.speak_over(S.Pool())
+        last = turn(1, [Kind.UNANSWERED], barge={"heard": True},
+                    replies=[("t3", "sent", "I couldn't answer.")])
+        held = call([turn(0), last])
+        self.assertEqual(failed(plan.check(held)), ["the new words were answered"])
+        self.assertTrue(S.no_silent_turn(held).ok)
+        self.assertFalse(S.no_unexpected_fallback(held).ok)
 
 
 class LongSet(unittest.TestCase):
@@ -230,6 +260,20 @@ class Gate(unittest.TestCase):
         run = Result("x", 1, (Verdict("c", False, "a"), Verdict("d", False, "b")), (), 0, 0, 1.0)
         table, green = self.table([run], known=["c"])
         self.assertEqual((table[0][1], green), ("FAIL", False))
+
+    def test_news_blocked_by_the_marked_yes_is_expected_but_missing_exchange_is_an_error(self):
+        plan = S.news_permission(S.Pool())
+        plan.notes.update(confirmed=True, timed_out=True)
+        turns = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1), turn(2), turn(3)]
+
+        def unexpected(items, world=None):
+            verdicts = plan.check(call(items, world))
+            return S.unexpected(Result("news-permission", 1, tuple(verdicts), (), 0, 0, 0))
+
+        self.assertEqual(unexpected(turns), [])
+        self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(turns[:2])))
+        self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(
+            turns[:2], {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}})))
 
     def test_k_of_n_and_an_error_that_no_run_passed(self):
         two = [result("x", True), result("x", False), result("x", True)]

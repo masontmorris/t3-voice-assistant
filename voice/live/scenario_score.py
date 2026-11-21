@@ -14,6 +14,7 @@ from typing import Any, Callable
 
 from voice.liquid_decider.client import LiquidClient
 from voice.segmentation.client import Pacer
+from voice.t3.acts import Kind
 from voice.t3.verify import noul
 
 FREE = ("t3", "t3_update")
@@ -46,6 +47,18 @@ class Turn:
         return {k for e in self.t3 if e["delivery"] == "sent" for k in e["kinds"]}
 
     @property
+    def answered(self) -> bool:
+        return self.has_audio and bool(self.free or self.said_kinds - {Kind.UNANSWERED})
+
+    @property
+    def has_audio(self) -> bool:
+        return self.first_audio_s is not None
+
+    @property
+    def attempted_fallback(self) -> bool:
+        return any(Kind.UNANSWERED in e["kinds"] for e in self.t3)
+
+    @property
     def free(self) -> tuple[str, ...]:
         """What the caller heard in this turn that was not a checked T3 line."""
         return tuple(text for kind, delivery, text in self.replies
@@ -66,7 +79,8 @@ def turn_of(index: int, record: dict, entries: Callable[[dict], list[dict]]) -> 
     return Turn(
         index=index, n=int(str(record.get("clip") or "turn_0").split("_")[-1].split(".")[0] or 0),
         idle=bool(record.get("idle")), heard=record.get("final_transcript"), t3=tuple(entries(record)),
-        replies=tuple((r.get("kind"), r.get("delivery"), r.get("text")) for r in record.get("replies", [])),
+        replies=tuple((r.get("kind"), r.get("delivery") or ("unsent" if r.get("speech_s") == 0 else None), r.get("text"))
+                      for r in record.get("replies", [])),
         tools=tuple(e["tool"] for e in (record.get("executions") or {}).values() if e.get("tool")),
         cancelled=live.get("cancelled") or record.get("cancelled"), barge_in=live.get("barge_in"),
         first_audio_s=live.get("speech_end_to_first_audio_sent_s"),
@@ -75,13 +89,14 @@ def turn_of(index: int, record: dict, entries: Callable[[dict], list[dict]]) -> 
 
 @dataclass(frozen=True)
 class Verdict:
-    """One check's result. A failed precondition cannot be marked as a known fault."""
+    """One check's result. An unmet precondition may name the failed check that blocked it."""
 
     check: str
     ok: bool
     why: str = ""
     turn: int | None = None
     precondition: bool = False
+    blocked_by: str | None = None
 
 
 class JudgeError(RuntimeError):
@@ -145,6 +160,7 @@ class Result:
     seconds: float
     error: str | None = None
     window: tuple[float, float] = (0.0, 0.0)
+    fallbacks: int = 0
 
     @property
     def ok(self) -> bool:
