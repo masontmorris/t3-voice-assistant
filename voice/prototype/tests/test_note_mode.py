@@ -277,12 +277,20 @@ class ReplyCheckTurn(NoteTurn):
 class WithdrawnQuestionTurn(NoteTurn):
     async def test_a_dropped_question_tells_the_voice_to_answer_fresh_and_names_no_choice(self):
         class Dropped(CorrectingService):
-            withdrawn_question = object()
+            withdrawn_question = SimpleNamespace(took_back=True)
 
         record = await self.turn(["Sure, no problem."], task_service=Dropped)
         self.assertEqual(texts(self.voice), [prototype.WITHDRAWN_NOTE])
-        self.assertNotIn("thread", prototype.WITHDRAWN_NOTE.lower().replace("they did not answer", ""))
+        self.assertNotIn("thread", prototype.WITHDRAWN_NOTE.lower())
         self.assertEqual(self.spoken, ["Sure, no problem."])
+
+    async def test_any_other_dropped_question_keeps_the_note_it_always_had(self):
+        class Dropped(CorrectingService):
+            withdrawn_question = SimpleNamespace(took_back=False)
+
+        await self.turn(["Sure, no problem."], task_service=Dropped)
+        self.assertEqual(texts(self.voice), [prototype.DROPPED_NOTE])
+        self.assertNotIn("took", prototype.DROPPED_NOTE)
 
     async def test_no_dropped_question_sends_no_note(self):
         await self.turn(["Sure, no problem."], task_service=CorrectingService)

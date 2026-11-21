@@ -1,1 +1,3133 @@
-[{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9361512288058901,"no":0.016424941684672123,"question":0.0070829888990167015,"other":0.03050179938395653,"unrelated":0.009839041226464595},"confidence":0.9201890360073625,"top_probability":0.9361512288058901}},"request_hash":"c14b593be4272a05e5c0b1b1a052ee4473a7487a5a0e6dedd68d795dd0225628"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yeah.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9428355533860016,"no":0.014751219293274331,"question":0.006498076453997171,"other":0.02356755944970569,"unrelated":0.012347591417021055},"confidence":0.928544441732502,"top_probability":0.9428355533860016}},"request_hash":"f176e6a435570298aabcf7776d4bcc772a29f4488a938bb9a6bc17b10555966f"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yeah, go ahead.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8840393414566234,"no":0.023680837925828986,"question":0.009837581825972993,"other":0.061271197792347194,"unrelated":0.02117104099922746},"confidence":0.8550491768207793,"top_probability":0.8840393414566234}},"request_hash":"137617d89384d94939a591165ea06de2b9c80a01ce4932707e90fd4c7d5aa39b"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Sure.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9229210135914477,"no":0.017795966550162957,"question":0.008045811253336957,"other":0.02809346886794483,"unrelated":0.023143739737107476},"confidence":0.9036512669893095,"top_probability":0.9229210135914477}},"request_hash":"a69b750a5b0118f032fd6ac294580d251eae10c86219c1cb7f9799a2fa087e72"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Sure, why not.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8032007171928341,"no":0.015843072769302906,"question":0.08941591137625118,"other":0.051311514481154716,"unrelated":0.04022878418045711},"confidence":0.7540008964910427,"top_probability":0.8032007171928341}},"request_hash":"d9a35c98c4e5d242505695818987a5f30b908ab004169a38601fb8561ac83d24"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9271564696811103,"no":0.01341308306302092,"question":0.015136591205810568,"other":0.02022090308413412,"unrelated":0.024072952965923912},"confidence":0.908945587101388,"top_probability":0.9271564696811103}},"request_hash":"f05e3e33fbcdacd8853574ea1f59a1e9d58d6a9ab039dcea995b1bc219f9726c"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do?","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.7283037806368279,"no":0.034943998231686244,"question":0.15326623963885283,"other":0.026705767771470105,"unrelated":0.05678021372116289},"confidence":0.6603797257960348,"top_probability":0.7283037806368279}},"request_hash":"5298cdf6f07c260291c919710cb783edc868a903fa19ff35eab5180cdc507229"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do!","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8906047365465177,"no":0.016217967887302048,"question":0.02011027520117572,"other":0.03442808032501183,"unrelated":0.0386389400399927},"confidence":0.8632559206831472,"top_probability":0.8906047365465177}},"request_hash":"4c0392fa7a68b3f2c9e9be0b8fee769d53e4b28d554788842482331c592c1c5e"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, please.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8688025458624122,"no":0.021556859856687368,"question":0.012489950906178833,"other":0.08193284719123979,"unrelated":0.015217796183481664},"confidence":0.8360031823280153,"top_probability":0.8688025458624122}},"request_hash":"b11aaa36cac1888dc9c21ebccfead99c4f095936cefab4467bd7bd08b6d481ee"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Do it.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9000607612026709,"no":0.02383572495962046,"question":0.011953599136122744,"other":0.04010544381936961,"unrelated":0.02404447088221639},"confidence":0.8750759515033385,"top_probability":0.9000607612026709}},"request_hash":"abd92b0ca7368fbdabbf4b9ca9964a5e0d0db35436510ba60e90659aac8bbb98"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Go for it.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8026598194441729,"no":0.03333325016512319,"question":0.015984708366059745,"other":0.10350283570399668,"unrelated":0.04451938632064765},"confidence":0.7533247743052159,"top_probability":0.8026598194441729}},"request_hash":"8c8553cc4e49557db423c49f50925ace1679b0bae20bba8594d6c76d56f3781c"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Okay.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.7657146928929469,"no":0.03535242536776042,"question":0.011967260021695734,"other":0.032758090067112305,"unrelated":0.15420753165048467},"confidence":0.7071433661161836,"top_probability":0.7657146928929469}},"request_hash":"ed15b86aa3a60b11b1ae0ae6eedd21d8b63f66db2774d5826786bfb0c657fae8"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Okay, sounds good.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8585161763900587,"no":0.023737835432210044,"question":0.010107034528215684,"other":0.04368850456579297,"unrelated":0.06395044908372263},"confidence":0.8231452204875733,"top_probability":0.8585161763900587}},"request_hash":"bb2f4c9e829f468f398d4108908459fffc405761fc17917b558b479cd4b5b0b7"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yep.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9228459846667932,"no":0.01718787940459556,"question":0.007583115238067026,"other":0.03548386930347151,"unrelated":0.01689915138707259},"confidence":0.9035574808334914,"top_probability":0.9228459846667932}},"request_hash":"e17afcbdc91606427856663bf89e7b8d5ad3119068b06f8ead6f46fd78b2734c"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Alright, go ahead.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8663776945457436,"no":0.026174865194545184,"question":0.009402093709642921,"other":0.05902070810131807,"unrelated":0.039024638448750294},"confidence":0.8329721181821794,"top_probability":0.8663776945457436}},"request_hash":"a0d67e96c065dad5abe7e982d5012152e1007ebc4f6af7852d6026b4db19a5e1"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Uh-huh.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8802738897862437,"no":0.029665468949196458,"question":0.009935897954216162,"other":0.031278671858929366,"unrelated":0.04884607145141433},"confidence":0.8503423622328046,"top_probability":0.8802738897862437}},"request_hash":"ff93be421c4dd0be6bfc3ba2aee8e0244c1bbedefde229b5c29e62e25579c504"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, do it.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8500573599692086,"no":0.02769150389287101,"question":0.011237267735862701,"other":0.09795290008709145,"unrelated":0.013060968314966278},"confidence":0.8125716999615107,"top_probability":0.8500573599692086}},"request_hash":"89550505da3cfb2d0fa6ec8305fd3606218c83a96ce0347b65469109a14cbfdf"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes please do?","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.7386614766415887,"no":0.03398724666131924,"question":0.09124187163526701,"other":0.10486591514626835,"unrelated":0.03124348991555697},"confidence":0.6733268458019859,"top_probability":0.7386614766415887}},"request_hash":"66b7e8ddc1f5b76367895360f4e8f90915039851e2f1876710d10e7b905810b4"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Mm-hmm, go on.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.7612650850785335,"no":0.036372328784367094,"question":0.03081091907064392,"other":0.05126325950889052,"unrelated":0.12028840755756502},"confidence":0.7015813563481668,"top_probability":0.7612650850785335}},"request_hash":"569de90543b30ad79c95e989f3013ded89b751a64d27cc220ccf58c613191f83"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.06638016523359201,"no":0.9010526804684841,"question":0.004940660891819552,"other":0.008943821209388135,"unrelated":0.018682672196716356},"confidence":0.876315850585605,"top_probability":0.9010526804684841}},"request_hash":"7d6cba77ee26490c40e81bc8d086d1ad9f6b9bbdb0da2c7f677ce48bfea622f2"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No, don't.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.026546972090685433,"no":0.944826170998864,"question":0.004017359972345259,"other":0.010895360325292688,"unrelated":0.013714136612812764},"confidence":0.9310327137485799,"top_probability":0.944826170998864}},"request_hash":"4e92abcf26f63070ddf21c61a0ea399696c35cf5064d535ad850df3512845d60"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Nope.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.04354317828765307,"no":0.9248279165866412,"question":0.0044324655704971495,"other":0.007681357693652021,"unrelated":0.01951508186155633},"confidence":0.9060348957333014,"top_probability":0.9248279165866412}},"request_hash":"3a18e4db5351f364b14fc991db07a04e0f9a7acfaf5b235d12e0ad1548dae157"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Wait.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.0908852695392037,"no":0.11464460351725266,"question":0.04581698993198635,"other":0.017712138274995112,"unrelated":0.7309409987365623},"confidence":0.6636762484207028,"top_probability":0.7309409987365623}},"request_hash":"1cb39a1715129c16214bfe0595338f88ae3f901e9d2f150045f328108a0af8d5"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Never mind.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.02234512846058554,"no":0.2565712266326551,"question":0.011339522448068014,"other":0.01078499668159816,"unrelated":0.6989591257770932},"confidence":0.6236989072213664,"top_probability":0.6989591257770932}},"request_hash":"c36c98ab1926ad5d14be77ba09b97365c764a1ba967b87f075602f8d8005f174"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Hold on, not yet.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.043603063984742584,"no":0.6476881222251294,"question":0.023660549945104484,"other":0.09409342769040287,"unrelated":0.19095483615462067},"confidence":0.5596101527814117,"top_probability":0.6476881222251294}},"request_hash":"aff1338edb3639f22830e38ee07a032cbb48454c39ea30c771ec23c44466fead"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"What do you mean?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.015726476100467603,"no":0.1435196699074554,"question":0.325827098783151,"other":0.015335137752304984,"unrelated":0.4995916174566208},"confidence":0.37448952182077594,"top_probability":0.4995916174566208}},"request_hash":"2e58edcf0a3aebba0300806bd61467aa8ce58afcfdf42d442c5c3be61e6b36fd"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"How long will it take?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"yes":0.010396803004723208,"no":0.0375767809648532,"question":0.6217545265062006,"other":0.01793625632395095,"unrelated":0.3123356332002722},"confidence":0.5271931581327507,"top_probability":0.6217545265062006}},"request_hash":"ca2c3040b1702334aca7ed64d5997be9471feb395e9823d2a7a6eaaf4f1690b8"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Which project is that?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"yes":0.009121241189785394,"no":0.03585055578869325,"question":0.7459934936668281,"other":0.039945532303584136,"unrelated":0.16908917705110907},"confidence":0.682491867083535,"top_probability":0.7459934936668281}},"request_hash":"d64699c0c90e1ad86d25eb682cb85390cdcbb97778500ca68f68974830279ffe"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Why?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"yes":0.010709240798161424,"no":0.046280122235071296,"question":0.6632512273468754,"other":0.017902421265158907,"unrelated":0.2618569883547328},"confidence":0.5790640341835942,"top_probability":0.6632512273468754}},"request_hash":"f10338ba26581cddfe74dcd148418fbd5e2ab72067fe5d8688c8e873d6f90321"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Can you tell me more first?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"yes":0.014173460511512545,"no":0.04238528300405003,"question":0.757906436388123,"other":0.019861539678305073,"unrelated":0.16567328041800913},"confidence":0.6973830454851537,"top_probability":0.757906436388123}},"request_hash":"175dde423a7e366cc4b8a363d5b282abce14684e559267b8687d8793c27a8cd6"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Start it in the voice server instead.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.0458784243715226,"no":0.10488973487866002,"question":0.022220991482753947,"other":0.7717266831742436,"unrelated":0.05528416609281978},"confidence":0.7146583539678044,"top_probability":0.7717266831742436}},"request_hash":"b16e1a142d4beb29ecb813b7ed2c7a445f1d0818ca0481985647cda302d3c819"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No, the other project.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.02530984581311676,"no":0.30560290254980216,"question":0.013556440852112002,"other":0.5873984895751372,"unrelated":0.0681323212098318},"confidence":0.4842481119689214,"top_probability":0.5873984895751372}},"request_hash":"66a5c64908d231ae17771c30e623f09ba6e1b339d8ad29a3b013a61759641140"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but in the server project.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.018277781668818157,"no":0.007190180379318604,"question":0.0038230507155725814,"other":0.9665537679337483,"unrelated":0.004155219302542437},"confidence":0.9581922099171852,"top_probability":0.9665537679337483}},"request_hash":"f706d2a331dec168a2f752c782e67fa9c98560bd1c327b73be53947a30f832f4"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Actually make it about the build.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.011820871696000263,"no":0.1232517449983697,"question":0.042613019492242464,"other":0.7314767198095374,"unrelated":0.09083764400385012},"confidence":0.6643458997619217,"top_probability":0.7314767198095374}},"request_hash":"79f909a9f510427c471e84910dc24ec3ce208a0f18b2e0fa98d29fa3a94ac674"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"What's the weather like?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.011209448847298064,"no":0.1382702569030836,"question":0.16430268461615097,"other":0.015296489112183292,"unrelated":0.670921120521284},"confidence":0.588651400651605,"top_probability":0.670921120521284}},"request_hash":"7f32fd20cc4e3ea3e84bc8f906f0c912b9e71f1bd0cf0f7306d138717c5fb72b"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Hmm, I'm not sure.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.06005971353650804,"no":0.07567158900835035,"question":0.0749341456398611,"other":0.009564443835210079,"unrelated":0.7797701079800704},"confidence":0.7247126349750879,"top_probability":0.7797701079800704}},"request_hash":"3cf96b26a2448c6e03a327267b3378f9e3016a249bdc900034d7ce8a50df3e4b"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Maybe later.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.08885201850656434,"no":0.2277200423261773,"question":0.03146742506779227,"other":0.1942081904824375,"unrelated":0.4577523236170286},"confidence":0.3221904045212857,"top_probability":0.4577523236170286}},"request_hash":"b599ed67a1e53be5f1ad022a5fb4f93591abaac6105363ae9ccd84bc4ec276d5"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"I'm thinking about it.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.26795244281984887,"no":0.043382224079087206,"question":0.13504832353646987,"other":0.015196432435697793,"unrelated":0.5384205771288963},"confidence":0.4230257214111204,"top_probability":0.5384205771288963}},"request_hash":"66c1c456804eb5176d7d0e8af173dedb3317623d5c04e89ea1a47ed32c4a7b1e"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Thanks.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.09083964568711653,"no":0.045988223787086856,"question":0.011103506398437057,"other":0.010703110295774325,"unrelated":0.8413655138315852},"confidence":0.8017068922894816,"top_probability":0.8413655138315852}},"request_hash":"03c9161cf09514cef8fce208692e55393915382e522d73cb63840f7d8f8f2572"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Hello?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.027871860929597075,"no":0.05561598104900268,"question":0.05181249064311576,"other":0.011002366542056285,"unrelated":0.8536973008362282},"confidence":0.8171216260452852,"top_probability":0.8536973008362282}},"request_hash":"1ce02aacb6a5b9723056836b865a6b77c25fa6e46f35794d0416ce51b99f174c"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but in the other project.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.025507812293962026,"no":0.009027419554006235,"question":0.004620439311451002,"other":0.9561570176901315,"unrelated":0.004687311150449308},"confidence":0.9451962721126644,"top_probability":0.9561570176901315}},"request_hash":"cfab31bc3ca65819371e493b87fb06138c7a04638e9643d68b3ef093e84473b1"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but only after the tests pass.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.01557650946587825,"no":0.006824562402338019,"question":0.0033997398196578175,"other":0.9707107567932287,"unrelated":0.0034884315188971125},"confidence":0.963388445991536,"top_probability":0.9707107567932287}},"request_hash":"ac932fe9a37ca30e40f1c807567c0252ad7d8f809c879b8006667acf4eb8ce32"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Sure, in the voice server.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.233971291944551,"no":0.017500045045994048,"question":0.01411478985425679,"other":0.7103905532606912,"unrelated":0.024023319894506876},"confidence":0.637988191575864,"top_probability":0.7103905532606912}},"request_hash":"69ab259fd6b724a5278aac5d3ba96d25ed0501e3e2b2e6660e1ea851e604353d"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yeah, but make it about the build instead.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.013736531125755349,"no":0.006924419021419881,"question":0.006273244836833472,"other":0.9688499358817206,"unrelated":0.0042158691342708545},"confidence":0.9610624198521508,"top_probability":0.9688499358817206}},"request_hash":"a0b03b0ed07b01f259b7e510afcc2023aa858c20eeee0f577acb63f598dd07f3"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Okay, if it's quick.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.14582230735640556,"no":0.04533983401907994,"question":0.03440048618166657,"other":0.6138724504358767,"unrelated":0.1605649220069712},"confidence":0.5173405630448458,"top_probability":0.6138724504358767}},"request_hash":"f5491b324183d5dd99667b1fc3a5fa08c834f56f5ca6d5934399b3cc5a4777f8"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, as long as it doesn't touch the main branch.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.022893470303078933,"no":0.009329034816341814,"question":0.00533026982564118,"other":0.9566502169660082,"unrelated":0.005797008088929906},"confidence":0.9458127712075101,"top_probability":0.9566502169660082}},"request_hash":"7ad36f12342539b749fc54c6fc3aefc3f02e5b1a36cdea9f18555e3a72b8fdd4"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes please, and also tell the other thread.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.12928107748072554,"no":0.014604780232469168,"question":0.018602071930360033,"other":0.8242821615422994,"unrelated":0.01322990881414573},"confidence":0.7803527019278741,"top_probability":0.8242821615422994}},"request_hash":"6e0a6f56dde77bc0bab3d249c365e96f0155a087a17a701323703282bdefb1ec"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Yes, stop it.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8520231725480795,"no":0.033215938916535834,"question":0.01270511169683918,"other":0.08109990497161879,"unrelated":0.02095587186692673},"confidence":0.8150289656850992,"top_probability":0.8520231725480795}},"request_hash":"21bd8e7429f215491842f60c4b6b65be06c679087969b251f59b259854d10a25"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Please do.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9069457379798032,"no":0.016660313154820278,"question":0.016169026455561473,"other":0.03319306885620589,"unrelated":0.027031853553609164},"confidence":0.883682172474754,"top_probability":0.9069457379798032}},"request_hash":"17e696f721a9b8f033c10c4204cf1372c09cadf3c9c5c047b059de0723ad4806"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Go ahead.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.7222636155760419,"no":0.07388771347782082,"question":0.01484234818068361,"other":0.09809793303838063,"unrelated":0.09090838972707307},"confidence":0.6528295194700523,"top_probability":0.7222636155760419}},"request_hash":"e07d09d3b3c700cafdea9dbdd991d96a23aaf9d0e078cc17162e2ab41c64767e"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Yeah.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8911883978115148,"no":0.024983540869513047,"question":0.008262312888615893,"other":0.055889859006439946,"unrelated":0.01967588942391636},"confidence":0.8639854972643934,"top_probability":0.8911883978115148}},"request_hash":"3412aac271a072a939291e8eed291b68f10d40fd6630a650f76d228b8dcfa7fa"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"No, leave it running.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.22290011194022538,"no":0.601212623193187,"question":0.0083873054535556,"other":0.144282786911045,"unrelated":0.023217172501986977},"confidence":0.5015157789914837,"top_probability":0.601212623193187}},"request_hash":"cd8bdde4c18d9ad2a38bf8678c5bb00eb78f3890cd667c59d421c7011c352a11"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Which one is that?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"yes":0.00834002312823229,"no":0.03529718434339074,"question":0.737653147854007,"other":0.030089477922169827,"unrelated":0.18862016675220022},"confidence":0.6720664348175087,"top_probability":0.737653147854007}},"request_hash":"e7950bb516f29775b1ece260ca96fa2d5d55d6803e7b8c1279649c071c3e1282"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Don't stop it.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.20362783262557754,"no":0.5280823950603035,"question":0.018229638656749494,"other":0.15760774656428567,"unrelated":0.09245238709308373},"confidence":0.41010299382537935,"top_probability":0.5280823950603035}},"request_hash":"3b58af9c00274cb085ad2d4b7d2e7de8a063840bf866b93d11785014b4c77bfb"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Yes, but wait until it finishes the run.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.023933485579989325,"no":0.011261295418761572,"question":0.00380951341091626,"other":0.9563446867035127,"unrelated":0.004651018886819989},"confidence":0.9454308583793908,"top_probability":0.9563446867035127}},"request_hash":"1725f40fe6dd544f86b1dd48f43e7d8b0b0c9954b4c4d3b4273d2c8a219de6f4"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Yes, send it.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.899184944191617,"no":0.014336283004143734,"question":0.007349759621319603,"other":0.07256455378856054,"unrelated":0.006564459394359221},"confidence":0.8739811802395211,"top_probability":0.899184944191617}},"request_hash":"93cf5ad0f7a4958354627910c4fd95fc580a80a41f49c84e81cc0e8d8661278d"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Please do?","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.6825104766845655,"no":0.03401751935137518,"question":0.19565806641277836,"other":0.04229669662581191,"unrelated":0.045517240925469014},"confidence":0.6031380958557069,"top_probability":0.6825104766845655}},"request_hash":"eed1ce0aa685b11cef2dde587385360cb1f76d8ebdec25b98e9a399847e78d7c"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Sure.","options":[],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9366469489073312,"no":0.0104637411720634,"question":0.006887647210088165,"other":0.03595278673451216,"unrelated":0.010048875976005156},"confidence":0.9208086861341641,"top_probability":0.9366469489073312}},"request_hash":"eb4e210d82a476d6387c6f97103948f49fe5e379ee8c3c049b2d85ee002c2c6c"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Send it to the other thread.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.04459505277956841,"no":0.13696719017080994,"question":0.010970538414045751,"other":0.7792850792343642,"unrelated":0.028182139401211614},"confidence":0.7241063490429552,"top_probability":0.7792850792343642}},"request_hash":"501460975ccd1ceba30a614ec40a5a169c42bb11426b27a73f703c20d51a9ba4"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"What does it say?","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"yes":0.027046582540835112,"no":0.053232777840854915,"question":0.6946576736293231,"other":0.03619290710740776,"unrelated":0.1888700588815793},"confidence":0.6183220920366538,"top_probability":0.6946576736293231}},"request_hash":"3462fe8dccc5574d547c78fffb71d523d458592d0f85f6a612458f5b5dc8d41e"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"No.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.019827306205200557,"no":0.9655550795220182,"question":0.0025950187191278655,"other":0.006452703181301656,"unrelated":0.005569892372351782},"confidence":0.9569438494025229,"top_probability":0.9655550795220182}},"request_hash":"a1a3d2534f0e405d91620fbdc3597d6a967305034de175ea4a66e981cda62bea"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Yes, but add that it should keep my formatting.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.024624699474652567,"no":0.007547898054597456,"question":0.008222458505638084,"other":0.9554798855004261,"unrelated":0.004125058464685775},"confidence":0.9443498568755326,"top_probability":0.9554798855004261}},"request_hash":"5be784e236fa9e9bfbe1fc1c2d7480f0ebc88194cd2e9963a25b8516fb06dea4"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes.","options":["Voice server"],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.9345773045255386,"no":0.01613423628199676,"question":0.007764287501775256,"other":0.030622081423902478,"unrelated":0.01090209026678686},"confidence":0.9182216306569232,"top_probability":0.9345773045255386},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.9722429795243842,"option_1":0.018787405489432203,"elsewhere":0.008969614986183464},"confidence":0.9583644692865761,"top_probability":0.9722429795243842}},"request_hash":"bb5c28e7a4da6073bdc4d707181d57ecf5bbef705887079132f1bee8b268e609"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Please do?","options":["Voice server"],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.7457371695158804,"no":0.03989840595414931,"question":0.12085021610631312,"other":0.026069895745548015,"unrelated":0.06744431267810909},"confidence":0.6821714618948505,"top_probability":0.7457371695158804},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.8175835235104381,"option_1":0.10370647849108627,"elsewhere":0.07870999799847582},"confidence":0.7263752852656571,"top_probability":0.8175835235104381}},"request_hash":"0d1987e08e007896ded5cba83771bb9fc0d77f399975ce5ec9d26f25eb5de7b2"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No.","options":["Voice server"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.06119416839798867,"no":0.9005836187366827,"question":0.005986077442069775,"other":0.011148747679393473,"unrelated":0.021087387743865118},"confidence":0.8757295234208534,"top_probability":0.9005836187366827},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.9001033572826097,"option_1":0.05063337606537467,"elsewhere":0.049263266652015594},"confidence":0.8501550359239144,"top_probability":0.9001033572826097}},"request_hash":"b24a716df6a184e1fae44292f892ef163f5de96683856475bb4587af4904c06a"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but in the other project.","options":["Voice server"],"must_act":false,"expected_target":"Voice server","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.024541591494145282,"no":0.00899359757328678,"question":0.00490446447009106,"other":0.9560997882984005,"unrelated":0.005460558164076302},"confidence":0.9451247353730005,"top_probability":0.9560997882984005},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.9154254558257394,"option_1":0.04629059257170723,"elsewhere":0.0382839516025533},"confidence":0.873138183738609,"top_probability":0.9154254558257394}},"request_hash":"8ce02b04b94ae4f5abe7b6e1ee7bdea57e3d650a528530c449e7978a9dc61ae8"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"The other project please.","options":["Voice server"],"must_act":false,"expected_target":"Voice server","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.01714132231546358,"no":0.1216626602100146,"question":0.024267067575020458,"other":0.7352271106168168,"unrelated":0.10170183928268466},"confidence":0.6690338882710208,"top_probability":0.7352271106168168},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.5134717107296514,"option_1":0.23417539719425698,"elsewhere":0.2523528920760917},"confidence":0.27020756609447705,"top_probability":0.5134717107296514}},"request_hash":"551a0cbc2f75a20089ee9fbddb42fe543d21eac9d175be14962f99dee0418a92"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"No, the other one.","options":["Voice server"],"must_act":false,"expected_target":"Voice server","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.02887104808092085,"no":0.3536848096987133,"question":0.015120706841805352,"other":0.5109127372581652,"unrelated":0.0914106981203952},"confidence":0.38864092157270647,"top_probability":0.5109127372581652},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.6660932537249676,"option_1":0.17071178679564217,"elsewhere":0.1631949594793902},"confidence":0.49913988058745146,"top_probability":0.6660932537249676}},"request_hash":"50e544e28fa1d104bda6db2ac732b4716b2493fcc36d65d8f16fb09f6fb1dff9"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Put it in the voice server.","options":["Voice server"],"must_act":false,"expected_target":"Voice server","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.11039552500914931,"no":0.11807419757884659,"question":0.04814230805697686,"other":0.5344928179780041,"unrelated":0.18889515137702306},"confidence":0.41811602247250507,"top_probability":0.5344928179780041},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.6045395333759466,"option_1":0.36553399238528866,"elsewhere":0.029926474238764707},"confidence":0.40680930006391985,"top_probability":0.6045395333759466}},"request_hash":"0d02e39edd5447a7853c2ae51fe39ac50a792ec435eeb7b1abf2deb2a5d57e35"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"What do you mean?","options":["Voice server"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.018022515410402666,"no":0.16148646732015515,"question":0.28281425023637036,"other":0.020624915673629514,"unrelated":0.5170518513594424},"confidence":0.396314814199303,"top_probability":0.5170518513594424},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.7998648174096404,"option_1":0.10418458100098832,"elsewhere":0.09595060158937123},"confidence":0.6997972261144606,"top_probability":0.7998648174096404}},"request_hash":"01b64bf3383b292b834f97c1021ddf7331d1070ead76d07cc4357b94927f41d7"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes, but only after the tests pass.","options":["Voice server"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.016870781453191954,"no":0.007244099046822046,"question":0.004226838058453494,"other":0.9673853344530785,"unrelated":0.004272946988453949},"confidence":0.9592316680663482,"top_probability":0.9673853344530785},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.9266341186117371,"option_1":0.0454909253533717,"elsewhere":0.027874956034891166},"confidence":0.8899511779176056,"top_probability":0.9266341186117371}},"request_hash":"17921aa8299c2e7a6adec0f795ec4100675c38d4231dc84a59d2507302d1ad11"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Actually make it about the build.","options":["Voice server"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.011889226731044318,"no":0.1322615742901699,"question":0.03671808225318706,"other":0.7210875454019327,"unrelated":0.09804357132366595},"confidence":0.6513594317524157,"top_probability":0.7210875454019327},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.6519911978338779,"option_1":0.20568338663081986,"elsewhere":0.1423254155353021},"confidence":0.4779867967508169,"top_probability":0.6519911978338779}},"request_hash":"9dd63e7617ecc1dd93bdfb918ead4196e94bba4a57bee0a40ed076be8572d216"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Not that one.","options":["Voice server"],"must_act":false,"expected_target":"Voice server","answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.05179311644160484,"no":0.486424829580997,"question":0.02199746473804751,"other":0.1717787744789044,"unrelated":0.26800581476044616},"confidence":0.35803103697624616,"top_probability":0.486424829580997},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.6116485375673467,"option_1":0.20691519640686587,"elsewhere":0.1814362660257875},"confidence":0.4174728063510201,"top_probability":0.6116485375673467}},"request_hash":"3390e5f58654ce117ed6d04202a06884b2c37972b91f7b2026c1c36fee388464"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"The other one.","options":["Voice server","Docs site"],"must_act":false,"expected_target":"elsewhere","answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.06059256146908462,"no":0.13935008694069548,"question":0.05555736554068584,"other":0.337715155514729,"unrelated":0.4067848305348051},"confidence":0.2584810381685063,"top_probability":0.4067848305348051},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.4813010606618872,"option_1":0.15109437471893084,"option_2":0.09185906427392132,"elsewhere":0.27574550034526046},"confidence":0.3084014142158496,"top_probability":0.4813010606618872}},"request_hash":"dea63157f8b8ab31662ccdd57d8da23edc1cc402dbc50562326504bcd5cc8c12"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"The docs one.","options":["Voice server","Docs site"],"must_act":false,"expected_target":"Docs site","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.03720700561198478,"no":0.08633514382771776,"question":0.040532378339935546,"other":0.5798001153444136,"unrelated":0.25612535687594834},"confidence":0.4747501441805169,"top_probability":0.5798001153444136},"target":{"type":"choice","choice":"option_2","probabilities":{"keeps":0.28415791804255375,"option_1":0.10700650487203718,"option_2":0.4321211746266553,"elsewhere":0.17671440245875378},"confidence":0.24282823283554036,"top_probability":0.4321211746266553}},"request_hash":"0d04aabe4847f20c63037a17002b1b1dde4218db3f236c74bc49548cd7b14310"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Not that one.","options":["Voice server","Docs site"],"must_act":false,"expected_target":"elsewhere","answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.05201539163574192,"no":0.5547162167686106,"question":0.020026685661799576,"other":0.11656784477082088,"unrelated":0.25667386116302704},"confidence":0.4433952709607632,"top_probability":0.5547162167686106},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.5973522166202815,"option_1":0.11514045652758309,"option_2":0.07173683670083793,"elsewhere":0.21577049015129746},"confidence":0.463136288827042,"top_probability":0.5973522166202815}},"request_hash":"aac72ee26461f8740b177924097007609daec0f74c8ce3023edf7f5a92305a90"},{"act":{"kind":"confirm_launch","slots":{"project":"Voice sandbox"}},"reply":"Yes.","options":["Voice server","Docs site"],"must_act":true,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.921462988998325,"no":0.01865406298949105,"question":0.007266032152361279,"other":0.0412730488781673,"unrelated":0.011343866981655565},"confidence":0.9018287362479063,"top_probability":0.921462988998325},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.9790324169255957,"option_1":0.009872970702042981,"option_2":0.004626446361206263,"elsewhere":0.006468166011154932},"confidence":0.972043222567461,"top_probability":0.9790324169255957}},"request_hash":"5c8b3893096260eba645da8893a1b44811b1888d31d3974e78d0430bed3cad8b"},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Voice server.","options":["Voice server","Docs site"],"must_act":false,"expected_target":"Voice server","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8612807040115992,"no":0.039530045908151894,"question":0.01525528418122415,"other":0.05531707443802398,"unrelated":0.028616891461000694},"confidence":0.8266008800144988,"top_probability":0.8612807040115992},"target":{"type":"choice","choice":"option_1","probabilities":{"keeps":0.005182764677764513,"option_1":0.9873260874121512,"option_2":0.0053844255100568015,"elsewhere":0.0021067224000273655},"confidence":0.9831014498828683,"top_probability":0.9873260874121512}},"request_hash":"813c48c8491873236b7713ff1bdca5c47e3aeadc4205cf041a410948ae4e1fdf"},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Docs site.","options":["Voice server","Docs site"],"must_act":false,"expected_target":"Docs site","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.8261948380071,"no":0.048499938229671594,"question":0.016979853932199217,"other":0.07302428188483723,"unrelated":0.03530108794619199},"confidence":0.7827435475088751,"top_probability":0.8261948380071},"target":{"type":"choice","choice":"option_2","probabilities":{"keeps":0.003351782442283878,"option_1":0.002156918853654264,"option_2":0.9931458884587788,"elsewhere":0.0013454102452830933},"confidence":0.9908611846117051,"top_probability":0.9931458884587788}},"request_hash":"819845fafd2e72513aa4abf4e9147a3d60bf811d73e07c0f0d6002c0f866f5af"},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"The first one.","options":["Voice server","Docs site"],"must_act":false,"expected_target":"Voice server","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.6078618734287543,"no":0.06474129337355415,"question":0.038708808031175615,"other":0.20756839999706653,"unrelated":0.08111962516944958},"confidence":0.5098273417859428,"top_probability":0.6078618734287543},"target":{"type":"choice","choice":"option_1","probabilities":{"keeps":0.009185789463730479,"option_1":0.9783694980333825,"option_2":0.010173286221702455,"elsewhere":0.002271426281184616},"confidence":0.9711593307111767,"top_probability":0.9783694980333825}},"request_hash":"d2d8d25c718c483ae37614d56e424cf495e7016d0116f35ef8885804eec596cf"},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"The second.","options":["Voice server","Docs site"],"must_act":false,"expected_target":"Docs site","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.4620601213642857,"no":0.07824317785564638,"question":0.041406599464980376,"other":0.30656652082365415,"unrelated":0.11172358049143341},"confidence":0.3275751517053571,"top_probability":0.4620601213642857},"target":{"type":"choice","choice":"option_2","probabilities":{"keeps":0.014741233287036054,"option_1":0.01840657530894524,"option_2":0.9640692143565438,"elsewhere":0.0027829770474749826},"confidence":0.9520922858087251,"top_probability":0.9640692143565438}},"request_hash":"3cccafab77bc44060c41efd6f7e6c1b4946f0bedc910490e05a4942cf127d413"},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Never mind.","options":["Voice server","Docs site"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.015141200251248465,"no":0.17012547424057106,"question":0.010069111891927655,"other":0.005646833841106085,"unrelated":0.7990173797751468},"confidence":0.7487717247189335,"top_probability":0.7990173797751468},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.8887316844467659,"option_1":0.024830555570307056,"option_2":0.013170151353655762,"elsewhere":0.07326760862927129},"confidence":0.8516422459290212,"top_probability":0.8887316844467659}},"request_hash":"6ca02f922d5e4a59e299164057b7c22d97332392455845006c71f7b3074ef169"},{"act":{"kind":"ask_which","slots":{"of":"project","candidates":["Voice server","Docs site"]}},"reply":"Neither.","options":["Voice server","Docs site"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.012027760665200808,"no":0.5394392269026034,"question":0.00726372701460522,"other":0.00707369387358236,"unrelated":0.43419559154400816},"confidence":0.42429903362825416,"top_probability":0.5394392269026034},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.9618526062630628,"option_1":0.008033495481332736,"option_2":0.004862199990080247,"elsewhere":0.02525169826552426},"confidence":0.9491368083507504,"top_probability":0.9618526062630628}},"request_hash":"9ff808341814b3c7b005d339c1b8f754b9050ca866910e6b6348bde5b4192d8a"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Never mind.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.015205972801458498,"no":0.22864941477542106,"question":0.015485271657832,"other":0.007952776513383643,"unrelated":0.7327065642519048},"confidence":0.6658832053148811,"top_probability":0.7327065642519048},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.9032424412972723,"option_1":0.015962537387852128,"option_2":0.012847079117376793,"option_3":0.0071907679002645225,"elsewhere":0.060757174297234096},"confidence":0.8790530516215902,"top_probability":0.9032424412972723}},"request_hash":"af80a959164360bc44cd6245e320830f50dd4797e4c1f0f5555f53f0a7500ab6"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"No, cancel that.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.010243545846942403,"no":0.4674451755044574,"question":0.019236407515521758,"other":0.016270253444337,"unrelated":0.4868046176887413},"confidence":0.35850577211092655,"top_probability":0.4868046176887413},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.7132061872313793,"option_1":0.011355550576840172,"option_2":0.007707526272187191,"option_3":0.003938873928303913,"elsewhere":0.2637918619912894},"confidence":0.6415077340392241,"top_probability":0.7132061872313793}},"request_hash":"126abfaa3bd1d23cf0795e78eb6761a96e066b17ec58396400c2094ea5a5ab76"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The clamp one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"Add a clamp helper","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.377807432488049,"no":0.03758811892182046,"question":0.037680865730798756,"other":0.49091609054805363,"unrelated":0.056007492311278044},"confidence":0.363645113185067,"top_probability":0.49091609054805363},"target":{"type":"choice","choice":"option_1","probabilities":{"keeps":0.0072889411032264085,"option_1":0.9811002261374459,"option_2":0.004067624172465581,"option_3":0.004152657311065991,"elsewhere":0.0033905512757959767},"confidence":0.9763752826718072,"top_probability":0.9811002261374459}},"request_hash":"b0b3cb640c76e0d2fd349d701551068ddd05034b76fdd6eacec398ac64d799ef"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The second one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"Fix the flaky ASR test","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.28479732057630663,"no":0.057282487191179156,"question":0.05482741395380647,"other":0.5195195122287595,"unrelated":0.0835732660499483},"confidence":0.3993993902859493,"top_probability":0.5195195122287595},"target":{"type":"choice","choice":"option_2","probabilities":{"keeps":0.00597628467700497,"option_1":0.005249925690741848,"option_2":0.9753936489864818,"option_3":0.011884516269476368,"elsewhere":0.0014956243762948899},"confidence":0.9692420612331023,"top_probability":0.9753936489864818}},"request_hash":"6c71d6be66e7537d71b31f3cffdb02083a4e7b328259ed4faf37bc84026f8b38"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Um, the first.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"Add a clamp helper","answers":{"reading":{"type":"choice","choice":"yes","probabilities":{"yes":0.5313896610240895,"no":0.032952567383067115,"question":0.04972895215485047,"other":0.32896882450710163,"unrelated":0.05695999493089133},"confidence":0.4142370762801118,"top_probability":0.5313896610240895},"target":{"type":"choice","choice":"option_1","probabilities":{"keeps":0.004663686451803174,"option_1":0.9905302358299488,"option_2":0.001720325971819991,"option_3":0.001668322230102861,"elsewhere":0.0014174295163249405},"confidence":0.9881627947874361,"top_probability":0.9905302358299488}},"request_hash":"bb0367d49515a3e3348e9c6a1708626f2fadddef26f8c45abd2dfcceb853bb65"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The last one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"Add a sum helper","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.1680127170689201,"no":0.03447865510311076,"question":0.02712539548770579,"other":0.726574620508416,"unrelated":0.043808611831847415},"confidence":0.65821827563552,"top_probability":0.726574620508416},"target":{"type":"choice","choice":"option_3","probabilities":{"keeps":0.004481000145217349,"option_1":0.002304176679751054,"option_2":0.002704921035555345,"option_3":0.9890901058912741,"elsewhere":0.0014197962482023613},"confidence":0.9863626323640925,"top_probability":0.9890901058912741}},"request_hash":"ae9e7017958882f632d2128642152da1f71331ada89030e37f88e1a0d1365f43"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The one about the flaky test.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"Fix the flaky ASR test","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.13435105061687447,"no":0.04160960478398563,"question":0.07965172876596484,"other":0.638966566807258,"unrelated":0.1054210490259171},"confidence":0.5487082085090725,"top_probability":0.638966566807258},"target":{"type":"choice","choice":"option_2","probabilities":{"keeps":0.008223756956212323,"option_1":0.003385851120196787,"option_2":0.9841125283320987,"option_3":0.0020661684962383405,"elsewhere":0.002211695095253877},"confidence":0.9801406604151233,"top_probability":0.9841125283320987}},"request_hash":"189236c1ce0a013bfe5c1f2d5a7841dfde763f8b78b1d155e99b7ae7ffa9a7cf"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"The sum helper.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"Add a sum helper","answers":{"reading":{"type":"choice","choice":"other","probabilities":{"yes":0.21775372566058337,"no":0.036873657706489885,"question":0.02920081534539682,"other":0.6857817603113034,"unrelated":0.030390040976226437},"confidence":0.6072272003891293,"top_probability":0.6857817603113034},"target":{"type":"choice","choice":"option_3","probabilities":{"keeps":0.002991363017019387,"option_1":0.002542685969592966,"option_2":0.0016490179252975894,"option_3":0.9913990592648393,"elsewhere":0.0014178738232509375},"confidence":0.989248824081049,"top_probability":0.9913990592648393}},"request_hash":"15b521a5d855438e701473f86d64f2d31a305a9e99d5104fb2b4bf220232d691"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"What are they again?","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"question","probabilities":{"yes":0.01150923006736136,"no":0.05648528113602684,"question":0.7185058017465241,"other":0.023070472449740403,"unrelated":0.19042921460034737},"confidence":0.6481322521831551,"top_probability":0.7185058017465241},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.6144405749410381,"option_1":0.13691833311119325,"option_2":0.056568659690800514,"option_3":0.025040187563661095,"elsewhere":0.16703224469330696},"confidence":0.5180507186762976,"top_probability":0.6144405749410381}},"request_hash":"10b7d7109b322bfb3b259950e93ceb884c222db587abe35c14574c205e17c2dd"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Hold on a second.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.035604609680561734,"no":0.1656605759118054,"question":0.05778154746861475,"other":0.011227182329884716,"unrelated":0.7297260846091332},"confidence":0.6621576057614165,"top_probability":0.7297260846091332},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.8347123974460247,"option_1":0.0262376596391301,"option_2":0.016631656641967196,"option_3":0.007294313471540895,"elsewhere":0.11512397280133727},"confidence":0.7933904968075308,"top_probability":0.8347123974460247}},"request_hash":"972177e9d69c71d9ed4a256e30e943848e7dfaf3e7c2d1e781a9e7d9a4421e93"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"None of those.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.011989571304869542,"no":0.6566748769248879,"question":0.01556186514740456,"other":0.05769561735067158,"unrelated":0.25807806927216637},"confidence":0.5708435961561098,"top_probability":0.6566748769248879},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.8553500395531524,"option_1":0.008346679267407038,"option_2":0.00920117656983967,"option_3":0.0034341819959839677,"elsewhere":0.12366792261361693},"confidence":0.8191875494414405,"top_probability":0.8553500395531524}},"request_hash":"558ab0530c5b9a50e5daf28d8223745cc7cde9854485ac213cee09d2bbb67bdf"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Oh, I was after the checkout button one.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"elsewhere","answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.01727238561613714,"no":0.13578265895820202,"question":0.08908592044151827,"other":0.23949550011939977,"unrelated":0.5183635348647428},"confidence":0.3979544185809285,"top_probability":0.5183635348647428},"target":{"type":"choice","choice":"keeps","probabilities":{"keeps":0.45065619092618525,"option_1":0.07397261707449185,"option_2":0.03672068393647104,"option_3":0.02773027080321486,"elsewhere":0.4109202372596371},"confidence":0.3133202386577315,"top_probability":0.45065619092618525}},"request_hash":"c87bef358062b98df038de5de105b62a4be125f97a9928352d8c020940bf5b4d"},{"act":{"kind":"ask_which","slots":{"of":"thread","candidates":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"]}},"reply":"Look at the one that adds a checkout button.","options":["Add a clamp helper","Fix the flaky ASR test","Add a sum helper"],"must_act":false,"expected_target":"elsewhere","answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.024479537294716427,"no":0.13451371019332226,"question":0.11484233502886423,"other":0.2973240042711054,"unrelated":0.4288404132119917},"confidence":0.2860505165149896,"top_probability":0.4288404132119917},"target":{"type":"choice","choice":"elsewhere","probabilities":{"keeps":0.2885241694952291,"option_1":0.21543313982495205,"option_2":0.04282099325170766,"option_3":0.04298952538840458,"elsewhere":0.4102321720397065},"confidence":0.2627902150496331,"top_probability":0.4102321720397065}},"request_hash":"88949355cbcc32a02550c15838a09f1bacba4feba6dfc536d7c06c8fc5db9b76"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Never mind.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"unrelated","probabilities":{"yes":0.07715331413980632,"no":0.2379148155948376,"question":0.018016755258531972,"other":0.02178580537818994,"unrelated":0.6451293096286341},"confidence":0.5564116370357927,"top_probability":0.6451293096286341}},"request_hash":"42639735bfe42362f1616be5333872991901bdc8c42cf243261ee619aa602ef0"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"No, cancel that.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.1384631541253348,"no":0.7003422523760557,"question":0.011556352496118522,"other":0.11174797778809174,"unrelated":0.03789026321439909},"confidence":0.6254278154700695,"top_probability":0.7003422523760557}},"request_hash":"e642656fbbffc030ad83687ac083bad381bf28b5387da494c952e4e6d71875a0"},{"act":{"kind":"confirm_stop","slots":{"thread":"Add a clamp helper"}},"reply":"Neither.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.16874896775748569,"no":0.59553261564586,"question":0.018777622883919418,"other":0.051579830891817544,"unrelated":0.16536096282091717},"confidence":0.49441576955732497,"top_probability":0.59553261564586}},"request_hash":"2e9b0c37e57434ea73cc55ac2835bed257c55e9f617de9a1bee615dff03f39d1"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Never mind.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.030823579988089468,"no":0.6284627801197975,"question":0.011116406464463236,"other":0.016447747673841266,"unrelated":0.3131494857538085},"confidence":0.5355784751497469,"top_probability":0.6284627801197975}},"request_hash":"5c33e3378146de1ffe8e6fef93671b4ab9ac33579df6d7e9aadb48a10f8a6f53"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"No, cancel that.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.009083543268784465,"no":0.9674158873131322,"question":0.003318789865581669,"other":0.011942508372981667,"unrelated":0.008239271179519855},"confidence":0.9592698591414153,"top_probability":0.9674158873131322}},"request_hash":"f6d33f1726fa9c722b9e5694e13c647f98b7eaa1fd7bc2cd4fc6385fc6c4c9e6"},{"act":{"kind":"confirm_tell","slots":{"thread":"Add a clamp helper","message":"also add a test"}},"reply":"Neither.","options":[],"must_act":false,"expected_target":null,"answers":{"reading":{"type":"choice","choice":"no","probabilities":{"yes":0.049408238981664424,"no":0.5792905662744492,"question":0.019044453824420573,"other":0.0162268791354578,"unrelated":0.336029861784008},"confidence":0.47411320784306143,"top_probability":0.5792905662744492}},"request_hash":"af0f902ef5c4155ac9cc788a7eeac50bd1f003a8352b0a5dace220ec74bb3a8f"}]
+[
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9361512288058901,
+          "no": 0.016424941684672123,
+          "question": 0.0070829888990167015,
+          "other": 0.03050179938395653,
+          "unrelated": 0.009839041226464595
+        },
+        "confidence": 0.9201890360073625,
+        "top_probability": 0.9361512288058901
+      },
+      "agrees": { "type": "noul", "noul": 0.9934803458114688 },
+      "asks": { "type": "noul", "noul": 0.006082235886762046 },
+      "adds": { "type": "noul", "noul": 0.004802434834034971 }
+    },
+    "request_hash": "bd89cb0aba02bc9201f0c27a79ceef86450ce09cf690d2a0fe0a7042debb0722"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yeah.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9428355533860016,
+          "no": 0.014751219293274331,
+          "question": 0.006498076453997171,
+          "other": 0.02356755944970569,
+          "unrelated": 0.012347591417021055
+        },
+        "confidence": 0.928544441732502,
+        "top_probability": 0.9428355533860016
+      },
+      "agrees": { "type": "noul", "noul": 0.993723662822714 },
+      "asks": { "type": "noul", "noul": 0.005085013960874752 },
+      "adds": { "type": "noul", "noul": 0.005896013583050242 }
+    },
+    "request_hash": "508c842293d8849aaaa6712ee6e1b3fbd5c0e26e0781ade0e3275c7ed5607eb3"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yeah, go ahead.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8840393414566234,
+          "no": 0.023680837925828986,
+          "question": 0.009837581825972993,
+          "other": 0.061271197792347194,
+          "unrelated": 0.02117104099922746
+        },
+        "confidence": 0.8550491768207793,
+        "top_probability": 0.8840393414566234
+      },
+      "agrees": { "type": "noul", "noul": 0.9842494742959315 },
+      "asks": { "type": "noul", "noul": 0.005492117420300293 },
+      "adds": { "type": "noul", "noul": 0.011701961427031816 }
+    },
+    "request_hash": "ce58abc6538b4cb1375c360dc56d53d7dafc0175c68946b51f1626a3cce6a4e1"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Sure.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9229210135914477,
+          "no": 0.017795966550162957,
+          "question": 0.008045811253336957,
+          "other": 0.02809346886794483,
+          "unrelated": 0.023143739737107476
+        },
+        "confidence": 0.9036512669893095,
+        "top_probability": 0.9229210135914477
+      },
+      "agrees": { "type": "noul", "noul": 0.9830067225740335 },
+      "asks": { "type": "noul", "noul": 0.00969566250958612 },
+      "adds": { "type": "noul", "noul": 0.007745524051831366 }
+    },
+    "request_hash": "d8f0705d07da5feecac99c417b73a66046d06f4ee4e38ad72d618af0ffee939e"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Sure, why not.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8032007171928341,
+          "no": 0.015843072769302906,
+          "question": 0.08941591137625118,
+          "other": 0.051311514481154716,
+          "unrelated": 0.04022878418045711
+        },
+        "confidence": 0.7540008964910427,
+        "top_probability": 0.8032007171928341
+      },
+      "agrees": { "type": "noul", "noul": 0.9690697178016991 },
+      "asks": { "type": "noul", "noul": 0.02535940468028622 },
+      "adds": { "type": "noul", "noul": 0.03260780793025676 }
+    },
+    "request_hash": "8e39f0af985c11aa8ebc7936ca8ef2959f19701d6b69c5c219087e6dec5995b3"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Please do.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9271564696811103,
+          "no": 0.01341308306302092,
+          "question": 0.015136591205810568,
+          "other": 0.02022090308413412,
+          "unrelated": 0.024072952965923912
+        },
+        "confidence": 0.908945587101388,
+        "top_probability": 0.9271564696811103
+      },
+      "agrees": { "type": "noul", "noul": 0.958592746782708 },
+      "asks": { "type": "noul", "noul": 0.010753259005049719 },
+      "adds": { "type": "noul", "noul": 0.012429985951395956 }
+    },
+    "request_hash": "a434fe3d8c41cc2f75428d7abc774a9cf1f71a1e92107cbec6243ceaebf0dc7a"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Please do?",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.7283037806368279,
+          "no": 0.034943998231686244,
+          "question": 0.15326623963885283,
+          "other": 0.026705767771470105,
+          "unrelated": 0.05678021372116289
+        },
+        "confidence": 0.6603797257960348,
+        "top_probability": 0.7283037806368279
+      },
+      "agrees": { "type": "noul", "noul": 0.7654747471463843 },
+      "asks": { "type": "noul", "noul": 0.1625278152886981 },
+      "adds": { "type": "noul", "noul": 0.09030152369772468 }
+    },
+    "request_hash": "7ca45208429eaabbd504ce3d334dea3eb9b8b919776180b43eec8a8c7a2d7702"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Please do!",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8906047365465177,
+          "no": 0.016217967887302048,
+          "question": 0.02011027520117572,
+          "other": 0.03442808032501183,
+          "unrelated": 0.0386389400399927
+        },
+        "confidence": 0.8632559206831472,
+        "top_probability": 0.8906047365465177
+      },
+      "agrees": { "type": "noul", "noul": 0.960434777001404 },
+      "asks": { "type": "noul", "noul": 0.013036114661098214 },
+      "adds": { "type": "noul", "noul": 0.022340164914152853 }
+    },
+    "request_hash": "229ed4074326e5d9eae571bcb2ab7869d70c4b3dcf741a5070fc18ecfdd64de8"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, please.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8688025458624122,
+          "no": 0.021556859856687368,
+          "question": 0.012489950906178833,
+          "other": 0.08193284719123979,
+          "unrelated": 0.015217796183481664
+        },
+        "confidence": 0.8360031823280153,
+        "top_probability": 0.8688025458624122
+      },
+      "agrees": { "type": "noul", "noul": 0.9893835945474488 },
+      "asks": { "type": "noul", "noul": 0.007528257047804517 },
+      "adds": { "type": "noul", "noul": 0.008740897171611422 }
+    },
+    "request_hash": "3ed1e68c42788c712468cb9a174cc6b9a462c451edab5eee7a28599f1a49bb05"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Do it.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9000607612026709,
+          "no": 0.02383572495962046,
+          "question": 0.011953599136122744,
+          "other": 0.04010544381936961,
+          "unrelated": 0.02404447088221639
+        },
+        "confidence": 0.8750759515033385,
+        "top_probability": 0.9000607612026709
+      },
+      "agrees": { "type": "noul", "noul": 0.9828417140102933 },
+      "asks": { "type": "noul", "noul": 0.007408921541057566 },
+      "adds": { "type": "noul", "noul": 0.005662615394298726 }
+    },
+    "request_hash": "5109db88b3d0c6ae3026b78ce20641c58a76eb6ad390308c5df7f0d8d11bf623"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Go for it.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8026598194441729,
+          "no": 0.03333325016512319,
+          "question": 0.015984708366059745,
+          "other": 0.10350283570399668,
+          "unrelated": 0.04451938632064765
+        },
+        "confidence": 0.7533247743052159,
+        "top_probability": 0.8026598194441729
+      },
+      "agrees": { "type": "noul", "noul": 0.9628200957424574 },
+      "asks": { "type": "noul", "noul": 0.016935281637228773 },
+      "adds": { "type": "noul", "noul": 0.02145366772196026 }
+    },
+    "request_hash": "af975140a93b6792e3f0d8ab6b5615440519a431c1038847c74460753d882431"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Okay.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.7657146928929469,
+          "no": 0.03535242536776042,
+          "question": 0.011967260021695734,
+          "other": 0.032758090067112305,
+          "unrelated": 0.15420753165048467
+        },
+        "confidence": 0.7071433661161836,
+        "top_probability": 0.7657146928929469
+      },
+      "agrees": { "type": "noul", "noul": 0.8909343391430571 },
+      "asks": { "type": "noul", "noul": 0.010753175564884858 },
+      "adds": { "type": "noul", "noul": 0.01217536855648116 }
+    },
+    "request_hash": "ebc18203919f8c351d6103f65fe4b9bfab949b2cca77ffacba2e3462dc539cf8"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Okay, sounds good.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8585161763900587,
+          "no": 0.023737835432210044,
+          "question": 0.010107034528215684,
+          "other": 0.04368850456579297,
+          "unrelated": 0.06395044908372263
+        },
+        "confidence": 0.8231452204875733,
+        "top_probability": 0.8585161763900587
+      },
+      "agrees": { "type": "noul", "noul": 0.9339364653614347 },
+      "asks": { "type": "noul", "noul": 0.010617236874342701 },
+      "adds": { "type": "noul", "noul": 0.028870390726653226 }
+    },
+    "request_hash": "2767934e77c8aae6e145a5e67dd0fb9c0f1467da011fe440a070f9592134bd52"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yep.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9228459846667932,
+          "no": 0.01718787940459556,
+          "question": 0.007583115238067026,
+          "other": 0.03548386930347151,
+          "unrelated": 0.01689915138707259
+        },
+        "confidence": 0.9035574808334914,
+        "top_probability": 0.9228459846667932
+      },
+      "agrees": { "type": "noul", "noul": 0.9935129881119685 },
+      "asks": { "type": "noul", "noul": 0.00487263237092062 },
+      "adds": { "type": "noul", "noul": 0.006713240254138832 }
+    },
+    "request_hash": "fa8facd4bf0dd4d3c3c32031595af467c6f2fcc45d955ca7188466e0021ada86"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Alright, go ahead.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8663776945457436,
+          "no": 0.026174865194545184,
+          "question": 0.009402093709642921,
+          "other": 0.05902070810131807,
+          "unrelated": 0.039024638448750294
+        },
+        "confidence": 0.8329721181821794,
+        "top_probability": 0.8663776945457436
+      },
+      "agrees": { "type": "noul", "noul": 0.9321290737065269 },
+      "asks": { "type": "noul", "noul": 0.012858057860115527 },
+      "adds": { "type": "noul", "noul": 0.02946995926872328 }
+    },
+    "request_hash": "e01401ab56676c452af15c25b5ac8a6190eadc689e73bfed7bd990a528c49de5"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Uh-huh.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8802738897862437,
+          "no": 0.029665468949196458,
+          "question": 0.009935897954216162,
+          "other": 0.031278671858929366,
+          "unrelated": 0.04884607145141433
+        },
+        "confidence": 0.8503423622328046,
+        "top_probability": 0.8802738897862437
+      },
+      "agrees": { "type": "noul", "noul": 0.9607094888119481 },
+      "asks": { "type": "noul", "noul": 0.008744623590338292 },
+      "adds": { "type": "noul", "noul": 0.011936453821349035 }
+    },
+    "request_hash": "5f28ca4f73c57f43aeed95409ecdc273f380f95f018fbf8b8e3682f03b8b989c"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, do it.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8500573599692086,
+          "no": 0.02769150389287101,
+          "question": 0.011237267735862701,
+          "other": 0.09795290008709145,
+          "unrelated": 0.013060968314966278
+        },
+        "confidence": 0.8125716999615107,
+        "top_probability": 0.8500573599692086
+      },
+      "agrees": { "type": "noul", "noul": 0.9905135593097879 },
+      "asks": { "type": "noul", "noul": 0.006604978674017827 },
+      "adds": { "type": "noul", "noul": 0.010414062951254216 }
+    },
+    "request_hash": "5d2d7eb4f7b0623d5c2086bbf04c452acf7703aadd05c05fb1aa153e11546250"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes please do?",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.7386614766415887,
+          "no": 0.03398724666131924,
+          "question": 0.09124187163526701,
+          "other": 0.10486591514626835,
+          "unrelated": 0.03124348991555697
+        },
+        "confidence": 0.6733268458019859,
+        "top_probability": 0.7386614766415887
+      },
+      "agrees": { "type": "noul", "noul": 0.9721916372825894 },
+      "asks": { "type": "noul", "noul": 0.09149419647366334 },
+      "adds": { "type": "noul", "noul": 0.10271133353224694 }
+    },
+    "request_hash": "5bdc337d54e2e0e0741c1d4c8a14342e6183ef31ba54a70c5b7009622383b6a6"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Mm-hmm, go on.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.7612650850785335,
+          "no": 0.036372328784367094,
+          "question": 0.03081091907064392,
+          "other": 0.05126325950889052,
+          "unrelated": 0.12028840755756502
+        },
+        "confidence": 0.7015813563481668,
+        "top_probability": 0.7612650850785335
+      },
+      "agrees": { "type": "noul", "noul": 0.785467876306448 },
+      "asks": { "type": "noul", "noul": 0.2744453074624707 },
+      "adds": { "type": "noul", "noul": 0.13940508909810792 }
+    },
+    "request_hash": "124754795c6346f406eede89f5da8c740f707c4ac1d66e1c0cc86a2e749ceb2b"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "No.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.06638016523359201,
+          "no": 0.9010526804684841,
+          "question": 0.004940660891819552,
+          "other": 0.008943821209388135,
+          "unrelated": 0.018682672196716356
+        },
+        "confidence": 0.876315850585605,
+        "top_probability": 0.9010526804684841
+      },
+      "agrees": { "type": "noul", "noul": 0.0093044230798889 },
+      "asks": { "type": "noul", "noul": 0.05007476479969887 },
+      "adds": { "type": "noul", "noul": 0.023769107404677015 }
+    },
+    "request_hash": "34f421f44ab6aa25ea798c75ad2ad97035e0d587ba1b36974c4ec27223fff4c8"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "No, don't.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.026546972090685433,
+          "no": 0.944826170998864,
+          "question": 0.004017359972345259,
+          "other": 0.010895360325292688,
+          "unrelated": 0.013714136612812764
+        },
+        "confidence": 0.9310327137485799,
+        "top_probability": 0.944826170998864
+      },
+      "agrees": { "type": "noul", "noul": 0.012190304696020744 },
+      "asks": { "type": "noul", "noul": 0.04862073531251128 },
+      "adds": { "type": "noul", "noul": 0.03855431385783172 }
+    },
+    "request_hash": "1cfb9d3fb17305614780e40dcc2b11797b9c37c7c9cbf2f53e1740417822b1c7"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Nope.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.04354317828765307,
+          "no": 0.9248279165866412,
+          "question": 0.0044324655704971495,
+          "other": 0.007681357693652021,
+          "unrelated": 0.01951508186155633
+        },
+        "confidence": 0.9060348957333014,
+        "top_probability": 0.9248279165866412
+      },
+      "agrees": { "type": "noul", "noul": 0.005875302534146272 },
+      "asks": { "type": "noul", "noul": 0.04062401041925902 },
+      "adds": { "type": "noul", "noul": 0.021590793254595696 }
+    },
+    "request_hash": "4bb277ee5effb8e06485e09c1b4b42808f6347c4b51b8746b97798fa41275299"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Wait.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.0908852695392037,
+          "no": 0.11464460351725266,
+          "question": 0.04581698993198635,
+          "other": 0.017712138274995112,
+          "unrelated": 0.7309409987365623
+        },
+        "confidence": 0.6636762484207028,
+        "top_probability": 0.7309409987365623
+      },
+      "agrees": { "type": "noul", "noul": 0.12704713445864885 },
+      "asks": { "type": "noul", "noul": 0.26641158333545334 },
+      "adds": { "type": "noul", "noul": 0.10361968635180963 }
+    },
+    "request_hash": "4698d16380f4efc423c191fb10dfbd456a1ea3e2b834ae4339a6d267baed7e34"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Never mind.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.02234512846058554,
+          "no": 0.2565712266326551,
+          "question": 0.011339522448068014,
+          "other": 0.01078499668159816,
+          "unrelated": 0.6989591257770932
+        },
+        "confidence": 0.6236989072213664,
+        "top_probability": 0.6989591257770932
+      },
+      "agrees": { "type": "noul", "noul": 0.03592558569431648 },
+      "asks": { "type": "noul", "noul": 0.022359080152873807 },
+      "adds": { "type": "noul", "noul": 0.026779158085554738 }
+    },
+    "request_hash": "ae8fd20cba7ba32fa033d85bd264dc73c7faab2d5662188bba1b231c11d29626"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Hold on, not yet.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.043603063984742584,
+          "no": 0.6476881222251294,
+          "question": 0.023660549945104484,
+          "other": 0.09409342769040287,
+          "unrelated": 0.19095483615462067
+        },
+        "confidence": 0.5596101527814117,
+        "top_probability": 0.6476881222251294
+      },
+      "agrees": { "type": "noul", "noul": 0.020232027115411926 },
+      "asks": { "type": "noul", "noul": 0.2861969047600604 },
+      "adds": { "type": "noul", "noul": 0.13177960967304517 }
+    },
+    "request_hash": "d435a56d76f2de00ac35b74b8d409c064eaeb79cbf160a9787589832157e0cc1"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "What do you mean?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.015726476100467603,
+          "no": 0.1435196699074554,
+          "question": 0.325827098783151,
+          "other": 0.015335137752304984,
+          "unrelated": 0.4995916174566208
+        },
+        "confidence": 0.37448952182077594,
+        "top_probability": 0.4995916174566208
+      },
+      "agrees": { "type": "noul", "noul": 0.2427124136640795 },
+      "asks": { "type": "noul", "noul": 0.8103882591054831 },
+      "adds": { "type": "noul", "noul": 0.26256468618145384 }
+    },
+    "request_hash": "70570137be18d3939878cfbd67c8c88d3c84eacf79dd190e3bd305f1c5e0bdca"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "How long will it take?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "yes": 0.010396803004723208,
+          "no": 0.0375767809648532,
+          "question": 0.6217545265062006,
+          "other": 0.01793625632395095,
+          "unrelated": 0.3123356332002722
+        },
+        "confidence": 0.5271931581327507,
+        "top_probability": 0.6217545265062006
+      },
+      "agrees": { "type": "noul", "noul": 0.17555474514055222 },
+      "asks": { "type": "noul", "noul": 0.8887210246797855 },
+      "adds": { "type": "noul", "noul": 0.6042031578856885 }
+    },
+    "request_hash": "30f85d25170020160c8c428894ec7b75267e4b8d0ac25afa658e835afa565832"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Which project is that?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "yes": 0.009121241189785394,
+          "no": 0.03585055578869325,
+          "question": 0.7459934936668281,
+          "other": 0.039945532303584136,
+          "unrelated": 0.16908917705110907
+        },
+        "confidence": 0.682491867083535,
+        "top_probability": 0.7459934936668281
+      },
+      "agrees": { "type": "noul", "noul": 0.19972553210701846 },
+      "asks": { "type": "noul", "noul": 0.9284022848640047 },
+      "adds": { "type": "noul", "noul": 0.5856737688931559 }
+    },
+    "request_hash": "c4ec772f96abc3aea4a3af1efe64faebbda06320810fb9ce158fc54181214eb3"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Why?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "yes": 0.010709240798161424,
+          "no": 0.046280122235071296,
+          "question": 0.6632512273468754,
+          "other": 0.017902421265158907,
+          "unrelated": 0.2618569883547328
+        },
+        "confidence": 0.5790640341835942,
+        "top_probability": 0.6632512273468754
+      },
+      "agrees": { "type": "noul", "noul": 0.1824052908995386 },
+      "asks": { "type": "noul", "noul": 0.9261468506570733 },
+      "adds": { "type": "noul", "noul": 0.3736461058508661 }
+    },
+    "request_hash": "3e68627c86718d4abb36f096f3a7deef2e031492735f2c2ccdf19f63e403494f"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Can you tell me more first?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "yes": 0.014173460511512545,
+          "no": 0.04238528300405003,
+          "question": 0.757906436388123,
+          "other": 0.019861539678305073,
+          "unrelated": 0.16567328041800913
+        },
+        "confidence": 0.6973830454851537,
+        "top_probability": 0.757906436388123
+      },
+      "agrees": { "type": "noul", "noul": 0.0682236525608467 },
+      "asks": { "type": "noul", "noul": 0.9725778681878959 },
+      "adds": { "type": "noul", "noul": 0.15323856300725444 }
+    },
+    "request_hash": "0f7e679e705aa2c8130ab72fb638dec4c4cd2f5a5367299a7474b6732e23bf8a"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Start it in the voice server instead.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.0458784243715226,
+          "no": 0.10488973487866002,
+          "question": 0.022220991482753947,
+          "other": 0.7717266831742436,
+          "unrelated": 0.05528416609281978
+        },
+        "confidence": 0.7146583539678044,
+        "top_probability": 0.7717266831742436
+      },
+      "agrees": { "type": "noul", "noul": 0.25771456586720776 },
+      "asks": { "type": "noul", "noul": 0.27209058153116283 },
+      "adds": { "type": "noul", "noul": 0.7055683409151249 }
+    },
+    "request_hash": "8146c24e2d22349f14661d1d9f921275e419ac9e289e64defc14a1d17b74c025"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "No, the other project.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.02530984581311676,
+          "no": 0.30560290254980216,
+          "question": 0.013556440852112002,
+          "other": 0.5873984895751372,
+          "unrelated": 0.0681323212098318
+        },
+        "confidence": 0.4842481119689214,
+        "top_probability": 0.5873984895751372
+      },
+      "agrees": { "type": "noul", "noul": 0.05184621756303042 },
+      "asks": { "type": "noul", "noul": 0.24508487295333942 },
+      "adds": { "type": "noul", "noul": 0.6679261526818852 }
+    },
+    "request_hash": "dec8597559773af718167e5fd624bcd89647cecb0e1cfa0cdc8749dc85b5234c"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, but in the server project.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.018277781668818157,
+          "no": 0.007190180379318604,
+          "question": 0.0038230507155725814,
+          "other": 0.9665537679337483,
+          "unrelated": 0.004155219302542437
+        },
+        "confidence": 0.9581922099171852,
+        "top_probability": 0.9665537679337483
+      },
+      "agrees": { "type": "noul", "noul": 0.962793590062552 },
+      "asks": { "type": "noul", "noul": 0.11461981169528972 },
+      "adds": { "type": "noul", "noul": 0.9126339125630899 }
+    },
+    "request_hash": "11b7f4ecd23894a2f802feaf98d08ac1c69c1375d7b3f938630a6d33ff89c0bb"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Actually make it about the build.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.011820871696000263,
+          "no": 0.1232517449983697,
+          "question": 0.042613019492242464,
+          "other": 0.7314767198095374,
+          "unrelated": 0.09083764400385012
+        },
+        "confidence": 0.6643458997619217,
+        "top_probability": 0.7314767198095374
+      },
+      "agrees": { "type": "noul", "noul": 0.05864956095048115 },
+      "asks": { "type": "noul", "noul": 0.3095359112676081 },
+      "adds": { "type": "noul", "noul": 0.7915309405627678 }
+    },
+    "request_hash": "bac6451ed4a62b165115af378c6d1ebd45c09f3396fb8a769b1da751e4eb9a55"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "What's the weather like?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.011209448847298064,
+          "no": 0.1382702569030836,
+          "question": 0.16430268461615097,
+          "other": 0.015296489112183292,
+          "unrelated": 0.670921120521284
+        },
+        "confidence": 0.588651400651605,
+        "top_probability": 0.670921120521284
+      },
+      "agrees": { "type": "noul", "noul": 0.11618597503238957 },
+      "asks": { "type": "noul", "noul": 0.6554989778972745 },
+      "adds": { "type": "noul", "noul": 0.7811477871139545 }
+    },
+    "request_hash": "5e604bd70efcee45ec5706c6268f0a3503f7e7b267dbf55eafe9e86cb8249fed"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Hmm, I'm not sure.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.06005971353650804,
+          "no": 0.07567158900835035,
+          "question": 0.0749341456398611,
+          "other": 0.009564443835210079,
+          "unrelated": 0.7797701079800704
+        },
+        "confidence": 0.7247126349750879,
+        "top_probability": 0.7797701079800704
+      },
+      "agrees": { "type": "noul", "noul": 0.15623033781351617 },
+      "asks": { "type": "noul", "noul": 0.7148228886072439 },
+      "adds": { "type": "noul", "noul": 0.12540639293992525 }
+    },
+    "request_hash": "4f47bf0d20adb0213376b29abbd6cb0979d0ad4c7c6fb2819574a30187245e3a"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Maybe later.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.08885201850656434,
+          "no": 0.2277200423261773,
+          "question": 0.03146742506779227,
+          "other": 0.1942081904824375,
+          "unrelated": 0.4577523236170286
+        },
+        "confidence": 0.3221904045212857,
+        "top_probability": 0.4577523236170286
+      },
+      "agrees": { "type": "noul", "noul": 0.07554497739098714 },
+      "asks": { "type": "noul", "noul": 0.29958575219930206 },
+      "adds": { "type": "noul", "noul": 0.14335417367727357 }
+    },
+    "request_hash": "f5733df75d982dbc9a28468eb7a00a2b8c610d75c7e9ddfcd3f75fa82e223ce7"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "I'm thinking about it.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.26795244281984887,
+          "no": 0.043382224079087206,
+          "question": 0.13504832353646987,
+          "other": 0.015196432435697793,
+          "unrelated": 0.5384205771288963
+        },
+        "confidence": 0.4230257214111204,
+        "top_probability": 0.5384205771288963
+      },
+      "agrees": { "type": "noul", "noul": 0.2047853558927596 },
+      "asks": { "type": "noul", "noul": 0.5511122813272196 },
+      "adds": { "type": "noul", "noul": 0.10572258706525217 }
+    },
+    "request_hash": "0604351018916728e298e56e2d7c720b4bdacb70ded86bece59587f9d58edaa5"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Thanks.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.09083964568711653,
+          "no": 0.045988223787086856,
+          "question": 0.011103506398437057,
+          "other": 0.010703110295774325,
+          "unrelated": 0.8413655138315852
+        },
+        "confidence": 0.8017068922894816,
+        "top_probability": 0.8413655138315852
+      },
+      "agrees": { "type": "noul", "noul": 0.08645741996577172 },
+      "asks": { "type": "noul", "noul": 0.020072059707746115 },
+      "adds": { "type": "noul", "noul": 0.039684907445306554 }
+    },
+    "request_hash": "f61340380eaf269547ddd823768a7e9327987930b3c9c6a924851dc2d6ca5be6"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Hello?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.027871860929597075,
+          "no": 0.05561598104900268,
+          "question": 0.05181249064311576,
+          "other": 0.011002366542056285,
+          "unrelated": 0.8536973008362282
+        },
+        "confidence": 0.8171216260452852,
+        "top_probability": 0.8536973008362282
+      },
+      "agrees": { "type": "noul", "noul": 0.17803679532362457 },
+      "asks": { "type": "noul", "noul": 0.19402731614170887 },
+      "adds": { "type": "noul", "noul": 0.08173283321170888 }
+    },
+    "request_hash": "85b1a5e5f0e18b57d4c7c1b979c581d990903b630599335a51161615a3b133d4"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, but in the other project.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.025507812293962026,
+          "no": 0.009027419554006235,
+          "question": 0.004620439311451002,
+          "other": 0.9561570176901315,
+          "unrelated": 0.004687311150449308
+        },
+        "confidence": 0.9451962721126644,
+        "top_probability": 0.9561570176901315
+      },
+      "agrees": { "type": "noul", "noul": 0.9611823660599963 },
+      "asks": { "type": "noul", "noul": 0.11288743763411585 },
+      "adds": { "type": "noul", "noul": 0.9168029724223361 }
+    },
+    "request_hash": "ee457e7fedb9628a10ee7edbb1cce443d0f207863ad98bf897ed27d7041b74cb"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, but only after the tests pass.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.01557650946587825,
+          "no": 0.006824562402338019,
+          "question": 0.0033997398196578175,
+          "other": 0.9707107567932287,
+          "unrelated": 0.0034884315188971125
+        },
+        "confidence": 0.963388445991536,
+        "top_probability": 0.9707107567932287
+      },
+      "agrees": { "type": "noul", "noul": 0.9161216560446489 },
+      "asks": { "type": "noul", "noul": 0.21879492266692924 },
+      "adds": { "type": "noul", "noul": 0.8593625693254349 }
+    },
+    "request_hash": "12281c40eb4090ae3499a2acce96dd6797bd42a151bfc843bf77ada3cb75095e"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Sure, in the voice server.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.233971291944551,
+          "no": 0.017500045045994048,
+          "question": 0.01411478985425679,
+          "other": 0.7103905532606912,
+          "unrelated": 0.024023319894506876
+        },
+        "confidence": 0.637988191575864,
+        "top_probability": 0.7103905532606912
+      },
+      "agrees": { "type": "noul", "noul": 0.9210566200640826 },
+      "asks": { "type": "noul", "noul": 0.12903399791952683 },
+      "adds": { "type": "noul", "noul": 0.6031670777658943 }
+    },
+    "request_hash": "795e83fb8d9f7006c9d057bc7a54449b116dccedc16f0f5bcf9126a06536d75e"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yeah, but make it about the build instead.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.013736531125755349,
+          "no": 0.006924419021419881,
+          "question": 0.006273244836833472,
+          "other": 0.9688499358817206,
+          "unrelated": 0.0042158691342708545
+        },
+        "confidence": 0.9610624198521508,
+        "top_probability": 0.9688499358817206
+      },
+      "agrees": { "type": "noul", "noul": 0.9586542079918176 },
+      "asks": { "type": "noul", "noul": 0.1574816398148159 },
+      "adds": { "type": "noul", "noul": 0.9628710260139799 }
+    },
+    "request_hash": "0ee3239e14d79a53c0eadf902862e17d0bfa5044d603362dbd6ecefb2b5a6038"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Okay, if it's quick.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.14582230735640556,
+          "no": 0.04533983401907994,
+          "question": 0.03440048618166657,
+          "other": 0.6138724504358767,
+          "unrelated": 0.1605649220069712
+        },
+        "confidence": 0.5173405630448458,
+        "top_probability": 0.6138724504358767
+      },
+      "agrees": { "type": "noul", "noul": 0.6261019456421559 },
+      "asks": { "type": "noul", "noul": 0.21086727388614232 },
+      "adds": { "type": "noul", "noul": 0.40242053056679217 }
+    },
+    "request_hash": "09a865be367f833ff78e788504ebeadfc9342b537f39bf1e849ef4073470c420"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, as long as it doesn't touch the main branch.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.022893470303078933,
+          "no": 0.009329034816341814,
+          "question": 0.00533026982564118,
+          "other": 0.9566502169660082,
+          "unrelated": 0.005797008088929906
+        },
+        "confidence": 0.9458127712075101,
+        "top_probability": 0.9566502169660082
+      },
+      "agrees": { "type": "noul", "noul": 0.972862190354035 },
+      "asks": { "type": "noul", "noul": 0.06468907251717795 },
+      "adds": { "type": "noul", "noul": 0.9270992178046173 }
+    },
+    "request_hash": "4f96c1a89b8340691f9c7f010c128f2757b995e17d95740c0af8fcb7ca7fe562"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes please, and also tell the other thread.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.12928107748072554,
+          "no": 0.014604780232469168,
+          "question": 0.018602071930360033,
+          "other": 0.8242821615422994,
+          "unrelated": 0.01322990881414573
+        },
+        "confidence": 0.7803527019278741,
+        "top_probability": 0.8242821615422994
+      },
+      "agrees": { "type": "noul", "noul": 0.9843926602387036 },
+      "asks": { "type": "noul", "noul": 0.062384812160765885 },
+      "adds": { "type": "noul", "noul": 0.5980365519979215 }
+    },
+    "request_hash": "cd3b955a56c8962d7da118d3fae48797b7e6b62e6498537aa262ae2b72567305"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Yes, stop it.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8520231725480795,
+          "no": 0.033215938916535834,
+          "question": 0.01270511169683918,
+          "other": 0.08109990497161879,
+          "unrelated": 0.02095587186692673
+        },
+        "confidence": 0.8150289656850992,
+        "top_probability": 0.8520231725480795
+      },
+      "agrees": { "type": "noul", "noul": 0.9722639547361406 },
+      "asks": { "type": "noul", "noul": 0.03797443841726519 },
+      "adds": { "type": "noul", "noul": 0.024839934622499657 }
+    },
+    "request_hash": "f1b8894b5bea70b49ccb1d353dbeed378ab61c6f6da762628daff82ddeb4d5ba"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Please do.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9069457379798032,
+          "no": 0.016660313154820278,
+          "question": 0.016169026455561473,
+          "other": 0.03319306885620589,
+          "unrelated": 0.027031853553609164
+        },
+        "confidence": 0.883682172474754,
+        "top_probability": 0.9069457379798032
+      },
+      "agrees": { "type": "noul", "noul": 0.9279587840843477 },
+      "asks": { "type": "noul", "noul": 0.01728160009927131 },
+      "adds": { "type": "noul", "noul": 0.023708011919546065 }
+    },
+    "request_hash": "a2ce1be8d37d7ef0aa3205045f0f0e25ec34da13abb42404f1272cb6ef73be7d"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Go ahead.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.7222636155760419,
+          "no": 0.07388771347782082,
+          "question": 0.01484234818068361,
+          "other": 0.09809793303838063,
+          "unrelated": 0.09090838972707307
+        },
+        "confidence": 0.6528295194700523,
+        "top_probability": 0.7222636155760419
+      },
+      "agrees": { "type": "noul", "noul": 0.671282280019658 },
+      "asks": { "type": "noul", "noul": 0.0242508747033158 },
+      "adds": { "type": "noul", "noul": 0.030932729572768887 }
+    },
+    "request_hash": "00c37a01189c8f0fa371784a23bedb8680d93d369679ae8d348eef357ea42ed8"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Yeah.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8911883978115148,
+          "no": 0.024983540869513047,
+          "question": 0.008262312888615893,
+          "other": 0.055889859006439946,
+          "unrelated": 0.01967588942391636
+        },
+        "confidence": 0.8639854972643934,
+        "top_probability": 0.8911883978115148
+      },
+      "agrees": { "type": "noul", "noul": 0.9702788718544805 },
+      "asks": { "type": "noul", "noul": 0.007975880210990145 },
+      "adds": { "type": "noul", "noul": 0.017623400972597063 }
+    },
+    "request_hash": "37d324eba6b55bcfbb3764bd8796e7f34c7ae0f69c704fa521614ecd837b1feb"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "No, leave it running.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.22290011194022538,
+          "no": 0.601212623193187,
+          "question": 0.0083873054535556,
+          "other": 0.144282786911045,
+          "unrelated": 0.023217172501986977
+        },
+        "confidence": 0.5015157789914837,
+        "top_probability": 0.601212623193187
+      },
+      "agrees": { "type": "noul", "noul": 0.024726841379436593 },
+      "asks": { "type": "noul", "noul": 0.10176065499017693 },
+      "adds": { "type": "noul", "noul": 0.09883646731545143 }
+    },
+    "request_hash": "c6bbd6687e14cab671d399c3a36656a5ffdfd50d07bbbc2960f76ce320ad9fc1"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Which one is that?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "yes": 0.00834002312823229,
+          "no": 0.03529718434339074,
+          "question": 0.737653147854007,
+          "other": 0.030089477922169827,
+          "unrelated": 0.18862016675220022
+        },
+        "confidence": 0.6720664348175087,
+        "top_probability": 0.737653147854007
+      },
+      "agrees": { "type": "noul", "noul": 0.17958215133184058 },
+      "asks": { "type": "noul", "noul": 0.947895161114816 },
+      "adds": { "type": "noul", "noul": 0.6210805699814762 }
+    },
+    "request_hash": "9a5acc8a949b65cc88cb334e9bcb9d33044bdf552c91b64bb75bc301818ff1c4"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Don't stop it.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.20362783262557754,
+          "no": 0.5280823950603035,
+          "question": 0.018229638656749494,
+          "other": 0.15760774656428567,
+          "unrelated": 0.09245238709308373
+        },
+        "confidence": 0.41010299382537935,
+        "top_probability": 0.5280823950603035
+      },
+      "agrees": { "type": "noul", "noul": 0.11230955594434902 },
+      "asks": { "type": "noul", "noul": 0.08773128168516851 },
+      "adds": { "type": "noul", "noul": 0.19208396353710283 }
+    },
+    "request_hash": "678ae67f7a6f01f085b68a90fe1c888eec24270e48a8cfc312079c2c32332b5d"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Yes, but wait until it finishes the run.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.023933485579989325,
+          "no": 0.011261295418761572,
+          "question": 0.00380951341091626,
+          "other": 0.9563446867035127,
+          "unrelated": 0.004651018886819989
+        },
+        "confidence": 0.9454308583793908,
+        "top_probability": 0.9563446867035127
+      },
+      "agrees": { "type": "noul", "noul": 0.845012383755139 },
+      "asks": { "type": "noul", "noul": 0.18173908650933226 },
+      "adds": { "type": "noul", "noul": 0.8398583455133968 }
+    },
+    "request_hash": "78db44bcbd3fb6eec3e5f1531ef646cf8a1cf723af96bb3ffc3edcaabe62ee3b"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "Yes, send it.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.899184944191617,
+          "no": 0.014336283004143734,
+          "question": 0.007349759621319603,
+          "other": 0.07256455378856054,
+          "unrelated": 0.006564459394359221
+        },
+        "confidence": 0.8739811802395211,
+        "top_probability": 0.899184944191617
+      },
+      "agrees": { "type": "noul", "noul": 0.9945620626920841 },
+      "asks": { "type": "noul", "noul": 0.007444068196869696 },
+      "adds": { "type": "noul", "noul": 0.012608540857368773 }
+    },
+    "request_hash": "f7ee10316ce19bab184bd9c61ceb67c8a7a09094f7b7f5e02ed7708078731cbb"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "Please do?",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.6825104766845655,
+          "no": 0.03401751935137518,
+          "question": 0.19565806641277836,
+          "other": 0.04229669662581191,
+          "unrelated": 0.045517240925469014
+        },
+        "confidence": 0.6031380958557069,
+        "top_probability": 0.6825104766845655
+      },
+      "agrees": { "type": "noul", "noul": 0.7843106982955691 },
+      "asks": { "type": "noul", "noul": 0.18129656722034032 },
+      "adds": { "type": "noul", "noul": 0.10022510548678164 }
+    },
+    "request_hash": "e08ff08e0190c832a55ce130854aed553b4c78596a559e152c5ec8c10191c4df"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "Sure.",
+    "options": [],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9366469489073312,
+          "no": 0.0104637411720634,
+          "question": 0.006887647210088165,
+          "other": 0.03595278673451216,
+          "unrelated": 0.010048875976005156
+        },
+        "confidence": 0.9208086861341641,
+        "top_probability": 0.9366469489073312
+      },
+      "agrees": { "type": "noul", "noul": 0.9913433860685418 },
+      "asks": { "type": "noul", "noul": 0.0041050890062316134 },
+      "adds": { "type": "noul", "noul": 0.00627528766574763 }
+    },
+    "request_hash": "e447f984f801635e79c2a3b226d4134c67a0cccb49f734ace5312249a226294b"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "Send it to the other thread.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.04459505277956841,
+          "no": 0.13696719017080994,
+          "question": 0.010970538414045751,
+          "other": 0.7792850792343642,
+          "unrelated": 0.028182139401211614
+        },
+        "confidence": 0.7241063490429552,
+        "top_probability": 0.7792850792343642
+      },
+      "agrees": { "type": "noul", "noul": 0.1317564408724033 },
+      "asks": { "type": "noul", "noul": 0.1997980874738248 },
+      "adds": { "type": "noul", "noul": 0.7042076571623153 }
+    },
+    "request_hash": "63352419b9587b34785e215b48f3746a964d5a125cba29eb2c70a2a4f26244c7"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "What does it say?",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "yes": 0.027046582540835112,
+          "no": 0.053232777840854915,
+          "question": 0.6946576736293231,
+          "other": 0.03619290710740776,
+          "unrelated": 0.1888700588815793
+        },
+        "confidence": 0.6183220920366538,
+        "top_probability": 0.6946576736293231
+      },
+      "agrees": { "type": "noul", "noul": 0.3880583055910378 },
+      "asks": { "type": "noul", "noul": 0.7703546068172699 },
+      "adds": { "type": "noul", "noul": 0.3120053469808958 }
+    },
+    "request_hash": "143c19155be503163b9e060d15571738d253e3f42336ab80ca65fcb696c0bc21"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "No.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.019827306205200557,
+          "no": 0.9655550795220182,
+          "question": 0.0025950187191278655,
+          "other": 0.006452703181301656,
+          "unrelated": 0.005569892372351782
+        },
+        "confidence": 0.9569438494025229,
+        "top_probability": 0.9655550795220182
+      },
+      "agrees": { "type": "noul", "noul": 0.006178019011204496 },
+      "asks": { "type": "noul", "noul": 0.04687191570872589 },
+      "adds": { "type": "noul", "noul": 0.029318272504841553 }
+    },
+    "request_hash": "d112bf6b9303345380221b0e16b6201dcbd72494712923415a7dc5b80a6b01b9"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "Yes, but add that it should keep my formatting.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.024624699474652567,
+          "no": 0.007547898054597456,
+          "question": 0.008222458505638084,
+          "other": 0.9554798855004261,
+          "unrelated": 0.004125058464685775
+        },
+        "confidence": 0.9443498568755326,
+        "top_probability": 0.9554798855004261
+      },
+      "agrees": { "type": "noul", "noul": 0.9744379280411113 },
+      "asks": { "type": "noul", "noul": 0.08778454367924761 },
+      "adds": { "type": "noul", "noul": 0.9292121609921373 }
+    },
+    "request_hash": "846125466c3dabbd56aae552b14238f92d8de5c98a2edd5fe37da136bac89c66"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes.",
+    "options": ["Voice server"],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.9345773045255386,
+          "no": 0.01613423628199676,
+          "question": 0.007764287501775256,
+          "other": 0.030622081423902478,
+          "unrelated": 0.01090209026678686
+        },
+        "confidence": 0.9182216306569232,
+        "top_probability": 0.9345773045255386
+      },
+      "agrees": { "type": "noul", "noul": 0.9929357689135153 },
+      "asks": { "type": "noul", "noul": 0.007575300714361496 },
+      "adds": { "type": "noul", "noul": 0.00550503019074111 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.9722429795243842,
+          "option_1": 0.018787405489432203,
+          "elsewhere": 0.008969614986183464
+        },
+        "confidence": 0.9583644692865761,
+        "top_probability": 0.9722429795243842
+      }
+    },
+    "request_hash": "a70568aa30439690ced3fca87b9367bf0ca9261101eafc8c52d1d955693e4012"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Please do?",
+    "options": ["Voice server"],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.7457371695158804,
+          "no": 0.03989840595414931,
+          "question": 0.12085021610631312,
+          "other": 0.026069895745548015,
+          "unrelated": 0.06744431267810909
+        },
+        "confidence": 0.6821714618948505,
+        "top_probability": 0.7457371695158804
+      },
+      "agrees": { "type": "noul", "noul": 0.7978221968785822 },
+      "asks": { "type": "noul", "noul": 0.18475739498067834 },
+      "adds": { "type": "noul", "noul": 0.08085373938311732 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.8175835235104381,
+          "option_1": 0.10370647849108627,
+          "elsewhere": 0.07870999799847582
+        },
+        "confidence": 0.7263752852656571,
+        "top_probability": 0.8175835235104381
+      }
+    },
+    "request_hash": "5515258c5cfc940d4f7792f25d4a67f10e36757e92cd3bfd6de8bed8acdfcae9"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "No.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.06119416839798867,
+          "no": 0.9005836187366827,
+          "question": 0.005986077442069775,
+          "other": 0.011148747679393473,
+          "unrelated": 0.021087387743865118
+        },
+        "confidence": 0.8757295234208534,
+        "top_probability": 0.9005836187366827
+      },
+      "agrees": { "type": "noul", "noul": 0.010329548181122057 },
+      "asks": { "type": "noul", "noul": 0.05218209313483515 },
+      "adds": { "type": "noul", "noul": 0.03190361428467246 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.9001033572826097,
+          "option_1": 0.05063337606537467,
+          "elsewhere": 0.049263266652015594
+        },
+        "confidence": 0.8501550359239144,
+        "top_probability": 0.9001033572826097
+      }
+    },
+    "request_hash": "fc3cfb56e08fb8885ec2be26a4ba97e94bd71c5094b825f9e1c5a90e7f98c50a"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, but in the other project.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": "Voice server",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.024541591494145282,
+          "no": 0.00899359757328678,
+          "question": 0.00490446447009106,
+          "other": 0.9560997882984005,
+          "unrelated": 0.005460558164076302
+        },
+        "confidence": 0.9451247353730005,
+        "top_probability": 0.9560997882984005
+      },
+      "agrees": { "type": "noul", "noul": 0.9614293079117886 },
+      "asks": { "type": "noul", "noul": 0.11961719435382456 },
+      "adds": { "type": "noul", "noul": 0.9193583521677307 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.9154254558257394,
+          "option_1": 0.04629059257170723,
+          "elsewhere": 0.0382839516025533
+        },
+        "confidence": 0.873138183738609,
+        "top_probability": 0.9154254558257394
+      }
+    },
+    "request_hash": "4d679597ab8ee5d969404c4319acb2494448c8605b06fe3eccfcad92f72dbc56"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "The other project please.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": "Voice server",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.01714132231546358,
+          "no": 0.1216626602100146,
+          "question": 0.024267067575020458,
+          "other": 0.7352271106168168,
+          "unrelated": 0.10170183928268466
+        },
+        "confidence": 0.6690338882710208,
+        "top_probability": 0.7352271106168168
+      },
+      "agrees": { "type": "noul", "noul": 0.11125478894413231 },
+      "asks": { "type": "noul", "noul": 0.26347959579958796 },
+      "adds": { "type": "noul", "noul": 0.5649823712099794 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.5134717107296514,
+          "option_1": 0.23417539719425698,
+          "elsewhere": 0.2523528920760917
+        },
+        "confidence": 0.27020756609447705,
+        "top_probability": 0.5134717107296514
+      }
+    },
+    "request_hash": "609145a9e5f7e4f29ff5a9004dd6b59816fb069dc2244f8123a2bff72c5c23e6"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "No, the other one.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": "Voice server",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.02887104808092085,
+          "no": 0.3536848096987133,
+          "question": 0.015120706841805352,
+          "other": 0.5109127372581652,
+          "unrelated": 0.0914106981203952
+        },
+        "confidence": 0.38864092157270647,
+        "top_probability": 0.5109127372581652
+      },
+      "agrees": { "type": "noul", "noul": 0.021749028151740193 },
+      "asks": { "type": "noul", "noul": 0.1862232853801687 },
+      "adds": { "type": "noul", "noul": 0.38761076340190975 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.6660932537249676,
+          "option_1": 0.17071178679564217,
+          "elsewhere": 0.1631949594793902
+        },
+        "confidence": 0.49913988058745146,
+        "top_probability": 0.6660932537249676
+      }
+    },
+    "request_hash": "0e07dc733cc3a214aa5fd382aa3b806ce03b9a25424fd124ad6254f401600ee9"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Put it in the voice server.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": "Voice server",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.11039552500914931,
+          "no": 0.11807419757884659,
+          "question": 0.04814230805697686,
+          "other": 0.5344928179780041,
+          "unrelated": 0.18889515137702306
+        },
+        "confidence": 0.41811602247250507,
+        "top_probability": 0.5344928179780041
+      },
+      "agrees": { "type": "noul", "noul": 0.312259880454364 },
+      "asks": { "type": "noul", "noul": 0.18975696576387638 },
+      "adds": { "type": "noul", "noul": 0.44210755244800837 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.6045395333759466,
+          "option_1": 0.36553399238528866,
+          "elsewhere": 0.029926474238764707
+        },
+        "confidence": 0.40680930006391985,
+        "top_probability": 0.6045395333759466
+      }
+    },
+    "request_hash": "43efe5e9c80c59b014daf194255dd67c503944d4f31742c66f69777c16df9fef"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "What do you mean?",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.018022515410402666,
+          "no": 0.16148646732015515,
+          "question": 0.28281425023637036,
+          "other": 0.020624915673629514,
+          "unrelated": 0.5170518513594424
+        },
+        "confidence": 0.396314814199303,
+        "top_probability": 0.5170518513594424
+      },
+      "agrees": { "type": "noul", "noul": 0.2481664648813841 },
+      "asks": { "type": "noul", "noul": 0.8105733657465968 },
+      "adds": { "type": "noul", "noul": 0.32181724532487344 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.7998648174096404,
+          "option_1": 0.10418458100098832,
+          "elsewhere": 0.09595060158937123
+        },
+        "confidence": 0.6997972261144606,
+        "top_probability": 0.7998648174096404
+      }
+    },
+    "request_hash": "5b97005dde32954a3eec120ba53a1f2a3292c83aab3c2291f64c7d6d23827281"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes, but only after the tests pass.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.016870781453191954,
+          "no": 0.007244099046822046,
+          "question": 0.004226838058453494,
+          "other": 0.9673853344530785,
+          "unrelated": 0.004272946988453949
+        },
+        "confidence": 0.9592316680663482,
+        "top_probability": 0.9673853344530785
+      },
+      "agrees": { "type": "noul", "noul": 0.9193182435484409 },
+      "asks": { "type": "noul", "noul": 0.23111048596141587 },
+      "adds": { "type": "noul", "noul": 0.8679167150968334 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.9266341186117371,
+          "option_1": 0.0454909253533717,
+          "elsewhere": 0.027874956034891166
+        },
+        "confidence": 0.8899511779176056,
+        "top_probability": 0.9266341186117371
+      }
+    },
+    "request_hash": "63e42356a5fffd12fbfa97a78c032c444c4f44abd2387357535443c3e21172e5"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Actually make it about the build.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.011889226731044318,
+          "no": 0.1322615742901699,
+          "question": 0.03671808225318706,
+          "other": 0.7210875454019327,
+          "unrelated": 0.09804357132366595
+        },
+        "confidence": 0.6513594317524157,
+        "top_probability": 0.7210875454019327
+      },
+      "agrees": { "type": "noul", "noul": 0.05619262342416802 },
+      "asks": { "type": "noul", "noul": 0.32935687888168624 },
+      "adds": { "type": "noul", "noul": 0.7897076440905186 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.6519911978338779,
+          "option_1": 0.20568338663081986,
+          "elsewhere": 0.1423254155353021
+        },
+        "confidence": 0.4779867967508169,
+        "top_probability": 0.6519911978338779
+      }
+    },
+    "request_hash": "437dd4241d0ed38d071cdd9650ac66afae83ab92ed8684fe747958f0f3aaf21a"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Not that one.",
+    "options": ["Voice server"],
+    "must_act": false,
+    "expected_target": "Voice server",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.05179311644160484,
+          "no": 0.486424829580997,
+          "question": 0.02199746473804751,
+          "other": 0.1717787744789044,
+          "unrelated": 0.26800581476044616
+        },
+        "confidence": 0.35803103697624616,
+        "top_probability": 0.486424829580997
+      },
+      "agrees": { "type": "noul", "noul": 0.05591692322712265 },
+      "asks": { "type": "noul", "noul": 0.10196452192192676 },
+      "adds": { "type": "noul", "noul": 0.13171003208707208 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.6116485375673467,
+          "option_1": 0.20691519640686587,
+          "elsewhere": 0.1814362660257875
+        },
+        "confidence": 0.4174728063510201,
+        "top_probability": 0.6116485375673467
+      }
+    },
+    "request_hash": "57f8efc66999116ac2e1ba70f95ac941d5ccf1e1e79a3c7ece72b9b58221109a"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "The other one.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": "elsewhere",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.06059256146908462,
+          "no": 0.13935008694069548,
+          "question": 0.05555736554068584,
+          "other": 0.337715155514729,
+          "unrelated": 0.4067848305348051
+        },
+        "confidence": 0.2584810381685063,
+        "top_probability": 0.4067848305348051
+      },
+      "agrees": { "type": "noul", "noul": 0.16409002737496778 },
+      "asks": { "type": "noul", "noul": 0.10985125193665096 },
+      "adds": { "type": "noul", "noul": 0.14758259585408362 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.4813010606618872,
+          "option_1": 0.15109437471893084,
+          "option_2": 0.09185906427392132,
+          "elsewhere": 0.27574550034526046
+        },
+        "confidence": 0.3084014142158496,
+        "top_probability": 0.4813010606618872
+      }
+    },
+    "request_hash": "d997e33c55ec63912ed7480a627243ad21eeb336e97e8dddd92dc61678469956"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "The docs one.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": "Docs site",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.03720700561198478,
+          "no": 0.08633514382771776,
+          "question": 0.040532378339935546,
+          "other": 0.5798001153444136,
+          "unrelated": 0.25612535687594834
+        },
+        "confidence": 0.4747501441805169,
+        "top_probability": 0.5798001153444136
+      },
+      "agrees": { "type": "noul", "noul": 0.16376863410144016 },
+      "asks": { "type": "noul", "noul": 0.20351424172608157 },
+      "adds": { "type": "noul", "noul": 0.4005932253008954 },
+      "target": {
+        "type": "choice",
+        "choice": "option_2",
+        "probabilities": {
+          "keeps": 0.28415791804255375,
+          "option_1": 0.10700650487203718,
+          "option_2": 0.4321211746266553,
+          "elsewhere": 0.17671440245875378
+        },
+        "confidence": 0.24282823283554036,
+        "top_probability": 0.4321211746266553
+      }
+    },
+    "request_hash": "4896e963171cdc4de35a60d459c2f808ff95242f34f1d5163e21b12180c5ed29"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Not that one.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": "elsewhere",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.05201539163574192,
+          "no": 0.5547162167686106,
+          "question": 0.020026685661799576,
+          "other": 0.11656784477082088,
+          "unrelated": 0.25667386116302704
+        },
+        "confidence": 0.4433952709607632,
+        "top_probability": 0.5547162167686106
+      },
+      "agrees": { "type": "noul", "noul": 0.053159978838907836 },
+      "asks": { "type": "noul", "noul": 0.10347876126953512 },
+      "adds": { "type": "noul", "noul": 0.12204124738107269 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.5973522166202815,
+          "option_1": 0.11514045652758309,
+          "option_2": 0.07173683670083793,
+          "elsewhere": 0.21577049015129746
+        },
+        "confidence": 0.463136288827042,
+        "top_probability": 0.5973522166202815
+      }
+    },
+    "request_hash": "003d0b8ddbb83eae3300b9ea90960ae248d9f7c617e81bb3b27bd33d50fde6d4"
+  },
+  {
+    "act": { "kind": "confirm_launch", "slots": { "project": "Voice sandbox" } },
+    "reply": "Yes.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": true,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.921462988998325,
+          "no": 0.01865406298949105,
+          "question": 0.007266032152361279,
+          "other": 0.0412730488781673,
+          "unrelated": 0.011343866981655565
+        },
+        "confidence": 0.9018287362479063,
+        "top_probability": 0.921462988998325
+      },
+      "agrees": { "type": "noul", "noul": 0.9937177939081946 },
+      "asks": { "type": "noul", "noul": 0.0070407215866348195 },
+      "adds": { "type": "noul", "noul": 0.004722493032675912 },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.9790324169255957,
+          "option_1": 0.009872970702042981,
+          "option_2": 0.004626446361206263,
+          "elsewhere": 0.006468166011154932
+        },
+        "confidence": 0.972043222567461,
+        "top_probability": 0.9790324169255957
+      }
+    },
+    "request_hash": "89f92f09c5c5af87d1e445da61c2a3b3a0dc6af22292efa3720e2ea34ae30a50"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+    },
+    "reply": "Voice server.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": "Voice server",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8612807040115992,
+          "no": 0.039530045908151894,
+          "question": 0.01525528418122415,
+          "other": 0.05531707443802398,
+          "unrelated": 0.028616891461000694
+        },
+        "confidence": 0.8266008800144988,
+        "top_probability": 0.8612807040115992
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_1",
+        "probabilities": {
+          "keeps": 0.005182764677764513,
+          "option_1": 0.9873260874121512,
+          "option_2": 0.0053844255100568015,
+          "elsewhere": 0.0021067224000273655
+        },
+        "confidence": 0.9831014498828683,
+        "top_probability": 0.9873260874121512
+      }
+    },
+    "request_hash": "813c48c8491873236b7713ff1bdca5c47e3aeadc4205cf041a410948ae4e1fdf"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+    },
+    "reply": "Docs site.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": "Docs site",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.8261948380071,
+          "no": 0.048499938229671594,
+          "question": 0.016979853932199217,
+          "other": 0.07302428188483723,
+          "unrelated": 0.03530108794619199
+        },
+        "confidence": 0.7827435475088751,
+        "top_probability": 0.8261948380071
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_2",
+        "probabilities": {
+          "keeps": 0.003351782442283878,
+          "option_1": 0.002156918853654264,
+          "option_2": 0.9931458884587788,
+          "elsewhere": 0.0013454102452830933
+        },
+        "confidence": 0.9908611846117051,
+        "top_probability": 0.9931458884587788
+      }
+    },
+    "request_hash": "819845fafd2e72513aa4abf4e9147a3d60bf811d73e07c0f0d6002c0f866f5af"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+    },
+    "reply": "The first one.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": "Voice server",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.6078618734287543,
+          "no": 0.06474129337355415,
+          "question": 0.038708808031175615,
+          "other": 0.20756839999706653,
+          "unrelated": 0.08111962516944958
+        },
+        "confidence": 0.5098273417859428,
+        "top_probability": 0.6078618734287543
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_1",
+        "probabilities": {
+          "keeps": 0.009185789463730479,
+          "option_1": 0.9783694980333825,
+          "option_2": 0.010173286221702455,
+          "elsewhere": 0.002271426281184616
+        },
+        "confidence": 0.9711593307111767,
+        "top_probability": 0.9783694980333825
+      }
+    },
+    "request_hash": "d2d8d25c718c483ae37614d56e424cf495e7016d0116f35ef8885804eec596cf"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+    },
+    "reply": "The second.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": "Docs site",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.4620601213642857,
+          "no": 0.07824317785564638,
+          "question": 0.041406599464980376,
+          "other": 0.30656652082365415,
+          "unrelated": 0.11172358049143341
+        },
+        "confidence": 0.3275751517053571,
+        "top_probability": 0.4620601213642857
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_2",
+        "probabilities": {
+          "keeps": 0.014741233287036054,
+          "option_1": 0.01840657530894524,
+          "option_2": 0.9640692143565438,
+          "elsewhere": 0.0027829770474749826
+        },
+        "confidence": 0.9520922858087251,
+        "top_probability": 0.9640692143565438
+      }
+    },
+    "request_hash": "3cccafab77bc44060c41efd6f7e6c1b4946f0bedc910490e05a4942cf127d413"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+    },
+    "reply": "Never mind.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.015141200251248465,
+          "no": 0.17012547424057106,
+          "question": 0.010069111891927655,
+          "other": 0.005646833841106085,
+          "unrelated": 0.7990173797751468
+        },
+        "confidence": 0.7487717247189335,
+        "top_probability": 0.7990173797751468
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.8887316844467659,
+          "option_1": 0.024830555570307056,
+          "option_2": 0.013170151353655762,
+          "elsewhere": 0.07326760862927129
+        },
+        "confidence": 0.8516422459290212,
+        "top_probability": 0.8887316844467659
+      }
+    },
+    "request_hash": "6ca02f922d5e4a59e299164057b7c22d97332392455845006c71f7b3074ef169"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": { "of": "project", "candidates": ["Voice server", "Docs site"] }
+    },
+    "reply": "Neither.",
+    "options": ["Voice server", "Docs site"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.012027760665200808,
+          "no": 0.5394392269026034,
+          "question": 0.00726372701460522,
+          "other": 0.00707369387358236,
+          "unrelated": 0.43419559154400816
+        },
+        "confidence": 0.42429903362825416,
+        "top_probability": 0.5394392269026034
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.9618526062630628,
+          "option_1": 0.008033495481332736,
+          "option_2": 0.004862199990080247,
+          "elsewhere": 0.02525169826552426
+        },
+        "confidence": 0.9491368083507504,
+        "top_probability": 0.9618526062630628
+      }
+    },
+    "request_hash": "9ff808341814b3c7b005d339c1b8f754b9050ca866910e6b6348bde5b4192d8a"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "Never mind.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.015205972801458498,
+          "no": 0.22864941477542106,
+          "question": 0.015485271657832,
+          "other": 0.007952776513383643,
+          "unrelated": 0.7327065642519048
+        },
+        "confidence": 0.6658832053148811,
+        "top_probability": 0.7327065642519048
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.9032424412972723,
+          "option_1": 0.015962537387852128,
+          "option_2": 0.012847079117376793,
+          "option_3": 0.0071907679002645225,
+          "elsewhere": 0.060757174297234096
+        },
+        "confidence": 0.8790530516215902,
+        "top_probability": 0.9032424412972723
+      }
+    },
+    "request_hash": "af80a959164360bc44cd6245e320830f50dd4797e4c1f0f5555f53f0a7500ab6"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "No, cancel that.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.010243545846942403,
+          "no": 0.4674451755044574,
+          "question": 0.019236407515521758,
+          "other": 0.016270253444337,
+          "unrelated": 0.4868046176887413
+        },
+        "confidence": 0.35850577211092655,
+        "top_probability": 0.4868046176887413
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.7132061872313793,
+          "option_1": 0.011355550576840172,
+          "option_2": 0.007707526272187191,
+          "option_3": 0.003938873928303913,
+          "elsewhere": 0.2637918619912894
+        },
+        "confidence": 0.6415077340392241,
+        "top_probability": 0.7132061872313793
+      }
+    },
+    "request_hash": "126abfaa3bd1d23cf0795e78eb6761a96e066b17ec58396400c2094ea5a5ab76"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "The clamp one.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "Add a clamp helper",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.377807432488049,
+          "no": 0.03758811892182046,
+          "question": 0.037680865730798756,
+          "other": 0.49091609054805363,
+          "unrelated": 0.056007492311278044
+        },
+        "confidence": 0.363645113185067,
+        "top_probability": 0.49091609054805363
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_1",
+        "probabilities": {
+          "keeps": 0.0072889411032264085,
+          "option_1": 0.9811002261374459,
+          "option_2": 0.004067624172465581,
+          "option_3": 0.004152657311065991,
+          "elsewhere": 0.0033905512757959767
+        },
+        "confidence": 0.9763752826718072,
+        "top_probability": 0.9811002261374459
+      }
+    },
+    "request_hash": "b0b3cb640c76e0d2fd349d701551068ddd05034b76fdd6eacec398ac64d799ef"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "The second one.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "Fix the flaky ASR test",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.28479732057630663,
+          "no": 0.057282487191179156,
+          "question": 0.05482741395380647,
+          "other": 0.5195195122287595,
+          "unrelated": 0.0835732660499483
+        },
+        "confidence": 0.3993993902859493,
+        "top_probability": 0.5195195122287595
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_2",
+        "probabilities": {
+          "keeps": 0.00597628467700497,
+          "option_1": 0.005249925690741848,
+          "option_2": 0.9753936489864818,
+          "option_3": 0.011884516269476368,
+          "elsewhere": 0.0014956243762948899
+        },
+        "confidence": 0.9692420612331023,
+        "top_probability": 0.9753936489864818
+      }
+    },
+    "request_hash": "6c71d6be66e7537d71b31f3cffdb02083a4e7b328259ed4faf37bc84026f8b38"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "Um, the first.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "Add a clamp helper",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "yes",
+        "probabilities": {
+          "yes": 0.5313896610240895,
+          "no": 0.032952567383067115,
+          "question": 0.04972895215485047,
+          "other": 0.32896882450710163,
+          "unrelated": 0.05695999493089133
+        },
+        "confidence": 0.4142370762801118,
+        "top_probability": 0.5313896610240895
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_1",
+        "probabilities": {
+          "keeps": 0.004663686451803174,
+          "option_1": 0.9905302358299488,
+          "option_2": 0.001720325971819991,
+          "option_3": 0.001668322230102861,
+          "elsewhere": 0.0014174295163249405
+        },
+        "confidence": 0.9881627947874361,
+        "top_probability": 0.9905302358299488
+      }
+    },
+    "request_hash": "bb0367d49515a3e3348e9c6a1708626f2fadddef26f8c45abd2dfcceb853bb65"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "The last one.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "Add a sum helper",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.1680127170689201,
+          "no": 0.03447865510311076,
+          "question": 0.02712539548770579,
+          "other": 0.726574620508416,
+          "unrelated": 0.043808611831847415
+        },
+        "confidence": 0.65821827563552,
+        "top_probability": 0.726574620508416
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_3",
+        "probabilities": {
+          "keeps": 0.004481000145217349,
+          "option_1": 0.002304176679751054,
+          "option_2": 0.002704921035555345,
+          "option_3": 0.9890901058912741,
+          "elsewhere": 0.0014197962482023613
+        },
+        "confidence": 0.9863626323640925,
+        "top_probability": 0.9890901058912741
+      }
+    },
+    "request_hash": "ae9e7017958882f632d2128642152da1f71331ada89030e37f88e1a0d1365f43"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "The one about the flaky test.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "Fix the flaky ASR test",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.13435105061687447,
+          "no": 0.04160960478398563,
+          "question": 0.07965172876596484,
+          "other": 0.638966566807258,
+          "unrelated": 0.1054210490259171
+        },
+        "confidence": 0.5487082085090725,
+        "top_probability": 0.638966566807258
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_2",
+        "probabilities": {
+          "keeps": 0.008223756956212323,
+          "option_1": 0.003385851120196787,
+          "option_2": 0.9841125283320987,
+          "option_3": 0.0020661684962383405,
+          "elsewhere": 0.002211695095253877
+        },
+        "confidence": 0.9801406604151233,
+        "top_probability": 0.9841125283320987
+      }
+    },
+    "request_hash": "189236c1ce0a013bfe5c1f2d5a7841dfde763f8b78b1d155e99b7ae7ffa9a7cf"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "The sum helper.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "Add a sum helper",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "other",
+        "probabilities": {
+          "yes": 0.21775372566058337,
+          "no": 0.036873657706489885,
+          "question": 0.02920081534539682,
+          "other": 0.6857817603113034,
+          "unrelated": 0.030390040976226437
+        },
+        "confidence": 0.6072272003891293,
+        "top_probability": 0.6857817603113034
+      },
+      "target": {
+        "type": "choice",
+        "choice": "option_3",
+        "probabilities": {
+          "keeps": 0.002991363017019387,
+          "option_1": 0.002542685969592966,
+          "option_2": 0.0016490179252975894,
+          "option_3": 0.9913990592648393,
+          "elsewhere": 0.0014178738232509375
+        },
+        "confidence": 0.989248824081049,
+        "top_probability": 0.9913990592648393
+      }
+    },
+    "request_hash": "15b521a5d855438e701473f86d64f2d31a305a9e99d5104fb2b4bf220232d691"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "What are they again?",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "question",
+        "probabilities": {
+          "yes": 0.01150923006736136,
+          "no": 0.05648528113602684,
+          "question": 0.7185058017465241,
+          "other": 0.023070472449740403,
+          "unrelated": 0.19042921460034737
+        },
+        "confidence": 0.6481322521831551,
+        "top_probability": 0.7185058017465241
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.6144405749410381,
+          "option_1": 0.13691833311119325,
+          "option_2": 0.056568659690800514,
+          "option_3": 0.025040187563661095,
+          "elsewhere": 0.16703224469330696
+        },
+        "confidence": 0.5180507186762976,
+        "top_probability": 0.6144405749410381
+      }
+    },
+    "request_hash": "10b7d7109b322bfb3b259950e93ceb884c222db587abe35c14574c205e17c2dd"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "Hold on a second.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.035604609680561734,
+          "no": 0.1656605759118054,
+          "question": 0.05778154746861475,
+          "other": 0.011227182329884716,
+          "unrelated": 0.7297260846091332
+        },
+        "confidence": 0.6621576057614165,
+        "top_probability": 0.7297260846091332
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.8347123974460247,
+          "option_1": 0.0262376596391301,
+          "option_2": 0.016631656641967196,
+          "option_3": 0.007294313471540895,
+          "elsewhere": 0.11512397280133727
+        },
+        "confidence": 0.7933904968075308,
+        "top_probability": 0.8347123974460247
+      }
+    },
+    "request_hash": "972177e9d69c71d9ed4a256e30e943848e7dfaf3e7c2d1e781a9e7d9a4421e93"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "None of those.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.011989571304869542,
+          "no": 0.6566748769248879,
+          "question": 0.01556186514740456,
+          "other": 0.05769561735067158,
+          "unrelated": 0.25807806927216637
+        },
+        "confidence": 0.5708435961561098,
+        "top_probability": 0.6566748769248879
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.8553500395531524,
+          "option_1": 0.008346679267407038,
+          "option_2": 0.00920117656983967,
+          "option_3": 0.0034341819959839677,
+          "elsewhere": 0.12366792261361693
+        },
+        "confidence": 0.8191875494414405,
+        "top_probability": 0.8553500395531524
+      }
+    },
+    "request_hash": "558ab0530c5b9a50e5daf28d8223745cc7cde9854485ac213cee09d2bbb67bdf"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "Oh, I was after the checkout button one.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "elsewhere",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.01727238561613714,
+          "no": 0.13578265895820202,
+          "question": 0.08908592044151827,
+          "other": 0.23949550011939977,
+          "unrelated": 0.5183635348647428
+        },
+        "confidence": 0.3979544185809285,
+        "top_probability": 0.5183635348647428
+      },
+      "target": {
+        "type": "choice",
+        "choice": "keeps",
+        "probabilities": {
+          "keeps": 0.45065619092618525,
+          "option_1": 0.07397261707449185,
+          "option_2": 0.03672068393647104,
+          "option_3": 0.02773027080321486,
+          "elsewhere": 0.4109202372596371
+        },
+        "confidence": 0.3133202386577315,
+        "top_probability": 0.45065619092618525
+      }
+    },
+    "request_hash": "c87bef358062b98df038de5de105b62a4be125f97a9928352d8c020940bf5b4d"
+  },
+  {
+    "act": {
+      "kind": "ask_which",
+      "slots": {
+        "of": "thread",
+        "candidates": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"]
+      }
+    },
+    "reply": "Look at the one that adds a checkout button.",
+    "options": ["Add a clamp helper", "Fix the flaky ASR test", "Add a sum helper"],
+    "must_act": false,
+    "expected_target": "elsewhere",
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.024479537294716427,
+          "no": 0.13451371019332226,
+          "question": 0.11484233502886423,
+          "other": 0.2973240042711054,
+          "unrelated": 0.4288404132119917
+        },
+        "confidence": 0.2860505165149896,
+        "top_probability": 0.4288404132119917
+      },
+      "target": {
+        "type": "choice",
+        "choice": "elsewhere",
+        "probabilities": {
+          "keeps": 0.2885241694952291,
+          "option_1": 0.21543313982495205,
+          "option_2": 0.04282099325170766,
+          "option_3": 0.04298952538840458,
+          "elsewhere": 0.4102321720397065
+        },
+        "confidence": 0.2627902150496331,
+        "top_probability": 0.4102321720397065
+      }
+    },
+    "request_hash": "88949355cbcc32a02550c15838a09f1bacba4feba6dfc536d7c06c8fc5db9b76"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Never mind.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "unrelated",
+        "probabilities": {
+          "yes": 0.07715331413980632,
+          "no": 0.2379148155948376,
+          "question": 0.018016755258531972,
+          "other": 0.02178580537818994,
+          "unrelated": 0.6451293096286341
+        },
+        "confidence": 0.5564116370357927,
+        "top_probability": 0.6451293096286341
+      },
+      "agrees": { "type": "noul", "noul": 0.11855000637139687 },
+      "asks": { "type": "noul", "noul": 0.044177394769465535 },
+      "adds": { "type": "noul", "noul": 0.06285492612178838 }
+    },
+    "request_hash": "17d4631893f71f80eaf04d302769ef05ae47346dc1f74d30f5735bf2e6fb82b2"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "No, cancel that.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.1384631541253348,
+          "no": 0.7003422523760557,
+          "question": 0.011556352496118522,
+          "other": 0.11174797778809174,
+          "unrelated": 0.03789026321439909
+        },
+        "confidence": 0.6254278154700695,
+        "top_probability": 0.7003422523760557
+      },
+      "agrees": { "type": "noul", "noul": 0.2202312741960851 },
+      "asks": { "type": "noul", "noul": 0.1595266986786174 },
+      "adds": { "type": "noul", "noul": 0.2610377418848248 }
+    },
+    "request_hash": "06b13ca752e21fafd4c3f3f5600446823cbdc1a048b1793b4baeb83288e615cf"
+  },
+  {
+    "act": { "kind": "confirm_stop", "slots": { "thread": "Add a clamp helper" } },
+    "reply": "Neither.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.16874896775748569,
+          "no": 0.59553261564586,
+          "question": 0.018777622883919418,
+          "other": 0.051579830891817544,
+          "unrelated": 0.16536096282091717
+        },
+        "confidence": 0.49441576955732497,
+        "top_probability": 0.59553261564586
+      },
+      "agrees": { "type": "noul", "noul": 0.037651086922688926 },
+      "asks": { "type": "noul", "noul": 0.10217951147082185 },
+      "adds": { "type": "noul", "noul": 0.1062555313682753 }
+    },
+    "request_hash": "77403839cb62621a44037c9323e420fed7e566c9fe20c4e29b899fa127874f9a"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "Never mind.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.030823579988089468,
+          "no": 0.6284627801197975,
+          "question": 0.011116406464463236,
+          "other": 0.016447747673841266,
+          "unrelated": 0.3131494857538085
+        },
+        "confidence": 0.5355784751497469,
+        "top_probability": 0.6284627801197975
+      },
+      "agrees": { "type": "noul", "noul": 0.01501819349256162 },
+      "asks": { "type": "noul", "noul": 0.03255513477184297 },
+      "adds": { "type": "noul", "noul": 0.0363505991679012 }
+    },
+    "request_hash": "718c4cda6dbaf720f11f480276c88bf0cdc5ed871808d12d8f09db71704eebce"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "No, cancel that.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.009083543268784465,
+          "no": 0.9674158873131322,
+          "question": 0.003318789865581669,
+          "other": 0.011942508372981667,
+          "unrelated": 0.008239271179519855
+        },
+        "confidence": 0.9592698591414153,
+        "top_probability": 0.9674158873131322
+      },
+      "agrees": { "type": "noul", "noul": 0.005976647397201698 },
+      "asks": { "type": "noul", "noul": 0.06012434089949281 },
+      "adds": { "type": "noul", "noul": 0.11354605121580384 }
+    },
+    "request_hash": "9f58b78f065f6628754f46f096e4fcdf37c1b949e3618591711788cda7c15dde"
+  },
+  {
+    "act": {
+      "kind": "confirm_tell",
+      "slots": { "thread": "Add a clamp helper", "message": "also add a test" }
+    },
+    "reply": "Neither.",
+    "options": [],
+    "must_act": false,
+    "expected_target": null,
+    "answers": {
+      "reading": {
+        "type": "choice",
+        "choice": "no",
+        "probabilities": {
+          "yes": 0.049408238981664424,
+          "no": 0.5792905662744492,
+          "question": 0.019044453824420573,
+          "other": 0.0162268791354578,
+          "unrelated": 0.336029861784008
+        },
+        "confidence": 0.47411320784306143,
+        "top_probability": 0.5792905662744492
+      },
+      "agrees": { "type": "noul", "noul": 0.04402695205596353 },
+      "asks": { "type": "noul", "noul": 0.06984878063195976 },
+      "adds": { "type": "noul", "noul": 0.0684642941425313 }
+    },
+    "request_hash": "8eebef65f91d2890932b6cb1b509cbcc40ebc493c870178c958a18f84b56c502"
+  }
+]

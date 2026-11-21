@@ -30,3 +30,18 @@ class CallTranscriptTest(unittest.TestCase):
         call.interrupted(4)
         self.assertEqual(call.wire(), [{"speaker": "voice", "text": "It finished.", "relay": True},
                                        {"speaker": "caller", "text": "Thanks", "relay": False}])
+
+    def test_a_correction_is_kept_as_its_own_checked_line_after_the_reply_it_cut_off(self):
+        call, wrong, held, correction = CallTranscript(), object(), object(), object()
+        call.heard(5, "Did you start the clamp thread?")
+        call.said(wrong, 5, "Yes, I started it", relay=False)
+        call.interrupted(5)
+        call.said(held, 5, "Sorry, let me check that.", relay=False)
+        call.said(correction, 5, "Actually, nothing was started on this call.", relay=True, acts=("nothing_done",))
+        call.spoken(("nothing_done",), ())
+        self.assertEqual(call.wire()[1:], [
+            {"speaker": "voice", "text": "Yes, I started it", "relay": False, "interrupted": True},
+            {"speaker": "voice", "text": "Sorry, let me check that.", "relay": False},
+            {"speaker": "voice", "text": "Actually, nothing was started on this call.", "relay": True,
+             "act": "nothing_done", "sequences": []},
+        ])

@@ -54,6 +54,7 @@ class Kind(StrEnum):
     LEGACY_UPDATE = "legacy_update"
     CORRECTION = "correction"
     UNANSWERED = "unanswered"
+    NOTHING_DONE = "nothing_done"
     CONFIRM_RESPOND = "confirm_respond"
     RESPONDED = "responded"
     NOTHING_PENDING = "nothing_pending"
@@ -177,6 +178,8 @@ RULES: dict[Kind, Rule] = {
     Kind.REFUSED: Rule(("op", "code", "reason"), forbids=("started", "sent")),
     Kind.LEGACY_UPDATE: Rule(("thread", "text")),
     Kind.UNANSWERED: Rule(("outcomes",), forbids=("started", "sent", "stopped", "answered", "finished")),
+    # A free reply claimed an action while no thread was in view: nothing has been started, sent, stopped or answered.
+    Kind.NOTHING_DONE: Rule((), forbids=("started", "sent", "stopped", "answered")),
     Kind.CORRECTION: Rule(("thread", "status", "need", "pending", "request", "waiting_for"), ("thread",), plain=True),
     # `decision` is approve or deny. `need` and `pending` say what is being answered, as a thread's status does.
     # An approval is confirmed only with a description of this request in `summary`, from the thread's own records.

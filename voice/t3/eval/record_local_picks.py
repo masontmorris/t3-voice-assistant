@@ -2,6 +2,7 @@
 
     python -m voice.t3.eval.record_local_picks            # local d1-2B, under the GPU lease
     VOICE_ENV_FILE=<env file> python -m voice.t3.eval.record_local_picks liquid
+    python -m voice.t3.eval.record_local_picks d1 replies  # only the reply sets
 
 The local run records every set. The hosted run records the two held-out sets only; record_picks.py and
 record_replies.py keep its other fixtures.
@@ -45,8 +46,14 @@ def replies(client, cases):
 
 def main():
     name = sys.argv[1] if len(sys.argv) > 1 else "d1"
+    only_replies = sys.argv[2:] == ["replies"]
     prefix = "local" if name == "d1" else "hosted"
     with decider(name) as client:
+        if only_replies:
+            if name == "d1":
+                save("local_reply_reads.json", replies(client, REPLIES))
+            save(f"{prefix}_fresh_replies.json", replies(client, fresh.REPLIES))
+            return
         if name == "d1":
             rows = []
             for case in cases():

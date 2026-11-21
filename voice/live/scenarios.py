@@ -589,6 +589,102 @@ def short_yes_tell(pool: Pool) -> Plan:
     return Plan((finished(title),), lines, script(), check, notes=notes)
 
 
+# A yes the recogniser transcribes with a question mark is the answer. The recogniser decides the punctuation, and the
+# candidates measured for it gave "Yeah?" 6 times of 9 and "Yes?" 4 of 6, so a run whose yes came back without the mark
+# says so and fails its precondition instead of passing without having tried the case.
+def questioning_yes(pool: Pool) -> Plan:
+    spoken, title = pool.single()
+    lines = {"tell": f"Tell the {spoken} thread to also add a unit test.", "yes": "Yeah?"}
+    notes = {"asked": False, "yes_heard": None}
+
+    def script():
+        heard = yield Say("tell")
+        notes["asked"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_TELL))
+        if notes["asked"]:
+            heard = yield Say("yes")
+            notes["yes_heard"] = heard.turns[-1].heard if heard.turns else None
+
+    def check(call: Call) -> list[Verdict]:
+        turns = call.caller_turns()
+        told = [t for t in turns[1:] if t.said(Kind.SENT_FOLLOWUP, Kind.HELD_FOLLOWUP, Kind.TELL_PENDING)]
+        asked = ok("the message was confirmed back", notes["asked"], "no confirm_tell question was said", 0)
+        marked = (notes["yes_heard"] or "").strip().endswith("?")
+        ready = asked.ok and len(turns) >= 2
+        return [asked,
+                requires(ok("the yes was heard as a question", marked, f"the yes was transcribed as {notes['yes_heard']!r}", 1),
+                         ready, "precondition: the caller did not answer a message confirmation"),
+                requires(ok("the questioning yes was taken", bool(told), "the yes was not answered with the message going", 1),
+                         ready and marked, "precondition: the recogniser did not mark the yes as a question"),
+                requires(ok("the thread got the message", call.world["seeded"].get(title, {}).get("new_run", False),
+                            "T3 shows no new run on the thread", 1), ready and marked,
+                         "precondition: the recogniser did not mark the yes as a question")]
+
+    return Plan((finished(title),), lines, script(), check, notes=notes)
+
+
+# The same for a launch confirmation, whose marked yes the answer path used to drop.
+def questioning_yes_launch(pool: Pool) -> Plan:
+    request = pool.request()
+    lines = {"request": request, "yes": "Yeah?"}
+    notes = {"confirmed": False, "yes_heard": None}
+
+    def script():
+        heard = yield Say("request")
+        notes["confirmed"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+        if notes["confirmed"]:
+            heard = yield Say("yes")
+            notes["yes_heard"] = heard.turns[-1].heard if heard.turns else None
+
+    def check(call: Call) -> list[Verdict]:
+        made = len(call.world["made"])
+        asked = ok("the launch confirmation was asked", notes["confirmed"], "no launch confirmation was said", 0)
+        marked = (notes["yes_heard"] or "").strip().endswith("?")
+        ready = asked.ok
+        return [asked,
+                requires(ok("the yes was heard as a question", marked, f"the yes was transcribed as {notes['yes_heard']!r}", 1),
+                         ready, "precondition: no launch confirmation was asked"),
+                requires(ok("the questioning yes started the thread", made == 1, f"{made} threads exist after the yes", 1),
+                         ready and marked, "precondition: the recogniser did not mark the yes as a question"),
+                ok("no extra thread was started", made <= 1, f"{made} threads exist after one request"),
+                no_false_start(call)]
+
+    return Plan((), lines, script(), check, notes=notes)
+
+
+# A question asked back while a message is being confirmed is not a withdrawal: the thread the caller named stays in view,
+# so the question about it is answered from T3 as a checked line, and "it" still means that thread on the next turn.
+def tell_question_back(pool: Pool) -> Plan:
+    spoken, title = pool.single()
+    lines = {"tell": f"Tell the {spoken} thread to also add a unit test.", "back": "Wait, what's it doing right now?",
+             "again": "And is it done yet?"}
+    notes = {"asked": False}
+
+    def script():
+        heard = yield Say("tell")
+        notes["asked"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_TELL))
+        if notes["asked"]:
+            yield Say("back")
+            yield Say("again")
+
+    def check(call: Call) -> list[Verdict]:
+        turns = call.caller_turns()
+        asked = ok("the message was confirmed back", notes["asked"], "no confirm_tell question was said", 0)
+        ready = asked.ok and len(turns) >= 3
+        back, again = nth(turns, 1), nth(turns, 2)
+        out = [ok("the question back was answered with a checked line about the thread",
+                  back is not None and back.said(Kind.THREAD_STATUS, Kind.CONFIRM_THREAD),
+                  "no checked line about the thread was said for the question back", 1),
+               ok("nothing was said about the thread outside a checked line", not any(t.free for t in turns[1:]),
+                  "a free reply came after the question back", 1),
+               ok("it still meant the thread on the next turn", again is not None and again.said(Kind.THREAD_STATUS),
+                  "no status line was said for the next question", 2),
+               ok("the message was not sent", not call.world["seeded"].get(title, {}).get("new_run", False),
+                  "T3 shows a new run on the thread, though the message was never confirmed")]
+        return [asked, *(requires(v, ready, "precondition: the caller did not ask back and ask again") for v in out)]
+
+    return Plan((finished(title),), lines, script(), check, notes=notes)
+
+
 # A launch confirmation withdrawn starts nothing, and is not asked again.
 def withdrawn_launch(pool: Pool) -> Plan:
     request = pool.request()
@@ -621,7 +717,7 @@ def withdrawn_launch(pool: Pool) -> Plan:
 
 
 SCENARIOS = (
-    Scenario("speak-over", "the caller speaking over a reply stops it and is answered", speak_over, 2, 1),
+    Scenario("speak-over", "the caller speaking over a reply stops it and is answered", speak_over),
     Scenario("approval-claim", "a free reply never says a pending approval went through", approval),
     Scenario("thread-lines", "every thread question ends in a checked line that is said", thread_lines),
     Scenario("follow-up", "a follow-up keeps the last question's context", follow_up),
@@ -635,12 +731,19 @@ SCENARIOS = (
     Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
     Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
     Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),
+    Scenario("questioning-yes", "a yes the recogniser transcribes as a question answers the confirm question",
+             questioning_yes, 3, 1, long=True),
+    Scenario("questioning-yes-launch", "a yes the recogniser transcribes as a question starts the confirmed thread",
+             questioning_yes_launch, 3, 1, long=True, fresh=True),
+    Scenario("tell-question-back", "a question asked back over a message confirmation keeps the thread in view",
+             tell_question_back, 2, 1, long=True),
     Scenario("withdrawn-launch", "a withdrawn launch question starts nothing and is not asked again",
              withdrawn_launch, 2, 1, long=True, fresh=True))
 # Checks that reproduce a fault nobody has fixed yet, as (scenario, check): the gate expects them to fail, says XFAIL, and
 # fails on everything else. Take a mark out when its fix lands and the row says XPASS.
-DISPATCH_YES = ("a short yes to the launch confirmation is not always taken; a "
-                "no_thread line beside the confirmation clears the question; docs/voice/spoken-acts.md")
+DISPATCH_YES = ("a launch confirmation is not always asked or answered: the ASR splits a request into turns or hears "
+                "the yes as nothing, and a no_thread line beside the confirmation clears the question; "
+                "docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
     ("approve-waiting", "a description of the request passed the gate"):
         "the approval gate refuses a faithful description of this scenario's command, `printf` of a fixed line into a "
@@ -649,16 +752,12 @@ KNOWN: dict[tuple[str, str], str] = {
     ("news-permission", "the yes started a thread"): DISPATCH_YES,
     ("news-done", "the yes started a thread"): DISPATCH_YES,
     ("short-yes-tell", "the yes was taken"):
-        "a short yes to the confirmation of a message is not always taken (1 of 2 baseline runs said nothing)",
+        "a short yes to the confirmation of a message is not always taken (1 of 2 baseline runs said nothing; \"Yeah?\" "
+        "read as the choice's question, and since then 15 of 16 decider reads and 3 of 4 gate runs take it)",
     ("withdrawn-launch", "the question was not asked again"):
         "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
     ("follow-up", "the follow-up did not fall back to today"):
         "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
-    ("withdrawn-question", "no which-thread question after the withdrawal"):
-        "'Never mind.' after 'Do you mean X?' is read as a thread request and a which-thread question is put again "
-        "(3 of 3 runs on voice/main a51878fd2e, after #90)",
-    ("withdrawn-question", "no free reply offers the old choices"):
-        "after the fix in #90, 1 of 3 baseline runs still offered the old choices in a free reply",
     ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
 
 

@@ -264,6 +264,13 @@ class Reader(Agree):
             named = prefilter(reply, [{"threadId": title, "title": title, "projectId": ""} for title in options])
             if len(named.candidates) == 1:
                 label, target = "yes", named.candidates[0]
+        # A scripted "withdraw" is a no that takes the whole request back; a yes says yes and asks nothing.
+        withdraws = 1.0 if label == "withdraw" else 0.0
+        label = "no" if label == "withdraw" else label
+        shares = {"agrees": 1.0 if label == "yes" else 0.0, "asks": 1.0 if label == "question" else 0.0,
+                  "withdraws": withdraws, "adds": 0.0}
+        whole = {name: 1.0 if name == label else 0.0 for name in ("yes", "no", "question", "other", "unrelated")}
+        kept = target is None and label != "other"
         if target == ELSEWHERE:
-            return Reading(label, {label: 1.0}, elsewhere=True)
-        return Reading(label, {label: 1.0}, target=target)
+            return Reading(label, whole, elsewhere=True, complete=True, **shares)
+        return Reading(label, whole, target=target, complete=True, kept=kept, **shares)

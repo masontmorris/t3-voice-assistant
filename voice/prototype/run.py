@@ -172,9 +172,17 @@ NOTE_OPEN = "[Note for you, not said by the person: "
 ASK_NOTE = (NOTE_OPEN + "they said your last answer was not what they wanted, and did not say what they want "
             "instead. Ask them what they would like instead.]")
 # After a question the person heard is dropped unanswered, the voice session still holds its words as the nearest thing
-# to answer, and a free reply can say them again. The note names no choices.
-WITHDRAWN_NOTE = (NOTE_OPEN + "they did not answer your last question and have moved on. Answer what they said in this "
-                  "turn, and do not repeat or ask that question again.]")
+# to answer, and a free reply can say them again. A pick question the reply took back gets the note below, which says
+# what they did and names no choices: a note that told the
+# voice not to ask the question again was answered with the question, 8 of 8, and one that did not also say not to
+# repeat any earlier line was answered with two earlier lines when a status line came before the question, 11 of 12
+# (voice/t3/eval/withdraw_eval.py).
+WITHDRAWN_NOTE = (NOTE_OPEN + "they took your last question back: they do not want any of the choices it offered, and "
+                  "they are not choosing. Do not list, offer or ask about those choices again. Do not repeat any "
+                  "earlier line of yours. Answer what they said in this turn.]")
+# Any other question dropped unanswered keeps the note it always had.
+DROPPED_NOTE = (NOTE_OPEN + "they did not answer your last question and have moved on. Answer what they said in this "
+                "turn, and do not repeat or ask that question again.]")
 # The holding line before a correction: the voice model words it each time from this meaning alone, as it words the
 # line that holds a running lookup (`task_note`). It names no thread and no word to say. Said after a free reply, a note
 # that only asked for it was not followed (12 of 12 answered the audio again, with a fresh claim about the thread); one
@@ -824,6 +832,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
     if segmenter_name == "hybrid":
         segmenter.prior_resolved_tasks = with_thread(segmenter.prior_resolved_tasks,
                                                      getattr(service, "recent_thread", lambda: None)())
+        segmenter.withdrawn_question = getattr(service, "declined_state", lambda: None)()
     adapter = StaggeredTranscript(asr_stagger) if asr_stagger > 1 else TranscriptAdapter()
     updates_q: asyncio.Queue = asyncio.Queue()
     final_seen = asyncio.Event()
@@ -1080,7 +1089,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
                 item = ASK_NOTE if asks else task_notes(ordinary["tasks"])
                 if item is None and dropped_question is not None:
-                    item = WITHDRAWN_NOTE
+                    item = WITHDRAWN_NOTE if getattr(dropped_question, "took_back", False) else DROPPED_NOTE
                 if item is not None:
                     injection.append(await create_item(voice, plain_text(item)))
                     log("task_note", note=item)

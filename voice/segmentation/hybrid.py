@@ -43,6 +43,10 @@ T3_APPROVAL = (" With a coding thread waiting on the speaker for an approval, sa
 # Likewise while one waits on the answer to a question: saying which option they pick, or what they want, answers it.
 T3_QUESTION = (" With a coding thread waiting on the speaker for the answer to a question, a reply that answers it, such "
                "as picking one of its options by name or by place, is a request to answer it, not chitchat.")
+# The pick question about particular threads that the speaker took back, kept as `withdrawn_question` for a bounded
+# time. It says nothing about any other thread, a new request or a request that names none.
+T3_WITHDRAWN = (" `withdrawn_question` says the speaker took back a question about those particular threads, and nothing "
+                "else: it does not make a request about another thread, a new coding thread or any other work chitchat.")
 # One request is cut into fragments at every pause and hesitation, and the decider then read "for that" as needing an
 # earlier fragment's result and "the part that writes slots" as replacing the request: 2 of 10 rehearsal calls never
 # dispatched (measured: 17 of 24 draws dispatched, 23 of 24 with these lines; docs/voice/spoken-acts.md).
@@ -248,6 +252,7 @@ class HybridSegmenter:
         self.prior_resolved_tasks = ()
         self.pending_requests = ()
         self.pending_questions = ()
+        self.withdrawn_question = None
         self.conversation_mode = False
 
     @property
@@ -374,6 +379,12 @@ class HybridSegmenter:
                         question["criteria"]["request"] += (" A short follow-up that continues an earlier request or "
                                                              "lookup in prior_resolved_tasks is external work, even "
                                                              "when it names only a new time or place.")
+        if self.withdrawn_question:
+            body["state"]["withdrawn_question"] = dict(self.withdrawn_question)
+            for name, question in body["questions"].items():
+                if name.endswith("_kind"):
+                    question["criteria"] = dict(question["criteria"])
+                    question["criteria"]["chitchat"] += T3_WITHDRAWN
         if self.prior_resolved_tasks:
             body["state"]["prior_resolved_tasks"] = list(self.prior_resolved_tasks)
             for name, question in body["questions"].items():
