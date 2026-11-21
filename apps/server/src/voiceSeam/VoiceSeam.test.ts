@@ -370,6 +370,8 @@ const REQUEST_KINDS: ReadonlyArray<{
   readonly case: string;
   readonly events: ReadonlyArray<OrchestrationV2DomainEvent>;
   readonly pending: VoicePending | null;
+  /** Whether T3 stored what the request asks; true unless the case says otherwise. */
+  readonly detailed?: boolean;
 }> = [
   ...(["command", "file-read", "file-change", "permission", "mcp-elicitation"] as const).map(
     (kind) => ({
@@ -395,6 +397,7 @@ const REQUEST_KINDS: ReadonlyArray<{
       source: "command",
       prompt: "It wants your approval to run a command.",
     },
+    detailed: false,
   },
   ...(["live", "message"] as const).map((type) => ({
     case: `user_input answered ${type}`,
@@ -440,7 +443,7 @@ const REQUEST_KINDS: ReadonlyArray<{
 
 it.effect.each(REQUEST_KINDS)(
   "reads a pending $case as the design's table says",
-  ({ events, pending }) =>
+  ({ events, pending, detailed }) =>
     Effect.gen(function* () {
       yield* write(events);
       const threadId = events[0]!.threadId;
@@ -450,6 +453,7 @@ it.effect.each(REQUEST_KINDS)(
 
       const activity = pending === null ? "working" : "waiting_on_you";
       assert.deepStrictEqual(state.pending, pending);
+      assert.strictEqual(state.pendingDetailed, pending !== null && detailed !== false);
       assert.strictEqual(state.activity, activity);
       assert.strictEqual(listed?.activity, activity);
       assert.deepInclude(state.run, { status: "running" });

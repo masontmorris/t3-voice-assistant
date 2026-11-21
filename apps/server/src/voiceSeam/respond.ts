@@ -1,4 +1,4 @@
-import { CommandId, RuntimeRequestId, type ThreadId } from "@t3tools/contracts";
+import { RuntimeRequestId } from "@t3tools/contracts";
 import type * as Digest from "effect/crypto/Digest";
 import * as Effect from "effect/Effect";
 import * as Option from "effect/Option";
@@ -23,9 +23,8 @@ export interface RespondSources {
 const DECISION = { approve: "accept", deny: "decline" } as const;
 
 /**
- * Answers one pending approval of a thread for the caller. The request id the voice mints fixes the command, so a retry
- * answers from its receipt and never answers a second request. The named runtime request must still be pending, belong
- * to the thread and be an approval: a question, a card and a request only the app can take are refused.
+ * Answers one pending approval for the caller, from a pending approval of a visible thread only. A receipt does not hold
+ * the payload, so a replay answers only when T3 resolved the named request with this call's decision.
  */
 export const make = (sources: RespondSources) => {
   const { threads, receipts } = sources;
@@ -35,6 +34,7 @@ export const make = (sources: RespondSources) => {
     input: RequestInput<"respond">,
   ) {
     const commandId = yield* voiceCommandId(sources.digest, "respond", input.requestId);
+    const requestId = RuntimeRequestId.make(input.pendingRequestId);
     const result = (sequence: number, replayed: boolean) =>
       ({
         threadId: input.threadId,
@@ -43,16 +43,35 @@ export const make = (sources: RespondSources) => {
         sequence,
         replayed,
       }) satisfies VoiceRespondResult;
+    /** A replay of this request id answers only when T3 resolved this request with this decision. */
+    const replay = Effect.fn("VoiceSeam.respondReplay")(function* () {
+      const answered = yield* threads
+        .getThreadRecords(input.threadId, ["runtimeRequests"], {
+          runtimeRequestStatuses: ["resolved"],
+        })
+        .pipe(unavailable);
+      const request = answered.runtimeRequests.find((candidate) => candidate.id === requestId);
+      if (request === undefined || request.decision !== DECISION[input.decision]) {
+        return yield* VoiceSeamRefusal.invalidRequest(
+          "That request id already answered something else.",
+        );
+      }
+      const sequence = yield* threads.getThreadEventSequence(input.threadId).pipe(unavailable);
+      return result(sequence, true);
+    });
+    const fromReceipt = (receipt: CommandReceiptStore.CommandReceiptV2) => {
+      if (receipt.threadId !== input.threadId) {
+        return Effect.fail(
+          VoiceSeamRefusal.invalidRequest("That request already went to another thread."),
+        );
+      }
+      if (receipt.status === "rejected") {
+        return Effect.fail(VoiceSeamRefusal.refused({ reason: receipt.error, commandId }));
+      }
+      return replay();
+    };
     const receipt = yield* receipts.getByCommandId(commandId).pipe(unavailable);
-    if (Option.isSome(receipt)) {
-      return yield* receiptAnswer(receipt.value, input.threadId, commandId, (replayed) =>
-        threads.getThreadEventSequence(input.threadId).pipe(
-          unavailable,
-          Effect.map((sequence) => result(sequence, replayed)),
-        ),
-      );
-    }
-    const requestId = RuntimeRequestId.make(input.pendingRequestId);
+    if (Option.isSome(receipt)) return yield* fromReceipt(receipt.value);
     const records = yield* threads
       .getThreadRecords(input.threadId, ["runtimeRequests", "turnItems"], {
         runtimeRequestStatuses: ["pending"],
@@ -80,33 +99,13 @@ export const make = (sources: RespondSources) => {
       // A response that failed after T3 recorded its command answers as its retry would.
       const after = yield* receipts.getByCommandId(commandId).pipe(unavailable);
       if (Option.isNone(after)) return yield* VoiceSeamRefusal.unavailable(dispatched.failure);
-      return yield* receiptAnswer(after.value, input.threadId, commandId, (replayed) =>
-        threads.getThreadEventSequence(input.threadId).pipe(
-          unavailable,
-          Effect.map((sequence) => result(sequence, replayed)),
-        ),
-      );
+      return yield* fromReceipt(after.value);
     }
     const { sequence, replayed } = dispatched.success;
-    return result(sequence, replayed === true);
+    // The orchestrator replays a command id it already recorded, whatever this call asked: a concurrent copy.
+    if (replayed === true) return yield* replay();
+    return result(sequence, false);
   });
 
   return { respond };
-};
-
-const receiptAnswer = <A>(
-  receipt: CommandReceiptStore.CommandReceiptV2,
-  threadId: ThreadId,
-  commandId: CommandId,
-  accepted: (replayed: boolean) => Effect.Effect<A, VoiceSeamRefusal>,
-) => {
-  if (receipt.threadId !== threadId) {
-    return Effect.fail(
-      VoiceSeamRefusal.invalidRequest("That request already went to another thread."),
-    );
-  }
-  if (receipt.status === "rejected") {
-    return Effect.fail(VoiceSeamRefusal.refused({ reason: receipt.error, commandId }));
-  }
-  return accepted(true);
 };

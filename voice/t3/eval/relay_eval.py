@@ -41,8 +41,8 @@ DRAFTS = [
 ]
 
 
-# The line the 2026-11-20 call refused twice: its writer said "which one they mean", the person's side in the third
-# person, and the voice stopped at its first word off the line both times. The same line said to "you", and the example's.
+# A same_title line whose writer put the person in the third person ("which one they mean") and the voice refused twice,
+# stopping at its first word off the line. The same line said to "you", and the example's own shape.
 SAME_TITLE = [
     (act(Kind.SAME_TITLE, thread="Trim Harbour Tiles", op="stop"),
      "More than one thread is called Trim Harbour Tiles, so I can't tell which one they mean and did nothing. You can "

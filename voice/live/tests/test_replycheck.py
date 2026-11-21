@@ -16,10 +16,12 @@ FACTS = ("t1", {"thread": "Example Thread", "status": "waiting_on_you"})
 class Rig:
     """The live server's view of one reply, scripted. `reading` maps each text the check judges to its Claim."""
 
-    def __init__(self, reading=None, found=FACTS, playing=(1.0, 6.0), muted=False, speaking=False, update="update"):
+    def __init__(self, reading=None, found=FACTS, playing=(1.0, 6.0), muted=False, speaking=False, update="update",
+                 during_read=None):
         self.reading = reading or {REPLY: WRONG}
-        self.found, self.state = found, dict(playing=playing, muted=muted, speaking=speaking)
+        self.found, self.state = found, dict(playing=playing, muted=muted, speaking=speaking, owns=True)
         self.update, self.judged, self.stopped = update, [], 0
+        self.during_read = during_read
 
     def check(self):
         def judge(text, facts):
@@ -29,9 +31,15 @@ class Rig:
         def stop():
             self.stopped += 1
 
-        return ReplyCheck(facts=lambda: self.found, judge=judge, correction=lambda thread, text: self.update,
+        def correction(thread, text):
+            if self.during_read is not None:
+                self.during_read(self.state)
+            return self.update
+
+        return ReplyCheck(facts=lambda: self.found, judge=judge, correction=correction,
                           playing=lambda: self.state["playing"], muted=lambda: self.state["muted"],
-                          speaking=lambda: self.state["speaking"], stop_playback=stop)
+                          speaking=lambda: self.state["speaking"], stop_playback=stop,
+                          owns=lambda: self.state["owns"])
 
 
 class WrongReply(unittest.IsolatedAsyncioTestCase):
@@ -127,6 +135,71 @@ class WrongReply(unittest.IsolatedAsyncioTestCase):
         check.facts = boom
         check.watch(REPLY)
         self.assertEqual(await check.settled(), [])
+
+
+class InterruptedDuringTheCorrectionRead(unittest.IsolatedAsyncioTestCase):
+    """The caller can interrupt while the correction is read from T3. What is true of playback is read again after it."""
+
+    async def run_check(self, rig):
+        check = rig.check()
+        check.watch(REPLY)
+        return await check.settled(), check.take_records()
+
+    async def test_an_interruption_after_the_claim_was_heard_holds_the_correction_and_stops_nothing(self):
+        def cut(state):
+            state.update(muted=True, playing=(3.0, 6.0))
+
+        heard = _heard_words(REPLY, 3.0, 6.0)
+        rig = Rig({REPLY: WRONG, heard: WRONG}, during_read=cut)
+        plans, records = await self.run_check(rig)
+        self.assertEqual([(p.update, p.hold) for p in plans], [("update", True)])
+        self.assertEqual(rig.stopped, 0, "the caller's barge-in already owns the audio")
+        self.assertEqual(records[0]["action"], "held")
+
+    async def test_an_interruption_before_the_claim_was_heard_corrects_nothing(self):
+        def cut(state):
+            state.update(muted=True, playing=(0.4, 6.0))
+
+        early = _heard_words(REPLY, 0.4, 6.0)
+        rig = Rig({REPLY: WRONG, early: CHAT}, during_read=cut)
+        plans, records = await self.run_check(rig)
+        self.assertEqual(plans, [])
+        self.assertEqual(rig.judged, [REPLY, early], "the part they heard is judged after the interruption, not before")
+        self.assertEqual(records[0]["action"], "cut off before the claim")
+
+    async def test_an_interruption_before_any_of_it_played_corrects_nothing(self):
+        def cut(state):
+            state.update(muted=True, playing=(0.0, 6.0))
+
+        plans, records = await self.run_check(Rig(during_read=cut))
+        self.assertEqual(plans, [])
+        self.assertEqual(records[0]["action"], "cut off before the claim")
+
+    async def test_a_reply_that_finished_during_the_read_is_not_stopped_with_the_old_measurement(self):
+        def finished(state):
+            state.update(playing=(6.0, 6.0))
+
+        rig = Rig(during_read=finished)
+        plans, records = await self.run_check(rig)
+        self.assertEqual([(p.update, p.hold) for p in plans], [("update", False)])
+        self.assertEqual((rig.stopped, records[0]["action"]), (0, "follow-up"))
+
+    async def test_a_turn_that_lost_the_playback_during_the_read_holds_and_stops_nothing(self):
+        def taken(state):
+            state.update(owns=False)
+
+        rig = Rig(during_read=taken)
+        plans, records = await self.run_check(rig)
+        self.assertEqual([(p.update, p.hold) for p in plans], [("update", True)])
+        self.assertEqual((rig.stopped, records[0]["action"]), (0, "held"))
+
+    async def test_the_caller_starting_to_talk_during_the_read_holds_it(self):
+        def talking(state):
+            state.update(speaking=True)
+
+        rig = Rig(during_read=talking)
+        plans, _ = await self.run_check(rig)
+        self.assertEqual([(p.hold, rig.stopped) for p in plans], [(True, 0)])
 
 
 class HeardWords(unittest.TestCase):

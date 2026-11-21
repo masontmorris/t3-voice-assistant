@@ -152,6 +152,11 @@ GATE_CONTEXT = ("A voice assistant is about to say `gist` out loud as what a cod
                 "the thread's latest reply and `status` where its run stands. They are everything the assistant "
                 "knows.")
 GATE_QUESTION = "Does `gist` state something about the thread that `last_reply` and `status` do not support?"
+# A thread with no reply but a pending request: the request is what the gist describes, so it is what supports it.
+GATE_CONTEXT_PENDING = ("A voice assistant is about to say `gist` out loud as what a coding thread's pending request "
+                        "would do. `pending` is that request and `status` where the thread's run stands. They are "
+                        "everything the assistant knows.")
+GATE_QUESTION_PENDING = "Does `gist` state something about the thread that `pending` and `status` do not support?"
 # Chosen on two sets of threads and held out on two more: 0.7 and 2.0 false gists spoken in 30, 65% and 79% of the
 # true ones kept (docs/voice/local-renderer.md).
 GATE_THRESHOLD = 0.10
@@ -163,8 +168,12 @@ def gate_request(state: T.ThreadState, gist: str) -> dict:
              "pending": pending.prompt if pending is not None else None,
              "last_reply": state.last_reply.text if state.last_reply is not None else None, "gist": gist,
              "context": GATE_CONTEXT}
+    pending_only = state.last_reply is None and pending is not None
+    question = GATE_QUESTION_PENDING if pending_only else GATE_QUESTION
+    if pending_only:
+        facts["context"] = GATE_CONTEXT_PENDING
     return {"model": "d1.2", "state": facts,
-            "questions": {"unsupported": {"type": "noul", "instructions": GATE_QUESTION,
+            "questions": {"unsupported": {"type": "noul", "instructions": question,
                                           "criteria": {"true": "Yes.", "false": "No."}}}}
 
 

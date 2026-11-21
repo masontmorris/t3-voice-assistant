@@ -55,6 +55,7 @@ APPROVE, DENY = "t3_approve", "t3_deny"
 # request, and the next one is asked about afresh.
 RESPONDS = {APPROVE: "approve", DENY: "deny"}
 # What the decider's approve and deny options say is waiting on the person. Text for the decider, never spoken.
+DESCRIBE_REQUEST = "What would approving this request let the thread do?"
 WAITING_ASKS = "{thread} asks for {asks_for}."
 WAITING_NOW = " Waiting on them now: "
 # The newest threads the decider chooses among. Its picks held, at about 185 ms, with 40 listed.
@@ -110,7 +111,8 @@ def confirm_act(op: str, title: str, message: str | None = None, need: str | Non
                 prompt: str | None = None) -> Act:
     """The confirming question for one picked thread. Only a yes to it acts."""
     if op in RESPONDS:
-        return act(Say.CONFIRM_RESPOND, thread=title, decision=RESPONDS[op], need=need, pending=prompt)
+        return act(Say.CONFIRM_RESPOND, thread=title, decision=RESPONDS[op], need=need, pending=prompt,
+                   asked=DESCRIBE_REQUEST)
     if op == TELL:
         return act(Say.CONFIRM_TELL, thread=title, message=message)
     if op == STOP:
@@ -783,6 +785,11 @@ class T3Tasks:
                             (state.as_of_sequence,))
         if need.kind is not T.PendingKind.APPROVAL:
             return self._read(question.key, thread, question.instruction)
+        if question.op == APPROVE and not state.pending_detailed:
+            # T3 stored nothing that says what this request does, so a yes could approve anything. Denying is safe
+            # without detail: nothing runs. Approving is left to the app.
+            return L.Update(question.key, (act(Say.NEEDS_THE_APP, thread=state.title, decision="approve"),),
+                            "completed", "ask", thread, (state.as_of_sequence,))
         return replace(question, request_id=need.request_id, need=L.need_of(need.kind, need.source),
                        prompt=need.prompt)
 
@@ -950,11 +957,26 @@ class T3Tasks:
         thread's summary first, and the read it came from joins the update's evidence. A line that fails the slot
         check is not returned, and its problems go into the next attempt."""
         acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences)
+        acts = self._described(update, acts)
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
         rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names())
         refuse(update, rendered)
         return rendered
+
+    def _described(self, update: L.Update, acts: tuple[Act, ...]) -> tuple[Act, ...]:
+        """An approval is confirmed only with a description of the request that passed the summariser's gate. Without
+        one, nothing is asked and the voice says this one has to be approved in the app. A denial needs none."""
+        for a in acts:
+            if a.kind is Say.CONFIRM_RESPOND and a.slots.get("decision") == "approve" and not a.slots.get("summary"):
+                with self.lock:
+                    if self.question is not None and self.question.key == update.task_id:
+                        self._drop_question()
+                    if self.unasked is update:
+                        self.unasked = None
+                update.status = "completed"
+                return (act(Say.NEEDS_THE_APP, thread=a.slots["thread"], decision="approve"),)
+        return acts
 
     def say_entry(self, update: L.Update, entry: dict, turns=()) -> Rendered:
         """Draft the entry with its updated acts and evidence."""

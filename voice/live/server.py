@@ -827,6 +827,7 @@ class Conversation:
             facts=live.t3.claim_facts, judge=live.claims.claims,
             correction=lambda thread_id, replying_to: live.t3.correction(thread_id, replying_to),
             playing=playing, muted=lambda: turn.muted,
+            owns=lambda: self.playback.turn in (None, turn.n),
             speaking=lambda: self.overlap is not None or self.endpointer.state is not State.IDLE,
             stop_playback=lambda: self.stop_playback(time.perf_counter()))
 

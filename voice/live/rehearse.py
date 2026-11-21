@@ -62,7 +62,7 @@ stopped or still works and has a last reply. `summary` adds, per turn about the 
 that was not a checked T3 line (a free answer in place of T3's), and per status line whether its reply carried the
 summary its act held.
 
-`--scenario claims|withdraw|approve` runs the three faults of the 2026-11-20 call with made-up threads. `claims`: a thread
+`--scenario claims|withdraw|approve` runs three faults with made-up threads. `claims`: a thread
 waits on a permission request, and the caller says things that invite a free reply to agree with something T3 does not
 hold; `summary` lists each free reply the check read, whether it flagged it, and what the correction did. `withdraw`: a
 which-thread question, "never mind", then talk; `summary` counts the free replies after the withdrawal that name one of
@@ -880,7 +880,7 @@ def main():
                         help="the follow-up calls: questions about a thread just discussed that do not name it")
     parser.add_argument("--more", action="store_true",
                         help="the more calls: a garbled thread question, why it stopped, and more detail")
-    parser.add_argument("--scenario", choices=sorted(SCENARIOS), help="the three faults of the 2026-11-20 call")
+    parser.add_argument("--scenario", choices=sorted(SCENARIOS), help="three faults: claims in free replies, withdrawn questions, approvals")
     parser.add_argument("--summaries", action="store_true",
                         help="the local LFM3-1.7B writes thread summaries, as on the 2026-11-19 calls")
     parser.add_argument("--clips-from", type=Path,

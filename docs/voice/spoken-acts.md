@@ -55,9 +55,9 @@ End to end, on the rehearsal (the real server, synthetic speech, a scripted T3, 
 
 What can still end silent: a call with neither a local text server nor a cloud key (no second route), a decider that cannot answer (every line fails its check), two relays that both go off the words, and a person who speaks over the line. A turn whose question is never heard is not an open question, so a "yeah" that follows is not an answer; that is the same refusal as before and is unchanged.
 
-## The 2026-11-20 call, second part
+## Corrections, approvals and withdrawn questions
 
-Three more faults of that call, and what changed, are in [live-reply-check.md](live-reply-check.md): a free reply that claimed something about a thread is now checked against T3 and corrected (a new `correction` act); a pending permission request can be approved or denied by voice (new acts `confirm_respond`, `responded` and `nothing_pending`, and a `respond` seam operation); and a question the caller never answered is told to the voice model once as withdrawn. The `same_title` line was refused twice because the voice opened its reply with a refusal of its own; its example is now the shape that recited 24 of 24.
+[live-reply-check.md](live-reply-check.md) covers three more kinds of line: a free reply that claimed something about a thread is checked against T3 and corrected (a `correction` act); a pending permission request can be approved or denied by voice (acts `confirm_respond`, `responded`, `nothing_pending` and `needs_the_app`, and a `respond` seam operation), with the confirmation carrying a description of the request; and a question the caller never answered is told to the voice model once as withdrawn. The `same_title` line has an example shape that the voice recites (24 of 24 relays).
 
 ## A lookup and T3 work in one turn
 

@@ -41,7 +41,8 @@ class ReplyCheck:
     decider's reading (`Claim`); `correction(thread_id)` is the update that says the reply was wrong. The rest is the
     live server's view of the caller: `playing()` is (seconds of this reply the caller has heard, seconds it sent) or
     None when it was never played, `muted()` whether the caller has cut the turn off, `speaking()` whether they are
-    talking now, and `stop_playback()` the barge-in path that drops what the client has buffered."""
+    talking now, `owns()` whether this turn's reply is still what the call is playing, and `stop_playback()` the barge-in
+    path that drops what the client has buffered."""
 
     facts: Callable[[], Any]
     judge: Callable[[str, dict], Any]
@@ -50,6 +51,7 @@ class ReplyCheck:
     muted: Callable[[], bool]
     speaking: Callable[[], bool]
     stop_playback: Callable[[], None]
+    owns: Callable[[], bool] = lambda: True
     tasks: list = field(default_factory=list)
     records: list = field(default_factory=list)
 
@@ -77,25 +79,34 @@ class ReplyCheck:
                       text_done_to_verdict_s=round(time.perf_counter() - started, 3))
         if not claim.wrong:
             return self._done(record)
-        played = self.playing()
-        cut = self.muted()
-        heard, sent = played if played is not None else (0.0, 0.0)
-        record.update(heard_s=round(heard, 2), sent_s=round(sent, 2), cut_off=cut)
-        if cut:
+        # The correction is read from T3 and, on a cut-off reply, the heard part is judged again: each is an await, and the
+        # caller can interrupt during either. So what is true of playback is read once more after the last await, and
+        # acted on with no await between that read and the action.
+        update = await asyncio.to_thread(self.correction, thread_id, text)
+        if update is None:
+            record["action"] = "thread unreadable"
+            return self._done(record)
+        if self.muted():
+            heard, sent = self.playing() or (0.0, 0.0)
             heard_part = _heard_words(text, heard, sent)
             if not heard_part:
+                record.update(cut_off=True, heard_s=round(heard, 2), sent_s=round(sent, 2))
                 record["action"] = "cut off before the claim"
                 return self._done(record)
             again = await asyncio.to_thread(self.judge, heard_part, facts)
             record["heard_unsupported"] = again.unsupported
             if not again.wrong:
+                record.update(cut_off=True, heard_s=round(heard, 2), sent_s=round(sent, 2))
                 record["action"] = "cut off before the claim"
                 return self._done(record)
-        update = await asyncio.to_thread(self.correction, thread_id, text)
-        if update is None:
-            record["action"] = "thread unreadable"
+        played, cut, owns, speaking = self.playing(), self.muted(), self.owns(), self.speaking()
+        heard, sent = played if played is not None else (0.0, 0.0)
+        record.update(heard_s=round(heard, 2), sent_s=round(sent, 2), cut_off=cut)
+        if cut and not _heard_words(text, heard, sent):
+            # Cut off during the read, before any of it played.
+            record["action"] = "cut off before the claim"
             return self._done(record)
-        hold = cut or self.speaking()
+        hold = cut or speaking or not owns
         if not hold and played is not None and heard < sent:
             self.stop_playback()
             record["stopped_audio_s"] = round(sent - heard, 2)

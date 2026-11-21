@@ -25,7 +25,7 @@ from voice.t3.acts import QUESTIONS, Act, Kind, forbidden_claims
 VERIFY_TIMEOUT_S = 2.0
 YES = 0.5
 # The acts whose line says the thread's summary after its status (speech.MEANINGS).
-SAYS_SUMMARY = frozenset({Kind.THREAD_STATUS, Kind.DONE})
+SAYS_SUMMARY = frozenset({Kind.THREAD_STATUS, Kind.DONE, Kind.CONFIRM_RESPOND})
 
 # Whether a summary written for other words answers the question now asked: a choice, so the decider makes it.
 REUSE_CONTEXT = ("A voice assistant holds a short spoken `summary` of a coding thread. It was written for the words "
@@ -77,6 +77,7 @@ MEANS: dict[Kind, str] = {
     Kind.CONFIRM_RESPOND: "whether to {decision} the request {thread} is waiting on, which is {need}",
     Kind.RESPONDED: "the request {thread} was waiting on was {decided}",
     Kind.NOTHING_PENDING: "{thread} is not waiting on any request, so there was nothing to approve or deny",
+    Kind.NEEDS_THE_APP: "the assistant cannot say what {thread}'s request would do, so it has to be approved in the app",
 }
 assert set(MEANS) == set(Kind)
 
@@ -172,8 +173,12 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            "Does the line ask the person a question the act did not call for?", False))
         # The meaning question alone passes a status line that leaves the summary out.
         if a.kind in SAYS_SUMMARY and "summary" in a.slots:
+            confirming = a.kind is Kind.CONFIRM_RESPOND
             out.append(Ask(f"a{n}_summary",
-                           f"Does the line pass on this report from the thread: \"{a.slots['summary']}\"?", True,
+                           f"Does the line pass on this {'description of the request' if confirming else 'report from the thread'}: "
+                           f"\"{a.slots['summary']}\"?", True,
+                           f"the line left out what the request would do: \"{a.slots['summary']}\". Say that, in your "
+                           "own words, in the question." if confirming else
                            f"the line left out what the thread reported: \"{a.slots['summary']}\". Say that, in your "
                            "own words, after the status."))
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked

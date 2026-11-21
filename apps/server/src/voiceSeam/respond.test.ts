@@ -40,26 +40,50 @@ interface Rig {
   readonly sources: RespondSources;
 }
 
-/** The seam's two services, scripted: the thread's pending requests, and the receipt for the voice's command. */
+type Decision = OrchestrationV2RuntimeRequest["decision"];
+
+/**
+ * The seam's two services, scripted: the thread's pending requests, the ones T3 resolved (with their decision), and the
+ * receipt for the voice's command. A dispatch resolves the request, and one that finds the command already recorded
+ * answers `replayed` as the orchestrator does.
+ */
 const rig = (
   pending: ReadonlyArray<OrchestrationV2RuntimeRequest>,
   receipt: { readonly threadId: ThreadId; readonly status: "accepted" | "rejected" } | null = null,
+  resolved: ReadonlyArray<OrchestrationV2RuntimeRequest> = [],
 ): Effect.Effect<Rig> =>
   Effect.gen(function* () {
     const digest = yield* Digest.Digest;
     const dispatched: Array<Record<string, unknown>> = [];
+    const answered = [...resolved];
+    let recorded = receipt !== null;
     const sources = {
       digest,
       threads: {
-        getThreadRecords: () =>
+        getThreadRecords: (
+          _thread: ThreadId,
+          _kinds: unknown,
+          filter: { runtimeRequestStatuses?: string[] },
+        ) =>
           Effect.succeed({
-            runtimeRequests: pending,
+            runtimeRequests: filter.runtimeRequestStatuses?.includes("resolved")
+              ? answered
+              : pending,
             turnItems: promptOf(FIXTURES.approval) as ReadonlyArray<OrchestrationV2TurnItem>,
           }),
         getThreadEventSequence: () => Effect.succeed(77),
         dispatch: (command: Record<string, unknown>) => {
           dispatched.push(command);
-          return Effect.succeed({ sequence: 78, replayed: false });
+          const replayed = recorded;
+          if (!recorded) {
+            recorded = true;
+            answered.push({
+              ...pending.find((request) => request.id === command.requestId)!,
+              status: "resolved",
+              decision: command.decision as Decision,
+            });
+          }
+          return Effect.succeed({ sequence: 78, replayed });
         },
       },
       receipts: {
@@ -73,6 +97,9 @@ const rig = (
     } as unknown as RespondSources;
     return { dispatched, sources };
   }).pipe(Effect.provide(NodeCrypto.layer));
+
+const resolvedAs = (request: OrchestrationV2RuntimeRequest, decision: Decision) =>
+  ({ ...request, status: "resolved", decision }) as OrchestrationV2RuntimeRequest;
 
 const input = (decision: "approve" | "deny", pendingRequestId: string = APPROVAL.id) => ({
   requestId: REQUEST_ID,
@@ -151,14 +178,76 @@ it.effect("answers nothing for an approval that can no longer be resumed", () =>
 
 it.effect("a request id that already answered replays its receipt and never answers again", () =>
   Effect.gen(function* () {
-    const { dispatched, sources } = yield* rig([APPROVAL], {
-      threadId: THREAD,
-      status: "accepted",
-    });
+    const { dispatched, sources } = yield* rig([], { threadId: THREAD, status: "accepted" }, [
+      resolvedAs(APPROVAL, "accept"),
+    ]);
     const answered = yield* make(sources).respond(input("approve"));
     assert.deepInclude(answered, { sequence: 77, replayed: true });
     assert.lengthOf(dispatched, 0);
   }).pipe(Effect.provide(NodeCrypto.layer)),
+);
+
+it.effect(
+  "a replay with another request or another decision is refused, not reported as accepted",
+  () =>
+    Effect.gen(function* () {
+      const first = [resolvedAs(APPROVAL, "accept")];
+      const receipt = { threadId: THREAD, status: "accepted" } as const;
+      const decided = yield* rig([], receipt, first);
+      assert.strictEqual(
+        yield* outcome(make(decided.sources).respond(input("deny"))),
+        "invalid_request",
+      );
+      const other = yield* rig([QUESTION], receipt, first);
+      assert.strictEqual(
+        yield* outcome(make(other.sources).respond(input("approve", QUESTION.id))),
+        "invalid_request",
+      );
+      assert.lengthOf(
+        [...decided.dispatched, ...other.dispatched],
+        0,
+        "no second command was sent",
+      );
+    }).pipe(Effect.provide(NodeCrypto.layer)),
+);
+
+it.effect(
+  "two concurrent copies of one request id answer once, and a copy with another decision is refused",
+  () =>
+    Effect.gen(function* () {
+      const same = yield* rig([APPROVAL]);
+      const both = yield* Effect.all(
+        [
+          outcome(make(same.sources).respond(input("approve"))),
+          outcome(make(same.sources).respond(input("approve"))),
+        ],
+        { concurrency: 2 },
+      );
+      assert.deepEqual(both, ["answered", "answered"]);
+      const results = yield* Effect.all(
+        [
+          make(same.sources).respond(input("approve")),
+          make(same.sources).respond(input("approve")),
+        ],
+        { concurrency: 2 },
+      );
+      assert.deepEqual(results.map((answered) => answered.replayed).sort(), [true, true]);
+      const split = yield* rig([APPROVAL]);
+      const mixed = yield* Effect.all(
+        [
+          outcome(make(split.sources).respond(input("approve"))),
+          outcome(make(split.sources).respond(input("deny"))),
+        ],
+        { concurrency: 2 },
+      );
+      assert.deepEqual([...mixed].sort(), ["answered", "invalid_request"]);
+      assert.strictEqual(
+        split.dispatched.filter((command) => command.decision === "accept").length +
+          split.dispatched.filter((command) => command.decision === "decline").length,
+        2,
+        "both reached the orchestrator, which recorded only the first",
+      );
+    }).pipe(Effect.provide(NodeCrypto.layer)),
 );
 
 it.effect("refuses a receipt that belongs to another thread or that T3 rejected", () =>

@@ -172,7 +172,7 @@ NOTE_OPEN = "[Note for you, not said by the person: "
 ASK_NOTE = (NOTE_OPEN + "they said your last answer was not what they wanted, and did not say what they want "
             "instead. Ask them what they would like instead.]")
 # After a question the person heard is dropped unanswered, the voice session still holds its words as the nearest thing
-# to answer, and a free reply says them again (5 turns in a row on the 2026-11-20 call). The note names no choices.
+# to answer, and a free reply can say them again. The note names no choices.
 WITHDRAWN_NOTE = (NOTE_OPEN + "they did not answer your last question and have moved on. Answer what they said in this "
                   "turn, and do not repeat or ask that question again.]")
 # The holding line before a correction: the voice model words it each time from this meaning alone, as it words the

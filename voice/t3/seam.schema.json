@@ -1250,6 +1250,9 @@
             }
           ]
         },
+        "pendingDetailed": {
+          "type": "boolean"
+        },
         "lastReply": {
           "anyOf": [
             {

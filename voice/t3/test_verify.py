@@ -49,6 +49,38 @@ def acts_of(row):
     return [Act.from_json(a) for a in row["acts"]]
 
 
+class AnsweringAsks:
+    """A decider client that answers each question of a line's check as the test says, and no to the rest."""
+
+    def __init__(self, answers):
+        self.answers = answers
+
+    def call(self, route, body, label=""):
+        return {"status": 200, "response": {"answers": {
+            name: {"type": "noul", "noul": self.answers.get(name, 0.0)} for name in body["questions"]}}}
+
+
+class ConfirmingAnApproval(unittest.TestCase):
+    """An approval is confirmed with what this request would do, the way a status line carries its summary."""
+
+    ACT = act(Kind.CONFIRM_RESPOND, thread="Add clamp helper", decision="approve", need="command_approval",
+              summary="It wants to run a script that deletes the old build folder.")
+
+    def test_the_line_must_pass_on_the_description_and_a_line_that_omits_it_is_refused(self):
+        self.assertIn("a1_summary", [ask.name for ask in asks([self.ACT])])
+        line = "Should I approve Add clamp helper?"
+        omitted = Decider(AnsweringAsks({"a1_about": 0.9, "a1_means": 0.9, "a1_summary": 0.1})).verify([self.ACT], line)
+        self.assertFalse(omitted.passed)
+        self.assertEqual(omitted.failed, ("a1_summary",))
+        self.assertIn("left out what the request would do", omitted.problems[0])
+        said = Decider(AnsweringAsks({"a1_about": 0.9, "a1_means": 0.9, "a1_summary": 0.9})).verify([self.ACT], line)
+        self.assertTrue(said.passed)
+
+    def test_a_denial_without_a_description_is_checked_without_one(self):
+        deny = act(Kind.CONFIRM_RESPOND, thread="Add clamp helper", decision="deny", need="command_approval")
+        self.assertNotIn("a1_summary", [ask.name for ask in asks([deny])])
+
+
 class LineCheck(unittest.TestCase):
     def test_the_decider_refuses_the_reviewers_escapes(self):
         decider = Decider(Recorded())

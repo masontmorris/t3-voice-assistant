@@ -13,7 +13,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (APPROVE, ASK, CONFIRM_TTL_S, DENY, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
+from voice.live.t3_tasks import (APPROVE, ASK, CONFIRM_TTL_S, DENY, DESCRIBE_REQUEST, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
                                  T3Tasks, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
@@ -81,6 +81,7 @@ class FakeText:
 
     def complete(self, messages):
         self.calls += 1
+        self.seen = [*getattr(self, "seen", []), *messages]
         if messages[0]["content"] != RENDER_SYSTEM:
             self.summarised.set()
             return {"text": self.GIST, "ms": 1, "tokens": {}}
@@ -1518,8 +1519,66 @@ class Respond(unittest.TestCase):
     def test_the_confirmation_names_the_thread_and_what_is_asked_and_answers_nothing_yet(self):
         seam, t3, update = self.asked()
         self.assertEqual(update.acts, (act(S.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve",
-                                           need="command_approval", pending="Run the formatter?"),))
+                                           need="command_approval", pending="Run the formatter?",
+                                           asked=DESCRIBE_REQUEST),))
         self.assertEqual((update.status, seam.ops("respond")), ("needs_clarification", []))
+
+    def test_the_confirmation_carries_a_description_of_this_request_from_its_own_records(self):
+        seam = self.seam()
+        text = FakeText()
+        t3 = worded(tasks_over(self, seam), text)
+        update = t3.about("k1", APPROVE, "I approve.", 0)
+        t3.say(update)
+        self.assertEqual(update.acts[0].kind, S.CONFIRM_RESPOND)
+        self.assertEqual(update.acts[0].slots["summary"], FakeText.GIST)
+        described = [m["content"] for m in text.seen if "Run the formatter?" in m["content"]]
+        self.assertTrue(described, "the summariser was given this request's own prompt")
+        self.assertIn(DESCRIBE_REQUEST, described[0], "and asked what approving it would let the thread do")
+
+    def test_a_request_with_nothing_stored_about_what_it_does_cannot_be_approved_by_voice(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
+                                       activity=T.ThreadActivity.WAITING_ON_YOU, pending_detailed=False,
+                                       pending=F.need("q1", "It wants your approval to run a command.")))
+        seam.listing = waiting_listing(("t5", "Add a clamp helper"))
+        t3 = tasks_over(self, seam)
+        update = t3.about("k1", APPROVE, "I approve.", 0)
+        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+        self.assertEqual((update.status, t3.live_question(), seam.ops("respond")), ("completed", None, []))
+        self.assertIsNone(t3.answer("Yes.", 1), "there is nothing to say yes to")
+        self.assertEqual(seam.ops("respond"), [])
+
+    def test_denying_a_request_with_nothing_stored_is_still_confirmed_because_nothing_runs(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
+                                       activity=T.ThreadActivity.WAITING_ON_YOU, pending_detailed=False,
+                                       pending=F.need("q1", "It wants your approval to run a command.")))
+        seam.listing = waiting_listing(("t5", "Add a clamp helper"))
+        update = tasks_over(self, seam).about("k1", DENY, "No, do not allow that.", 0)
+        self.assertEqual((update.acts[0].kind, update.acts[0].slots["decision"]), (S.CONFIRM_RESPOND, "deny"))
+
+    def test_an_approval_whose_description_did_not_pass_is_sent_to_the_app_and_asks_nothing(self):
+        class NoGist(FakeText):
+            def complete(self, messages):
+                record = super().complete(messages)
+                return {**record, "text": ""} if messages[0]["content"] != RENDER_SYSTEM else record
+
+        seam = self.seam()
+        t3 = worded(tasks_over(self, seam), NoGist())
+        update = t3.about("k1", APPROVE, "I approve.", 0)
+        t3.spoke(update)
+        t3.say(update)
+        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+        self.assertEqual((update.status, t3.live_question()), ("completed", None))
+        self.assertIsNone(t3.answer("Yes.", 1))
+        self.assertEqual(seam.ops("respond"), [])
+
+    def test_a_request_that_became_a_question_before_the_yes_is_read_out_and_not_answered(self):
+        seam, t3, _ = self.asked()
+        seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=150,
+                            activity=T.ThreadActivity.WAITING_ON_YOU,
+                            pending=F.need("q2", "Which fixture?", kind=T.PendingKind.QUESTION,
+                                           source=T.NeedSource.USER_INPUT))
+        update = t3.answer("Yes.", 1)
+        self.assertEqual((update.acts[0].kind, seam.ops("respond")), (S.THREAD_STATUS, []))
 
     def test_a_yes_approves_the_request_that_was_named_and_the_line_reports_what_t3_returned(self):
         seam, t3, _ = self.asked()

@@ -340,6 +340,7 @@ const make = Effect.gen(function* () {
     }
     const { shell, records } = read;
     const pending = read.join.kind === "need" ? read.join.pending : null;
+    const pendingDetailed = read.join.kind === "need" && read.join.detailed;
     const activity = activityOf(shell, read.join);
     const run = records.runs.find((candidate) => candidate.id === shell.latestRunId) ?? null;
     const reply =
@@ -370,6 +371,7 @@ const make = Effect.gen(function* () {
               startedAt: run.startedAt === null ? null : iso(run.startedAt),
             },
       pending,
+      pendingDetailed,
       lastReply,
       asOfSequence: read.asOfSequence,
     } satisfies VoiceThreadState;

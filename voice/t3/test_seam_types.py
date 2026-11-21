@@ -170,6 +170,13 @@ class SchemaCoverageTest(unittest.TestCase):
             members(T.Operation),
         )
 
+    def test_a_read_from_a_server_that_does_not_say_the_request_is_detailed_is_not_detailed(self):
+        raw = {"threadId": "t", "projectId": "p", "title": "x", "activity": "waiting_on_you", "run": None,
+               "pending": {"requestId": "q", "kind": "approval", "source": "command", "prompt": "Run it?"},
+               "lastReply": None, "asOfSequence": 1}
+        self.assertFalse(T.decode_thread_state(raw).pending_detailed, "an older seam is never taken as detailed")
+        self.assertTrue(T.decode_thread_state({**raw, "pendingDetailed": True}).pending_detailed)
+
     def test_activity_matches(self):
         self.assertEqual(set(DEFS["ThreadActivity"]["enum"]), members(T.ThreadActivity))
 

@@ -4,7 +4,7 @@ GPU: run inside the lease.
     python -m voice.t3.eval.note_eval --out DIR [--repeats 12]
 
 Each trial opens a fresh voice session with the live persona, plays one question as audio, sends one note and takes the
-reply as the live turn does. The notes are the lookup notes (`run.task_note`) in the wording they had until 2026-11-20,
+reply as the live turn does. The notes are the lookup notes (`run.task_note`) in the wording they had before the length instruction was dropped,
 which ended on a length instruction, and in the wording they have now, plus the holding line before a correction
 (`run.TRANSITION_NOTE`). A reply leaks when it says one of the old wording's instruction phrases: the call's voice once
 said part of that instruction as content. The phrases are the eval's own list, written down before the run, and the
@@ -53,7 +53,7 @@ HANDLED = ("[Private note for you, not said by the person. What they just said i
 
 
 def old(entry) -> str:
-    """The note as it was worded until 2026-11-20."""
+    """The note as it was worded before the length instruction was dropped."""
     new, before = OLD_TAILS[entry["status"]]
     return run.task_note(entry).replace(new, before) if entry["status"] in OLD_TAILS else run.task_note(entry)
 

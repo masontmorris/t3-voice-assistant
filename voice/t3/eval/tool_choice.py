@@ -1,4 +1,4 @@
-"""Which tool the decider picks for the turns of the three 2026-11-20 faults, once per decider. Every utterance is made up.
+"""Which tool the decider picks for approve, deny, status, chat, claim-bait and withdraw turns, once per decider. Every utterance is made up.
 
     VOICE_ENV_FILE=<env file> python -m voice.t3.eval.tool_choice liquid     # the hosted d1.2 the calls use
     python -m voice.t3.eval.tool_choice d1                                    # the local d1-2B, under the GPU lease

@@ -230,6 +230,9 @@ class ThreadState:
     pending: PendingNeed | None
     last_reply: LastReply | None
     as_of_sequence: int
+    # Whether T3 stored what the pending request asks. When false its prompt is a fixed line about the kind of request,
+    # which cannot tell one command from another, so the voice does not approve it.
+    pending_detailed: bool = True
 
 
 @dataclass(frozen=True)
@@ -536,6 +539,7 @@ def decode_thread_state(value: Any) -> ThreadState:
         pending=_decode_pending(value.get("pending")),
         last_reply=_decode_last_reply(value.get("lastReply")),
         as_of_sequence=_need(value, "asOfSequence"),
+        pending_detailed=value.get("pendingDetailed", False),
     )
 
 

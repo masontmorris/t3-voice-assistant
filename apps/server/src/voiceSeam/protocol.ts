@@ -126,6 +126,11 @@ export const VoiceThreadState = Schema.Struct({
     }),
   ),
   pending: Schema.NullOr(VoicePending),
+  /**
+   * Whether T3 stored what the pending request asks (a prompt, a reason or a question). When false its prompt is a fixed
+   * line about the kind of request, and the voice cannot tell the person what this one would do.
+   */
+  pendingDetailed: Schema.optionalKey(Schema.Boolean),
   /** `runId` is the run the reply came from, which is not `run` when the latest run has not replied yet. */
   lastReply: Schema.NullOr(
     Schema.Struct({ ...VoiceRunResult.fields, runId: RunId, at: Schema.String }),
