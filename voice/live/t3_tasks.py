@@ -46,17 +46,25 @@ from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import Lane, LocalText, Rendered, Speech, text_model
-from voice.t3.verify import NEED, NONE, Decider, Listed, Picked, Reading, default_decider
+from voice.t3.verify import NEED, NO_ANSWER, NONE, Chosen, Decider, Listed, Picked, Reading, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 APPROVE, DENY = "t3_approve", "t3_deny"
+ANSWER = "t3_answer"
 # The two tools that answer a thread's pending approval. Each is confirmed back, naming the thread and what it is
 # for, and only a yes sends the answer. One request is answered at a time: the thread's read carries one pending
 # request, and the next one is asked about afresh.
 RESPONDS = {APPROVE: "approve", DENY: "deny"}
+# The tools that answer a thread's pending request. An answer to a question is chosen among the options the voice told,
+# confirmed back with the thread and the answers, and only then sent. A request with several questions is asked one at a
+# time and answered together.
+WAITS = frozenset({*RESPONDS, ANSWER})
+# The caller's own words as an answer are told back in a confirmation, so they are kept to what is easy to say and hear.
+OWN_WORDS_MAX = 240
 # What the decider's approve and deny options say is waiting on the person. Text for the decider, never spoken.
 DESCRIBE_REQUEST = "What would approving this request let the thread do?"
 WAITING_ASKS = "{thread} asks for {asks_for}."
+WAITING_QUESTIONS = "{thread} asks: {question} The options are {options}."
 WAITING_NOW = " Waiting on them now: "
 # The newest threads the decider chooses among. Its picks held, at about 185 ms, with 40 listed.
 PICK_LIMIT = 40
@@ -76,12 +84,15 @@ T3_TOOLS = {
     DENY: "Deny the permission or approval request a T3 coding thread is waiting on. Use it when the speaker says "
           "they deny, refuse, reject or do not allow it. Examples: No, don't allow that. I deny it. Don't let it run "
           "that. I'd rather not give permission.",
+    ANSWER: "Answer a question a T3 coding thread is waiting on, by picking one of the options it offered or saying "
+            "what the speaker wants. Use it when their words answer that question, by name or by place. Examples: "
+            "Postgres. Go with the second one. Let's do the first option. Use the new schema.",
 }
 STATUS_WORDS = {Status.UNSTARTED: "running", Status.LIVE: "running", Status.HELD: "held",
                 Status.COMPLETED: "completed", Status.FAILED: "failed", Status.CANCELLED: "cancelled",
                 Status.LOST: "lost"}
 
-OPS = {START: "start", ASK: "ask", TELL: "tell", STOP: "stop", APPROVE: "respond", DENY: "respond"}
+OPS = {START: "start", ASK: "ask", TELL: "tell", STOP: "stop", APPROVE: "respond", DENY: "respond", ANSWER: "answer"}
 
 _LEAD = r"^\W*(?:(?:ok(?:ay)?|so|and|also|please|hey|actually|now)[,\s]+)*(?:(?:can|could|would) you\s+)?(?:please\s+)?"
 _TELL = re.compile(_LEAD + r"(?:tell|remind|ask|let)\s+(?P<ref>.+?)\s+(?:know\s+)?(?P<link>to|that)\s+"
@@ -152,6 +163,13 @@ class Question:
     request_id: str | None = None
     need: str | None = None
     prompt: str | None = None
+    # An answer in progress ("answer": a question of the request is open, "answer_confirm": all are answered and
+    # confirmed back): the request's questions as the voice told them, the answers so far as (question id, "option" or
+    # "own_words", text), the question being asked, and how many times it has been asked again.
+    queue: tuple[T.Question, ...] = ()
+    given: tuple[tuple[str, str, str], ...] = ()
+    step: int = 0
+    tries: int = 0
     evidence: tuple[int, ...] = ()
     call: int = 0
     owner: object = None
@@ -163,6 +181,16 @@ class Question:
 
 CONFIRM_TTL_S = 90.0  # How long a heard question can be answered.
 MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting for a person turn.
+
+
+@dataclass(frozen=True)
+class Choose:
+    """A thread is picked to be answered: what it waits on is read, and the caller's words are chosen among the options
+    of its question. The choice is a network call, so it runs off the lock."""
+
+    question: Question
+    thread: str
+    now: float
 
 
 @dataclass(frozen=True)
@@ -402,9 +430,10 @@ class T3Tasks:
             return self.spoken_of
 
     def pending_requests(self) -> list[dict]:
-        """The approvals threads are waiting on the person for, up to three, as the decider is shown them: the thread's
-        title and what it asks for in a few words. A thread whose request only the app can take, or that asks a
-        question, is not listed: the voice cannot answer it. Off the lock: each is a seam read."""
+        """What threads are waiting on the person for, up to three, as the decider is shown them: an approval by the
+        thread's title and what it asks for in a few words, a question by its text and options. A thread whose request
+        only the app can take, or whose question the voice cannot ask (see `answerableQuestions` in the seam), is not
+        listed: the voice cannot answer it. Off the lock: each is a seam read."""
         seam = self.follow.seam
         if seam is None:
             return []
@@ -415,9 +444,15 @@ class T3Tasks:
         found = []
         for thread in waiting:
             state = self._read_quiet(thread.thread_id)
-            if state is not None and state.pending is not None and state.pending.kind is T.PendingKind.APPROVAL:
+            if state is None or state.pending is None:
+                continue
+            if state.pending.kind is T.PendingKind.APPROVAL:
                 need = L.need_of(state.pending.kind, state.pending.source)
-                found.append({"thread": state.title, "asks_for": NEED.get(need, need)})
+                found.append({"kind": "approval", "thread": state.title, "asks_for": NEED.get(need, need)})
+            elif state.pending.kind is T.PendingKind.QUESTION and state.pending.questions:
+                first = state.pending.questions[0]
+                found.append({"kind": "question", "thread": state.title, "question": first.question,
+                              "options": [option.label for option in first.options]})
         return found
 
     def claim_facts(self) -> tuple[str, dict] | None:
@@ -483,7 +518,8 @@ class T3Tasks:
             question = self.question
             return (question is not None and question.key.startswith(prefix)
                     and ((question.op == START and question.kind in ("confirm", "project"))
-                         or (question.op in RESPONDS and question.kind in ("thread", "thread_confirm"))))
+                         or (question.op in RESPONDS and question.kind in ("thread", "thread_confirm"))
+                         or (question.op == ANSWER and question.kind in ("thread", "answer", "answer_confirm"))))
 
     def projects(self) -> list[dict]:
         return [{"projectId": p.project_id, "name": p.name, "spokenNames": list(p.spoken_names)}
@@ -530,6 +566,10 @@ class T3Tasks:
         if question.kind == "thread_confirm":
             return confirm_act(question.op, question.titles[question.candidates[0]], question.message, question.need,
                                question.prompt)
+        if question.kind == "answer":
+            return self._question_act(question)
+        if question.kind == "answer_confirm":
+            return self._confirm_answers_act(question)
         return act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
 
     def alternatives(self, question: Question) -> dict[str, str]:
@@ -544,10 +584,13 @@ class T3Tasks:
                else [pid for pid in question.candidates if pid in names])
         return {names[pid]: pid for pid in ids[:MAX_ALTERNATIVES]}
 
-    def read_reply(self, text: str, question: Question | None) -> Reading | None:
+    def read_reply(self, text: str, question: Question | None) -> Reading | Chosen | None:
         """What a reply does about the open question, by the decider: the one reading of it there is. Only a confident,
-        unconditional yes acts, and a reply nobody could read (no decider, a timeout) answers nothing. Off the lock,
-        since the decider is a network call."""
+        unconditional yes acts, and a reply nobody could read (no decider, a timeout) answers nothing. For a question
+        a thread asked, it is the option the reply chooses instead. Off the lock, since the decider is a network
+        call."""
+        if question is not None and question.kind == "answer":
+            return self._choice(question.queue[question.step], _plain(text))
         reads = getattr(self.decider, "reads", None)
         said = self.pending_act(question) if question is not None and reads is not None else None
         if said is None:
@@ -564,12 +607,14 @@ class T3Tasks:
         if question is None:
             question = self.live_question()
             reading = self.read_reply(text, question) if question is not None else None
-        kind = reading.kind if reading is not None else None
+        kind = reading.kind if isinstance(reading, Reading) else None
         update = self._answer(text, now, reading, kind, question)
         if update is None and question is not None and question.heard:
             with self.lock:
                 if self.question is None or self.question is not question:
                     self.withdrawn = question
+        if isinstance(update, Choose):
+            return self._choose(update)
         if not isinstance(update, Lookup):
             return update
         again = self._refer(update.question, _plain(text), now, without=update.without, recent=False)
@@ -590,7 +635,7 @@ class T3Tasks:
             if self.question is not None and (unheard or (self.unasked is not None
                                                            and self.question.key == self.unasked.task_id)):
                 # The person never heard this question, so nothing they said answers it: it is asked again.
-                if reading is not None and reading.label not in (None, "unrelated") and self.unasked is not None:
+                if _related(reading) and self.unasked is not None:
                     return self.unasked
                 self._drop_question()
                 return None
@@ -602,6 +647,10 @@ class T3Tasks:
                 return self._answer_thread(question, text, reading, now)
             if question.kind == "thread_confirm":
                 return self._answer_thread_confirm(question, text, kind, now)
+            if question.kind == "answer":
+                return self._take(question, reading if isinstance(reading, Chosen) else None, text)
+            if question.kind == "answer_confirm":
+                return self._answer_confirm(question, kind, now)
             down = self._down(question.key, now) if kind != "no" else None
             if down is not None:
                 return down
@@ -657,7 +706,8 @@ class T3Tasks:
         """List threads, pick a target, and ask the speaker to confirm or choose it."""
         reference, message, _ = (tell_parts(instruction) if op == TELL else
                                  (_STOP_VERBS.sub(" ", instruction) if op == STOP else instruction, None, None))
-        return self._refer(Question(key, "thread_confirm", instruction, (), op=op, message=message), reference, now)
+        update = self._refer(Question(key, "thread_confirm", instruction, (), op=op, message=message), reference, now)
+        return self._choose(update) if isinstance(update, Choose) else update
 
     def _refer(self, asked: Question, reference: str, now: float, without: str | None = None,
                recent: bool = True) -> L.Update:
@@ -674,7 +724,10 @@ class T3Tasks:
             if isinstance(listing, L.Update):
                 return listing
             listed = [t for t in listing.threads if t.thread_id != without
-                      and (asked.op not in RESPONDS or t.activity is T.ThreadActivity.WAITING_ON_YOU)]
+                      and (asked.op not in WAITS or t.activity is T.ThreadActivity.WAITING_ON_YOU)]
+            if asked.op == ANSWER and len(listed) > 1:
+                # Only a thread waiting on a question can be answered, and an answer names no thread.
+                listed = [t for t in listed if self._asks_question(t.thread_id)]
             base = replace(asked, kind="thread_confirm", candidates=(),
                            titles={t.thread_id: t.title for t in listed},
                            projects={t.thread_id: t.project_id for t in listed})
@@ -686,10 +739,19 @@ class T3Tasks:
                                   act(Say.NO_THREAD, recent=len(options) if partial else None),),
                             "completed", "ask", sequences=evidence)
             if not listed:
-                return L.Update(key, (act(Say.NOTHING_PENDING),), "completed", "ask", sequences=evidence)                     if asked.op in RESPONDS else none
-            if asked.op in RESPONDS and len({t.title.casefold() for t in listed}) == 1:
+                return L.Update(key, (act(Say.NOTHING_PENDING),), "completed", "ask", sequences=evidence)                     if asked.op in WAITS else none
+            if asked.op in WAITS and len({t.title.casefold() for t in listed}) == 1:
                 # Only one thread waits on them, so there is nothing for the decider to choose between.
-                return self._ask_back(replace(base, candidates=(listed[0].thread_id,)), evidence)
+                return self._ask_back(replace(base, candidates=(listed[0].thread_id,)), evidence, now)
+            if asked.op == ANSWER:
+                # The words answer a question, they do not name a thread: "the second one" picked the second thread of
+                # the listing and sent its answer to the wrong one. Several threads wait, so it is the one this call
+                # last spoke about, or it asks which.
+                here = next((t.thread_id for t in listed if t.thread_id == self.spoken_id), None)
+                if here is not None:
+                    return self._ask_back(replace(base, candidates=(here,)), evidence, now)
+                candidates = tuple(t.thread_id for t in listed[:3])
+                return self._which(replace(base, kind="thread", candidates=candidates), evidence, now)
             last = base.titles.get(self._recent(base.titles)) if recent else None
             call = self.call
 
@@ -704,12 +766,12 @@ class T3Tasks:
             thread = picked.thread
             if thread is None:
                 candidates = picked.candidates[:3] or tuple(t.thread_id for t in listed[:3])
-                return self._which(replace(base, kind="thread", candidates=candidates), evidence)
+                return self._which(replace(base, kind="thread", candidates=candidates), evidence, now)
             # Asking back "do you mean X?" about the thread this call just spoke of adds a question and no safety: an
             # ask only reads, and its answer names the thread.
             if asked.op == ASK and (picked.sure or thread == self.spoken_id) and thread not in shared:
                 return self._act(base, thread, now)
-            return self._ask_back(replace(base, candidates=(thread,)), evidence)
+            return self._ask_back(replace(base, candidates=(thread,)), evidence, now)
 
     def names_thread(self, instruction: str, now: float) -> bool:
         """Whether a message's words mean a thread there is, or may mean several, by the decider. Off the lock."""
@@ -753,14 +815,18 @@ class T3Tasks:
         return next((t.link.thread_id for t in reversed(self.follow.journal.tasks.values())
                      if t.link.thread_id in listed), None)
 
-    def _ask_back(self, question: Question, evidence=()) -> L.Update:
-        """Confirm the one candidate back. A message or a stop for a title that another listed thread shares is not
-        offered at all: the question could only name the title, and a yes to it could act on the wrong thread."""
+    def _ask_back(self, question: Question, evidence=(), now: float | None = None) -> L.Update | Choose:
+        """Confirm the one candidate back. A message, a stop or an answer for a title that another listed thread shares
+        is not offered at all: the question could only name the title, and a yes to it could act on the wrong thread.
+        An answer is not confirmed here: it goes on to its options (`Choose`), and its confirmation names the answers."""
         thread = question.candidates[0]
         title = question.titles[thread]
         if question.op != ASK and sum(t.casefold() == title.casefold() for t in question.titles.values()) > 1:
             return L.Update(question.key, (act(Say.SAME_TITLE, thread=title, op=OPS[question.op]),), "completed",
                             "ask", sequences=tuple(evidence) or question.evidence)
+        if question.op == ANSWER:
+            return Choose(replace(question, evidence=tuple(evidence) or question.evidence), thread,
+                          time.monotonic() if now is None else now)
         if question.op in RESPONDS:
             looked = self._approval(question, thread)
             if isinstance(looked, L.Update):
@@ -793,7 +859,7 @@ class T3Tasks:
         return replace(question, request_id=need.request_id, need=L.need_of(need.kind, need.source),
                        prompt=need.prompt)
 
-    def _which(self, question: Question, evidence) -> L.Update:
+    def _which(self, question: Question, evidence, now: float | None = None) -> L.Update | Choose:
         """Ask which of the candidates. Threads that share a title cannot be told apart by voice, so the newest of
         them stands for the title (`titles` is newest first), and one title left is confirmed, not asked about."""
         newest: dict[str, str] = {}
@@ -801,7 +867,7 @@ class T3Tasks:
             newest.setdefault(question.titles[thread].casefold(), thread)
         question = replace(question, candidates=tuple(t for t in question.candidates if t in newest.values()))
         if len(question.candidates) == 1:
-            return self._ask_back(replace(question, kind="thread_confirm"), evidence)
+            return self._ask_back(replace(question, kind="thread_confirm"), evidence, now)
         question = self._ask(question)
         said = act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
         return L.Update(question.key, (said,), "needs_clarification", "pick", sequences=evidence)
@@ -837,7 +903,7 @@ class T3Tasks:
         if question.op == ASK:
             return self._act(question, chosen, now)
         return self._ask_back(replace(question, kind="thread_confirm", candidates=(chosen,)),
-                              (listing.as_of_sequence,))
+                              (listing.as_of_sequence,), now)
 
     def _act(self, question: Question, thread: str, now: float) -> L.Update:
         # The thread becomes the one the call last spoke about when its line is heard (`spoke`), not here: a read
@@ -883,12 +949,153 @@ class T3Tasks:
         self.follow.respond(task, now)
         return self._spoken(question.key, task, act(Say.UNREACHABLE), "respond-unavailable")
 
+    def _asks_question(self, thread: str) -> bool:
+        """Whether the thread waits on a question the voice can ask."""
+        state = self._read_quiet(thread)
+        return state is not None and state.pending is not None and bool(state.pending.questions)
+
+    def _choice(self, question: T.Question, words: str) -> Chosen | None:
+        """The decider's choice among the options of one question for the caller's `words`, off the lock since it is a
+        network call. None when there is no decider."""
+        chooses = getattr(self.decider, "chooses", None)
+        if chooses is None:
+            return None
+        return chooses(question.question, tuple((o.label, o.description) for o in question.options), words,
+                       question.own_words)
+
+    def _pending_question(self, key: str, thread: str) -> tuple[T.ThreadState, T.PendingNeed] | L.Update:
+        """What a thread waits on, for an answer to name: its state and its question. A thread with no request, one that
+        asks for an approval, or one whose question only the app can take gets the line that says so instead."""
+        try:
+            state = self.follow.seam.read_thread(thread)
+        except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
+            return L.Update(key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
+        self.speech.remember(state)
+        need, seen = state.pending, (state.as_of_sequence,)
+        if need is None:
+            return L.Update(key, (act(Say.NOTHING_PENDING, thread=state.title),), "completed", "ask", thread, seen)
+        if need.kind is not T.PendingKind.QUESTION:
+            return self._read(key, thread)
+        if not need.questions:
+            return L.Update(key, (act(Say.ANSWER_IN_APP, thread=state.title),), "completed", "ask", thread, seen)
+        return state, need
+
+    def _choose(self, marker: Choose) -> L.Update:
+        """A thread was picked to be answered: choose among the options of its first question for the caller's words,
+        then ask what is next. The choice is made off the lock, and a call that ended meanwhile asks nothing."""
+        question, thread = marker.question, marker.thread
+        with self.lock:
+            down = self._down(question.key, marker.now)
+            if down is not None:
+                return down
+            looked = self._pending_question(question.key, thread)
+            call = self.call
+        if isinstance(looked, L.Update):
+            return looked
+        state, need = looked
+        chosen = self._choice(need.questions[0], _plain(question.instruction))
+        with self.lock:
+            if self.call != call:
+                return L.Update(question.key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
+            question = replace(question, kind="answer", request_id=need.request_id, queue=need.questions, given=(),
+                               step=0, tries=0, titles={**question.titles, thread: state.title},
+                               evidence=(state.as_of_sequence,))
+            return self._take(question, chosen, question.instruction, entry=True)
+
+    def _take(self, question: Question, chosen: Chosen | None, words: str, entry: bool = False) -> L.Update | None:
+        """The caller's `words` as the answer to the open question, by the decider's `chosen`: an option it is sure of,
+        or the words themselves where the question takes them. Otherwise the question is asked again once, and then
+        left to the app. A reply that answers nothing drops it (on the first words, which a tool already read as an
+        answer, the question is asked instead). Each question answered moves on to the next, and the last to its
+        confirmation."""
+        asked = question.queue[question.step]
+        if chosen is not None and chosen.declined and not entry:
+            return None
+        given, spoken = None, words.strip()
+        if chosen is not None and chosen.option is not None:
+            given = (asked.id, "option", asked.options[chosen.option].label)
+        elif chosen is not None and chosen.own_words and asked.own_words and 0 < len(spoken) <= OWN_WORDS_MAX:
+            given = (asked.id, "own_words", spoken)
+        thread = question.candidates[0]
+        if given is None:
+            if entry:
+                return self._ask_question(question)
+            if question.tries:
+                return L.Update(question.key, (act(Say.ANSWER_IN_APP, thread=question.titles[thread]),), "completed",
+                                "ask", thread, question.evidence)
+            return self._ask_question(replace(question, tries=1), "unheard")
+        question = replace(question, given=(*question.given, given), step=question.step + 1, tries=0)
+        if question.step < len(question.queue):
+            return self._ask_question(question)
+        return self._ask_confirm(question)
+
+    def _question_act(self, question: Question, restated: str | None = None) -> Act:
+        return L.question_act(question.queue[question.step], question.step + 1, len(question.queue), restated,
+                              question.titles[question.candidates[0]])
+
+    def _ask_question(self, question: Question, restated: str | None = None) -> L.Update:
+        """Tell the caller the open question and every option, and wait for the answer."""
+        question = self._ask(question)
+        return L.Update(question.key, (self._question_act(question, restated),), "needs_clarification", "pick",
+                        question.candidates[0], question.evidence)
+
+    def _confirm_answers_act(self, question: Question) -> Act:
+        words = {qid: text for qid, _, text in question.given}
+        return act(Say.CONFIRM_ANSWER, thread=question.titles[question.candidates[0]],
+                   questions=[asked.question for asked in question.queue],
+                   answers=[words[asked.id] for asked in question.queue])
+
+    def _ask_confirm(self, question: Question) -> L.Update:
+        """Every question is answered: confirm the answers back, naming the thread. Only a yes sends them."""
+        question = self._ask(replace(question, kind="answer_confirm"))
+        return L.Update(question.key, (self._confirm_answers_act(question),), "needs_clarification", "pick",
+                        question.candidates[0], question.evidence)
+
+    def _answer_confirm(self, question: Question, kind: str | None, now: float) -> L.Update | None:
+        thread = question.candidates[0]
+        if kind == "no":
+            return L.Update(question.key, (act(Say.CANCELLED, op=OPS[ANSWER], thread=question.titles[thread]),),
+                            "cancelled", "pick", thread)
+        if kind != "yes":
+            return None
+        down = self._down(question.key, now)
+        return down if down is not None else self._send_answers(question, thread, now)
+
+    def _send_answers(self, question: Question, thread: str, now: float) -> L.Update:
+        """A yes to the confirmed answers: give them to the request that was named, if it is still the one the thread
+        waits on with the same questions. A thread that now asks something else is asked about from the start, and one
+        that waits on nothing, or was answered elsewhere, is told so: a yes never answers what it did not name."""
+        looked = self._pending_question(question.key, thread)
+        if isinstance(looked, L.Update):
+            return looked
+        state, need = looked
+        if need.request_id != question.request_id or need.questions != question.queue:
+            return self._ask_question(replace(question, kind="answer", request_id=need.request_id, queue=need.questions,
+                                              given=(), step=0, tries=0, evidence=(state.as_of_sequence,),
+                                              titles={**question.titles, thread: state.title}), "changed")
+        project = question.projects.get(thread)
+        task = self.follow.journal.begin(Kind.ANSWER, question.instruction, project, self.project_names().get(project),
+                                         thread_id=thread, title=question.titles.get(thread))
+        self.follow.journal.ensure_answer(
+            task, question.request_id,
+            [{"questionId": qid, "kind": how, "text": text} for qid, how, text in question.given],
+            [text for _, _, text in question.given], L.need_of(need.kind, need.source))
+        self.keys[task.task_id] = question.key
+        self.follow.answer(task, now)
+        return self._spoken(question.key, task, act(Say.UNREACHABLE), "answer-unavailable")
+
     def _read(self, key: str, thread_id: str, asked: str | None = None) -> L.Update:
         try:
             state = self.follow.seam.read_thread(thread_id)
         except (SeamRefused, SeamUnavailable, SeamConnectionEnded):
             return L.Update(key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
         self.speech.remember(state)
+        waiting = state.pending
+        if waiting is not None and waiting.kind is T.PendingKind.QUESTION and waiting.questions:
+            # A status line that reads a question out is refused as an unrequested question, and the caller still
+            # needs its options: a thread that waits on a question the voice can ask says that question.
+            said = L.question_act(waiting.questions[0], count=len(waiting.questions), thread=state.title)
+            return L.Update(key, (said,), "completed", "ask", thread_id, (state.as_of_sequence,))
         status = status_act(state, asked)
         with self.lock:
             if self.told.get(thread_id) == state.as_of_sequence:
@@ -1021,6 +1228,13 @@ def refuse(update: L.Update, rendered: Rendered) -> None:
             update.refused += (rendered.raw,)
 
 
+def _related(reading: Reading | Chosen | None) -> bool:
+    """Whether a reply read as something to do with the question, not as talk that has nothing to do with it."""
+    if isinstance(reading, Chosen):
+        return reading.choice not in (None, NO_ANSWER)
+    return reading is not None and reading.label not in (None, "unrelated")
+
+
 def which_project(candidates, names: dict[str, str]) -> Act:
     return act(Say.ASK_WHICH, of="project", candidates=[names[pid] for pid in candidates if pid in names])
 
@@ -1043,21 +1257,32 @@ T3_WAITING = {"t3": True}
 
 class T3Registry:
     """The live registry with the T3 tools added to the decider's tool question. Approving and denying are offered only
-    while a thread waits on the person for an approval (`pending`): with nothing to answer the decider cannot pick them,
-    and `approvals` is what it is shown beside them."""
+    while a thread waits on the person for an approval, and answering only while one waits on a question the voice can
+    ask (`pending`): with nothing to answer the decider cannot pick them, and `approvals` and `questions` are what it
+    is shown beside them."""
 
     def __init__(self, base, pending: Callable[[], list[dict]] = lambda: []):
-        self._base, self._pending, self.approvals = base, pending, []
+        self._base, self._pending, self.approvals, self.questions = base, pending, [], []
 
     def __getattr__(self, name):
         return getattr(self._base, name)
 
     def choices(self):
         base = self._base.choices()
-        self.approvals = self._pending()
-        waiting = " ".join(WAITING_ASKS.format(**a) for a in self.approvals)
-        offered = {k: (v + WAITING_NOW + waiting if k in RESPONDS else v)
-                   for k, v in T3_TOOLS.items() if k not in RESPONDS or self.approvals}
+        found = self._pending()
+        self.approvals = [r for r in found if r.get("kind", "approval") == "approval"]
+        self.questions = [r for r in found if r.get("kind") == "question"]
+        approvals = " ".join(WAITING_ASKS.format(**a) for a in self.approvals)
+        questions = " ".join(WAITING_QUESTIONS.format(thread=q["thread"], question=q["question"],
+                                                      options=", ".join(q["options"])) for q in self.questions)
+        offered = {}
+        for k, v in T3_TOOLS.items():
+            if k in RESPONDS and self.approvals:
+                offered[k] = v + WAITING_NOW + approvals
+            elif k == ANSWER and self.questions:
+                offered[k] = v + WAITING_NOW + questions
+            elif k not in WAITS:
+                offered[k] = v
         return {**{k: v for k, v in base.items() if k != "none"}, **offered, "none": base["none"]}
 
 

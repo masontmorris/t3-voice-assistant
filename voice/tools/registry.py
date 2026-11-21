@@ -44,7 +44,10 @@ NONE_LINE = "No tool: conversation, a reaction, or a question the assistant answ
 # The T3 thread tools `voice/live/t3_tasks.py` adds under `--t3 on`. Each asks the person for an explicit yes before it
 # acts, which is why the gate lets a firm pick of one through (`voice/segmentation/gate.py`).
 T3_ASK = "t3_ask"
-T3_TOOLS = frozenset({"t3_start", T3_ASK, "t3_tell", "t3_stop", "t3_approve", "t3_deny"})
+# Gives a coding agent the person's answer, so it is a side effect whatever the decider says: it waits for the final
+# transcript, and never answers on words still being spoken.
+T3_ANSWER = "t3_answer"
+T3_TOOLS = frozenset({"t3_start", T3_ASK, "t3_tell", "t3_stop", "t3_approve", "t3_deny", T3_ANSWER})
 GENERAL_LINE = ("General lookup: information from outside this call that no tool above covers, including a request "
                 "that asks the assistant to choose a detail first, such as a city.")
 # The decider's tool answer decides the dispatch only at or above this margin. Frozen on the live gate eval's

@@ -200,6 +200,21 @@ it.effect("answers only the operations and projects the caller's ceiling allows"
       ]),
       ["operation_not_allowed", "operation_not_allowed", "operation_not_allowed"],
     );
+    // Answering a question has its own operation. These threads run above the ceiling, which an answer respects.
+    const answer = {
+      requestId: "01J0000000000000000000000A",
+      threadId,
+      pendingRequestId: "runtime-request:none",
+      answers: [],
+    };
+    assert.deepStrictEqual(
+      yield* Effect.all([
+        code(seam.answer(caller(["respond", "read"]), answer)),
+        code(seam.answer(all, { ...answer, threadId: ThreadId.make("outside-thread") })),
+        code(seam.answer(all, answer)),
+      ]),
+      ["operation_not_allowed", "not_found", "above_ceiling"],
+    );
   }).pipe(provideSeam),
 );
 
@@ -361,6 +376,17 @@ const twoQuestions = (): OrchestrationV2DomainEvent => {
   };
 };
 
+/** What the voice is told of the question fixture's card: its two options, and no words of its own. */
+const fixtureQuestion = {
+  id: "",
+  question: "Should this fixture prefer strict schemas or UI flexibility?",
+  options: [
+    { label: "Strict schemas (Recommended)", description: "Strict schemas (Recommended)" },
+    { label: "UI flexibility", description: "UI flexibility" },
+  ],
+  ownWords: false,
+};
+
 const live = requestOf(APPROVAL).payload.responseCapability;
 const APPROVAL_ID = requestOf(APPROVAL).payload.id;
 const QUESTION_ID = requestOf(QUESTION).payload.id;
@@ -415,6 +441,10 @@ const REQUEST_KINDS: ReadonlyArray<{
       kind: "question" as const,
       source: "user_input" as const,
       prompt: "Should this fixture prefer strict schemas or UI flexibility? And 1 more.",
+      questions: [
+        { ...fixtureQuestion, id: "schema_vs_ui_flexibility" },
+        { ...fixtureQuestion, id: "second", question: "And which branch?" },
+      ],
     },
   })),
   {
@@ -533,6 +563,14 @@ const NEEDS_AFTER_RUN = [
       kind: "question" as const,
       source: "user_input" as const,
       prompt: "Which fixture turn should run next?",
+      questions: [
+        {
+          id: "0",
+          question: "Which fixture turn should run next?",
+          options: [{ label: "second", description: "second" }],
+          ownWords: true,
+        },
+      ],
     }),
     reply: null,
   },

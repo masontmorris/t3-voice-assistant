@@ -56,6 +56,10 @@ class Kind(StrEnum):
     RESPONDED = "responded"
     NOTHING_PENDING = "nothing_pending"
     NEEDS_THE_APP = "needs_the_app"
+    ASK_QUESTION = "ask_question"
+    CONFIRM_ANSWER = "confirm_answer"
+    ANSWERED = "answered"
+    ANSWER_IN_APP = "answer_in_app"
 
 
 @dataclass(frozen=True)
@@ -146,6 +150,15 @@ RULES: dict[Kind, Rule] = {
     Kind.RESPONDED: Rule(("thread", "decision", "need"), ("thread",), forbids=("finished",)),
     Kind.NOTHING_PENDING: Rule(("thread",), (), forbids=("answered",)),
     Kind.NEEDS_THE_APP: Rule(("thread", "decision"), ("thread",), forbids=("answered",)),
+    # A question a thread is waiting on, told with every option so the caller can pick one. `number` of `count` says which
+    # of a request's questions this is, and `restated` why it is asked again: "unheard" when the reply fit no option, "changed"
+    # when the thread now asks something else.
+    Kind.ASK_QUESTION: Rule(("thread", "question", "options", "own_words", "number", "count", "restated"),
+                            ("thread", "options"), True),
+    # The answers about to be given, one per question in `questions`' order. Nothing is sent until a yes to this.
+    Kind.CONFIRM_ANSWER: Rule(("thread", "questions", "answers"), ("thread", "answers"), True, ("answered",)),
+    Kind.ANSWERED: Rule(("thread", "answers"), ("thread", "answers")),
+    Kind.ANSWER_IN_APP: Rule(("thread",), ("thread",), forbids=("answered",)),
 }
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
 # A status asked again on a call with nothing new in T3's record since the last one was said: the line says so rather
@@ -302,7 +315,7 @@ def forbidden_claims(acts: Iterable[Act]) -> set[str]:
     return forbidden - claimed
 
 
-OP_FORBIDS = {"start": ("started",), "tell": ("sent",), "stop": ("stopped",), "ask": ()}
+OP_FORBIDS = {"start": ("started",), "tell": ("sent",), "stop": ("stopped",), "ask": (), "answer": ("answered",)}
 # What an act states as true, so another act in the same line may not forbid it.
 CLAIMED = {Kind.LAUNCHED: ("started",), Kind.SENT_FOLLOWUP: ("sent",)}
 STATUS_CLAIMS = {"finished": ("finished",), "completed": ("finished",), "interrupted": ("stopped",),

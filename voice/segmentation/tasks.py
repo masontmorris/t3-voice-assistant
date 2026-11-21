@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from voice.segmentation.contract import CorrectionMode, Kind, Readiness
-from voice.tools.registry import T3_ASK, T3_TOOLS, ToolChoice
+from voice.tools.registry import T3_ANSWER, T3_ASK, T3_TOOLS, ToolChoice
 
 
 class Status(StrEnum):
@@ -95,6 +95,10 @@ def overlap(wa, wb):
 
 def content_words(text):
     return {w for w in _words(text or "") if w not in STOPWORDS}
+
+
+def _answers(decision):
+    return decision.tool is not None and decision.tool.tool == T3_ANSWER
 
 
 class Orchestrator:
@@ -354,8 +358,8 @@ class Orchestrator:
                 self._log(task, "linked_orchestrator")
             if task.status == Status.WITHDRAWN:
                 self._move(task, Status.PROPOSED, "reclassified as request")
-            task.side_effect = decision.side_effect or (task.revises is not None
-                                                        and self.tasks[task.revises].side_effect)
+            task.side_effect = decision.side_effect or _answers(decision) or (
+                task.revises is not None and self.tasks[task.revises].side_effect)
             task.tool = decision.tool
             task.depends_on = self._dependencies(decision, bound, task)
         elif task is not None and task.status in UNDISPATCHED:
@@ -382,7 +386,7 @@ class Orchestrator:
         task = self._new_task(seg.text, seg.start, {"orchestrator"}, revises=target.task_id,
                               depends_on=list(target.depends_on))
         task.instruction = self._instruction_for(task, seg.text)
-        task.side_effect = decision.side_effect or target.side_effect
+        task.side_effect = decision.side_effect or _answers(decision) or target.side_effect
         task.tool = decision.tool
         bound[seg.sid] = task
 

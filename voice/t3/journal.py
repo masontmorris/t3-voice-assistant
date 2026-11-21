@@ -61,6 +61,7 @@ class Kind(StrEnum):
     TELL = "tell"
     STOP = "stop"
     RESPOND = "respond"
+    ANSWER = "answer"
 
 
 @dataclass
@@ -77,6 +78,7 @@ class T3Link:
     pending: dict | None = None
     stop: dict | None = None
     respond: dict | None = None
+    answer: dict | None = None
 
 
 @dataclass
@@ -241,6 +243,17 @@ class T3Journal:
                                  "need": need, "sequence": None, "answered": False}
             self.save()
         return task.link.respond
+
+    def ensure_answer(self, task: JournalTask, pending_request_id: str, answers: list[dict], spoken: list[str],
+                      need: str | None = None) -> dict:
+        """The task's answer record: the request id minted and saved once, before the first call, with the pending
+        request, the answers it gives (each {questionId, kind, text}) and the words the caller confirmed for them. A
+        retry of the task sends the same ones."""
+        if task.link.answer is None:
+            task.link.answer = {"request_id": ulid(), "pending_request_id": pending_request_id, "answers": answers,
+                                "spoken": spoken, "need": need, "sequence": None, "answered": False}
+            self.save()
+        return task.link.answer
 
     def ensure_stop(self, task: JournalTask) -> dict:
         """The task's interrupt record. Its request id is minted and saved once, before the first call."""

@@ -46,7 +46,7 @@ const TITLE_MAX_CHARS = 80;
  */
 export const voiceCommandId = (
   digest: Digest.Digest["Service"],
-  operation: "launch" | "send" | "interrupt" | "respond",
+  operation: "launch" | "send" | "interrupt" | "respond" | "answer",
   requestId: string,
 ) =>
   digest
