@@ -33,7 +33,6 @@ import {
   type OrchestrationV2ThreadProjection,
   type OrchestrationV2ThreadTranscript,
   type OrchestrationV2TurnItem,
-  isCallerPrivateTurnItem,
   ProjectId,
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   ProviderInstanceId,
@@ -524,6 +523,7 @@ export interface ThreadManagementServiceShape {
     Orchestrator.OrchestratorV2Error | ThreadManagementProviderInstanceDisabledError
   >;
   readonly getThreadEventSequence: Orchestrator.OrchestratorV2["Service"]["getThreadEventSequence"];
+  readonly getThreadVoiceCalls: Orchestrator.OrchestratorV2["Service"]["getThreadVoiceCalls"];
   readonly recoverDelegatedTask: Orchestrator.OrchestratorV2["Service"]["recoverDelegatedTask"];
   readonly cancelDelegatedTask: Orchestrator.OrchestratorV2["Service"]["cancelDelegatedTask"];
   readonly delegatedTaskResultPending: Orchestrator.OrchestratorV2["Service"]["delegatedTaskResultPending"];
@@ -729,7 +729,7 @@ const make = Effect.gen(function* () {
         threadId: projection.thread.id,
         title: projection.thread.title,
         updatedAt: projection.updatedAt,
-        items: projection.visibleTurnItems.filter((row) => !isCallerPrivateTurnItem(row.item)),
+        items: projection.visibleTurnItems,
       };
       let sizeBytes = Buffer.byteLength(
         threadTranscriptHeader(yield* environment.getEnvironmentId, transcript),
@@ -1703,14 +1703,7 @@ const make = Effect.gen(function* () {
     }),
     dispatch,
     getThreadHistoryPage: Effect.fn("ThreadManagementService.getThreadHistoryPage")(
-      function (
-        threadId,
-        cursor,
-        throughEntryId,
-        conversationOnly,
-        workMode,
-        withoutCallerPrivate,
-      ) {
+      function (threadId, cursor, throughEntryId, conversationOnly, workMode) {
         return ensureProjectionTranscript(threadId).pipe(
           Effect.andThen(
             orchestrator.getThreadHistoryPage(
@@ -1719,7 +1712,6 @@ const make = Effect.gen(function* () {
               throughEntryId,
               conversationOnly,
               workMode,
-              withoutCallerPrivate,
             ),
           ),
         );
@@ -1799,6 +1791,7 @@ const make = Effect.gen(function* () {
     forceStopThread,
     awaitBackgroundTasks,
     getThreadEventSequence: orchestrator.getThreadEventSequence,
+    getThreadVoiceCalls: orchestrator.getThreadVoiceCalls,
     recoverDelegatedTask: orchestrator.recoverDelegatedTask,
     cancelDelegatedTask: orchestrator.cancelDelegatedTask,
     delegatedTaskResultPending: orchestrator.delegatedTaskResultPending,

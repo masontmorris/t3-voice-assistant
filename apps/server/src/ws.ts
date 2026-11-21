@@ -44,6 +44,7 @@ import {
   type EditorId,
   type FileManagerRevealKind,
   type OrchestrationV2Command,
+  type OrchestrationV2ThreadProjection,
   type GitActionProgressEvent,
   type GitManagerServiceError,
   type MessageId,
@@ -155,6 +156,7 @@ import {
 } from "./orchestration-v2/ThreadLiveEventCoalescer.ts";
 import {
   buildBoundedThreadStreamSnapshot,
+  snapshotVoiceCallSpan,
   decideThreadResume,
   isThreadReplayRawPayloadSafe,
   threadReplayEncodedBytes,
@@ -990,6 +992,30 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
         ? Stream.make({ kind: "synchronized" as const })
         : Stream.empty;
 
+    // The owner's own subscription: the one snapshot that carries the thread's voice calls, those after its items.
+    const withOwnerVoiceCalls = Effect.fn("ws.orchestrationV2.ownerVoiceCalls")(function* <
+      Item extends {
+        readonly projection: OrchestrationV2ThreadProjection;
+        readonly hasMoreHistory?: boolean;
+      },
+    >(item: Item) {
+      const span = snapshotVoiceCallSpan(item.projection, item.hasMoreHistory);
+      if (span === null) return item;
+      const voiceCalls = yield* threadManagement.getThreadVoiceCalls(input.threadId, span).pipe(
+        Effect.mapError(
+          (cause) =>
+            new OrchestrationV2GetThreadProjectionError({
+              threadId: input.threadId,
+              message: `Failed to load orchestration V2 thread ${input.threadId}`,
+              cause,
+            }),
+        ),
+      );
+      return voiceCalls.length === 0
+        ? item
+        : { ...item, projection: { ...item.projection, voiceCalls } };
+    });
+
     const snapshotThenLive = Effect.fn("ws.orchestrationV2.threadSnapshotThenLive")(function* () {
       const useBoundedSnapshot = shouldUseBoundedThreadSnapshot(input);
       const snapshot = yield* (
@@ -1026,7 +1052,7 @@ export const subscribeOrchestrationV2Thread = Effect.fn("ws.orchestrationV2.subs
               projection: dedupeBodies ? dedupeSnapshotBodies(projection) : projection,
             };
           })();
-      return rpcInitialItems([snapshotItem]).pipe(
+      return rpcInitialItems([yield* withOwnerVoiceCalls(snapshotItem)]).pipe(
         Stream.concat(completionMarker),
         Stream.concat(eventStreamFrom(snapshotSequence)),
         withLiveDedupe,

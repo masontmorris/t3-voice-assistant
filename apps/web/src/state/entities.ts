@@ -22,6 +22,7 @@ import {
 import type { ScopedProjectRef, ScopedThreadRef } from "@t3tools/contracts";
 import type {
   EnvironmentId,
+  OrchestrationV2OwnerProjectedTurnItem,
   OrchestrationV2ProjectedTurnItem,
   OrchestrationV2RemoteTaskChild,
   OrchestrationV2ThreadShell,
@@ -240,7 +241,7 @@ export function useThreadVisibleTurnItems(
 /** Visible turn items held through streamed assistant text; see useAssistantMessageText. */
 export function useTimelineVisibleTurnItems(
   ref: ScopedThreadRef | null,
-): ReadonlyArray<OrchestrationV2ProjectedTurnItem> {
+): ReadonlyArray<OrchestrationV2OwnerProjectedTurnItem> {
   return useAtomValue(
     ref === null
       ? EMPTY_VISIBLE_TURN_ITEMS_ATOM

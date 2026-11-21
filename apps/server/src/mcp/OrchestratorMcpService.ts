@@ -1172,8 +1172,6 @@ function turnItemText(item: OrchestrationV2TurnItem): string | null {
       return item.result ?? item.progress ?? item.prompt;
     case "dynamic_tool":
       return jsonText({ toolName: item.toolName, input: item.input, output: item.output });
-    case "voice_call":
-      return null;
   }
 }
 

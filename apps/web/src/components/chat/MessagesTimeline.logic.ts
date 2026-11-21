@@ -57,6 +57,7 @@ import {
   type MessageId,
   type OrchestrationV2IdleCompaction,
   type WorktreeSetupSnapshot,
+  type OrchestrationV2OwnerProjectedTurnItem,
   type OrchestrationV2ProjectedTurnItem,
   type RunAttemptId,
   type RuntimeRequestId,
@@ -660,8 +661,8 @@ type MessagesTimelineRowContent =
       kind: "event";
       id: string;
       createdAt: string;
-      projectedItem: OrchestrationV2ProjectedTurnItem;
-      subagents?: ReadonlyArray<OrchestrationV2ProjectedTurnItem>;
+      projectedItem: OrchestrationV2OwnerProjectedTurnItem;
+      subagents?: ReadonlyArray<OrchestrationV2OwnerProjectedTurnItem>;
       resourceSummary?: boolean;
     }
   | {
@@ -921,7 +922,13 @@ function liveSubagentCardEntryIds(entries: ReadonlyArray<TimelineEntry>): Readon
   let batch: Array<Extract<TimelineEntry, { kind: "event" }>> = [];
   const flush = () => {
     if (batch.length === 0) return;
-    if (batch.some((entry) => isLiveSubagentTurnItem(entry.projectedItem.item))) {
+    if (
+      batch.some(
+        (entry) =>
+          entry.projectedItem.item.type !== "voice_call" &&
+          isLiveSubagentTurnItem(entry.projectedItem.item),
+      )
+    ) {
       for (const entry of batch) visible.add(entry.id);
     }
     batch = [];

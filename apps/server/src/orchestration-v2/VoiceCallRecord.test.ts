@@ -8,14 +8,13 @@ import {
   ThreadId,
   TurnItemId,
 } from "@t3tools/contracts";
-import { historicalMessage } from "@t3tools/provider-core/server/handoffBudget";
+import { handoffCoverage } from "@t3tools/provider-core/server/handoffBudget";
 import * as DateTime from "effect/DateTime";
 import * as Effect from "effect/Effect";
 import * as Layer from "effect/Layer";
 import * as TestClock from "effect/testing/TestClock";
 import * as SqlitePersistence from "../persistence/Sqlite.ts";
 import { CodexProviderCapabilitiesV2 } from "./Adapters/CodexAdapterV2.ts";
-import { visibleConversationItems } from "./ContextHandoffService.ts";
 import * as EffectOutbox from "./EffectOutbox.ts";
 import * as Orchestrator from "./Orchestrator.ts";
 import * as ProjectionStore from "./ProjectionStore.ts";
@@ -76,7 +75,7 @@ const record = {
   truncated: false,
 } as const;
 
-it.effect("records a voice call as a card on its thread, once, outside every model's view", () =>
+it.effect("records a voice call once, for the owner, and no other read of the thread changes", () =>
   Effect.gen(function* () {
     const orchestrator = yield* Orchestrator.OrchestratorV2;
     yield* orchestrator.dispatch({
@@ -93,13 +92,45 @@ it.effect("records a voice call as a card on its thread, once, outside every mod
       createdBy: "user",
       creationSource: "web",
     });
+    yield* orchestrator.dispatch({
+      type: "message.dispatch",
+      commandId: CommandId.make("message-voice-call-record"),
+      threadId,
+      messageId: MessageId.make("message:voice-call-record"),
+      text: "Before the call",
+      attachments: [],
+      dispatchMode: { type: "defer_start" },
+      createdBy: "user",
+      creationSource: "web",
+    });
     // Archived during the call: the transcript is still the caller's record of it.
     yield* orchestrator.dispatch({
       type: "thread.archive",
       commandId: CommandId.make("archive-voice-call-record"),
       threadId,
     });
-    const before = (yield* orchestrator.getThreadSnapshot(threadId)).projection.thread;
+    const projectionStore = yield* ProjectionStore.ProjectionStoreV2;
+    // What a model, an agent or a guest is built from: every read of the thread's items.
+    const look = Effect.gen(function* () {
+      const items = (yield* projectionStore.getThreadRecords(threadId, ["turnItems", "messages"]))
+        .turnItems;
+      const runless = (yield* projectionStore.getThreadRecords(threadId, ["turnItems"], {
+        turnItemRunIds: [null],
+      })).turnItems;
+      return {
+        snapshot: yield* orchestrator.getThreadSnapshot(threadId),
+        window: yield* orchestrator.getThreadSnapshotWindow(threadId, { rowLimit: 50 }),
+        nextOrdinal: yield* projectionStore.getNextTurnItemOrdinal(threadId),
+        items,
+        runless,
+        handoff: handoffCoverage({
+          threadId,
+          coveredRunOrdinals: { from: 1, to: 1 },
+          items: runless,
+        }),
+      };
+    });
+    const before = yield* look;
     yield* TestClock.adjust("1 minute");
     yield* orchestrator.dispatch(record);
     yield* orchestrator.dispatch(record);
@@ -108,32 +139,20 @@ it.effect("records a voice call as a card on its thread, once, outside every mod
       .pipe(Effect.flip);
     assert.strictEqual(again._tag, "OrchestratorDispatchError");
 
-    // A fresh read of the stored projection, as a reload or another client gets it.
-    const { projection } = yield* orchestrator.getThreadSnapshot(threadId);
-    const cards = projection.visibleTurnItems.filter((row) => row.item.type === "voice_call");
-    assert.strictEqual(cards.length, 1, "one card, whatever the retries");
-    const card = cards[0]!.item;
-    assert.strictEqual(card.type, "voice_call");
-    if (card.type !== "voice_call") return;
+    const calls = yield* orchestrator.getThreadVoiceCalls(threadId);
+    assert.strictEqual(calls.length, 1, "one card, whatever the retries");
+    const card = calls[0]!;
     assert.deepStrictEqual(
       { runId: card.runId, callId: card.callId, lines: card.lines, truncated: card.truncated },
       { runId: null, callId: "call-1", lines, truncated: false },
     );
     assert.deepStrictEqual([card.startedAt, card.completedAt], [startedAt, endedAt]);
-    assert.strictEqual(projection.runs.length, 0, "recording starts no run");
+    assert.strictEqual(card.ordinal, before.nextOrdinal - 1, "it follows the last item");
+    assert.notStrictEqual(before.snapshot.projection.thread.archivedAt, null);
     assert.deepStrictEqual(
-      [projection.thread.archivedAt, projection.thread.updatedAt],
-      [before.archivedAt, before.updatedAt],
-      "the thread stays archived and is not touched, so it does not move or read as active",
-    );
-    assert.notStrictEqual(before.archivedAt, null);
-    assert.strictEqual(projection.messages.length, 0, "and adds no message for a model");
-
-    assert.strictEqual(historicalMessage(card), null, "never history handed to a provider");
-    assert.deepStrictEqual(
-      visibleConversationItems(projection, [card]).map(historicalMessage),
-      [null],
-      "nor in a fork's, a handoff's or a merge-back's history",
+      yield* look,
+      before,
+      "every other read, the handoff text and the thread's sequence and ordinals stay as they were",
     );
   }).pipe(Effect.provide(layerTest)),
 );

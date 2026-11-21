@@ -477,22 +477,12 @@ it.effect(
       if (snapshot?.type !== "thread" || snapshot.item.kind !== "snapshot") {
         return assert.fail("Expected the thread snapshot.");
       }
-      const { projection } = snapshot.item;
-      assert.deepEqual(
-        [...projection.turnItems, ...projection.visibleTurnItems.map((row) => row.item)].filter(
-          (item) => item.type === "voice_call",
-        ),
-        [],
-      );
+      assert.isUndefined(snapshot.item.projection.voiceCalls);
       const live = received.flatMap((event) =>
-        event.type === "thread" &&
-        event.item.kind === "event" &&
-        event.item.event.type === "turn-item.updated"
-          ? [event.item.event.payload.type]
-          : [],
+        event.type === "thread" && event.item.kind === "event" ? [event.item.event.type] : [],
       );
-      assert.include(live, "user_message", "the stream still carries the owner's other items");
-      assert.notInclude(live, "voice_call");
+      assert.include(live, "turn-item.updated", "the stream still carries the owner's other items");
+      assert.notInclude(live, "thread.voice-call.recorded");
       assert.notInclude(JSON.stringify(received), "Private words", "not a word of either call");
     }).pipe(Effect.provide(layerTest)),
 );

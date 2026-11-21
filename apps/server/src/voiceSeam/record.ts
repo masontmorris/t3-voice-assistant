@@ -1,6 +1,5 @@
 import {
   MessageId,
-  type OrchestrationV2TurnItem,
   type OrchestrationV2VoiceCallEvidence,
   type OrchestrationV2VoiceCallLine,
   RunId,
@@ -26,7 +25,7 @@ export interface RecordSources {
   readonly digest: Digest.Digest["Service"];
   readonly threads: Pick<
     ThreadManagementService.ThreadManagementService["Service"],
-    "dispatch" | "getThreadRecords" | "getThreadEventSequence"
+    "dispatch" | "getThreadVoiceCalls" | "getThreadEventSequence"
   >;
   readonly receipts: Pick<CommandReceiptStore.CommandReceiptStoreV2["Service"], "getByCommandId">;
   readonly eventStore: Pick<
@@ -79,12 +78,6 @@ const refOf = (event: { readonly type: string; readonly payload?: unknown }) => 
   }
 };
 
-const isCard = (
-  item: OrchestrationV2TurnItem,
-  id: TurnItemId,
-): item is Extract<OrchestrationV2TurnItem, { readonly type: "voice_call" }> =>
-  item.type === "voice_call" && item.id === id;
-
 /**
  * Records a call's transcript on a visible thread, once per request id. The command is the request id's alone, so the
  * same id sent to another thread finds the first thread's receipt and is refused. A receipt does not hold the lines,
@@ -118,13 +111,8 @@ export const make = (sources: RecordSources) => {
       sequence: number,
       replayed: boolean,
     ) {
-      const { turnItems } = yield* threads
-        .getThreadRecords(input.threadId, ["turnItems"], {
-          turnItemTypes: ["voice_call"],
-          turnItemRunIds: [null],
-        })
-        .pipe(unavailable);
-      const card = turnItems.find((item) => isCard(item, turnItemId));
+      const calls = yield* threads.getThreadVoiceCalls(input.threadId).pipe(unavailable);
+      const card = calls.find((call) => call.id === turnItemId);
       if (card === undefined) {
         return yield* VoiceSeamRefusal.invalidRequest(
           "That request id already recorded something else.",

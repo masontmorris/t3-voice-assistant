@@ -6,6 +6,9 @@ import {
   type OrchestrationV2Checkpoint,
   type OrchestrationV2ExecutionNode,
   type OrchestrationV2PlanArtifact,
+  isOrchestrationV2VoiceCallRow,
+  type OrchestrationV2OwnerProjectedTurnItem,
+  type OrchestrationV2OwnerTurnItem,
   type OrchestrationV2ProjectedTurnItem,
   type OrchestrationV2RunAttempt,
   type OrchestrationV2TurnItem,
@@ -151,7 +154,7 @@ export type TimelineEntry = (
       readonly id: string;
       readonly kind: "event";
       readonly createdAt: string;
-      readonly projectedItem: OrchestrationV2ProjectedTurnItem;
+      readonly projectedItem: OrchestrationV2OwnerProjectedTurnItem;
     }
 ) & {
   readonly attempt?: TimelineAttempt;
@@ -245,10 +248,9 @@ const STANDALONE_V2_ITEM_TYPES = new Set<OrchestrationV2ProjectedTurnItem["item"
   "secret_request",
   "link_request",
   "subagent",
-  "voice_call",
 ]);
 
-const PERSISTENT_RESOURCE_V2_ITEM_TYPES = new Set<OrchestrationV2TurnItem["type"]>([
+const PERSISTENT_RESOURCE_V2_ITEM_TYPES = new Set<OrchestrationV2OwnerTurnItem["type"]>([
   "fork",
   "thread_created",
   // Still answerable after a steer supersedes the attempt that asked.
@@ -538,7 +540,7 @@ function projectedWorkEntry(
 
 /** Preserve visibleTurnItems' committed order; interleave client messages by timestamp. */
 export interface TimelineEntriesInput {
-  readonly visibleTurnItems: ReadonlyArray<OrchestrationV2ProjectedTurnItem>;
+  readonly visibleTurnItems: ReadonlyArray<OrchestrationV2OwnerProjectedTurnItem>;
   readonly optimisticMessages: ReadonlyArray<ChatMessage>;
   readonly anchoredMessages?: ReadonlyArray<ChatMessage>;
   readonly attachmentUrlById?: ReadonlyMap<string, string>;
@@ -590,6 +592,15 @@ export function deriveTimelineEntriesFromVisibleTurnItems(
     ),
   );
   for (const row of input.visibleTurnItems) {
+    if (isOrchestrationV2VoiceCallRow(row)) {
+      entries.push({
+        id: row.item.id,
+        kind: "event",
+        createdAt: DateTime.formatIso(row.item.startedAt ?? row.item.updatedAt),
+        projectedItem: row,
+      });
+      continue;
+    }
     const { item } = row;
     if (turnItemIsWorkspacePreparation(item) && !item.deferredWork) continue;
     if (item.type === "checkpoint") continue;
@@ -1006,6 +1017,9 @@ function reuseTimelineEntries(
     const previousItem = before.visibleTurnItems[index]!;
     const item = input.visibleTurnItems[index]!;
     if (item === previousItem) continue;
+    if (isOrchestrationV2VoiceCallRow(item) || isOrchestrationV2VoiceCallRow(previousItem)) {
+      return null;
+    }
     // Reasoning and plan text re-derive below; only assistant text patches the message.
     if (
       item.item.type === "assistant_message" &&

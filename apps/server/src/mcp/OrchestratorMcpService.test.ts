@@ -3367,11 +3367,10 @@ describe("OrchestratorMcpService provider resolution", () => {
           lines: [{ speaker: "caller", text: "Private words", relay: false }],
           truncated: false,
         });
-        assert.isTrue(
-          (yield* orchestrator.getThreadProjection(parentThreadId)).turnItems.some(
-            (item) => item.type === "voice_call",
-          ),
-          "the call is on the thread",
+        assert.lengthOf(
+          yield* orchestrator.getThreadVoiceCalls(parentThreadId),
+          1,
+          "the call is on the thread, for its owner",
         );
         const after = yield* look;
         assert.deepEqual(after, before);

@@ -2,6 +2,7 @@ import {
   OrchestrationV2AppThread,
   OrchestrationV2ConversationMessage,
   OrchestrationV2TurnItem,
+  type OrchestrationV2OwnerProjectedTurnItem,
   type OrchestrationV2ThreadProjection,
   type ScopedThreadRef,
 } from "@t3tools/contracts";
@@ -42,6 +43,7 @@ import {
 } from "./threadRequests.ts";
 import { arrayElementsEqual, parseThreadKey, threadKey } from "./entities.ts";
 import { getProjectionArrayReplacementIndex } from "./orchestrationV2Projection.ts";
+import { withVoiceCallRows } from "./voiceCallRows.ts";
 
 const EMPTY_VISIBLE_TURN_ITEMS: OrchestrationV2ThreadProjection["visibleTurnItems"] = Object.freeze(
   [],
@@ -388,12 +390,27 @@ export function createEnvironmentThreadDetailAtoms<E>(
 
   // Holds while only streamed assistant text moves, so the timeline re-renders on structure;
   // each streaming message reads its text through assistantMessageTextAtom.
+  const voiceCallsAtomFamily = Atom.family((key: string) =>
+    Atom.make(
+      (get) => Option.getOrNull(get(threadStateValueAtomFamily(key)).data)?.voiceCalls,
+    ).pipe(Atom.setIdleTTL(0), Atom.withLabel(`environment-thread-voice-calls:${key}`)),
+  );
+
+  // The owner's timeline, so the one reader that shows the thread's voice calls among its rows.
   const timelineVisibleTurnItemsAtomFamily = Atom.family((key: string) => {
     let previous = EMPTY_VISIBLE_TURN_ITEMS;
+    let previousCalls: OrchestrationV2ThreadProjection["voiceCalls"];
+    let merged: ReadonlyArray<OrchestrationV2OwnerProjectedTurnItem> = EMPTY_VISIBLE_TURN_ITEMS;
     return Atom.make((get) => {
       const next = get(visibleTurnItemsAtomFamily(key));
-      if (!sameApartFromStreamedAssistantText(previous, next)) previous = next;
-      return previous;
+      const calls = get(voiceCallsAtomFamily(key));
+      const rowsMoved = !sameApartFromStreamedAssistantText(previous, next);
+      if (rowsMoved) previous = next;
+      if (rowsMoved || calls !== previousCalls || merged === EMPTY_VISIBLE_TURN_ITEMS) {
+        previousCalls = calls;
+        merged = withVoiceCallRows(previous, calls);
+      }
+      return merged;
     }).pipe(
       Atom.setIdleTTL(0),
       Atom.withLabel(`environment-thread-timeline-visible-turn-items:${key}`),

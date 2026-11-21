@@ -7182,13 +7182,7 @@ it.layer(layerTest)("ProjectionStoreV2", (it) => {
           if (detail.startsWith("SEARCH counts ")) {
             assert.include(detail, "run_key=?", detail);
           }
-          // Voice calls, left out of the counts, are counted from the type index alone.
-          if (detail.startsWith("SEARCH caller_private ")) {
-            assert.include(
-              detail,
-              "USING COVERING INDEX orchestration_v2_projection_turn_items_thread_type_idx (thread_id=? AND type=?)",
-            );
-          } else if (detail.includes("orchestration_v2_projection_turn_items")) {
+          if (detail.includes("orchestration_v2_projection_turn_items")) {
             // Only held input is read from the sparse index; transcript history stays unread.
             assert.include(
               detail,

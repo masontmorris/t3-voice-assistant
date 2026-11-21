@@ -2,11 +2,12 @@ import type {
   OrchestrationV2ProjectedTurnItem,
   OrchestrationV2Run,
   OrchestrationV2TurnItem,
+  OrchestrationV2VoiceCall,
   OrchestrationV2VoiceCallEvidence,
 } from "@t3tools/contracts";
 import * as DateTime from "effect/DateTime";
 
-export type VoiceCallItem = Extract<OrchestrationV2TurnItem, { readonly type: "voice_call" }>;
+export type VoiceCallItem = OrchestrationV2VoiceCall;
 
 /** Lines shown before "show all", so a long call costs the timeline little until it is asked for. */
 export const VOICE_CALL_SHOWN_LINES = 40;

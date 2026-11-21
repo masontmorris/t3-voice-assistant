@@ -9,6 +9,7 @@ import * as Option from "effect/Option";
 import * as Path from "effect/Path";
 import * as Queue from "effect/Queue";
 import * as Schema from "effect/Schema";
+import type * as SchemaIssue from "effect/SchemaIssue";
 import * as Scope from "effect/Scope";
 import * as Semaphore from "effect/Semaphore";
 import * as Stream from "effect/Stream";
@@ -53,6 +54,39 @@ type Handlers = {
 const isWireOp = (op: string): op is WireOp => Object.hasOwn(REQUESTS, op);
 
 const decodeEnvelope = Schema.decodeUnknownEffect(Schema.fromJsonString(ClientEnvelope));
+
+/**
+ * Where a request failed to decode and what the schema wanted there, never the value it held: a `send` or a
+ * `record_call` carries the caller's words. An unexpected key is the payload's own, so it is left out too.
+ */
+export function issueShape(
+  issue: SchemaIssue.Issue,
+  path: ReadonlyArray<PropertyKey> = [],
+): Array<string> {
+  const at = path.length === 0 ? "(root)" : path.map(String).join(".");
+  switch (issue._tag) {
+    case "Pointer":
+      return issue.issue._tag === "UnexpectedKey"
+        ? [`${at}: unexpected key`]
+        : issueShape(issue.issue, [...path, ...issue.path]);
+    case "Composite":
+    case "AnyOf":
+      return issue.issues.flatMap((inner) => issueShape(inner, path));
+    case "Filter":
+    case "Encoding":
+      return issueShape(issue.issue, path);
+    case "InvalidType":
+      return [`${at}: expected ${issue.ast._tag}`];
+    case "MissingKey":
+      return [`${at}: missing`];
+    case "UnexpectedKey":
+      return [`${at}: unexpected key`];
+    case "InvalidValue":
+    case "Forbidden":
+    case "OneOf":
+      return [`${at}: invalid`];
+  }
+}
 const encodeHello = Schema.encodeSync(Schema.fromJsonString(HelloFrame));
 const encodeEvent = Schema.encodeSync(Schema.fromJsonString(EventFrame));
 const encodeWatchEnded = Schema.encodeSync(Schema.fromJsonString(WatchEndedFrame));
@@ -197,7 +231,10 @@ const runSocket = Effect.fn("VoiceSeam.route.runSocket")(function* (input: {
     const { decodeInput, encodeResult } = CODECS[op];
     const decoded = yield* decodeInput(raw).pipe(Effect.result);
     if (decoded._tag === "Failure") {
-      yield* Effect.logWarning("voice seam request was invalid", { op, issue: decoded.failure });
+      yield* Effect.logWarning("voice seam request was invalid", {
+        op,
+        issues: issueShape(decoded.failure.issue),
+      });
       return yield* refuse(id, VoiceSeam.VoiceSeamRefusal.invalidRequest());
     }
     const replied = yield* Deferred.make<void>();

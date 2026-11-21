@@ -2,6 +2,9 @@ import {
   AuthOrchestrationReadScope,
   EnvironmentHttpApi,
   type OrchestrationProjectShell,
+  type OrchestrationV2ThreadHistoryPage,
+  type ThreadId,
+  TurnItemId,
 } from "@t3tools/contracts";
 import * as Effect from "effect/Effect";
 import * as Result from "effect/Result";
@@ -36,7 +39,7 @@ import {
   loadSubscriberShellSnapshot,
   projectIdentitiesDigest,
 } from "./ShellStream.ts";
-import { boundedSnapshotResponseFields } from "./ThreadStream.ts";
+import { boundedSnapshotResponseFields, snapshotVoiceCallSpan } from "./ThreadStream.ts";
 import { projectThreadProjectionForWire } from "./WireProjection.ts";
 
 const isInvalidThreadHistoryCursorError = Schema.is(InvalidThreadHistoryCursorError);
@@ -63,6 +66,33 @@ export const layer = HttpApiBuilder.group(
     const applicationEvents = yield* OrchestrationEventStore.OrchestrationEventStore;
     const projectStore = yield* ProjectStore.ProjectStoreV2;
     const projectEnrichment = yield* ProjectEnrichmentService.ProjectEnrichmentService;
+
+    /**
+     * The owner's history page with the voice calls that follow its rows: from its oldest local row up to the row
+     * its cursor names, where the newer page and its calls begin.
+     */
+    const withHistoryVoiceCalls = Effect.fn("http.orchestration.historyVoiceCalls")(function* (
+      threadId: ThreadId,
+      cursor: ReturnType<typeof decodeThreadHistoryCursor>,
+      page: OrchestrationV2ThreadHistoryPage,
+      workGroup: boolean,
+    ) {
+      // A work group's rows are one run's, which no voice call follows.
+      const oldest = workGroup
+        ? undefined
+        : page.items.find((row) => row.sourceThreadId === threadId);
+      if (oldest === undefined) return page;
+      const newer =
+        cursor.st === threadId
+          ? (yield* threadManagement.getTurnItem({ threadId, itemId: TurnItemId.make(cursor.si) }))
+              .item
+          : null;
+      const voiceCalls = yield* threadManagement.getThreadVoiceCalls(threadId, {
+        from: oldest.item.ordinal,
+        ...(newer === null ? {} : { before: newer.ordinal }),
+      });
+      return voiceCalls.length === 0 ? page : { ...page, voiceCalls };
+    });
 
     const enrichProjectShells = Effect.fn("http.orchestration.enrichProjectShells")(
       (projects: ReadonlyArray<OrchestrationProjectShell>) =>
@@ -250,10 +280,25 @@ export const layer = HttpApiBuilder.group(
             projection: snapshot.projection,
             snapshotSequence: snapshot.snapshotSequence,
           });
+          // The owner's own read, so it carries the voice calls that follow its rows.
+          const span = snapshotVoiceCallSpan(bounded.projection, bounded.hasMoreHistory);
+          const voiceCalls =
+            span === null
+              ? []
+              : yield* threadManagement
+                  .getThreadVoiceCalls(args.params.threadId, span)
+                  .pipe(
+                    Effect.catch((cause) =>
+                      failEnvironmentInternal("orchestration_thread_snapshot_failed", cause),
+                    ),
+                  );
           return {
             snapshotSequence: snapshot.snapshotSequence,
             ...boundedSnapshotResponseFields({
-              bounded,
+              bounded:
+                voiceCalls.length === 0
+                  ? bounded
+                  : { ...bounded, projection: { ...bounded.projection, voiceCalls } },
               compactTurnItems: args.query.compactTurnItems === "1",
               dedupeBodies: args.query.dedupeBodies === "1",
               compactIds: args.query.compactIds === "1",
@@ -286,6 +331,14 @@ export const layer = HttpApiBuilder.group(
                   : undefined,
             )
             .pipe(
+              Effect.flatMap((page) =>
+                withHistoryVoiceCalls(
+                  args.params.threadId,
+                  decoded.success,
+                  page,
+                  args.query.view === "work",
+                ),
+              ),
               Effect.map((page) =>
                 args.query.compactIds === "1" ? { ...page, idTable: true as const } : page,
               ),

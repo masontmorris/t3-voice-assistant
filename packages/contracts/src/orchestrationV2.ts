@@ -1985,10 +1985,6 @@ export const OrchestrationV2TurnItem = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemBaseFields,
-    ...OrchestrationV2VoiceCallFields,
-  }),
-  Schema.Struct({
-    ...OrchestrationV2TurnItemBaseFields,
     type: Schema.Literal("thread_created"),
     targetThreadId: ThreadId,
     targetRunId: Schema.NullOr(RunId),
@@ -2033,14 +2029,17 @@ export const OrchestrationV2TurnItem = Schema.Union([
 export type OrchestrationV2TurnItem = typeof OrchestrationV2TurnItem.Type;
 
 /**
- * A voice call's transcript is the caller's own: their T3 shows it to them, and it is never handed to a model, an
- * agent, a guest or any other service. Every path that assembles thread content for one of those leaves it out.
+ * A live voice call's transcript, the caller's own. It is no turn item, so no read of a thread's items, counts or
+ * positions sees it; only the owner's own clients get it, as `voiceCalls`. It takes no ordinal: `ordinal` is that of
+ * the thread item it follows. Shaped as an item so the owner's timeline shows it as one.
  */
-export const CALLER_PRIVATE_TURN_ITEM_TYPES: ReadonlyArray<OrchestrationV2TurnItem["type"]> = [
-  "voice_call",
-];
-export const isCallerPrivateTurnItem = (item: { readonly type: string }): boolean =>
-  CALLER_PRIVATE_TURN_ITEM_TYPES.some((type) => type === item.type);
+export const OrchestrationV2VoiceCall = Schema.Struct({
+  ...OrchestrationV2TurnItemBaseFields,
+  ...OrchestrationV2VoiceCallFields,
+});
+export type OrchestrationV2VoiceCall = typeof OrchestrationV2VoiceCall.Type;
+/** What the owner's timeline shows: the thread's items and its voice calls. */
+export type OrchestrationV2OwnerTurnItem = OrchestrationV2TurnItem | OrchestrationV2VoiceCall;
 
 const isUnknownTurnItem = hasUnknownUnionTag(OrchestrationV2TurnItem.members, "type");
 
@@ -2073,6 +2072,16 @@ export const OrchestrationV2ProjectedTurnItem = Schema.Struct({
   item: OrchestrationV2TurnItem,
 });
 export type OrchestrationV2ProjectedTurnItem = typeof OrchestrationV2ProjectedTurnItem.Type;
+export type OrchestrationV2VoiceCallRow = Omit<OrchestrationV2ProjectedTurnItem, "item"> & {
+  readonly item: OrchestrationV2VoiceCall;
+};
+/** A row of the owner's timeline. */
+export type OrchestrationV2OwnerProjectedTurnItem =
+  | OrchestrationV2ProjectedTurnItem
+  | OrchestrationV2VoiceCallRow;
+export const isOrchestrationV2VoiceCallRow = (
+  row: OrchestrationV2OwnerProjectedTurnItem,
+): row is OrchestrationV2VoiceCallRow => row.item.type === "voice_call";
 
 const OrchestrationV2EventBase = Schema.Struct({
   id: EventId,
@@ -2202,6 +2211,11 @@ export const OrchestrationV2DomainEvent = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2EventBase.fields,
+    type: Schema.Literal("thread.voice-call.recorded"),
+    payload: OrchestrationV2VoiceCall,
+  }),
+  Schema.Struct({
+    ...OrchestrationV2EventBase.fields,
     type: Schema.Literal("plan.updated"),
     payload: OrchestrationV2PlanArtifact,
   }),
@@ -2262,6 +2276,8 @@ export const OrchestrationV2ThreadProjection = Schema.Struct({
       item: ForwardCompatibleUnion(OrchestrationV2TurnItem.members, "type"),
     })),
   ),
+  /** Only on the owner's own reads, and only those the window or page spans. */
+  voiceCalls: Schema.optionalKey(Schema.Array(OrchestrationV2VoiceCall)),
   updatedAt: Schema.DateTimeUtc,
 });
 export type OrchestrationV2ThreadProjection = typeof OrchestrationV2ThreadProjection.Type;
@@ -2883,10 +2899,6 @@ export const OrchestrationV2TurnItemJson = Schema.Union([
   }),
   Schema.Struct({
     ...OrchestrationV2TurnItemJsonBaseFields,
-    ...OrchestrationV2VoiceCallFields,
-  }),
-  Schema.Struct({
-    ...OrchestrationV2TurnItemJsonBaseFields,
     type: Schema.Literal("thread_created"),
     targetThreadId: ThreadId,
     targetRunId: Schema.NullOr(RunId),
@@ -2926,6 +2938,10 @@ export const OrchestrationV2TurnItemJson = Schema.Union([
   }),
 ]);
 export type OrchestrationV2TurnItemJson = typeof OrchestrationV2TurnItemJson.Type;
+export const OrchestrationV2VoiceCallJson = Schema.Struct({
+  ...OrchestrationV2TurnItemJsonBaseFields,
+  ...OrchestrationV2VoiceCallFields,
+});
 
 export const OrchestrationV2ProjectedTurnItemJson = OrchestrationV2ProjectedTurnItem.mapFields(
   (fields) => ({
@@ -3150,6 +3166,11 @@ export const OrchestrationV2DomainEventJson = Schema.Union([
     ...OrchestrationV2JsonEventBaseFields,
     type: Schema.Literal("turn-item.updated"),
     payload: OrchestrationV2TurnItemJson,
+  }),
+  Schema.Struct({
+    ...OrchestrationV2JsonEventBaseFields,
+    type: Schema.Literal("thread.voice-call.recorded"),
+    payload: OrchestrationV2VoiceCallJson,
   }),
   Schema.Struct({
     ...OrchestrationV2JsonEventBaseFields,
@@ -4264,6 +4285,8 @@ export const OrchestrationV2ThreadHistoryPage = withRecordIdTable(
     hasMoreHistory: Schema.Boolean,
     /** Records of the page's subagent items, which a bounded snapshot can omit. */
     subagents: Schema.optionalKey(Schema.Array(OrchestrationV2Subagent)),
+    /** Only on the owner's own reads: the voice calls that follow this page's items. */
+    voiceCalls: Schema.optionalKey(Schema.Array(OrchestrationV2VoiceCall)),
     idTable: IdTableMarker,
   }),
   () => null,

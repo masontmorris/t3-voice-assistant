@@ -65,6 +65,21 @@ export function boundedSnapshotResponseFields(input: {
   };
 }
 
+/**
+ * The voice calls an owner's snapshot shows: those after its oldest local row, or all of them when it holds the
+ * whole thread. Null when no local row is loaded yet, so older pages bring them.
+ */
+export function snapshotVoiceCallSpan(
+  projection: Pick<OrchestrationV2ThreadProjection, "thread" | "visibleTurnItems">,
+  hasMoreHistory: boolean | undefined,
+): { readonly from: number } | null {
+  if (hasMoreHistory !== true) return { from: 0 };
+  const oldest = projection.visibleTurnItems.find(
+    (row) => row.sourceThreadId === projection.thread.id,
+  );
+  return oldest === undefined ? null : { from: oldest.item.ordinal };
+}
+
 export function buildBoundedThreadStreamSnapshot(input: {
   readonly snapshotSequence: number;
   readonly projection: OrchestrationV2ThreadProjection;

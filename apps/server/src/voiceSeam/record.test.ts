@@ -4,7 +4,7 @@ import {
   EventId,
   MessageId,
   type OrchestrationV2StoredEvent,
-  type OrchestrationV2TurnItem,
+  type OrchestrationV2VoiceCall,
   ThreadId,
   VOICE_CALL_LIMITS,
 } from "@t3tools/contracts";
@@ -60,13 +60,13 @@ const rig = () =>
   Effect.gen(function* () {
     const digest = yield* Digest.Digest;
     const dispatched: Array<Record<string, unknown>> = [];
-    const cards: Array<OrchestrationV2TurnItem> = [];
+    const cards: Array<OrchestrationV2VoiceCall> = [];
     const receipts = new Map<string, ThreadId>();
     const sources = {
       digest,
       threads: {
-        getThreadRecords: (threadId: ThreadId) =>
-          Effect.succeed({ turnItems: cards.filter((card) => card.threadId === threadId) }),
+        getThreadVoiceCalls: (threadId: ThreadId) =>
+          Effect.succeed(cards.filter((card) => card.threadId === threadId)),
         getThreadEventSequence: () => Effect.succeed(77),
         dispatch: (command: Record<string, unknown> & { commandId: string; threadId: ThreadId }) =>
           Effect.suspend(() => {
@@ -122,7 +122,7 @@ it.effect(
       );
       const card = cards[0];
       assert.strictEqual(card?.type, "voice_call");
-      if (card?.type !== "voice_call") return;
+      if (card === undefined) return;
       assert.deepStrictEqual(card.lines[1]?.claim, {
         act: "done",
         evidence: [

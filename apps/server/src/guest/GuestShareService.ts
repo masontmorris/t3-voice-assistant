@@ -19,7 +19,6 @@ import {
   type OrchestrationV2TurnItem,
   ThreadId,
   TurnItemId,
-  isCallerPrivateTurnItem,
 } from "@t3tools/contracts";
 import { chatMarkdownImageSources } from "@t3tools/shared/markdownPipeline";
 import { htmlRenderFromToolItem } from "@t3tools/shared/toolOutput";
@@ -95,7 +94,6 @@ const GUEST_ACCESS_MESSAGES = {
 } as const;
 
 /** What a guest is told. The message comes from `reason`, never from a cause. */
-
 export class GuestShareAccessError extends Schema.TaggedError<GuestShareAccessError>()(
   "GuestShareAccessError",
   {
@@ -534,7 +532,6 @@ const make = Effect.gen(function* () {
       .getThreadSnapshotWindow(thread.id, {
         rowLimit: SNAPSHOT_ROW_LIMIT,
         userTurnLimit: SNAPSHOT_USER_TURN_LIMIT,
-        withoutCallerPrivate: true,
       })
       .pipe(Effect.mapError(() => inactive));
     // The share can end between authorize and this read; the live tail starts after it.
@@ -568,12 +565,8 @@ const make = Effect.gen(function* () {
         Stream.map((item): ReadonlyArray<GuestStreamEvent> => {
           if (item.kind !== "event") return [];
           if (endsShare(item.event)) return [ended];
-          if (
-            item.event.type === "turn-item.updated" &&
-            isCallerPrivateTurnItem(item.event.payload)
-          ) {
-            return [];
-          }
+          // The owner's own; a guest's stream reads as if it never happened.
+          if (item.event.type === "thread.voice-call.recorded") return [];
           if (item.event.type === "turn-item.updated") rememberSent(share.id, [item.event.payload]);
           const updated = threadOf(item.event);
           const view = updated === null ? null : viewOf(updated);
@@ -660,7 +653,7 @@ const make = Effect.gen(function* () {
             Effect.map((page) => page.items[0]?.item ?? null),
             Effect.mapError(() => unavailable),
           ));
-    return item === null || isCallerPrivateTurnItem(item) ? yield* unavailable : { thread, item };
+    return item === null ? yield* unavailable : { thread, item };
   });
 
   const render = Effect.fn("GuestShareService.render")(function* (session: string, itemId: string) {
@@ -690,7 +683,7 @@ const make = Effect.gen(function* () {
   ) {
     const { thread, share } = yield* authorize(session, "session");
     const page = yield* orchestrator
-      .getThreadHistoryPage(thread.id, cursor, undefined, undefined, undefined, true)
+      .getThreadHistoryPage(thread.id, cursor)
       .pipe(Effect.mapError(() => unavailable));
     rememberSent(
       share.id,

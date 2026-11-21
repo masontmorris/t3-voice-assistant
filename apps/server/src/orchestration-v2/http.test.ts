@@ -12,6 +12,7 @@ import {
   OrchestrationV2Run,
   OrchestrationV2TurnItem,
   OrchestrationV2ThreadTranscript,
+  OrchestrationV2VoiceCall,
   PROVIDER_SEND_TURN_MAX_FILE_BYTES,
   ThreadId,
 } from "@t3tools/contracts";
@@ -99,7 +100,7 @@ const items = Schema.decodeUnknownSync(Schema.Array(OrchestrationV2TurnItem))(
   })),
 );
 
-const voiceCall = Schema.decodeSync(OrchestrationV2TurnItem)({
+const voiceCall = Schema.decodeSync(OrchestrationV2VoiceCall)({
   id: "item-voice-call",
   threadId: "source-thread",
   runId: null,
@@ -233,7 +234,7 @@ it.effect("exports full history with size, scope, and missing-thread checks", ()
       (yield* decodeTranscript(yield* Effect.promise(() => emptyResponse.json()))).items,
     ).toEqual([]);
     yield* eventSink.write({
-      events: [...items, voiceCall].map((item) => ({
+      events: items.map((item) => ({
         id: EventId.make(`create-${item.id}`),
         type: "turn-item.updated" as const,
         threadId: thread.id,
@@ -244,12 +245,25 @@ it.effect("exports full history with size, scope, and missing-thread checks", ()
 
     const response = yield* read(thread.id);
     expect(response.status).toBe(200);
-    const transcript = yield* decodeTranscript(yield* Effect.promise(() => response.json()));
-    expect(transcript.items).toHaveLength(200);
+    const body: unknown = yield* Effect.promise(() => response.json());
+    yield* eventSink.write({
+      events: [
+        {
+          id: EventId.make("record-voice-call"),
+          type: "thread.voice-call.recorded" as const,
+          threadId: thread.id,
+          occurredAt: DateTime.add(now, { minutes: 1 }),
+          payload: voiceCall,
+        },
+      ],
+    });
+    const afterCall = yield* read(thread.id);
     expect(
-      transcript.items.some((row) => row.item.type === "voice_call"),
-      "a voice call is never in a transcript handed to a model",
-    ).toBe(false);
+      yield* Effect.promise(() => afterCall.json()),
+      "a transcript attached as context reads the same, its time and positions too, after a call",
+    ).toEqual(body);
+    const transcript = yield* decodeTranscript(body);
+    expect(transcript.items).toHaveLength(200);
     expect(transcript.items[0]?.item).toMatchObject({ output });
     expect(transcript.items[0]?.visibility).toBe("local");
     expect(transcript.items[199]?.position).toBe(199);

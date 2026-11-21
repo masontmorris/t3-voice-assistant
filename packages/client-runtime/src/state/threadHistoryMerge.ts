@@ -2,6 +2,7 @@ import type {
   OrchestrationV2ProjectedTurnItem,
   OrchestrationV2Subagent,
   OrchestrationV2ThreadProjection,
+  OrchestrationV2VoiceCall,
 } from "@t3tools/contracts";
 import { isOrchestrationV2TurnItemVisible } from "@t3tools/shared/orchestrationV2Timeline";
 
@@ -206,6 +207,17 @@ export function mergeOlderSubagentsIntoProjection(
   const added = olderSubagents?.filter((agent) => !held.has(agent.id)) ?? [];
   if (added.length === 0) return projection;
   return { ...projection, subagents: [...added, ...projection.subagents] };
+}
+
+/** Adds the voice calls an older page brought; a call already held stays. */
+export function mergeOlderVoiceCallsIntoProjection(
+  projection: OrchestrationV2ThreadProjection,
+  olderCalls: ReadonlyArray<OrchestrationV2VoiceCall> | undefined,
+): OrchestrationV2ThreadProjection {
+  const held = new Set(projection.voiceCalls?.map((call) => call.id));
+  const added = olderCalls?.filter((call) => !held.has(call.id)) ?? [];
+  if (added.length === 0) return projection;
+  return { ...projection, voiceCalls: [...added, ...(projection.voiceCalls ?? [])] };
 }
 
 export function applyHistoryPageMeta(

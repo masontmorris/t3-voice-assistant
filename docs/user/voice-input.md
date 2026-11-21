@@ -134,7 +134,7 @@ voice call**, and **Composer: Start or End Voice Call** can be bound in
 When the call ends, its words stay in the thread as a collapsed **Voice call** card. Open
 it to read who said what, and for a line about a thread, select **Evidence** to see what
 it was based on. The transcript is text only and stays yours: agents, shared guests, and
-summaries handed to another model never see it.
+summaries handed to another model never see it, or that a call happened.
 
 ## Improve recognition
 

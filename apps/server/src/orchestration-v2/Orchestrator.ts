@@ -64,6 +64,7 @@ import {
   type OrchestrationV2Subagent,
   type OrchestrationV2ThreadProjection,
   type OrchestrationV2TurnItem,
+  type OrchestrationV2VoiceCall,
   latestProviderTurnForAttempt,
   parseGoalCommand,
   orchestrationV2RunWorkStartedAt,
@@ -439,7 +440,6 @@ export interface OrchestratorV2Shape {
     throughEntryId?: string,
     conversationOnly?: boolean,
     workMode?: "deferred" | "work",
-    withoutCallerPrivate?: boolean,
   ) => Effect.Effect<OrchestrationV2ThreadHistoryPage, OrchestratorV2Error>;
   readonly getTimelinePage: (
     threadId: ThreadId,
@@ -547,6 +547,11 @@ export interface OrchestratorV2Shape {
   readonly getThreadEventSequence: (
     threadId: ThreadId,
   ) => Effect.Effect<number, OrchestratorV2Error>;
+  /** The owner's own read of a thread's voice calls; see ProjectionStore.getThreadVoiceCalls. */
+  readonly getThreadVoiceCalls: (
+    threadId: ThreadId,
+    span?: Parameters<ProjectionStoreV2["Service"]["getThreadVoiceCalls"]>[1],
+  ) => Effect.Effect<ReadonlyArray<OrchestrationV2VoiceCall>, OrchestratorV2Error>;
   readonly streamStoredEvents: Stream.Stream<OrchestrationV2StoredEvent, OrchestratorV2Error>;
   /** Events arrive projected for the wire and shared by every subscriber; never mutate them. */
   readonly streamStoredEventsFrom: (input?: {
@@ -10859,21 +10864,19 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     },
   );
 
-  /** A live voice call's transcript on its thread: a card in the timeline, outside every run and any model's view. */
+  /** A live voice call's transcript on its thread: the owner's card, and no turn item, so no other reader sees it. */
   const dispatchVoiceCallRecord = Effect.fn("orchestrationV2.dispatch.voiceCallRecord")(function* (
     command: Extract<OrchestrationV2InternalCommand, { readonly type: "thread.voice-call.record" }>,
     events: Ref.Ref<Array<OrchestrationV2DomainEvent>>,
   ) {
+    const projectionError = (cause: unknown) =>
+      new OrchestratorProjectionError({ threadId: command.threadId, cause });
     const projection = yield* projectionStore
-      .getThreadRecords(command.threadId, ["turnItems"], {
-        turnItemTypes: ["voice_call"],
-        turnItemRunIds: [null],
-      })
-      .pipe(
-        Effect.mapError(
-          (cause) => new OrchestratorProjectionError({ threadId: command.threadId, cause }),
-        ),
-      );
+      .getThreadRecords(command.threadId, [])
+      .pipe(Effect.mapError(projectionError));
+    const recorded = yield* projectionStore
+      .getThreadVoiceCalls(command.threadId)
+      .pipe(Effect.mapError(projectionError));
     if (projection.thread.deletedAt !== null) {
       return yield* new OrchestratorDispatchError({
         commandId: command.commandId,
@@ -10882,7 +10885,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       });
     }
     // The seam derives the card from its command, so a second command for one card is a bug, not a retry.
-    if (projection.turnItems.some((item) => item.id === command.turnItemId)) {
+    if (recorded.some((call) => call.id === command.turnItemId)) {
       return yield* new OrchestratorDispatchError({
         commandId: command.commandId,
         commandType: command.type,
@@ -10890,7 +10893,7 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       });
     }
     const now = yield* DateTime.now;
-    const turnItem: OrchestrationV2TurnItem = {
+    const call: OrchestrationV2VoiceCall = {
       id: command.turnItemId,
       threadId: command.threadId,
       runId: null,
@@ -10899,7 +10902,8 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       providerTurnId: null,
       nativeItemRef: null,
       parentItemId: null,
-      ordinal: yield* nextTurnItemOrdinal(projection),
+      // The item it follows: it takes no ordinal, so the next item numbers as if it had not been.
+      ordinal: Math.max(0, (yield* nextTurnItemOrdinal(projection)) - 1),
       status: "completed",
       title: null,
       startedAt: command.startedAt,
@@ -10914,10 +10918,10 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
       events,
       command,
     )({
-      type: "turn-item.updated",
+      type: "thread.voice-call.recorded",
       threadId: command.threadId,
       occurredAt: now,
-      payload: turnItem,
+      payload: call,
     });
   });
 
@@ -16893,23 +16897,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         );
     }),
     getThreadHistoryPage: Effect.fn("OrchestratorV2.getThreadHistoryPage")(
-      function (
-        threadId,
-        cursor,
-        throughEntryId,
-        conversationOnly,
-        workMode,
-        withoutCallerPrivate,
-      ) {
+      function (threadId, cursor, throughEntryId, conversationOnly, workMode) {
         return projectionStore
-          .getThreadHistoryPage(
-            threadId,
-            cursor,
-            throughEntryId,
-            conversationOnly,
-            workMode,
-            withoutCallerPrivate,
-          )
+          .getThreadHistoryPage(threadId, cursor, throughEntryId, conversationOnly, workMode)
           .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId, cause })));
       },
     ),
@@ -17048,6 +17038,11 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
     }),
     getThreadTitles: Effect.fn("OrchestratorV2.getThreadTitles")(function (threadIds) {
       return projectionStore.getThreadTitles(threadIds).pipe(Effect.mapError(shellProjectionError));
+    }),
+    getThreadVoiceCalls: Effect.fn("OrchestratorV2.getThreadVoiceCalls")(function (threadId, span) {
+      return projectionStore
+        .getThreadVoiceCalls(threadId, span)
+        .pipe(Effect.mapError((cause) => new OrchestratorProjectionError({ threadId, cause })));
     }),
     getThreadEventSequence: Effect.fn("OrchestratorV2.getThreadEventSequence")(function (threadId) {
       return eventSink
