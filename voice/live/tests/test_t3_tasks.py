@@ -22,7 +22,7 @@ from voice.t3 import lifecycle as L
 from voice.t3 import types as T
 from voice.t3.acts import QUESTIONS, RULES, Act, act, check
 from voice.t3.acts import Kind as S
-from voice.t3.journal import Kind, Status, T3Journal
+from voice.t3.journal import Kind, Status, T3Journal, launch_title
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
 from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, Picked
@@ -1661,6 +1661,34 @@ class Respond(unittest.TestCase):
                 self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
                 self.assertIsNone(t3.answer("Yes.", 1))
                 self.assertEqual(seam.ops("respond"), [])
+
+    def test_a_thread_still_titled_with_its_launch_request_is_named_by_its_project_and_its_approval_goes_to_the_app(self):
+        request = "Um, start a thread to sort the pantry list, a long hesitant request that runs well past the limit."
+        title = launch_title(request)
+        t3 = worded(tasks_over(self, self.seam()), FakeText(), None)
+        t3.follow.journal.begin(Kind.START, request, "p1", "Voice sandbox", thread_id="t7")
+        approval = L.Update("k1", (act(S.CONFIRM_RESPOND, thread=title, decision="approve", need="command_approval"),),
+                            "completed", thread_id="t7")
+        t3.say(approval)
+        self.assertEqual(approval.acts, (act(S.NEEDS_THE_APP, begun_in="Voice sandbox", decision="approve"),))
+        status = L.Update("k2", (act(S.NEEDS_YOU, thread=title, need="command_approval", prompt="Run the formatter?"),),
+                          "completed", thread_id="t7")
+        t3.say(status)
+        self.assertEqual(status.acts, (act(S.NEEDS_YOU, begun_in="Voice sandbox", need="command_approval"),),
+                         "no title to say, and the request's own text never reaches the line")
+        t3.spoke(status)
+        self.assertEqual(t3.spoken_of, "the new thread in Voice sandbox")
+
+    def test_a_second_draft_says_only_the_kind_of_request(self):
+        t3 = worded(tasks_over(self, self.seam()), FakeText(), None)
+        said = act(S.NEEDS_YOU, thread="Add a clamp helper", need="command_approval", request="It wants to run tests.")
+        update = L.Update("k1", (said,), "completed", thread_id="t7")
+        t3.say(update)
+        self.assertIn("request", update.acts[0].slots)
+        update.tries, update.refused = 1, ("It wants to run tests.",)
+        t3.say(update)
+        self.assertEqual(update.refused, ())
+        self.assertEqual(update.acts[0].slots, {"thread": "Add a clamp helper", "need": "command_approval"})
 
     def test_an_approval_whose_stored_prompt_is_not_an_action_goes_to_the_app_by_its_source_and_never_by_its_text(self):
         for source, prompt in ((T.NeedSource.PERMISSION, "mcp__github__create_issue"),

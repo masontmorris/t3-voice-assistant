@@ -41,12 +41,12 @@ from voice.t3 import types as T
 from voice.t3.acts import NOTHING_NEW, Act, Outcome, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
-from voice.t3.journal import Kind, Status, T3Journal
+from voice.t3.journal import Kind, Status, T3Journal, launch_title
 from voice.t3.pick.model import FREE_MODEL, PAID_MODEL, LiveClient
 from voice.t3.pick.project import pick_project
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
-from voice.t3.speech import Lane, LocalText, Rendered, RequestGate, Speech, text_model
+from voice.t3.speech import Lane, LocalText, Rendered, RequestGate, Speech, text_model, untitled, without_request
 from voice.t3.verify import NEED, NO_ANSWER, NONE, Chosen, Decider, Listed, Picked, Reading, default_decider
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
@@ -402,9 +402,10 @@ class T3Tasks:
             started = next((a.slots["project"] for a in update.acts
                             if a.kind in (Say.LAUNCHED, Say.LAUNCH_PENDING) and isinstance(a.slots.get("project"), str)),
                            None)
-            if titles or started:
+            begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
+            if titles or started or begun:
                 self.recent = update.thread_id or self.recent
-                self.spoken_of = titles[0] if titles else f"the new thread in {started}"
+                self.spoken_of = titles[0] if titles else f"the new thread in {started or begun}"
                 self.spoken_id = update.thread_id
             if update.thread_id is not None and update.sequences and any(a.kind is Say.THREAD_STATUS for a in update.acts):
                 self.told[update.thread_id] = max(update.sequences)
@@ -1167,12 +1168,22 @@ class T3Tasks:
         thread's summary first, and the read it came from joins the update's evidence. A line that fails the slot
         check is not returned, and its problems go into the next attempt."""
         acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences, self._asked_request(update))
+        acts = untitled(acts, self._launches())
+        if update.tries and any("request" in a.slots for a in acts):
+            # A new request to the writer: the refused wording carried the description, and it was copied back.
+            acts, update.problems, update.refused = without_request(acts), (), ()
         acts = self._described(update, acts)
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
         rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names())
         refuse(update, rendered)
         return rendered
+
+    def _launches(self) -> dict[str, str]:
+        """The title the seam gave each thread this voice started, and the project it started it in."""
+        with self.lock:
+            return {launch_title(task.instruction): task.project_name for task in self.follow.journal.tasks.values()
+                    if task.kind is Kind.START and task.project_name and task.link.thread_id}
 
     def _asked_request(self, update: L.Update) -> T.PendingNeed | None:
         """The request an open approval question was asked about, as it was read when the question was made: what a
@@ -1201,7 +1212,8 @@ class T3Tasks:
                     if self.unasked is update:
                         self.unasked = None
                 update.status = "completed"
-                return (act(Say.NEEDS_THE_APP, thread=a.slots["thread"], decision="approve"),)
+                named = {name: a.slots[name] for name in ("thread", "begun_in") if name in a.slots}
+                return (act(Say.NEEDS_THE_APP, **named, decision="approve"),)
         return acts
 
     def say_entry(self, update: L.Update, entry: dict, turns=()) -> Rendered:

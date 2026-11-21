@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import re
 from collections import Counter
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import StrEnum
 from typing import Any, Iterable, Mapping
 
@@ -149,7 +149,9 @@ RULES: dict[Kind, Rule] = {
     Kind.CONFIRM_STOP: Rule(("thread",), ("thread",), True, ("stopped",)),
     Kind.SAME_TITLE: Rule(("thread", "op"), ("thread",), forbids=("sent", "stopped")),
     Kind.CANCELLED: Rule(("op", "thread"), ("thread",)),
-    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "need", "pending", "waiting_for", "asked",
+    # `pending` and `prompt` are the request's stored text. `Speech.fill` takes them out before a line is worded and
+    # puts `request` in their place: a description of that request that passed the approval gate, or nothing.
+    Kind.THREAD_STATUS: Rule(("thread", "status", "summary", "need", "pending", "request", "waiting_for", "asked",
                               "since_last_asked"), ("thread",),
                              plain=True),
     Kind.TELL_PENDING: Rule(("thread",), ("thread",), forbids=("sent",)),
@@ -162,7 +164,8 @@ RULES: dict[Kind, Rule] = {
     Kind.STOP_UNCONFIRMED: Rule(("thread",), ("thread",), forbids=("stopped",)),
     Kind.RUN_UPDATE: Rule(("thread", "status"), ("thread",)),
     Kind.REPLIED: Rule(("thread", "status", "reply"), ("thread",), forbids=("finished", "stopped")),
-    Kind.NEEDS_YOU: Rule(("thread", "need", "prompt", "waiting_for", "after_end", "summary"), ("thread",), plain=True),
+    Kind.NEEDS_YOU: Rule(("thread", "need", "prompt", "request", "waiting_for", "after_end", "summary"), ("thread",),
+                         plain=True),
     Kind.NEED_RESOLVED: Rule(("thread", "status"), ("thread",)),
     Kind.DONE: Rule(("thread", "status", "summary"), ("thread",)),
     Kind.THREAD_DELETED: Rule(("thread",), ("thread",)),
@@ -174,7 +177,7 @@ RULES: dict[Kind, Rule] = {
     Kind.REFUSED: Rule(("op", "code", "reason"), forbids=("started", "sent")),
     Kind.LEGACY_UPDATE: Rule(("thread", "text")),
     Kind.UNANSWERED: Rule(("outcomes",), forbids=("started", "sent", "stopped", "answered", "finished")),
-    Kind.CORRECTION: Rule(("thread", "status", "need", "pending", "waiting_for"), ("thread",), plain=True),
+    Kind.CORRECTION: Rule(("thread", "status", "need", "pending", "request", "waiting_for"), ("thread",), plain=True),
     # `decision` is approve or deny. `need` and `pending` say what is being answered, as a thread's status does.
     # An approval is confirmed only with a description of this request in `summary`, from the thread's own records.
     Kind.CONFIRM_RESPOND: Rule(("thread", "decision", "need", "pending", "summary", "asked"), ("thread",), True,
@@ -192,6 +195,12 @@ RULES: dict[Kind, Rule] = {
     Kind.ANSWERED: Rule(("thread", "answers", "recap"), ("thread", "answers")),
     Kind.ANSWER_IN_APP: Rule(("thread",), ("thread",), forbids=("answered",)),
 }
+# A thread this voice started whose title T3 has not replaced is titled with the person's own words, cut off, which is
+# no name to say. Such an act carries `begun_in`, the project it was started in, and no `thread`.
+for _kind, _rule in list(RULES.items()):
+    if "thread" in _rule.slots:
+        RULES[_kind] = replace(_rule, slots=(*_rule.slots, "begun_in"),
+                               named=(*_rule.named, "begun_in") if "thread" in _rule.named else _rule.named)
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
 # A status asked again on a call with nothing new in T3's record since the last one was said: the line says so rather
 # than offering the same status as news.
@@ -227,7 +236,7 @@ _CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?
 MAX_SENTENCES_PER_ACT = 2
 # A thread or project name in quote marks. The call's voice answers a question that quotes its subject ("Yes, it
 # is.") in place of saying it, in 9 of 9 rehearsed relays, and says the same question without the marks.
-_NAMES = ("thread", "project", "candidates", "available")
+_NAMES = ("thread", "project", "candidates", "available", "begun_in")
 _QUOTE = "[\"\N{LEFT DOUBLE QUOTATION MARK}\N{RIGHT DOUBLE QUOTATION MARK}]"
 
 
@@ -254,6 +263,47 @@ def _words(text: str, *, arriving: bool = False) -> list[str]:
             word = word.replace(short, full)
         words.extend(word.split())
     return words
+
+
+_DOTS = ".…"
+
+
+def _word_spans(text: str) -> list[tuple[str, int, int]]:
+    """`_words` with where each word sits in `text`."""
+    flat = _MARKDOWN.sub(lambda match: " " * len(match.group(0)), text.lower().replace("’", "'").replace("‘", "'"))
+    if len(flat) != len(text):
+        return []
+    spans = []
+    for match in _TOKEN.finditer(flat):
+        word = match.group(0)
+        for short, full in _CONTRACTIONS:
+            word = word.replace(short, full)
+        spans.extend((part, match.start(), match.end()) for part in word.split())
+    return spans
+
+
+def masked(text: str, value: str) -> str:
+    """`text` with each place `says` finds `value` replaced by "x". A name is said as given up to punctuation, so its
+    own punctuation (a clipped title's ellipsis, the stops inside a spoken request) is not the line's."""
+    want = [word for word, _, _ in _word_spans(value)]
+    have = _word_spans(text)
+    if not want:
+        return text
+    trail = re.search(r"[^\w\s]+$", value.rstrip())
+    out, at, i = [], 0, 0
+    while i <= len(have) - len(want):
+        if [word for word, _, _ in have[i:i + len(want)]] != want:
+            i += 1
+            continue
+        start, end = have[i][1], have[i + len(want) - 1][2]
+        if trail and set(trail.group()) <= set(_DOTS):
+            while end < len(text) and text[end] in _DOTS:
+                end += 1
+        elif trail and text.startswith(trail.group(), end):
+            end += len(trail.group())
+        out += [text[at:start], "x"]
+        at, i = end, i + len(want)
+    return "".join(out) + text[at:]
 
 
 def normalise(text: str) -> str:
@@ -303,7 +353,7 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
     form = text
     for value in sorted((v for a in acts for name in RULES[a.kind].named if name in a.slots
                          for v in _named_values(a.slots[name])), key=len, reverse=True):
-        form = re.sub(re.escape(value), "x", form, flags=re.IGNORECASE)
+        form = masked(form, value)
     if _NOT_SPEECH.search(form):
         problems.append("not plain speech")
     if any(RULES[a.kind].plain for a in acts) and _CODE.search(form):
@@ -335,7 +385,7 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
 def check_names(line: str, acts: tuple[Act, ...], known_names: Iterable[str]) -> list[str]:
     """Match known titles on token boundaries, giving longer explicit titles precedence."""
     slots = [normalise(value) for act in acts for slot in act.slots.values() for value in _named_values(slot)]
-    explicit = {normalise(value) for act in acts for key in ("thread", "project", "available", "candidates")
+    explicit = {normalise(value) for act in acts for key in ("thread", "project", "available", "candidates", "begun_in")
                 if key in act.slots for value in _named_values(act.slots[key])}
     candidates = {normalise(name): name for name in known_names if name}
     for name in explicit:

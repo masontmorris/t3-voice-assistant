@@ -25,8 +25,10 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from voice.prototype.run import MAX_DRAFTS
-from voice.t3.eval.line_cases import cases, need_lines, turns_for
-from voice.t3.speech import Lane, LocalText, Speech
+from voice.t3 import fakes as F
+from voice.t3 import types as T
+from voice.t3.eval.line_cases import LAUNCH_TITLES, cases, need_lines, turns_for
+from voice.t3.speech import Lane, LocalText, RequestGate, Speech, untitled, without_request
 from voice.t3.verify import Decider
 
 LFM_ARGS = ("-c", "32768", "-kvu")
@@ -41,14 +43,32 @@ def decider(out: Path) -> Decider:
     return Decider(liquid.LiquidClient(pacer=Pacer(first_s=0.0, cap_s=0.0), timeout_s=10.0, max_attempts=3))
 
 
+PROJECT = "Pebble Garden"
+STORED = {}
+
+
+def prepared(speech: Speech, acts) -> tuple:
+    """The acts as a turn holds them when it words them: a pending request's stored text replaced by its gated
+    description, and a thread still titled with the request it started from carried by its project."""
+    stored = acts[0].slots.get("prompt", acts[0].slots.get("pending"))
+    if stored is not None:
+        STORED["state"] = F.state(thread="t", title=acts[0].slots.get("thread", "t"),
+                                  activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need(prompt=stored))
+        acts, _ = speech.fill(acts, "t")
+    return untitled(acts, dict.fromkeys(LAUNCH_TITLES, PROJECT))
+
+
 def word(speech: Speech, acts, turns) -> dict:
     """One case as a turn words it. Returns what each draft was and whether any passed."""
     from voice.live.t3_tasks import refuse
 
+    acts = prepared(speech, acts)
     update = SimpleNamespace(problems=(), tries=0, refused=())
     drafts = []
     for _ in range(MAX_DRAFTS):
         started = time.perf_counter()
+        if update.tries and any("request" in a.slots for a in acts):
+            acts, update.problems, update.refused = without_request(acts), (), ()
         rendered = speech.render(acts, turns, update.problems, update.refused, update.tries)
         refuse(update, rendered)
         drafts.append({"raw": rendered.raw, "passed": rendered.line is not None, "problems": rendered.problems,
@@ -81,11 +101,11 @@ def report(rows: list[dict]) -> dict:
             for key, (n, first, any_) in by.items()}
 
 
-def check_need_lines(speech: Speech) -> list[dict]:
+def check_need_lines(speech: Speech, legacy: bool = False) -> list[dict]:
     rows = []
-    for shape, said, line in need_lines():
+    for shape, mode, said, line in need_lines(legacy):
         checked = speech.accept((said,), line, "eval")
-        rows.append({"shape": shape, "act": said.to_json(), "line": line, "passed": checked.line is not None,
+        rows.append({"shape": shape, "mode": mode, "act": said.to_json(), "line": line, "passed": checked.line is not None,
                      "problems": checked.problems, "error": checked.error,
                      "invents": checked.verdict.answers.get("invents") if checked.verdict else None})
     return rows
@@ -113,11 +133,17 @@ async def main_async(args) -> int:
             stack.enter_context(Server(args.lfm_port, args.out / "lfm3-audio.log", LFM_ARGS, LFM_SLOTS))
             writer = RealtimeWriter(f"ws://127.0.0.1:{args.lfm_port}/v1/realtime")
             await stack.enter_async_context(writer)
-        speech = Speech(lane, lambda thread_id: None, check, Lane(writer) if writer else None)
+        gate = None
+        if lane is not None and isinstance(lane.client, LocalText):
+            from voice.live.t3_tasks import SUMMARY_GATE_PORT, summary_gate_server
+            stack.enter_context(summary_gate_server(args.out / "summary-gate.log"))
+            gate = RequestGate(f"http://127.0.0.1:{SUMMARY_GATE_PORT}")
+            lane.client.gate_url = f"http://127.0.0.1:{SUMMARY_GATE_PORT}"
+        speech = Speech(lane, lambda thread_id: STORED.get("state"), check, Lane(writer) if writer else None, gate=gate)
         rows = await asyncio.to_thread(run_cases, speech, args.repeats, args.groups)
     result = {"writer": args.writer, "report": report(rows), "rows": rows}
     if not args.groups or "needs_with_command" in args.groups:
-        result["need_checks"] = await asyncio.to_thread(check_need_lines, speech)
+        result["need_checks"] = await asyncio.to_thread(check_need_lines, speech, args.legacy)
     (args.out / f"lines-{args.writer}.json").write_text(json.dumps(result, indent=1), encoding="utf-8")
     print(json.dumps({"writer": args.writer, **result["report"]}, indent=1))
     return 0
@@ -130,6 +156,8 @@ def main(argv=None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--repeats", type=int, default=1)
     parser.add_argument("--groups", nargs="*", default=[], help="only these case groups")
+    parser.add_argument("--legacy", action="store_true", help="check the need lines as the act was before the request "
+                        "slot (for a run on older code)")
     parser.add_argument("--local-port", type=int, default=8099)
     parser.add_argument("--lfm-port", type=int, default=8095)
     args = parser.parse_args(argv)

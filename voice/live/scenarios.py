@@ -659,8 +659,6 @@ KNOWN: dict[tuple[str, str], str] = {
         "(3 of 3 runs on voice/main a51878fd2e, after #90)",
     ("withdrawn-question", "no free reply offers the old choices"):
         "after the fix in #90, 1 of 3 baseline runs still offered the old choices in a free reply",
-    ("news-permission", "permission news was not lost to a refused line"):
-        "permission news failed its checks in 2 of 3 baseline runs; all 3 calls reached a fallback",
     ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
 
 

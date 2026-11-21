@@ -22,6 +22,9 @@ from typing import Any, Iterable
 
 from voice.t3.acts import QUESTIONS, Act, Kind, forbidden_claims, outcome_meaning
 
+# The acts that can say what a pending request is about (speech.REQUEST_ACTS).
+REQUEST_ACTS = frozenset({Kind.THREAD_STATUS, Kind.NEEDS_YOU, Kind.CORRECTION})
+
 VERIFY_TIMEOUT_S = 2.0
 YES = 0.5
 # The acts whose line says the thread's summary after its status (speech.MEANINGS).
@@ -158,7 +161,8 @@ def _fill(template: str, slots: dict) -> str:
     for name, joiner in (("candidates", ", "), ("options", ", "), ("answers", "; "), ("questions", "; ")):
         if isinstance(slots.get(name), (list, tuple)):
             values[name] = joiner.join(slots[name])
-    values.setdefault("thread", "the thread")
+    values.setdefault("thread", f"the thread started for them in {slots['begun_in']}" if slots.get("begun_in")
+                      else "the thread")
     values.setdefault("project", "the project")
     return template.format_map(_Blank(values))
 
@@ -171,6 +175,11 @@ class _Blank(dict):
 def act_meaning(a: Act) -> str:
     if a.kind is Kind.UNANSWERED and (outcomes := a.slots.get("outcomes")):
         return "the assistant " + outcome_meaning(outcomes)
+    if a.kind is Kind.NO_THREAD:
+        if a.slots.get("other"):
+            return "no other thread matches what they asked about, besides the one they turned down"
+        return "no thread matches what they asked about" + (f", after the assistant checked {a.slots['recent']} "
+                                                            "recent threads" if a.slots.get("recent") else "")
     return _fill(OPEN_QUESTION if a.kind is Kind.ASK_QUESTION and not a.slots.get("options") else MEANS[a.kind], a.slots)
 
 
@@ -209,6 +218,29 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            "own words, in the question." if confirming else
                            f"the line left out what the thread reported: \"{a.slots['summary']}\". Say that, in your "
                            "own words, after the status."))
+    # A request is described only from `request`, which the approval gate passed against the stored request. A thread
+    # that has none is told only by the kind of thing it waits for.
+    for n, a in enumerate(acts, 1):
+        if a.kind not in REQUEST_ACTS or not a.slots.get("need"):
+            continue
+        if request := a.slots.get("request"):
+            out.append(Ask(f"a{n}_request", f'Does the line say what the request would do, as this description does: '
+                           f'"{request}"?', True,
+                           f"the line left out what the request would do: \"{request}\". Say that, in your own words."))
+            out.append(Ask(f"a{n}_reads_out", "Does the line read out a command, a program's name, a file name, a path or "
+                           "code, instead of describing it in plain words?", False,
+                           "the line reads out a command, file name or path. Describe what the request would do in "
+                           "plain words, without naming a program, a file or a path."))
+            out.append(Ask(f"a{n}_request_adds", f'Does the line say anything about what the request would do or what '
+                           f'it is for that this description does not: "{request}"?', False,
+                           f"the line says more about the request than this description does: \"{request}\". Say "
+                           "that and nothing more."))
+        else:
+            out.append(Ask(f"a{n}_kind_only", "Not counting the thread's name, does the line say what the request or "
+                           "command would do or what it is for, instead of only what kind of request the thread waits "
+                           "on?", False,
+                           "the line says what the request does or is for. Say only the kind of thing the thread "
+                           "waits for, such as approval to run a command."))
     # The slot check finds an option anywhere in the line, so "Strong" is found in "how strong should it be" and a line
     # that leaves the option out passes it (rehearsal). Each option and answer is asked about on its own.
     for n, a in enumerate(acts, 1):
@@ -226,12 +258,15 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                                f"the line left out {value!r}. Say every option or answer, each as given."))
     # Without these, "I've stopped X, right?" passed for a stop confirm and "X has stopped." for a stop just asked
     # for: the meaning question misses tense (measured on the fixture, 2026-11-18).
-    subject = next((a.slots["thread"] for a in acts if "thread" in a.slots), "the thread")
+    subject = next((a.slots["thread"] for a in acts if "thread" in a.slots),
+                   next((f"the thread started for them in {a.slots['begun_in']}" for a in acts if "begun_in" in a.slots),
+                        "the thread"))
     for claim, wording in asked_claims(acts).items():
         out.append(Ask(f"claims_{claim}", f"Does the line say that {_fill(wording, {'thread': subject})}?", False,
                        bar=CLAIM_BARS.get(claim, YES)))
     # Of three phrasings probed on the six fixture lines, this one kept the widest gap (measured, 2026-11-18).
-    out.append(Ask("invents", "Does the line state something about a thread that `facts` does not support?", False))
+    out.append(Ask("invents", "Does the line state something about a thread that `facts` does not support?", False,
+                   "the line says something the facts do not support. Say only what the act means and add nothing."))
     return out
 
 

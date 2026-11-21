@@ -59,6 +59,52 @@ On a call with T3 enabled, the text model words an `unanswered` act when a calle
 
 A turn can still end in silence if the caller interrupts, every text writer is unavailable, the decider is unavailable, or the call cannot recite a checked acknowledgment.
 
+## A thread still titled with the request it started from
+
+A thread the voice starts is titled with the first line of what the person said, cut at 80 characters with an ellipsis, until T3 names it (`titleOf` in `apps/server/src/voiceSeam/launch.ts`, `launch_title` in `voice/t3/journal.py`). A spoken request is long and hesitant and has sentence breaks inside it, so that title is no name: the writer dropped the part after the first stop or "finished" a cut word, the slot check refused the draft for missing the title, and the form check counted the title's own stops and ellipsis against the line (the words were all there, spelled with "..." in place of the title's "…"). Two drafts failed, and the caller heard the `unanswered` fallback.
+
+Three changes, one per cause:
+
+- **The form check masks a named value by its words** (`acts.masked`), the same word match `says` uses, so a name said whole is not judged on its own punctuation. The line around it is still judged: a backtick, a question the act did not call for, or a third sentence still refuse it.
+- **An act about a thread that still carries its launch title carries `begun_in` instead of `thread`** (`speech.untitled`, applied in `T3Tasks.say`). `begun_in` is the project the voice started it in, and the line says "the thread you started in X". The match is exact equality of the thread's title with `launch_title` of a launch in the journal, so no text is read for meaning. When T3 names the thread, the title differs and is said as a name.
+- **Refusals tell the writer what to change.** The generic "states something the facts do not support" refusal now says to say only what the act means, and `NO_THREAD` with `other` is told to the checker as what it means (no other thread besides the one turned down), where it only saw `other: true`.
+
+Line eval (`voice/t3/eval/line_eval.py`, realtime writer with the local 1.7B behind it, the hosted d1.2 check, up to two drafts, 3 draws a case, the cases made up in `voice/t3/eval/line_cases.py` in the shape of the failing turns). Counts are cases passing within two drafts, base commit against this change:
+
+| Group                                             | Base     | After    |
+| ------------------------------------------------- | -------- | -------- |
+| needs-you line, launch title                      | 3 of 9   | 9 of 9   |
+| status of a waiting thread, launch title          | 0 of 9   | 9 of 9   |
+| "do you mean" for a launch title                  | 1 of 6   | 6 of 6   |
+| "approve it in the app", launch and clipped title | 15 of 21 | 21 of 21 |
+| status with no summary, clipped title             | 6 of 9   | 9 of 9   |
+| no thread besides the one turned down, and others | 6 of 9   | 9 of 9   |
+| Held out: four acts over two new requests (24)    | 6 of 24  | 24 of 24 |
+
+The held-out cases were written after the groups above had been tuned on, and were scored once; one more change (below) came after that, so they were scored again. All 79 cases once on each code: 57 of 79 on base, 74 of 79 after. The five misses are an unrelated group (`ask_question`, 4 of 8 on both, "not a question") and one quoted name that varies between runs.
+
+## What a line says a pending request is about
+
+A needs-you line, a status line for a thread waiting on a request, and a correction used to be given the request's stored text (`prompt`, `pending`) and told to say what it was about. A command line in `pending` was read out in a status line that passed its checks, and a made-up purpose passed the generic unsupported-claim question at its 0.5 bar (1 of 4 invented purposes in the eval; one scored 0.37).
+
+The description of a request now comes from the approval path only ([live-reply-check.md](live-reply-check.md)): `Speech.fill` takes `prompt` and `pending` out of the act and puts `request` in their place. `request` is the description `Speech.describe` returns for the thread's request as the read holds it, and only when the stored text of the act is the stored text of that request. It is written from the request alone, passed by the approval gate, bound to the request's id and content, and never a summary. A tool permission, a file read, a missing detail, a refused description, no gate, or a gate that gives no answer leave `request` out, and the line says only what kind of thing the thread waits for. The summary beside it is written without the request, and a thread with no reply and a pending request is not summarised, since a summary could only describe the request.
+
+The line check asks about it (`voice/t3/verify.py`): with `request`, whether the line says what the description says, whether it says anything about what the request does or is for beyond it, and whether it reads out a command, program, file name or path; without it, whether it says what the request is for at all, apart from the thread's name. A description the writer cannot word without reading something out costs the line: the second draft of a line that carries `request` is worded without it (`speech.without_request`), with the refused wording left out of the request, because the writer copied it back (3 of 3 second drafts, with it in).
+
+Invented labels and purposes about 6 made-up pending commands, each said as a faithful line, one naming another action (label) and one saying what the command is for (purpose), each checked once with a gated description and once with none (`line_eval`, hosted d1.2):
+
+| Check                                                           | Faithful passed | Invented labels passed | Invented purposes passed |
+| --------------------------------------------------------------- | --------------- | ---------------------- | ------------------------ |
+| Base: the stored text in the act, generic unsupported question  | 6 of 6          | 1 of 6                 | 0 of 6                   |
+| After, with a description (the line must carry it, add nothing) | 6 of 6          | 0 of 6                 | 0 of 6                   |
+| After, no description (only the kind of request)                | 6 of 6          | 0 of 6                 | 0 of 6                   |
+
+The same eval's earlier set of four invented purposes passed 1 of 4 on base. These are small sets written by one author, and the question's bar was not tuned.
+
+A reading-out question on the description itself (is it a program or file name?) was tried at the gate and refused 7 of the 32 faithful descriptions of the approval cases that the gate passes (25 kept), which are mostly descriptions that say "file", so it was dropped; it would have cut the approvals that are confirmed by voice.
+
+**Cost.** In the eval, 33 of 42 acts about a pending request carried a description, and 12 of 18 descriptions of the 6 made-up commands passed the gate in a timing run; a gate run's sandbox command never gets one, because the gate refuses its description (see [live-reply-check.md](live-reply-check.md)). The description takes the place of the summary these lines used to wait for, and it is quicker: the local 1.7B and its gate took a median 204 ms (p95 230 ms) to describe a request, against 273 ms (p95 298 ms) for the summary of the same thread, so nothing is added before the line is spoken (measured, 18 each, GPU). The extra is the second draft that drops the description when the first is refused, which is one more writer call on that turn.
+
 ## Corrections, approvals and withdrawn questions
 
 [live-reply-check.md](live-reply-check.md) covers three more kinds of line: a free reply that claimed something about a thread is checked against T3 and corrected (a `correction` act); a pending permission request can be approved or denied by voice (acts `confirm_respond`, `responded`, `nothing_pending` and `needs_the_app`, and a `respond` seam operation), with the confirmation carrying a description of the request; and a question the caller never answered is told to the voice model once as withdrawn. [answer-by-voice.md](answer-by-voice.md) covers a thread's own question: told with every option (`ask_question`), answered by a decider choice among them, confirmed back (`confirm_answer`), and reported (`answered`, `answer_in_app`). The `same_title` line has an example shape that the voice recites (24 of 24 relays).

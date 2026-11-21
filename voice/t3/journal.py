@@ -81,6 +81,16 @@ class T3Link:
     answer: dict | None = None
 
 
+TITLE_MAX_CHARS = 80
+
+
+def launch_title(instruction: str) -> str:
+    """The title the seam gives a thread it starts from `instruction`, until T3 names the thread
+    (apps/server/src/voiceSeam/launch.ts, `titleOf`): the first line, cut with an ellipsis."""
+    first = (instruction.strip().splitlines() or [""])[0].strip()
+    return first if len(first) <= TITLE_MAX_CHARS else first[:TITLE_MAX_CHARS - 1].rstrip() + "…"
+
+
 @dataclass
 class JournalTask:
     task_id: str
