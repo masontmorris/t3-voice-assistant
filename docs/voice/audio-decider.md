@@ -158,9 +158,9 @@ Cut-offs count mid-utterance turn ends. Waits are median / p90 in seconds.
 | Plain silence, 0.7 s | 0.70 / 0.70, 2 | 2 | 24 | 0.70 / 0.70, 0 | 0 | 0 | 0 |
 | d1-Omni-2B, shorten only (`--eou audio`) | 0.20 / 0.70, 5 | 13 | 32 | 0.20 / 0.48, 3 | 0 | 2.7 GB | 60 ms, GPU |
 | d1-Omni-2B, both directions | 0.22 / 0.70, 1 | 12 | 30 | 0.20 / 0.70, 3 | 0 | 2.7 GB | 60 ms, GPU |
-| Smart Turn, shorten only | 0.22 / 0.70, 7 | 17 | 29 | 0.22 / 0.62, 3 | 0 | 0 | 37 ms, 86 ms of CPU |
-| Smart Turn, both directions | 0.58 / 0.70, 0 | 2 | 15 | 0.56 / 0.64, 0 | 3 | 0 | 37 ms, 86 ms of CPU |
-| **Smart Turn, hold only (`--eou smart`)** | 0.70 / 0.70, 0 | 0 | 13 | 0.70 / 0.70, 0 | 3 | 0 | 37 ms, 86 ms of CPU |
+| Smart Turn, shorten only | 0.22 / 0.70, 7 | 17 | 29 | 0.22 / 0.62, 3 | 0 | 0 | 33 ms, 97 ms of CPU |
+| Smart Turn, both directions | 0.58 / 0.70, 0 | 2 | 15 | 0.56 / 0.64, 0 | 3 | 0 | 33 ms, 97 ms of CPU |
+| **Smart Turn, hold only (`--eou smart`)** | 0.70 / 0.70, 0 | 0 | 13 | 0.70 / 0.70, 0 | 3 | 0 | 33 ms, 97 ms of CPU |
 | Both models agree, both directions | 0.22 / 2.81, 2 | 9 | 24 | 0.22 / 0.62, 3 | 6 (of 60) | 2.7 GB | both |
 
 How each row was chosen. The two shorten-only rows are fixed: ask at 150, 300 and 500 ms, end at 0.5. The d1 and both-models rows with a hold are the policy with the fewest cut-offs, found by a grid search over check points, `theta`, `hold_theta` and `hold_ms` (about 2,000 policies a model), among those that keep the real call at a median of 0.22 s or less and 3 cut-offs or fewer. Smart Turn "both directions" ends at 0.9 and holds at 0.05, picked by hand from the same grid. Smart Turn hold only is the shipped preset: ask at 500, 600, 900, 1200 and 1600 ms, hold at 0.05 or less, cap the hold at 2 s. The grid was searched on the sets it is scored on, so the tuned rows are optimistic.
