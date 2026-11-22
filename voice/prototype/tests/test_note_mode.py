@@ -313,11 +313,12 @@ class WithdrawnQuestionTurn(NoteTurn):
         self.assertIn("Tidy the Save Slots", note)
         self.assertIn("own last reply", note)
 
-    async def test_a_turn_not_about_the_line_gets_no_note(self):
+    async def test_a_turn_not_about_the_line_gets_a_note_that_names_no_thread(self):
         """The repeat call: a note naming the thread on every free turn had the voice say the line again, goodbye
         included."""
         await self.turn(["You're welcome, bye."], task_service=self.relayed(False))
-        self.assertEqual(texts(self.voice), [])
+        self.assertEqual(texts(self.voice), [prototype.FREE_NOTE])
+        self.assertNotIn("thread", prototype.FREE_NOTE.lower())
         self.assertEqual(self.spoken, ["You're welcome, bye."])
 
     async def test_a_turn_with_no_words_says_nothing_and_its_audio_is_answered_unheard(self):

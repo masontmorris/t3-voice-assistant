@@ -7,8 +7,8 @@ Each trial opens a fresh voice session with the live persona, plays a status que
 line as a turn does, then plays one caller turn that is not a request (a shape) and takes the free reply as the live
 turn does. An arm decides the private note that rides with that turn: none, the note PR #102 shipped on every such turn,
 a plain note to answer as itself (`free`), a note that says where the line came from (`said`, and the later wordings
-of `CANDIDATES`), or what the hosted decider routes to (`routed`, what ships: the note that ships when it reads the
-words as about the line, else none).
+of `CANDIDATES`), or what the hosted decider routes to (`routed`, what ships: the doubt note when it reads the words as
+about the line, else the plain one).
 
 Scores, per reply. It restates the line when `run.repeated` says so (the live fact check's own measure) or the hosted
 d1.2 says it repeats or restates what the assistant said before about the thread. For a doubt or a question about the
@@ -43,7 +43,8 @@ LINE = f"{THREAD} was cancelled, and its last reply said it was merging the old 
 ASKED = "How is the save slots thread doing?"
 SHAPES = {"doubt": "That does not sound right to me.", "why": "Why did you say that?",
           "where": "Where did you get that from?",
-          "unrelated": "Can you tell me something interesting about octopuses?", "thanks": "Okay, thanks.",
+          "unrelated": "Can you tell me something interesting about octopuses?", "never": "Never mind.",
+          "thanks": "Okay, thanks.",
           "goodbye": "Okay, thanks, that is all."}
 ABOUT = {"doubt", "why", "where"}
 SOURCE = {"thread": THREAD, "from": "reply"}
@@ -70,6 +71,10 @@ CANDIDATES = {
     "said4": (run.NOTE_OPEN + "they doubt or ask about what you last told them about {thread}, and they heard it. It "
               "came from {source}. Tell them, as yourself, where it came from and that you can check the thread again "
               "for them. Say none of what you told them: one short sentence, with no part of that line in it.]"),
+    # For a turn not about the line, after no note had the voice say the line again to "Never mind." (gate run) and
+    # `free` answered a thanks with "No further action is required".
+    "free2": (run.NOTE_OPEN + "what they just said is theirs, not words for you to pass on. Answer them as yourself, in "
+              "your own words, and do not repeat any earlier line of yours.]"),
 }
 ARMS = ("none", "shipped", "free", "said", "routed", *CANDIDATES)
 AGAIN = "Does the reply repeat or restate what the assistant said before about the thread?"

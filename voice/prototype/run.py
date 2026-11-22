@@ -192,9 +192,12 @@ DROPPED_NOTE = (NOTE_OPEN + "they did not answer your last question and have mov
 # A turn with no note of its own was answered as one more of those: "I understand. The message is clear." (3 turns of
 # the 2026-11-22 in-app call): a remark on the last line, a doubt about a status, and "why do you keep saying that". A
 # turn the decider reads as about that line (`about`) is told the words are its own to answer and where the line came
-# from. Any other turn gets no note: given this note on every free turn, the voice said the line again to a doubt, a
-# remark and a goodbye (the repeat call, 3 of 3), and told only to answer as itself it said "No further action is
+# from. Given that note on every free turn, the voice said the line again to a doubt, a remark and a goodbye (the
+# repeat call, 3 of 3). Any other turn gets a note that names no thread: with none, a gate run's "Never mind." got the
+# line again and alone it got "I can't help with that"; a note to answer "as yourself" got "No further action is
 # required" to a thanks. Measured on the voice model by voice/t3/eval/said_eval.py.
+FREE_NOTE = (NOTE_OPEN + "what they just said is theirs, not words for you to pass on. Answer them as yourself, in your "
+             "own words, and do not repeat any earlier line of yours.]")
 SAID_NOTE = (NOTE_OPEN + "they are not asking you to say anything again. They doubt or ask about what you last told "
              "them about {thread}; you took it from {source}. Answer as yourself: say where you took it from and offer "
              "to check the thread again, without repeating any of it.]")
@@ -202,9 +205,11 @@ SAID_FROM = {"reply": "the thread's own last reply in T3", "status": "the thread
 
 
 def said_note(source):
-    """The note for a turn with no note of its own that is about the call's last line about a thread, or None."""
-    if not source or not source.get("about"):
+    """The note for a turn with no note of its own, after the call has said a line about a thread, or None."""
+    if not source:
         return None
+    if not source.get("about"):
+        return FREE_NOTE
     return SAID_NOTE.format(thread=source["thread"], source=SAID_FROM[source["from"]])
 
 
