@@ -1,5 +1,6 @@
 """Smart Turn on the CPU: a missing or broken model is a fallback to the silence rule, never a failed call."""
 
+import importlib.util
 import tempfile
 import unittest
 from pathlib import Path
@@ -48,6 +49,11 @@ class PresetTest(unittest.TestCase):
 
 @unittest.skipUnless(eou_smart_turn.MODEL.is_file(), "the Smart Turn weights are not under VOICE_HOME")
 class ModelTest(unittest.TestCase):
+    def setUp(self):
+        missing = [name for name in ("onnxruntime", "transformers") if importlib.util.find_spec(name) is None]
+        if missing:
+            self.skipTest(f"no {' or '.join(missing)} in this environment")
+
     def test_loading_leaves_the_torch_thread_pool_alone(self):
         try:
             import torch

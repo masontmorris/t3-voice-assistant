@@ -4,3 +4,7 @@
 voice.bot.test_root_tasks  # needs VOICE_PROTOTYPE_CHECKOUT, a separate prototype checkout
 voice.t3.eval.test_summary_eval.TitleIsNotEvidence.test_fixing_tests_title_yields_no_fixed_claim  # issue #65, renderer recording is stale
 voice.t3.eval.test_summary_eval.TitleIsNotEvidence.test_fixing_tests_and_snapshot_title_yields_no_fixed_claim  # issue #65, renderer recording is stale
+voice.live.tests.test_eou_smart_turn.LoadTest.test_a_failed_load_leaves_the_process_threading_as_it_was  # needs torch, onnxruntime and transformers; the audio venv has none of them, so it runs only in the model venv
+voice.live.tests.test_eou_smart_turn.ModelTest.test_loading_leaves_the_torch_thread_pool_alone  # needs torch, onnxruntime and transformers; the audio venv has none of them, so it runs only in the model venv
+voice.live.tests.test_eou_smart_turn.ModelTest.test_the_features_are_whisper_log_mel_of_eight_seconds  # needs torch, onnxruntime and transformers; the audio venv has none of them, so it runs only in the model venv
+voice.live.tests.test_eou_smart_turn.ModelTest.test_a_probability_comes_back_for_a_short_and_a_long_clip  # needs torch, onnxruntime and transformers; the audio venv has none of them, so it runs only in the model venv
