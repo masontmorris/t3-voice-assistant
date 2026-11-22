@@ -575,8 +575,6 @@ class T3TurnTest(NoteTurn):
 
         for name, script, service, send, muted, heard, deliveries in (
             ("muted", [], WithFallback, self.send_checked, True, [], ["unsent"]),
-            ("failed fallback", ["Wrong.", "Wrong.", "Wrong.", "Wrong."], WithFallback, self.send_checked,
-             False, [], ["unsent", "unsent"]),
             ("partial", [DRAFT], WithFallback, send_partial, False, [DRAFT], ["partial"]),
             ("no capability", ["Wrong.", "Wrong."], T3SnapshotService, self.send_checked, False, [], ["unsent"]),
         ):
@@ -587,6 +585,16 @@ class T3TurnTest(NoteTurn):
                 self.assertEqual(self.spoken, heard)
                 self.assertEqual([r["delivery"] for r in record["replies"]], deliveries)
                 self.assertEqual(self.voice.asked, attempts)
+
+        # Every checked line refused, the fallback's too: the voice says it has no answer in its own words, so the turn
+        # is never silent, and that reply is told to say nothing about a thread.
+        self.spoken.clear()
+        record = await self.turn(["Wrong.", "Wrong.", "Wrong.", "Wrong.", "Sorry, I couldn't get that just now."],
+                                 task_service=WithFallback, send_checked=self.send_checked)
+        self.assertEqual([r["kind"] for r in record["replies"]], ["t3", "t3", "no_answer"])
+        self.assertEqual([r.get("delivery") for r in record["replies"][:2]], ["unsent", "unsent"])
+        self.assertEqual(self.spoken, ["Sorry, I couldn't get that just now."])
+        self.assertIn(prototype.UNHEARD_NOTE, texts(self.voice))
 
         class NoOrdinaryAudio(Scripted):
             async def push(inner, event):

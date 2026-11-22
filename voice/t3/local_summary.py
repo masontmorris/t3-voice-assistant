@@ -301,10 +301,37 @@ def brief_gate(instruction: str, brief: str) -> dict:
                           for name, question in BRIEF_GATE.items()}}
 
 
-def brief_passes(record: dict[str, Any]) -> bool:
-    """Whether every gate question answered, each under its bar. A missing answer fails the brief."""
+def brief_refusals(record: dict[str, Any]) -> tuple[str, ...]:
+    """The gate questions a brief failed, by name: each at or over its bar, or with no answer. Empty when it passed."""
     scores = {name: noul(record, name) for name in BRIEF_GATE}
-    return all(score is not None and score < BRIEF_BARS[name] for name, score in scores.items())
+    return tuple(name for name, score in scores.items() if score is None or score >= BRIEF_BARS[name])
+
+
+def brief_passes(record: dict[str, Any]) -> bool:
+    return not brief_refusals(record)
+
+
+# What a refused brief is told on its one retry, by the question it failed.
+BRIEF_REFUSED = {"adds": "it asked for something the request does not",
+                 "drops": "it left out part of the work the request asks for",
+                 "starts": "it asked for a thread to be started; the thread already exists"}
+
+
+def brief_retry_messages(instruction: str, refused: str, failed: tuple[str, ...]) -> list[dict]:
+    """The writer's messages again, with its refused brief and why it was refused, for one more try."""
+    why = "; ".join(BRIEF_REFUSED.get(name, "it could not be checked") for name in failed) or "it could not be checked"
+    return [*brief_messages(instruction), {"role": "assistant", "content": json.dumps({"gist": refused})},
+            {"role": "user", "content": f"That was refused: {why}. {BRIEF_ADJACENT}"}]
+
+
+# A thread started with no checked brief is handed the person's words inside this, never bare: handed "can you start a
+# thread to ..." alone, its agent started a second thread. One line, so the title T3 makes from it is still distinct.
+LAUNCH_FRAME = ("Started by voice for this request, as heard: \"{request}\". You are the thread it started: do the task "
+                "here, and do not start another thread.")
+
+
+def framed(request: str) -> str:
+    return LAUNCH_FRAME.format(request=" ".join(request.split()))
 
 
 def account_messages(instruction: str) -> list[dict]:

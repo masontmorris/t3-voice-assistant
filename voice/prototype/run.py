@@ -205,6 +205,8 @@ def said_note(source):
     return SAID_NOTE.format(source=SAID_FROM[source["from"]].format(thread=source["thread"]))
 
 
+UNHEARD_NOTE = (NOTE_OPEN + "you could not get them an answer just now. Tell them so in a few words, and that they "
+                "can ask again. Say nothing about any thread or task.]")
 TRANSITION_NOTE = (NOTE_OPEN + "your last reply about their coding thread was wrong. Take it back now: say you need "
                    "to double check it. Say nothing else about the thread, and ask them nothing.]")
 # A line this short is not logged as a repeat: "I understand." twice is conversation, not a stale reply.
@@ -1210,6 +1212,12 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 entry, words, delivered = fallback
                 await say_t3([entry], "t3", audio_end, words=words, delivered=lambda _, state: delivered(state),
                              render_context=False)
+            if not any(r["speech_s"] for r in replies) and not is_muted():
+                # Every checked line was refused, the fallback's too: the voice says in its own words that it has no
+                # answer, and nothing about any thread, rather than leave the caller with silence.
+                _, held, held_pcm = await speak_note(voice, out_rate, clock(), UNHEARD_NOTE, [], log, speak=speak)
+                replies.append({"kind": "no_answer", **held})
+                log("reply", reply="no_answer", text=held["text"])
 
     finally:
         if worker is not None:

@@ -1304,7 +1304,7 @@ class Live:
             return
         self.active = conversation
         if self.t3 is not None:
-            self.t3.begin_call()
+            await asyncio.to_thread(self.t3.begin_call)
         print(f"client connected from {ws.remote_address[0]}", flush=True)
         try:
             await conversation.run()

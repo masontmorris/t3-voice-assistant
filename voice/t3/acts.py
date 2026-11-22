@@ -241,8 +241,7 @@ _NOT_SPEECH = re.compile(r"^[\[{]|```|`|\*\*|https?://|\||\.\.\.|\N{HORIZONTAL E
                          re.IGNORECASE)
 # Shell syntax, a flag, a path or a backslash: what a raw command reads like, which no spoken line holds.
 _CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?\.{0,2}/\w|\w/[\w.-]+\.\w+|\\\w")
-# A word joined by an underscore is a field or kind name from the acts ("need_resolved", "waiting_on_you"), never speech.
-_IDENTIFIER = re.compile(r"[^\W_]_+[^\W_]")
+_FIELD_TOKEN = re.compile(r"[\w-]+")
 MAX_SENTENCES_PER_ACT = 2
 # A thread or project name in quote marks. The call's voice answers a question that quotes its subject ("Yes, it
 # is.") in place of saying it, in 9 of 9 rehearsed relays, and says the same question without the marks.
@@ -381,8 +380,6 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
         form = masked(form, value)
     if _NOT_SPEECH.search(form):
         problems.append("not plain speech")
-    if _IDENTIFIER.search(form):
-        problems.append("says a field name")
     if any(RULES[a.kind].plain for a in acts) and _CODE.search(form):
         problems.append("reads code")
     if len(_SENTENCE.findall(form if form[-1] in ".!?" else form + ".")) > MAX_SENTENCES_PER_ACT * len(acts):
@@ -407,6 +404,19 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
         if options and all(says(text, value) for value in options) and not in_order(text, options):
             problems.append(f"{a.kind.value} options out of order: {', '.join(options)}")
     return problems
+
+
+def field_names(line: str, acts: Iterable[Act], vocabulary: frozenset[str]) -> list[str]:
+    """The names from the acts' own vocabulary (`vocabulary`: kind, field and enum names) that `line` says as words.
+    A named value is the act's to say, so its own words are left out first; a name a thread reported ("load_config")
+    is not in the vocabulary and is never refused."""
+    acts = list(acts)
+    form = line or ""
+    for value in sorted((v for a in acts for name in RULES[a.kind].named if name in a.slots
+                         for v in _named_values(a.slots[name])), key=len, reverse=True):
+        form = masked(form, value)
+    said = list(dict.fromkeys(t.casefold() for t in _FIELD_TOKEN.findall(form) if t.casefold() in vocabulary))
+    return [f"says a field name: {name}" for name in said]
 
 
 def check_names(line: str, acts: tuple[Act, ...], known_names: Iterable[str]) -> list[str]:

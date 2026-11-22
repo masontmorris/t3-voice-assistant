@@ -32,6 +32,18 @@ def fake_identity(paths: EnvPaths, stamp: str = "stamp-1"):
     return (stamp, f"node vp run dev --home-dir {paths.home} --no-seed --port 3779")
 
 
+class PortTest(unittest.TestCase):
+    def test_the_port_is_3779_unless_the_environment_moves_it(self):
+        def port(**env):
+            run = subprocess.run([sys.executable, "-c", "from voice.t3 import fork_env; print(fork_env.FORK_PORT)"],
+                                 capture_output=True, text=True, check=True,
+                                 env={k: v for k, v in {**os.environ, **env}.items() if v is not None})
+            return int(run.stdout)
+
+        self.assertEqual(port(VOICE_FORK_PORT=None), 3779)
+        self.assertEqual(port(VOICE_FORK_PORT="3791"), 3791)
+
+
 class SecondUpTest(unittest.TestCase):
     def test_a_second_up_creates_nothing_new(self):
         with tempfile.TemporaryDirectory() as tmp:

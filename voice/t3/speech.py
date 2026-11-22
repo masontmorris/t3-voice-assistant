@@ -30,11 +30,27 @@ from typing import Any, Callable, Iterable, Mapping
 from voice.t3 import local_summary as LS
 from voice.t3 import types as T
 from voice.t3.pick.model import allowed_model
-from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, check, check_names, forbidden_claims, normalise, outcome_meaning,
+from voice.t3.acts import (NOTHING_NEW, QUESTIONS, RULES, SUMMARISED, Act, Kind, Outcome, check, check_names,
+                           field_names, forbidden_claims, normalise, outcome_meaning,
                            recites)
 from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.journal import launch_title
-from voice.t3.verify import REQUEST_ACTS, Decider, Verdict
+from voice.t3.verify import NEED, REQUEST_ACTS, Decider, Verdict
+
+
+def _vocabulary() -> frozenset[str]:
+    """Every name the dialog acts and the lifecycle are typed with that is not also a word: kinds, fields, rows, needs
+    and the enums of T3 states. A line that says one has read out the record's own labels. A plain word such as
+    "done" or "running" is a kind or a status too, and is left out: those are judged by meaning."""
+    from voice.t3 import lifecycle as L
+    names = {k.value for k in Kind} | {s for r in RULES.values() for s in r.slots} | {o.value for o in Outcome}
+    names |= set(L.ROWS) | set(NEED) | {d.value for d in L.Do}
+    for enum in (T.ThreadActivity, T.NeedSource, T.PendingKind, T.RunStatus):
+        names |= {member.value for member in enum}
+    return frozenset(n.casefold() for n in names if " " not in n and ("_" in n or "-" in n))
+
+
+VOCABULARY = _vocabulary()
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
@@ -325,17 +341,18 @@ class RequestGate:
             except Exception:
                 return None
 
-    def passes_brief(self, instruction: str, brief: str) -> bool:
-        """Whether the gate passes `brief` as the first message of the thread `instruction` asked for. No answer is no."""
+    def brief_refusals(self, instruction: str, brief: str) -> tuple[str, ...]:
+        """The gate questions `brief` fails as the first message of the thread `instruction` asked for; empty when it
+        passes. No answer fails every one."""
         from voice.local_decider.client import D1Client
         with self._lock:
             try:
                 if self._client is None:
                     self._client = D1Client(self.url, timeout_s=LS.GATE_TIMEOUT_S)
-                return LS.brief_passes(self._client.call("decisions", LS.brief_gate(instruction, brief),
-                                                         label="brief_gate"))
+                return LS.brief_refusals(self._client.call("decisions", LS.brief_gate(instruction, brief),
+                                                           label="brief_gate"))
             except Exception:
-                return False
+                return tuple(LS.BRIEF_GATE)
 
     def doubt(self, need: T.PendingNeed, description: str) -> float | None:
         from voice.local_decider.client import D1Client
@@ -370,14 +387,35 @@ def accounted(client, instruction: str, gate: RequestGate | None) -> str:
     return text if doubt is not None and doubt < LS.ACCOUNT_THRESHOLD else ""
 
 
-def briefed(client, instruction: str, gate: RequestGate | None) -> str:
-    """`client`'s instruction for the thread `instruction` asked for, when the gate passes it; otherwise empty."""
-    messages = LS.brief_messages(instruction)
-    if isinstance(client, LocalText):
-        text = LS.read_description(client.chat_gist(messages)) or ""
-    else:
-        text = LS.read_description(client.complete(messages).get("text") or "") or ""
-    return text if gate is not None and text and gate.passes_brief(instruction, text) else ""
+@dataclass(frozen=True)
+class Brief:
+    """A checked first message for a launched thread, bound to the exact request it was written from. `retried`: the
+    gate refused the first wording and passed the writer's second."""
+
+    request: str
+    text: str
+    retried: bool = False
+
+
+def briefed(client, instruction: str, gate: RequestGate | None) -> Brief | None:
+    """`client`'s instruction for the thread `instruction` asked for, when the gate passes it, with one retry told why
+    the first was refused. None with no gate or when neither passes."""
+    if gate is None:
+        return None
+
+    def write(messages) -> str:
+        if isinstance(client, LocalText):
+            return _clean(LS.read_description(client.chat_gist(messages)) or "")
+        return _clean(LS.read_description(client.complete(messages).get("text") or "") or "")
+
+    text = write(LS.brief_messages(instruction))
+    failed = gate.brief_refusals(instruction, text) if text else tuple(LS.BRIEF_GATE)
+    if not failed:
+        return Brief(instruction, text)
+    again = write(LS.brief_retry_messages(instruction, text, failed) if text else LS.brief_messages(instruction))
+    if again and not gate.brief_refusals(instruction, again):
+        return Brief(instruction, again, retried=True)
+    return None
 
 
 RENDERERS = ("particle-1", "local")
@@ -792,17 +830,19 @@ class Speech:
                 future = self.briefs[key] = self.lane.brief(instruction, self.gate)
         return future
 
-    def brief(self, instruction: str) -> str | None:
+    def brief(self, instruction: str) -> Brief | None:
         """The task a thread started for `instruction` is handed: the work, without the request to start a thread, or
-        None when there is no model or gate, it gives no answer in time, or the gate does not pass it."""
+        None when there is no model or gate, it gives no answer in time, or the gate passes neither wording. It is
+        cached by the request's exact text, so a request corrected before the yes gets a brief of its own."""
         future = self._brief(instruction)
         if future is None:
             return None
         try:
-            return _clean(future.result(timeout=BRIEF_TIMEOUT_S)) or None
+            brief = future.result(timeout=BRIEF_TIMEOUT_S)
         except Exception:
             future.cancel()
             return None
+        return brief if isinstance(brief, Brief) and brief.request == instruction else None
 
     def account(self, launch: Launch) -> str | None:
         """What a thread the voice started was started for, from the request that started it and nothing else, or
@@ -919,7 +959,8 @@ class Speech:
         """Mint a line only after its text passes both the code and semantic checks."""
         acts = tuple(acts)
         raw = text if raw is None else raw
-        found = check(text, acts) + check_names(text, acts, EXAMPLE_NAMES | known_names)
+        found = check(text, acts) + field_names(text, acts, VOCABULARY) + check_names(text, acts,
+                                                                                 EXAMPLE_NAMES | known_names)
         if found:
             return Rendered(None, found, raw)
         if self.decider is None:

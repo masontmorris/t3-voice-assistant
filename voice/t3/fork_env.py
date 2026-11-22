@@ -32,7 +32,8 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-FORK_PORT = 3779
+# `VOICE_FORK_PORT` moves a second sandbox (the whole-call gate) off the port a running one holds; 3779 by default.
+FORK_PORT = int(os.environ.get("VOICE_FORK_PORT") or 3779)
 SERVER_READY_TIMEOUT_S = 240
 SERVER_POLL_INTERVAL_S = 2
 DOWN_TIMEOUT_S = 30

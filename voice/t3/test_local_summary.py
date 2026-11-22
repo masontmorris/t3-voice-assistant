@@ -45,6 +45,23 @@ class BriefGateTest(unittest.TestCase):
                              "a failed call": {"status": 500, "response": {}}}.items():
             self.assertFalse(LS.brief_passes(record), name)
 
+    def test_a_failed_question_is_named_for_the_retry_and_no_answer_fails_it(self):
+        record = {"status": 200, "response": {"answers": {"adds": {"type": "noul", "noul": 0.02},
+                                                          "drops": {"type": "noul", "noul": 0.1},
+                                                          "starts": {"type": "noul", "noul": 0.8}}}}
+        self.assertEqual(LS.brief_refusals(record), ("starts",))
+        self.assertEqual(LS.brief_refusals({"status": 500, "response": {}}), ("adds", "drops", "starts"))
+        told = LS.brief_retry_messages("start a thread to tidy the docs", "Start a thread.", ("starts",))[-1]["content"]
+        self.assertIn(LS.BRIEF_REFUSED["starts"], told)
+
+    def test_the_framed_request_is_never_the_bare_request_and_keeps_its_words(self):
+        for request in ("Can you start a thread to tidy the docs?", "start a thread" + chr(10) + "to rename the slots"):
+            framed = LS.framed(request)
+            self.assertNotEqual(framed, request)
+            self.assertIn(" ".join(request.split()), framed)
+            self.assertEqual(len(framed.splitlines()), 1, "one line, so the title T3 makes from it is this request's")
+            self.assertIn("do not start another thread", framed)
+
     def test_the_gate_sees_the_request_and_the_brief_and_the_writer_sees_only_the_request(self):
         body = LS.brief_gate("can you start a thread to tidy the docs", "Tidy the docs.")
         self.assertEqual((body["state"]["request"], body["state"]["task"], set(body["questions"])),

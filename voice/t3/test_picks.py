@@ -195,3 +195,26 @@ class SpokenPicks(unittest.TestCase):
         unsaid = [s >= NAMES_SURE for row in self.FIXTURE["names"] if not row["says"] for s in row["samples"]]
         self.assertEqual((sum(said), len(said)), (10, 12))
         self.assertEqual((sum(unsaid), len(unsaid)), (0, 15), "a near twin, a description or \"it\" is never sure")
+
+
+class OneQuestion(unittest.TestCase):
+    """On recorded d1.2 answers (voice/t3/eval/record_one_question.py): one question the segmenter cut in two reads as
+    one in every sample, and two questions of their own about the same thread never do."""
+
+    FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "one_question.json").read_text(encoding="utf-8"))
+
+    def test_every_sample_reads_its_pair_as_its_case_says(self):
+        from voice.t3.eval.record_one_question import body
+        from voice.t3.verify import ONE_QUESTION_YES
+        for row in self.FIXTURE["rows"]:
+            answers = iter(row["samples"])
+
+            class Replay:
+                def call(self, route, sent, label=""):
+                    assert sent == body(row), "re-run record_one_question"
+                    return {"status": 200, "response": {"answers": {"one": {"type": "noul", "noul": next(answers)}}}}
+
+            with self.subTest(row["first"], held=row["held"]):
+                read = [Decider(Replay()).one_question(row["first"], row["second"], row["title"]) >= ONE_QUESTION_YES
+                        for _ in row["samples"]]
+                self.assertEqual(read, [row["one"]] * len(row["samples"]))
