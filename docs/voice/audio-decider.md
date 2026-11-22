@@ -124,6 +124,91 @@ Hand labels for 35 real turns (the 3 ambiguous ones are dropped).
 6. **Re-run (a) when the ASR tick fix lands.** The audio advantage in (a) is the transcript lag. If the other worker's chunk change shrinks the 0.69 s tail, text recovers toward 0.966 and the case for audio shrinks. `python -m voice.research.audio_probe.asr_run`, then `liveview`, then the `run_api` runners redo it.
 7. **Tell the liquid-decider worker about the `media` trap** if their client ever sends audio.
 
+## End of turn in both directions: holding a turn open, and Smart Turn on the CPU
+
+**Short answer.** A model can also hold a turn open past 0.7 s when it hears a mid-thought pause, and that removes cut-offs. Ending turns early adds them. Smart Turn v3.2 on the CPU is the better holder: no VRAM and about 40 ms a check. Nothing measured both ends turns as early as `--eou audio` (median wait 0.2 s) and cuts people off no more than today's silence rule does, so the default stays `--eou silence`. `--eou smart` holds only, and is one flag away.
+
+Every number below is **measured** on this machine unless it is marked **inferred**.
+
+### The mechanism
+
+`Endpointer` takes `hold_ms`. A listener that is sure the person is pausing calls `hold()` before 0.7 s of silence, and the turn then waits for `hold_ms` of silence instead. `check_ms` points past 0.7 s still reach the listener, which can end a held turn on one. Speech, an early end and the end of the turn clear the hold. `Policy` carries `theta` (a P(done) at or above it ends the turn), `hold_theta` (at or below it holds) and `hold_ms`. A missing, failed, slow (past the check's deadline, with no grace) or in-between answer, and an answer about a pause that is over, leave the 0.7 s rule exactly as it is. Each silence has an identity, `Endpointer.pause`, which changes when speech resumes and when a turn starts or ends; a `Check` carries it, and `Policy.judge` drops an answer whose pause is not the current one, even when the silence now running has lasted as long. The live server and the offline replay both call `Policy.judge`. A hold is capped at `MAX_HOLD_MS`, 3 s: `--eou-hold-ms` above it is cut to it and says so. `$VOICE_EOU` sets the default mode when no flag is given; unset or empty is `silence`, and a value that is not a mode stops the server at start. Nothing reads the transcript.
+
+Smart Turn is Pipecat's open end-of-turn model, v3.2 (BSD-2-Clause): a Whisper-tiny encoder, int8 ONNX, 8.7 MB. It reads the last 8 s of the turn's audio, zero-padded in front, as Whisper log-mel features. The weights are `$VOICE_HOME/smart-turn/smart-turn-v3.2-cpu.onnx`, from `pipecat-ai/smart-turn-v3`. The one new Python dependency is `onnxruntime` 1.32.0, a 12 MB CPU wheel that brings `flatbuffers` and `protobuf`. Without the weights or the package the server says so once and keeps the silence rule.
+
+### How it was measured
+
+`voice/research/live/eou_hold_eval.py` feeds whole utterances through the real `Endpointer` and `Policy`, asks the model at each `Check` as the server does, and applies each answer when it would have arrived. A cut-off is a turn that ended while the person still had speech to come. Wait is the time from the true end of speech, by the endpointer's own voicing rule, to the end of the turn.
+
+| Set | Utterances | True end known by |
+|---|---|---|
+| Real call | 35 | the recorded turn inputs: 37, less two that are prefixes of a third |
+| Hesitant requests | 20 | the gate's hesitant caller lines, rendered whole by the server's TTS |
+| Hesitant requests with a pause | 20 | the same lines cut after their first two comma-separated pieces and joined by 0.9, 1.2, 1.6 and 2.0 s of silence |
+| Short finished lines | 27 | the gate's yeses and questions, rendered by the same TTS |
+
+The three synthetic sets are TTS, with its own pause habits. They show the direction of each effect, not its size on a person.
+
+### Comparison
+
+Cut-offs count mid-utterance turn ends. Waits are median / p90 in seconds.
+
+| Configuration | Real call: wait, cut-offs | Hesitant requests: cut-offs | With a pause: cut-offs | Short lines: wait, cut-offs | Finished turns held over 1 s (of 62) | VRAM | Time per check |
+|---|---|---|---|---|---|---|---|
+| Plain silence, 0.7 s | 0.70 / 0.70, 2 | 2 | 24 | 0.70 / 0.70, 0 | 0 | 0 | 0 |
+| d1-Omni-2B, shorten only (`--eou audio`) | 0.20 / 0.70, 5 | 13 | 32 | 0.20 / 0.48, 3 | 0 | 2.7 GB | 60 ms, GPU |
+| d1-Omni-2B, both directions | 0.22 / 0.70, 1 | 12 | 30 | 0.20 / 0.70, 3 | 0 | 2.7 GB | 60 ms, GPU |
+| Smart Turn, shorten only | 0.22 / 0.70, 7 | 17 | 29 | 0.22 / 0.62, 3 | 0 | 0 | 33 ms, 97 ms of CPU |
+| Smart Turn, both directions | 0.58 / 0.70, 0 | 2 | 15 | 0.56 / 0.64, 0 | 3 | 0 | 33 ms, 97 ms of CPU |
+| **Smart Turn, hold only (`--eou smart`)** | 0.70 / 0.70, 0 | 0 | 13 | 0.70 / 0.70, 0 | 3 | 0 | 33 ms, 97 ms of CPU |
+| Both models agree, both directions | 0.22 / 2.81, 2 | 9 | 24 | 0.22 / 0.62, 3 | 6 (of 60) | 2.7 GB | both |
+
+How each row was chosen. The two shorten-only rows are fixed: ask at 150, 300 and 500 ms, end at 0.5. The d1 and both-models rows with a hold are the policy with the fewest cut-offs, found by a grid search over check points, `theta`, `hold_theta` and `hold_ms` (about 2,000 policies a model), among those that keep the real call at a median of 0.22 s or less and 3 cut-offs or fewer. Smart Turn "both directions" ends at 0.9 and holds at 0.05, picked by hand from the same grid. Smart Turn hold only is the shipped preset: ask at 500, 600, 900, 1200 and 1600 ms, hold at 0.05 or less, cap the hold at 2 s. The grid was searched on the sets it is scored on, so the tuned rows are optimistic.
+
+The charter's bar is the current `--eou audio` on the real call: a median wait of 0.22 s and 3 cut-offs. On the live replay of the 37 recorded clips, re-run today, the two existing configurations and `--eou smart` gave:
+
+| Live replay of the 37 clips | Turns | Mid-thought cut-offs | Silence from speech end to turn end, median / p90 | First reply audio after speech end, median / p90 | VRAM during the call |
+|---|---|---|---|---|---|
+| `--eou silence` | 37 | 0 | 0.70 / 0.70 s | 1.07 / 1.27 s | 3.52 to 3.56 GB |
+| `--eou audio` | 39 | 3, the same three clips as before | 0.28 / 0.70 s | 0.53 / 1.25 s | 6.18 to 6.25 GB |
+| `--eou smart` | 37 | 0 | 0.70 / 0.70 s | 1.07 / 1.59 s | 3.47 to 3.56 GB |
+
+The offline replay and the live one count differently: `--eou audio` has 3 cut-offs live and 5 offline, and the plain rule 0 live and 2 offline. The two extra are the recorded call's two pauses of 0.9 s, which every rule that ends turns at 0.7 s cuts and which the live scorer does not count (**inferred**). Under `--eou smart`, 4 of the 37 turns waited the full 2 s: two end where the person was mid-thought in the recording, and two are ends the model calls unfinished.
+
+### What the numbers say
+
+- **Ending early and holding pull against each other.** Every policy with a median wait of 0.3 s or less cuts people off more than the silence rule does on the hesitant sets. A pause after a sentence, a comma or "uhm" looks finished to both models for the first 150 to 600 ms, and a policy that ends the turn on it has cut the person off before a hold can matter. `--eou audio` more than doubles the cut-offs on the hesitant requests: 13 against 2.
+- **Smart Turn separates a mid-thought pause from an end better than d1.** On the real call's pauses of 0.7 s or more its P(done) never rose above 0.02, and d1's ranged from 0.02 to 0.41. On the pause-joined set its median P(done) at those pauses was 0.01 and d1's about 0.3. Its misses go the other way: it calls 3 of 62 finished turns unfinished and holds them to the cap.
+- **No configuration meets the bar.** The bar needs a median of 0.22 s or less and 3 real-call cut-offs or fewer, and no more cut-offs on the hesitant sets than the best alternative. Smart Turn reaches a 0.22 s median only with 7 real-call cut-offs. d1 reaches the median with 12 and 30 cut-offs on the two hesitant sets, against 0 and 12 for hold-only Smart Turn. The default stays `--eou silence`.
+- **What `--eou smart` is for.** It never ends a turn before 0.7 s, so on the same audio it cuts no more than the silence rule: 24 cut-offs on the pause-joined set become 13, the real call's 2 become 0, the hesitant requests' 2 become 0. The price is a wait of up to 2 s on about 5% of finished turns (3 of 62 offline), a mean of 0.06 s over all of them. Ending early at 0.9 as well gains 0.12 s at the median and, in the whole-call gate, left two sessions with an extra turn.
+- **The cap.** Mean extra wait over finished turns is 0.02 s at a 1.2 s cap, 0.06 s at 2 s and 0.11 s at 3 s. Cut-offs on the pause-joined set fall from 22 at 1.2 s to 13 at 2 s and 10 at 2.5 s. 2 s is where the cut-offs stop falling quickly; it covers a pause up to 1.3 s past the silence rule.
+- **Check points.** 500 and 600 ms, so the answer is in before 0.7 s. The checks at 900, 1200 and 1600 ms let a held turn end early when the model changes its mind. A hold threshold of 0.05 held 3 of 62 finished turns, 0.1 held 5 and 0.2 held 9.
+- **Cost.** Smart Turn takes 33 ms a check (p90 40 ms) on two CPU threads on an idle machine, with 97 ms of CPU time when checks come 100 ms apart, as they do in a call (54 ms and 54 ms on one thread). In the live replay with LFM3 running it took 40 ms (p90 91 ms, worst 321 ms, 88 checks). Six of those checks missed their deadline, five at the 600 ms check, which has 100 ms and follows an answered 500 ms check; a check that misses leaves the silence rule. The log-mel features are computed in numpy with whole-array operations, not by the extractor's torch path, so the server's torch thread pool is untouched, and loading Smart Turn changes nothing process-wide. The int8 model is sensitive to the extractor's last digits: features agree to 3e-5, and an individual answer can differ by up to 0.10, so the offline answers were recomputed on these features. d1-Omni-2B adds 2,655 MiB at load and 2,691 MiB after a run.
+
+### The whole-call gate
+
+`short-yes`, `news-done`, `short-yes-tell` and `speak-over`, three runs each, on `voice/main` with this change, with `VOICE_EOU` naming the mode and everything else equal:
+
+| | `--eou silence` | `--eou smart` (hold only) | `--eou smart`, also ending at 0.9 |
+|---|---|---|---|
+| `speak-over` | 3 of 3 | 3 of 3 | 3 of 3 |
+| `short-yes` | 3 of 3, marked check passed in all | 3 of 3, marked check failed in 1 run | 3 of 3, marked check failed in 2 runs |
+| `news-done` | 3 of 3, marked check passed in all | 2 of 3, in one run a yes started no thread | 3 of 3 |
+| `short-yes-tell` | 3 of 3, marked check passed in all | 3 of 3 | 3 of 3 |
+| Sessions with an extra turn with no transcript | 0 of 8 | 0 of 8 | 2 of 8 |
+| Turns that attempted a fallback | 0 | 0 | 0 |
+| Audio delay, median per scenario | 1.87 to 2.1 s | 1.69 to 2.34 s | 1.51 to 2.1 s |
+
+The gate renders every caller line afresh, so two gate runs never hear the same audio, and a policy that only holds cannot end a turn before the silence rule does. The failures under hold-only are the known yes fault, which varies between runs of the silence rule too. The offline replay is the same-audio comparison. The gate shows that the call still works with the model in it. The gate runs were taken before the stale-answer, deadline and feature-extractor fixes; they were not repeated, because those fixes moved the offline hold-only row by one cut on the pause-joined set (12 to 13) and nothing else.
+
+### What is unproven
+
+- The hesitation sets are TTS. Nothing here measures how long a person pauses mid-thought. The only real long pauses are the recorded call's two, at 0.9 s.
+- The pause-joined set uses four gap lengths chosen by hand, so the cut-offs that remain with a 2 s cap are largely those gaps.
+- Smart Turn was trained on short, trimmed clips. How it hears room noise and echo through the browser or a phone is not measured.
+- The grid search used the data it reports. A held-out call would move the tuned rows.
+- Meeting the bar needs a model that says "finished" at 150 to 300 ms and does not say it about a pause a person continues after. Neither model does. What would be needed is a set of pauses labelled with whether the person went on, from real calls, to tune and score on.
+
 ## What these numbers cannot see
 
 - One speaker, one microphone, one afternoon. Nothing was tuned on a held-out set, and theta is a grid read off the same data.
