@@ -1084,6 +1084,41 @@ class Authorization(unittest.TestCase):
         self.assertEqual(self.say_yes(t3, 3, "Yes, stop it."), [])
         self.assertEqual(seam.ops("interrupt"), [])
 
+    def wordless(self, t3, n):
+        service = self.turn(t3, n)
+        service.heard_nothing()
+        service.close()
+
+    def test_a_wordless_turn_leaves_a_confirmation_answerable(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        self.wordless(t3, 2)
+        self.assertEqual(len(self.say_yes(t3, 3, "Yes, stop it.")), 1)
+        self.assertEqual(len(seam.ops("interrupt")), 1)
+
+    def test_a_wordless_turn_leaves_a_pick_question_answerable(self):
+        seam = F.FakeSeam().answer("interrupt", F.requested())
+        seam.listing = listing(("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        self.ask(t3, 1, STOP, "Stop the flaky test thread.")
+        self.assertEqual(t3.question.kind, "thread")
+        self.wordless(t3, 2)
+        self.assertEqual(len(self.say_yes(t3, 3, "The ASR one.")), 1)
+        self.assertEqual((t3.question.kind, t3.question.candidates), ("thread_confirm", ("t6",)))
+        self.turn(t3, 4).close()
+        self.assertTrue(t3.question.expired, "a turn with words that does not answer still expires it")
+
+    def test_a_wordless_turn_leaves_a_launch_confirmation_answerable(self):
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        self.ask(t3, 1, START, "Start a thread to add a clamp helper.")
+        self.assertEqual(t3.question.kind, "confirm")
+        self.wordless(t3, 2)
+        self.say_yes(t3, 3, "Yes, start it.")
+        self.assertEqual(len(seam.ops("launch")), 1)
+
     def test_a_question_expires_after_its_time(self):
         seam, t3 = self.stop_setup()
         self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
@@ -2898,6 +2933,37 @@ class SpokenAbout(unittest.TestCase):
         self.assertEqual(t3.said_source("That can't be right.")["from"], "status")
         t3.begin_call()
         self.assertIsNone(t3.said_source("That can't be right."))
+
+    def test_the_source_of_the_last_line_is_told_by_its_kind(self):
+        decider = F.Reader(READINGS)
+        decider.about = {"Why did you say that?": 0.95}
+        t3 = tasks_over(self, F.FakeSeam(), decider=decider)
+        t3.begin_call()
+        lines = [
+            ("reply", L.Update("k1", (act(S.THREAD_STATUS, thread="Add a Retry Button", status="finished",
+                                          summary="It says the button is in."),), "completed", "ask", "t7"), False),
+            ("status", L.Update("k2", (act(S.THREAD_STATUS, thread="Add a Retry Button", status="working"),),
+                                "completed", "ask", "t7"), False),
+            ("news", L.Update("k3", (act(S.NEEDS_YOU, thread="Add a Retry Button", need="command_approval"),),
+                              "live", "needs_you", "t7"), True),
+            ("question", L.Update("k4", (act(S.CONFIRM_STOP, thread="Add a Retry Button"),), "needs_clarification",
+                                  "pick", "t7"), False),
+            ("question", L.Update("k5", (act(S.ASK_WHICH, of="thread", candidates=["Add a Retry Button",
+                                                                                "Add a Retry Badge"]),),
+                                  "needs_clarification", "pick"), False),
+            ("question", L.Update("k6", (act(S.CONFIRM_LAUNCH, project="Pebble Garden"),), "needs_clarification",
+                                  "launch"), False),
+            ("thread_question", L.Update("k7", (act(S.ASK_QUESTION, thread="Add a Retry Button",
+                                                    question="Which colour?", options=["Red", "Blue"]),),
+                                         "live", "question", "t7"), True),
+        ]
+        for source, update, news in lines:
+            with self.subTest(source=source, kind=update.acts[0].kind.value):
+                t3.spoke(update, news=news)
+                self.assertEqual(t3.said_source("Why did you say that?")["from"], source)
+        t3.news_spoken(L.Update("k8", (act(S.DONE, thread="Add a Retry Button", status="completed"),), "completed",
+                                "done-event", "t7"))
+        self.assertEqual(t3.said_source("Why did you say that?")["from"], "news", "news said on a turn")
 
     def test_a_call_opened_on_a_thread_starts_with_it_in_view(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))

@@ -103,6 +103,7 @@ NEED = {"command_approval": "approval to run a command", "file_change": "approva
         "secret": "something only the app can take", "card": "something only the app can take",
         "unanswerable": "a request no one can answer any more", "approval": "an approval",
         "in_app": "something only the app can take"}
+NEED_KIND_YES = 0.9
 # "finished" means the run ended while it runs, and a successful end once it ended otherwise. One wording for both
 # refused right lines either way: an interrupted run "has ended", and a working thread's summary reads as completed
 # work (measured on the fixture, 2026-11-18). A reply is never asked it (UNASKED).
@@ -258,6 +259,13 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            "what kind of request the thread waits on?", False,
                            "the line says what the request does or is for. Say only the kind of thing the thread "
                            "waits for, such as approval to run a command."))
+            # The kind is a typed field (`need`), but the writer copied a command example's words for a file change and
+            # the meaning question passed it (app line eval, 2 of 4 drafts). On made-up lines (record_kind_only) the
+            # right kind drew 0.99 or more and a wrong one 0.08 to 0.75, so a yes needs 0.9; no held-out set.
+            kind = NEED.get(a.slots["need"], a.slots["need"])
+            out.append(Ask(f"a{n}_need_kind", f"Does the line say the thread waits for {kind}, and not for a different "
+                           "kind of request?", True,
+                           f"the line names the wrong kind of request. Say it waits for {kind}.", bar=NEED_KIND_YES))
     # The slot check finds an option anywhere in the line, so "Strong" is found in "how strong should it be" and a line
     # that leaves the option out passes it (rehearsal). Each option and answer is asked about on its own.
     for n, a in enumerate(acts, 1):

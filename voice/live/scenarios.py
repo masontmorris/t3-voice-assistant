@@ -77,6 +77,18 @@ TWINS = (
     ("config keys", "Rename the Config Keys", "Rename config keys in the sandbox project"),
     ("mute toggle", "Add a Mute Toggle", "Add mute toggle next to volume"),
     ("night mode", "Add a Night Mode", "Add night mode to the sandbox project"))
+# Twin pairs whose spoken name sits in both titles and says neither whole, so "the volume slider thread" fits each
+# equally and the assistant has to ask which. With the first title of a `TWINS` pair the words said that title nearly
+# whole, and the decider answered at once (gate runs, 2 of 7, a pick at 0.44 to 0.58).
+EVEN_TWINS = (
+    ("volume slider", "Add a Volume Slider to the Mixer", "Add a Volume Slider to Settings"),
+    ("retry button", "Add a Retry Button to the Login Form", "Add a Retry Button to the Error Screen"),
+    ("night mode", "Add Night Mode to the Map Screen", "Add Night Mode to the Shop Screen"),
+    ("mute toggle", "Add a Mute Toggle to the Pause Menu", "Add a Mute Toggle to the Title Screen"),
+    ("config keys", "Rename the Config Keys for Audio", "Rename the Config Keys for Video"),
+    ("pause menu", "Fix the Pause Menu on Controllers", "Fix the Pause Menu on Keyboards"),
+    ("loading tips", "Shorten the Loading Tips for Mobile", "Shorten the Loading Tips for Desktop"),
+    ("save icon", "Animate the Save Icon in Menus", "Animate the Save Icon in Levels"))
 CITIES = ("Denver", "Seattle", "Chicago", "Portland", "Atlanta", "Boston", "Austin", "Phoenix")
 
 
@@ -84,7 +96,7 @@ class Pool:
     """Hands out each name, twin pair, request and city once, so a repeated run never meets a thread of an earlier one."""
 
     def __init__(self):
-        self.used = {"single": 0, "twin": 0, "request": 0, "city": 0}
+        self.used = {"single": 0, "twin": 0, "even_twin": 0, "request": 0, "city": 0}
 
     def _next(self, kind: str, items: tuple):
         i = self.used[kind]
@@ -98,6 +110,9 @@ class Pool:
 
     def twin(self) -> tuple[str, str, str]:
         return self._next("twin", TWINS)
+
+    def even_twin(self) -> tuple[str, str, str]:
+        return self._next("even_twin", EVEN_TWINS)
 
     def request(self) -> str:
         return self._next("request", R.REQUESTS)
@@ -129,6 +144,9 @@ class Scenario:
     passes: int = 1
     long: bool = False
     fresh: bool = False  # a scenario that starts threads runs on a T3 no earlier scenario touched
+    # The check that says the run reached what the scenario tests. A run where it failed is blocked: neither a pass nor
+    # a failure, and the row counts it apart. A scenario with every run blocked is not green.
+    setup: str | None = None
 
 
 def ok(check: str, condition: bool, why: str, turn: int | None = None) -> Verdict:
@@ -177,7 +195,7 @@ def no_false_start(call: Call) -> Verdict:
 # The caller withdraws a question the assistant asked (which thread, or whether it is the one), changes the subject and
 # asks to start over: nothing after the withdrawal may put a thread question again.
 def withdrawn(pool: Pool) -> Plan:
-    spoken, one, two = pool.twin()
+    spoken, one, two = pool.even_twin()
     other = pool.single()[1]
     lines = {"ask": f"How is the {spoken} thread going?", "never": "Never mind.",
              "topic": "Can you tell me something interesting about octopuses?", "restart": "Can we start over?",
@@ -210,8 +228,8 @@ def withdrawn(pool: Pool) -> Plan:
         unanswered = next((t for t in after if not t.cancelled and not t.answered), None)
         out.append(ok("every completed turn was answered", unanswered is None, "a turn got no answer",
                       unanswered.index if unanswered is not None else None))
-        return [asked, *(requires(v, asked.ok and bool(after), "precondition: no thread question was withdrawn")
-                         for v in out)]
+        return [asked, *(requires(v, asked.ok and bool(after), "precondition: no thread question was withdrawn",
+                                  blocked_by=asked.check) for v in out)]
 
     return Plan((finished(one), finished(two), finished(other)), lines, script(), check)
 
@@ -831,7 +849,8 @@ SCENARIOS = (
     Scenario("approval-claim", "a free reply never says a pending approval went through", approval),
     Scenario("thread-lines", "every thread question ends in a checked line that is said", thread_lines),
     Scenario("follow-up", "a follow-up keeps the last question's context", follow_up),
-    Scenario("withdrawn-question", "a withdrawn which-thread question is not offered again", withdrawn),
+    Scenario("withdrawn-question", "a withdrawn which-thread question is not offered again", withdrawn,
+             setup="asked a thread question"),
     Scenario("call-this-thread", "a call opened on a thread answers \"this thread\" at once and asks nothing at a close",
              call_this_thread),
     Scenario("call-follow-up", "a call opened on a thread keeps \"it\" on that thread beside a similar title",
@@ -963,12 +982,17 @@ def rows(results: dict[str, list[Result]], scenarios: list[Scenario], attempts=(
         if not runs:
             continue
         marked = {check for (sid, check) in KNOWN if sid == sc.id}
+        blocked = [r for r in runs if r.error is None and sc.setup is not None
+                   and any(v.check == sc.setup for v in r.failed)]
+        runs = [r for r in runs if r not in blocked]
         failures = [unexpected(r) for r in runs]
         good = sum(r.error is None and not u for r, u in zip(runs, failures))
         still = {v.check for r in runs for v in r.failed if not v.precondition and v.check in marked}
         error = next((r.error for r in runs if r.error is not None), None)
         if error is not None:
             verdict, green = "ERROR", False
+        elif not runs:
+            verdict, green = "BLOCKED", False
         elif good >= sc.passes:
             verdict = "XFAIL" if still else "XPASS" if marked else "PASS"
         else:
@@ -978,7 +1002,10 @@ def rows(results: dict[str, list[Result]], scenarios: list[Scenario], attempts=(
                                  for v in first)
         if not why and still:
             why = "known: " + ", ".join(sorted(still))
-        table.append([sc.id, verdict, f"{good}/{len(runs)}", f"need {sc.passes}", str(median_audio(runs) or "-"),
+        if blocked:
+            why = f"{len(blocked)} blocked: {sc.setup} failed" + (f"; {why}" if why else "")
+        passed = f"{good}/{len(runs)}" + (f" +{len(blocked)} blocked" if blocked else "")
+        table.append([sc.id, verdict, passed, f"need {sc.passes}", str(median_audio(runs) or "-"),
                       str(sum(lo <= when <= hi for r in runs for lo, hi in [r.window] for when, _ in attempts)),
                       why[:180], str(sum(r.fallbacks for r in runs))])
     return table, green

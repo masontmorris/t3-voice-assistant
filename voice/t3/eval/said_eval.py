@@ -48,6 +48,11 @@ SHAPES = {"doubt": "That does not sound right to me.", "why": "Why did you say t
           "goodbye": "Okay, thanks, that is all."}
 ABOUT = {"doubt", "why", "where"}
 SOURCE = {"thread": THREAD, "from": "reply"}
+# `--line question`: the last line is the voice's own confirmation, so the note says it asked for the caller's go-ahead.
+QUESTION_LINE = {"asked": "Could you start a thread to sort the seed packets in Pebble Garden?",
+                 "facts": {"project": "Pebble Garden"}, "act": act(Kind.CONFIRM_LAUNCH, project="Pebble Garden"),
+                 "line": "Should I start a new coding thread in Pebble Garden?",
+                 "source": {"thread": "the thread", "from": "question"}}
 # The note PR #102 gave every free turn after a thread line.
 SHIPPED = (run.NOTE_OPEN + "this time there are no words for you to say: answer what they just said yourself, in your "
            "own words. What you last told them about {thread} came from that thread's own last reply in T3. If they "
@@ -179,6 +184,14 @@ async def main_async(args) -> int:
     return 0
 
 
+def use_line(name: str) -> None:
+    """Make the trial's relayed line the status line (the default) or the voice's own question."""
+    global ASKED, FACTS, LINE_ACT, LINE, SOURCE
+    if name == "question":
+        q = QUESTION_LINE
+        ASKED, FACTS, LINE_ACT, LINE, SOURCE = q["asked"], q["facts"], q["act"], q["line"], q["source"]
+
+
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--out", type=Path, required=True)
@@ -186,7 +199,10 @@ def main(argv=None) -> int:
     parser.add_argument("--port", type=int, default=8095)
     parser.add_argument("--arms", nargs="+", default=list(ARMS), choices=list(ARMS))
     parser.add_argument("--shapes", nargs="+", default=list(SHAPES), choices=list(SHAPES))
-    return asyncio.run(main_async(parser.parse_args(argv)))
+    parser.add_argument("--line", default="status", choices=["status", "question"])
+    args = parser.parse_args(argv)
+    use_line(args.line)
+    return asyncio.run(main_async(args))
 
 
 if __name__ == "__main__":

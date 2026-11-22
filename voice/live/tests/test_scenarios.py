@@ -409,6 +409,32 @@ class Gate(unittest.TestCase):
         self.assertNotIn(lost, [v.check for v in plan.check(call(silent, world)) if not v.ok and not v.precondition],
                          "with no wait the check is a failed precondition, not a failed check")
 
+    def test_a_run_whose_setup_failed_is_blocked_neither_passed_nor_failed(self):
+        def run(*verdicts):
+            return Result("x", 1, verdicts, (), 0, 0, 1.0)
+
+        setup = Verdict("asked a thread question", False, "no question")
+        blocked = run(setup, Verdict("no offer after", False, "precondition", precondition=True,
+                                     blocked_by="asked a thread question"))
+        clean = run(Verdict("asked a thread question", True), Verdict("no offer after", True))
+        offered = run(Verdict("asked a thread question", True), Verdict("no offer after", False, "offered"))
+        sc = S.Scenario("x", "w", lambda pool: None, 3, 1, setup="asked a thread question")
+
+        def row(runs):
+            table, green = S.rows({"x": runs}, [sc])
+            return table[0][1], table[0][2], green
+
+        self.assertEqual(row([blocked, clean]), ("PASS", "1/1 +1 blocked", True))
+        self.assertEqual(row([blocked, offered]), ("FAIL", "0/1 +1 blocked", False))
+        self.assertEqual(row([blocked, blocked]), ("BLOCKED", "0/0 +2 blocked", False))
+        withdrawn = next(sc for sc in S.SCENARIOS if sc.id == "withdrawn-question")
+        self.assertEqual(withdrawn.setup, "asked a thread question")
+
+    def test_the_withdrawn_question_twins_both_hold_the_words_and_neither_is_them(self):
+        for spoken, one, two in S.EVEN_TWINS:
+            self.assertTrue(spoken in one.lower() and spoken in two.lower(), (one, two))
+            self.assertNotEqual(one.lower().removeprefix("add a ").removeprefix("add "), spoken)
+
     def test_k_of_n_and_an_error_that_no_run_passed(self):
         two = [result("x", True), result("x", False), result("x", True)]
         self.assertEqual(self.table(two, passes=2)[0][0][1], "PASS")

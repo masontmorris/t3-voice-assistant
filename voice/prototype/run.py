@@ -201,7 +201,13 @@ FREE_NOTE = (NOTE_OPEN + "what they just said is theirs, not words for you to pa
 SAID_NOTE = (NOTE_OPEN + "they are not asking you to say anything again. They doubt or ask about what you last told "
              "them about {thread}; you took it from {source}. Answer as yourself: say where you took it from and offer "
              "to check the thread again, without repeating any of it.]")
-SAID_FROM = {"reply": "the thread's own last reply in T3", "status": "the thread's status in T3"}
+SAID_FROM = {"reply": "the thread's own last reply in T3", "status": "the thread's status in T3",
+             "news": "an update the thread sent you from T3",
+             "thread_question": "the question the thread itself is asking them in T3"}
+# The last line was the voice's own question: it came from what the caller asked, not from the thread.
+ASKED_NOTE = (NOTE_OPEN + "they are not asking you to say anything again. They doubt or ask about the question you "
+              "last asked them; you asked it because you need their choice or their go-ahead before you can do what "
+              "they asked. Answer as yourself: say why you asked, without repeating the question.]")
 
 
 def said_note(source):
@@ -210,9 +216,21 @@ def said_note(source):
         return None
     if not source.get("about"):
         return FREE_NOTE
+    if source["from"] == "question":
+        return ASKED_NOTE
     return SAID_NOTE.format(thread=source["thread"], source=SAID_FROM[source["from"]])
 
 
+# A turn whose speech the ASR gave no words for (it timed out, or there was too much voiced audio for an empty result
+# to mean nothing was said) is never left silent: the voice says, in its own words, that it did not catch that.
+NOT_CAUGHT_NOTE = (NOTE_OPEN + "you could not make out what they just said. Tell them so in a few words and ask them "
+                   "to say it again. Say nothing about any thread or task.]")
+# The most voiced audio, by the endpointer's own rule, that a turn with a clean empty transcript may hold and still be
+# said nothing to: under the quietest real words measured, two- and three-word turns at 260 to 300 ms
+# (docs/voice/barge-in.md, call 2 turns 29 and 34). Not measured on breaths or "hmm"s.
+WORDLESS_MAX_VOICED_MS = 250
+# How long a turn waits for the ASR's final transcript before it goes on with what it has.
+ASR_FINAL_TIMEOUT_S = 30
 UNHEARD_NOTE = (NOTE_OPEN + "you could not get them an answer just now. Tell them so in a few words, and that they "
                 "can ask again. Say nothing about any thread or task.]")
 TRANSITION_NOTE = (NOTE_OPEN + "your last reply about their coding thread was wrong. Take it back now: say you need "
@@ -1039,9 +1057,11 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     instruction = json.loads(call.get("arguments") or "{}").get("instruction", "")
                     updates_q.put_nowait(("delegate", instruction))
 
+        asr_clean = True
         try:
-            await asyncio.wait_for(final_seen.wait(), 30)
+            await asyncio.wait_for(final_seen.wait(), ASR_FINAL_TIMEOUT_S)
         except asyncio.TimeoutError:
+            asr_clean = False
             log("asr_final_missing")
             enqueue(adapter.finish())
         await updates_q.join()
@@ -1083,10 +1103,17 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             service.poll(clock())
             answered = service.snapshot("utt_1", adapter.text(), unreviewed)
             log("snapshot_after_tools", snapshot=answered)
-            # A turn the ASR heard no words in (a breath, a "hmm") is said nothing to: its audio is answered in text no
-            # one hears, so the next turn's reply does not answer it too, and a dropped question waits for a turn with
-            # words. Answered aloud, with the thread line in view, it was the thread line again (repeat call, turn 7).
+            # A turn with no words keeps every open question as it was, for the next turn to answer. One that is
+            # wordless by the turn's own evidence (a clean, empty transcript and little voiced audio: a breath, a
+            # "hmm") is said nothing to, and its audio is answered in text no one hears, so the next turn's reply does
+            # not answer it too; answered aloud with the thread line in view, it was the thread line again (repeat
+            # call, turn 7). Speech the ASR failed on is told it was not caught.
             heard = bool(adapter.text().strip())
+            voiced = getattr(source, "voiced_ms", None)
+            wordless = not heard and asr_clean and voiced is not None and voiced < WORDLESS_MAX_VOICED_MS
+            if not heard:
+                getattr(service, "heard_nothing", lambda: None)()
+                log("no_words", voiced_ms=voiced, asr_clean=asr_clean, said_nothing=wordless)
             dropped_question = getattr(service, "withdrawn", lambda: None)() if heard else None
             t3_entries = [entry for entry in answered["tasks"] if entry.get("acts")]
             ordinary = {**answered, "tasks": [entry for entry in answered["tasks"] if not entry.get("acts")]}
@@ -1133,8 +1160,14 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
             if t3_entries:
                 reply = None
-            elif noted and not heard:
+            elif noted and wordless:
                 await answer_unheard(voice, out_rate, audio_end, log)
+                reply = None
+            elif noted and not heard:
+                _, caught, caught_pcm = await speak_note(voice, out_rate, audio_end, NOT_CAUGHT_NOTE, [], log,
+                                                         speak=speak)
+                replies.append({"kind": "not_caught", **caught})
+                log("reply", reply="not_caught", text=caught["text"])
                 reply = None
             elif noted:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, speak=speak,

@@ -99,10 +99,10 @@ class NoteTurn(unittest.IsolatedAsyncioTestCase):
         self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
         self.spoken = []
 
-    async def turn(self, script, **more):
+    async def turn(self, script, source=None, **more):
         self.voice.script, self.voice.asked = script, 0
         return await prototype.run_clip(
-            Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
+            source or Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode="note", prior_utterances=EARLIER, final_decider=True, recall="note",
             speak=heard_by(self.spoken), **more)
 
@@ -313,6 +313,15 @@ class WithdrawnQuestionTurn(NoteTurn):
         self.assertIn("Tidy the Save Slots", note)
         self.assertIn("own last reply", note)
 
+    def test_each_source_gets_its_own_note(self):
+        notes = {kind: prototype.said_note({"thread": "Tidy the Save Slots", "from": kind, "about": True})
+                 for kind in ("reply", "status", "news", "thread_question", "question")}
+        for kind in ("reply", "status", "news", "thread_question"):
+            self.assertIn(prototype.SAID_FROM[kind], notes[kind])
+        self.assertEqual(notes["question"], prototype.ASKED_NOTE)
+        self.assertNotIn("status", notes["question"])
+        self.assertEqual(len(set(notes.values())), 5)
+
     async def test_a_turn_not_about_the_line_gets_a_note_that_names_no_thread(self):
         """The repeat call: a note naming the thread on every free turn had the voice say the line again, goodbye
         included."""
@@ -321,13 +330,38 @@ class WithdrawnQuestionTurn(NoteTurn):
         self.assertNotIn("thread", prototype.FREE_NOTE.lower())
         self.assertEqual(self.spoken, ["You're welcome, bye."])
 
-    async def test_a_turn_with_no_words_says_nothing_and_its_audio_is_answered_unheard(self):
+    def voiced(self, ms):
+        source = Source()
+        source.voiced_ms = ms
+        return source
+
+    async def test_a_short_noise_with_a_clean_empty_transcript_says_nothing_and_is_answered_unheard(self):
         """The repeat call's turn 7: 1.5 s of audio, an empty transcript, and the thread line said again."""
         FakeSession.transcript = ""
-        record = await self.turn(["The Tidy the Save Slots thread is still working."], task_service=self.relayed(True))
+        record = await self.turn(["The Tidy the Save Slots thread is still working."], source=self.voiced(120),
+                                 task_service=self.relayed(True))
         self.assertEqual((self.spoken, record["replies"], self.asked), ([], [], []))
         self.assertEqual(texts(self.voice), [], "no note: nothing is asked of a turn with no words")
         self.assertEqual(self.voice.sent[-1].get("response", {}).get("output_modalities"), ["text"])
+
+    async def test_voiced_speech_with_no_words_is_told_it_was_not_caught(self):
+        FakeSession.transcript = ""
+        for source in (self.voiced(1400), Source()):  # clear voiced audio, and a turn nothing measured
+            with self.subTest(voiced_ms=getattr(source, "voiced_ms", None)):
+                self.spoken = []
+                record = await self.turn(["Sorry, I didn't catch that."], source=source, task_service=self.relayed(True))
+                self.assertEqual(texts(self.voice)[-1], prototype.NOT_CAUGHT_NOTE)
+                self.assertEqual(([r["kind"] for r in record["replies"]], self.spoken),
+                                 (["not_caught"], ["Sorry, I didn't catch that."]))
+                self.assertEqual(self.asked, [], "nothing about the thread line")
+
+    async def test_a_transcript_that_never_arrived_is_told_it_was_not_caught(self):
+        FakeSession.completes = False
+        self.addCleanup(setattr, FakeSession, "completes", True)
+        with patch.object(prototype, "ASR_FINAL_TIMEOUT_S", 0.05):
+            record = await self.turn(["Sorry, I didn't catch that."], source=self.voiced(100),
+                                     task_service=self.relayed(True))
+        self.assertEqual([r["kind"] for r in record["replies"]], ["not_caught"])
 
 
 if __name__ == "__main__":

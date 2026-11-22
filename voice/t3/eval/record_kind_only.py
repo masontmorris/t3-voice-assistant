@@ -53,6 +53,25 @@ CASES = [
 ]
 
 
+# Lines that name a kind of request, the right one or not (`right`), for the kind question (`a1_need_kind`).
+KINDS = [
+    (act(Kind.NEEDS_THE_APP, thread="Tidy the Save Slots", decision="approve", need="file_change"),
+     "Tidy the Save Slots is waiting for your approval to run a command, and that has to be given in the app.", False),
+    (act(Kind.NEEDS_THE_APP, thread="Tidy the Save Slots", decision="approve", need="file_change"),
+     "Tidy the Save Slots is waiting for your approval to change files, and that has to be given in the app.", True),
+    (act(Kind.NEEDS_THE_APP, thread="Sort Seed Packets", decision="approve", need="command_approval"),
+     "Sort Seed Packets is waiting for your approval to change files, and that has to be given in the app.", False),
+    (act(Kind.NEEDS_THE_APP, thread="Sort Seed Packets", decision="approve", need="command_approval"),
+     "Sort Seed Packets is waiting for your approval to run a command, and that has to be given in the app.", True),
+    (act(Kind.NEEDS_THE_APP, decision="approve", need="permission", **FLEET),
+     "The thread you started in Example Fleet Notes for sorting the fleet log by date is waiting for your approval "
+     "to run a command, and that has to be given in the app.", False),
+    (act(Kind.NEEDS_YOU, need="file_change", **FLEET),
+     "The thread you started in Example Fleet Notes for sorting the fleet log by date needs your approval to change "
+     "files.", True),
+]
+
+
 def bodies(said, line) -> dict:
     shipped = request((said,), line)
     before = json.loads(json.dumps(shipped))
@@ -77,7 +96,19 @@ def main() -> int:
         rows.append(row)
         print(json.dumps({"line": line[:60], "kind_only": kind_only, "before": row["before"],
                           "shipped": row["shipped"]}), flush=True)
-    FIXTURE.write_bytes((json.dumps({"rows": rows}, separators=(",", ":")) + "\n").encode())
+    kinds = []
+    for said, line, right in KINDS:
+        body = request((said,), line)
+        samples = []
+        for _ in range(REPEATS):
+            record = client.call("decisions", body, label="t3_need_kind_fixture", fresh=True, cache_record=False)
+            answer = ((record.get("response") or {}).get("answers") or {}).get("a1_need_kind")
+            if record["status"] != 200 or not isinstance(answer, dict):
+                raise RuntimeError(f"Liquid gave an incomplete answer for {line!r}")
+            samples.append(round(answer["noul"], 3))
+        kinds.append({"act": said.to_json(), "line": line, "right": right, "samples": samples})
+        print(json.dumps({"line": line[:60], "right": right, "samples": samples}), flush=True)
+    FIXTURE.write_bytes((json.dumps({"rows": rows, "kinds": kinds}, separators=(",", ":")) + "\n").encode())
     return 0
 
 
