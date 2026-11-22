@@ -81,13 +81,15 @@ class Picks(unittest.TestCase):
                                                             "waiting on you.")
         self.assertEqual(set(question["criteria"]), {"thread_01", NONE, UNCLEAR})
         self.assertEqual(body["state"]["last_discussed"], "Add a clamp helper")
-        self.assertNotIn("call_thread", body["state"], "off a call the request is as it was recorded")
-        threads = (Listed("a", "Add a clamp helper", "Voice sandbox", "working"),)
-        on_call = pick_request("How is it going?", threads, None, call_thread="Add a clamp helper")
-        self.assertEqual(on_call["state"]["call_thread"], "Add a clamp helper")
-        self.assertIn("`call_thread`", on_call["questions"]["pick"]["instructions"])
-        answering = pick_request("Postgres.", threads, None, answering=True, call_thread="Add a clamp helper")
-        self.assertNotIn("call_thread", answering["state"], "an answer names no thread, so it is shown none")
+        threads = (Listed("a", "Add a clamp helper", "Voice sandbox", "working"),
+                   Listed("b", "Add a clamp helper", "Docs site", "finished"))
+        on_call = pick_request("How is it going?", threads, None, call_thread="b")["questions"]["pick"]["criteria"]
+        self.assertEqual((on_call["thread_01"], on_call["thread_02"]),
+                         ("'Add a clamp helper' in the project 'Voice sandbox', working.",
+                          "'Add a clamp helper' in the project 'Docs site', finished. The person opened this call "
+                          "from this thread."), "the call's own option is marked, by id, not by its shared title")
+        answering = pick_request("Postgres.", threads, None, answering=True, call_thread="b")["questions"]["pick"]
+        self.assertNotIn("opened this call", json.dumps(answering), "an answer names no thread, so none is marked")
 
     def test_an_answer_that_is_not_a_pick_picks_nothing(self):
         threads = listed("short")[:2]
@@ -110,14 +112,14 @@ if __name__ == "__main__":
 
 class CallPicks(unittest.TestCase):
     """On recorded d1.2 answers for a call opened on a thread (voice/t3/eval/record_call_picks.py): with the call's
-    thread shown, words that name no other thread choose it, in most samples of each case; words naming another thread
-    choose that one either way."""
+    thread marked, words that name no other thread choose it, in most samples of each case, beside a near twin too;
+    words naming another thread, the twin among them, choose that one either way."""
 
     FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "call_picks.json").read_text(encoding="utf-8"))
 
     def choices(self, row):
-        from voice.t3.eval.record_call_picks import body, listed
-        threads, answers = listed(), iter(row["samples"])
+        from voice.t3.eval.record_call_picks import body, call_id, listed
+        threads, answers = listed(row["listing"]), iter(row["samples"])
 
         class Replay:
             def call(self, route, sent, label=""):
@@ -127,7 +129,7 @@ class CallPicks(unittest.TestCase):
                                                                          "probabilities": sample["p"]}}}}
 
         titles = {t.thread_id: t.title for t in threads}
-        call = self.FIXTURE["call_thread"] if row["shown"] else None
+        call = call_id(row["listing"]) if row["shown"] else None
         return [titles.get(p.choice, p.choice) for p in
                 (Decider(Replay()).picks(row["request"], threads, row["recent"], call_thread=call)
                  for _ in row["samples"])]
@@ -136,12 +138,15 @@ class CallPicks(unittest.TestCase):
         for row in self.FIXTURE["rows"]:
             if not row["shown"]:
                 continue
-            with self.subTest(row["request"], held=row["held"]):
+            with self.subTest(row["request"], listing=row["listing"], held=row["held"]):
                 choices = self.choices(row)
                 self.assertGreater(choices.count(row["want"]), len(choices) / 2, choices)
 
-    def test_the_dry_runs_question_did_not_choose_the_calls_thread_without_it(self):
-        row = next(r for r in self.FIXTURE["rows"]
-                   if r["request"] == "What is this thread working on right now?" and not r["shown"])
-        choices = self.choices(row)
-        self.assertLessEqual(choices.count(row["want"]), len(choices) / 2, choices)
+    def test_the_dry_runs_two_questions_did_not_choose_the_calls_thread_unmarked(self):
+        for row in self.FIXTURE["rows"]:
+            if row["shown"] or row["request"] not in ("What is this thread working on right now?",
+                                                      "Is it waiting on anything from me?"):
+                continue
+            with self.subTest(row["request"], listing=row["listing"]):
+                choices = self.choices(row)
+                self.assertLessEqual(choices.count(row["want"]), len(choices) / 2, choices)

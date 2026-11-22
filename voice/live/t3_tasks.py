@@ -905,7 +905,7 @@ class T3Tasks:
             own = self.following.link.thread_id if self.following is not None else None
             own = own if own in base.titles and not answering else None
 
-        picked = self._picked(reference, options, last, answering, base.titles.get(own))
+        picked = self._picked(reference, options, last, answering, own)
 
         with self.lock:
             if self.call != call:
@@ -954,7 +954,7 @@ class T3Tasks:
                 answering: bool = False, call_thread: str | None = None) -> Picked:
         """The decider's pick, off the lock since it is a network call. With no decider nothing is picked. `answering`
         says the words answer a question a thread asked: a thread is picked only when they name it. `call_thread` is
-        the title of the thread the call was opened from, while it is listed."""
+        the id of the thread the call was opened from, while it is listed."""
         picks = getattr(self.decider, "picks", None)
         if picks is None:
             return Picked(None)

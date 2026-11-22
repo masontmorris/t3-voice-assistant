@@ -497,7 +497,7 @@ class Decider:
     def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None,
               answering: bool = False, call_thread: str | None = None) -> Picked:
         """Which of `threads` the words `request` mean, with how sure it is. `recent` is the title the call was just
-        about, and `call_thread` the title of the thread the call was opened from. A timeout or any error picks nothing,
+        about, and `call_thread` the id of the thread the call was opened from. A timeout or any error picks nothing,
         and nothing is always asked about."""
         if not threads:
             return Picked(NONE, shares={NONE: 1.0})
@@ -571,12 +571,11 @@ ANSWERING_PICK = ("Which of the person's threads does `request` name or describe
                   "\"the second one\", name no thread: choose unclear. The options list the threads, newest first.")
 
 
-# A call opened from a thread is about it. Shown as `last_discussed` alone, "What is this thread working on?" went
-# to unclear 3 of 3 and "Is it waiting on anything from me?" to a similar title that waits, 1 of 3 for the call's
-# thread; marked as below, the call's thread was the choice in 15 of 15 over five such requests, and requests naming
-# another thread, and "it" after a line about another thread, were placed as before (d1.2, docs/voice/browser-client.md).
-CALL_THREAD = (" `call_thread` is the thread the person opened this call from: words that name or describe no other "
-               "thread, such as \"this thread\" or \"it\", mean it.")
+# A call opened from a thread is about it, so its option says so. Named in the state by title instead, a near twin
+# that waits on the person ("Fix pause menu in the sandbox project" beside "Fix the Pause Menu") still drew "Is it
+# waiting on anything from me?", and with both, a request naming the twin chose the call's thread (d1.2,
+# docs/voice/browser-client.md).
+CALL_MARK = " The person opened this call from this thread."
 
 
 def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None,
@@ -584,6 +583,7 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
     """One decisions body asking which listed thread the person's words mean. The threads are the options, so the
     answer's shares say how sure the pick is and which others the words fit."""
     criteria = {f"thread_{i:02d}": f"{t.title!r} in the project {t.project!r}, {t.activity.replace('_', ' ')}."
+                                   + (CALL_MARK if t.thread_id == call_thread and not answering else "")
                 for i, t in enumerate(threads, 1)}
     # "Particular" keeps a vague request with nothing discussed out of this option on the local d1-2B.
     criteria[NONE] = "It names or describes a particular thread, and none of these is that thread."
@@ -593,9 +593,6 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
                         "is a transcript of what they said, and may mishear a word."}
     instructions = ("Which of the person's threads does `request` mean? The options list them, newest first. "
                     "`last_discussed` is the thread the conversation was just about, when there is one.")
-    if call_thread is not None and not answering:
-        state["call_thread"] = call_thread
-        instructions += CALL_THREAD
     if answering:
         state = {"request": request, "last_discussed": None, "context": ANSWERING_CONTEXT}
         instructions = ANSWERING_PICK

@@ -2733,7 +2733,7 @@ class CallThreadPicks(unittest.TestCase):
         asked = t3.about("k1", ASK, self.THIS, 2)
         self.assertEqual((said(asked), asked.status), ([("thread_status", "Build a Recipe App", "working")],
                                                        "completed"))
-        self.assertEqual(t3.decider.call_threads, ["Build a Recipe App"], "the decider was shown the call's thread")
+        self.assertEqual(t3.decider.call_threads, ["t5"], "the decider was shown the call's thread")
 
     def test_the_same_choice_off_a_call_or_for_a_message_or_for_another_thread_is_still_asked_about(self):
         seam, t3 = self.over({self.THIS: self.LEANS, "Tell it to add tests.": self.LEANS})

@@ -1,7 +1,7 @@
 {
-  "call_thread": "Build a Recipe App",
   "rows": [
     {
+      "listing": "similar",
       "request": "What is this thread working on right now?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
@@ -9,50 +9,51 @@
       "held": false,
       "samples": [
         {
-          "choice": "unclear",
+          "choice": "thread_02",
           "p": {
-            "none": 0.045,
-            "thread_01": 0.014,
-            "thread_02": 0.331,
-            "thread_03": 0.006,
-            "thread_04": 0.006,
-            "thread_05": 0.008,
-            "thread_06": 0.041,
-            "thread_07": 0.005,
-            "unclear": 0.545
+            "none": 0.026,
+            "thread_01": 0.029,
+            "thread_02": 0.482,
+            "thread_03": 0.013,
+            "thread_04": 0.009,
+            "thread_05": 0.017,
+            "thread_06": 0.118,
+            "thread_07": 0.014,
+            "unclear": 0.292
           }
         },
         {
-          "choice": "thread_02",
+          "choice": "unclear",
           "p": {
-            "none": 0.032,
-            "thread_01": 0.025,
-            "thread_02": 0.426,
+            "none": 0.082,
+            "thread_01": 0.026,
+            "thread_02": 0.309,
             "thread_03": 0.01,
-            "thread_04": 0.008,
+            "thread_04": 0.009,
             "thread_05": 0.015,
-            "thread_06": 0.104,
-            "thread_07": 0.009,
-            "unclear": 0.371
+            "thread_06": 0.113,
+            "thread_07": 0.01,
+            "unclear": 0.425
           }
         },
         {
           "choice": "unclear",
           "p": {
-            "none": 0.027,
-            "thread_01": 0.025,
-            "thread_02": 0.39,
-            "thread_03": 0.009,
-            "thread_04": 0.007,
-            "thread_05": 0.008,
-            "thread_06": 0.083,
-            "thread_07": 0.006,
-            "unclear": 0.447
+            "none": 0.086,
+            "thread_01": 0.024,
+            "thread_02": 0.234,
+            "thread_03": 0.008,
+            "thread_04": 0.005,
+            "thread_05": 0.016,
+            "thread_06": 0.135,
+            "thread_07": 0.008,
+            "unclear": 0.484
           }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "What is this thread working on right now?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
@@ -62,151 +63,50 @@
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.042,
-            "thread_01": 0.021,
-            "thread_02": 0.734,
-            "thread_03": 0.008,
-            "thread_04": 0.006,
-            "thread_05": 0.007,
-            "thread_06": 0.044,
-            "thread_07": 0.008,
-            "unclear": 0.13
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.031,
-            "thread_01": 0.044,
-            "thread_02": 0.622,
-            "thread_03": 0.011,
-            "thread_04": 0.005,
-            "thread_05": 0.01,
-            "thread_06": 0.042,
-            "thread_07": 0.006,
-            "unclear": 0.228
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.053,
-            "thread_01": 0.06,
-            "thread_02": 0.563,
-            "thread_03": 0.014,
-            "thread_04": 0.008,
-            "thread_05": 0.018,
-            "thread_06": 0.12,
-            "thread_07": 0.014,
-            "unclear": 0.15
-          }
-        }
-      ]
-    },
-    {
-      "request": "Is it waiting on anything from me?",
-      "recent": "Build a Recipe App",
-      "want": "Build a Recipe App",
-      "shown": false,
-      "held": false,
-      "samples": [
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.032,
-            "thread_01": 0.165,
-            "thread_02": 0.392,
+            "none": 0.023,
+            "thread_01": 0.017,
+            "thread_02": 0.664,
             "thread_03": 0.007,
-            "thread_04": 0.004,
+            "thread_04": 0.009,
             "thread_05": 0.013,
-            "thread_06": 0.02,
-            "thread_07": 0.009,
-            "unclear": 0.358
+            "thread_06": 0.047,
+            "thread_07": 0.007,
+            "unclear": 0.213
           }
         },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.033,
-            "thread_01": 0.265,
-            "thread_02": 0.304,
-            "thread_03": 0.006,
-            "thread_04": 0.006,
-            "thread_05": 0.033,
-            "thread_06": 0.036,
-            "thread_07": 0.014,
-            "unclear": 0.304
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.032,
-            "thread_01": 0.15,
-            "thread_02": 0.408,
-            "thread_03": 0.005,
-            "thread_04": 0.004,
-            "thread_05": 0.015,
-            "thread_06": 0.019,
-            "thread_07": 0.011,
-            "unclear": 0.356
-          }
-        }
-      ]
-    },
-    {
-      "request": "Is it waiting on anything from me?",
-      "recent": "Build a Recipe App",
-      "want": "Build a Recipe App",
-      "shown": true,
-      "held": false,
-      "samples": [
         {
           "choice": "thread_02",
           "p": {
             "none": 0.025,
-            "thread_01": 0.153,
-            "thread_02": 0.601,
-            "thread_03": 0.008,
-            "thread_04": 0.004,
-            "thread_05": 0.013,
-            "thread_06": 0.009,
-            "thread_07": 0.02,
-            "unclear": 0.168
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.069,
-            "thread_01": 0.137,
-            "thread_02": 0.536,
-            "thread_03": 0.009,
-            "thread_04": 0.004,
-            "thread_05": 0.018,
-            "thread_06": 0.018,
-            "thread_07": 0.012,
-            "unclear": 0.197
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.019,
-            "thread_01": 0.082,
-            "thread_02": 0.634,
+            "thread_01": 0.019,
+            "thread_02": 0.615,
             "thread_03": 0.006,
-            "thread_04": 0.005,
-            "thread_05": 0.01,
-            "thread_06": 0.013,
-            "thread_07": 0.008,
-            "unclear": 0.223
+            "thread_04": 0.006,
+            "thread_05": 0.011,
+            "thread_06": 0.04,
+            "thread_07": 0.006,
+            "unclear": 0.271
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.029,
+            "thread_01": 0.017,
+            "thread_02": 0.618,
+            "thread_03": 0.008,
+            "thread_04": 0.007,
+            "thread_05": 0.012,
+            "thread_06": 0.096,
+            "thread_07": 0.006,
+            "unclear": 0.207
           }
         }
       ]
     },
     {
-      "request": "How's it going?",
+      "listing": "similar",
+      "request": "Is it waiting on anything from me?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
       "shown": false,
@@ -215,100 +115,102 @@
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.012,
-            "thread_01": 0.012,
-            "thread_02": 0.599,
-            "thread_03": 0.005,
-            "thread_04": 0.005,
-            "thread_05": 0.006,
-            "thread_06": 0.01,
-            "thread_07": 0.004,
-            "unclear": 0.347
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.035,
-            "thread_01": 0.017,
-            "thread_02": 0.474,
-            "thread_03": 0.01,
+            "none": 0.046,
+            "thread_01": 0.156,
+            "thread_02": 0.424,
+            "thread_03": 0.007,
             "thread_04": 0.007,
-            "thread_05": 0.011,
-            "thread_06": 0.026,
-            "thread_07": 0.006,
-            "unclear": 0.413
+            "thread_05": 0.022,
+            "thread_06": 0.03,
+            "thread_07": 0.028,
+            "unclear": 0.281
           }
         },
         {
-          "choice": "unclear",
+          "choice": "thread_01",
           "p": {
-            "none": 0.026,
-            "thread_01": 0.02,
-            "thread_02": 0.397,
-            "thread_03": 0.009,
-            "thread_04": 0.008,
+            "none": 0.023,
+            "thread_01": 0.338,
+            "thread_02": 0.257,
+            "thread_03": 0.005,
+            "thread_04": 0.004,
             "thread_05": 0.015,
-            "thread_06": 0.039,
-            "thread_07": 0.009,
-            "unclear": 0.477
+            "thread_06": 0.018,
+            "thread_07": 0.018,
+            "unclear": 0.323
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.039,
+            "thread_01": 0.454,
+            "thread_02": 0.183,
+            "thread_03": 0.006,
+            "thread_04": 0.005,
+            "thread_05": 0.023,
+            "thread_06": 0.022,
+            "thread_07": 0.028,
+            "unclear": 0.24
           }
         }
       ]
     },
     {
-      "request": "How's it going?",
+      "listing": "similar",
+      "request": "Is it waiting on anything from me?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
       "shown": true,
       "held": false,
       "samples": [
         {
-          "choice": "unclear",
+          "choice": "thread_02",
           "p": {
-            "none": 0.028,
-            "thread_01": 0.01,
-            "thread_02": 0.424,
+            "none": 0.029,
+            "thread_01": 0.234,
+            "thread_02": 0.506,
             "thread_03": 0.008,
-            "thread_04": 0.005,
-            "thread_05": 0.004,
-            "thread_06": 0.009,
-            "thread_07": 0.004,
-            "unclear": 0.509
+            "thread_04": 0.007,
+            "thread_05": 0.019,
+            "thread_06": 0.025,
+            "thread_07": 0.017,
+            "unclear": 0.155
           }
         },
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.018,
-            "thread_01": 0.019,
-            "thread_02": 0.772,
-            "thread_03": 0.01,
+            "none": 0.021,
+            "thread_01": 0.135,
+            "thread_02": 0.554,
+            "thread_03": 0.007,
             "thread_04": 0.005,
-            "thread_05": 0.005,
-            "thread_06": 0.007,
-            "thread_07": 0.005,
-            "unclear": 0.157
+            "thread_05": 0.022,
+            "thread_06": 0.022,
+            "thread_07": 0.012,
+            "unclear": 0.223
           }
         },
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.016,
-            "thread_01": 0.022,
-            "thread_02": 0.638,
-            "thread_03": 0.009,
-            "thread_04": 0.008,
-            "thread_05": 0.009,
-            "thread_06": 0.012,
-            "thread_07": 0.005,
-            "unclear": 0.281
+            "none": 0.022,
+            "thread_01": 0.299,
+            "thread_02": 0.43,
+            "thread_03": 0.006,
+            "thread_04": 0.005,
+            "thread_05": 0.027,
+            "thread_06": 0.02,
+            "thread_07": 0.008,
+            "unclear": 0.181
           }
         }
       ]
     },
     {
-      "request": "What did it say last?",
+      "listing": "similar",
+      "request": "How's it going?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
       "shown": false,
@@ -317,48 +219,153 @@
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.036,
-            "thread_01": 0.035,
-            "thread_02": 0.669,
-            "thread_03": 0.012,
-            "thread_04": 0.007,
-            "thread_05": 0.008,
-            "thread_06": 0.015,
-            "thread_07": 0.004,
-            "unclear": 0.214
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.037,
-            "thread_01": 0.037,
-            "thread_02": 0.479,
-            "thread_03": 0.019,
-            "thread_04": 0.013,
-            "thread_05": 0.016,
-            "thread_06": 0.027,
-            "thread_07": 0.006,
-            "unclear": 0.364
+            "none": 0.034,
+            "thread_01": 0.019,
+            "thread_02": 0.452,
+            "thread_03": 0.011,
+            "thread_04": 0.011,
+            "thread_05": 0.02,
+            "thread_06": 0.032,
+            "thread_07": 0.011,
+            "unclear": 0.412
           }
         },
         {
           "choice": "thread_02",
           "p": {
             "none": 0.023,
-            "thread_01": 0.025,
-            "thread_02": 0.621,
-            "thread_03": 0.014,
-            "thread_04": 0.01,
-            "thread_05": 0.009,
-            "thread_06": 0.019,
-            "thread_07": 0.005,
-            "unclear": 0.274
+            "thread_01": 0.019,
+            "thread_02": 0.485,
+            "thread_03": 0.009,
+            "thread_04": 0.009,
+            "thread_05": 0.012,
+            "thread_06": 0.048,
+            "thread_07": 0.009,
+            "unclear": 0.386
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.056,
+            "thread_01": 0.022,
+            "thread_02": 0.364,
+            "thread_03": 0.013,
+            "thread_04": 0.011,
+            "thread_05": 0.018,
+            "thread_06": 0.03,
+            "thread_07": 0.01,
+            "unclear": 0.478
           }
         }
       ]
     },
     {
+      "listing": "similar",
+      "request": "How's it going?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.071,
+            "thread_01": 0.02,
+            "thread_02": 0.526,
+            "thread_03": 0.014,
+            "thread_04": 0.014,
+            "thread_05": 0.022,
+            "thread_06": 0.068,
+            "thread_07": 0.012,
+            "unclear": 0.254
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.055,
+            "thread_01": 0.013,
+            "thread_02": 0.514,
+            "thread_03": 0.009,
+            "thread_04": 0.012,
+            "thread_05": 0.014,
+            "thread_06": 0.033,
+            "thread_07": 0.008,
+            "unclear": 0.341
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.01,
+            "thread_02": 0.658,
+            "thread_03": 0.006,
+            "thread_04": 0.006,
+            "thread_05": 0.007,
+            "thread_06": 0.014,
+            "thread_07": 0.005,
+            "unclear": 0.277
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "What did it say last?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.04,
+            "thread_01": 0.039,
+            "thread_02": 0.359,
+            "thread_03": 0.02,
+            "thread_04": 0.016,
+            "thread_05": 0.019,
+            "thread_06": 0.027,
+            "thread_07": 0.007,
+            "unclear": 0.472
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.026,
+            "thread_01": 0.031,
+            "thread_02": 0.689,
+            "thread_03": 0.012,
+            "thread_04": 0.011,
+            "thread_05": 0.011,
+            "thread_06": 0.013,
+            "thread_07": 0.005,
+            "unclear": 0.202
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.042,
+            "thread_01": 0.037,
+            "thread_02": 0.427,
+            "thread_03": 0.014,
+            "thread_04": 0.013,
+            "thread_05": 0.016,
+            "thread_06": 0.035,
+            "thread_07": 0.007,
+            "unclear": 0.408
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
       "request": "What did it say last?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
@@ -368,240 +375,153 @@
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.027,
-            "thread_01": 0.029,
-            "thread_02": 0.815,
-            "thread_03": 0.011,
-            "thread_04": 0.005,
-            "thread_05": 0.005,
-            "thread_06": 0.007,
+            "none": 0.018,
+            "thread_01": 0.017,
+            "thread_02": 0.756,
+            "thread_03": 0.013,
+            "thread_04": 0.01,
+            "thread_05": 0.009,
+            "thread_06": 0.013,
+            "thread_07": 0.003,
+            "unclear": 0.161
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.027,
+            "thread_02": 0.736,
+            "thread_03": 0.009,
+            "thread_04": 0.008,
+            "thread_05": 0.009,
+            "thread_06": 0.01,
+            "thread_07": 0.004,
+            "unclear": 0.18
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.019,
+            "thread_01": 0.017,
+            "thread_02": 0.693,
+            "thread_03": 0.009,
+            "thread_04": 0.009,
+            "thread_05": 0.009,
+            "thread_06": 0.008,
+            "thread_07": 0.004,
+            "unclear": 0.232
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "Is this one done?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.014,
+            "thread_02": 0.396,
+            "thread_03": 0.022,
+            "thread_04": 0.028,
+            "thread_05": 0.009,
+            "thread_06": 0.016,
             "thread_07": 0.005,
-            "unclear": 0.096
+            "unclear": 0.497
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.028,
+            "thread_02": 0.561,
+            "thread_03": 0.033,
+            "thread_04": 0.027,
+            "thread_05": 0.014,
+            "thread_06": 0.028,
+            "thread_07": 0.008,
+            "unclear": 0.284
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.066,
+            "thread_02": 0.325,
+            "thread_03": 0.109,
+            "thread_04": 0.053,
+            "thread_05": 0.032,
+            "thread_06": 0.044,
+            "thread_07": 0.015,
+            "unclear": 0.325
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "Is this one done?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.015,
+            "thread_01": 0.019,
+            "thread_02": 0.616,
+            "thread_03": 0.031,
+            "thread_04": 0.025,
+            "thread_05": 0.018,
+            "thread_06": 0.032,
+            "thread_07": 0.008,
+            "unclear": 0.237
           }
         },
         {
           "choice": "thread_02",
           "p": {
             "none": 0.016,
-            "thread_01": 0.023,
-            "thread_02": 0.697,
-            "thread_03": 0.009,
-            "thread_04": 0.005,
-            "thread_05": 0.006,
-            "thread_06": 0.006,
-            "thread_07": 0.005,
-            "unclear": 0.234
+            "thread_01": 0.031,
+            "thread_02": 0.63,
+            "thread_03": 0.033,
+            "thread_04": 0.024,
+            "thread_05": 0.026,
+            "thread_06": 0.031,
+            "thread_07": 0.007,
+            "unclear": 0.202
           }
         },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.024,
-            "thread_01": 0.041,
-            "thread_02": 0.722,
-            "thread_03": 0.012,
-            "thread_04": 0.005,
-            "thread_05": 0.006,
-            "thread_06": 0.01,
-            "thread_07": 0.004,
-            "unclear": 0.176
-          }
-        }
-      ]
-    },
-    {
-      "request": "Is this one done?",
-      "recent": "Build a Recipe App",
-      "want": "Build a Recipe App",
-      "shown": false,
-      "held": false,
-      "samples": [
         {
           "choice": "thread_02",
           "p": {
             "none": 0.021,
-            "thread_01": 0.029,
-            "thread_02": 0.538,
-            "thread_03": 0.04,
-            "thread_04": 0.027,
-            "thread_05": 0.02,
-            "thread_06": 0.028,
-            "thread_07": 0.013,
-            "unclear": 0.284
-          }
-        },
-        {
-          "choice": "unclear",
-          "p": {
-            "none": 0.03,
-            "thread_01": 0.054,
-            "thread_02": 0.365,
-            "thread_03": 0.027,
-            "thread_04": 0.031,
-            "thread_05": 0.024,
-            "thread_06": 0.041,
-            "thread_07": 0.009,
-            "unclear": 0.419
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.035,
-            "thread_01": 0.028,
-            "thread_02": 0.643,
-            "thread_03": 0.04,
+            "thread_01": 0.03,
+            "thread_02": 0.535,
+            "thread_03": 0.063,
             "thread_04": 0.035,
-            "thread_05": 0.009,
-            "thread_06": 0.021,
-            "thread_07": 0.01,
-            "unclear": 0.18
+            "thread_05": 0.029,
+            "thread_06": 0.042,
+            "thread_07": 0.009,
+            "unclear": 0.236
           }
         }
       ]
     },
     {
-      "request": "Is this one done?",
-      "recent": "Build a Recipe App",
-      "want": "Build a Recipe App",
-      "shown": true,
-      "held": false,
-      "samples": [
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.022,
-            "thread_01": 0.013,
-            "thread_02": 0.81,
-            "thread_03": 0.012,
-            "thread_04": 0.008,
-            "thread_05": 0.005,
-            "thread_06": 0.006,
-            "thread_07": 0.004,
-            "unclear": 0.12
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.013,
-            "thread_01": 0.026,
-            "thread_02": 0.751,
-            "thread_03": 0.019,
-            "thread_04": 0.016,
-            "thread_05": 0.007,
-            "thread_06": 0.01,
-            "thread_07": 0.004,
-            "unclear": 0.153
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.02,
-            "thread_01": 0.026,
-            "thread_02": 0.701,
-            "thread_03": 0.015,
-            "thread_04": 0.015,
-            "thread_05": 0.007,
-            "thread_06": 0.011,
-            "thread_07": 0.007,
-            "unclear": 0.196
-          }
-        }
-      ]
-    },
-    {
-      "request": "How is the photo upload thread doing?",
-      "recent": "Build a Recipe App",
-      "want": "Recipe App Photo Upload",
-      "shown": false,
-      "held": false,
-      "samples": [
-        {
-          "choice": "thread_01",
-          "p": {
-            "none": 0.077,
-            "thread_01": 0.903,
-            "thread_02": 0.007,
-            "thread_03": 0.002,
-            "thread_04": 0.001,
-            "thread_05": 0.001,
-            "thread_07": 0.001,
-            "unclear": 0.006
-          }
-        },
-        {
-          "choice": "thread_01",
-          "p": {
-            "none": 0.036,
-            "thread_01": 0.95,
-            "thread_02": 0.004,
-            "thread_03": 0.002,
-            "thread_04": 0.001,
-            "thread_07": 0.001,
-            "unclear": 0.004
-          }
-        },
-        {
-          "choice": "thread_01",
-          "p": {
-            "none": 0.088,
-            "thread_01": 0.893,
-            "thread_02": 0.004,
-            "thread_03": 0.002,
-            "thread_04": 0.002,
-            "thread_06": 0.001,
-            "thread_07": 0.001,
-            "unclear": 0.009
-          }
-        }
-      ]
-    },
-    {
-      "request": "How is the photo upload thread doing?",
-      "recent": "Build a Recipe App",
-      "want": "Recipe App Photo Upload",
-      "shown": true,
-      "held": false,
-      "samples": [
-        {
-          "choice": "thread_01",
-          "p": {
-            "none": 0.118,
-            "thread_01": 0.835,
-            "thread_02": 0.022,
-            "thread_03": 0.003,
-            "thread_04": 0.002,
-            "thread_05": 0.002,
-            "thread_06": 0.002,
-            "thread_07": 0.002,
-            "unclear": 0.016
-          }
-        },
-        {
-          "choice": "thread_01",
-          "p": {
-            "none": 0.029,
-            "thread_01": 0.955,
-            "thread_02": 0.008,
-            "thread_03": 0.002,
-            "unclear": 0.003
-          }
-        },
-        {
-          "choice": "thread_01",
-          "p": {
-            "none": 0.033,
-            "thread_01": 0.949,
-            "thread_02": 0.01,
-            "thread_03": 0.002,
-            "unclear": 0.004
-          }
-        }
-      ]
-    },
-    {
+      "listing": "similar",
       "request": "What about the flaky UI test thread?",
       "recent": "Build a Recipe App",
       "want": "Fix the flaky UI test",
@@ -611,33 +531,34 @@
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.01,
-            "thread_01": 0.001,
-            "thread_02": 0.002,
-            "thread_06": 0.981,
-            "unclear": 0.002
-          }
-        },
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.01,
-            "thread_01": 0.001,
-            "thread_02": 0.001,
-            "thread_06": 0.982,
-            "thread_07": 0.001,
-            "unclear": 0.003
-          }
-        },
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.01,
+            "none": 0.014,
             "thread_01": 0.001,
             "thread_02": 0.001,
             "thread_03": 0.001,
+            "thread_06": 0.978,
+            "thread_07": 0.002,
+            "unclear": 0.002
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.013,
+            "thread_02": 0.002,
+            "thread_03": 0.001,
+            "thread_06": 0.979,
+            "thread_07": 0.001,
+            "unclear": 0.002
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.02,
+            "thread_01": 0.001,
+            "thread_02": 0.002,
             "thread_04": 0.001,
-            "thread_06": 0.981,
+            "thread_06": 0.969,
             "thread_07": 0.002,
             "unclear": 0.002
           }
@@ -645,6 +566,7 @@
       ]
     },
     {
+      "listing": "similar",
       "request": "What about the flaky UI test thread?",
       "recent": "Build a Recipe App",
       "want": "Fix the flaky UI test",
@@ -653,19 +575,43 @@
       "samples": [
         {
           "choice": "thread_06",
-          "p": { "none": 0.016, "thread_02": 0.002, "thread_06": 0.976, "unclear": 0.003 }
+          "p": {
+            "none": 0.014,
+            "thread_01": 0.001,
+            "thread_02": 0.003,
+            "thread_06": 0.975,
+            "thread_07": 0.001,
+            "unclear": 0.003
+          }
         },
         {
           "choice": "thread_06",
-          "p": { "none": 0.009, "thread_02": 0.002, "thread_06": 0.985, "unclear": 0.001 }
+          "p": {
+            "none": 0.009,
+            "thread_01": 0.002,
+            "thread_02": 0.002,
+            "thread_04": 0.001,
+            "thread_06": 0.981,
+            "thread_07": 0.001,
+            "unclear": 0.002
+          }
         },
         {
           "choice": "thread_06",
-          "p": { "none": 0.004, "thread_02": 0.003, "thread_06": 0.986, "unclear": 0.002 }
+          "p": {
+            "none": 0.022,
+            "thread_01": 0.001,
+            "thread_02": 0.003,
+            "thread_03": 0.001,
+            "thread_06": 0.968,
+            "thread_07": 0.001,
+            "unclear": 0.002
+          }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "How's the kubernetes migration?",
       "recent": "Build a Recipe App",
       "want": "none",
@@ -675,48 +621,49 @@
         {
           "choice": "none",
           "p": {
-            "none": 0.958,
+            "none": 0.945,
             "thread_01": 0.004,
-            "thread_02": 0.005,
-            "thread_03": 0.002,
+            "thread_02": 0.007,
+            "thread_03": 0.003,
             "thread_04": 0.003,
             "thread_05": 0.003,
-            "thread_06": 0.003,
+            "thread_06": 0.004,
             "thread_07": 0.006,
-            "unclear": 0.017
+            "unclear": 0.025
           }
         },
         {
           "choice": "none",
           "p": {
-            "none": 0.963,
-            "thread_01": 0.002,
-            "thread_02": 0.004,
+            "none": 0.968,
+            "thread_01": 0.003,
+            "thread_02": 0.005,
             "thread_03": 0.002,
             "thread_04": 0.002,
             "thread_05": 0.002,
             "thread_06": 0.002,
-            "thread_07": 0.003,
-            "unclear": 0.02
+            "thread_07": 0.004,
+            "unclear": 0.012
           }
         },
         {
           "choice": "none",
           "p": {
-            "none": 0.961,
-            "thread_01": 0.003,
-            "thread_02": 0.006,
-            "thread_03": 0.003,
-            "thread_04": 0.002,
-            "thread_05": 0.003,
-            "thread_06": 0.004,
-            "thread_07": 0.004,
-            "unclear": 0.015
+            "none": 0.981,
+            "thread_01": 0.002,
+            "thread_02": 0.003,
+            "thread_03": 0.001,
+            "thread_04": 0.001,
+            "thread_05": 0.001,
+            "thread_06": 0.001,
+            "thread_07": 0.002,
+            "unclear": 0.008
           }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "How's the kubernetes migration?",
       "recent": "Build a Recipe App",
       "want": "none",
@@ -726,48 +673,49 @@
         {
           "choice": "none",
           "p": {
-            "none": 0.947,
-            "thread_01": 0.002,
-            "thread_02": 0.015,
-            "thread_03": 0.002,
-            "thread_04": 0.001,
-            "thread_05": 0.001,
-            "thread_06": 0.002,
-            "thread_07": 0.002,
-            "unclear": 0.028
-          }
-        },
-        {
-          "choice": "none",
-          "p": {
-            "none": 0.955,
-            "thread_01": 0.003,
-            "thread_02": 0.011,
-            "thread_03": 0.002,
-            "thread_04": 0.002,
-            "thread_05": 0.002,
-            "thread_06": 0.001,
-            "thread_07": 0.002,
-            "unclear": 0.022
-          }
-        },
-        {
-          "choice": "none",
-          "p": {
-            "none": 0.889,
-            "thread_01": 0.004,
-            "thread_02": 0.02,
+            "none": 0.875,
+            "thread_01": 0.006,
+            "thread_02": 0.036,
             "thread_03": 0.004,
+            "thread_04": 0.004,
+            "thread_05": 0.004,
+            "thread_06": 0.005,
+            "thread_07": 0.008,
+            "unclear": 0.057
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.921,
+            "thread_01": 0.006,
+            "thread_02": 0.021,
+            "thread_03": 0.003,
             "thread_04": 0.003,
-            "thread_05": 0.002,
+            "thread_05": 0.003,
             "thread_06": 0.004,
             "thread_07": 0.005,
-            "unclear": 0.069
+            "unclear": 0.035
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.904,
+            "thread_01": 0.005,
+            "thread_02": 0.016,
+            "thread_03": 0.004,
+            "thread_04": 0.004,
+            "thread_05": 0.004,
+            "thread_06": 0.004,
+            "thread_07": 0.004,
+            "unclear": 0.056
           }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "Is it done?",
       "recent": "Fix the flaky UI test",
       "want": "Fix the flaky UI test",
@@ -777,48 +725,49 @@
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.007,
-            "thread_01": 0.004,
-            "thread_02": 0.005,
-            "thread_03": 0.014,
-            "thread_04": 0.008,
-            "thread_05": 0.005,
-            "thread_06": 0.853,
-            "thread_07": 0.004,
-            "unclear": 0.1
+            "none": 0.008,
+            "thread_01": 0.006,
+            "thread_02": 0.006,
+            "thread_03": 0.02,
+            "thread_04": 0.011,
+            "thread_05": 0.004,
+            "thread_06": 0.828,
+            "thread_07": 0.006,
+            "unclear": 0.112
           }
         },
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.005,
+            "none": 0.006,
+            "thread_01": 0.004,
+            "thread_02": 0.005,
+            "thread_03": 0.012,
+            "thread_04": 0.007,
+            "thread_05": 0.003,
+            "thread_06": 0.839,
+            "thread_07": 0.005,
+            "unclear": 0.118
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.006,
             "thread_01": 0.004,
             "thread_02": 0.004,
-            "thread_03": 0.012,
-            "thread_04": 0.009,
-            "thread_05": 0.004,
-            "thread_06": 0.818,
-            "thread_07": 0.003,
-            "unclear": 0.139
-          }
-        },
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.007,
-            "thread_01": 0.004,
-            "thread_02": 0.005,
             "thread_03": 0.015,
-            "thread_04": 0.008,
+            "thread_04": 0.013,
             "thread_05": 0.004,
-            "thread_06": 0.803,
-            "thread_07": 0.005,
-            "unclear": 0.149
+            "thread_06": 0.831,
+            "thread_07": 0.006,
+            "unclear": 0.117
           }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "Is it done?",
       "recent": "Fix the flaky UI test",
       "want": "Fix the flaky UI test",
@@ -829,47 +778,48 @@
           "choice": "thread_06",
           "p": {
             "none": 0.012,
-            "thread_01": 0.009,
-            "thread_02": 0.051,
-            "thread_03": 0.012,
+            "thread_01": 0.01,
+            "thread_02": 0.062,
+            "thread_03": 0.029,
+            "thread_04": 0.013,
+            "thread_05": 0.012,
+            "thread_06": 0.726,
+            "thread_07": 0.008,
+            "unclear": 0.129
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.008,
+            "thread_01": 0.005,
+            "thread_02": 0.044,
+            "thread_03": 0.016,
             "thread_04": 0.01,
-            "thread_05": 0.004,
-            "thread_06": 0.782,
-            "thread_07": 0.005,
-            "unclear": 0.116
-          }
-        },
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.013,
-            "thread_01": 0.009,
-            "thread_02": 0.096,
-            "thread_03": 0.011,
-            "thread_04": 0.012,
             "thread_05": 0.006,
-            "thread_06": 0.708,
-            "thread_07": 0.006,
-            "unclear": 0.138
+            "thread_06": 0.78,
+            "thread_07": 0.005,
+            "unclear": 0.126
           }
         },
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.016,
-            "thread_01": 0.007,
-            "thread_02": 0.125,
-            "thread_03": 0.018,
-            "thread_04": 0.018,
-            "thread_05": 0.007,
-            "thread_06": 0.705,
-            "thread_07": 0.009,
-            "unclear": 0.095
+            "none": 0.009,
+            "thread_01": 0.004,
+            "thread_02": 0.033,
+            "thread_03": 0.014,
+            "thread_04": 0.01,
+            "thread_05": 0.008,
+            "thread_06": 0.837,
+            "thread_07": 0.004,
+            "unclear": 0.082
           }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "How is it going?",
       "recent": "Fix the flaky UI test",
       "want": "Fix the flaky UI test",
@@ -879,80 +829,15 @@
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.015,
-            "thread_01": 0.008,
-            "thread_02": 0.006,
-            "thread_03": 0.006,
+            "none": 0.013,
+            "thread_01": 0.006,
+            "thread_02": 0.005,
+            "thread_03": 0.007,
             "thread_04": 0.006,
             "thread_05": 0.007,
-            "thread_06": 0.589,
-            "thread_07": 0.006,
-            "unclear": 0.357
-          }
-        },
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.015,
-            "thread_01": 0.01,
-            "thread_02": 0.006,
-            "thread_03": 0.006,
-            "thread_04": 0.005,
-            "thread_05": 0.007,
-            "thread_06": 0.665,
-            "thread_07": 0.006,
-            "unclear": 0.28
-          }
-        },
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.017,
-            "thread_01": 0.006,
-            "thread_02": 0.007,
-            "thread_03": 0.006,
-            "thread_04": 0.005,
-            "thread_05": 0.007,
-            "thread_06": 0.666,
-            "thread_07": 0.006,
-            "unclear": 0.281
-          }
-        }
-      ]
-    },
-    {
-      "request": "How is it going?",
-      "recent": "Fix the flaky UI test",
-      "want": "Fix the flaky UI test",
-      "shown": true,
-      "held": false,
-      "samples": [
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.011,
-            "thread_01": 0.013,
-            "thread_02": 0.316,
-            "thread_03": 0.007,
-            "thread_04": 0.005,
-            "thread_05": 0.005,
-            "thread_06": 0.597,
-            "thread_07": 0.006,
-            "unclear": 0.041
-          }
-        },
-        {
-          "choice": "thread_06",
-          "p": {
-            "none": 0.013,
-            "thread_01": 0.015,
-            "thread_02": 0.207,
-            "thread_03": 0.006,
-            "thread_04": 0.005,
-            "thread_05": 0.005,
-            "thread_06": 0.617,
-            "thread_07": 0.007,
-            "unclear": 0.125
+            "thread_06": 0.561,
+            "thread_07": 0.005,
+            "unclear": 0.39
           }
         },
         {
@@ -960,18 +845,175 @@
           "p": {
             "none": 0.014,
             "thread_01": 0.009,
-            "thread_02": 0.17,
-            "thread_03": 0.005,
+            "thread_02": 0.007,
+            "thread_03": 0.007,
             "thread_04": 0.006,
-            "thread_05": 0.005,
-            "thread_06": 0.636,
+            "thread_05": 0.008,
+            "thread_06": 0.788,
+            "thread_07": 0.008,
+            "unclear": 0.153
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.008,
+            "thread_02": 0.006,
+            "thread_03": 0.007,
+            "thread_04": 0.005,
+            "thread_05": 0.006,
+            "thread_06": 0.73,
             "thread_07": 0.006,
-            "unclear": 0.148
+            "unclear": 0.214
           }
         }
       ]
     },
     {
+      "listing": "similar",
+      "request": "How is it going?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.006,
+            "thread_02": 0.033,
+            "thread_03": 0.007,
+            "thread_04": 0.005,
+            "thread_05": 0.007,
+            "thread_06": 0.763,
+            "thread_07": 0.006,
+            "unclear": 0.162
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.007,
+            "thread_02": 0.057,
+            "thread_03": 0.007,
+            "thread_04": 0.006,
+            "thread_05": 0.007,
+            "thread_06": 0.672,
+            "thread_07": 0.007,
+            "unclear": 0.225
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.011,
+            "thread_01": 0.005,
+            "thread_02": 0.081,
+            "thread_03": 0.004,
+            "thread_04": 0.005,
+            "thread_05": 0.005,
+            "thread_06": 0.685,
+            "thread_07": 0.005,
+            "unclear": 0.2
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "How is the photo upload thread doing?",
+      "recent": "Build a Recipe App",
+      "want": "Recipe App Photo Upload",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.052,
+            "thread_01": 0.922,
+            "thread_02": 0.013,
+            "thread_03": 0.001,
+            "thread_04": 0.001,
+            "thread_05": 0.001,
+            "thread_06": 0.001,
+            "thread_07": 0.001,
+            "unclear": 0.006
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.03,
+            "thread_01": 0.956,
+            "thread_02": 0.006,
+            "thread_03": 0.001,
+            "unclear": 0.004
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.063,
+            "thread_01": 0.922,
+            "thread_02": 0.004,
+            "thread_03": 0.001,
+            "unclear": 0.006
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "How is the photo upload thread doing?",
+      "recent": "Build a Recipe App",
+      "want": "Recipe App Photo Upload",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.036,
+            "thread_01": 0.942,
+            "thread_02": 0.01,
+            "thread_03": 0.002,
+            "thread_04": 0.001,
+            "thread_05": 0.001,
+            "unclear": 0.006
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.039,
+            "thread_01": 0.939,
+            "thread_02": 0.016,
+            "thread_03": 0.001,
+            "unclear": 0.003
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.046,
+            "thread_01": 0.931,
+            "thread_02": 0.011,
+            "thread_03": 0.002,
+            "thread_04": 0.001,
+            "thread_05": 0.001,
+            "thread_06": 0.001,
+            "thread_07": 0.001,
+            "unclear": 0.005
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
       "request": "Can you check on this one for me?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
@@ -981,202 +1023,102 @@
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.01,
-            "thread_01": 0.024,
-            "thread_02": 0.502,
-            "thread_03": 0.009,
-            "thread_04": 0.009,
-            "thread_05": 0.008,
+            "none": 0.016,
+            "thread_01": 0.027,
+            "thread_02": 0.517,
+            "thread_03": 0.008,
+            "thread_04": 0.007,
+            "thread_05": 0.011,
             "thread_06": 0.014,
-            "thread_07": 0.005,
-            "unclear": 0.418
+            "thread_07": 0.007,
+            "unclear": 0.393
           }
         },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.015,
+            "thread_01": 0.035,
+            "thread_02": 0.388,
+            "thread_03": 0.013,
+            "thread_04": 0.011,
+            "thread_05": 0.017,
+            "thread_06": 0.026,
+            "thread_07": 0.008,
+            "unclear": 0.487
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.02,
+            "thread_01": 0.052,
+            "thread_02": 0.528,
+            "thread_03": 0.009,
+            "thread_04": 0.008,
+            "thread_05": 0.013,
+            "thread_06": 0.025,
+            "thread_07": 0.011,
+            "unclear": 0.335
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "Can you check on this one for me?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": true,
+      "samples": [
         {
           "choice": "thread_02",
           "p": {
             "none": 0.018,
-            "thread_01": 0.06,
-            "thread_02": 0.445,
-            "thread_03": 0.011,
-            "thread_04": 0.009,
-            "thread_05": 0.017,
-            "thread_06": 0.026,
-            "thread_07": 0.007,
-            "unclear": 0.407
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.019,
-            "thread_01": 0.06,
-            "thread_02": 0.562,
-            "thread_03": 0.013,
-            "thread_04": 0.013,
-            "thread_05": 0.019,
-            "thread_06": 0.044,
-            "thread_07": 0.01,
-            "unclear": 0.259
-          }
-        }
-      ]
-    },
-    {
-      "request": "Can you check on this one for me?",
-      "recent": "Build a Recipe App",
-      "want": "Build a Recipe App",
-      "shown": true,
-      "held": true,
-      "samples": [
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.019,
-            "thread_01": 0.031,
-            "thread_02": 0.725,
-            "thread_03": 0.009,
-            "thread_04": 0.007,
-            "thread_05": 0.009,
-            "thread_06": 0.014,
-            "thread_07": 0.009,
-            "unclear": 0.177
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.027,
-            "thread_01": 0.054,
-            "thread_02": 0.607,
-            "thread_03": 0.013,
-            "thread_04": 0.008,
-            "thread_05": 0.017,
-            "thread_06": 0.04,
-            "thread_07": 0.012,
-            "unclear": 0.223
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.027,
-            "thread_01": 0.051,
-            "thread_02": 0.777,
-            "thread_03": 0.011,
-            "thread_04": 0.006,
-            "thread_05": 0.007,
-            "thread_06": 0.014,
-            "thread_07": 0.008,
-            "unclear": 0.1
-          }
-        }
-      ]
-    },
-    {
-      "request": "Has it finished yet?",
-      "recent": "Build a Recipe App",
-      "want": "Build a Recipe App",
-      "shown": false,
-      "held": true,
-      "samples": [
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.017,
             "thread_01": 0.021,
-            "thread_02": 0.773,
-            "thread_03": 0.028,
-            "thread_04": 0.016,
-            "thread_05": 0.007,
-            "thread_06": 0.015,
-            "thread_07": 0.003,
-            "unclear": 0.12
+            "thread_02": 0.604,
+            "thread_03": 0.016,
+            "thread_04": 0.012,
+            "thread_05": 0.02,
+            "thread_06": 0.036,
+            "thread_07": 0.008,
+            "unclear": 0.266
           }
         },
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.029,
-            "thread_01": 0.057,
-            "thread_02": 0.576,
-            "thread_03": 0.074,
-            "thread_04": 0.023,
-            "thread_05": 0.012,
-            "thread_06": 0.047,
-            "thread_07": 0.006,
-            "unclear": 0.176
+            "none": 0.015,
+            "thread_01": 0.021,
+            "thread_02": 0.66,
+            "thread_03": 0.011,
+            "thread_04": 0.011,
+            "thread_05": 0.011,
+            "thread_06": 0.022,
+            "thread_07": 0.005,
+            "unclear": 0.243
           }
         },
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.032,
-            "thread_01": 0.04,
-            "thread_02": 0.54,
-            "thread_03": 0.042,
-            "thread_04": 0.027,
-            "thread_05": 0.015,
-            "thread_06": 0.048,
-            "thread_07": 0.007,
-            "unclear": 0.249
+            "none": 0.009,
+            "thread_01": 0.015,
+            "thread_02": 0.669,
+            "thread_03": 0.006,
+            "thread_04": 0.007,
+            "thread_05": 0.013,
+            "thread_06": 0.018,
+            "thread_07": 0.005,
+            "unclear": 0.257
           }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "Has it finished yet?",
-      "recent": "Build a Recipe App",
-      "want": "Build a Recipe App",
-      "shown": true,
-      "held": true,
-      "samples": [
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.025,
-            "thread_01": 0.037,
-            "thread_02": 0.683,
-            "thread_03": 0.018,
-            "thread_04": 0.014,
-            "thread_05": 0.006,
-            "thread_06": 0.012,
-            "thread_07": 0.005,
-            "unclear": 0.2
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.076,
-            "thread_01": 0.042,
-            "thread_02": 0.708,
-            "thread_03": 0.024,
-            "thread_04": 0.021,
-            "thread_05": 0.01,
-            "thread_06": 0.017,
-            "thread_07": 0.006,
-            "unclear": 0.095
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.044,
-            "thread_01": 0.04,
-            "thread_02": 0.733,
-            "thread_03": 0.029,
-            "thread_04": 0.015,
-            "thread_05": 0.007,
-            "thread_06": 0.015,
-            "thread_07": 0.005,
-            "unclear": 0.113
-          }
-        }
-      ]
-    },
-    {
-      "request": "Did this thread get stuck?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
       "shown": false,
@@ -1185,48 +1127,153 @@
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.046,
-            "thread_01": 0.05,
-            "thread_02": 0.485,
-            "thread_03": 0.013,
-            "thread_04": 0.01,
-            "thread_05": 0.09,
-            "thread_06": 0.048,
-            "thread_07": 0.024,
+            "none": 0.018,
+            "thread_01": 0.015,
+            "thread_02": 0.667,
+            "thread_03": 0.02,
+            "thread_04": 0.017,
+            "thread_05": 0.009,
+            "thread_06": 0.016,
+            "thread_07": 0.004,
             "unclear": 0.234
           }
         },
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.032,
-            "thread_01": 0.077,
-            "thread_02": 0.475,
-            "thread_03": 0.012,
-            "thread_04": 0.009,
-            "thread_05": 0.061,
-            "thread_06": 0.053,
-            "thread_07": 0.041,
-            "unclear": 0.24
+            "none": 0.019,
+            "thread_01": 0.025,
+            "thread_02": 0.593,
+            "thread_03": 0.02,
+            "thread_04": 0.012,
+            "thread_05": 0.01,
+            "thread_06": 0.019,
+            "thread_07": 0.003,
+            "unclear": 0.3
           }
         },
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.048,
-            "thread_01": 0.057,
-            "thread_02": 0.446,
-            "thread_03": 0.012,
-            "thread_04": 0.009,
-            "thread_05": 0.072,
-            "thread_06": 0.055,
-            "thread_07": 0.03,
-            "unclear": 0.27
+            "none": 0.018,
+            "thread_01": 0.042,
+            "thread_02": 0.617,
+            "thread_03": 0.053,
+            "thread_04": 0.021,
+            "thread_05": 0.019,
+            "thread_06": 0.029,
+            "thread_07": 0.005,
+            "unclear": 0.198
           }
         }
       ]
     },
     {
+      "listing": "similar",
+      "request": "Has it finished yet?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.023,
+            "thread_01": 0.033,
+            "thread_02": 0.641,
+            "thread_03": 0.069,
+            "thread_04": 0.023,
+            "thread_05": 0.018,
+            "thread_06": 0.05,
+            "thread_07": 0.005,
+            "unclear": 0.136
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.013,
+            "thread_01": 0.026,
+            "thread_02": 0.683,
+            "thread_03": 0.041,
+            "thread_04": 0.022,
+            "thread_05": 0.014,
+            "thread_06": 0.037,
+            "thread_07": 0.004,
+            "unclear": 0.159
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.022,
+            "thread_01": 0.02,
+            "thread_02": 0.665,
+            "thread_03": 0.043,
+            "thread_04": 0.022,
+            "thread_05": 0.017,
+            "thread_06": 0.038,
+            "thread_07": 0.004,
+            "unclear": 0.17
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "Did this thread get stuck?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.031,
+            "thread_01": 0.026,
+            "thread_02": 0.492,
+            "thread_03": 0.007,
+            "thread_04": 0.007,
+            "thread_05": 0.038,
+            "thread_06": 0.029,
+            "thread_07": 0.012,
+            "unclear": 0.358
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.028,
+            "thread_01": 0.045,
+            "thread_02": 0.574,
+            "thread_03": 0.008,
+            "thread_04": 0.008,
+            "thread_05": 0.041,
+            "thread_06": 0.028,
+            "thread_07": 0.026,
+            "unclear": 0.241
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.037,
+            "thread_01": 0.067,
+            "thread_02": 0.54,
+            "thread_03": 0.009,
+            "thread_04": 0.007,
+            "thread_05": 0.044,
+            "thread_06": 0.046,
+            "thread_07": 0.042,
+            "unclear": 0.208
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
       "request": "Did this thread get stuck?",
       "recent": "Build a Recipe App",
       "want": "Build a Recipe App",
@@ -1236,66 +1283,71 @@
         {
           "choice": "thread_02",
           "p": {
-            "none": 0.033,
-            "thread_01": 0.019,
-            "thread_02": 0.833,
-            "thread_03": 0.005,
-            "thread_04": 0.006,
-            "thread_05": 0.021,
-            "thread_06": 0.017,
-            "thread_07": 0.007,
-            "unclear": 0.059
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
-            "none": 0.046,
-            "thread_01": 0.032,
-            "thread_02": 0.675,
-            "thread_03": 0.008,
-            "thread_04": 0.007,
-            "thread_05": 0.019,
-            "thread_06": 0.015,
-            "thread_07": 0.009,
-            "unclear": 0.189
-          }
-        },
-        {
-          "choice": "thread_02",
-          "p": {
             "none": 0.03,
-            "thread_01": 0.026,
-            "thread_02": 0.834,
-            "thread_03": 0.005,
-            "thread_04": 0.003,
-            "thread_05": 0.008,
-            "thread_06": 0.01,
-            "thread_07": 0.005,
-            "unclear": 0.078
+            "thread_01": 0.056,
+            "thread_02": 0.624,
+            "thread_03": 0.012,
+            "thread_04": 0.009,
+            "thread_05": 0.067,
+            "thread_06": 0.047,
+            "thread_07": 0.011,
+            "unclear": 0.145
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.04,
+            "thread_01": 0.033,
+            "thread_02": 0.641,
+            "thread_03": 0.011,
+            "thread_04": 0.012,
+            "thread_05": 0.057,
+            "thread_06": 0.032,
+            "thread_07": 0.011,
+            "unclear": 0.164
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.069,
+            "thread_02": 0.615,
+            "thread_03": 0.011,
+            "thread_04": 0.008,
+            "thread_05": 0.044,
+            "thread_06": 0.023,
+            "thread_07": 0.01,
+            "unclear": 0.188
           }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "What's the latest on the farewell function?",
       "recent": "Build a Recipe App",
       "want": "Add Farewell Function",
       "shown": false,
       "held": true,
       "samples": [
+        { "choice": "thread_03", "p": { "none": 0.006, "thread_03": 0.99, "unclear": 0.002 } },
+        { "choice": "thread_03", "p": { "none": 0.003, "thread_03": 0.994, "unclear": 0.001 } },
         {
           "choice": "thread_03",
-          "p": { "none": 0.009, "thread_03": 0.984, "thread_04": 0.001, "unclear": 0.003 }
-        },
-        { "choice": "thread_03", "p": { "none": 0.004, "thread_03": 0.991, "unclear": 0.003 } },
-        {
-          "choice": "thread_03",
-          "p": { "none": 0.006, "thread_03": 0.989, "thread_04": 0.001, "unclear": 0.001 }
+          "p": {
+            "none": 0.014,
+            "thread_02": 0.001,
+            "thread_03": 0.979,
+            "thread_04": 0.001,
+            "unclear": 0.003
+          }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "What's the latest on the farewell function?",
       "recent": "Build a Recipe App",
       "want": "Add Farewell Function",
@@ -1304,19 +1356,33 @@
       "samples": [
         {
           "choice": "thread_03",
-          "p": { "none": 0.007, "thread_02": 0.004, "thread_03": 0.983, "unclear": 0.003 }
+          "p": { "none": 0.004, "thread_02": 0.002, "thread_03": 0.99, "unclear": 0.002 }
         },
         {
           "choice": "thread_03",
-          "p": { "none": 0.004, "thread_02": 0.002, "thread_03": 0.989, "unclear": 0.003 }
+          "p": {
+            "none": 0.007,
+            "thread_01": 0.001,
+            "thread_02": 0.003,
+            "thread_03": 0.981,
+            "thread_04": 0.001,
+            "unclear": 0.004
+          }
         },
         {
           "choice": "thread_03",
-          "p": { "none": 0.006, "thread_02": 0.003, "thread_03": 0.986, "unclear": 0.003 }
+          "p": {
+            "none": 0.007,
+            "thread_02": 0.002,
+            "thread_03": 0.984,
+            "thread_04": 0.002,
+            "unclear": 0.003
+          }
         }
       ]
     },
     {
+      "listing": "similar",
       "request": "And what did it say?",
       "recent": "Fix the flaky UI test",
       "want": "Fix the flaky UI test",
@@ -1326,29 +1392,81 @@
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.013,
-            "thread_01": 0.01,
-            "thread_02": 0.005,
-            "thread_03": 0.01,
-            "thread_04": 0.006,
-            "thread_05": 0.009,
-            "thread_06": 0.768,
-            "thread_07": 0.008,
-            "unclear": 0.171
+            "none": 0.014,
+            "thread_01": 0.011,
+            "thread_02": 0.009,
+            "thread_03": 0.014,
+            "thread_04": 0.01,
+            "thread_05": 0.015,
+            "thread_06": 0.726,
+            "thread_07": 0.017,
+            "unclear": 0.185
           }
         },
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.007,
-            "thread_01": 0.007,
-            "thread_02": 0.006,
-            "thread_03": 0.008,
-            "thread_04": 0.006,
+            "none": 0.015,
+            "thread_01": 0.012,
+            "thread_02": 0.009,
+            "thread_03": 0.012,
+            "thread_04": 0.01,
+            "thread_05": 0.012,
+            "thread_06": 0.713,
+            "thread_07": 0.009,
+            "unclear": 0.209
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.011,
+            "thread_02": 0.005,
+            "thread_03": 0.009,
+            "thread_04": 0.008,
+            "thread_05": 0.01,
+            "thread_06": 0.76,
+            "thread_07": 0.008,
+            "unclear": 0.177
+          }
+        }
+      ]
+    },
+    {
+      "listing": "similar",
+      "request": "And what did it say?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.012,
+            "thread_02": 0.038,
+            "thread_03": 0.013,
+            "thread_04": 0.01,
             "thread_05": 0.008,
-            "thread_06": 0.825,
-            "thread_07": 0.007,
-            "unclear": 0.128
+            "thread_06": 0.767,
+            "thread_07": 0.01,
+            "unclear": 0.13
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.014,
+            "thread_02": 0.041,
+            "thread_03": 0.012,
+            "thread_04": 0.013,
+            "thread_05": 0.012,
+            "thread_06": 0.692,
+            "thread_07": 0.008,
+            "unclear": 0.193
           }
         },
         {
@@ -1356,18 +1474,1458 @@
           "p": {
             "none": 0.01,
             "thread_01": 0.009,
-            "thread_02": 0.005,
-            "thread_03": 0.008,
-            "thread_04": 0.008,
+            "thread_02": 0.051,
+            "thread_03": 0.012,
+            "thread_04": 0.009,
             "thread_05": 0.011,
-            "thread_06": 0.796,
+            "thread_06": 0.784,
+            "thread_07": 0.009,
+            "unclear": 0.106
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What is this thread working on right now?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.07,
+            "thread_01": 0.084,
+            "thread_02": 0.201,
+            "thread_03": 0.008,
+            "thread_04": 0.006,
+            "thread_05": 0.021,
+            "thread_06": 0.241,
+            "thread_07": 0.008,
+            "unclear": 0.362
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.059,
+            "thread_01": 0.161,
+            "thread_02": 0.202,
+            "thread_03": 0.009,
+            "thread_04": 0.007,
+            "thread_05": 0.017,
+            "thread_06": 0.202,
+            "thread_07": 0.007,
+            "unclear": 0.334
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.03,
+            "thread_01": 0.056,
+            "thread_02": 0.381,
+            "thread_03": 0.007,
+            "thread_04": 0.007,
+            "thread_05": 0.011,
+            "thread_06": 0.043,
+            "thread_07": 0.006,
+            "unclear": 0.458
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What is this thread working on right now?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.022,
+            "thread_01": 0.041,
+            "thread_02": 0.581,
+            "thread_03": 0.007,
+            "thread_04": 0.007,
+            "thread_05": 0.012,
+            "thread_06": 0.054,
+            "thread_07": 0.007,
+            "unclear": 0.268
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.042,
+            "thread_01": 0.02,
+            "thread_02": 0.516,
+            "thread_03": 0.007,
+            "thread_04": 0.006,
+            "thread_05": 0.009,
+            "thread_06": 0.035,
+            "thread_07": 0.006,
+            "unclear": 0.358
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.06,
+            "thread_01": 0.032,
+            "thread_02": 0.469,
+            "thread_03": 0.006,
+            "thread_04": 0.007,
+            "thread_05": 0.01,
+            "thread_06": 0.083,
+            "thread_07": 0.007,
+            "unclear": 0.326
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Is it waiting on anything from me?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.026,
+            "thread_01": 0.452,
+            "thread_02": 0.218,
+            "thread_03": 0.006,
+            "thread_04": 0.005,
+            "thread_05": 0.025,
+            "thread_06": 0.031,
+            "thread_07": 0.009,
+            "unclear": 0.228
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.035,
+            "thread_01": 0.508,
+            "thread_02": 0.118,
+            "thread_03": 0.006,
+            "thread_04": 0.004,
+            "thread_05": 0.029,
+            "thread_06": 0.036,
+            "thread_07": 0.007,
+            "unclear": 0.257
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.03,
+            "thread_01": 0.475,
+            "thread_02": 0.2,
+            "thread_03": 0.007,
+            "thread_04": 0.005,
+            "thread_05": 0.02,
+            "thread_06": 0.032,
             "thread_07": 0.012,
+            "unclear": 0.219
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Is it waiting on anything from me?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.017,
+            "thread_01": 0.365,
+            "thread_02": 0.304,
+            "thread_03": 0.005,
+            "thread_04": 0.006,
+            "thread_05": 0.02,
+            "thread_06": 0.036,
+            "thread_07": 0.006,
+            "unclear": 0.242
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.022,
+            "thread_01": 0.225,
+            "thread_02": 0.445,
+            "thread_03": 0.004,
+            "thread_04": 0.007,
+            "thread_05": 0.015,
+            "thread_06": 0.04,
+            "thread_07": 0.007,
+            "unclear": 0.235
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.023,
+            "thread_01": 0.35,
+            "thread_02": 0.401,
+            "thread_03": 0.007,
+            "thread_04": 0.006,
+            "thread_05": 0.031,
+            "thread_06": 0.031,
+            "thread_07": 0.01,
             "unclear": 0.141
           }
         }
       ]
     },
     {
+      "listing": "twins",
+      "request": "How's it going?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.025,
+            "thread_01": 0.055,
+            "thread_02": 0.425,
+            "thread_03": 0.01,
+            "thread_04": 0.008,
+            "thread_05": 0.011,
+            "thread_06": 0.033,
+            "thread_07": 0.009,
+            "unclear": 0.425
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.033,
+            "thread_01": 0.065,
+            "thread_02": 0.381,
+            "thread_03": 0.011,
+            "thread_04": 0.014,
+            "thread_05": 0.016,
+            "thread_06": 0.062,
+            "thread_07": 0.02,
+            "unclear": 0.399
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.036,
+            "thread_01": 0.06,
+            "thread_02": 0.372,
+            "thread_03": 0.018,
+            "thread_04": 0.017,
+            "thread_05": 0.017,
+            "thread_06": 0.095,
+            "thread_07": 0.013,
+            "unclear": 0.372
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "How's it going?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.035,
+            "thread_01": 0.04,
+            "thread_02": 0.566,
+            "thread_03": 0.01,
+            "thread_04": 0.015,
+            "thread_05": 0.017,
+            "thread_06": 0.07,
+            "thread_07": 0.009,
+            "unclear": 0.238
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.036,
+            "thread_01": 0.025,
+            "thread_02": 0.607,
+            "thread_03": 0.01,
+            "thread_04": 0.012,
+            "thread_05": 0.015,
+            "thread_06": 0.04,
+            "thread_07": 0.012,
+            "unclear": 0.244
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.035,
+            "thread_01": 0.059,
+            "thread_02": 0.597,
+            "thread_03": 0.01,
+            "thread_04": 0.01,
+            "thread_05": 0.009,
+            "thread_06": 0.043,
+            "thread_07": 0.008,
+            "unclear": 0.229
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What did it say last?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.061,
+            "thread_01": 0.061,
+            "thread_02": 0.564,
+            "thread_03": 0.044,
+            "thread_04": 0.027,
+            "thread_05": 0.022,
+            "thread_06": 0.042,
+            "thread_07": 0.008,
+            "unclear": 0.173
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.024,
+            "thread_01": 0.089,
+            "thread_02": 0.633,
+            "thread_03": 0.033,
+            "thread_04": 0.02,
+            "thread_05": 0.019,
+            "thread_06": 0.049,
+            "thread_07": 0.009,
+            "unclear": 0.123
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.083,
+            "thread_02": 0.467,
+            "thread_03": 0.017,
+            "thread_04": 0.012,
+            "thread_05": 0.014,
+            "thread_06": 0.029,
+            "thread_07": 0.007,
+            "unclear": 0.34
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What did it say last?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.021,
+            "thread_01": 0.025,
+            "thread_02": 0.788,
+            "thread_03": 0.011,
+            "thread_04": 0.008,
+            "thread_05": 0.008,
+            "thread_06": 0.015,
+            "thread_07": 0.003,
+            "unclear": 0.122
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.037,
+            "thread_02": 0.781,
+            "thread_03": 0.008,
+            "thread_04": 0.006,
+            "thread_05": 0.006,
+            "thread_06": 0.011,
+            "thread_07": 0.003,
+            "unclear": 0.132
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.024,
+            "thread_01": 0.03,
+            "thread_02": 0.727,
+            "thread_03": 0.014,
+            "thread_04": 0.013,
+            "thread_05": 0.018,
+            "thread_06": 0.016,
+            "thread_07": 0.003,
+            "unclear": 0.155
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Is this one done?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.034,
+            "thread_02": 0.686,
+            "thread_03": 0.016,
+            "thread_04": 0.014,
+            "thread_05": 0.01,
+            "thread_06": 0.036,
+            "thread_07": 0.005,
+            "unclear": 0.183
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.035,
+            "thread_02": 0.729,
+            "thread_03": 0.016,
+            "thread_04": 0.012,
+            "thread_05": 0.006,
+            "thread_06": 0.017,
+            "thread_07": 0.005,
+            "unclear": 0.162
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.013,
+            "thread_01": 0.072,
+            "thread_02": 0.706,
+            "thread_03": 0.024,
+            "thread_04": 0.016,
+            "thread_05": 0.01,
+            "thread_06": 0.033,
+            "thread_07": 0.005,
+            "unclear": 0.12
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Is this one done?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.042,
+            "thread_02": 0.746,
+            "thread_03": 0.019,
+            "thread_04": 0.016,
+            "thread_05": 0.014,
+            "thread_06": 0.035,
+            "thread_07": 0.006,
+            "unclear": 0.105
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.021,
+            "thread_02": 0.807,
+            "thread_03": 0.013,
+            "thread_04": 0.01,
+            "thread_05": 0.01,
+            "thread_06": 0.021,
+            "thread_07": 0.004,
+            "unclear": 0.104
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.029,
+            "thread_02": 0.711,
+            "thread_03": 0.022,
+            "thread_04": 0.019,
+            "thread_05": 0.014,
+            "thread_06": 0.021,
+            "thread_07": 0.006,
+            "unclear": 0.166
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What about the flaky UI test thread?",
+      "recent": "Add a Mute Toggle",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.006,
+            "thread_01": 0.001,
+            "thread_02": 0.002,
+            "thread_06": 0.986,
+            "thread_07": 0.001,
+            "unclear": 0.002
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.013,
+            "thread_01": 0.002,
+            "thread_02": 0.002,
+            "thread_03": 0.001,
+            "thread_04": 0.001,
+            "thread_06": 0.975,
+            "thread_07": 0.001,
+            "unclear": 0.004
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.011,
+            "thread_01": 0.001,
+            "thread_02": 0.002,
+            "thread_03": 0.001,
+            "thread_06": 0.978,
+            "thread_07": 0.002,
+            "unclear": 0.003
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What about the flaky UI test thread?",
+      "recent": "Add a Mute Toggle",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_02": 0.001,
+            "thread_04": 0.001,
+            "thread_06": 0.983,
+            "thread_07": 0.001,
+            "unclear": 0.002
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.009,
+            "thread_01": 0.001,
+            "thread_02": 0.002,
+            "thread_06": 0.982,
+            "thread_07": 0.001,
+            "unclear": 0.002
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.019,
+            "thread_01": 0.002,
+            "thread_02": 0.002,
+            "thread_06": 0.971,
+            "thread_07": 0.001,
+            "unclear": 0.003
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "How's the kubernetes migration?",
+      "recent": "Add a Mute Toggle",
+      "want": "none",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.966,
+            "thread_01": 0.002,
+            "thread_02": 0.005,
+            "thread_03": 0.002,
+            "thread_04": 0.003,
+            "thread_05": 0.002,
+            "thread_06": 0.003,
+            "thread_07": 0.004,
+            "unclear": 0.013
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.952,
+            "thread_01": 0.004,
+            "thread_02": 0.007,
+            "thread_03": 0.004,
+            "thread_04": 0.004,
+            "thread_05": 0.003,
+            "thread_06": 0.005,
+            "thread_07": 0.005,
+            "unclear": 0.017
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.916,
+            "thread_01": 0.007,
+            "thread_02": 0.01,
+            "thread_03": 0.004,
+            "thread_04": 0.003,
+            "thread_05": 0.004,
+            "thread_06": 0.004,
+            "thread_07": 0.006,
+            "unclear": 0.048
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "How's the kubernetes migration?",
+      "recent": "Add a Mute Toggle",
+      "want": "none",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.94,
+            "thread_01": 0.005,
+            "thread_02": 0.01,
+            "thread_03": 0.003,
+            "thread_04": 0.005,
+            "thread_05": 0.003,
+            "thread_06": 0.006,
+            "thread_07": 0.006,
+            "unclear": 0.021
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.938,
+            "thread_01": 0.005,
+            "thread_02": 0.013,
+            "thread_03": 0.003,
+            "thread_04": 0.002,
+            "thread_05": 0.002,
+            "thread_06": 0.006,
+            "thread_07": 0.005,
+            "unclear": 0.026
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.952,
+            "thread_01": 0.006,
+            "thread_02": 0.008,
+            "thread_03": 0.003,
+            "thread_04": 0.004,
+            "thread_05": 0.003,
+            "thread_06": 0.005,
+            "thread_07": 0.004,
+            "unclear": 0.015
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Is it done?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.009,
+            "thread_01": 0.011,
+            "thread_02": 0.017,
+            "thread_03": 0.011,
+            "thread_04": 0.008,
+            "thread_05": 0.006,
+            "thread_06": 0.737,
+            "thread_07": 0.004,
+            "unclear": 0.197
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.007,
+            "thread_01": 0.007,
+            "thread_02": 0.015,
+            "thread_03": 0.009,
+            "thread_04": 0.007,
+            "thread_05": 0.004,
+            "thread_06": 0.851,
+            "thread_07": 0.005,
+            "unclear": 0.096
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.006,
+            "thread_01": 0.004,
+            "thread_02": 0.01,
+            "thread_03": 0.007,
+            "thread_04": 0.005,
+            "thread_05": 0.004,
+            "thread_06": 0.881,
+            "thread_07": 0.004,
+            "unclear": 0.079
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Is it done?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.009,
+            "thread_01": 0.011,
+            "thread_02": 0.1,
+            "thread_03": 0.008,
+            "thread_04": 0.008,
+            "thread_05": 0.006,
+            "thread_06": 0.739,
+            "thread_07": 0.006,
+            "unclear": 0.114
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.008,
+            "thread_01": 0.008,
+            "thread_02": 0.083,
+            "thread_03": 0.007,
+            "thread_04": 0.007,
+            "thread_05": 0.006,
+            "thread_06": 0.734,
+            "thread_07": 0.005,
+            "unclear": 0.143
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.008,
+            "thread_01": 0.008,
+            "thread_02": 0.065,
+            "thread_03": 0.009,
+            "thread_04": 0.008,
+            "thread_05": 0.005,
+            "thread_06": 0.73,
+            "thread_07": 0.005,
+            "unclear": 0.162
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "How is it going?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.017,
+            "thread_01": 0.009,
+            "thread_02": 0.008,
+            "thread_03": 0.006,
+            "thread_04": 0.007,
+            "thread_05": 0.008,
+            "thread_06": 0.733,
+            "thread_07": 0.007,
+            "unclear": 0.205
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.027,
+            "thread_01": 0.012,
+            "thread_02": 0.012,
+            "thread_03": 0.008,
+            "thread_04": 0.006,
+            "thread_05": 0.009,
+            "thread_06": 0.781,
+            "thread_07": 0.013,
+            "unclear": 0.132
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.007,
+            "thread_02": 0.007,
+            "thread_03": 0.005,
+            "thread_04": 0.005,
+            "thread_05": 0.006,
+            "thread_06": 0.652,
+            "thread_07": 0.006,
+            "unclear": 0.301
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "How is it going?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.009,
+            "thread_02": 0.029,
+            "thread_03": 0.007,
+            "thread_04": 0.006,
+            "thread_05": 0.007,
+            "thread_06": 0.65,
+            "thread_07": 0.007,
+            "unclear": 0.274
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.017,
+            "thread_01": 0.009,
+            "thread_02": 0.04,
+            "thread_03": 0.007,
+            "thread_04": 0.005,
+            "thread_05": 0.008,
+            "thread_06": 0.735,
+            "thread_07": 0.008,
+            "unclear": 0.171
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.021,
+            "thread_01": 0.01,
+            "thread_02": 0.064,
+            "thread_03": 0.008,
+            "thread_04": 0.008,
+            "thread_05": 0.012,
+            "thread_06": 0.626,
+            "thread_07": 0.01,
+            "unclear": 0.241
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "How is the mute toggle next to volume thread doing?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add mute toggle next to volume",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.014,
+            "thread_01": 0.947,
+            "thread_02": 0.031,
+            "thread_03": 0.001,
+            "unclear": 0.004
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.025,
+            "thread_01": 0.922,
+            "thread_02": 0.042,
+            "thread_04": 0.001,
+            "unclear": 0.007
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.022,
+            "thread_01": 0.926,
+            "thread_02": 0.038,
+            "thread_03": 0.001,
+            "thread_04": 0.001,
+            "unclear": 0.009
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "How is the mute toggle next to volume thread doing?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add mute toggle next to volume",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.019,
+            "thread_01": 0.874,
+            "thread_02": 0.094,
+            "thread_03": 0.002,
+            "thread_04": 0.001,
+            "unclear": 0.008
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.913,
+            "thread_02": 0.054,
+            "thread_03": 0.002,
+            "thread_04": 0.001,
+            "unclear": 0.008
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": { "none": 0.021, "thread_01": 0.929, "thread_02": 0.042, "unclear": 0.004 }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Can you check on this one for me?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.022,
+            "thread_01": 0.075,
+            "thread_02": 0.441,
+            "thread_03": 0.015,
+            "thread_04": 0.013,
+            "thread_05": 0.016,
+            "thread_06": 0.057,
+            "thread_07": 0.011,
+            "unclear": 0.351
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.028,
+            "thread_01": 0.075,
+            "thread_02": 0.555,
+            "thread_03": 0.017,
+            "thread_04": 0.013,
+            "thread_05": 0.012,
+            "thread_06": 0.033,
+            "thread_07": 0.012,
+            "unclear": 0.256
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.027,
+            "thread_01": 0.073,
+            "thread_02": 0.593,
+            "thread_03": 0.014,
+            "thread_04": 0.012,
+            "thread_05": 0.019,
+            "thread_06": 0.053,
+            "thread_07": 0.011,
+            "unclear": 0.199
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Can you check on this one for me?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.015,
+            "thread_01": 0.027,
+            "thread_02": 0.71,
+            "thread_03": 0.008,
+            "thread_04": 0.01,
+            "thread_05": 0.011,
+            "thread_06": 0.024,
+            "thread_07": 0.006,
+            "unclear": 0.19
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.015,
+            "thread_01": 0.057,
+            "thread_02": 0.632,
+            "thread_03": 0.012,
+            "thread_04": 0.011,
+            "thread_05": 0.03,
+            "thread_06": 0.052,
+            "thread_07": 0.006,
+            "unclear": 0.185
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.014,
+            "thread_01": 0.044,
+            "thread_02": 0.585,
+            "thread_03": 0.01,
+            "thread_04": 0.011,
+            "thread_05": 0.013,
+            "thread_06": 0.035,
+            "thread_07": 0.007,
+            "unclear": 0.282
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Has it finished yet?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.014,
+            "thread_01": 0.015,
+            "thread_02": 0.839,
+            "thread_03": 0.007,
+            "thread_04": 0.009,
+            "thread_05": 0.008,
+            "thread_06": 0.016,
+            "thread_07": 0.003,
+            "unclear": 0.09
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.009,
+            "thread_01": 0.027,
+            "thread_02": 0.853,
+            "thread_03": 0.012,
+            "thread_04": 0.007,
+            "thread_05": 0.004,
+            "thread_06": 0.014,
+            "thread_07": 0.003,
+            "unclear": 0.07
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.028,
+            "thread_02": 0.865,
+            "thread_03": 0.009,
+            "thread_04": 0.005,
+            "thread_05": 0.004,
+            "thread_06": 0.009,
+            "thread_07": 0.002,
+            "unclear": 0.068
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Has it finished yet?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.008,
+            "thread_01": 0.021,
+            "thread_02": 0.85,
+            "thread_03": 0.011,
+            "thread_04": 0.009,
+            "thread_05": 0.005,
+            "thread_06": 0.014,
+            "thread_07": 0.002,
+            "unclear": 0.08
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.008,
+            "thread_01": 0.016,
+            "thread_02": 0.866,
+            "thread_03": 0.013,
+            "thread_04": 0.008,
+            "thread_05": 0.006,
+            "thread_06": 0.02,
+            "thread_07": 0.002,
+            "unclear": 0.062
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.011,
+            "thread_01": 0.028,
+            "thread_02": 0.86,
+            "thread_03": 0.012,
+            "thread_04": 0.011,
+            "thread_05": 0.005,
+            "thread_06": 0.011,
+            "thread_07": 0.002,
+            "unclear": 0.059
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Did this thread get stuck?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.023,
+            "thread_01": 0.133,
+            "thread_02": 0.331,
+            "thread_03": 0.009,
+            "thread_04": 0.011,
+            "thread_05": 0.054,
+            "thread_06": 0.054,
+            "thread_07": 0.024,
+            "unclear": 0.363
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.031,
+            "thread_01": 0.144,
+            "thread_02": 0.273,
+            "thread_03": 0.01,
+            "thread_04": 0.01,
+            "thread_05": 0.058,
+            "thread_06": 0.073,
+            "thread_07": 0.028,
+            "unclear": 0.375
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.043,
+            "thread_01": 0.152,
+            "thread_02": 0.316,
+            "thread_03": 0.016,
+            "thread_04": 0.012,
+            "thread_05": 0.088,
+            "thread_06": 0.074,
+            "thread_07": 0.037,
+            "unclear": 0.263
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "Did this thread get stuck?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add a Mute Toggle",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.023,
+            "thread_01": 0.094,
+            "thread_02": 0.61,
+            "thread_03": 0.009,
+            "thread_04": 0.01,
+            "thread_05": 0.05,
+            "thread_06": 0.029,
+            "thread_07": 0.012,
+            "unclear": 0.163
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.045,
+            "thread_01": 0.097,
+            "thread_02": 0.574,
+            "thread_03": 0.008,
+            "thread_04": 0.011,
+            "thread_05": 0.054,
+            "thread_06": 0.03,
+            "thread_07": 0.02,
+            "unclear": 0.161
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.029,
+            "thread_01": 0.063,
+            "thread_02": 0.644,
+            "thread_03": 0.008,
+            "thread_04": 0.011,
+            "thread_05": 0.033,
+            "thread_06": 0.05,
+            "thread_07": 0.011,
+            "unclear": 0.15
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What's the latest on the farewell function?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add Farewell Function",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_03",
+          "p": {
+            "none": 0.007,
+            "thread_01": 0.001,
+            "thread_02": 0.002,
+            "thread_03": 0.986,
+            "thread_04": 0.001,
+            "unclear": 0.002
+          }
+        },
+        {
+          "choice": "thread_03",
+          "p": { "none": 0.007, "thread_02": 0.001, "thread_03": 0.988, "unclear": 0.002 }
+        },
+        {
+          "choice": "thread_03",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.001,
+            "thread_02": 0.003,
+            "thread_03": 0.98,
+            "unclear": 0.002
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "What's the latest on the farewell function?",
+      "recent": "Add a Mute Toggle",
+      "want": "Add Farewell Function",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_03",
+          "p": {
+            "none": 0.008,
+            "thread_01": 0.001,
+            "thread_02": 0.002,
+            "thread_03": 0.983,
+            "thread_04": 0.001,
+            "unclear": 0.003
+          }
+        },
+        {
+          "choice": "thread_03",
+          "p": {
+            "none": 0.005,
+            "thread_01": 0.001,
+            "thread_02": 0.001,
+            "thread_03": 0.989,
+            "thread_04": 0.001,
+            "unclear": 0.001
+          }
+        },
+        {
+          "choice": "thread_03",
+          "p": {
+            "none": 0.008,
+            "thread_01": 0.001,
+            "thread_02": 0.004,
+            "thread_03": 0.982,
+            "unclear": 0.002
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
+      "request": "And what did it say?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.011,
+            "thread_02": 0.01,
+            "thread_03": 0.011,
+            "thread_04": 0.008,
+            "thread_05": 0.007,
+            "thread_06": 0.832,
+            "thread_07": 0.01,
+            "unclear": 0.102
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.013,
+            "thread_02": 0.014,
+            "thread_03": 0.011,
+            "thread_04": 0.007,
+            "thread_05": 0.01,
+            "thread_06": 0.803,
+            "thread_07": 0.011,
+            "unclear": 0.113
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.021,
+            "thread_01": 0.014,
+            "thread_02": 0.016,
+            "thread_03": 0.013,
+            "thread_04": 0.01,
+            "thread_05": 0.013,
+            "thread_06": 0.706,
+            "thread_07": 0.009,
+            "unclear": 0.197
+          }
+        }
+      ]
+    },
+    {
+      "listing": "twins",
       "request": "And what did it say?",
       "recent": "Fix the flaky UI test",
       "want": "Fix the flaky UI test",
@@ -1377,43 +2935,43 @@
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.018,
-            "thread_01": 0.01,
-            "thread_02": 0.085,
-            "thread_03": 0.01,
-            "thread_04": 0.009,
-            "thread_05": 0.005,
-            "thread_06": 0.723,
-            "thread_07": 0.007,
-            "unclear": 0.134
+            "none": 0.023,
+            "thread_01": 0.019,
+            "thread_02": 0.066,
+            "thread_03": 0.012,
+            "thread_04": 0.013,
+            "thread_05": 0.013,
+            "thread_06": 0.672,
+            "thread_07": 0.018,
+            "unclear": 0.164
           }
         },
         {
           "choice": "thread_06",
           "p": {
-            "none": 0.019,
-            "thread_01": 0.01,
-            "thread_02": 0.056,
-            "thread_03": 0.011,
+            "none": 0.013,
+            "thread_01": 0.018,
+            "thread_02": 0.052,
+            "thread_03": 0.012,
             "thread_04": 0.009,
-            "thread_05": 0.008,
-            "thread_06": 0.753,
-            "thread_07": 0.007,
-            "unclear": 0.128
+            "thread_05": 0.011,
+            "thread_06": 0.663,
+            "thread_07": 0.009,
+            "unclear": 0.213
           }
         },
         {
           "choice": "thread_06",
           "p": {
             "none": 0.01,
-            "thread_01": 0.01,
-            "thread_02": 0.095,
-            "thread_03": 0.015,
-            "thread_04": 0.005,
-            "thread_05": 0.006,
-            "thread_06": 0.77,
-            "thread_07": 0.005,
-            "unclear": 0.083
+            "thread_01": 0.014,
+            "thread_02": 0.056,
+            "thread_03": 0.012,
+            "thread_04": 0.009,
+            "thread_05": 0.01,
+            "thread_06": 0.744,
+            "thread_07": 0.007,
+            "unclear": 0.138
           }
         }
       ]
