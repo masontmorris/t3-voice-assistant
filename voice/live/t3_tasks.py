@@ -38,7 +38,7 @@ from voice.prototype.tasks import Execution, MockTaskService, Run
 from voice.t3 import lifecycle as L
 from voice.t3 import local_summary as LS
 from voice.t3 import types as T
-from voice.t3.acts import NOTHING_NEW, Act, Outcome, act
+from voice.t3.acts import NOTHING_NEW, RULES, Act, Outcome, act
 from voice.t3.acts import Kind as Say
 from voice.t3.fork_env import FORK_PORT, TOKEN_FILE, default_voice_home
 from voice.t3.journal import JournalTask, Kind, Status, T3Journal, ulid
@@ -48,7 +48,8 @@ from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import (Launch, Lane, LocalText, Rendered, RequestGate, Speech, candidate_names, named, reference,
                              text_model, without_request)
-from voice.t3.verify import NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, Chosen, Decider, Listed, Picked, Reading, default_decider
+from voice.t3.verify import (NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, Chosen, Decider, Listed, Picked, Reading,
+                             default_decider)
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 APPROVE, DENY = "t3_approve", "t3_deny"
@@ -167,6 +168,8 @@ class Question:
     need: str | None = None
     prompt: str | None = None
     source: T.NeedSource | None = None
+    # A launch's first message for its thread, written from `instruction` before the yes and checked against it.
+    brief: str | None = None
     # An answer in progress ("answer": a question of the request is open, "answer_confirm": all are answered and
     # confirmed back): the request's questions as the voice told them, the answers so far as (question id, "option" or
     # "own_words", text), the question being asked, and how many times it has been asked again.
@@ -225,6 +228,12 @@ class T3Tasks:
     spoken_id: str | None = field(default=None, init=False)
     told: dict[str, int] = field(default_factory=dict, init=False)
     withdrawn: Question | None = field(default=None, init=False)
+    # The requests this call has said must be approved in the app, by thread id and request id, and the request each
+    # such update was made for: a second attempt is told it still waits there, not the same line again.
+    app_told: set = field(default_factory=set, init=False)
+    # The last checked line said about a thread on this call: where a free turn says it came from.
+    last_line: L.Update | None = field(default=None, init=False)
+    app_asked: dict = field(default_factory=dict, init=False)
     declined: dict | None = field(default=None, init=False)
     before_call: dict = field(default_factory=dict, init=False)
     turns_closed: int = field(default=0, init=False)
@@ -369,12 +378,18 @@ class T3Tasks:
             return None
 
     def begin_call(self) -> None:
-        """A new call starts: nothing asked on an earlier one can be answered on it."""
+        """A new call starts: nothing asked on an earlier one can be answered on it, and news from before it is not
+        read out when it opens. Of that news a thread keeps only its newest line, and only when that line says the
+        thread waits on the person: what they can act on now, not the history of how it got there."""
         with self.lock:
             self.call += 1
+            self._drop_old_news()
             self.before_call = self._statuses()
             self.spoken_of = self.spoken_id = None
             self.told.clear()
+            self.app_told.clear()
+            self.app_asked.clear()
+            self.last_line = None
             self._drop_question()
             self.withdrawn = self.declined = self.before_pick = None
             self._drop_held_corrections()
@@ -425,6 +440,19 @@ class T3Tasks:
             self._unfollow_calls()
             self.withdrawn = self.declined = self.before_pick = None
             self._drop_held_corrections()
+
+    def _drop_old_news(self) -> None:
+        lines = [*self.follow.journal.pending_lines, *self.follow.outbox]
+        newest: dict[str, L.Update] = {}
+        for update in lines:
+            if update.thread_id is not None and not update.superseded:
+                if update.n >= getattr(newest.get(update.thread_id), "n", -1):
+                    newest[update.thread_id] = update
+        kept = {id(u) for u in newest.values() if any(a.kind is Say.NEEDS_YOU for a in u.acts)}
+        old = [u for u in lines if id(u) not in kept]
+        self.follow.outbox = [u for u in self.follow.outbox if id(u) in kept]
+        if old:
+            self.follow.journal.remove_lines(old)
 
     def _statuses(self) -> dict:
         return {task_id: task.status for task_id, task in self.follow.journal.tasks.items()}
@@ -505,6 +533,8 @@ class T3Tasks:
                            None)
             begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
             on_call = self.following is not None and any(a.slots.get("on_call") for a in update.acts)
+            if titles or begun or on_call:
+                self.last_line = update
             if titles or started or begun:
                 self.declined = None
                 self.before_pick = ((self.spoken_of, self.spoken_id, self.recent)
@@ -521,6 +551,8 @@ class T3Tasks:
                 self.spoken_of = self.following.title or self.spoken_of
             if update.thread_id is not None and update.sequences and any(a.kind is Say.THREAD_STATUS for a in update.acts):
                 self.told[update.thread_id] = max(update.sequences)
+            if update.task_id in self.app_asked and any(a.kind is Say.NEEDS_THE_APP for a in update.acts):
+                self.app_told.add((update.thread_id, self.app_asked.pop(update.task_id)))
             question = self.question
             if question is None:
                 return
@@ -548,6 +580,17 @@ class T3Tasks:
             question = self.question
             if question is not None and question.owner is not None and question.owner is not owner:
                 question.expired = True
+
+    def said_source(self) -> dict | None:
+        """The thread the call's last checked line was about and what it came from: the thread's own last reply when
+        the line carried its summary or reply, else its status. None before any such line on this call."""
+        with self.lock:
+            update = self.last_line
+        if update is None:
+            return None
+        thread = next((a.slots.get("thread") for a in update.acts if a.slots.get("thread")), None) or self.spoken_of
+        replied = any(a.slots.get("summary") or a.slots.get("reply") for a in update.acts)
+        return {"thread": thread or "the thread", "from": "reply" if replied else "status"}
 
     def spoken_about(self) -> str | None:
         """The thread this call last said something about, by title, or as the new thread in its project when the
@@ -612,10 +655,15 @@ class T3Tasks:
         if state is None:
             return None
         pending = state.pending
+        waiting = (None if pending is None
+                   else {"for": L.need_of(pending.kind, pending.source), "request": pending.prompt})
+        if pending is not None and pending.kind is T.PendingKind.APPROVAL and not LS.approvable(pending):
+            # What the voice says of such a request is true, so a free line saying it is not a claim to correct.
+            waiting["approved_by_voice"] = False
+            waiting["approved_in"] = "the T3 app"
         facts = {"thread": state.title, "status": state.activity.value,
                  "run": state.run.status.value if state.run is not None else None,
-                 "waiting_on_the_person": None if pending is None else {"for": L.need_of(pending.kind, pending.source),
-                                                                         "request": pending.prompt},
+                 "waiting_on_the_person": waiting,
                  "last_reply": state.last_reply.text[-600:] if state.last_reply is not None else None,
                  "the_assistant_did": did}
         return thread_id, facts
@@ -654,6 +702,7 @@ class T3Tasks:
             if (question is not None and question.op == START and question.key.startswith(prefix)
                     and (transcript or "").strip()):
                 question.instruction = transcript.strip()
+                self.speech.start_brief(question.instruction)
 
     def claim(self, update: L.Update, owner: object) -> None:
         """The turn `owner` asked the question `update` says."""
@@ -759,6 +808,10 @@ class T3Tasks:
             question = self.live_question()
             reading = self.read_reply(text, question) if question is not None else None
         kind = reading.kind if isinstance(reading, Reading) else None
+        if (question is not None and question.op == START and question.kind == "confirm"
+                and isinstance(reading, Reading) and reading.yes):
+            # Off the lock: the brief may still be in the writer.
+            question.brief = self.speech.brief(question.instruction)
         update = self._answer(text, now, reading, kind, question)
         if update is None and question is not None and question.heard:
             with self.lock:
@@ -850,9 +903,14 @@ class T3Tasks:
         return update
 
     def _launch(self, question: Question, project_id: str, name: str, now: float) -> L.Update:
-        task = self.follow.journal.begin(Kind.START, question.instruction, project_id, name)
+        """Start the thread. It is handed the work itself when a brief passed its gate; without one (no writer, no gate,
+        a refusal) the request goes as the person spoke it, as it always did."""
+        task = self.follow.journal.begin(Kind.START, question.brief or question.instruction, project_id, name)
         self.keys[task.task_id] = question.key
         self.follow.launch(task, now)
+        if task.link.thread_id:
+            # Every line about the thread until T3 names it says what it was started for.
+            self.speech.start_account(Launch(task.link.thread_id, task.instruction, name))
         self.recent = task.link.thread_id or self.recent
         return self._spoken(question.key, task, act(Say.LAUNCH_PENDING), "launch-unavailable")
 
@@ -900,12 +958,18 @@ class T3Tasks:
             # Several threads wait. The words answer a question, so the decider is told that, and chooses a thread only
             # when they name one; the thread last spoken about is not offered as "it", and with none named it asks which.
             answering = asked.op == ANSWER
-            last = base.titles.get(self._recent(base.titles)) if recent and not answering else None
+            spoken = self._recent(base.titles) if recent and not answering else None
+            last = base.titles.get(spoken)
             call = self.call
             own = self.following.link.thread_id if self.following is not None else None
             own = own if own in base.titles and not answering else None
+            spoken_id = self.spoken_id
 
-        picked = self._picked(reference, options, last, answering, own)
+        picked = self._picked(reference, options, last, answering, own, spoken)
+        # A pick between the confirm and sure bars that the words name by its title is as sure as one over the bar: a
+        # near twin's share or the rest of a long request held it under, not doubt about which thread was said.
+        named = (asked.op == ASK and picked.thread is not None and not picked.sure and picked.thread != spoken_id
+                 and self._says_title(reference, next(t for t in options if t.thread_id == picked.thread)))
 
         with self.lock:
             if self.call != call:
@@ -922,7 +986,7 @@ class T3Tasks:
                 return self._which(replace(base, kind="thread", candidates=candidates), evidence, now)
             # Asking back "do you mean X?" about the thread this call just spoke of adds a question and no safety: an
             # ask only reads, and its answer names the thread.
-            if asked.op == ASK and (picked.sure or thread == self.spoken_id) and thread not in shared:
+            if asked.op == ASK and (picked.sure or named or thread == self.spoken_id) and thread not in shared:
                 return self._act(base, thread, now)
             return self._ask_back(replace(base, candidates=(thread,)), evidence, now)
 
@@ -951,16 +1015,24 @@ class T3Tasks:
         return tuple(options.values()), frozenset(shared)
 
     def _picked(self, reference: str, options: tuple[Listed, ...], last: str | None,
-                answering: bool = False, call_thread: str | None = None) -> Picked:
+                answering: bool = False, call_thread: str | None = None, spoken: str | None = None) -> Picked:
         """The decider's pick, off the lock since it is a network call. With no decider nothing is picked. `answering`
         says the words answer a question a thread asked: a thread is picked only when they name it. `call_thread` is
-        the id of the thread the call was opened from, while it is listed."""
+        the id of the thread the call was opened from, and `spoken` the one the voice last said something about, each
+        while it is listed."""
         picks = getattr(self.decider, "picks", None)
         if picks is None:
             return Picked(None)
         if answering:
             return picks(reference, options, last, answering=True)
-        return picks(reference, options, last, call_thread=call_thread) if call_thread else picks(reference, options, last)
+        marks = {k: v for k, v in (("call_thread", call_thread), ("spoken", spoken)) if v}
+        return picks(reference, options, last, **marks)
+
+    def _says_title(self, reference: str, thread: Listed) -> bool:
+        """Whether the decider reads the words as saying `thread`'s title. Off the lock; no answer is no."""
+        names = getattr(self.decider, "names", None)
+        said = names(reference, thread) if names is not None else None
+        return said is not None and said >= NAMES_SURE
 
     def _list(self, key: str):
         try:
@@ -993,6 +1065,9 @@ class T3Tasks:
                 return looked
             question = looked
         question = self._ask(replace(question, evidence=tuple(evidence) or question.evidence))
+        if question.op == ASK and self.lane is not None:
+            # A yes reads this thread and says its summary: the summary starts now, so the yes does not wait for it.
+            self.speech.prefetch(thread, question.instruction)
         said = confirm_act(question.op, question.titles[thread], question.message, question.need, question.prompt)
         return L.Update(question.key, (said,), "needs_clarification", "pick", thread, question.evidence)
 
@@ -1011,12 +1086,16 @@ class T3Tasks:
                             (state.as_of_sequence,))
         if need.kind is not T.PendingKind.APPROVAL:
             return self._read(question.key, thread, question.instruction)
-        if question.op == APPROVE and not (state.pending_detailed and LS.describable(need)):
-            # What this request does is not stored, or not stored as an action the voice can describe (a tool permission
-            # is only the tool's name): a yes could approve anything. Denying is safe without detail: nothing runs.
-            # Approving is left to the app. The source is a typed field, never the prompt's text.
-            return L.Update(question.key, (act(Say.NEEDS_THE_APP, thread=state.title, decision="approve"),),
-                            "completed", "ask", thread, (state.as_of_sequence,))
+        if question.op == APPROVE and not (state.pending_detailed and LS.approvable(need)):
+            # What this request does is not stored, or not stored as an action a yes may answer (a tool permission is
+            # only the tool's name): a yes could approve anything. Denying is safe without detail: nothing runs.
+            # Approving is left to the app, and the line says what is asked when it can. The source is a typed field.
+            told = (thread, need.request_id) in self.app_told
+            said = act(Say.NEEDS_THE_APP, thread=state.title, decision="approve",
+                       need=L.need_of(need.kind, need.source),
+                       prompt=need.prompt if state.pending_detailed and not told else None, again=told or None)
+            self.app_asked[question.key] = need.request_id
+            return L.Update(question.key, (said,), "completed", "ask", thread, (state.as_of_sequence,))
         return replace(question, request_id=need.request_id, need=L.need_of(need.kind, need.source),
                        prompt=need.prompt, source=need.source)
 
@@ -1359,16 +1438,23 @@ class T3Tasks:
 
     def _named(self, update: L.Update, acts: tuple[Act, ...], listing: T.ThreadList | None) -> tuple[Act, ...]:
         """The acts about `update`'s thread, named as T3 titles it at this moment. The thread is picked by its id; a
-        launched thread that T3 has not yet named is told by its project, and by what it was started for when another
-        launched thread in the project is as unnamed."""
+        launched thread that T3 has not yet named is told by its project and by what it was started for. An act that
+        names no thread, made from a task that had no title, takes the title T3 lists for its thread."""
+        if listing is None or update.thread_id is None:
+            return acts
+        titles = {t.thread_id: t.title for t in listing.threads}
         launched = self._launched()
         me = next((l for l in launched if l.thread_id == update.thread_id), None)
-        if me is None or listing is None:
+        if not any("begun_in" in RULES[a.kind].slots for a in acts):
             return acts
-        ref = reference(me.thread_id, launched, {t.thread_id: t.title for t in listing.threads})
+        if me is None:
+            title = titles.get(update.thread_id)
+            return tuple(a.with_slots(thread=title) if title and "thread" in RULES[a.kind].slots
+                         and not {"thread", "begun_in", "on_call"} & a.slots.keys() else a for a in acts)
+        ref = reference(me.thread_id, launched, titles)
         with self.lock:
             on_call = self.following is not None and self.following.link.thread_id == update.thread_id
-        account = self.speech.account(me) if ref is not None and ref.unnamed and ref.shared and not on_call else None
+        account = self.speech.account(me) if ref is not None and ref.unnamed and not on_call else None
         return named(acts, ref, account, on_call)
 
     def _offered(self, update: L.Update, acts: tuple[Act, ...], listing: T.ThreadList | None) -> tuple[Act, ...]:
@@ -1419,7 +1505,7 @@ class T3Tasks:
                     if self.unasked is update:
                         self.unasked = None
                 update.status = "completed"
-                known = {name: a.slots[name] for name in ("thread", "begun_in", "begun_for") if name in a.slots}
+                known = {name: a.slots[name] for name in ("thread", "begun_in", "begun_for", "need") if name in a.slots}
                 return (act(Say.NEEDS_THE_APP, **known, decision="approve"),)
         return acts
 
@@ -1459,6 +1545,15 @@ class Words:
 
 OUTCOMES = {Say.LAUNCHED: Outcome.STARTED, Say.SENT_FOLLOWUP: Outcome.SENT,
             Say.STOPPING: Outcome.STOP_REQUESTED, Say.ANSWERED: Outcome.ANSWERED}
+
+
+def same_answer(update: L.Update, earlier: L.Update) -> bool:
+    """Whether `update` says what `earlier` already says about the same thread: the same acts, apart from the words
+    each was asked in."""
+    def gist(u: L.Update):
+        return [(a.kind, {k: v for k, v in a.slots.items() if k != "asked"}) for a in u.acts]
+
+    return update.thread_id is not None and update.thread_id == earlier.thread_id and gist(update) == gist(earlier)
 
 
 def confirmed_outcome(said: Act) -> Outcome | None:
@@ -1567,6 +1662,11 @@ class T3TaskService(MockTaskService):
                              tool={"tool": choice.tool, "arguments": {}})
         update = (self.t3.start(key, instruction, now) if choice.tool == START
                   else self.t3.about(key, choice.tool, instruction, now))
+        if choice.tool == ASK and any(same_answer(update, earlier) for earlier in self.spoken.values()):
+            # One request cut into two questions about one thread ("look at the X thread", "and say how it is doing")
+            # gets one answer: the second would say the same line again.
+            return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
+                             tool={"tool": choice.tool, "arguments": {}})
         return self._execution(task_id, update, now, choice.tool)
 
     def _execution(self, task_id, update: L.Update, now, tool):
@@ -1672,6 +1772,9 @@ class T3TaskService(MockTaskService):
 
     def recent_thread(self):
         return self.t3.spoken_about()
+
+    def said_source(self):
+        return self.t3.said_source()
 
     def take_task_updates(self):
         """The ordinary tasks' updates only. T3 news is said on its own, when the call is quiet."""

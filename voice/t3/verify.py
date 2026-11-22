@@ -23,7 +23,7 @@ from typing import Any, Iterable
 from voice.t3.acts import QUESTIONS, Act, Kind, forbidden_claims, outcome_meaning
 
 # The acts that can say what a pending request is about (speech.REQUEST_ACTS).
-REQUEST_ACTS = frozenset({Kind.THREAD_STATUS, Kind.NEEDS_YOU, Kind.CORRECTION})
+REQUEST_ACTS = frozenset({Kind.THREAD_STATUS, Kind.NEEDS_YOU, Kind.CORRECTION, Kind.NEEDS_THE_APP})
 
 VERIFY_TIMEOUT_S = 2.0
 YES = 0.5
@@ -82,7 +82,8 @@ MEANS: dict[Kind, str] = {
     Kind.CONFIRM_RESPOND: "whether to {decision} the request {thread} is waiting on, which is {need}",
     Kind.RESPONDED: "the request {thread} was waiting on was {decided}",
     Kind.NOTHING_PENDING: "{thread} is not waiting on any request, so there was nothing to answer",
-    Kind.NEEDS_THE_APP: "the assistant cannot say what {thread}'s request would do, so it has to be approved in the app",
+    Kind.NEEDS_THE_APP: ("the request {thread} is waiting on, which is {need}, can only be approved in the app, not by "
+                         "voice"),
     Kind.ASK_QUESTION: ("which option they choose for the question {thread} is asking them, \"{question}\", the options "
                         "being: {options}"),
     Kind.CONFIRM_ANSWER: "whether to give {thread} the answer: {answers}",
@@ -495,23 +496,35 @@ class Decider:
         return judge_choice((record.get("response") or {}).get("answers"), len(options), own_words)
 
     def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None,
-              answering: bool = False, call_thread: str | None = None) -> Picked:
+              answering: bool = False, call_thread: str | None = None, spoken: str | None = None) -> Picked:
         """Which of `threads` the words `request` mean, with how sure it is. `recent` is the title the call was just
-        about, and `call_thread` the id of the thread the call was opened from. A timeout or any error picks nothing,
-        and nothing is always asked about."""
+        about, `spoken` the id of the thread the voice last said something about, and `call_thread` the id of the
+        thread the call was opened from. A timeout or any error picks nothing, and nothing is always asked about."""
         if not threads:
             return Picked(NONE, shares={NONE: 1.0})
         try:
             with self.lock:
                 self.calls += 1
-                record = self.client.call("decisions", pick_request(request, threads, recent, answering, call_thread),
-                                          label="t3_pick")
+                record = self.client.call("decisions", pick_request(request, threads, recent, answering, call_thread,
+                                                                    spoken), label="t3_pick")
         except Exception as exc:
             return Picked(None, error=f"{type(exc).__name__}: {exc}")
         if record.get("status") != 200:
             return Picked(None, error=f"decider status {record.get('status')}")
         return judge_pick((record.get("response") or {}).get("answers"), threads,
                           sure=getattr(self.client, "pick_sure", PICK_SURE))
+
+    def names(self, request: str, thread: Listed) -> float | None:
+        """P(the words `request` say `thread`'s title), or None on a timeout or any error. A pick between its confirm
+        and sure bars is held under the bar by a near twin's share or by the rest of a long request; this asks only
+        whether the title was said."""
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", names_request(request, thread), label="t3_names")
+        except Exception:
+            return None
+        return noul(record, "names")
 
 
 NONE, UNCLEAR = "none", "unclear"
@@ -578,12 +591,19 @@ ANSWERING_PICK = ("Which of the person's threads does `request` name or describe
 CALL_MARK = " The person opened this call from this thread."
 
 
+# The thread the voice just told the person about is the one "it" means next, so its option says so, by id. Shown only as
+# `last_discussed`, by title, news that a thread needed permission was followed by a short reply about "it" that chose
+# another thread whose title sounded like one misheard word (docs/voice/spoken-acts.md).
+SPOKEN_MARK = " The assistant just told the person about this thread."
+
+
 def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None,
-                 answering: bool = False, call_thread: str | None = None) -> dict:
+                 answering: bool = False, call_thread: str | None = None, spoken: str | None = None) -> dict:
     """One decisions body asking which listed thread the person's words mean. The threads are the options, so the
     answer's shares say how sure the pick is and which others the words fit."""
     criteria = {f"thread_{i:02d}": f"{t.title!r} in the project {t.project!r}, {t.activity.replace('_', ' ')}."
                                    + (CALL_MARK if t.thread_id == call_thread and not answering else "")
+                                   + (SPOKEN_MARK if t.thread_id == spoken and not answering else "")
                 for i, t in enumerate(threads, 1)}
     # "Particular" keeps a vague request with nothing discussed out of this option on the local d1-2B.
     criteria[NONE] = "It names or describes a particular thread, and none of these is that thread."
@@ -598,6 +618,21 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
         instructions = ANSWERING_PICK
     return {"model": "d1.2", "state": state,
             "questions": {"pick": {"type": "choice", "instructions": instructions, "criteria": criteria}}}
+
+
+NAMES_CONTEXT = ("A person on a voice call asked their assistant about one of their coding threads. `request` is a "
+                 "transcript of what they said, and may mishear a word. `title` is one thread's title.")
+NAMES_QUESTION = ("Do the person's words say this thread's title, whole or nearly whole, as its name? Leaving out a "
+                  "word such as \"add\" or \"the\", or one misheard word, still counts. Words such as \"it\" or "
+                  "\"that one\", or a description in other words, do not.")
+# A pick under PICK_SURE that the words name by title at this or more is as sure as one over it.
+NAMES_SURE = 0.8
+
+
+def names_request(request: str, thread: Listed) -> dict:
+    return {"model": "d1.2", "state": {"request": request, "title": thread.title, "context": NAMES_CONTEXT},
+            "questions": {"names": {"type": "noul", "instructions": NAMES_QUESTION,
+                                    "criteria": {"true": "Yes.", "false": "No."}}}}
 
 
 def judge_pick(answers: Any, threads: tuple[Listed, ...], sure: float = PICK_SURE) -> Picked:

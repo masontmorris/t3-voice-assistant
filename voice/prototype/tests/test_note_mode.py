@@ -296,6 +296,17 @@ class WithdrawnQuestionTurn(NoteTurn):
         await self.turn(["Sure, no problem."], task_service=CorrectingService)
         self.assertEqual(texts(self.voice), [])
 
+    async def test_a_remark_after_a_relayed_thread_line_is_answered_and_told_where_that_line_came_from(self):
+        class Relayed(CorrectingService):
+            def said_source(self):
+                return {"thread": "Tidy the Save Slots", "from": "reply"}
+
+        await self.turn(["It came from the thread's own last reply."], task_service=Relayed)
+        note, = texts(self.voice)
+        self.assertEqual(note, prototype.said_note({"thread": "Tidy the Save Slots", "from": "reply"}))
+        self.assertIn("Tidy the Save Slots", note)
+        self.assertIn("own last reply", note)
+
 
 if __name__ == "__main__":
     unittest.main()

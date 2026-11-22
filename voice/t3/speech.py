@@ -38,6 +38,8 @@ from voice.t3.verify import REQUEST_ACTS, Decider, Verdict
 
 RENDER_TIMEOUT_S = 8.0
 SUMMARY_TIMEOUT_S = 10.0
+# The yes to a launch waits this long for a brief begun when the question was asked; past it, the request goes as spoken.
+BRIEF_TIMEOUT_S = 4.0
 assert LS.CHAT_TIMEOUT_S + LS.GATE_TIMEOUT_S < SUMMARY_TIMEOUT_S
 TURNS = 3
 
@@ -115,8 +117,10 @@ MEANINGS: dict[Kind, str] = {
                           "thread and ask whether to say no to its request. Never read out a command line, flag, path "
                           "or code. Nothing is answered yet.",
     Kind.NEEDS_THE_APP: "Name the thread using the full thread title from the record exactly as supplied, without "
-                        "wrapping it in quotes. Say that you cannot describe what the request would do and that "
-                        "approval has to happen in the app.",
+                        "wrapping it in quotes. Say that its request has to be approved in the app. When `request` is "
+                        "given, say what it asks to do, in your own words, from it; otherwise say only what kind of "
+                        "thing it waits for, from `need`. When `again` is given you told them this already: say only "
+                        "that it is still waiting for them in the app.",
     Kind.RESPONDED: "T3 accepted the answer: say that the request was approved or denied, as `decision` says, for the "
                     "thread. Do not say what the thread does next.",
     Kind.NOTHING_PENDING: "The thread is not waiting on any request right now, so there was nothing to answer. "
@@ -321,6 +325,18 @@ class RequestGate:
             except Exception:
                 return None
 
+    def passes_brief(self, instruction: str, brief: str) -> bool:
+        """Whether the gate passes `brief` as the first message of the thread `instruction` asked for. No answer is no."""
+        from voice.local_decider.client import D1Client
+        with self._lock:
+            try:
+                if self._client is None:
+                    self._client = D1Client(self.url, timeout_s=LS.GATE_TIMEOUT_S)
+                return LS.brief_passes(self._client.call("decisions", LS.brief_gate(instruction, brief),
+                                                         label="brief_gate"))
+            except Exception:
+                return False
+
     def doubt(self, need: T.PendingNeed, description: str) -> float | None:
         from voice.local_decider.client import D1Client
         with self._lock:
@@ -352,6 +368,16 @@ def accounted(client, instruction: str, gate: RequestGate | None) -> str:
         text = LS.read_description(client.complete(messages).get("text") or "") or ""
     doubt = gate.doubts_account(instruction, text) if gate is not None and text else None
     return text if doubt is not None and doubt < LS.ACCOUNT_THRESHOLD else ""
+
+
+def briefed(client, instruction: str, gate: RequestGate | None) -> str:
+    """`client`'s instruction for the thread `instruction` asked for, when the gate passes it; otherwise empty."""
+    messages = LS.brief_messages(instruction)
+    if isinstance(client, LocalText):
+        text = LS.read_description(client.chat_gist(messages)) or ""
+    else:
+        text = LS.read_description(client.complete(messages).get("text") or "") or ""
+    return text if gate is not None and text and gate.passes_brief(instruction, text) else ""
 
 
 RENDERERS = ("particle-1", "local")
@@ -408,6 +434,14 @@ class Lane:
         with self.lock:
             self.calls += 1
         return self.pool.submit(accounted, client, instruction, gate)
+
+    def brief(self, instruction: str, gate: RequestGate | None) -> Future:
+        """The first message of the thread `instruction` asks for, written by the model behind the lane, gated."""
+        client = self.client
+        self._check(client)
+        with self.lock:
+            self.calls += 1
+        return self.pool.submit(briefed, client, instruction, gate)
 
     def describe(self, need: T.PendingNeed, gate: RequestGate | None) -> Future:
         """What approving `need` would let the thread do, written by the model behind the lane and passed by `gate`."""
@@ -494,17 +528,20 @@ def reference(thread_id: str, launched: Iterable[Launch], titles: Mapping[str, s
 
 def named(acts: Iterable[Act], ref: Reference | None, account: str | None, on_call: bool = False) -> tuple[Act, ...]:
     """`acts` about the thread `ref` names, with its title as T3 holds it now. One still titled with the launch title
-    is carried by its project (`begun_in`) and, when another launched thread in the project is as unnamed, by what it
-    was started for (`begun_for`, a gated account). With no gated account to tell them apart the title stays: it is
-    unsayable but it does not name another thread. The thread the call was opened on (`on_call`) is this thread,
-    which names it alone, so it takes neither."""
+    is carried by its project (`begun_in`) and by what it was started for (`begun_for`, a gated account), so it is
+    called the same thing on every line until T3 names it. When another launched thread in the project is as unnamed
+    and there is no gated account to tell them apart, the title stays: it is unsayable but it does not name another
+    thread. The thread the call was opened on (`on_call`) is this thread, which names it alone, so it takes neither.
+    An act made before the thread had any title carries no reference at all, and gets one here."""
     acts = tuple(acts)
     if ref is None:
         return acts
     out = []
     for a in acts:
         title = a.slots.get("thread")
-        if "begun_in" not in RULES[a.kind].slots or title not in (launch_title(ref.instruction), ref.title):
+        unreferenced = title is None and not {"begun_in", "on_call"} & a.slots.keys()
+        if "begun_in" not in RULES[a.kind].slots or not (unreferenced or title in (launch_title(ref.instruction),
+                                                                                    ref.title)):
             out.append(a)
             continue
         slots = {k: v for k, v in a.slots.items() if k != "thread"}
@@ -513,7 +550,7 @@ def named(acts: Iterable[Act], ref: Reference | None, account: str | None, on_ca
         elif not ref.unnamed or (ref.shared and not account):
             out.append(Act(a.kind, {**slots, "thread": ref.title}))
         else:
-            out.append(Act(a.kind, {**slots, "begun_in": ref.project, **({"begun_for": account} if ref.shared else {})}))
+            out.append(Act(a.kind, {**slots, "begun_in": ref.project, **({"begun_for": account} if account else {})}))
     return tuple(out)
 
 
@@ -647,6 +684,7 @@ class Speech:
     gate: RequestGate | None = None
     descriptions: dict = field(default_factory=dict)
     accounts: dict = field(default_factory=dict)
+    briefs: dict = field(default_factory=dict)
 
     def remember(self, state: T.ThreadState) -> None:
         with self.lock:
@@ -739,23 +777,56 @@ class Speech:
             future.cancel()
             return None
 
+    def start_brief(self, instruction: str) -> None:
+        """Begin the first message of the thread `instruction` asks for, without waiting: the yes that starts it comes
+        a turn later."""
+        self._brief(instruction)
+
+    def _brief(self, instruction: str) -> Future | None:
+        if self.lane is None or self.gate is None or not instruction.strip():
+            return None
+        key = (self.lane.generation, hashlib.sha256(instruction.encode()).hexdigest())
+        with self.lock:
+            future = self.briefs.get(key)
+            if future is None or future.cancelled() or (future.done() and future.exception() is not None):
+                future = self.briefs[key] = self.lane.brief(instruction, self.gate)
+        return future
+
+    def brief(self, instruction: str) -> str | None:
+        """The task a thread started for `instruction` is handed: the work, without the request to start a thread, or
+        None when there is no model or gate, it gives no answer in time, or the gate does not pass it."""
+        future = self._brief(instruction)
+        if future is None:
+            return None
+        try:
+            return _clean(future.result(timeout=BRIEF_TIMEOUT_S)) or None
+        except Exception:
+            future.cancel()
+            return None
+
     def account(self, launch: Launch) -> str | None:
         """What a thread the voice started was started for, from the request that started it and nothing else, or
         None. It is cached per request and passed by its own gate question against that request, so with no gate, no
         answer from it, or an account it doubts there is none and the thread is not guessed at."""
+        future = self.start_account(launch)
+        if future is None:
+            return None
+        try:
+            return _clean(future.result(timeout=SUMMARY_TIMEOUT_S)) or None
+        except Exception:
+            future.cancel()
+            return None
+
+    def start_account(self, launch: Launch) -> Future | None:
+        """Begin the account of `launch` without waiting, so the first line about its thread has it ready."""
         if self.lane is None or self.gate is None:
             return None
         key = (self.lane.generation, launch.thread_id, hashlib.sha256(launch.instruction.encode()).hexdigest())
-        deadline = time.monotonic() + SUMMARY_TIMEOUT_S
         with self.lock:
             future = self.accounts.get(key)
             if future is None or future.cancelled() or (future.done() and future.exception() is not None):
                 future = self.accounts[key] = self.lane.account(launch.instruction, self.gate)
-        try:
-            return _clean(future.result(timeout=max(0.0, deadline - time.monotonic()))) or None
-        except Exception:
-            future.cancel()
-            return None
+        return future
 
     def _confirmed(self, a: Act, thread_id: str | None, need: T.PendingNeed | None) -> Act:
         """A confirmation of an answer to a request. An approval carries the description of `need` if one passed the
@@ -969,8 +1040,10 @@ READER_EXAMPLES = {
                            "Should I approve Example Archive Old Invoices deleting the old invoice folder?"),
     Kind.RESPONDED: ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "file_change"},
                      "I approved the file changes for Example Mend Rail Maps."),
-    Kind.NEEDS_THE_APP: ({"thread": "Example Tag Camera Clips", "decision": "approve"},
-                          "For Example Tag Camera Clips, I can't describe the request. It needs approval in the app."),
+    Kind.NEEDS_THE_APP: ({"thread": "Example Tag Camera Clips", "decision": "approve", "need": "permission",
+                          "request": "It wants to use a tool that lists your calendar events."},
+                         "Example Tag Camera Clips wants to use a tool that lists your calendar events, and that has "
+                         "to be approved in the app."),
     Kind.NOTHING_PENDING: ({"thread": "Example Tag Camera Clips"},
                            "Example Tag Camera Clips isn't waiting on any request, so there was nothing to answer."),
     Kind.ASK_QUESTION: ({"thread": "Example Pick Storage Layer", "question": "Which database should it use?",
@@ -1020,9 +1093,12 @@ READER_VARIANTS = {
                                         "Do you mean the thread you started in Example Fleet Notes for sorting the fleet "
                                         "log by date?"),
     (Kind.NEEDS_THE_APP, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
-                                        "decision": "approve"},
-                                       "I can't describe the request the thread you started in Example Fleet Notes for "
-                                       "sorting the fleet log by date is waiting on. It needs approval in the app."),
+                                        "decision": "approve", "need": "permission"},
+                                       "The thread you started in Example Fleet Notes for sorting the fleet log by date "
+                                       "is waiting for permission to go on, and that has to be approved in the app."),
+    (Kind.NEEDS_THE_APP, "again"): ({"thread": "Example Tag Camera Clips", "decision": "approve", "need": "permission",
+                                    "again": True},
+                                   "Example Tag Camera Clips is still waiting for you to approve that in the app."),
     (Kind.NEEDS_YOU, "begun"): ({"begun_in": "Example Fleet Notes", "need": "command_approval"},
                                 "The thread you started in Example Fleet Notes needs your approval to run a command."),
     (Kind.THREAD_STATUS, "begun"): ({"begun_in": "Example Fleet Notes", "status": "waiting_on_you",
@@ -1038,14 +1114,14 @@ READER_VARIANTS = {
                              "This thread finished and reports that 22 tests passed."),
     (Kind.REPLIED, "on_call"): ({"on_call": True, "status": "running", "reply": "I found 12 duplicates."},
                                 "This thread reports that it found 12 duplicates."),
-    (Kind.NEEDS_THE_APP, "on_call"): ({"on_call": True, "decision": "approve"},
-                                      "I can't describe the request this thread is waiting on. It needs approval in the "
-                                      "app."),
+    (Kind.NEEDS_THE_APP, "on_call"): ({"on_call": True, "decision": "approve", "need": "permission"},
+                                      "This thread is waiting for permission to go on, and that has to be approved in "
+                                      "the app."),
     (Kind.CONFIRM_THREAD, "begun"): ({"begun_in": "Example Fleet Notes"},
                                      "Do you mean the thread you started in Example Fleet Notes?"),
-    (Kind.NEEDS_THE_APP, "begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve"},
-                                    "I can't describe the request the thread you started in Example Fleet Notes is "
-                                    "waiting on. It needs approval in the app."),
+    (Kind.NEEDS_THE_APP, "begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve", "need": "permission"},
+                                    "The thread you started in Example Fleet Notes is waiting for permission to go on, "
+                                    "and that has to be approved in the app."),
     # Worded without an example, "I will not answer the thread "X"." came out with quotes around the name (2 of 2 drafts).
     (Kind.CANCELLED, "answer"): ({"op": "answer", "thread": "Example Pick Storage Layer"},
                                  "I won't give Example Pick Storage Layer that answer."),
@@ -1101,6 +1177,8 @@ EXAMPLE_NAMES = frozenset(name for slots, _ in (*READER_EXAMPLES.values(), *READ
 def _shape(kind: Kind, slots: dict) -> str | None:
     if kind is Kind.ASK_WHICH and slots.get("of") == "thread" and len(slots.get("candidates") or ()) == 2:
         return "thread_pair"
+    if kind is Kind.NEEDS_THE_APP and slots.get("again"):
+        return "again"
     if slots.get("begun_for") and (kind, "begun_for") in READER_VARIANTS:
         return "begun_for"
     if slots.get("begun_in") and (kind, "begun") in READER_VARIANTS:

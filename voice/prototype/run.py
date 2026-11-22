@@ -188,6 +188,23 @@ DROPPED_NOTE = (NOTE_OPEN + "they did not answer your last question and have mov
 # that only asked for it was not followed (12 of 12 answered the audio again, with a fresh claim about the thread); one
 # that states the situation was, and closing it with "nothing else, ask nothing" stopped a made-up fact and cut the
 # questions from 6 of 12 replies to 1 of 12 (docs/voice/live-reply-check.md, GPU).
+# After relayed thread lines the session holds notes that say "say exactly these words, what they said is handled".
+# A turn with no note of its own was answered as one more of those: "I understand. The message is clear." (3 turns of
+# the 2026-11-22 in-app call, a remark on the last line, a doubt about a status, and "why do you keep saying that").
+# This one says the words are theirs to answer, and where the last thread line came from, so a doubt gets an answer.
+SAID_NOTE = (NOTE_OPEN + "this time there are no words for you to say: answer what they just said yourself, in your "
+             "own words. {source} If they doubt it, tell them that, and that you can check the thread again.]")
+SAID_FROM = {"reply": "What you last told them about {thread} came from that thread's own last reply in T3.",
+             "status": "What you last told them about {thread} came from that thread's status in T3."}
+
+
+def said_note(source):
+    """The note for a turn with no note of its own, after the call has relayed a line about a thread, or None."""
+    if not source:
+        return None
+    return SAID_NOTE.format(source=SAID_FROM[source["from"]].format(thread=source["thread"]))
+
+
 TRANSITION_NOTE = (NOTE_OPEN + "your last reply about their coding thread was wrong. Take it back now: say you need "
                    "to double check it. Say nothing else about the thread, and ask them nothing.]")
 # A line this short is not logged as a repeat: "I understand." twice is conversation, not a stale reply.
@@ -1090,6 +1107,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 item = ASK_NOTE if asks else task_notes(ordinary["tasks"])
                 if item is None and dropped_question is not None:
                     item = WITHDRAWN_NOTE if getattr(dropped_question, "took_back", False) else DROPPED_NOTE
+                if item is None:
+                    item = said_note(getattr(service, "said_source", lambda: None)())
                 if item is not None:
                     injection.append(await create_item(voice, plain_text(item)))
                     log("task_note", note=item)

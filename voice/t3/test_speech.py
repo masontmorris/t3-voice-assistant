@@ -361,6 +361,11 @@ class LocalTextTest(unittest.TestCase):
         self.assertEqual(got[0].slots, {"begun_in": "Voice sandbox", "need": "command_approval"})
         self.assertEqual(got[1:], said[1:], "an act with another title, or with no thread, is not about this one")
         self.assertIn("in place of a thread name", wording_direction(got[0]))
+        untitled = act(Kind.REPLIED, status="running", reply="Setting it up now.")
+        self.assertEqual(named((untitled,), alone, "sorting the pantry list")[0].slots,
+                         {"status": "running", "reply": "Setting it up now.", "begun_in": "Voice sandbox",
+                          "begun_for": "sorting the pantry list"},
+                         "news made before the thread had a title is named as every other line about it is")
         both = reference("t7", launched, {"t7": title, "t8": other_title})
         self.assertEqual(named(said, both, "sorting the pantry list")[0].slots,
                          {"begun_in": "Voice sandbox", "begun_for": "sorting the pantry list", "need": "command_approval"})

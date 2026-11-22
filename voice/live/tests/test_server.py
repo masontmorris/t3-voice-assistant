@@ -770,13 +770,20 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
 
 
 class News(T3Tasks):
+    """A T3 whose `updates` arrive once the call has begun: news from before a call is not read when it opens."""
+
     def __init__(self, path, *updates):
-        journal = T3Journal(path)
-        journal.pending_lines.extend(replace(update) for update in updates)
-        journal.save()
-        super().__init__(Follow(journal, None))
+        super().__init__(Follow(T3Journal(path), None))
         worded(self, FakeText())
-        self.given = []
+        self.given, self.arriving = [], [replace(update) for update in updates]
+
+    def begin_call(self):
+        super().begin_call()
+        for update in self.arriving:
+            self.follow.journal.pending_lines.append(update)
+            self.follow.outbox.append(update)
+        self.follow.journal.save()
+        self.arriving = []
 
     @property
     def outbox(self):
@@ -790,6 +797,9 @@ class News(T3Tasks):
 DONE = Update("conv_turn_001:task_1", (act(S.DONE, thread="Add a hello function", status="completed"),),
               "completed", "done-event", "thread-1", (750, 751))
 DONE_LINE = "About Add a hello function, noted."
+WAITS = Update("conv_turn_001:task_2", (act(S.NEEDS_YOU, thread="Add a goodbye function", need="question"),),
+               "live", "needs_you", "thread-2", (760,))
+WAITS_LINE = "About Add a goodbye function, noted."
 
 
 class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
@@ -921,14 +931,14 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
                 finally:
                     release.set()
 
-    async def test_pending_news_reloads_and_plays_after_restart(self):
-        first = self.news(DONE)
-        update, = first.reserve_news(idle=True)
-        self.assertEqual(update.acts, DONE.acts)
+    async def test_pending_news_that_still_needs_the_person_reloads_and_plays_after_restart(self):
+        first = self.news(DONE, WAITS)
+        first.begin_call()
+        self.assertEqual([u.acts for u in first.reserve_news(idle=True)], [DONE.acts, WAITS.acts])
         self.live.t3 = restarted = News(first.follow.journal.path)
         async with await self.connect() as ws:
             done = await self.until(ws, "turn_done", [])
-            self.assertEqual(done["replies"], [DONE_LINE])
+            self.assertEqual(done["replies"], [WAITS_LINE], "the done is history by the next call; the wait is not")
             self.assertEqual(self.frames, [960])
         self.assertEqual(T3Journal(restarted.follow.journal.path).pending_lines, [])
 

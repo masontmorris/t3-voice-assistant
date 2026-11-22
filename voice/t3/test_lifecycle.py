@@ -89,6 +89,17 @@ class WatchLifecycleRows(unittest.TestCase):
         self.assertEqual(h.follow.outbox[0].sequences, (93,))
         self.assertEqual(h.acts(), [Act(S.LAUNCHED, {"project": "Voice sandbox"})])
 
+    def test_the_launched_run_running_is_not_news_after_the_start_was_told(self):
+        h = Harness(self)
+        task = h.unstarted()
+        h.follow.launch(task, 0)
+        h.seam.push(F.run_event(94, status=T.RunStatus.QUEUED), F.run_event(95))
+        h.tick(1)
+        self.assertEqual(h.said(), ["launched"], "the start was said; its own run running says it again")
+        h.seam.push(F.run_event(96, run="r2"))
+        h.tick(2)
+        self.assertEqual(h.said(), ["launched", "run_update"], "a later run is news")
+
     def test_launch_replayed(self):
         seam = F.FakeSeam(read=F.state(as_of=120, pending=F.need()))
         seam.answer("launch", F.launched(sequence=118, replayed=True))
@@ -498,7 +509,7 @@ class WatchLifecycleRows(unittest.TestCase):
         h = Harness(self)
         task = h.live(cursor=10)
         h.start()
-        h.seam.push(F.run_event(11), F.ended("unavailable"))
+        h.seam.push(F.run_event(11, run="r2"), F.ended("unavailable"))
         h.tick(0)
         h.tick(0.5)
         self.assertEqual(len(h.seam.ops("watch")), 1)

@@ -154,6 +154,15 @@ class NamesInTheForm(unittest.TestCase):
         self.assertIn(f"confirm_thread thread missing: {CLIPPED}",
                       check("Do you mean the thread called So, uh, I want to get some work going on?", [said]))
 
+    def test_a_kind_or_field_name_is_never_said_as_a_name(self):
+        expired = act(Kind.NEED_RESOLVED, thread=T, status="expired")
+        self.assertIn("says a field name",
+                      check(f'{T}: the request from the thread with the kind need_resolved has expired.', [expired]))
+        self.assertIn("says a field name", check(f"{T} is waiting_on_you.", [expired]))
+        snake = act(Kind.CONFIRM_THREAD, thread="Fix load_config")
+        self.assertEqual(check("Do you mean the thread called Fix load_config?", [snake]), [],
+                         "a name's own underscore is the name's")
+
     def test_only_the_names_own_characters_are_masked(self):
         said = act(Kind.CONFIRM_THREAD, thread="Alpha Beta")
         self.assertIn("not plain speech", check("Do you mean the thread called Alpha `Beta?", [said]))

@@ -32,6 +32,27 @@ class GateAnswerTest(unittest.TestCase):
             self.assertIsNone(LS.unsupported(record), name)
 
 
+class BriefGateTest(unittest.TestCase):
+    def test_a_brief_passes_only_when_every_question_answers_under_its_bar(self):
+        def answers(**scores):
+            return {"status": 200, "response": {"answers": {k: {"type": "noul", "noul": v} for k, v in scores.items()}}}
+
+        self.assertTrue(LS.brief_passes(answers(adds=0.02, drops=0.1, starts=0.05)))
+        for name, record in {"it adds": answers(adds=0.4, drops=0.1, starts=0.05),
+                             "it drops part of the work": answers(adds=0.02, drops=0.7, starts=0.05),
+                             "it asks for a thread": answers(adds=0.02, drops=0.1, starts=0.9),
+                             "a question unanswered": answers(adds=0.02, drops=0.1),
+                             "a failed call": {"status": 500, "response": {}}}.items():
+            self.assertFalse(LS.brief_passes(record), name)
+
+    def test_the_gate_sees_the_request_and_the_brief_and_the_writer_sees_only_the_request(self):
+        body = LS.brief_gate("can you start a thread to tidy the docs", "Tidy the docs.")
+        self.assertEqual((body["state"]["request"], body["state"]["task"], set(body["questions"])),
+                         ("can you start a thread to tidy the docs", "Tidy the docs.", {"adds", "drops", "starts"}))
+        self.assertIn('"request": "can you start a thread to tidy the docs"', LS.brief_messages(
+            "can you start a thread to tidy the docs")[-1]["content"])
+
+
 class ReadGistTest(unittest.TestCase):
     def test_a_gist_is_only_what_the_schema_allows(self):
         self.assertEqual(LS.read_gist('{"gist": "It says all  12 tests pass.", "status": "finished"}'),
