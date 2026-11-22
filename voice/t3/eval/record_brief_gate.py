@@ -4,7 +4,8 @@
 
 Every brief of voice/t3/eval/brief_cases.py goes through each gate of `GATES`: the gate before 2026-11-22 (`before`),
 the first fix of that day (`context`, which says the start is left out on purpose), and the wordings tried after a
-review found it passing briefs that drop where the work is done or a limit (`keep`, `keep_typed`). One of them is the
+review found it passing briefs that drop where the work is done or a limit (`keep`, `keep_drops`,
+`keep_typed`). One of them is the
 shipped `local_summary.brief_gate`, which the replay checks by its body. LFM3-1.7B also writes `DRAWS` first drafts a
 request with the shipped prompt, and each goes through every gate. A row keeps each body's hash, so the replay says
 when a question changed.
@@ -48,6 +49,7 @@ GATES = {
                {"adds": 0.10, "drops": 0.5, "starts": 0.5}),
     "context": (CONTEXT, {"adds": ADDS, "drops": DROPS, "starts": STARTS}, {"adds": 0.35, "drops": 0.6, "starts": 0.5}),
     "keep": (KEEP, {"adds": ADDS, "drops": DROPS_KEEP, "starts": STARTS}, None),
+    "keep_drops": (KEEP, {"adds": ADDS, "drops": DROPS, "starts": STARTS}, None),
     "keep_typed": (KEEP, {"adds": ADDS, "drops": DROPS, "starts": STARTS, "where": WHERE, "limits": LIMITS}, None),
 }
 

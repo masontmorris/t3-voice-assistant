@@ -38,7 +38,7 @@ class BriefGateTest(unittest.TestCase):
             return {"status": 200, "response": {"answers": {k: {"type": "noul", "noul": v} for k, v in scores.items()}}}
 
         self.assertTrue(LS.brief_passes(answers(adds=0.02, drops=0.1, starts=0.05)))
-        for name, record in {"it adds": answers(adds=0.4, drops=0.1, starts=0.05),
+        for name, record in {"it adds": answers(adds=0.6, drops=0.1, starts=0.05),
                              "it drops part of the work": answers(adds=0.02, drops=0.7, starts=0.05),
                              "it asks for a thread": answers(adds=0.02, drops=0.1, starts=0.9),
                              "a question unanswered": answers(adds=0.02, drops=0.1),

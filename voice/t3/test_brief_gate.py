@@ -1,7 +1,7 @@
 """The gate on a started thread's first message, on the local d1-2B's recorded answers (voice/t3/fixtures/brief_gate.json,
-made-up requests, voice/t3/eval/record_brief_gate.py): which hand-written briefs pass at the shipped bars, by kind, the
-same under the gate as it was before, and how often LFM3-1.7B's own briefs reach the thread. The numbers are what the
-docs report; a re-recording that moves them fails here until the docs are updated."""
+made-up requests, voice/t3/eval/record_brief_gate.py): which hand-written briefs pass, by kind, under the shipped gate
+and the gates before it, and how often LFM3-1.7B's own first draft passes. The numbers are what the docs report; a
+re-recording that moves them fails here until the docs are updated."""
 
 from __future__ import annotations
 
@@ -11,31 +11,29 @@ from pathlib import Path
 
 from voice.t3 import local_summary as LS
 from voice.t3.eval import brief_cases as BC
-from voice.t3.eval.record_brief_gate import BEFORE_BARS, bodies, key
+from voice.t3.eval.record_brief_gate import GATES, bodies, key, shipped_gate
+from voice.t3.verify import noul
 
 ROWS = json.loads((Path(__file__).parent / "fixtures" / "brief_gate.json").read_text(encoding="utf-8"))
+REQUESTS = {c["name"]: c["request"] for _, cases in BC.SPLITS for c in cases}
+SHIPPED = shipped_gate("a request", "a task")
 
 
-def passed(gates, gate="shipped"):
+def passed(gates, gate):
     record = {"status": 200, "response": {"answers": gates[gate]["answers"]}}
-    if gate == "shipped":
+    if gate == SHIPPED:
         return LS.brief_passes(record)
-    from voice.t3.verify import noul
-    return all((score := noul(record, name)) is not None and score < bar for name, bar in BEFORE_BARS.items())
+    bars = GATES[gate][2]
+    return all((score := noul(record, name)) is not None and score < bar for name, bar in bars.items())
 
 
 def counts(split, gate):
     rows = [r for r in ROWS if r["split"] == split and r["kind"] != "written"]
-    return {k: (sum(passed(r["gates"], gate) for r in rows if r["kind"] == k), sum(r["kind"] == k for r in rows))
-            for k in ("faithful", *BC.KINDS)}
-
-
-def handed(split, gate):
-    """Of the writer's briefs, how many reach the thread: a first draft that passed, or a retry that did."""
-    rows = [r for r in ROWS if r["split"] == split and r["kind"] == "written"]
-    first = sum(bool(r["drafts"][0]["gates"]) and passed(r["drafts"][0]["gates"], gate) for r in rows)
-    either = sum(any(d["gates"] and passed(d["gates"], gate) for d in r["drafts"]) for r in rows)
-    return first, either, len(rows)
+    out = {k: (sum(passed(r["gates"], gate) for r in rows if r["kind"] == k), sum(r["kind"] == k for r in rows))
+           for k in ("faithful", *BC.KINDS)}
+    written = [r for r in ROWS if r["split"] == split and r["kind"] == "written"]
+    out["written"] = (sum(bool(r["gates"]) and passed(r["gates"], gate) for r in written), len(written))
+    return out
 
 
 class RecordingTest(unittest.TestCase):
@@ -44,43 +42,45 @@ class RecordingTest(unittest.TestCase):
                     for row in BC.briefs(cases)}
         self.assertEqual({(r["split"], r["case"], r["kind"], r["text"]) for r in ROWS if r["kind"] != "written"},
                          expected, "the cases changed: re-run record_brief_gate")
-        requests = {c["name"]: c["request"] for _, cases in BC.SPLITS for c in cases}
         for row in ROWS:
-            for gates, text in ([(row["gates"], row["text"])] if row["kind"] != "written" else
-                                [(d["gates"], d["text"]) for d in row["drafts"] if d["gates"]]):
-                for gate, body in bodies(requests[row["case"]], text).items():
-                    self.assertEqual(gates[gate]["hash"], key(body), f"the {gate} gate changed: re-run record_brief_gate")
+            if row["gates"]:
+                for gate, body in bodies(REQUESTS[row["case"]], row["text"]).items():
+                    self.assertEqual(row["gates"][gate]["hash"], key(body),
+                                     f"the {gate} gate changed: re-run record_brief_gate")
+
+    def test_the_shipped_gate_is_one_of_those_recorded(self):
+        self.assertEqual(SHIPPED, "keep_drops")
 
     def test_no_case_is_a_worked_example(self):
         examples = " ".join(request for request, _ in LS.BRIEF_EXAMPLES)
-        for _, cases in BC.SPLITS:
-            for c in cases:
-                self.assertNotIn(c["request"], examples)
+        for request in REQUESTS.values():
+            self.assertNotIn(request, examples)
 
 
 class BarTest(unittest.TestCase):
-    def test_the_shipped_gate_passes_faithful_briefs_and_refuses_added_and_started_ones(self):
-        self.assertEqual(counts("seen", "shipped"), SHIPPED_SEEN)
-        self.assertEqual(counts("held_out", "shipped"), SHIPPED_HELD)
-
-    def test_the_gate_before_refused_most_faithful_briefs(self):
-        self.assertEqual(counts("seen", "before"), BEFORE_SEEN)
-        self.assertEqual(counts("held_out", "before"), BEFORE_HELD)
-
-    def test_how_often_the_writer_s_own_brief_reaches_the_thread(self):
-        self.assertEqual({split: handed(split, "shipped") for split, _ in BC.SPLITS}, WRITTEN_SHIPPED)
-        self.assertEqual({split: handed(split, "before") for split, _ in BC.SPLITS}, WRITTEN_BEFORE)
+    def test_passed_of_scored_by_kind_for_each_gate(self):
+        for gate, split, expected in EXPECTED:
+            with self.subTest(gate=gate, split=split):
+                self.assertEqual(counts(split, gate), expected)
 
 
-# Passed of scored, by kind of brief. The two seen `drops` that pass leave out one word of detail ("short", "settings").
-SHIPPED_SEEN = {"faithful": (12, 12), "adds": (0, 6), "drops": (2, 6), "starts": (0, 6)}
-SHIPPED_HELD = {"faithful": (8, 9), "adds": (0, 5), "drops": (0, 5), "starts": (0, 5)}
-BEFORE_SEEN = {"faithful": (2, 12), "adds": (0, 6), "drops": (0, 6), "starts": (0, 6)}
-BEFORE_HELD = {"faithful": (0, 9), "adds": (0, 5), "drops": (0, 5), "starts": (0, 5)}
-# For the writer: (first drafts passed, briefs handed after one retry, briefs written). Every one it did not hand kept
-# "start a thread" in a hesitant request, and the thread got the framed request instead.
-WRITTEN_SHIPPED = {"seen": (15, 17, 18), "held_out": (12, 12, 15)}
-WRITTEN_BEFORE = {"seen": (3, 3, 18), "held_out": (0, 0, 15)}
+# Passed of scored, by kind of brief, and LFM3-1.7B's first drafts. `context` shipped first on 2026-11-22; `keep_drops`
+# (what must be kept, said in the context) replaced it after the review's `target`, `negation` and `limit` cases.
+EXPECTED = [
+    ("before", "seen", {"faithful": (3, 15), "adds": (0, 6), "drops": (0, 3), "starts": (0, 6), "target": (0, 7),
+                        "negation": (0, 3), "limit": (1, 3), "written": (6, 27)}),
+    ("before", "held_out", {"faithful": (0, 12), "adds": (0, 5), "drops": (0, 3), "starts": (0, 5), "target": (0, 6),
+                            "negation": (0, 3), "limit": (0, 2), "written": (0, 24)}),
+    ("context", "seen", {"faithful": (15, 15), "adds": (0, 6), "drops": (0, 3), "starts": (0, 6), "target": (4, 7),
+                         "negation": (0, 3), "limit": (3, 3), "written": (24, 27)}),
+    ("context", "held_out", {"faithful": (11, 12), "adds": (0, 5), "drops": (0, 3), "starts": (0, 5), "target": (0, 6),
+                             "negation": (0, 3), "limit": (0, 2), "written": (21, 24)}),
+    # The two seen limits that pass drop "short" and "only ... nothing else".
+    ("keep_drops", "seen", {"faithful": (15, 15), "adds": (0, 6), "drops": (0, 3), "starts": (0, 6), "target": (0, 7),
+                            "negation": (0, 3), "limit": (2, 3), "written": (24, 27)}),
+    ("keep_drops", "held_out", {"faithful": (8, 12), "adds": (0, 5), "drops": (0, 3), "starts": (0, 5),
+                                "target": (0, 6), "negation": (0, 3), "limit": (0, 2), "written": (15, 24)}),
+]
 
 
 if __name__ == "__main__":
