@@ -370,7 +370,7 @@ class Gate(unittest.TestCase):
 
     def test_news_blocked_by_the_marked_yes_is_expected_but_missing_exchange_is_an_error(self):
         plan = S.news_permission(S.Pool())
-        plan.notes.update(confirmed=True, timed_out=True)
+        plan.notes.update(confirmed=True, timed_out=True, approve=[3])
         turns = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1), turn(2), turn(3)]
 
         def unexpected(items, world=None):
@@ -381,6 +381,18 @@ class Gate(unittest.TestCase):
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(turns[:2])))
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(
             turns[:2], {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}})))
+
+    def test_the_approval_turn_is_the_one_the_caller_s_approve_made_not_the_third(self):
+        """A gate run: the long request was cut in two, so the third caller turn was the yes, not "approve it"."""
+        plan = S.news_permission(S.Pool())
+        plan.notes.update(confirmed=True, timed_out=False, approve=[5])
+        world = {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}}
+        about = "\"approve it\" after the news was about the started thread, with no question of which"
+        turns = [turn(0, cancelled="continued"), turn(1, [Kind.CONFIRM_LAUNCH]), turn(2, [Kind.LAUNCHED]),
+                 dataclasses.replace(turn(3, [Kind.NEEDS_YOU]), idle=True), turn(4, [Kind.NEEDS_THE_APP]), turn(5)]
+        self.assertNotIn(about, failed(plan.check(call(turns, world))))
+        plan.notes["approve"] = [3]
+        self.assertIn(about, failed(plan.check(call(turns, world))), "the yes is not the approval")
 
     def test_permission_news_must_be_delivered_once_the_wait_happened(self):
         plan = S.news_permission(S.Pool())

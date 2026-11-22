@@ -253,9 +253,9 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            f"the line says more about the request than this description does: \"{request}\". Say "
                            "that and nothing more."))
         else:
-            out.append(Ask(f"a{n}_kind_only", "Not counting the thread's name, does the line say what the request or "
-                           "command would do or what it is for, instead of only what kind of request the thread waits "
-                           "on?", False,
+            out.append(Ask(f"a{n}_kind_only", f"Not counting how the line names the thread ({kind_only_names(a)}), "
+                           "does the line say what the request or command would do or what it is for, instead of only "
+                           "what kind of request the thread waits on?", False,
                            "the line says what the request does or is for. Say only the kind of thing the thread "
                            "waits for, such as approval to run a command."))
     # The slot check finds an option anywhere in the line, so "Strong" is found in "how strong should it be" and a line
@@ -285,6 +285,17 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     out.append(Ask("invents", "Does the line state something about a thread that `facts` does not support?", False,
                    "the line says something the facts do not support. Say only what the act means and add nothing."))
     return out
+
+
+def kind_only_names(a: Act) -> str:
+    """How a line may name the thread, quoted for the kind-only question: told only "the thread's name", d1.2 read a
+    title that reads as an instruction, or what an untitled thread was started for, as what the request is for (5 of 5
+    file-change lines, and the gate's untitled-thread approvals)."""
+    if a.slots.get("begun_for"):
+        return f'the thread started for "{a.slots["begun_for"]}"'
+    if a.slots.get("thread"):
+        return f'its name, "{a.slots["thread"]}"'
+    return "its name"
 
 
 # A reply reports its own work ("I added clamp, the tests pass"), which d1.2 reads as the run ending on every smoke

@@ -290,3 +290,23 @@ class OnlyAMintedLineIsSpoken(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KindOnly(unittest.TestCase):
+    """On recorded d1.2 answers (voice/t3/eval/record_kind_only.py): with the thread's own name or account quoted in the
+    question, a line that says only the kind of request passes, and one that says what the request does is refused."""
+
+    FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "kind_only.json").read_text(encoding="utf-8"))
+
+    def test_the_question_sent_is_the_recorded_one_and_reads_each_line_as_its_case_says(self):
+        from voice.t3.acts import Act
+        from voice.t3.eval.record_kind_only import bodies
+        passed = {True: [], False: []}
+        for row in self.FIXTURE["rows"]:
+            said = Act.from_json(row["act"])
+            self.assertEqual(bodies(said, row["line"])["shipped"]["questions"]["a1_kind_only"]["instructions"],
+                             next(a.question for a in asks([said]) if a.name == "a1_kind_only"))
+            passed[row["kind_only"]] += [p < 0.5 for p in row["shipped"]]
+        self.assertEqual(sum(passed[False]), 0, "a line that says what the request does is never passed")
+        self.assertEqual((sum(passed[True]), len(passed[True])), (14, 15),
+                         "one sample of a title that reads as an instruction sits at the bar")

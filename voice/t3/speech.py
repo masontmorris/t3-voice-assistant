@@ -1153,10 +1153,13 @@ READER_VARIANTS = {
                               "summary": "Its last reply said it was resizing the margins."},
                              "Example Change Page Margins was cancelled, and its last reply said it was resizing the "
                              "margins."),
+    # With `need` permission here, a command approval was worded "waiting for command approval to go on", which the
+    # check read as what the request is for (gate runs, 2 of 10).
     (Kind.NEEDS_THE_APP, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
-                                        "decision": "approve", "need": "permission"},
+                                        "decision": "approve", "need": "command_approval"},
                                        "The thread you started in Example Fleet Notes for sorting the fleet log by date "
-                                       "is waiting for permission to go on, and that has to be approved in the app."),
+                                       "is waiting for your approval to run a command, and that has to be given in the "
+                                       "app."),
     (Kind.NEEDS_THE_APP, "again"): ({"thread": "Example Tag Camera Clips", "decision": "approve", "need": "permission",
                                     "again": True},
                                    "Example Tag Camera Clips is still waiting for you to approve that in the app."),
@@ -1180,9 +1183,10 @@ READER_VARIANTS = {
                                       "the app."),
     (Kind.CONFIRM_THREAD, "begun"): ({"begun_in": "Example Fleet Notes"},
                                      "Do you mean the thread you started in Example Fleet Notes?"),
-    (Kind.NEEDS_THE_APP, "begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve", "need": "permission"},
-                                    "The thread you started in Example Fleet Notes is waiting for permission to go on, "
-                                    "and that has to be approved in the app."),
+    (Kind.NEEDS_THE_APP, "begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve",
+                                     "need": "command_approval"},
+                                    "The thread you started in Example Fleet Notes is waiting for your approval to run a "
+                                    "command, and that has to be given in the app."),
     # Worded without an example, "I will not answer the thread "X"." came out with quotes around the name (2 of 2 drafts).
     (Kind.CANCELLED, "answer"): ({"op": "answer", "thread": "Example Pick Storage Layer"},
                                  "I won't give Example Pick Storage Layer that answer."),
@@ -1226,6 +1230,13 @@ SAID_AGAIN_REQUEST_EXAMPLE = ({"thread": "Example Tune Audio Levels", "status": 
                               "since_last_asked": NOTHING_NEW},
                              "There's nothing new from Example Tune Audio Levels since I last told you. It's still "
                              "waiting for your approval to delete the old sound folder.")
+# With only the example above, an untitled thread's "nothing new" line left out what it was started for, and both
+# drafts were refused (gate runs, 5 of 10 news-permission runs, base and head alike).
+SAID_AGAIN_BEGUN_FOR_EXAMPLE = ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                "status": "waiting_on_you", "need": "command_approval", "since_last_asked": NOTHING_NEW},
+                               "There's nothing new from the thread you started in Example Fleet Notes for sorting the "
+                               "fleet log by date since I last told you. It's still waiting for your approval to run a "
+                               "command.")
 SAID_AGAIN_BEGUN_EXAMPLE = ({"begun_in": "Example Fleet Notes", "status": "waiting_on_you", "need": "command_approval",
                             "since_last_asked": NOTHING_NEW},
                            "There's nothing new from the thread you started in Example Fleet Notes since I last told "
@@ -1288,7 +1299,8 @@ def _reader_parts(acts: tuple[Act, ...], turns, problems, refused, attempt):
         slots = firsts[kind].slots
         shown = READER_VARIANTS.get((kind, _shape(kind, slots)), READER_EXAMPLES[kind])
         if again and kind is Kind.THREAD_STATUS:
-            shown = (SAID_AGAIN_BEGUN_EXAMPLE if slots.get("begun_in") else
+            shown = (SAID_AGAIN_BEGUN_FOR_EXAMPLE if slots.get("begun_for") else
+                     SAID_AGAIN_BEGUN_EXAMPLE if slots.get("begun_in") else
                      SAID_AGAIN_REQUEST_EXAMPLE if slots.get("request") else
                      SAID_AGAIN_WAITING_EXAMPLE if slots.get("need") else SAID_AGAIN_EXAMPLE)
         example, reply = shown

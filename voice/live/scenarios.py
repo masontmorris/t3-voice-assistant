@@ -451,6 +451,7 @@ def news_permission(pool: Pool) -> Plan:
             heard = yield WaitNews(100)
             notes["timed_out"] = heard.timed_out
             heard = yield Say("approve")
+            notes["approve"] = [t.n for t in heard.turns if not t.idle]
             if heard.turns and heard.turns[-1].said_kinds & set(ASKING):
                 yield Say("yes")
             yield Say("check")
@@ -470,7 +471,11 @@ def news_permission(pool: Pool) -> Plan:
                ok("no duplicate permission news", len(news) <= 1, f"{len(news)} needs-you lines were said by themselves",
                   news[1].index if len(news) > 1 else None)]
         titles = ", ".join(v["title"] for v in made.values())
-        approval_turns = call.caller_turns()[2:]
+        # The turn the caller's "approve it" made, by its number: a long request the end of turn cut in two made one
+        # more caller turn before it, and a count by position took the yes for the approval.
+        caller = call.caller_turns()
+        approve = [i for i, t in enumerate(caller) if t.n in notes.get("approve", ()) and t.cancelled != "continued"]
+        approval_turns = caller[approve[-1]:] if approve else ()
         first = approval_turns[0] if approval_turns else None
         about_it = ok("\"approve it\" after the news was about the started thread, with no question of which",
                       first is not None and first.said(Kind.CONFIRM_RESPOND, Kind.NEEDS_THE_APP, Kind.RESPONDED)
