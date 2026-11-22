@@ -21,7 +21,8 @@ Each turn runs `voice.prototype.run.run_clip` with the task gate and LFM3's end-
 the hybrid segmenter, the `gated` default from `voice/main`): live ASR, the segmenter and decider, the task service
 with real weather and time lookups, the snapshot, and the reply. The endpointer in endpoint.py ends a turn after
 --silence-ms of silence, or, with `--eou audio`, as soon as the local d1-Omni-2B says the person has finished
-(voice/live/eou_audio.py), and never later than --silence-ms.
+(voice/live/eou_audio.py), and never later than --silence-ms. With `--eou smart` the CPU model Smart Turn
+(voice/live/eou_smart_turn.py) can instead hold a turn open past --silence-ms, to 2 s, when it hears a mid-thought pause.
 
 One client connection is one call, and one call is one LFM3 voice session. The first turn opens it and every later
 turn adds its audio and its reply to the same conversation. That session is the call's memory: the model hears what
@@ -98,6 +99,7 @@ import hashlib
 import hmac
 import ipaddress
 import json
+import os
 import re
 import secrets
 import subprocess
@@ -113,7 +115,7 @@ from pathlib import Path
 from websockets.asyncio.server import serve
 from websockets.exceptions import ConnectionClosed
 
-from voice.live import eou_audio
+from voice.live import eou_audio, eou_smart_turn
 from voice.live.browser_recording import BrowserRecording, call_dir
 from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start, State
 from voice.live.overlap import (Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe,
@@ -843,14 +845,16 @@ class Conversation:
         turn.check.add_done_callback(self.checks.discard)
 
     async def ask_end(self, turn, silent_ms):
-        """Ends the turn here when the model says the person has finished, and otherwise leaves the silence rule alone.
+        """Ends the turn here when the model says the person has finished, holds it open when the model says they are
+        pausing mid-thought, and otherwise leaves the silence rule alone.
 
-        The answer is bounded by `deadline_s`: past it the turn ends at `silence_ms` as it always did, so a slow or
-        broken model costs no turn. An answer that arrives after the turn ended, or after the person spoke again,
-        ends nothing: the answer is about the audio at the check point, and the point is stale by then.
+        The answer is bounded by `deadline_s`: past it the turn ends at the silence rule as it always did, so a slow or
+        broken model costs no turn and never holds one. An answer that arrives after the turn ended, or after the
+        person spoke again, acts on nothing: the answer is about the audio at the check point, and the point is stale
+        by then.
         """
         policy = self.live.eou.policy
-        deadline = policy.deadline_s(silent_ms, self.live.settings.silence_ms)
+        deadline = policy.deadline_s(silent_ms, policy.fallback_ms(silent_ms, self.live.settings.silence_ms))
         tail = bytes(turn.pcm)[-int(policy.window_s * RATE) * 2:]
         started = time.perf_counter()
         try:
@@ -859,11 +863,14 @@ class Conversation:
             turn.checks.append({"silent_ms": silent_ms, "p": None, "error": type(exc).__name__,
                                 "ms": round((time.perf_counter() - started) * 1000, 1), "ended": False})
             return
-        ends = (answer.p_done >= policy.theta and turn is self.turn and turn.turn_end is None
-                and self.endpointer.silent_ms >= silent_ms)
-        turn.checks.append({"silent_ms": silent_ms, "p": round(answer.p_done, 4), "ms": answer.ms, "ended": ends})
-        if ends:
+        fresh = turn is self.turn and turn.turn_end is None and self.endpointer.silent_ms >= silent_ms
+        verdict = policy.verdict(answer.p_done) if fresh else None
+        turn.checks.append({"silent_ms": silent_ms, "p": round(answer.p_done, 4), "ms": answer.ms,
+                            "ended": verdict == "end", "held": verdict == "hold"})
+        if verdict == "end":
             self.end_turn(silent_ms, False)
+        elif verdict == "hold":
+            self.endpointer.hold()
 
     def end_turn(self, trailing_ms, forced):
         self.heard_at = time.perf_counter()
@@ -1113,7 +1120,7 @@ class Live:
         check_ms = eou.policy.check_ms if eou is not None else ()
         self.settings = Settings(silence_ms=args.silence_ms, start_ms=args.start_ms, preroll_ms=args.preroll_ms,
                                  floor_dbfs=args.floor_dbfs, margin_db=args.margin_db, max_turn_s=args.max_turn_s,
-                                 check_ms=check_ms)
+                                 check_ms=check_ms, hold_ms=eou.policy.hold_ms if eou is not None else 0)
         self.prompt_file, self.decider_lock = args.prompt, decider_lock or threading.Lock()
         self.active, self.turns, self.overlaps = None, 0, 0
         self.overlap_settings = OverlapSettings(confirm_ms=getattr(args, "confirm_ms", OverlapSettings.confirm_ms))
@@ -1221,12 +1228,7 @@ async def main_async(args):
                                             slots(getattr(args, "asr_stagger", 1))))
         decider = stack.enter_context(make_decider(args.decider, out))
         eou_server = stack.enter_context(eou_context)
-        eou = None
-        if eou_server is not None:
-            eou = eou_audio.Decider(f"http://127.0.0.1:{eou_port}",
-                                    eou_audio.Policy(theta=getattr(args, "eou_theta", eou_audio.Policy.theta)))
-            print(f"d1-Omni pid {eou_server.proc.pid} on port {eou_port} after {eou_server.startup_s:.1f} s: "
-                  f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
+        eou = open_eou(args, eou_mode, eou_server, eou_port)
         t3 = None
         loop, news = asyncio.get_running_loop(), asyncio.Event()
         # The gate takes a second connection to the local decider's d1-2B when it runs one, as the speech decider does.
@@ -1275,6 +1277,33 @@ async def main_async(args):
                 await live.active.ws.close(1001, "server stopping")
 
 
+def eou_policy(args, base):
+    """`base` with the command line's overrides: theta, the hold's theta and cap, and the check points."""
+    over = {"theta": getattr(args, "eou_theta", None), "hold_theta": getattr(args, "eou_hold_theta", None),
+            "hold_ms": getattr(args, "eou_hold_ms", None),
+            "check_ms": tuple(int(ms) for ms in args.eou_checks.split(",")) if getattr(args, "eou_checks", None) else None}
+    return replace(base, **{key: value for key, value in over.items() if value is not None})
+
+
+def open_eou(args, mode, eou_server, eou_port):
+    """What ends a turn besides the silence rule, or None. A model that is not there is said once and left out."""
+    if mode == "audio" and eou_server is not None:
+        eou = eou_audio.Decider(f"http://127.0.0.1:{eou_port}", eou_policy(args, eou_audio.Policy()))
+        print(f"d1-Omni pid {eou_server.proc.pid} on port {eou_port} after {eou_server.startup_s:.1f} s: "
+              f"checks {eou.policy.check_ms}, theta {eou.policy.theta}", flush=True)
+        return eou
+    if mode == "smart":
+        eou, reason = eou_smart_turn.load(eou_policy(args, eou_smart_turn.POLICY))
+        if eou is None:
+            print(f"end of turn: Smart Turn is not available ({reason}), so the silence rule ends every turn", flush=True)
+            return None
+        p = eou.policy
+        print(f"end of turn: Smart Turn on the CPU: checks {p.check_ms}, ends at {p.theta} or more, holds at {p.hold_theta} "
+              f"to {p.hold_ms} ms", flush=True)
+        return eou
+    return None
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--host", help="bind address; this machine's Tailscale IPv4 when left out")
@@ -1284,12 +1313,19 @@ def main():
     parser.add_argument("--local-text", choices=["auto", "on", "off"], default="auto",
                         help="keep LFM3-1.7B loaded so the page can choose it for thread summaries "
                              "(auto: when its model file is present and --t3 is on)")
-    parser.add_argument("--eou", choices=["silence", "audio"], default="silence",
-                        help="what ends a turn: the trailing silence alone (default), or the local d1-Omni-2B asked "
-                             "whether the person finished at 150, 300 and 500 ms of silence, falling back to "
-                             "--silence-ms")
-    parser.add_argument("--eou-theta", type=float, default=eou_audio.Policy.theta,
-                        help=f"the P(done) that ends a turn early with --eou audio (default {eou_audio.Policy.theta})")
+    parser.add_argument("--eou", choices=["silence", "audio", "smart"], default=os.environ.get("VOICE_EOU", "silence"),
+                        help="what ends a turn: the trailing silence alone (silence), the local d1-Omni-2B asked "
+                             "whether the person finished at 150, 300 and 500 ms (audio), or Smart Turn on the CPU "
+                             "asked at its own points, which can also hold a turn open past --silence-ms (smart). "
+                             "Every model's answer is bounded and the silence rule is the fallback. Default silence, "
+                             "or $VOICE_EOU")
+    parser.add_argument("--eou-theta", type=float, default=None,
+                        help="the P(done) that ends a turn early (the mode's own default)")
+    parser.add_argument("--eou-hold-theta", type=float, default=None,
+                        help="the P(done) at or below which a turn is held open (the mode's own default)")
+    parser.add_argument("--eou-hold-ms", type=int, default=None,
+                        help="the silence a held turn waits for, 0 for never (the mode's own default)")
+    parser.add_argument("--eou-checks", default=None, help="comma-separated ms of silence at which the model is asked")
     parser.add_argument("--eou-port", type=int, default=eou_audio.PORT,
                         help=f"the audio model's llama-server port (default {eou_audio.PORT})")
     parser.add_argument("--start-ms", type=int, default=100, help="voiced audio that starts a turn")

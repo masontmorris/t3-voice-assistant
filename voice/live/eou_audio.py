@@ -45,20 +45,33 @@ QUESTION = {"finished": {
 
 @dataclass(frozen=True)
 class Policy:
-    """When to ask, what counts as done, and what a check may cost.
+    """When to ask, what counts as done or as a pause, and what a check may cost.
 
-    `check_ms` are points of silence inside the existing `silence_ms` wait; `window_s` is how much of the turn's tail
-    the model hears; `cap_s` is the longest a single answer may take. The study asked on the last 3 s with no loss of
-    accuracy, and measured a 40 ms median answer, so `cap_s` is slack for a loaded GPU, not the normal case.
+    `check_ms` are points of silence; `window_s` is how much of the turn's tail the model hears; `cap_s` is the longest
+    a single answer may take. An answer at or above `theta` ends the turn. One at or below `hold_theta` holds it open
+    to `hold_ms` of silence instead of `silence_ms`, and `hold_theta` 0 never holds. The study asked on the last 3 s with
+    no loss of accuracy, and measured a 40 ms median answer, so `cap_s` is slack for a loaded GPU, not the normal case.
     """
     check_ms: tuple[int, ...] = (150, 300, 500)
     theta: float = 0.5
+    hold_theta: float = 0.0
+    hold_ms: int = 0
     window_s: float = 3.0
     cap_s: float = 0.5
 
     def deadline_s(self, silent_ms, fallback_ms):
         """How long a check may take and still answer before `fallback_ms` ends the turn anyway, capped by `cap_s`."""
         return max(0.05, min(self.cap_s, (fallback_ms - silent_ms) / 1000))
+
+    def fallback_ms(self, silent_ms, silence_ms):
+        """The silence at which the turn ends if no answer comes: `silence_ms`, or `hold_ms` once past it."""
+        return silence_ms if silent_ms < silence_ms or not self.hold_ms else self.hold_ms
+
+    def verdict(self, p_done):
+        """"end", "hold" or None for one answer."""
+        if p_done >= self.theta:
+            return "end"
+        return "hold" if self.hold_ms and p_done <= self.hold_theta else None
 
 
 @dataclass(frozen=True)

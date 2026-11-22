@@ -6,6 +6,8 @@ the real one is measured on Mason's recorded calls (docs/voice/live-eou-audio.md
 """
 
 import asyncio
+import contextlib
+import io
 import json
 import tempfile
 import time
@@ -88,14 +90,16 @@ class FakeEou:
         return eou_audio.Answer(answer, 2.0)
 
 
-class AudioEndTest(unittest.IsolatedAsyncioTestCase):
+class EndRig(unittest.IsolatedAsyncioTestCase):
     """One turn through the live server with the audio model in place of the clock."""
+
+    policy = eou_audio.Policy()
 
     async def asyncSetUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         args = SimpleNamespace(**ARGS, eou="audio", prompt=Path(self.tmp.name) / "prompt.txt")
-        self.eou = FakeEou()
+        self.eou = FakeEou(policy=self.policy)
         self.live = server.Live(args, "ws://unused", decider=None, tools=None, out=Path(self.tmp.name),
                                 eou=self.eou, secret=SECRET)
         patch = mock.patch.object(server, "run_clip", fake_run_clip)
@@ -149,6 +153,7 @@ class AudioEndTest(unittest.IsolatedAsyncioTestCase):
     def record(self, n=1):
         return json.loads((Path(self.tmp.name) / f"turn_{n:03d}.json").read_text())
 
+class AudioEndTest(EndRig):
     async def test_a_finished_turn_ends_at_the_first_check_that_says_so(self):
         ended, log = await self.end_of(noise(300) + tone(3200) + noise(900, seed=1))
         self.assertEqual(ended["trailing_ms"], 150, "the 150 ms check point, the first frame at or past it")
@@ -202,6 +207,81 @@ class AudioEndTest(unittest.IsolatedAsyncioTestCase):
         check = self.record()["live"]["eou_checks"][0]
         self.assertIsNone(check["p"])
         self.assertEqual(check["error"], "TimeoutError")
+
+
+class HoldEndTest(EndRig):
+    """Both directions: a confident "not finished" holds the turn past the silence rule, up to the cap."""
+
+    policy = eou_audio.Policy(check_ms=(150, 300, 500, 900, 1200), theta=0.8, hold_theta=0.1, hold_ms=1500)
+
+    async def test_a_pause_the_model_calls_unfinished_holds_the_turn_to_the_cap(self):
+        self.eou.answers = [0.05]
+        ended, log = await self.end_of(noise(300) + tone(600) + noise(2200, seed=1))
+        self.assertEqual(ended["trailing_ms"], 1500)
+        self.assertEqual(log.count("turn_end"), 1)
+        checks = self.record()["live"]["eou_checks"]
+        self.assertEqual([c["silent_ms"] for c in checks], [150, 300, 500, 900, 1200])
+        self.assertTrue(checks[0]["held"] and not checks[0]["ended"])
+        self.assertEqual([ask["timeout_s"] for ask in self.eou.asked], [0.5, 0.4, 0.2, 0.5, 0.3],
+                         "past the silence rule a check's deadline is the cap's")
+
+    async def test_a_held_turn_ends_at_the_first_later_check_that_says_finished(self):
+        self.eou.answers = [0.05, 0.05, 0.05, 0.9]
+        ended, _ = await self.end_of(noise(300) + tone(600) + noise(2200, seed=1))
+        self.assertEqual(ended["trailing_ms"], 900)
+
+    async def test_an_unsure_answer_leaves_the_silence_rule_exactly(self):
+        self.eou.answers = [0.4]
+        ended, _ = await self.end_of(noise(300) + tone(600) + noise(2200, seed=1))
+        self.assertEqual(ended["trailing_ms"], 700)
+        self.assertFalse(any(c.get("held") for c in self.record()["live"]["eou_checks"]))
+
+    async def test_a_model_that_errors_never_holds_a_turn(self):
+        self.eou.answers = [ConnectionError("no slot")]
+        ended, _ = await self.end_of(noise(300) + tone(600) + noise(2200, seed=1))
+        self.assertEqual(ended["trailing_ms"], 700)
+
+    async def test_a_hold_answer_that_arrives_after_the_silence_rule_ended_the_turn_holds_nothing(self):
+        self.eou.answers = [lambda pcm: (time.sleep(0.6), eou_audio.Answer(0.05, 600))[1]]
+        ended, log = await self.end_of(noise(300) + tone(600) + noise(2200, seed=1))
+        self.assertEqual(ended["trailing_ms"], 700)
+        self.assertEqual(log.count("turn_end"), 1)
+
+    async def test_speech_after_a_held_pause_goes_on_in_the_same_turn(self):
+        self.eou.answers = [0.05]
+        ended, log = await self.end_of(noise(300) + tone(600) + noise(900, seed=1) + tone(600) + noise(2200, seed=2))
+        self.assertEqual(log.count("turn_end"), 1, "the 900 ms pause was held, so it did not split the request")
+        self.assertEqual(ended["trailing_ms"], 1500)
+
+
+class HoldPolicyTest(unittest.TestCase):
+    def test_the_verdict_is_end_hold_or_nothing(self):
+        policy = eou_audio.Policy(theta=0.8, hold_theta=0.1, hold_ms=1500)
+        self.assertEqual([policy.verdict(p) for p in (0.95, 0.8, 0.5, 0.1, 0.02)], ["end", "end", None, "hold", "hold"])
+        self.assertIsNone(eou_audio.Policy().verdict(0.0), "hold_theta 0 is off: today's policy never holds")
+
+    def test_the_fallback_is_the_silence_rule_until_it_is_past_then_the_cap(self):
+        policy = eou_audio.Policy(hold_ms=1500)
+        self.assertEqual([policy.fallback_ms(s, 700) for s in (500, 700, 900)], [700, 1500, 1500])
+        self.assertEqual(eou_audio.Policy().fallback_ms(900, 700), 700)
+
+
+class OpenEouTest(unittest.TestCase):
+    def test_smart_without_its_model_says_so_once_and_leaves_the_silence_rule(self):
+        said = io.StringIO()
+        with mock.patch.object(server.eou_smart_turn, "load", return_value=(None, "no model at x")), \
+                contextlib.redirect_stdout(said):
+            self.assertIsNone(server.open_eou(SimpleNamespace(), "smart", None, 0))
+        self.assertEqual(said.getvalue().count("Smart Turn is not available"), 1)
+        self.assertIn("silence rule", said.getvalue())
+
+    def test_the_silence_mode_opens_nothing(self):
+        self.assertIsNone(server.open_eou(SimpleNamespace(), "silence", None, 0))
+
+    def test_flags_override_the_modes_policy(self):
+        args = SimpleNamespace(eou_theta=0.9, eou_hold_theta=None, eou_hold_ms=3000, eou_checks="200,400")
+        policy = server.eou_policy(args, eou_audio.Policy())
+        self.assertEqual((policy.theta, policy.hold_theta, policy.hold_ms, policy.check_ms), (0.9, 0.0, 3000, (200, 400)))
 
 
 class DefaultTest(unittest.TestCase):

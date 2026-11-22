@@ -27,7 +27,8 @@ python gpu_lease.py run --holder <name> --purpose "whole-call gate" --max-minute
 ```
 
 It starts a sandbox T3 of its own (a copy of a template home, so no thread outlives a run) and the live server on it,
-and holds one synthetic call per scenario. Each scenario is a caller who picks its next line from what the assistant did,
+and holds one synthetic call per scenario. The sandbox T3 starts from this checkout; set `VOICE_T3_CHECKOUT` to run it
+from another checkout that has the JavaScript dependencies installed, so a worktree that only needs Python can run the gate. Each scenario is a caller who picks its next line from what the assistant did,
 and states what must be true afterwards. It is scored from the turns' records and the T3's state, and a model answers a
 stated question only about a free reply. It prints one row per scenario and exits non-zero when one fails. The default
 set takes about 13 minutes and about 100 hosted decider calls (under a cent); a scenario whose first run fails gets
