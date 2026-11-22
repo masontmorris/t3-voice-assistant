@@ -296,6 +296,17 @@ class WithdrawnQuestionTurn(NoteTurn):
         await self.turn(["Sure, no problem."], task_service=CorrectingService)
         self.assertEqual(texts(self.voice), [])
 
+    async def test_a_remark_after_a_relayed_thread_line_is_answered_and_told_where_that_line_came_from(self):
+        class Relayed(CorrectingService):
+            def said_source(self):
+                return {"thread": "Tidy the Save Slots", "from": "reply"}
+
+        await self.turn(["It came from the thread's own last reply."], task_service=Relayed)
+        note, = texts(self.voice)
+        self.assertEqual(note, prototype.said_note({"thread": "Tidy the Save Slots", "from": "reply"}))
+        self.assertIn("Tidy the Save Slots", note)
+        self.assertIn("own last reply", note)
+
 
 if __name__ == "__main__":
     unittest.main()
@@ -564,8 +575,6 @@ class T3TurnTest(NoteTurn):
 
         for name, script, service, send, muted, heard, deliveries in (
             ("muted", [], WithFallback, self.send_checked, True, [], ["unsent"]),
-            ("failed fallback", ["Wrong.", "Wrong.", "Wrong.", "Wrong."], WithFallback, self.send_checked,
-             False, [], ["unsent", "unsent"]),
             ("partial", [DRAFT], WithFallback, send_partial, False, [DRAFT], ["partial"]),
             ("no capability", ["Wrong.", "Wrong."], T3SnapshotService, self.send_checked, False, [], ["unsent"]),
         ):
@@ -576,6 +585,16 @@ class T3TurnTest(NoteTurn):
                 self.assertEqual(self.spoken, heard)
                 self.assertEqual([r["delivery"] for r in record["replies"]], deliveries)
                 self.assertEqual(self.voice.asked, attempts)
+
+        # Every checked line refused, the fallback's too: the voice says it has no answer in its own words, so the turn
+        # is never silent, and that reply is told to say nothing about a thread.
+        self.spoken.clear()
+        record = await self.turn(["Wrong.", "Wrong.", "Wrong.", "Wrong.", "Sorry, I couldn't get that just now."],
+                                 task_service=WithFallback, send_checked=self.send_checked)
+        self.assertEqual([r["kind"] for r in record["replies"]], ["t3", "t3", "no_answer"])
+        self.assertEqual([r.get("delivery") for r in record["replies"][:2]], ["unsent", "unsent"])
+        self.assertEqual(self.spoken, ["Sorry, I couldn't get that just now."])
+        self.assertIn(prototype.UNHEARD_NOTE, texts(self.voice))
 
         class NoOrdinaryAudio(Scripted):
             async def push(inner, event):

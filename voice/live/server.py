@@ -1175,6 +1175,9 @@ class Conversation:
                     def delivered(state):
                         if state == "sent":
                             live.t3.ack_news(unsent.pop(id(update)))
+                            # The worded acts name the thread as T3 titles it now: news made before it had a title
+                            # names it only here, and "it" on the next turn means this thread.
+                            update.acts = draft_update.acts
                             live.t3.spoke(update)
 
                     reply, sent = await say_acts(
@@ -1301,7 +1304,7 @@ class Live:
             return
         self.active = conversation
         if self.t3 is not None:
-            self.t3.begin_call()
+            await asyncio.to_thread(self.t3.begin_call)
         print(f"client connected from {ws.remote_address[0]}", flush=True)
         try:
             await conversation.run()

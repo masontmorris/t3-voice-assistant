@@ -619,7 +619,9 @@ class Follow:
             pair = [event.run_id, event.status.value]
             if pair not in link.runs:
                 link.runs.append(pair)
-                if event.status in SPOKEN_RUNS and not task.ended and not quiet:
+                # The run a launch or a follow-up started was told as started already: its running adds nothing.
+                told = task.announced and event.run_id == link.run_id
+                if event.status in SPOKEN_RUNS and not task.ended and not quiet and not told:
                     self.speak(task, act(Say.RUN_UPDATE, status=event.status.value), "run", seq)
         elif isinstance(event, T.ReplyEvent):
             if event.message_id not in link.replies:

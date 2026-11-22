@@ -187,7 +187,10 @@ RULES: dict[Kind, Rule] = {
                                ("answered",), plain=True),
     Kind.RESPONDED: Rule(("thread", "decision", "need", "recap"), ("thread",), forbids=("finished",)),
     Kind.NOTHING_PENDING: Rule(("thread",), (), forbids=("answered",)),
-    Kind.NEEDS_THE_APP: Rule(("thread", "decision"), ("thread",), forbids=("answered",)),
+    # `prompt` is the request's stored text, which `Speech.fill` swaps for a gated `request` as it does for a status.
+    # `again`: the person was told this on this call already, so the line only says it still waits for them there.
+    Kind.NEEDS_THE_APP: Rule(("thread", "decision", "need", "prompt", "request", "again"), ("thread",),
+                             forbids=("answered",), plain=True),
     # A question a thread is waiting on, told with every option so the caller can pick one. `number` of `count` says which
     # of a request's questions this is, and `restated` why it is asked again: "unheard" when the reply fit no option, "changed"
     # when the thread now asks something else.
@@ -238,6 +241,7 @@ _NOT_SPEECH = re.compile(r"^[\[{]|```|`|\*\*|https?://|\||\.\.\.|\N{HORIZONTAL E
                          re.IGNORECASE)
 # Shell syntax, a flag, a path or a backslash: what a raw command reads like, which no spoken line holds.
 _CODE = re.compile(r"&&|\|\||\$[({]|\d?>&\d|(?:^|\s)--?[A-Za-z][\w-]*|(?:^|\s)~?\.{0,2}/\w|\w/[\w.-]+\.\w+|\\\w")
+_FIELD_TOKEN = re.compile(r"[\w-]+")
 MAX_SENTENCES_PER_ACT = 2
 # A thread or project name in quote marks. The call's voice answers a question that quotes its subject ("Yes, it
 # is.") in place of saying it, in 9 of 9 rehearsed relays, and says the same question without the marks.
@@ -400,6 +404,19 @@ def check(line: str, acts: Iterable[Act]) -> list[str]:
         if options and all(says(text, value) for value in options) and not in_order(text, options):
             problems.append(f"{a.kind.value} options out of order: {', '.join(options)}")
     return problems
+
+
+def field_names(line: str, acts: Iterable[Act], vocabulary: frozenset[str]) -> list[str]:
+    """The names from the acts' own vocabulary (`vocabulary`: kind, field and enum names) that `line` says as words.
+    A named value is the act's to say, so its own words are left out first; a name a thread reported ("load_config")
+    is not in the vocabulary and is never refused."""
+    acts = list(acts)
+    form = line or ""
+    for value in sorted((v for a in acts for name in RULES[a.kind].named if name in a.slots
+                         for v in _named_values(a.slots[name])), key=len, reverse=True):
+        form = masked(form, value)
+    said = list(dict.fromkeys(t.casefold() for t in _FIELD_TOKEN.findall(form) if t.casefold() in vocabulary))
+    return [f"says a field name: {name}" for name in said]
 
 
 def check_names(line: str, acts: tuple[Act, ...], known_names: Iterable[str]) -> list[str]:

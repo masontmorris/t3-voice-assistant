@@ -22,6 +22,7 @@ from voice.prototype import run as prototype_run
 from voice.prototype.realtime import read_pcm16
 from voice.prototype.run import run_clip
 from voice.t3 import fakes as F
+from voice.t3 import types as T
 from voice.t3.acts import act
 from voice.t3.acts import Kind as S
 from voice.t3.speech import Speech
@@ -770,13 +771,20 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
 
 
 class News(T3Tasks):
-    def __init__(self, path, *updates):
-        journal = T3Journal(path)
-        journal.pending_lines.extend(replace(update) for update in updates)
-        journal.save()
-        super().__init__(Follow(journal, None))
+    """A T3 whose `updates` arrive once the call has begun: news from before a call is not read when it opens."""
+
+    def __init__(self, path, *updates, seam=None):
+        super().__init__(Follow(T3Journal(path), F.Connector(seam) if seam is not None else None))
         worded(self, FakeText())
-        self.given = []
+        self.given, self.arriving = [], [replace(update) for update in updates]
+
+    def begin_call(self):
+        super().begin_call()
+        for update in self.arriving:
+            self.follow.journal.pending_lines.append(update)
+            self.follow.outbox.append(update)
+        self.follow.journal.save()
+        self.arriving = []
 
     @property
     def outbox(self):
@@ -790,6 +798,9 @@ class News(T3Tasks):
 DONE = Update("conv_turn_001:task_1", (act(S.DONE, thread="Add a hello function", status="completed"),),
               "completed", "done-event", "thread-1", (750, 751))
 DONE_LINE = "About Add a hello function, noted."
+WAITS = Update("conv_turn_001:task_2", (act(S.NEEDS_YOU, thread="Add a goodbye function", need="question"),),
+               "live", "needs_you", "thread-2", (760,))
+WAITS_LINE = "About Add a goodbye function, noted."
 
 
 class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
@@ -921,16 +932,26 @@ class IdleNewsTest(unittest.IsolatedAsyncioTestCase):
                 finally:
                     release.set()
 
-    async def test_pending_news_reloads_and_plays_after_restart(self):
-        first = self.news(DONE)
-        update, = first.reserve_news(idle=True)
-        self.assertEqual(update.acts, DONE.acts)
-        self.live.t3 = restarted = News(first.follow.journal.path)
+    async def test_after_a_restart_a_thread_that_still_waits_is_raised_and_the_rest_is_held(self):
+        first = self.news(DONE, WAITS)
+        first.begin_call()
+        self.assertEqual([u.acts for u in first.reserve_news(idle=True)], [DONE.acts, WAITS.acts])
+        waiting = F.state(thread="thread-2", title="Add a goodbye function", as_of=770,
+                          activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need("q1", "Run the tests?"))
+        ended = F.state(thread="thread-1", title="Add a hello function", as_of=770, activity=T.ThreadActivity.FINISHED)
+
+        class Reads(F.FakeSeam):
+            def read_thread(self, thread_id):
+                return waiting if thread_id == "thread-2" else ended
+
+        self.live.t3 = restarted = News(first.follow.journal.path, seam=Reads())
         async with await self.connect() as ws:
             done = await self.until(ws, "turn_done", [])
-            self.assertEqual(done["replies"], [DONE_LINE])
+            self.assertEqual(done["replies"], [WAITS_LINE], "the wait, read from T3 now; the done is held, not said")
             self.assertEqual(self.frames, [960])
-        self.assertEqual(T3Journal(restarted.follow.journal.path).pending_lines, [])
+        journal = T3Journal(restarted.follow.journal.path)
+        self.assertEqual((journal.pending_lines, [u.acts for u in journal.earlier_lines if u.thread_id == "thread-1"]),
+                         ([], [DONE.acts]))
 
     async def test_news_waits_while_the_person_talks_and_after_the_reply(self):
         self.news(DONE, audio=bytes(OUT_RATE * 2 * 2))

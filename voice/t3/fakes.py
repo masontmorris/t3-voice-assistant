@@ -219,6 +219,9 @@ class Reader(Agree):
         self.choosing, self.chosen = choosing or {}, []
         self.answering = []  # the words each pick was made for as an answer to a thread's question
         self.call_threads = []  # the call's own thread each pick was shown, or None
+        self.spoken = []  # the thread just spoken about each pick was shown, or None
+        self.naming = {}  # request to P(it says the picked thread's title); unscripted is no answer
+        self.joining = {}  # (first, second) to P(they are one question cut in two); unscripted is no answer
 
     def chooses(self, question, options, reply, own_words=False):
         """The test's choice for `reply`: the 0-based index of an option, OWN_WORDS, UNCLEAR or NO_ANSWER, or a Chosen
@@ -231,12 +234,19 @@ class Reader(Agree):
         label = f"option_{scripted + 1:02d}" if isinstance(scripted, int) else scripted
         return Chosen(label, {label: 0.9})
 
-    def picks(self, request, threads, recent=None, answering=False, call_thread=None):
+    def names(self, request, thread):
+        return self.naming.get(request)
+
+    def one_question(self, first, second, title):
+        return self.joining.get((first, second))
+
+    def picks(self, request, threads, recent=None, answering=False, call_thread=None, spoken=None):
         """The test's pick for `request`: a thread id, NONE or UNCLEAR, or each thread's share. A request the test
         did not script is picked by matching its words against the titles, and leans (0.8) to a lone match, so it is
         confirmed. What d1.2 really picks is in voice/t3/test_picks.py."""
         self.picked.append((request, tuple(threads), recent))
         self.call_threads.append(call_thread)
+        self.spoken.append(spoken)
         if answering:
             self.answering.append(request)
         scripted = self.picking.get(request)

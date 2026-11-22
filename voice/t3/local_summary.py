@@ -190,10 +190,13 @@ def unsupported(record: dict[str, Any]) -> float | None:
 # title, which the summariser borrowed facts from; the last reply is left out. Examples are made-up requests as chat
 # turns and teach how to read one, never wording to be spoken.
 #
-# Only a request whose stored prompt is the action itself is described: a command, or a change to a file. A tool
-# permission stores only the tool's name, a file read only a path, and the others nothing the voice can describe, so
-# those go to the app. The choice is made on the request's source, a typed field, never on its text.
+# Only a request whose stored prompt is the action itself can be approved by voice: a command, or a change to a file.
+# A tool permission stores only the tool's name, so it is described (which tool, in plain words) but approved in the app;
+# a file read stores only a path, and the others nothing the voice can describe. The choice is made on the request's
+# source, a typed field, never on its text. Moving a source from TOOL_KINDS to REQUEST_KINDS lets a yes approve it.
 REQUEST_KINDS = {T.NeedSource.COMMAND: "a shell command", T.NeedSource.FILE_CHANGE: "a change to a file"}
+TOOL_KINDS = {T.NeedSource.PERMISSION: "a tool it wants to use",
+              T.NeedSource.DYNAMIC_TOOL_CALL: "a tool it wants to use"}
 REQUEST_SYSTEM = ("You help a voice assistant tell a person what they would be approving. A coding agent asks "
                   "permission to do one thing. The request is JSON: `kind` is what sort of request it is and `text` "
                   "is the request as the agent wrote it. Say in one plain spoken sentence of at most 20 words what "
@@ -210,6 +213,12 @@ REQUEST_EXAMPLES = (
      "It wants to rename one function in a users file."),
     ({"kind": "a change to a file", "text": "Add a section about caching to docs/guide.md"},
      "It wants to add a new section about caching to the guide."),
+)
+# Shown only for a tool, so the command and file-change descriptions measured before are made from the same prompt.
+TOOL_EXAMPLES = (
+    ({"kind": "a tool it wants to use", "text": "mcp__calendar__list_events"},
+     "It wants to use a tool that lists your calendar events."),
+    ({"kind": "a tool it wants to use", "text": "WebFetch"}, "It wants to use a tool that fetches a web page."),
 )
 REQUEST_SCHEMA = {"type": "object", "properties": {"gist": {"type": "string", "maxLength": 220}},
                   "required": ["gist"], "additionalProperties": False}
@@ -245,6 +254,86 @@ ACCOUNT_GATE_QUESTION = ("Does `account` state something about what the thread w
 ACCOUNT_THRESHOLD = 0.10
 
 
+# The first message of a thread the voice starts: the work the person asked for, as an instruction to the thread's agent.
+# Handed the spoken request itself ("can you start a thread to ..."), an agent with T3's own tools started a second
+# thread to do it. It is written from the request alone and passed by three gate questions against that request: it adds
+# nothing, it leaves out nothing the work needs, and it does not ask for a thread to be started.
+BRIEF_SYSTEM = ("A person on a voice call asked their assistant to start a new coding thread. The request is JSON: "
+                "`request` is their words as heard, hesitant and with filler. The thread now exists. Write the first "
+                "message its coding agent receives: the work they asked for, as a plain instruction to that agent. Keep "
+                "every detail of the work they gave, in their terms, and add nothing they did not say. Leave out the "
+                "request to start a thread, the filler and anything said to the assistant, so the agent does the work "
+                "itself and does not start another thread.")
+BRIEF_ADJACENT = "Write the instruction the new thread's agent receives, in at most 60 words."
+BRIEF_EXAMPLES = (
+    ("Okay, um, can you start a thread to, uh, make the bakery menu prices right? They're all off by a dollar, I "
+     "think.", "Fix the prices on the bakery menu: they all seem to be off by a dollar."),
+    ("So I'd like a new thread, um, that goes through the reef card game and finds out why the shuffle deals the same "
+     "hand twice. Thanks.", "Find out why the shuffle in the reef card game deals the same hand twice."),
+)
+BRIEF_GATE_CONTEXT = ("A voice assistant started a coding thread for a person. `request` is what the person said to ask "
+                      "for it. `task` is the first message the thread's coding agent receives, written from `request` "
+                      "alone. The agent has tools that can start new threads.")
+BRIEF_GATE = {
+    "adds": "Does `task` ask for anything, or state any detail, that `request` does not?",
+    "drops": "Does `task` leave out any part of the work, or any detail of it, that `request` asks for?",
+    "starts": "Does `task` ask its reader to start, open or create a thread, a conversation or another agent?",
+}
+# Each must stay under its bar. Not tuned on recorded answers; `adds` is the account gate's bar, the others even odds.
+BRIEF_BARS = {"adds": 0.10, "drops": 0.5, "starts": 0.5}
+
+
+def brief_messages(instruction: str) -> list[dict]:
+    def asked(request: str) -> str:
+        return f"{json.dumps({'request': request})}\n\n{BRIEF_ADJACENT}"
+
+    out = [{"role": "system", "content": BRIEF_SYSTEM}]
+    for request, brief in BRIEF_EXAMPLES:
+        out += [{"role": "user", "content": asked(request)},
+                {"role": "assistant", "content": json.dumps({"gist": brief})}]
+    out.append({"role": "user", "content": asked(instruction)})
+    return out
+
+
+def brief_gate(instruction: str, brief: str) -> dict:
+    return {"model": "d1.2", "state": {"context": BRIEF_GATE_CONTEXT, "request": instruction, "task": brief},
+            "questions": {name: {"type": "noul", "instructions": question, "criteria": {"true": "Yes.", "false": "No."}}
+                          for name, question in BRIEF_GATE.items()}}
+
+
+def brief_refusals(record: dict[str, Any]) -> tuple[str, ...]:
+    """The gate questions a brief failed, by name: each at or over its bar, or with no answer. Empty when it passed."""
+    scores = {name: noul(record, name) for name in BRIEF_GATE}
+    return tuple(name for name, score in scores.items() if score is None or score >= BRIEF_BARS[name])
+
+
+def brief_passes(record: dict[str, Any]) -> bool:
+    return not brief_refusals(record)
+
+
+# What a refused brief is told on its one retry, by the question it failed.
+BRIEF_REFUSED = {"adds": "it asked for something the request does not",
+                 "drops": "it left out part of the work the request asks for",
+                 "starts": "it asked for a thread to be started; the thread already exists"}
+
+
+def brief_retry_messages(instruction: str, refused: str, failed: tuple[str, ...]) -> list[dict]:
+    """The writer's messages again, with its refused brief and why it was refused, for one more try."""
+    why = "; ".join(BRIEF_REFUSED.get(name, "it could not be checked") for name in failed) or "it could not be checked"
+    return [*brief_messages(instruction), {"role": "assistant", "content": json.dumps({"gist": refused})},
+            {"role": "user", "content": f"That was refused: {why}. {BRIEF_ADJACENT}"}]
+
+
+# A thread started with no checked brief is handed the person's words inside this, never bare: handed "can you start a
+# thread to ..." alone, its agent started a second thread. One line, so the title T3 makes from it is still distinct.
+LAUNCH_FRAME = ("Started by voice for this request, as heard: \"{request}\". You are the thread it started: do the task "
+                "here, and do not start another thread.")
+
+
+def framed(request: str) -> str:
+    return LAUNCH_FRAME.format(request=" ".join(request.split()))
+
+
 def account_messages(instruction: str) -> list[dict]:
     def asked(request: str) -> str:
         return f"{json.dumps({'request': request})}\n\n{ACCOUNT_ADJACENT}"
@@ -263,13 +352,18 @@ def account_gate(instruction: str, account: str) -> dict:
                                           "criteria": {"true": "Yes.", "false": "No."}}}}
 
 
-def describable(need: T.PendingNeed) -> bool:
-    """Whether the voice can describe this request: an approval whose stored prompt is a command or a file change."""
+def approvable(need: T.PendingNeed) -> bool:
+    """Whether a yes by voice may answer this request: an approval whose stored prompt is a command or a file change."""
     return need.kind is T.PendingKind.APPROVAL and need.source in REQUEST_KINDS
 
 
+def describable(need: T.PendingNeed) -> bool:
+    """Whether the voice can say what this request asks for: one it may approve, or a tool permission by its tool."""
+    return need.kind is T.PendingKind.APPROVAL and (need.source in REQUEST_KINDS or need.source in TOOL_KINDS)
+
+
 def request_view(need: T.PendingNeed) -> dict:
-    return {"kind": REQUEST_KINDS[need.source], "text": need.prompt}
+    return {"kind": {**REQUEST_KINDS, **TOOL_KINDS}[need.source], "text": need.prompt}
 
 
 def request_messages(need: T.PendingNeed) -> list[dict]:
@@ -277,7 +371,7 @@ def request_messages(need: T.PendingNeed) -> list[dict]:
         return f"{json.dumps({'request': request})}\n\n{REQUEST_ADJACENT}"
 
     out = [{"role": "system", "content": REQUEST_SYSTEM}]
-    for request, description in REQUEST_EXAMPLES:
+    for request, description in (*REQUEST_EXAMPLES, *(TOOL_EXAMPLES if need.source in TOOL_KINDS else ())):
         out += [{"role": "user", "content": asked(request)},
                 {"role": "assistant", "content": json.dumps({"gist": description})}]
     out.append({"role": "user", "content": asked(request_view(need))})

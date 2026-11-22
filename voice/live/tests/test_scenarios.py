@@ -285,12 +285,26 @@ class LongSet(unittest.TestCase):
     def test_news_of_the_end_is_said_once(self):
         plan = S.news_done(S.Pool())
         plan.notes.update(confirmed=True, timed_out=False)
-        world = {"seeded": {}, "made": {"t": {"activity": "finished"}}}
+        world = {"seeded": {}, "made": {"t": {"activity": "finished", "title": "Tidy the save slots."}}}
         said = [turn(0), turn(1, [Kind.DONE], idle=True)]
         self.assertEqual(failed(plan.check(call(said, world))), [])
         self.assertEqual(failed(plan.check(call([turn(0)], world))), ["the assistant said it finished, unprompted"])
         twice = [*said, turn(2, [Kind.DONE], idle=True)]
         self.assertEqual(failed(plan.check(call(twice, world))), ["no duplicate done notices"])
+
+
+class HandedTheWork(unittest.TestCase):
+    def test_a_started_thread_titled_with_the_request_to_start_it_fails(self):
+        plan = S.news_done(S.Pool())
+        request = plan.notes["request"]
+        work = {"seeded": {}, "made": {"t": {"activity": "finished", "title": "Tidy the save slots."}}}
+        check = "the thread was handed the work, not the request to start it"
+        self.assertTrue(S.handed_the_work(call([], work), request).ok)
+        spoken = {"seeded": {}, "made": {"t": {"activity": "finished", "title": S.launch_title(request)}}}
+        self.assertEqual(S.handed_the_work(call([], spoken), request).check, check)
+        self.assertFalse(S.handed_the_work(call([], spoken), request).ok, "the request itself, word for word")
+        self.assertFalse(S.handed_the_work(call([], work, Yes(0.9)), request).ok, "a first line that asks for a thread")
+        self.assertTrue(S.handed_the_work(call([], {"seeded": {}, "made": {}}), request).precondition)
 
 
 class FalseStart(unittest.TestCase):

@@ -15,7 +15,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
-from voice.live.t3_tasks import (ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
+from voice.live.t3_tasks import (EARLIER_MAX_S, ANSWER, APPROVE, ASK, CONFIRM_TTL_S, DENY, START, STOP, T3_TOOLS, T3_WAITING, TELL, Script, T3Registry, T3TaskService,
                                  T3Tasks, Question, status_act, tell_parts, transcript_rows)
 from voice.prototype.run import say_acts, task_note
 from voice.prototype.tests.test_run_shared_session import Scripted
@@ -165,7 +165,71 @@ class TwinA(unittest.TestCase):
         self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
         self.assertEqual(seam.ops("launch"), [])
         self.assertEqual(said(t3.answer("Please do.", 1)), [("launched", "Voice sandbox")])
-        self.assertEqual(seam.ops("launch")[0][2:], ("p1", request))
+        self.assertEqual(seam.ops("launch")[0][2:], ("p1", LS.framed(request)))
+
+    def test_the_new_thread_is_handed_the_work_and_never_the_bare_request(self):
+        class BriefText(FakeText):
+            def __init__(self, briefs):
+                super().__init__()
+                self.briefs, self.written = list(briefs), []
+
+            def complete(self, messages):
+                if messages[0]["content"] == LS.BRIEF_SYSTEM:
+                    request = json.loads(messages[len(LS.brief_messages("x")) - 1]["content"].split("\n")[0])["request"]
+                    text = self.briefs.pop(0) if self.briefs else ""
+                    self.written.append((request, text, len(messages)))
+                    return {"text": json.dumps({"gist": text}), "ms": 1, "tokens": {}}
+                return super().complete(messages)
+
+        class BriefGate(FakeGate):
+            def __init__(self, passing):
+                super().__init__()
+                self.passing, self.checked = set(passing), []
+
+            def brief_refusals(self, instruction, brief):
+                self.checked.append((instruction, brief))
+                return () if brief in self.passing else ("starts",)
+
+        request = "Um, can you start a thread to fix the flaky test?"
+        for briefs, passing, sent, handed in (
+                (["Fix the flaky test."], {"Fix the flaky test."}, "Fix the flaky test.", "brief"),
+                (["Start a thread to fix it.", "Fix the flaky test."], {"Fix the flaky test."}, "Fix the flaky test.",
+                 "retried brief"),
+                (["Start a thread to fix it.", "Open a thread for it."], set(), LS.framed(request), "framed request")):
+            with self.subTest(handed):
+                seam, gate, text = F.FakeSeam(), BriefGate(passing), BriefText(briefs)
+                t3 = worded(tasks_over(self, seam, decider=ReplayReading()), text, gate)
+                t3.start("k1", request, 0)
+                launched = t3.answer("Please do.", 1)
+                self.assertEqual(said(launched), [("launched", "Voice sandbox")])
+                self.assertEqual((seam.ops("launch")[0][3], launched.evidence()["handed"]), (sent, handed))
+                self.assertNotEqual(seam.ops("launch")[0][3], request, "never the bare request")
+                self.assertEqual({c[0] for c in gate.checked}, {request}, "checked against the request it came from")
+                if handed != "brief":
+                    self.assertGreater(text.written[1][2], text.written[0][2], "the retry is told what was refused")
+
+    def test_a_brief_of_the_request_before_a_correction_is_never_used(self):
+        class Briefs(FakeText):
+            def complete(self, messages):
+                if messages[0]["content"] == LS.BRIEF_SYSTEM:
+                    request = json.loads(messages[-1]["content"].split("\n")[0])["request"]
+                    return {"text": json.dumps({"gist": f"Do this: {request}"}), "ms": 1, "tokens": {}}
+                return super().complete(messages)
+
+        class Passes(FakeGate):
+            def brief_refusals(self, instruction, brief):
+                return ()
+
+        first, corrected = "Start a thread to tidy the save slots.", "Start a thread to tidy the save screen."
+        seam = F.FakeSeam()
+        t3 = worded(tasks_over(self, seam, decider=ReplayReading()), Briefs(), Passes())
+        t3.start("conv_turn_001:task_1", first, 0)
+        t3.bind_request("conv_turn_001:", first)
+        t3.question.brief = t3.speech.brief(first)
+        self.assertEqual(t3.question.brief.text, f"Do this: {first}")
+        t3.bind_request("conv_turn_001:", corrected)
+        t3.answer("Please do.", 1)
+        self.assertEqual(seam.ops("launch")[0][3], f"Do this: {corrected}", "the brief is the corrected request's")
 
     UNLISTED = "Start a thread for a little project that makes game exports cleaner, with long pauses and hedging."
 
@@ -178,7 +242,7 @@ class TwinA(unittest.TestCase):
         self.assertEqual((said(asked), asked.status), ([("confirm_launch", "Voice sandbox")], "needs_clarification"))
         self.assertEqual(seam.ops("launch"), [])
         self.assertEqual(said(t3.answer("Please do?", 1)), [("launched", "Voice sandbox")])
-        self.assertEqual(seam.ops("launch")[0][2:], ("p1", self.UNLISTED))
+        self.assertEqual(seam.ops("launch")[0][2:], ("p1", LS.framed(self.UNLISTED)))
 
     def test_a_no_to_the_only_available_project_starts_nothing(self):
         seam = F.FakeSeam()
@@ -206,7 +270,7 @@ class TwinA(unittest.TestCase):
         self.assertEqual(said(t3.answer("The voice server.", 1)), [("confirm_launch", "Voice server")])
         self.assertEqual(seam.ops("launch"), [])
         self.assertEqual(said(t3.answer("Yes.", 2)), [("launched", "Voice server")])
-        self.assertEqual(seam.ops("launch")[0][2:], ("p2", self.UNLISTED))
+        self.assertEqual(seam.ops("launch")[0][2:], ("p2", LS.framed(self.UNLISTED)))
 
     def test_an_unmatched_project_with_none_available_says_so_and_waits_for_nothing(self):
         t3 = tasks_over(self, F.FakeSeam(projects=()))
@@ -297,7 +361,7 @@ class TwinA(unittest.TestCase):
         started = t3.answer("Yes, go ahead.", 1)
         self.assertEqual(said(started), [("launched", "Voice sandbox")])
         self.assertEqual((started.status, started.sequences, started.thread_id), ("running", (93,), "t1"))
-        self.assertEqual(seam.ops("launch")[0][2:], ("p1", "Add a clamp helper in the sandbox project"))
+        self.assertEqual(seam.ops("launch")[0][2:], ("p1", LS.framed("Add a clamp helper in the sandbox project")))
         self.assertEqual(seam.ops("watch"), [("watch", "t1", 93, "r1")])
         self.assertEqual(t3.take(), [])
 
@@ -634,6 +698,35 @@ class DeciderPick(unittest.TestCase):
         self.assertEqual(seam.ops("read"), [])
         self.assertEqual(said(t3.answer("Yes.", 1)), [("thread_status", "Upgrade the toolchain", "working")])
         self.assertEqual(seam.ops("read"), [("read", "t5")])
+
+    def test_the_summary_a_yes_will_say_starts_while_do_you_mean_is_asked(self):
+        seam = self.seam()
+        text = FakeText()
+        t3 = worded(self.over(seam), text)
+        t3.about("k3", ASK, self.MISS, 0)
+        self.assertTrue(text.summarised.wait(2), "the summary starts with the question, not after the yes")
+        status = t3.answer("Yes.", 1)
+        t3.say(status)
+        self.assertEqual(status.acts[0].slots["summary"], FakeText.GIST)
+        self.assertEqual(text.calls, 2, "one summary, written once, and the line")
+
+    def test_a_pick_the_words_name_by_title_is_answered_at_once(self):
+        seam = self.seam()
+        t3 = self.over(seam, {self.MISS: {"t5": 0.72, "t6": 0.15, "unclear": 0.05}})
+        t3.decider.naming[self.MISS] = 0.95
+        self.assertEqual(said(t3.about("k3", ASK, self.MISS, 0)), [("thread_status", "Upgrade the toolchain", "working")])
+        t3.decider.naming[self.MISS] = 0.3
+        self.assertEqual(said(t3.about("k4", ASK, self.MISS, 1))[0][0], "confirm_thread", "not said by title: asked back")
+        t3.decider.naming[self.MISS] = 0.95
+        self.assertEqual(said(t3.about("k5", TELL, f"Tell {self.MISS} to add tests.", 2))[0][0], "confirm_tell",
+                         "only a question is answered unasked")
+
+    def test_the_thread_just_spoken_about_is_marked_in_the_pick(self):
+        t3 = self.over(self.seam())
+        t3.spoke(L.Update("k1", (act(S.NEEDS_YOU, thread="Add a clamp helper", need="permission"),), "live",
+                          "needs_you", "t5"))
+        t3.about("k3", ASK, self.MISS, 0)
+        self.assertEqual(t3.decider.spoken[-1], "t5", "the pick is told, by id, which thread the news was about")
 
     def test_a_pick_it_is_sure_of_answers_a_question_at_once(self):
         """Only a question, only when very sure, and never when another thread has the title."""
@@ -1109,6 +1202,33 @@ class Service(unittest.IsolatedAsyncioTestCase):
                                  "the fallback reports no outcome, so it cannot say the request was approved")
                 self.assertEqual(seam.ops("respond"), [])
 
+    def asks_in_one_turn(self, *asks, joining=None):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
+        seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        t3 = worded(tasks_over(self, seam), FakeText())
+        t3.decider.picking.update({words: thread for words, thread in asks})
+        t3.decider.joining.update(joining or {})
+        t3.recent = t3.spoken_id = "t5"
+        service = self.service(t3, [self.record(f"task_{i}", words, ASK) for i, (words, _) in enumerate(asks, 1)])
+        service.sync(0)
+        return [[(a["slots"].get("thread"), a["slots"].get("asked")) for a in entry.get("acts", [])]
+                for entry in service.snapshot("utt_1", "...")["tasks"]]
+
+    async def test_one_question_cut_in_two_about_a_thread_gets_one_answer_asked_in_both_pieces(self):
+        first, second = "Could you look at the clamp helper thread", "and say how it's doing?"
+        said = self.asks_in_one_turn((first, "t5"), (second, "t5"), ("How is the flaky ASR test thread?", "t6"),
+                                     joining={(first, second): 0.9})
+        self.assertEqual(said, [[("Add a clamp helper", f"{first} {second}")], [],
+                                [("Fix the flaky ASR test", None)]],
+                         "one line, asked in both pieces' words; another thread is its own answer")
+
+    async def test_two_different_questions_about_one_thread_are_answered_each(self):
+        first, second = "How is the clamp helper thread going?", "And is the clamp helper thread waiting on me?"
+        said = self.asks_in_one_turn((first, "t5"), (second, "t5"), joining={(first, second): 0.1})
+        self.assertEqual(said, [[("Add a clamp helper", first)], [("Add a clamp helper", second)]])
+        self.assertEqual(self.asks_in_one_turn((first, "t5"), (first, "t5")), [[("Add a clamp helper", first)], []],
+                         "the same words twice are one question, with no decider needed")
+
     async def test_checked_fallback_reports_a_real_launch_and_preserves_its_retry(self):
         seam = F.FakeSeam()
         line = "I started the thread."
@@ -1183,8 +1303,8 @@ class Service(unittest.IsolatedAsyncioTestCase):
         service.record_delivery(tasks["task_1"], "sent")
         self.assertEqual(said(t3.answer("yes", 1)), [("launched", "Voice sandbox")])
         launch, = seam.ops("launch")
-        self.assertEqual(launch[2:], ("p1", said_whole), "the launch carries every constraint and the second request")
-        self.assertEqual(t3.follow.journal.tasks[next(iter(t3.follow.journal.tasks))].instruction, said_whole)
+        self.assertEqual(launch[2:], ("p1", LS.framed(said_whole)), "the launch carries every constraint and the second request")
+        self.assertEqual(t3.follow.journal.tasks[next(iter(t3.follow.journal.tasks))].instruction, LS.framed(said_whole))
 
     def test_a_message_for_a_thread_there_is_stays_its_own_request_beside_a_launch(self):
         seam = F.FakeSeam()
@@ -1229,7 +1349,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         next_turn = self.service(t3, [])
         self.assertIs(next_turn.open_question(), T3_WAITING)
         next_turn.answer(next_turn.open_question(), "yes", 1)
-        self.assertEqual([launch[2:] for launch in seam.ops("launch")], [("p1", request)])
+        self.assertEqual([launch[2:] for launch in seam.ops("launch")], [("p1", LS.framed(request))])
 
     def test_a_turn_with_only_a_parked_fragment_still_requires_a_reply(self):
         fragment = "And keep it tidy."
@@ -1505,7 +1625,7 @@ class WholeDialogue(unittest.TestCase):
         spoken = [row for row in rows if row.get("acts")]
         self.assertEqual([row for row in spoken if row["line"] is None], [], "nothing waits")
         self.assertEqual([a["kind"] for row in spoken for a in row["acts"]],
-                         ["confirm_launch", "launched", "run_update", "replied", "needs_you", "need_resolved",
+                         ["confirm_launch", "launched", "replied", "needs_you", "need_resolved",
                           "done", "thread_status", "confirm_tell", "sent_followup", "confirm_stop",
                           "stopping"])
         for row in spoken:
@@ -2077,7 +2197,8 @@ class Respond(unittest.TestCase):
                 update = t3.about("k1", APPROVE, "I approve.", 0)
                 t3.spoke(update)
                 t3.say(update)
-                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
+                                                   need="command_approval"),))
                 self.assertIsNone(t3.answer("Yes.", 1))
                 self.assertEqual(seam.ops("respond"), [])
 
@@ -2099,11 +2220,45 @@ class Respond(unittest.TestCase):
             with self.subTest(source=source, prompt=prompt):
                 seam = self.seam(pending=F.need("q1", prompt, source=source))
                 update = tasks_over(self, seam).about("k1", APPROVE, "I approve.", 0)
-                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
+                                                   need=L.need_of(T.PendingKind.APPROVAL, source), prompt=prompt),),
+                                 "the request's own text goes with it, for a gated description to replace")
                 self.assertEqual(seam.ops("respond"), [])
         seam = self.seam(pending=F.need("q1", "mcp__github__create_issue", source=T.NeedSource.PERMISSION))
         self.assertEqual(tasks_over(self, seam).about("k1", DENY, "No.", 0).acts[0].kind, S.CONFIRM_RESPOND,
                          "a denial needs no description, whatever the request is")
+
+    def test_a_tool_permission_is_named_in_plain_words_once_and_then_only_said_to_still_wait(self):
+        seam = self.seam(pending=F.need("q1", "mcp__notes__list_pages", source=T.NeedSource.PERMISSION))
+        text, gate = FakeText(), FakeGate(0.02)
+        t3 = worded(tasks_over(self, seam), text, gate)
+        t3.begin_call()
+        first = t3.about("k1", APPROVE, "I approve.", 0)
+        t3.say(first)
+        self.assertEqual(first.acts[0].slots, {"thread": "Add a clamp helper", "decision": "approve",
+                                               "need": "permission", "request": FakeText.GIST},
+                         "the gated description of the tool, never its stored name")
+        self.assertEqual([(n.source, n.prompt) for n, _ in gate.asked],
+                         [(T.NeedSource.PERMISSION, "mcp__notes__list_pages")])
+        t3.spoke(first)
+        again = t3.about("k2", APPROVE, "Permission granted.", 1)
+        t3.say(again)
+        self.assertEqual(again.acts[0].slots, {"thread": "Add a clamp helper", "decision": "approve",
+                                               "need": "permission", "again": True},
+                         "a second try is told it still waits in the app, not the same line")
+        self.assertEqual(seam.ops("respond"), [], "a tool permission is still approved only in the app")
+        t3.begin_call()
+        self.assertNotIn("again", t3.about("k3", APPROVE, "I approve.", 2).acts[0].slots, "a new call says it whole")
+
+    def test_a_free_line_that_a_request_waits_in_the_app_is_supported_by_the_facts(self):
+        seam = self.seam(pending=F.need("q1", "mcp__notes__list_pages", source=T.NeedSource.PERMISSION))
+        t3 = tasks_over(self, seam)
+        t3.follow.ensure(0)
+        t3.spoke(L.Update("k1", (act(S.NEEDS_YOU, thread="Add a clamp helper", need="permission"),), "live",
+                          "needs_you", "t5"))
+        _, facts = t3.claim_facts()
+        self.assertEqual({k: facts["waiting_on_the_person"][k] for k in ("approved_by_voice", "approved_in")},
+                         {"approved_by_voice": False, "approved_in": "the T3 app"})
 
     def test_a_denial_names_the_thread_and_neither_describes_the_request_nor_hands_its_prompt_to_the_writer(self):
         seam = self.seam(pending=F.need("q1", "printf 'x' > .probe.txt"))
@@ -2122,7 +2277,8 @@ class Respond(unittest.TestCase):
         seam.listing = waiting_listing(("t5", "Add a clamp helper"))
         t3 = tasks_over(self, seam)
         update = t3.about("k1", APPROVE, "I approve.", 0)
-        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
+                                           need="command_approval"),), "nothing stored to describe, so no prompt")
         self.assertEqual((update.status, t3.live_question(), seam.ops("respond")), ("completed", None, []))
         self.assertIsNone(t3.answer("Yes.", 1), "there is nothing to say yes to")
         self.assertEqual(seam.ops("respond"), [])
@@ -2146,7 +2302,8 @@ class Respond(unittest.TestCase):
         update = t3.about("k1", APPROVE, "I approve.", 0)
         t3.spoke(update)
         t3.say(update)
-        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve"),))
+        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
+                                           need="command_approval"),))
         self.assertEqual((update.status, t3.live_question()), ("completed", None))
         self.assertIsNone(t3.answer("Yes.", 1))
         self.assertEqual(seam.ops("respond"), [])
@@ -2637,6 +2794,71 @@ class Answer(unittest.TestCase):
         self.assertEqual(t3.pending_requests(), [])
 
 
+class NewsBeforeTheCall(unittest.TestCase):
+    """News queued before a call is held, not read out when it opens; what a thread waits on the caller for now is read
+    from T3 and raised; the held news answers a question about its thread."""
+
+    def queue(self, t3, thread, said, sequence=100):
+        update = L.Update("k", (said,), "live", "x", thread, (sequence,))
+        t3.follow.journal.stamp(update)
+        t3.follow.outbox.append(update)
+        t3.follow.journal.pending_lines.append(update)
+        return update
+
+    def test_a_need_queued_before_a_later_line_is_still_raised_from_the_thread_as_it_is_now(self):
+        seam = F.FakeSeam(read=F.state(thread="t1", title="Tidy the Save Slots", as_of=140,
+                                       activity=T.ThreadActivity.WAITING_ON_YOU, pending=F.need("q1", "Run the tests?")))
+        t3 = tasks_over(self, seam)
+        self.queue(t3, "t1", act(S.NEEDS_YOU, thread="Tidy the Save Slots", need="command_approval"))
+        self.queue(t3, "t1", act(S.REPLIED, thread="Tidy the Save Slots", status="running", reply="Paused for you."))
+        t3.begin_call()
+        raised, = t3.reserve_news()
+        self.assertEqual((raised.acts[0].kind, raised.acts[0].slots["thread"], raised.sequences),
+                         (S.NEEDS_YOU, "Tidy the Save Slots", (140,)), "read from T3 at call start, not queue order")
+        self.assertEqual([u.acts[0].kind for u in t3.follow.journal.earlier_lines], [S.NEEDS_YOU, S.REPLIED],
+                         "the queued lines are held, not deleted")
+
+    def test_a_finished_threads_result_from_before_the_call_is_not_said_at_the_start_and_is_given_when_asked(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=210,
+                                       activity=T.ThreadActivity.FINISHED))
+        seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        self.queue(t3, "t5", act(S.RUN_UPDATE, thread="Add a clamp helper", status="running"), 150)
+        self.queue(t3, "t5", act(S.DONE, thread="Add a clamp helper", status="completed"), 200)
+        t3.begin_call()
+        self.assertEqual(t3.reserve_news(), [], "nothing from before the call is read out when it opens")
+        answer = t3.about("k2", ASK, "How is the clamp helper thread?", 1)
+        if answer.acts[0].kind is S.CONFIRM_THREAD:
+            t3.spoke(answer)
+            answer = t3.answer("Yes.", 2)
+        self.assertEqual((said(answer), answer.sequences), ([("done", "Add a clamp helper", "completed")], (200, 210)))
+        t3.spoke(answer)
+        self.assertEqual(t3.follow.journal.earlier_lines, [], "said once, then spent")
+
+    def test_what_is_new_is_answered_from_the_held_news(self):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=210,
+                                       activity=T.ThreadActivity.FINISHED))
+        seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam, decider=F.Reader(READINGS, {"Anything new?": "unclear"}))
+        self.queue(t3, "t5", act(S.DONE, thread="Add a clamp helper", status="completed"), 200)
+        t3.begin_call()
+        self.assertEqual(said(t3.about("k1", ASK, "Anything new?", 1)), [("done", "Add a clamp helper", "completed")])
+
+    def test_held_news_is_bounded_by_age_and_count_and_survives_a_restart(self):
+        t3 = tasks_over(self, F.FakeSeam())
+        for n in range(5):
+            self.queue(t3, "t1", act(S.RUN_UPDATE, thread="Tidy the Save Slots", status="running"), 100 + n)
+        t3.begin_call()
+        kept = t3.follow.journal.earlier_lines
+        self.assertEqual([u.sequences for u in kept], [(102,), (103,), (104,)], "the newest few of a thread")
+        self.assertEqual([u.sequences for u in T3Journal(t3.follow.journal.path).earlier_lines],
+                         [(102,), (103,), (104,)], "kept in the journal")
+        for update in kept:
+            update.held_at -= EARLIER_MAX_S + 1
+        t3.begin_call()
+        self.assertEqual(t3.follow.journal.earlier_lines, [], "past the age bar it is gone, never said as fresh")
+
+
 class SpokenAbout(unittest.TestCase):
     """The thread a line was about is what "it" means on the next turn, whoever's line it was: an answer, a launch,
     a message or news."""
@@ -2654,6 +2876,19 @@ class SpokenAbout(unittest.TestCase):
         self.assertEqual(t3.spoken_about(), "Add a Retry Button", "a line about no thread changes nothing")
         t3.begin_call()
         self.assertIsNone(t3.spoken_about())
+
+    def test_a_free_turn_is_told_what_the_last_thread_line_came_from(self):
+        t3 = tasks_over(self, F.FakeSeam())
+        t3.begin_call()
+        self.assertIsNone(t3.said_source())
+        t3.spoke(L.Update("k1", (act(S.THREAD_STATUS, thread="Add a Retry Button", status="finished",
+                                     summary="It says the button is in."),), "completed", "ask", "thread-7"))
+        self.assertEqual(t3.said_source(), {"thread": "Add a Retry Button", "from": "reply"})
+        t3.spoke(L.Update("k2", (act(S.RUN_UPDATE, thread="Add a Retry Button", status="running"),), "live", "run",
+                          "thread-7"))
+        self.assertEqual(t3.said_source(), {"thread": "Add a Retry Button", "from": "status"})
+        t3.begin_call()
+        self.assertIsNone(t3.said_source())
 
     def test_a_call_opened_on_a_thread_starts_with_it_in_view(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))

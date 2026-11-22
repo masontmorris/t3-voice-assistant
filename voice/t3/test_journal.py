@@ -101,7 +101,7 @@ class CursorRule(JournalCase):
     def test_events_at_or_below_the_cursor_are_dropped(self):
         follow = self.follow()
         task = self.live(follow, cursor=30)
-        self.seam.push(F.needs_you(29), F.reply(30), F.run_event(31))
+        self.seam.push(F.needs_you(29), F.reply(30), F.run_event(31, run="r2"))
         follow.tick(0)
         self.assertEqual(self.lines(follow), ["run_update:running"])
         self.assertEqual(task.link.cursor, 31)
@@ -147,7 +147,7 @@ class CursorRule(JournalCase):
     def test_a_repeated_run_status_pair_is_spoken_once(self):
         follow = self.follow()
         self.live(follow)
-        self.seam.push(F.run_event(11), F.run_event(12), F.run_event(13, run="r2"))
+        self.seam.push(F.run_event(11, run="r2"), F.run_event(12, run="r2"), F.run_event(13, run="r3"))
         follow.tick(0)
         self.assertEqual(self.lines(follow), ["run_update:running", "run_update:running"])
 

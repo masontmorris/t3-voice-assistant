@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import unittest
 
-from voice.t3.acts import RULES, Kind, act, check, forbidden_claims, normalise, recites
+from voice.t3.acts import field_names, RULES, Kind, act, check, forbidden_claims, normalise, recites
 
 T = "Add a clamp helper"
 COMMAND = "cd ~/src/app && python -m pytest -q tests/test_parser.py 2>&1 | tail -40 && git status --short"
@@ -153,6 +153,22 @@ class NamesInTheForm(unittest.TestCase):
         self.assertIn("too long", check(f"Do you mean {CLIPPED}? Is it? Really? Sure.", [said]))
         self.assertIn(f"confirm_thread thread missing: {CLIPPED}",
                       check("Do you mean the thread called So, uh, I want to get some work going on?", [said]))
+
+    def test_a_kind_or_field_name_is_never_said_and_a_reported_identifier_is(self):
+        from voice.t3.speech import VOCABULARY
+        expired = act(Kind.NEED_RESOLVED, thread=T, status="expired")
+        self.assertEqual(field_names(f"{T}: the request from the thread with the kind need_resolved has expired.",
+                                     [expired], VOCABULARY), ["says a field name: need_resolved"])
+        self.assertEqual(field_names(f"{T} is waiting_on_you for command_approval.", [expired], VOCABULARY),
+                         ["says a field name: waiting_on_you", "says a field name: command_approval"])
+        reported = act(Kind.DONE, thread=T, status="finished", summary="It renamed load_config to read_settings.")
+        self.assertEqual(field_names(f"{T} finished and renamed load_config to read_settings.", [reported],
+                                     VOCABULARY), [], "a function the thread reported is not one of the record's names")
+        self.assertEqual(field_names(f"{T} is done and its run is finished.", [expired], VOCABULARY), [],
+                         "a kind that is also a plain word is judged by meaning, not refused here")
+        titled = act(Kind.CONFIRM_THREAD, thread="Rename begun_in")
+        self.assertEqual(field_names("Do you mean the thread called Rename begun_in?", [titled], VOCABULARY), [],
+                         "a title's own words are the title's")
 
     def test_only_the_names_own_characters_are_masked(self):
         said = act(Kind.CONFIRM_THREAD, thread="Alpha Beta")

@@ -139,11 +139,17 @@ class Update:
     n: int = 0
     superseded: bool = False
     project_id: str | None = None
+    # For a launch: what the new thread was handed ("brief", "retried brief" or "framed request"), for the turn record.
+    handed: str | None = None
+    # Wall-clock time a call held this line back as news from before it (`T3Journal.earlier_lines`).
+    held_at: float | None = None
 
     def evidence(self) -> dict:
         evidence = {"thread_id": self.thread_id, "sequences": list(self.sequences)}
         if self.project_id is not None:
             evidence["project_id"] = self.project_id
+        if self.handed is not None:
+            evidence["handed"] = self.handed
         return evidence
 
     def to_json(self) -> dict:
@@ -170,6 +176,8 @@ class T3Journal:
         self.path = Path(path)
         self.tasks: dict[str, JournalTask] = {}
         self.pending_lines: list[Update] = []
+        # News from before a call, held back when it opened: never said unprompted, given when the caller asks.
+        self.earlier_lines: list[Update] = []
         self.newest: dict[str, int] = {}
         if self.path.exists():
             raw = json.loads(self.path.read_text(encoding="utf-8"))
@@ -177,13 +185,15 @@ class T3Journal:
             # Version 1 saved spoken text. It is never replayed as text: it becomes a legacy_update act to word again.
             self.pending_lines = [Update.from_json(u) if "acts" in u else legacy_update(u)
                                   for u in raw.get("pending_lines", [])]
+            self.earlier_lines = [Update.from_json(u) for u in raw.get("earlier_lines", [])]
             self.newest = dict(raw.get("newest", {}))
 
     def save(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         tmp = self.path.with_name(self.path.name + ".tmp")
         body = {"version": 2, "tasks": [asdict(t) for t in self.tasks.values()],
-                "pending_lines": [u.to_json() for u in self.pending_lines], "newest": self.newest}
+                "pending_lines": [u.to_json() for u in self.pending_lines],
+                "earlier_lines": [u.to_json() for u in self.earlier_lines], "newest": self.newest}
         tmp.write_text(json.dumps(body, indent=1) + "\n", encoding="utf-8")
         os.replace(tmp, self.path)
 

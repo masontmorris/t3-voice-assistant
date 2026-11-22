@@ -42,6 +42,7 @@ from voice.live.rehearse import Say, WaitNews
 from voice.live.scenario_score import Call, Judge, Result, Turn, Verdict, median_audio, turn_of
 from voice.live.scenario_world import Seed, World, finished, pending
 from voice.t3.acts import Kind
+from voice.t3.journal import launch_title
 from voice.t3.verify import default_decider
 
 VOICE = Path(os.environ.get("VOICE_HOME", Path.home() / "voice"))
@@ -439,7 +440,7 @@ def news_permission(pool: Pool) -> Plan:
     request = pool.request()
     lines = {"request": request, "yes": "Yeah.", "approve": "Okay, go ahead and approve it.",
              "check": "So is it approved now?"}
-    notes = {"confirmed": False}
+    notes = {"confirmed": False, "request": request}
 
     def script():
         heard = yield Say("request")
@@ -469,6 +470,13 @@ def news_permission(pool: Pool) -> Plan:
                   news[1].index if len(news) > 1 else None)]
         titles = ", ".join(v["title"] for v in made.values())
         approval_turns = call.caller_turns()[2:]
+        first = approval_turns[0] if approval_turns else None
+        about_it = ok("\"approve it\" after the news was about the started thread, with no question of which",
+                      first is not None and first.said(Kind.CONFIRM_RESPOND, Kind.NEEDS_THE_APP, Kind.RESPONDED)
+                      and not first.said(Kind.ASK_WHICH, Kind.CONFIRM_THREAD),
+                      f"the approval turn said {sorted(first.said_kinds) if first else 'nothing'}",
+                      first.index if first else None)
+        news_checks.append(about_it)
         blocked = "the yes started a thread" if did_wait and not made else None
         completed_exchange = len(approval_turns) >= 2
         return [*out, *(requires(v, waited, "precondition: no wait for news about a started thread",
@@ -598,20 +606,39 @@ def speak_over(pool: Pool) -> Plan:
     return Plan((finished(title),), lines, script(), check)
 
 
+# The gate's T3 makes no titles of its own, so a started thread is titled from the first line it was handed.
+HANDED = "Does the text ask its reader to start, open or create a new thread or conversation?"
+HANDED_CONTEXT = ("A coding thread was started for a person. `text` is the start of the first message its agent "
+                  "received.")
+
+
+def handed_the_work(call: Call, request: str) -> Verdict:
+    """The thread a call started was handed the work, not the caller's request to start a thread: given that, an agent
+    with T3's own tools started a second thread."""
+    titles = [v["title"] for v in call.world["made"].values()]
+    handed = bool(titles) and titles[0] != launch_title(request)
+    verdict = ok("the thread was handed the work, not the request to start it",
+                 handed and not call.judge.yes(HANDED, titles[0], HANDED_CONTEXT),
+                 f"the thread's first line is {titles[0]!r}" if titles else "no thread was started")
+    return requires(verdict, len(titles) == 1, "precondition: not exactly one thread was started",
+                    blocked_by="the yes started a thread" if not titles else None)
+
+
 def launch_checks(call: Call, notes: dict) -> list[Verdict]:
     made = len(call.world["made"])
+    handed = [handed_the_work(call, notes["request"])] if "request" in notes else []
     return [ok("the launch confirmation was asked", notes["confirmed"], "no launch confirmation was said", 0),
             requires(ok("the yes started a thread", made > 0, "no thread exists after the yes", 1), notes["confirmed"],
                      "precondition: no launch confirmation was asked"),
             ok("no extra thread was started", made <= 1, f"{made} threads exist after one request"),
-            no_false_start(call)]
+            *handed, no_false_start(call)]
 
 
 # The long set. A thread the caller started finishes by itself and the assistant says so, once.
 def news_done(pool: Pool) -> Plan:
     request = pool.request()
     lines = {"request": request, "yes": "Yeah.", "thanks": "Okay, thanks."}
-    notes = {"confirmed": False}
+    notes = {"confirmed": False, "request": request}
 
     def script():
         heard = yield Say("request")

@@ -84,15 +84,20 @@ class DescribesTest(unittest.TestCase):
     def need(self, source=T.NeedSource.COMMAND, kind=T.PendingKind.APPROVAL, prompt="pnpm test"):
         return T.PendingNeed("q1", kind, prompt, source)
 
-    def test_only_an_approval_whose_prompt_is_an_action_can_be_described_and_by_its_source_alone(self):
-        self.assertTrue(LS.describable(self.need()))
-        self.assertTrue(LS.describable(self.need(T.NeedSource.FILE_CHANGE)))
-        for name, need in {"a tool permission": self.need(T.NeedSource.PERMISSION),
-                           "a tool permission with a command for its text": self.need(T.NeedSource.PERMISSION,
-                                                                                      prompt="rm -rf dist"),
-                           "a file read": self.need(T.NeedSource.FILE_READ),
-                           "a question": self.need(T.NeedSource.USER_INPUT, T.PendingKind.QUESTION),
-                           "an in-app card": self.need(T.NeedSource.CARD, T.PendingKind.IN_APP)}.items():
+    def test_only_an_approval_whose_prompt_is_an_action_can_be_approved_and_by_its_source_alone(self):
+        self.assertTrue(LS.approvable(self.need()))
+        self.assertTrue(LS.approvable(self.need(T.NeedSource.FILE_CHANGE)))
+        tools = {"a tool permission": self.need(T.NeedSource.PERMISSION),
+                 "a tool permission with a command for its text": self.need(T.NeedSource.PERMISSION, prompt="rm -rf dist")}
+        others = {"a file read": self.need(T.NeedSource.FILE_READ),
+                  "a question": self.need(T.NeedSource.USER_INPUT, T.PendingKind.QUESTION),
+                  "an in-app card": self.need(T.NeedSource.CARD, T.PendingKind.IN_APP)}
+        for name, need in {**tools, **others}.items():
+            self.assertFalse(LS.approvable(need), name)
+        for name, need in tools.items():
+            self.assertTrue(LS.describable(need), f"{name}: which tool it asks for is said, approved in the app")
+            self.assertEqual(LS.request_view(need)["kind"], "a tool it wants to use")
+        for name, need in others.items():
             self.assertFalse(LS.describable(need), name)
 
     def test_the_model_is_shown_the_request_by_its_kind_and_never_a_thread_title_or_reply(self):

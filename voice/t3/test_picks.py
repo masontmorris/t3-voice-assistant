@@ -150,3 +150,71 @@ class CallPicks(unittest.TestCase):
             with self.subTest(row["request"], listing=row["listing"]):
                 choices = self.choices(row)
                 self.assertLessEqual(choices.count(row["want"]), len(choices) / 2, choices)
+
+
+class SpokenPicks(unittest.TestCase):
+    """On recorded d1.2 answers after news of one thread (voice/t3/eval/record_spoken_picks.py): with that thread's
+    option marked, a short reply about "it" chooses it with enough weight to be the pick in every sample, where unmarked
+    a misheard or vague one fell under the confirm bar; words naming another thread choose that one either way. And the
+    names question passes a thread said by its title and no reply that does not say it."""
+
+    FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "spoken_picks.json").read_text(encoding="utf-8"))
+
+    def picks(self, row):
+        from voice.t3.eval.record_spoken_picks import SPOKEN, listed, pick_body, thread_id
+        threads, answers = listed(), iter(row["samples"])
+
+        class Replay:
+            def call(self, route, sent, label=""):
+                assert sent == pick_body(row), "re-run record_spoken_picks"
+                sample = next(answers)
+                return {"status": 200, "response": {"answers": {"pick": {"choice": sample["choice"],
+                                                                         "probabilities": sample["p"]}}}}
+
+        titles = {t.thread_id: t.title for t in threads}
+        spoken = thread_id(SPOKEN) if row["shown"] else None
+        return [titles.get(p.thread) for p in (Decider(Replay()).picks(row["request"], threads, SPOKEN, spoken=spoken)
+                                               for _ in row["samples"])]
+
+    def test_marked_every_sample_picks_the_thread_its_case_wants(self):
+        for row in self.FIXTURE["picks"]:
+            if row["shown"]:
+                with self.subTest(row["request"], held=row["held"]):
+                    self.assertEqual(self.picks(row), [row["want"]] * len(row["samples"]))
+
+    def test_unmarked_some_replies_about_it_fell_under_the_confirm_bar(self):
+        from voice.t3.eval.record_spoken_picks import SPOKEN
+        about_it = [row for row in self.FIXTURE["picks"] if not row["shown"] and row["want"] == SPOKEN
+                    and "garden" not in row["request"]]
+        picked = sum(choice == SPOKEN for row in about_it for choice in self.picks(row))
+        self.assertEqual((picked, sum(len(row["samples"]) for row in about_it)), (9, 15))
+
+    def test_the_names_question_passes_titles_said_and_never_one_that_was_not(self):
+        from voice.t3.verify import NAMES_SURE
+        said = [s >= NAMES_SURE for row in self.FIXTURE["names"] if row["says"] for s in row["samples"]]
+        unsaid = [s >= NAMES_SURE for row in self.FIXTURE["names"] if not row["says"] for s in row["samples"]]
+        self.assertEqual((sum(said), len(said)), (10, 12))
+        self.assertEqual((sum(unsaid), len(unsaid)), (0, 15), "a near twin, a description or \"it\" is never sure")
+
+
+class OneQuestion(unittest.TestCase):
+    """On recorded d1.2 answers (voice/t3/eval/record_one_question.py): one question the segmenter cut in two reads as
+    one in every sample, and two questions of their own about the same thread never do."""
+
+    FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "one_question.json").read_text(encoding="utf-8"))
+
+    def test_every_sample_reads_its_pair_as_its_case_says(self):
+        from voice.t3.eval.record_one_question import body
+        from voice.t3.verify import ONE_QUESTION_YES
+        for row in self.FIXTURE["rows"]:
+            answers = iter(row["samples"])
+
+            class Replay:
+                def call(self, route, sent, label=""):
+                    assert sent == body(row), "re-run record_one_question"
+                    return {"status": 200, "response": {"answers": {"one": {"type": "noul", "noul": next(answers)}}}}
+
+            with self.subTest(row["first"], held=row["held"]):
+                read = [Decider(Replay()).one_question(row["first"], row["second"], row["title"]) >= ONE_QUESTION_YES
+                        for _ in row["samples"]]
+                self.assertEqual(read, [row["one"]] * len(row["samples"]))
