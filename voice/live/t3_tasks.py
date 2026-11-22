@@ -48,11 +48,13 @@ from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import (Brief, Launch, Lane, LocalText, Rendered, RequestGate, Speech, candidate_names, named, reference,
                              text_model, without_request)
-from voice.t3.verify import (NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, ONE_QUESTION_YES, UNCLEAR, Chosen,
-                             Decider, Listed, Picked, Reading, default_decider)
+from voice.t3.verify import (ABOUT_LINE_YES, NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, ONE_QUESTION_YES, UNCLEAR,
+                             Chosen, Decider, Listed, Picked, Reading, default_decider)
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 APPROVE, DENY = "t3_approve", "t3_deny"
+# The facts of a said line the decider is shown when it reads whether a free turn is about that line.
+SAID_FACTS = ("thread", "begun_in", "begun_for", "status", "summary", "reply", "need", "request")
 ANSWER = "t3_answer"
 # The two tools that answer a thread's pending approval. Each is confirmed back, naming the thread and what it is
 # for, and only a yes sends the answer. One request is answered at a time: the thread's read carries one pending
@@ -615,16 +617,22 @@ class T3Tasks:
             if question is not None and question.owner is not None and question.owner is not owner:
                 question.expired = True
 
-    def said_source(self) -> dict | None:
+    def said_source(self, words: str = "") -> dict | None:
         """The thread the call's last checked line was about and what it came from: the thread's own last reply when
-        the line carried its summary or reply, else its status. None before any such line on this call."""
+        the line carried its summary or reply, else its status. None before any such line on this call. `about` says
+        whether the decider reads the caller's `words` as about that line (a doubt, or a question about it); with no
+        decider or no answer it is false. Off the lock: it is a decider call."""
         with self.lock:
-            update = self.last_line
+            update, spoken_of = self.last_line, self.spoken_of
         if update is None:
             return None
-        thread = next((a.slots.get("thread") for a in update.acts if a.slots.get("thread")), None) or self.spoken_of
+        thread = next((a.slots.get("thread") for a in update.acts if a.slots.get("thread")), None) or spoken_of
         replied = any(a.slots.get("summary") or a.slots.get("reply") for a in update.acts)
-        return {"thread": thread or "the thread", "from": "reply" if replied else "status"}
+        said = [{key: value for key, value in a.slots.items() if key in SAID_FACTS} for a in update.acts]
+        decide = getattr(self.decider, "about_line", None)
+        p = decide(words, said[0] if len(said) == 1 else {"lines": said}) if decide is not None and words else None
+        return {"thread": thread or "the thread", "from": "reply" if replied else "status",
+                "about": p is not None and p >= ABOUT_LINE_YES}
 
     def spoken_about(self) -> str | None:
         """The thread this call last said something about, by title, or as the new thread in its project when the
@@ -1851,8 +1859,8 @@ class T3TaskService(MockTaskService):
     def recent_thread(self):
         return self.t3.spoken_about()
 
-    def said_source(self):
-        return self.t3.said_source()
+    def said_source(self, words=""):
+        return self.t3.said_source(words)
 
     def take_task_updates(self):
         """The ordinary tasks' updates only. T3 news is said on its own, when the call is quiet."""

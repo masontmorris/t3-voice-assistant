@@ -539,6 +539,18 @@ class Decider:
         return noul(record, "names")
 
 
+    def about_line(self, words: str, said: dict) -> float | None:
+        """P(the caller's `words` doubt, question or ask about the line the voice said with the facts `said`), or None
+        on a timeout or any error."""
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", about_line_request(words, said), label="t3_about_line")
+        except Exception:
+            return None
+        return noul(record, "about")
+
+
 NONE, UNCLEAR = "none", "unclear"
 # A thread with at least this share of the choice is one the words may mean: it is confirmed, or offered in "which".
 # On 27 probe requests over 12 and over 40 threads (d1.2), a request that fits several threads gave each 0.07 to 0.32
@@ -660,6 +672,21 @@ NAMES_SURE = 0.8
 def names_request(request: str, thread: Listed) -> dict:
     return {"model": "d1.2", "state": {"request": request, "title": thread.title, "context": NAMES_CONTEXT},
             "questions": {"names": {"type": "noul", "instructions": NAMES_QUESTION,
+                                    "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
+# A free turn after a line about a thread is told where that line came from only when its words are about it. Told on
+# every such turn, the voice said the line again to a doubt, a remark and a goodbye (2026-11-22 call, 3 of 3 turns).
+ABOUT_LINE_CONTEXT = ("A person on a voice call with their assistant heard it say something about one of their coding "
+                      "threads; `said` holds the facts it said. `words` is a transcript of what the person said next.")
+ABOUT_LINE = ("Do `words` doubt or question what the assistant said about the thread, or ask about it or why it was "
+              "said? Thanks, an acknowledgement, a goodbye, or talk about something else do not count.")
+ABOUT_LINE_YES = 0.5
+
+
+def about_line_request(words: str, said: dict) -> dict:
+    return {"model": "d1.2", "state": {"said": said, "words": words, "context": ABOUT_LINE_CONTEXT},
+            "questions": {"about": {"type": "noul", "instructions": ABOUT_LINE,
                                     "criteria": {"true": "Yes.", "false": "No."}}}}
 
 

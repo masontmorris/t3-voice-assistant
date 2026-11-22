@@ -2877,18 +2877,27 @@ class SpokenAbout(unittest.TestCase):
         t3.begin_call()
         self.assertIsNone(t3.spoken_about())
 
-    def test_a_free_turn_is_told_what_the_last_thread_line_came_from(self):
-        t3 = tasks_over(self, F.FakeSeam())
+    def test_a_free_turn_is_told_what_the_last_thread_line_came_from_when_the_decider_reads_it_as_about_it(self):
+        decider = F.Reader(READINGS)
+        decider.about = {"That can't be right.": 0.93, "Okay, thanks, bye.": 0.04}
+        t3 = tasks_over(self, F.FakeSeam(), decider=decider)
         t3.begin_call()
-        self.assertIsNone(t3.said_source())
+        self.assertIsNone(t3.said_source("That can't be right."))
         t3.spoke(L.Update("k1", (act(S.THREAD_STATUS, thread="Add a Retry Button", status="finished",
                                      summary="It says the button is in."),), "completed", "ask", "thread-7"))
-        self.assertEqual(t3.said_source(), {"thread": "Add a Retry Button", "from": "reply"})
+        self.assertEqual(t3.said_source("That can't be right."),
+                         {"thread": "Add a Retry Button", "from": "reply", "about": True})
+        self.assertEqual(decider.lines[-1], ("That can't be right.", {"thread": "Add a Retry Button",
+                                                                       "status": "finished",
+                                                                       "summary": "It says the button is in."}))
+        for words in ("Okay, thanks, bye.", "Unscripted, so no answer.", ""):
+            self.assertFalse(t3.said_source(words)["about"], words)
+        self.assertEqual(len(decider.lines), 3, "no words are not asked about")
         t3.spoke(L.Update("k2", (act(S.RUN_UPDATE, thread="Add a Retry Button", status="running"),), "live", "run",
                           "thread-7"))
-        self.assertEqual(t3.said_source(), {"thread": "Add a Retry Button", "from": "status"})
+        self.assertEqual(t3.said_source("That can't be right.")["from"], "status")
         t3.begin_call()
-        self.assertIsNone(t3.said_source())
+        self.assertIsNone(t3.said_source("That can't be right."))
 
     def test_a_call_opened_on_a_thread_starts_with_it_in_view(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper"))

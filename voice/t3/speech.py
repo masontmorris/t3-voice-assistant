@@ -1081,10 +1081,11 @@ READER_EXAMPLES = {
                            "Should I approve Example Archive Old Invoices deleting the old invoice folder?"),
     Kind.RESPONDED: ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "file_change"},
                      "I approved the file changes for Example Mend Rail Maps."),
-    Kind.NEEDS_THE_APP: ({"thread": "Example Tag Camera Clips", "decision": "approve", "need": "permission",
-                          "request": "It wants to use a tool that lists your calendar events."},
-                         "Example Tag Camera Clips wants to use a tool that lists your calendar events, and that has "
-                         "to be approved in the app."),
+    # With only the example below that has a `request`, a request with none was worded "X wants to be approved in the
+    # app", saying nothing of what it asks for (the repeat call, turn 4).
+    Kind.NEEDS_THE_APP: ({"thread": "Example Archive Old Invoices", "decision": "approve", "need": "command_approval"},
+                         "Example Archive Old Invoices is waiting for your approval to run a command, and that has to "
+                         "be given in the app."),
     Kind.NOTHING_PENDING: ({"thread": "Example Tag Camera Clips"},
                            "Example Tag Camera Clips isn't waiting on any request, so there was nothing to answer."),
     Kind.ASK_QUESTION: ({"thread": "Example Pick Storage Layer", "question": "Which database should it use?",
@@ -1133,6 +1134,25 @@ READER_VARIANTS = {
     (Kind.CONFIRM_THREAD, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date"},
                                         "Do you mean the thread you started in Example Fleet Notes for sorting the fleet "
                                         "log by date?"),
+    # Shown only the command example, a file change went to the app as "waiting for your approval to run a command".
+    (Kind.NEEDS_THE_APP, "file_change"): ({"thread": "Example Mend Rail Maps", "decision": "approve",
+                                           "need": "file_change"},
+                                          "Example Mend Rail Maps is waiting for your approval to change files, and "
+                                          "that has to be given in the app."),
+    (Kind.NEEDS_THE_APP, "permission"): ({"thread": "Example Mend Rail Maps", "decision": "approve",
+                                          "need": "permission"},
+                                         "Example Mend Rail Maps is waiting for permission to go on, and that has to "
+                                         "be approved in the app."),
+    (Kind.NEEDS_THE_APP, "request"): ({"thread": "Example Tag Camera Clips", "decision": "approve", "need": "permission",
+                                       "request": "It wants to use a tool that lists your calendar events."},
+                                      "Example Tag Camera Clips wants to use a tool that lists your calendar events, and "
+                                      "that has to be approved in the app."),
+    # A run that was stopped: shown only the example that ends "finished and reports", the writer said "X cancelled and
+    # ..." (the repeat call, turn 5).
+    (Kind.DONE, "stopped"): ({"thread": "Example Change Page Margins", "status": "cancelled",
+                              "summary": "Its last reply said it was resizing the margins."},
+                             "Example Change Page Margins was cancelled, and its last reply said it was resizing the "
+                             "margins."),
     (Kind.NEEDS_THE_APP, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
                                         "decision": "approve", "need": "permission"},
                                        "The thread you started in Example Fleet Notes for sorting the fleet log by date "
@@ -1215,6 +1235,10 @@ EXAMPLE_NAMES = frozenset(name for slots, _ in (*READER_EXAMPLES.values(), *READ
                           for name in (slots[key] if isinstance(slots[key], list) else [slots[key]]))
 
 
+# Run statuses said as a participle, which needs "was" before it.
+STOPPED = frozenset({"cancelled", "interrupted", "rolled_back"})
+
+
 def _shape(kind: Kind, slots: dict) -> str | None:
     if kind is Kind.ASK_WHICH and slots.get("of") == "thread" and len(slots.get("candidates") or ()) == 2:
         return "thread_pair"
@@ -1226,8 +1250,12 @@ def _shape(kind: Kind, slots: dict) -> str | None:
         return "begun"
     if slots.get("on_call") and (kind, "on_call") in READER_VARIANTS:
         return "on_call"
-    if kind is Kind.NEEDS_YOU and slots.get("request"):
+    if kind in (Kind.NEEDS_YOU, Kind.NEEDS_THE_APP) and slots.get("request"):
         return "request"
+    if kind is Kind.DONE and slots.get("status") in STOPPED:
+        return "stopped"
+    if kind is Kind.NEEDS_THE_APP and (kind, slots.get("need")) in READER_VARIANTS:
+        return slots["need"]
     if kind is Kind.NO_THREAD and slots.get("other"):
         return "other"
     if variant := (slots.get("of") or slots.get("op") or slots.get("decision") or slots.get("restated")):

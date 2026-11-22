@@ -296,16 +296,37 @@ class WithdrawnQuestionTurn(NoteTurn):
         await self.turn(["Sure, no problem."], task_service=CorrectingService)
         self.assertEqual(texts(self.voice), [])
 
-    async def test_a_remark_after_a_relayed_thread_line_is_answered_and_told_where_that_line_came_from(self):
-        class Relayed(CorrectingService):
-            def said_source(self):
-                return {"thread": "Tidy the Save Slots", "from": "reply"}
+    def relayed(self, about):
+        asked = self.asked = []
 
-        await self.turn(["It came from the thread's own last reply."], task_service=Relayed)
+        class Relayed(CorrectingService):
+            def said_source(self, words=""):
+                asked.append(words)
+                return {"thread": "Tidy the Save Slots", "from": "reply", "about": about}
+
+        return Relayed
+
+    async def test_a_doubt_about_a_relayed_thread_line_is_told_where_that_line_came_from(self):
+        await self.turn(["It came from the thread's own last reply."], task_service=self.relayed(True))
         note, = texts(self.voice)
-        self.assertEqual(note, prototype.said_note({"thread": "Tidy the Save Slots", "from": "reply"}))
+        self.assertEqual(self.asked, [FakeSession.transcript], "the decider reads this turn's own words")
         self.assertIn("Tidy the Save Slots", note)
         self.assertIn("own last reply", note)
+
+    async def test_a_turn_not_about_the_line_gets_no_note(self):
+        """The repeat call: a note naming the thread on every free turn had the voice say the line again, goodbye
+        included."""
+        await self.turn(["You're welcome, bye."], task_service=self.relayed(False))
+        self.assertEqual(texts(self.voice), [])
+        self.assertEqual(self.spoken, ["You're welcome, bye."])
+
+    async def test_a_turn_with_no_words_says_nothing_and_its_audio_is_answered_unheard(self):
+        """The repeat call's turn 7: 1.5 s of audio, an empty transcript, and the thread line said again."""
+        FakeSession.transcript = ""
+        record = await self.turn(["The Tidy the Save Slots thread is still working."], task_service=self.relayed(True))
+        self.assertEqual((self.spoken, record["replies"], self.asked), ([], [], []))
+        self.assertEqual(texts(self.voice), [], "no note: nothing is asked of a turn with no words")
+        self.assertEqual(self.voice.sent[-1].get("response", {}).get("output_modalities"), ["text"])
 
 
 if __name__ == "__main__":

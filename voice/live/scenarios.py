@@ -145,7 +145,8 @@ def nth(turns: tuple[Turn, ...], i: int) -> Turn | None:
 
 def no_silent_turn(call: Call) -> Verdict:
     """A turn about a thread ends with something said: a T3 line that was worded and refused, with nothing else heard,
-    leaves the caller talking to no one. A turn the caller's next words took over is not one."""
+    leaves the caller talking to no one. A turn the caller's next words took over is not one, and nor is one with no
+    words heard, which is said nothing."""
     silent = [t for t in call.caller_turns() if (t.t3 or t.heard) and not t.has_audio and not t.cancelled]
     return ok("no thread turn ends in silence", not silent,
               f"turn {silent[0].index} tried {[e['kinds'] for e in silent[0].t3]} and nothing was said" if silent else "",
