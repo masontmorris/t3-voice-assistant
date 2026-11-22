@@ -733,5 +733,15 @@ class ModelTest(unittest.TestCase):
             self.assertEqual(self.run_model(paths, "codex/gpt-6-luna")[0], 1)
 
 
+class RepoRootTest(unittest.TestCase):
+    def test_the_checkout_defaults_to_this_one_and_follows_the_override(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with mock.patch.dict(os.environ, {}):
+                os.environ.pop("VOICE_T3_CHECKOUT", None)
+                self.assertEqual(fork_env.repo_root(), REPO)
+            with mock.patch.dict(os.environ, {"VOICE_T3_CHECKOUT": tmp}):
+                self.assertEqual(fork_env.repo_root(), Path(os.path.abspath(tmp)))
+
+
 if __name__ == "__main__":
     unittest.main()

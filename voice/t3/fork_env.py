@@ -74,7 +74,13 @@ def default_voice_home() -> Path:
 
 
 def repo_root() -> Path:
-    """Checkout root that owns this file, whatever the caller cwd is."""
+    """The T3 checkout the sandbox server runs from: `VOICE_T3_CHECKOUT` when set, else the one that owns this file.
+
+    The override lets a checkout without JavaScript dependencies run the gate against one that has them.
+    """
+    override = os.environ.get("VOICE_T3_CHECKOUT")
+    if override:
+        return Path(os.path.abspath(os.path.expanduser(override)))
     return Path(__file__).resolve().parents[2]
 
 

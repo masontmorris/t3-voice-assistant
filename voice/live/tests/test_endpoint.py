@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from voice.live.endpoint import FRAME_BYTES, FRAME_MS, RATE, Audio, End, Endpointer, Settings, Start
+from voice.live.endpoint import FRAME_BYTES, FRAME_MS, RATE, Audio, Check, End, Endpointer, Settings, Start
 
 
 def tone(ms, dbfs=-20.0):
@@ -57,6 +57,80 @@ class EndpointerTest(unittest.TestCase):
     def test_a_long_turn_is_forced_to_end(self):
         got = events(Endpointer(Settings(max_turn_s=1.0)), noise(300) + tone(1500))
         self.assertEqual([(e.forced) for e in got if isinstance(e, End)], [True])
+
+
+class PauseIdentityTest(unittest.TestCase):
+    def checks(self, pcm, check_ms=(150, 300)):
+        endpointer, seen = Endpointer(Settings(check_ms=check_ms)), []
+        for offset in range(0, len(pcm), FRAME_BYTES):
+            seen += [e for e in endpointer.push(pcm[offset:offset + FRAME_BYTES]) if isinstance(e, Check)]
+        return seen, endpointer
+
+    def test_the_checks_of_one_silence_name_one_pause(self):
+        seen, _ = self.checks(noise(300) + tone(600) + noise(400, seed=1))
+        self.assertEqual(len({c.pause for c in seen}), 1)
+        self.assertEqual(len(seen), 2)
+
+    def test_speech_resuming_names_a_new_pause_even_when_the_new_silence_is_as_long(self):
+        seen, endpointer = self.checks(noise(300) + tone(600) + noise(200, seed=1) + tone(100) + noise(200, seed=2))
+        self.assertEqual([c.silent_ms for c in seen], [150, 150])
+        self.assertNotEqual(seen[0].pause, seen[1].pause)
+        self.assertEqual(endpointer.pause, seen[1].pause)
+
+    def test_a_turn_ending_by_the_clock_or_by_hand_names_a_new_pause(self):
+        seen, endpointer = self.checks(noise(300) + tone(600) + noise(900, seed=1))
+        self.assertNotEqual(endpointer.pause, seen[-1].pause, "the silence rule ended the turn")
+        endpointer = Endpointer(Settings(check_ms=(150,)))
+        for offset in range(0, len(noise(300) + tone(600) + noise(200, seed=1)), FRAME_BYTES):
+            endpointer.push((noise(300) + tone(600) + noise(200, seed=1))[offset:offset + FRAME_BYTES])
+        before = endpointer.pause
+        endpointer.finish(150)
+        self.assertNotEqual(endpointer.pause, before)
+
+
+class HoldTest(unittest.TestCase):
+    def run_hold(self, settings, pcm, hold_at=500, finish_at=None):
+        endpointer, seen = Endpointer(settings), []
+        for offset in range(0, len(pcm), FRAME_BYTES):
+            for event in endpointer.push(pcm[offset:offset + FRAME_BYTES]):
+                seen.append(event)
+                if isinstance(event, Check):
+                    if event.silent_ms == hold_at:
+                        endpointer.hold()
+                    if event.silent_ms == finish_at:
+                        endpointer.finish(event.silent_ms)
+        return seen
+
+    def test_a_held_turn_waits_for_the_hold_cap_not_the_silence_rule(self):
+        got = self.run_hold(Settings(check_ms=(500,), hold_ms=1500), noise(300) + tone(600) + noise(2000, seed=1))
+        self.assertEqual([e.trailing_ms for e in got if isinstance(e, End)], [1500])
+
+    def test_checks_past_the_silence_rule_reach_a_held_turn_and_can_finish_it(self):
+        got = self.run_hold(Settings(check_ms=(500, 1000), hold_ms=1500), noise(300) + tone(600) + noise(2000, seed=1),
+                            finish_at=1000)
+        self.assertEqual([e.silent_ms for e in got if isinstance(e, Check)], [500, 1000])
+        self.assertEqual([e for e in got if isinstance(e, End)], [], "finish owes no End")
+
+    def test_without_a_hold_cap_hold_does_nothing(self):
+        got = self.run_hold(Settings(check_ms=(500,)), noise(300) + tone(600) + noise(2000, seed=1))
+        self.assertEqual([e.trailing_ms for e in got if isinstance(e, End)], [700])
+
+    def test_a_turn_nobody_held_ends_at_the_silence_rule_and_asks_nothing_past_it(self):
+        got = self.run_hold(Settings(check_ms=(500, 1000), hold_ms=1500), noise(300) + tone(600) + noise(2000, seed=1),
+                            hold_at=None)
+        self.assertEqual([e.silent_ms for e in got if isinstance(e, Check)], [500])
+        self.assertEqual([e.trailing_ms for e in got if isinstance(e, End)], [700])
+
+    def test_speech_clears_the_hold(self):
+        got = self.run_hold(Settings(check_ms=(500,), hold_ms=1500),
+                            noise(300) + tone(600) + noise(900, seed=1) + tone(300) + noise(2000, seed=2))
+        self.assertEqual(sum(isinstance(e, Start) for e in got), 1, "the held pause did not split the turn")
+        self.assertEqual([e.trailing_ms for e in got if isinstance(e, End)], [1500], "the next pause is held on its own check")
+
+    def test_the_hold_does_not_outlast_the_max_turn(self):
+        got = self.run_hold(Settings(check_ms=(500,), hold_ms=5000, max_turn_s=1.5),
+                            noise(300) + tone(600) + noise(3000, seed=1))
+        self.assertEqual([e.forced for e in got if isinstance(e, End)], [True])
 
 
 if __name__ == "__main__":

@@ -81,9 +81,9 @@ the server's nominal number, which understates the wait whenever an answer came 
   trade cuts for fewer early ends; theta is not tuned here beyond the study's 0.5.
 - **Theta is a single fixed value.** The study measured hosted answers varying by 0.027 standard deviation on repeat;
   the local model was not measured for spread here, so a margin around theta is still unmeasured.
-- **The hold is not implemented.** The policy can only end a turn early or at 700 ms, so a pause of 700 ms or more is
-  still a turn boundary. Mason's two real mid-sentence boundaries (the recorded turns 8 and 9) are exactly that case.
-  A hold at low P(done) needs its own measurement of how long he actually pauses.
+- **The hold lives behind `--eou smart`.** `--eou audio` can only end a turn early or at 700 ms, so a pause of 700 ms or
+  more is still a turn boundary under it. `Endpointer.hold` and Smart Turn on the CPU keep such a turn open to 2 s, and
+  the measurement of what that costs and saves is in `docs/voice/audio-decider.md`.
 - **Two of the recorded clips (29 and 34) cannot be placed** by the scorer in either run, because they are short and
   mostly silence. Their turns are counted in the totals and not in the per-clip lines.
 - **One replay, one afternoon, one speaker.** The replay is also not the microphone path: no echo, no room noise and

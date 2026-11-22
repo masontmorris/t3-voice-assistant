@@ -30,7 +30,12 @@ py -3.13 -m venv "$VOICE_HOME/venv-lfm3"
 source "$VOICE_HOME/venv-lfm3/Scripts/activate"
 pip install torch==2.15.0+cu132 --index-url https://download.pytorch.org/whl/cu132
 pip install transformers==5.20.2 accelerate==1.15.0 librosa==1.0.1 soundfile==0.14.0 websockets==17.4
+pip install onnxruntime==1.32.0
 ```
+
+`onnxruntime` (a 12 MB CPU wheel, with `flatbuffers` and `protobuf`) runs Smart Turn for `--eou smart`. Its weights are one
+8 MB file, `$VOICE_HOME/smart-turn/smart-turn-v3.2-cpu.onnx`, from `pipecat-ai/smart-turn-v3` on Hugging Face (BSD-2-Clause);
+without them or the package the live server says so once and keeps the silence rule.
 
 `llamacpp_rt.py` imports `lfm.py`, so the llama.cpp demo also needs torch and transformers.
 
