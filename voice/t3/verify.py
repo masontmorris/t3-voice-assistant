@@ -103,6 +103,7 @@ NEED = {"command_approval": "approval to run a command", "file_change": "approva
         "secret": "something only the app can take", "card": "something only the app can take",
         "unanswerable": "a request no one can answer any more", "approval": "an approval",
         "in_app": "something only the app can take"}
+NEED_KIND_YES = 0.9
 # "finished" means the run ended while it runs, and a successful end once it ended otherwise. One wording for both
 # refused right lines either way: an interrupted run "has ended", and a working thread's summary reads as completed
 # work (measured on the fixture, 2026-11-18). A reply is never asked it (UNASKED).
@@ -253,11 +254,18 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            f"the line says more about the request than this description does: \"{request}\". Say "
                            "that and nothing more."))
         else:
-            out.append(Ask(f"a{n}_kind_only", "Not counting the thread's name, does the line say what the request or "
-                           "command would do or what it is for, instead of only what kind of request the thread waits "
-                           "on?", False,
+            out.append(Ask(f"a{n}_kind_only", f"Not counting how the line names the thread ({kind_only_names(a)}), "
+                           "does the line say what the request or command would do or what it is for, instead of only "
+                           "what kind of request the thread waits on?", False,
                            "the line says what the request does or is for. Say only the kind of thing the thread "
                            "waits for, such as approval to run a command."))
+            # The kind is a typed field (`need`), but the writer copied a command example's words for a file change and
+            # the meaning question passed it (app line eval, 2 of 4 drafts). On made-up lines (record_kind_only) the
+            # right kind drew 0.99 or more and a wrong one 0.08 to 0.75, so a yes needs 0.9; no held-out set.
+            kind = NEED.get(a.slots["need"], a.slots["need"])
+            out.append(Ask(f"a{n}_need_kind", f"Does the line say the thread waits for {kind}, and not for a different "
+                           "kind of request?", True,
+                           f"the line names the wrong kind of request. Say it waits for {kind}.", bar=NEED_KIND_YES))
     # The slot check finds an option anywhere in the line, so "Strong" is found in "how strong should it be" and a line
     # that leaves the option out passes it (rehearsal). Each option and answer is asked about on its own.
     for n, a in enumerate(acts, 1):
@@ -285,6 +293,17 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
     out.append(Ask("invents", "Does the line state something about a thread that `facts` does not support?", False,
                    "the line says something the facts do not support. Say only what the act means and add nothing."))
     return out
+
+
+def kind_only_names(a: Act) -> str:
+    """How a line may name the thread, quoted for the kind-only question: told only "the thread's name", d1.2 read a
+    title that reads as an instruction, or what an untitled thread was started for, as what the request is for (5 of 5
+    file-change lines, and the gate's untitled-thread approvals)."""
+    if a.slots.get("begun_for"):
+        return f'the thread started for "{a.slots["begun_for"]}"'
+    if a.slots.get("thread"):
+        return f'its name, "{a.slots["thread"]}"'
+    return "its name"
 
 
 # A reply reports its own work ("I added clamp, the tests pass"), which d1.2 reads as the run ending on every smoke
@@ -539,6 +558,18 @@ class Decider:
         return noul(record, "names")
 
 
+    def about_line(self, words: str, said: dict) -> float | None:
+        """P(the caller's `words` doubt, question or ask about the line the voice said with the facts `said`), or None
+        on a timeout or any error."""
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", about_line_request(words, said), label="t3_about_line")
+        except Exception:
+            return None
+        return noul(record, "about")
+
+
 NONE, UNCLEAR = "none", "unclear"
 # A thread with at least this share of the choice is one the words may mean: it is confirmed, or offered in "which".
 # On 27 probe requests over 12 and over 40 threads (d1.2), a request that fits several threads gave each 0.07 to 0.32
@@ -660,6 +691,21 @@ NAMES_SURE = 0.8
 def names_request(request: str, thread: Listed) -> dict:
     return {"model": "d1.2", "state": {"request": request, "title": thread.title, "context": NAMES_CONTEXT},
             "questions": {"names": {"type": "noul", "instructions": NAMES_QUESTION,
+                                    "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
+# A free turn after a line about a thread is told where that line came from only when its words are about it. Told on
+# every such turn, the voice said the line again to a doubt, a remark and a goodbye (2026-11-22 call, 3 of 3 turns).
+ABOUT_LINE_CONTEXT = ("A person on a voice call with their assistant heard it say something about one of their coding "
+                      "threads; `said` holds the facts it said. `words` is a transcript of what the person said next.")
+ABOUT_LINE = ("Do `words` doubt or question what the assistant said about the thread, or ask about it or why it was "
+              "said? Thanks, an acknowledgement, a goodbye, or talk about something else do not count.")
+ABOUT_LINE_YES = 0.5
+
+
+def about_line_request(words: str, said: dict) -> dict:
+    return {"model": "d1.2", "state": {"said": said, "words": words, "context": ABOUT_LINE_CONTEXT},
+            "questions": {"about": {"type": "noul", "instructions": ABOUT_LINE,
                                     "criteria": {"true": "Yes.", "false": "No."}}}}
 
 

@@ -71,6 +71,12 @@ def frame_dbfs(frame):
     return 20 * math.log10(rms) if rms > 0 else SILENT_DBFS
 
 
+def voiced_ms(pcm, threshold_dbfs):
+    """How much of `pcm` is voiced by the endpointer's own rule: whole frames louder than `threshold_dbfs`, in ms."""
+    frames = (pcm[i:i + FRAME_BYTES] for i in range(0, len(pcm) - FRAME_BYTES + 1, FRAME_BYTES))
+    return sum(FRAME_MS for frame in frames if frame_dbfs(frame) > threshold_dbfs)
+
+
 @dataclass
 class Settings:
     silence_ms: int = 700

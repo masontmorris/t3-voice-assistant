@@ -218,3 +218,27 @@ class OneQuestion(unittest.TestCase):
                 read = [Decider(Replay()).one_question(row["first"], row["second"], row["title"]) >= ONE_QUESTION_YES
                         for _ in row["samples"]]
                 self.assertEqual(read, [row["one"]] * len(row["samples"]))
+
+
+class SaidAbout(unittest.TestCase):
+    """On recorded d1.2 answers (voice/t3/eval/record_said_about.py): a doubt about the line just said, or a question
+    about it, reads as about it in every sample (0.907 or more), and thanks, a goodbye or another subject never does
+    (0.024 or less)."""
+
+    FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "said_about.json").read_text(encoding="utf-8"))
+
+    def test_every_sample_reads_its_turn_as_its_case_says(self):
+        from voice.t3.eval.record_said_about import body
+        from voice.t3.verify import ABOUT_LINE_YES
+        for row in self.FIXTURE["rows"]:
+            answers = iter(row["samples"])
+
+            class Replay:
+                def call(self, route, sent, label=""):
+                    assert sent == body(row), "re-run record_said_about"
+                    return {"status": 200, "response": {"answers": {"about": {"type": "noul", "noul": next(answers)}}}}
+
+            with self.subTest(row["words"], held=row["held"]):
+                read = [Decider(Replay()).about_line(row["words"], row["said"]) >= ABOUT_LINE_YES
+                        for _ in row["samples"]]
+                self.assertEqual(read, [row["about"]] * len(row["samples"]))

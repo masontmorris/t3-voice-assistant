@@ -40,6 +40,7 @@ class FakeSession:
     instructions once it holds audio or a message."""
 
     transcript = "what's the weather in Denver"
+    completes = True  # False: the ASR never sends its final transcript
 
     def __init__(self, name, on_event):
         self.name, self.on_event = name, on_event
@@ -79,7 +80,7 @@ class FakeSession:
             await self.push({"type": "session.updated"})
         elif kind == "conversation.item.create":
             await self.push({"type": "conversation.item.added", "item": event["item"]})
-        elif kind == "input_audio_buffer.commit" and self.name == "asr":
+        elif kind == "input_audio_buffer.commit" and self.name == "asr" and self.completes:
             await self.push({"type": COMPLETED, "item_id": "item_1", "transcript": self.transcript})
         elif kind == "response.create":
             await self.push({"type": "response.output_text.delta", "delta": "Sunny."})

@@ -124,7 +124,7 @@ from websockets.exceptions import ConnectionClosed
 
 from voice.live import eou_audio, eou_smart_turn
 from voice.live.browser_recording import BrowserRecording, call_dir
-from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start, State
+from voice.live.endpoint import RATE, Audio, Check, End, Endpointer, Settings, Start, State, voiced_ms
 from voice.live.overlap import (Overlap, OverlapSettings, Playback, Verdict, classify, played_part, transcribe,
                                  words)
 from voice.local_decider.client import D1Client, decider as make_decider, default_decider
@@ -409,15 +409,20 @@ class MicTurn:
         self.task = self.decider = self.overlap = self.barge_in = None
         self.parked = []
         self.checks, self.check = [], None
+        # How much of the turn the endpointer would call voiced, set when it ends; None when nothing judged it (push to
+        # talk). A turn with no words is said nothing only when this is small (`run.WORDLESS_MAX_VOICED_MS`).
+        self.voiced_ms = None
         self.feed(pcm)
 
     def feed(self, pcm):
         self.pcm += pcm
         self.queue.put_nowait(pcm)
 
-    def end(self, trailing_ms):
+    def end(self, trailing_ms, threshold_dbfs=None):
         self.turn_end = time.perf_counter()
         self.speech_end = self.turn_end - trailing_ms / 1000
+        if threshold_dbfs is not None:
+            self.voiced_ms = voiced_ms(bytes(self.pcm), threshold_dbfs)
         self.queue.put_nowait(None)
 
     def cancel(self, reason):
@@ -456,6 +461,7 @@ class MicTurn:
             "cancelled": self.cancelled,
             "overlap": self.overlap,
             "eou_checks": list(self.checks),
+            "voiced_ms": self.voiced_ms,
         }
 
 
@@ -999,8 +1005,10 @@ class Conversation:
 
     def end_turn(self, trailing_ms, forced):
         self.heard_at = time.perf_counter()
+        threshold = (self.endpointer.threshold() if self.mode != "ptt" and self.endpointer.noise_dbfs is not None
+                     else None)
         self.endpointer.finish(trailing_ms)
-        self.turn.end(trailing_ms)
+        self.turn.end(trailing_ms, threshold)
         self.post({"type": "turn_end", "turn": self.turn.n, "trailing_ms": trailing_ms, "forced": forced})
 
     def on_voice_event(self, event):
@@ -1178,7 +1186,7 @@ class Conversation:
                             # The worded acts name the thread as T3 titles it now: news made before it had a title
                             # names it only here, and "it" on the next turn means this thread.
                             update.acts = draft_update.acts
-                            live.t3.spoke(update)
+                            live.t3.spoke(update, news=True)
 
                     reply, sent = await say_acts(
                         self.voice, turn.out_rate, self.voice_clock(), entry, words, self.ledger.context(), log,

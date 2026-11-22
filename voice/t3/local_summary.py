@@ -271,16 +271,24 @@ BRIEF_EXAMPLES = (
     ("So I'd like a new thread, um, that goes through the reef card game and finds out why the shuffle deals the same "
      "hand twice. Thanks.", "Find out why the shuffle in the reef card game deals the same hand twice."),
 )
+# Without its last sentence, `starts` refused faithful briefs ("Write a short README for ...") at 0.51 to 0.84 on the
+# writer's own briefs: the context said the agent can start threads and did not say the start was left out on purpose.
 BRIEF_GATE_CONTEXT = ("A voice assistant started a coding thread for a person. `request` is what the person said to ask "
                       "for it. `task` is the first message the thread's coding agent receives, written from `request` "
-                      "alone. The agent has tools that can start new threads.")
+                      "alone. The agent has tools that can start new threads. On purpose, `task` leaves out the request "
+                      "to start a thread, which is already done, the filler, and anything said to the assistant. "
+                      "`task` must keep what to do, where to do it (the project, app, screen, file or section named), "
+                      "and every limit or prohibition the request gives, such as short, only, at most or do not.")
 BRIEF_GATE = {
     "adds": "Does `task` ask for anything, or state any detail, that `request` does not?",
     "drops": "Does `task` leave out any part of the work, or any detail of it, that `request` asks for?",
     "starts": "Does `task` ask its reader to start, open or create a thread, a conversation or another agent?",
 }
-# Each must stay under its bar. Not tuned on recorded answers; `adds` is the account gate's bar, the others even odds.
-BRIEF_BARS = {"adds": 0.10, "drops": 0.5, "starts": 0.5}
+# Each must stay under its bar. Chosen on the seen made-up requests (voice/t3/eval/brief_cases.py, recorded by
+# voice/t3/eval/record_brief_gate.py): `drops` just over the highest faithful brief there, and `adds` and `starts` under
+# the lowest brief that adds or starts. A refused brief costs little (the thread gets the framed request, every word of
+# it); a passed one that drops where to work or a limit sends the agent to change the wrong thing.
+BRIEF_BARS = {"adds": 0.5, "drops": 0.35, "starts": 0.6}
 
 
 def brief_messages(instruction: str) -> list[dict]:

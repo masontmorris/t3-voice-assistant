@@ -48,11 +48,17 @@ from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import (Brief, Launch, Lane, LocalText, Rendered, RequestGate, Speech, candidate_names, named, reference,
                              text_model, without_request)
-from voice.t3.verify import (NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, ONE_QUESTION_YES, UNCLEAR, Chosen,
-                             Decider, Listed, Picked, Reading, default_decider)
+from voice.t3.verify import (ABOUT_LINE_YES, NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, ONE_QUESTION_YES, UNCLEAR,
+                             Chosen, Decider, Listed, Picked, Reading, default_decider)
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
 APPROVE, DENY = "t3_approve", "t3_deny"
+# The facts of a said line the decider is shown when it reads whether a free turn is about that line.
+# Lines that are the voice's own question, asked because it needs the caller's choice or go-ahead.
+ASKED_KINDS = frozenset({Say.CONFIRM_LAUNCH, Say.CONFIRM_THREAD, Say.CONFIRM_TELL, Say.CONFIRM_STOP,
+                         Say.CONFIRM_RESPOND, Say.CONFIRM_ANSWER, Say.ASK_WHICH})
+SAID_FACTS = ("thread", "begun_in", "begun_for", "project", "candidates", "message", "status", "summary", "reply",
+              "need", "request", "question")
 ANSWER = "t3_answer"
 # The two tools that answer a thread's pending approval. Each is confirmed back, naming the thread and what it is
 # for, and only a yes sends the answer. One request is answered at a time: the thread's read carries one pending
@@ -233,6 +239,7 @@ class T3Tasks:
     app_told: set = field(default_factory=set, init=False)
     # The last checked line said about a thread on this call: where a free turn says it came from.
     last_line: L.Update | None = field(default=None, init=False)
+    last_news: bool = field(default=False, init=False)
     app_asked: dict = field(default_factory=dict, init=False)
     declined: dict | None = field(default=None, init=False)
     before_call: dict = field(default_factory=dict, init=False)
@@ -548,10 +555,11 @@ class T3Tasks:
             question, self.withdrawn = self.withdrawn, None
             return question
 
-    def spoke(self, update: L.Update) -> None:
+    def spoke(self, update: L.Update, news: bool = False) -> None:
         """`update` was said aloud, whole. If it is the open question, the person has heard it and the next turn may
         answer it. Anything else said after it moves the conversation on, so the question is dropped. A line about one
-        thread makes it the thread the call last spoke about (`spoken_about`)."""
+        thread makes it the thread the call last spoke about (`spoken_about`). `news`: the voice said it by itself, as
+        an update a thread sent."""
         if self.on_spoken is not None:
             self.on_spoken(update)
         with self.lock:
@@ -561,8 +569,8 @@ class T3Tasks:
                            None)
             begun = next((a.slots["begun_in"] for a in update.acts if isinstance(a.slots.get("begun_in"), str)), None)
             on_call = self.following is not None and any(a.slots.get("on_call") for a in update.acts)
-            if titles or begun or on_call:
-                self.last_line = update
+            if titles or begun or on_call or any(a.kind in ASKED_KINDS for a in update.acts):
+                self.last_line, self.last_news = update, news
             if (update.thread_id is not None and update.status != "needs_clarification"
                     and self._earlier(update.thread_id)):
                 # The caller has heard how this thread is (not only a question about it): its held news is spent.
@@ -602,11 +610,15 @@ class T3Tasks:
         with self.lock:
             if update.thread_id is not None or any("thread" in a.slots or "begun_in" in a.slots for a in update.acts):
                 self.declined = None
+            if any(a.slots.get("thread") or a.slots.get("begun_in") for a in update.acts):
+                self.last_line, self.last_news = update, True
 
-    def turn_closed(self, owner: object, request: bool = False) -> None:
+    def turn_closed(self, owner: object, request: bool = False, heard: bool = True) -> None:
         """A turn ended. A question that an earlier turn asked and this one did not answer can no longer be. A turn after
         the one that took a pick question back, which the decider read as a request of any kind, ends the typed state:
-        the caller has moved on."""
+        the caller has moved on. A turn with no words heard changes neither: the question stays answerable."""
+        if not heard:
+            return
         with self.lock:
             if request and self.declined is not None and self.turns_closed > self.declined_at:
                 self.declined = None
@@ -615,16 +627,25 @@ class T3Tasks:
             if question is not None and question.owner is not None and question.owner is not owner:
                 question.expired = True
 
-    def said_source(self) -> dict | None:
+    def said_source(self, words: str = "") -> dict | None:
         """The thread the call's last checked line was about and what it came from: the thread's own last reply when
-        the line carried its summary or reply, else its status. None before any such line on this call."""
+        the line carried its summary or reply, else its status. None before any such line on this call. `about` says
+        whether the decider reads the caller's `words` as about that line (a doubt, or a question about it); with no
+        decider or no answer it is false. Off the lock: it is a decider call."""
         with self.lock:
-            update = self.last_line
+            update, spoken_of = self.last_line, self.spoken_of
         if update is None:
             return None
-        thread = next((a.slots.get("thread") for a in update.acts if a.slots.get("thread")), None) or self.spoken_of
+        thread = next((a.slots.get("thread") for a in update.acts if a.slots.get("thread")), None) or spoken_of
         replied = any(a.slots.get("summary") or a.slots.get("reply") for a in update.acts)
-        return {"thread": thread or "the thread", "from": "reply" if replied else "status"}
+        kinds = {a.kind for a in update.acts}
+        source = ("question" if kinds & ASKED_KINDS else "thread_question" if Say.ASK_QUESTION in kinds
+                  else "news" if self.last_news else "reply" if replied else "status")
+        said = [{key: value for key, value in a.slots.items() if key in SAID_FACTS} for a in update.acts]
+        decide = getattr(self.decider, "about_line", None)
+        p = decide(words, said[0] if len(said) == 1 else {"lines": said}) if decide is not None and words else None
+        return {"thread": thread or "the thread", "from": source,
+                "about": p is not None and p >= ABOUT_LINE_YES}
 
     def spoken_about(self) -> str | None:
         """The thread this call last said something about, by title, or as the new thread in its project when the
@@ -1851,8 +1872,8 @@ class T3TaskService(MockTaskService):
     def recent_thread(self):
         return self.t3.spoken_about()
 
-    def said_source(self):
-        return self.t3.said_source()
+    def said_source(self, words=""):
+        return self.t3.said_source(words)
 
     def take_task_updates(self):
         """The ordinary tasks' updates only. T3 news is said on its own, when the call is quiet."""
@@ -1883,10 +1904,16 @@ class T3TaskService(MockTaskService):
                 self.t3.ack_news(self.spoken[task_id])
                 self.t3.spoke(self.spoken[task_id])
 
+    no_words = False
+
+    def heard_nothing(self):
+        """The turn's transcript had no words: it answers nothing and leaves any open question as it was."""
+        self.no_words = True
+
     def close(self):
         super().close()
         asked = any((record.get("tool") or {}).get("tool") not in (None, "none") for record in self.segmenter.records())
-        self.t3.turn_closed(self, asked)
+        self.t3.turn_closed(self, asked, heard=not self.no_words)
         # A question nobody heard goes back too, to be asked when the call is quiet: no reply can answer it unheard.
         with self.t3.lock:
             unsent = [update for task_id, update in self.spoken.items()

@@ -227,6 +227,10 @@ class Silence(unittest.TestCase):
                            lambda _: [])
         self.assertFalse(S.no_silent_turn(call([absorbed])).ok)
 
+        # No words heard (a breath, a "hmm") is not a turn to answer: saying nothing to it is not silence.
+        wordless = turn_of(0, {"clip": "turn_001", "final_transcript": "", "replies": []}, lambda _: [])
+        self.assertTrue(S.no_silent_turn(call([wordless])).ok)
+
         record["live"] = {"speech_end_to_first_audio_sent_s": 1.0}
         record["replies"].append({"kind": "t3", "text": "I couldn't answer.", "delivery": "sent", "speech_s": 1.0})
         heard = turn_of(0, record, lambda _: [{"kinds": [Kind.UNANSWERED], "delivery": "sent"}])
@@ -366,7 +370,7 @@ class Gate(unittest.TestCase):
 
     def test_news_blocked_by_the_marked_yes_is_expected_but_missing_exchange_is_an_error(self):
         plan = S.news_permission(S.Pool())
-        plan.notes.update(confirmed=True, timed_out=True)
+        plan.notes.update(confirmed=True, timed_out=True, approve=[3])
         turns = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1), turn(2), turn(3)]
 
         def unexpected(items, world=None):
@@ -377,6 +381,18 @@ class Gate(unittest.TestCase):
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(turns[:2])))
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(
             turns[:2], {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}})))
+
+    def test_the_approval_turn_is_the_one_the_caller_s_approve_made_not_the_third(self):
+        """A gate run: the long request was cut in two, so the third caller turn was the yes, not "approve it"."""
+        plan = S.news_permission(S.Pool())
+        plan.notes.update(confirmed=True, timed_out=False, approve=[5])
+        world = {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}}
+        about = "\"approve it\" after the news was about the started thread, with no question of which"
+        turns = [turn(0, cancelled="continued"), turn(1, [Kind.CONFIRM_LAUNCH]), turn(2, [Kind.LAUNCHED]),
+                 dataclasses.replace(turn(3, [Kind.NEEDS_YOU]), idle=True), turn(4, [Kind.NEEDS_THE_APP]), turn(5)]
+        self.assertNotIn(about, failed(plan.check(call(turns, world))))
+        plan.notes["approve"] = [3]
+        self.assertIn(about, failed(plan.check(call(turns, world))), "the yes is not the approval")
 
     def test_permission_news_must_be_delivered_once_the_wait_happened(self):
         plan = S.news_permission(S.Pool())
@@ -392,6 +408,32 @@ class Gate(unittest.TestCase):
         plan.notes.pop("timed_out")
         self.assertNotIn(lost, [v.check for v in plan.check(call(silent, world)) if not v.ok and not v.precondition],
                          "with no wait the check is a failed precondition, not a failed check")
+
+    def test_a_run_whose_setup_failed_is_blocked_neither_passed_nor_failed(self):
+        def run(*verdicts):
+            return Result("x", 1, verdicts, (), 0, 0, 1.0)
+
+        setup = Verdict("asked a thread question", False, "no question")
+        blocked = run(setup, Verdict("no offer after", False, "precondition", precondition=True,
+                                     blocked_by="asked a thread question"))
+        clean = run(Verdict("asked a thread question", True), Verdict("no offer after", True))
+        offered = run(Verdict("asked a thread question", True), Verdict("no offer after", False, "offered"))
+        sc = S.Scenario("x", "w", lambda pool: None, 3, 1, setup="asked a thread question")
+
+        def row(runs):
+            table, green = S.rows({"x": runs}, [sc])
+            return table[0][1], table[0][2], green
+
+        self.assertEqual(row([blocked, clean]), ("PASS", "1/1 +1 blocked", True))
+        self.assertEqual(row([blocked, offered]), ("FAIL", "0/1 +1 blocked", False))
+        self.assertEqual(row([blocked, blocked]), ("BLOCKED", "0/0 +2 blocked", False))
+        withdrawn = next(sc for sc in S.SCENARIOS if sc.id == "withdrawn-question")
+        self.assertEqual(withdrawn.setup, "asked a thread question")
+
+    def test_the_withdrawn_question_twins_both_hold_the_words_and_neither_is_them(self):
+        for spoken, one, two in S.EVEN_TWINS:
+            self.assertTrue(spoken in one.lower() and spoken in two.lower(), (one, two))
+            self.assertNotEqual(one.lower().removeprefix("add a ").removeprefix("add "), spoken)
 
     def test_k_of_n_and_an_error_that_no_run_passed(self):
         two = [result("x", True), result("x", False), result("x", True)]

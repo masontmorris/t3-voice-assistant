@@ -63,7 +63,7 @@ class BarTest(unittest.TestCase):
 
     def test_the_hard_negatives_by_kind(self):
         seen, held = counts("seen", "request"), counts("hard_held_out", "request")
-        self.assertEqual({k: seen[k] for k in AC.HARD}, {"harmless": (0, 5), "omits": (0, 6), "target": (0, 10),
+        self.assertEqual({k: seen[k] for k in AC.HARD}, {"harmless": (0, 6), "omits": (0, 6), "target": (0, 11),
                                                          "tail": (0, 3)})
         self.assertEqual({k: held[k] for k in AC.HARD}, {"harmless": (1, 11), "omits": (0, 11), "target": (0, 15),
                                                          "tail": (0, 5)})

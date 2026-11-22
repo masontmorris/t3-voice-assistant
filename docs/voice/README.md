@@ -41,7 +41,7 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 | `approval-claim`                    | 1 of 1 | The title-first app direction was heard in all three runs of the latest spread.                                                                |
 | `thread-lines`                      | 1 of 1 | The thread-status replies consistently used checked lines.                                                                                     |
 | `follow-up`                         | 1 of 1 | The follow-up kept the city. The forecast-date fault is marked.                                                                                |
-| `withdrawn-question`                | 1 of 1 | 17 of 17 over seven gate invocations, no mark.                                                                                                 |
+| `withdrawn-question`                | 1 of 1 | 4 of 5, the which question asked in 5 of 5 with a twin pair the caller's words fit equally; the miss asked it again after "never mind".     |
 | `news-permission`                   | 1 of 2 | 3 of 3, no fallback; a new thread is named by its project, not its title.                                                                      |
 | `approve-waiting`                   | 1 of 2 | XFAIL 3 of 3: the gate refuses the sandbox's one approval command (marked).                                                                    |
 | `deny-waiting`                      | 1 of 2 | 3 of 3, judged line and T3's recorded decision.                                                                                                |
@@ -56,7 +56,7 @@ and `--spread N` runs each scenario N times unless it errors. `python -m voice.l
 A check that reproduces a fault nobody has fixed is listed in `KNOWN` in `voice/live/scenarios.py` with the fault. Its
 failure is XFAIL and does not turn the gate red. XPASS means every marked check passed in the runs it made: confirm
 with `--spread 3`, then delete the mark. An unmet precondition fails unless it explicitly names a failed marked check
-that blocked it. The table counts turns that attempted a fallback. The scripted calls expect substantive replies, so
+that blocked it. A scenario's `setup` check names what a run must reach to test anything: a run where it failed is blocked, counted apart ("4/4 +1 blocked"), neither a pass nor a failure, and a scenario whose every run is blocked is not green. The table counts turns that attempted a fallback. The scripted calls expect substantive replies, so
 a fallback fails their reply check. A missing turn record, an unanswered judge question, or a startup, runtime, or teardown error makes the
 scenario `ERROR` and the gate red. The pass rule counts completed runs with product-check outcomes. What the gate cannot
 catch is in the docstring of `voice/live/scenarios.py`.

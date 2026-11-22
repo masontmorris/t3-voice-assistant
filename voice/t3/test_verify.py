@@ -108,8 +108,10 @@ class DescribingARequest(unittest.TestCase):
 
     def test_a_line_with_no_description_says_only_the_kind_of_request(self):
         self.assertEqual([ask.name for ask in asks([self.KIND_ONLY]) if ask.name.startswith("a1_k")], ["a1_kind_only"])
-        self.assertTrue(self.verdict(self.KIND_ONLY).passed)
-        invented = self.verdict(self.KIND_ONLY, a1_kind_only=0.9)
+        self.assertTrue(self.verdict(self.KIND_ONLY, a1_need_kind=0.95).passed)
+        self.assertEqual(self.verdict(self.KIND_ONLY, a1_need_kind=0.8).failed, ("a1_need_kind",),
+                         "a wrong kind of request is refused")
+        invented = self.verdict(self.KIND_ONLY, a1_kind_only=0.9, a1_need_kind=0.95)
         self.assertEqual(invented.failed, ("a1_kind_only",))
         self.assertIn("kind of thing", invented.problems[0])
 
@@ -290,3 +292,32 @@ class OnlyAMintedLineIsSpoken(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class KindOnly(unittest.TestCase):
+    """On recorded d1.2 answers (voice/t3/eval/record_kind_only.py): with the thread's own name or account quoted in the
+    question, a line that says only the kind of request passes, and one that says what the request does is refused."""
+
+    FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "kind_only.json").read_text(encoding="utf-8"))
+
+    def test_the_question_sent_is_the_recorded_one_and_reads_each_line_as_its_case_says(self):
+        from voice.t3.acts import Act
+        from voice.t3.eval.record_kind_only import bodies
+        passed = {True: [], False: []}
+        for row in self.FIXTURE["rows"]:
+            said = Act.from_json(row["act"])
+            self.assertEqual(bodies(said, row["line"])["shipped"]["questions"]["a1_kind_only"]["instructions"],
+                             next(a.question for a in asks([said]) if a.name == "a1_kind_only"))
+            passed[row["kind_only"]] += [p < 0.5 for p in row["shipped"]]
+        self.assertEqual(sum(passed[False]), 0, "a line that says what the request does is never passed")
+        self.assertEqual((sum(passed[True]), len(passed[True])), (14, 15),
+                         "one sample of a title that reads as the work itself sits over the bar")
+
+    def test_a_line_that_names_the_wrong_kind_of_request_is_refused(self):
+        from voice.t3.verify import NEED_KIND_YES
+        for row in self.FIXTURE["kinds"]:
+            said = Act.from_json(row["act"])
+            self.assertEqual(request((said,), row["line"])["questions"]["a1_need_kind"]["instructions"],
+                             next(a.question for a in asks([said]) if a.name == "a1_need_kind"))
+            with self.subTest(row["line"]):
+                self.assertEqual([p >= NEED_KIND_YES for p in row["samples"]], [row["right"]] * len(row["samples"]))

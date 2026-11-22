@@ -222,6 +222,8 @@ class Reader(Agree):
         self.spoken = []  # the thread just spoken about each pick was shown, or None
         self.naming = {}  # request to P(it says the picked thread's title); unscripted is no answer
         self.joining = {}  # (first, second) to P(they are one question cut in two); unscripted is no answer
+        self.about = {}  # words to P(they are about the line just said); unscripted is no answer
+        self.lines = []  # (words, the said line's facts) each about-line read was given
 
     def chooses(self, question, options, reply, own_words=False):
         """The test's choice for `reply`: the 0-based index of an option, OWN_WORDS, UNCLEAR or NO_ANSWER, or a Chosen
@@ -239,6 +241,10 @@ class Reader(Agree):
 
     def one_question(self, first, second, title):
         return self.joining.get((first, second))
+
+    def about_line(self, words, said):
+        self.lines.append((words, said))
+        return self.about.get(words)
 
     def picks(self, request, threads, recent=None, answering=False, call_thread=None, spoken=None):
         """The test's pick for `request`: a thread id, NONE or UNCLEAR, or each thread's share. A request the test

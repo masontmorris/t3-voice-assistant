@@ -160,6 +160,23 @@ DONE = [
     act(Kind.DONE, thread="Fix the loom importer crash", status="failed",
         summary="It says the crash came from an empty thread list and it could not fix it."),
 ]
+# A run that ended by being stopped: its status is a participle that needs "was" (the repeat call said "X cancelled and
+# the thread's last reply said ...").
+DONE_STOPPED = [
+    act(Kind.DONE, thread="Sort Seed Packets", status="cancelled",
+        summary="Its last reply said it was grouping the packets by season."),
+    act(Kind.DONE, thread="Make the \"On Hold\" badge readable", status="interrupted",
+        summary="It says it had darkened the badge text and was checking the contrast."),
+    act(Kind.DONE, thread="Sort Seed Packets", status="rolled_back",
+        summary="It reports that the new sort order was undone."),
+]
+# A request that must go to the app with no checked description: the line says what kind of thing it asks for.
+NEEDS_THE_APP_NEED = [
+    act(Kind.NEEDS_THE_APP, thread="Sort Seed Packets", decision="approve", need="command_approval"),
+    act(Kind.NEEDS_THE_APP, thread='Make the "On Hold" badge readable', decision="approve", need="file_change"),
+    act(Kind.NEEDS_THE_APP, thread="The kiln log is missing its last page.", decision="approve",
+        need="command_approval"),
+]
 ASK_QUESTION = [
     act(Kind.ASK_QUESTION, thread="Tidy the tide table export", question="Which file format should the export use?",
         options=["CSV", "JSON", "Keep the current format"]),
@@ -289,7 +306,7 @@ LAUNCH_TITLES.update({clipped(request): ref for ref, (request, _) in HELD_OUT_RE
 
 GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_status_summary": SUMMARY,
           "status_without_summary": STATUS_WITHOUT_SUMMARY,
-          "done_summary": DONE, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
+          "done_summary": DONE, "done_stopped": DONE_STOPPED, "needs_the_app_need": NEEDS_THE_APP_NEED, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
           "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP, "needs_the_app": NEEDS_THE_APP,
           "needs_with_command": NEEDS_WITH_COMMAND, "launch_needs_you": LAUNCH_NEEDS,
           "launch_status_waiting": LAUNCH_STATUS, "launch_confirm_thread": LAUNCH_CONFIRM_THREAD,

@@ -112,6 +112,15 @@ SEEN = [
          tail=["It wants to lint, test and build the project.", "It wants to check the code and build the site."],
          target=["It wants to lint, test and build the project, then copy the result to a staging server, deleting "
                  "files there that are not in the build."]),
+    # The shape of the sandbox's Replay approval (a fixed line into a hidden file), added on 2026-11-22 when the
+    # gate's wording was chosen again: a spoken description names no file and reads out no text.
+    case("note_to_hidden_file", "command", "printf 'lantern check passed' > .lantern-check.txt",
+         "Mark the lantern check",
+         ["It wants to write a short line of text into a hidden file in the project.",
+          "Approving lets it create a small hidden file holding one fixed line of text."],
+         wrong=["It wants to delete a hidden file.", "It wants to run the lantern checks."],
+         harmless=["It wants to look at a hidden file."],
+         target=["It wants to write a short line of text into the project's settings file."]),
 ]
 
 HELD_OUT = [
