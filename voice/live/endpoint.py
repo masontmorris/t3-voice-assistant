@@ -58,9 +58,11 @@ class Check:
     """The turn has been silent for `silent_ms`, one of `Settings.check_ms`: a listener may end it now.
 
     Check points fall on frame boundaries, so `silent_ms` is the setting reached, not the raw count: a 150 ms point is
-    emitted on the 160 ms frame.
+    emitted on the 160 ms frame. `pause` is `Endpointer.pause` when it was emitted: an answer about this check is about
+    that pause only, and is stale once `Endpointer.pause` has moved on.
     """
     silent_ms: int
+    pause: int = 0
 
 
 def frame_dbfs(frame):
@@ -94,6 +96,7 @@ class Endpointer:
     _turn_frames: int = 0
     _check_index: int = 0
     _held: bool = False
+    _pause: int = 0
 
     def threshold(self):
         return max(self.settings.floor_dbfs, self.noise_dbfs + self.settings.margin_db)
@@ -111,7 +114,14 @@ class Endpointer:
         self.state, self._voiced_run, self._silent_run, self._turn_frames = State.IDLE, 0, 0, 0
         self._check_index = 0
         self._held = False
+        self._pause += 1
         self._preroll.clear()
+
+    @property
+    def pause(self):
+        """Names the silence now running. It changes when speech resumes, when a turn starts and when one ends, so an
+        answer about an earlier silence can tell it is not about this one, however long this one has lasted."""
+        return self._pause
 
     @property
     def silent_ms(self):
@@ -165,15 +175,18 @@ class Endpointer:
                 return []
             pcm = b"".join(self._preroll)
             self.state, self._silent_run, self._turn_frames = State.SPEECH, 0, len(self._preroll)
+            self._pause += 1
             self._preroll.clear()
             return [Start(pcm)]
         self._turn_frames += 1
+        if voiced and self._silent_run:
+            self._pause += 1
         self._silent_run = 0 if voiced else self._silent_run + 1
         if voiced:
             self._check_index, self._held = 0, False
         events = [Audio(frame, level)]
         if not voiced:
-            events.extend(Check(at) for at in self._due_checks())
+            events.extend(Check(at, self._pause) for at in self._due_checks())
         limit = self.settings.hold_ms if self._held else self.settings.silence_ms
         if self._silent_run * FRAME_MS >= limit:
             events.append(End(self._silent_run * FRAME_MS))

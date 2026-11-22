@@ -29,6 +29,7 @@ HOME = Path(os.environ.get("VOICE_HOME", Path.home() / "voice"))
 MODEL = HOME / "gguf" / "d1-omni" / "d1-Omni-2B-Q8_0.gguf"
 MMPROJ = HOME / "gguf" / "d1-omni" / "mmproj-d1-Omni-2B-Q8_0.gguf"
 PORT = 8098
+MAX_HOLD_MS = 3000
 # The study's flags for this model, unchanged: one request in flight, every layer on the GPU, one physical batch.
 FLAGS = ("-ngl", "99", "-np", "1", "-b", "8192", "-ub", "2048", "-fa", "on", "-c", "8192")
 
@@ -49,8 +50,9 @@ class Policy:
 
     `check_ms` are points of silence; `window_s` is how much of the turn's tail the model hears; `cap_s` is the longest
     a single answer may take. An answer at or above `theta` ends the turn. One at or below `hold_theta` holds it open
-    to `hold_ms` of silence instead of `silence_ms`, and `hold_theta` 0 never holds. The study asked on the last 3 s with
-    no loss of accuracy, and measured a 40 ms median answer, so `cap_s` is slack for a loaded GPU, not the normal case.
+    to `hold_ms` of silence instead of `silence_ms`, at most `MAX_HOLD_MS`, and `hold_theta` 0 never holds. The study
+    asked on the last 3 s with no loss of accuracy, and measured a 40 ms median answer, so `cap_s` is slack for a loaded
+    GPU, not the normal case.
     """
     check_ms: tuple[int, ...] = (150, 300, 500)
     theta: float = 0.5
@@ -59,6 +61,10 @@ class Policy:
     window_s: float = 3.0
     cap_s: float = 0.5
 
+    def __post_init__(self):
+        # A hold is a wait the person has to sit through, so it has a hard ceiling whatever the flags say.
+        object.__setattr__(self, "hold_ms", min(max(self.hold_ms, 0), MAX_HOLD_MS))
+
     def deadline_s(self, silent_ms, fallback_ms):
         """How long a check may take and still answer before `fallback_ms` ends the turn anyway, capped by `cap_s`."""
         return max(0.05, min(self.cap_s, (fallback_ms - silent_ms) / 1000))
@@ -66,6 +72,16 @@ class Policy:
     def fallback_ms(self, silent_ms, silence_ms):
         """The silence at which the turn ends if no answer comes: `silence_ms`, or `hold_ms` once past it."""
         return silence_ms if silent_ms < silence_ms or not self.hold_ms else self.hold_ms
+
+    def judge(self, endpointer, check, answer, silence_ms):
+        """What an answer to `check` does: "end", "hold" or None. None when it is about a pause that is over (the
+        endpointer's `pause` has moved on, however long the new silence is) or took longer than the check's deadline.
+        The live server and the offline replay both call this, so they cannot disagree about a stale answer."""
+        if endpointer.pause != check.pause:
+            return None
+        if answer.ms / 1000 > self.deadline_s(check.silent_ms, self.fallback_ms(check.silent_ms, silence_ms)):
+            return None
+        return self.verdict(answer.p_done)
 
     def verdict(self, p_done):
         """"end", "hold" or None for one answer."""

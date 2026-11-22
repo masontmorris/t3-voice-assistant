@@ -1,8 +1,8 @@
 """Offline replay of end-of-turn policies over whole utterances, with the live server's own endpointer and policy.
 
 An utterance is PCM16 mono at 16 kHz. `simulate` feeds it to `Endpointer` frame by frame, asks a decider at each `Check`
-as the server's `ask_end` does (one question in flight, answers dropped past their deadline or once the silence they
-described has ended), and records when each turn ended. The true end of an utterance is its last voiced frame by the
+as the server's `ask_end` does (one question in flight, each answer judged by `Policy.judge`, the call the server
+makes: dropped past its deadline or once the pause it described is over), and records when each turn ended. The true end of an utterance is its last voiced frame by the
 endpointer's own rule, so it is the same speech the live server hears. A turn that ended while voiced frames were still
 to come is a cut-off. `wait_s` is from the true end to the end of the turn that holds it.
 
@@ -127,14 +127,12 @@ def simulate(utterance, cache, policy, silence_ms=700):
         now_ms = index * FRAME_MS
         if pending is not None and pending["due_ms"] <= now_ms:
             asked, pending = pending, None
-            fresh = bool(turn) and ep.silent_ms >= asked["silent_ms"]
-            late = asked["ms"] / 1000 > asked["deadline_s"] + 0.05
-            verdict = None if late or not fresh else policy.verdict(asked["p"])
-            checks.append({"silent_ms": asked["silent_ms"], "p": None if late else round(asked["p"], 4),
-                           "ms": asked["ms"], "verdict": verdict})
+            verdict = policy.judge(ep, asked["check"], asked["answer"], silence_ms) if turn else None
+            checks.append({"silent_ms": asked["check"].silent_ms, "p": round(asked["answer"].p_done, 4),
+                           "ms": asked["answer"].ms, "verdict": verdict})
             if verdict == "end":
                 ends.append(now_ms)
-                ep.finish(asked["silent_ms"])
+                ep.finish(asked["check"].silent_ms)
                 turn = bytearray()
             elif verdict == "hold":
                 ep.hold()
@@ -151,9 +149,8 @@ def simulate(utterance, cache, policy, silence_ms=700):
                     answer = cache.ask(utterance, end_sample, turn_start, bytes(turn[-int(policy.window_s * RATE) * 2:]))
                     if answer is None:
                         continue
-                    deadline = policy.deadline_s(event.silent_ms, policy.fallback_ms(event.silent_ms, silence_ms))
-                    pending = {"due_ms": at_ms + answer.ms, "silent_ms": event.silent_ms, "p": answer.p_done,
-                               "ms": answer.ms, "deadline_s": deadline}
+                    deadline_ms = 1000 * policy.deadline_s(event.silent_ms, policy.fallback_ms(event.silent_ms, silence_ms))
+                    pending = {"due_ms": at_ms + min(answer.ms, deadline_ms), "check": event, "answer": answer}
             elif isinstance(event, End):
                 ends.append(at_ms)
                 pending, turn = None, bytearray()

@@ -15,6 +15,18 @@ class LoadTest(unittest.TestCase):
         self.assertIsNone(decider)
         self.assertIn("no model at", reason)
 
+    def test_a_failed_load_leaves_the_process_threading_as_it_was(self):
+        try:
+            import torch
+        except ImportError:
+            self.skipTest("no torch in this environment")
+        before = torch.get_num_threads()
+        with tempfile.TemporaryDirectory() as tmp:
+            bad = Path(tmp) / "bad.onnx"
+            bad.write_bytes(b"not a model")
+            eou_smart_turn.load(model=bad)
+        self.assertEqual(torch.get_num_threads(), before)
+
     def test_a_model_file_that_is_not_a_model_loads_as_none_with_the_reason(self):
         with tempfile.TemporaryDirectory() as tmp:
             bad = Path(tmp) / "bad.onnx"
@@ -36,6 +48,24 @@ class PresetTest(unittest.TestCase):
 
 @unittest.skipUnless(eou_smart_turn.MODEL.is_file(), "the Smart Turn weights are not under VOICE_HOME")
 class ModelTest(unittest.TestCase):
+    def test_loading_leaves_the_torch_thread_pool_alone(self):
+        try:
+            import torch
+        except ImportError:
+            self.skipTest("no torch in this environment")
+        before = torch.get_num_threads()
+        decider, reason = eou_smart_turn.load()
+        self.assertIsNotNone(decider, reason)
+        decider.p_done(bytes(32_000))
+        self.assertEqual(torch.get_num_threads(), before)
+
+    def test_the_features_are_whisper_log_mel_of_eight_seconds(self):
+        decider, reason = eou_smart_turn.load()
+        self.assertIsNotNone(decider, reason)
+        features = decider.features(np.random.default_rng(0).normal(0, 0.05, 8 * 16_000).astype(np.float32))
+        self.assertEqual(features.shape, (1, 80, 800))
+        self.assertTrue(np.isfinite(features).all())
+
     def test_a_probability_comes_back_for_a_short_and_a_long_clip(self):
         decider, reason = eou_smart_turn.load()
         self.assertIsNotNone(decider, reason)

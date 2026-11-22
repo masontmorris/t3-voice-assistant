@@ -533,7 +533,7 @@ class Conversation:
                 self.on_start(event.pcm)
             elif isinstance(event, Check):
                 if self.overlap is None:
-                    self.check_end(event.silent_ms)
+                    self.check_end(event)
             elif isinstance(event, Audio) and self.overlap is None:
                 self.turn.feed(event.pcm)
             elif isinstance(event, Audio):
@@ -833,38 +833,37 @@ class Conversation:
             speaking=lambda: self.overlap is not None or self.endpointer.state is not State.IDLE,
             stop_playback=lambda: self.stop_playback(time.perf_counter()))
 
-    def check_end(self, silent_ms):
+    def check_end(self, check):
         """One ask of the audio model at a check point, unless the turn already ended or an answer is still coming."""
         turn = self.turn
         if self.live.eou is None or turn is None or turn.turn_end is not None:
             return
         if turn.check is not None and not turn.check.done():
             return
-        turn.check = asyncio.create_task(self.ask_end(turn, silent_ms))
+        turn.check = asyncio.create_task(self.ask_end(turn, check))
         self.checks.add(turn.check)
         turn.check.add_done_callback(self.checks.discard)
 
-    async def ask_end(self, turn, silent_ms):
+    async def ask_end(self, turn, check):
         """Ends the turn here when the model says the person has finished, holds it open when the model says they are
         pausing mid-thought, and otherwise leaves the silence rule alone.
 
-        The answer is bounded by `deadline_s`: past it the turn ends at the silence rule as it always did, so a slow or
-        broken model costs no turn and never holds one. An answer that arrives after the turn ended, or after the
-        person spoke again, acts on nothing: the answer is about the audio at the check point, and the point is stale
-        by then.
+        The answer is bounded by the check's deadline: past it the turn ends at the silence rule as it always did, so a
+        slow or broken model costs no turn and never holds one. `Policy.judge` drops an answer about a pause that is
+        over, even when the silence now running has lasted as long: the answer is about the audio at the check point.
         """
-        policy = self.live.eou.policy
+        policy, silent_ms = self.live.eou.policy, check.silent_ms
         deadline = policy.deadline_s(silent_ms, policy.fallback_ms(silent_ms, self.live.settings.silence_ms))
         tail = bytes(turn.pcm)[-int(policy.window_s * RATE) * 2:]
         started = time.perf_counter()
         try:
-            answer = await asyncio.wait_for(asyncio.to_thread(self.live.eou.p_done, tail, deadline), deadline + 0.05)
+            answer = await bounded(asyncio.to_thread(self.live.eou.p_done, tail, deadline), deadline)
         except Exception as exc:
             turn.checks.append({"silent_ms": silent_ms, "p": None, "error": type(exc).__name__,
                                 "ms": round((time.perf_counter() - started) * 1000, 1), "ended": False})
             return
-        fresh = turn is self.turn and turn.turn_end is None and self.endpointer.silent_ms >= silent_ms
-        verdict = policy.verdict(answer.p_done) if fresh else None
+        current = turn is self.turn and turn.turn_end is None
+        verdict = policy.judge(self.endpointer, check, answer, self.live.settings.silence_ms) if current else None
         turn.checks.append({"silent_ms": silent_ms, "p": round(answer.p_done, 4), "ms": answer.ms,
                             "ended": verdict == "end", "held": verdict == "hold"})
         if verdict == "end":
@@ -1277,11 +1276,32 @@ async def main_async(args):
                 await live.active.ws.close(1001, "server stopping")
 
 
+EOU_MODES = ("silence", "audio", "smart")
+
+
+def eou_default(environ=os.environ):
+    """`$VOICE_EOU`, or silence when it is unset or empty. A value that is not a mode stops the server: a typo must not
+    quietly pick one."""
+    mode = environ.get("VOICE_EOU") or "silence"
+    if mode not in EOU_MODES:
+        raise SystemExit(f"VOICE_EOU={mode!r} is not one of {', '.join(EOU_MODES)}")
+    return mode
+
+
+async def bounded(awaitable, seconds):
+    """`awaitable`, or TimeoutError once `seconds` have passed. The one place an end-of-turn answer is timed."""
+    return await asyncio.wait_for(awaitable, seconds)
+
+
 def eou_policy(args, base):
-    """`base` with the command line's overrides: theta, the hold's theta and cap, and the check points."""
+    """`base` with the command line's overrides: theta, the hold's theta and cap, and the check points. A hold cap above
+    `eou_audio.MAX_HOLD_MS` is cut to it, and said."""
     over = {"theta": getattr(args, "eou_theta", None), "hold_theta": getattr(args, "eou_hold_theta", None),
             "hold_ms": getattr(args, "eou_hold_ms", None),
             "check_ms": tuple(int(ms) for ms in args.eou_checks.split(",")) if getattr(args, "eou_checks", None) else None}
+    if (over["hold_ms"] or 0) > eou_audio.MAX_HOLD_MS:
+        print(f"--eou-hold-ms {over['hold_ms']} is over the {eou_audio.MAX_HOLD_MS} ms maximum, using the maximum",
+              flush=True)
     return replace(base, **{key: value for key, value in over.items() if value is not None})
 
 
@@ -1313,18 +1333,19 @@ def main():
     parser.add_argument("--local-text", choices=["auto", "on", "off"], default="auto",
                         help="keep LFM3-1.7B loaded so the page can choose it for thread summaries "
                              "(auto: when its model file is present and --t3 is on)")
-    parser.add_argument("--eou", choices=["silence", "audio", "smart"], default=os.environ.get("VOICE_EOU", "silence"),
+    parser.add_argument("--eou", choices=list(EOU_MODES), default=eou_default(),
                         help="what ends a turn: the trailing silence alone (silence), the local d1-Omni-2B asked "
                              "whether the person finished at 150, 300 and 500 ms (audio), or Smart Turn on the CPU "
                              "asked at its own points, which can also hold a turn open past --silence-ms (smart). "
                              "Every model's answer is bounded and the silence rule is the fallback. Default silence, "
-                             "or $VOICE_EOU")
+                             "or $VOICE_EOU, which must be one of these when it is set")
     parser.add_argument("--eou-theta", type=float, default=None,
                         help="the P(done) that ends a turn early (the mode's own default)")
     parser.add_argument("--eou-hold-theta", type=float, default=None,
                         help="the P(done) at or below which a turn is held open (the mode's own default)")
     parser.add_argument("--eou-hold-ms", type=int, default=None,
-                        help="the silence a held turn waits for, 0 for never (the mode's own default)")
+                        help=f"the silence a held turn waits for, 0 for never, at most {eou_audio.MAX_HOLD_MS}: a larger "
+                             "value is cut to that (the mode's own default)")
     parser.add_argument("--eou-checks", default=None, help="comma-separated ms of silence at which the model is asked")
     parser.add_argument("--eou-port", type=int, default=eou_audio.PORT,
                         help=f"the audio model's llama-server port (default {eou_audio.PORT})")
