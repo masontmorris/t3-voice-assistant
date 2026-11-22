@@ -1818,6 +1818,16 @@ class T3TaskService(MockTaskService):
     def withdrawn(self):
         return self.t3.take_withdrawn()
 
+    def withdrawn_entry(self, question: Question) -> dict:
+        """The checked line said in place of a free reply that offered a taken-back question's choices again: what was
+        asked will not be done, as for any other no. It is said in this turn or not at all."""
+        update = L.Update(f"withdrawn:{question.key}", (act(Say.CANCELLED, op=OPS[question.op]),), "cancelled", "pick")
+        return self.correction_entry(update)
+
+    def drop_entry(self, entry: dict) -> None:
+        """A line that belongs to this turn alone: if it was not said, `close` does not give it back."""
+        self.news.pop(id(entry), None)
+
     def declined_state(self):
         return self.t3.declined_state()
 

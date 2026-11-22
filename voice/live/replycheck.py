@@ -16,6 +16,9 @@ An unsupported claim is corrected, never silently dropped. What happens depends 
   again on that part of the text. A reply cut off before its claim is never corrected.
 
 The correction is a typed act worded by the text model and checked like any T3 line (`T3Tasks.correction`).
+
+One reply is checked before it is heard: the free reply on the turn that took a thread-pick question back. Its audio is
+held until `reoffers` says it does not offer those threads as choices again (`run.answer`, `hold`).
 """
 
 from __future__ import annotations
@@ -52,6 +55,7 @@ class ReplyCheck:
     speaking: Callable[[], bool]
     stop_playback: Callable[[], None]
     owns: Callable[[], bool] = lambda: True
+    reoffers: Callable[[str, list[str]], tuple[float | None, float]] | None = None
     tasks: list = field(default_factory=list)
     records: list = field(default_factory=list)
 

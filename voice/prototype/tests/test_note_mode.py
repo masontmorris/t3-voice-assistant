@@ -200,6 +200,12 @@ class CorrectingService(MockTaskService):
     def record_delivery(self, entry, state):
         self.delivered.append(state)
 
+    def withdrawn_entry(self, question):
+        return self.correction_entry("withdrawn")
+
+    def drop_entry(self, entry):
+        self.news.pop(id(entry), None)
+
 
 class ReplyCheckTurn(NoteTurn):
     """A free reply that says something T3 does not support is corrected after it, never held in front of it."""
@@ -272,6 +278,42 @@ class ReplyCheckTurn(NoteTurn):
                                  send_checked=unheard, reply_check=self.checker())
         self.assertEqual(record["replies"][-1]["delivery"], "unsent")
         self.assertEqual(holder["service"].t3.spoken, [], "a line the caller never heard is not spoken of")
+
+
+class WithdrawnReplyCheckTurn(ReplyCheckTurn):
+    """The free reply on the turn that took a pick question back is held until the check reads it: one that offers the
+    taken-back threads as choices again is never heard, and a checked line is said in its place."""
+
+    OFFER = "Which thread do you mean, Tidy the Save Slots or Tidy the Save Menu?"
+
+    async def withdrawing(self, reply, p_yes):
+        asked = self.asked = []
+
+        class Dropped(CorrectingService):
+            withdrawn_question = SimpleNamespace(took_back=True, candidates=("t1", "t2"),
+                                                 titles={"t1": "Tidy the Save Slots", "t2": "Tidy the Save Menu"})
+
+        check = self.checker()
+        check.judge = lambda text, facts: Claim(0.0, 1.0)
+        check.reoffers = lambda text, threads: (asked.append((text, threads)) or p_yes, 1.0)
+        return await self.turn([reply, CORRECTED], task_service=Dropped, send_checked=self.send_checked,
+                               reply_check=check)
+
+    async def test_a_reply_that_offers_the_choices_again_is_never_heard_and_a_checked_line_is_said_instead(self):
+        record = await self.withdrawing(self.OFFER, 0.9)
+        self.assertEqual(self.asked, [(self.OFFER, ["Tidy the Save Slots", "Tidy the Save Menu"])])
+        self.assertEqual(self.spoken, [CORRECTED])
+        self.assertEqual([(r["kind"], r.get("delivery")) for r in record["replies"]], [("snapshot", "refused"),
+                                                                                         ("t3", "sent")])
+
+    async def test_a_reply_that_does_not_offer_them_is_spoken_whole_once_read(self):
+        record = await self.withdrawing("Okay, no problem.", 0.1)
+        self.assertEqual(self.spoken, ["Okay, no problem."])
+        self.assertEqual([r["kind"] for r in record["replies"]], ["snapshot"])
+
+    async def test_a_check_that_did_not_finish_counts_as_an_offer(self):
+        await self.withdrawing("Okay, no problem.", None)
+        self.assertEqual(self.spoken, [CORRECTED])
 
 
 class WithdrawnQuestionTurn(NoteTurn):

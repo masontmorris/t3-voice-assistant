@@ -185,6 +185,10 @@ def begun_phrase(slots: dict) -> str | None:
         f" for {slots['begun_for']}" if slots.get("begun_for") else "")
 
 
+# An op said as what the assistant will not do, where the op's own word would mean something else ("will not ask").
+CANCELLED_OPS = {"ask": "look into the thread they asked about"}
+
+
 def act_meaning(a: Act) -> str:
     if a.kind is Kind.UNANSWERED and (outcomes := a.slots.get("outcomes")):
         return "the assistant " + outcome_meaning(outcomes)
@@ -193,6 +197,8 @@ def act_meaning(a: Act) -> str:
             return "no other thread matches what they asked about, besides the one they turned down"
         return "no thread matches what they asked about" + (f", after the assistant checked {a.slots['recent']} "
                                                             "recent threads" if a.slots.get("recent") else "")
+    if a.kind is Kind.CANCELLED and a.slots.get("op") in CANCELLED_OPS:
+        return _fill(MEANS[a.kind], {**a.slots, "op": CANCELLED_OPS[a.slots["op"]]})
     return _fill(OPEN_QUESTION if a.kind is Kind.ASK_QUESTION and not a.slots.get("options") else MEANS[a.kind], a.slots)
 
 
@@ -401,6 +407,23 @@ def claim_request(reply: str, facts: dict) -> dict:
             "questions": {"reading": {"type": "choice", "instructions": CLAIM_QUESTION, "criteria": CLAIM_CRITERIA}}}
 
 
+# A free reply on the turn that took a thread-pick question back is held until this answer: whether it offers the
+# taken-back threads as choices again. Under the note that tells it not to, the call's voice still said the old question
+# after "Never mind." (docs/voice/live-reply-check.md). An unreadable answer counts as an offer: the reply is never heard,
+# and a checked line is said in its place.
+REOFFER_CONTEXT = ("A voice assistant is about to say `reply` aloud on a call about the person's coding threads. It had "
+                   "asked them to choose between the threads in `taken_back`, and they took that question back.")
+REOFFER_QUESTION = "Does the reply ask them to choose between those threads, or list them as choices, again?"
+REOFFER_YES = 0.5
+
+
+def reoffer_request(reply: str, threads: list[str]) -> dict:
+    """One decisions body: whether `reply` offers `threads` as choices again."""
+    return {"model": "d1.2", "state": {"reply": reply, "taken_back": threads, "context": REOFFER_CONTEXT},
+            "questions": {"answers": {"type": "noul", "instructions": REOFFER_QUESTION,
+                                      "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
 @dataclass(frozen=True)
 class Claim:
     """The decider's reading of a free reply: P(it says something about a thread that `facts` do not show) and P(it says
@@ -486,6 +509,18 @@ class Decider:
             return Claim(ms=_ms(started), error=f"decider status {record.get('status')}, no reading")
         return Claim(scores.get("unsupported", 0.0), scores.get("nothing", 0.0), _ms(started),
                      bar=CLAIM_NO_THREAD_YES if facts.get("thread") is None else CLAIM_UNSUPPORTED_YES)
+
+    def reoffers(self, reply: str, threads: list[str]) -> tuple[float | None, float]:
+        """P(`reply` offers the taken-back `threads` as choices again), or None when the check did not finish, and the
+        time it took in ms."""
+        started = time.perf_counter()
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", reoffer_request(reply, threads), label="t3_reoffer")
+        except Exception:
+            return None, _ms(started)
+        return noul(record, "answers"), _ms(started)
 
     def reads(self, said: Act, reply: str, options: tuple[str, ...] = ()) -> Reading:
         """What `reply` does about the question `said` asked, and which of `options` it changes to when it asks for

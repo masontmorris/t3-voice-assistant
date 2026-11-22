@@ -73,6 +73,7 @@ from voice.local_decider.gpu import gpu_used_mib
 from voice.local_decider.reuse import ReusingClient
 from voice.t3.acts import recites
 from voice.t3.speech import Rendered, speakable
+from voice.t3.verify import REOFFER_YES
 from voice.prototype.realtime import MODEL_RATE, VOICE_HOME, Server, Session, read_pcm16, write_pcm16
 from voice.prototype.segmenter import (DECIDER_BUDGET, MAX_429_SHARE, SEGMENTERS, FreshClient, coalesce, live_calls,
                                        rate_limited_share, use_decider_cache)
@@ -427,23 +428,29 @@ def by_ear(url, rate):
     return transcribe
 
 
-async def answer(session, rate, since, sources, log, speak=None, previous=(), watch=None, **response):
+async def answer(session, rate, since, sources, log, speak=None, previous=(), watch=None, hold=None, **response):
     """A reply, spoken to `speak` as it is generated: each piece of audio goes out the moment it arrives.
 
-    Nothing holds, cuts, mutes or regenerates it. `fact_check` reads the finished text against `sources`, which is the
+    Nothing cuts, mutes or regenerates it. `fact_check` reads the finished text against `sources`, which is the
     person's words in this call and the newest machine note, and the timeline records what it would have refused. It
     asks the model nothing ([live-fact-check.md](../../docs/voice/live-fact-check.md)). `previous`
     is what the assistant already said in this call, for the same record. `speak(text, pcm, done)` gets each piece of
     audio with the text so far, then one call with `done` set once the reply is over; it is never called for a reply
-    with no audio."""
+    with no audio. With `hold`, no audio goes out until the text is complete and `await hold(text)` passes it; a reply
+    it refuses is never heard, and comes back with delivery "refused" and no audio."""
     pcm = bytearray()
 
     def out(text, chunk):
         pcm.extend(chunk)
-        if speak is not None:
+        if speak is not None and hold is None:
             speak(text, chunk, False)
 
     reply, _ = await stream_reply(session, rate, since, out, **response)
+    if hold is not None:
+        if not await hold(reply["text"]):
+            return {**reply, "speech_s": 0.0, "delivery": "refused"}, b""
+        if speak is not None and pcm:
+            speak(reply["text"], bytes(pcm), False)
     if watch is not None:
         # The text is complete here and its audio is still playing: the reply check starts now and never holds it.
         watch(reply["text"])
@@ -581,6 +588,24 @@ async def relay_draft(session, rate, since, line, abandoned=lambda: False, attem
         # The next turn shares this socket and must start after the discarded response ends.
         await response
         raise
+
+
+def withdrawn_hold(question, reply_check, send_checked, log):
+    """The check a free reply waits for on the turn that took a thread-pick question back, or None on any other turn
+    or without the reply check and a way to say a checked line instead. The reply passes when the local d1-2B reads it
+    as not offering those threads as choices again."""
+    reoffers = getattr(reply_check, "reoffers", None)
+    if not getattr(question, "took_back", False) or reoffers is None or send_checked is None:
+        return None
+    threads = [question.titles.get(t, t) for t in question.candidates]
+
+    async def hold(text):
+        p_yes, ms = await asyncio.to_thread(reoffers, text, threads)
+        offered = p_yes is None or p_yes >= REOFFER_YES
+        log("reoffer_check", reply=text, threads=threads, p_yes=p_yes, ms=ms, refused=offered)
+        return not offered
+
+    return hold
 
 
 def fixed_reply(line, pcm, rate, after_s):
@@ -1171,7 +1196,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                 reply = None
             elif noted:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, speak=speak,
-                                                previous=prior_replies, watch=watch)
+                                                previous=prior_replies, watch=watch,
+                                                hold=withdrawn_hold(dropped_question, reply_check, send_checked, log))
             elif service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
                 if reply_pcm and speak is not None:
@@ -1184,9 +1210,13 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                                                 previous=prior_replies, watch=watch)
             if reply is not None:
                 replies.append({"kind": "snapshot", **reply})
-                log("reply", reply="snapshot", text=reply["text"])
+                log("reply", reply="snapshot", text=reply["text"], delivery=reply.get("delivery"))
                 if reply_pcm:
                     write_pcm16(out / f"{stem}_reply.wav", reply_pcm, out_rate)
+                if reply.get("delivery") == "refused":
+                    entry = service.withdrawn_entry(dropped_question)
+                    await say_t3([entry], "t3", audio_end)
+                    service.drop_entry(entry)
                 await correct()
         elif (item := shown(snapshot, snapshot_mode, adapter.text())) is None:
             pass
