@@ -1,0 +1,1422 @@
+{
+  "call_thread": "Build a Recipe App",
+  "rows": [
+    {
+      "request": "What is this thread working on right now?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.045,
+            "thread_01": 0.014,
+            "thread_02": 0.331,
+            "thread_03": 0.006,
+            "thread_04": 0.006,
+            "thread_05": 0.008,
+            "thread_06": 0.041,
+            "thread_07": 0.005,
+            "unclear": 0.545
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.025,
+            "thread_02": 0.426,
+            "thread_03": 0.01,
+            "thread_04": 0.008,
+            "thread_05": 0.015,
+            "thread_06": 0.104,
+            "thread_07": 0.009,
+            "unclear": 0.371
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.027,
+            "thread_01": 0.025,
+            "thread_02": 0.39,
+            "thread_03": 0.009,
+            "thread_04": 0.007,
+            "thread_05": 0.008,
+            "thread_06": 0.083,
+            "thread_07": 0.006,
+            "unclear": 0.447
+          }
+        }
+      ]
+    },
+    {
+      "request": "What is this thread working on right now?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.042,
+            "thread_01": 0.021,
+            "thread_02": 0.734,
+            "thread_03": 0.008,
+            "thread_04": 0.006,
+            "thread_05": 0.007,
+            "thread_06": 0.044,
+            "thread_07": 0.008,
+            "unclear": 0.13
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.031,
+            "thread_01": 0.044,
+            "thread_02": 0.622,
+            "thread_03": 0.011,
+            "thread_04": 0.005,
+            "thread_05": 0.01,
+            "thread_06": 0.042,
+            "thread_07": 0.006,
+            "unclear": 0.228
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.053,
+            "thread_01": 0.06,
+            "thread_02": 0.563,
+            "thread_03": 0.014,
+            "thread_04": 0.008,
+            "thread_05": 0.018,
+            "thread_06": 0.12,
+            "thread_07": 0.014,
+            "unclear": 0.15
+          }
+        }
+      ]
+    },
+    {
+      "request": "Is it waiting on anything from me?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.165,
+            "thread_02": 0.392,
+            "thread_03": 0.007,
+            "thread_04": 0.004,
+            "thread_05": 0.013,
+            "thread_06": 0.02,
+            "thread_07": 0.009,
+            "unclear": 0.358
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.033,
+            "thread_01": 0.265,
+            "thread_02": 0.304,
+            "thread_03": 0.006,
+            "thread_04": 0.006,
+            "thread_05": 0.033,
+            "thread_06": 0.036,
+            "thread_07": 0.014,
+            "unclear": 0.304
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.15,
+            "thread_02": 0.408,
+            "thread_03": 0.005,
+            "thread_04": 0.004,
+            "thread_05": 0.015,
+            "thread_06": 0.019,
+            "thread_07": 0.011,
+            "unclear": 0.356
+          }
+        }
+      ]
+    },
+    {
+      "request": "Is it waiting on anything from me?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.025,
+            "thread_01": 0.153,
+            "thread_02": 0.601,
+            "thread_03": 0.008,
+            "thread_04": 0.004,
+            "thread_05": 0.013,
+            "thread_06": 0.009,
+            "thread_07": 0.02,
+            "unclear": 0.168
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.069,
+            "thread_01": 0.137,
+            "thread_02": 0.536,
+            "thread_03": 0.009,
+            "thread_04": 0.004,
+            "thread_05": 0.018,
+            "thread_06": 0.018,
+            "thread_07": 0.012,
+            "unclear": 0.197
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.019,
+            "thread_01": 0.082,
+            "thread_02": 0.634,
+            "thread_03": 0.006,
+            "thread_04": 0.005,
+            "thread_05": 0.01,
+            "thread_06": 0.013,
+            "thread_07": 0.008,
+            "unclear": 0.223
+          }
+        }
+      ]
+    },
+    {
+      "request": "How's it going?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.012,
+            "thread_02": 0.599,
+            "thread_03": 0.005,
+            "thread_04": 0.005,
+            "thread_05": 0.006,
+            "thread_06": 0.01,
+            "thread_07": 0.004,
+            "unclear": 0.347
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.035,
+            "thread_01": 0.017,
+            "thread_02": 0.474,
+            "thread_03": 0.01,
+            "thread_04": 0.007,
+            "thread_05": 0.011,
+            "thread_06": 0.026,
+            "thread_07": 0.006,
+            "unclear": 0.413
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.026,
+            "thread_01": 0.02,
+            "thread_02": 0.397,
+            "thread_03": 0.009,
+            "thread_04": 0.008,
+            "thread_05": 0.015,
+            "thread_06": 0.039,
+            "thread_07": 0.009,
+            "unclear": 0.477
+          }
+        }
+      ]
+    },
+    {
+      "request": "How's it going?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.028,
+            "thread_01": 0.01,
+            "thread_02": 0.424,
+            "thread_03": 0.008,
+            "thread_04": 0.005,
+            "thread_05": 0.004,
+            "thread_06": 0.009,
+            "thread_07": 0.004,
+            "unclear": 0.509
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.019,
+            "thread_02": 0.772,
+            "thread_03": 0.01,
+            "thread_04": 0.005,
+            "thread_05": 0.005,
+            "thread_06": 0.007,
+            "thread_07": 0.005,
+            "unclear": 0.157
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.022,
+            "thread_02": 0.638,
+            "thread_03": 0.009,
+            "thread_04": 0.008,
+            "thread_05": 0.009,
+            "thread_06": 0.012,
+            "thread_07": 0.005,
+            "unclear": 0.281
+          }
+        }
+      ]
+    },
+    {
+      "request": "What did it say last?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.036,
+            "thread_01": 0.035,
+            "thread_02": 0.669,
+            "thread_03": 0.012,
+            "thread_04": 0.007,
+            "thread_05": 0.008,
+            "thread_06": 0.015,
+            "thread_07": 0.004,
+            "unclear": 0.214
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.037,
+            "thread_01": 0.037,
+            "thread_02": 0.479,
+            "thread_03": 0.019,
+            "thread_04": 0.013,
+            "thread_05": 0.016,
+            "thread_06": 0.027,
+            "thread_07": 0.006,
+            "unclear": 0.364
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.023,
+            "thread_01": 0.025,
+            "thread_02": 0.621,
+            "thread_03": 0.014,
+            "thread_04": 0.01,
+            "thread_05": 0.009,
+            "thread_06": 0.019,
+            "thread_07": 0.005,
+            "unclear": 0.274
+          }
+        }
+      ]
+    },
+    {
+      "request": "What did it say last?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.027,
+            "thread_01": 0.029,
+            "thread_02": 0.815,
+            "thread_03": 0.011,
+            "thread_04": 0.005,
+            "thread_05": 0.005,
+            "thread_06": 0.007,
+            "thread_07": 0.005,
+            "unclear": 0.096
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.023,
+            "thread_02": 0.697,
+            "thread_03": 0.009,
+            "thread_04": 0.005,
+            "thread_05": 0.006,
+            "thread_06": 0.006,
+            "thread_07": 0.005,
+            "unclear": 0.234
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.024,
+            "thread_01": 0.041,
+            "thread_02": 0.722,
+            "thread_03": 0.012,
+            "thread_04": 0.005,
+            "thread_05": 0.006,
+            "thread_06": 0.01,
+            "thread_07": 0.004,
+            "unclear": 0.176
+          }
+        }
+      ]
+    },
+    {
+      "request": "Is this one done?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.021,
+            "thread_01": 0.029,
+            "thread_02": 0.538,
+            "thread_03": 0.04,
+            "thread_04": 0.027,
+            "thread_05": 0.02,
+            "thread_06": 0.028,
+            "thread_07": 0.013,
+            "unclear": 0.284
+          }
+        },
+        {
+          "choice": "unclear",
+          "p": {
+            "none": 0.03,
+            "thread_01": 0.054,
+            "thread_02": 0.365,
+            "thread_03": 0.027,
+            "thread_04": 0.031,
+            "thread_05": 0.024,
+            "thread_06": 0.041,
+            "thread_07": 0.009,
+            "unclear": 0.419
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.035,
+            "thread_01": 0.028,
+            "thread_02": 0.643,
+            "thread_03": 0.04,
+            "thread_04": 0.035,
+            "thread_05": 0.009,
+            "thread_06": 0.021,
+            "thread_07": 0.01,
+            "unclear": 0.18
+          }
+        }
+      ]
+    },
+    {
+      "request": "Is this one done?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.022,
+            "thread_01": 0.013,
+            "thread_02": 0.81,
+            "thread_03": 0.012,
+            "thread_04": 0.008,
+            "thread_05": 0.005,
+            "thread_06": 0.006,
+            "thread_07": 0.004,
+            "unclear": 0.12
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.013,
+            "thread_01": 0.026,
+            "thread_02": 0.751,
+            "thread_03": 0.019,
+            "thread_04": 0.016,
+            "thread_05": 0.007,
+            "thread_06": 0.01,
+            "thread_07": 0.004,
+            "unclear": 0.153
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.02,
+            "thread_01": 0.026,
+            "thread_02": 0.701,
+            "thread_03": 0.015,
+            "thread_04": 0.015,
+            "thread_05": 0.007,
+            "thread_06": 0.011,
+            "thread_07": 0.007,
+            "unclear": 0.196
+          }
+        }
+      ]
+    },
+    {
+      "request": "How is the photo upload thread doing?",
+      "recent": "Build a Recipe App",
+      "want": "Recipe App Photo Upload",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.077,
+            "thread_01": 0.903,
+            "thread_02": 0.007,
+            "thread_03": 0.002,
+            "thread_04": 0.001,
+            "thread_05": 0.001,
+            "thread_07": 0.001,
+            "unclear": 0.006
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.036,
+            "thread_01": 0.95,
+            "thread_02": 0.004,
+            "thread_03": 0.002,
+            "thread_04": 0.001,
+            "thread_07": 0.001,
+            "unclear": 0.004
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.088,
+            "thread_01": 0.893,
+            "thread_02": 0.004,
+            "thread_03": 0.002,
+            "thread_04": 0.002,
+            "thread_06": 0.001,
+            "thread_07": 0.001,
+            "unclear": 0.009
+          }
+        }
+      ]
+    },
+    {
+      "request": "How is the photo upload thread doing?",
+      "recent": "Build a Recipe App",
+      "want": "Recipe App Photo Upload",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.118,
+            "thread_01": 0.835,
+            "thread_02": 0.022,
+            "thread_03": 0.003,
+            "thread_04": 0.002,
+            "thread_05": 0.002,
+            "thread_06": 0.002,
+            "thread_07": 0.002,
+            "unclear": 0.016
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.029,
+            "thread_01": 0.955,
+            "thread_02": 0.008,
+            "thread_03": 0.002,
+            "unclear": 0.003
+          }
+        },
+        {
+          "choice": "thread_01",
+          "p": {
+            "none": 0.033,
+            "thread_01": 0.949,
+            "thread_02": 0.01,
+            "thread_03": 0.002,
+            "unclear": 0.004
+          }
+        }
+      ]
+    },
+    {
+      "request": "What about the flaky UI test thread?",
+      "recent": "Build a Recipe App",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.001,
+            "thread_02": 0.002,
+            "thread_06": 0.981,
+            "unclear": 0.002
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.001,
+            "thread_02": 0.001,
+            "thread_06": 0.982,
+            "thread_07": 0.001,
+            "unclear": 0.003
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.001,
+            "thread_02": 0.001,
+            "thread_03": 0.001,
+            "thread_04": 0.001,
+            "thread_06": 0.981,
+            "thread_07": 0.002,
+            "unclear": 0.002
+          }
+        }
+      ]
+    },
+    {
+      "request": "What about the flaky UI test thread?",
+      "recent": "Build a Recipe App",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": { "none": 0.016, "thread_02": 0.002, "thread_06": 0.976, "unclear": 0.003 }
+        },
+        {
+          "choice": "thread_06",
+          "p": { "none": 0.009, "thread_02": 0.002, "thread_06": 0.985, "unclear": 0.001 }
+        },
+        {
+          "choice": "thread_06",
+          "p": { "none": 0.004, "thread_02": 0.003, "thread_06": 0.986, "unclear": 0.002 }
+        }
+      ]
+    },
+    {
+      "request": "How's the kubernetes migration?",
+      "recent": "Build a Recipe App",
+      "want": "none",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.958,
+            "thread_01": 0.004,
+            "thread_02": 0.005,
+            "thread_03": 0.002,
+            "thread_04": 0.003,
+            "thread_05": 0.003,
+            "thread_06": 0.003,
+            "thread_07": 0.006,
+            "unclear": 0.017
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.963,
+            "thread_01": 0.002,
+            "thread_02": 0.004,
+            "thread_03": 0.002,
+            "thread_04": 0.002,
+            "thread_05": 0.002,
+            "thread_06": 0.002,
+            "thread_07": 0.003,
+            "unclear": 0.02
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.961,
+            "thread_01": 0.003,
+            "thread_02": 0.006,
+            "thread_03": 0.003,
+            "thread_04": 0.002,
+            "thread_05": 0.003,
+            "thread_06": 0.004,
+            "thread_07": 0.004,
+            "unclear": 0.015
+          }
+        }
+      ]
+    },
+    {
+      "request": "How's the kubernetes migration?",
+      "recent": "Build a Recipe App",
+      "want": "none",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.947,
+            "thread_01": 0.002,
+            "thread_02": 0.015,
+            "thread_03": 0.002,
+            "thread_04": 0.001,
+            "thread_05": 0.001,
+            "thread_06": 0.002,
+            "thread_07": 0.002,
+            "unclear": 0.028
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.955,
+            "thread_01": 0.003,
+            "thread_02": 0.011,
+            "thread_03": 0.002,
+            "thread_04": 0.002,
+            "thread_05": 0.002,
+            "thread_06": 0.001,
+            "thread_07": 0.002,
+            "unclear": 0.022
+          }
+        },
+        {
+          "choice": "none",
+          "p": {
+            "none": 0.889,
+            "thread_01": 0.004,
+            "thread_02": 0.02,
+            "thread_03": 0.004,
+            "thread_04": 0.003,
+            "thread_05": 0.002,
+            "thread_06": 0.004,
+            "thread_07": 0.005,
+            "unclear": 0.069
+          }
+        }
+      ]
+    },
+    {
+      "request": "Is it done?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.007,
+            "thread_01": 0.004,
+            "thread_02": 0.005,
+            "thread_03": 0.014,
+            "thread_04": 0.008,
+            "thread_05": 0.005,
+            "thread_06": 0.853,
+            "thread_07": 0.004,
+            "unclear": 0.1
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.005,
+            "thread_01": 0.004,
+            "thread_02": 0.004,
+            "thread_03": 0.012,
+            "thread_04": 0.009,
+            "thread_05": 0.004,
+            "thread_06": 0.818,
+            "thread_07": 0.003,
+            "unclear": 0.139
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.007,
+            "thread_01": 0.004,
+            "thread_02": 0.005,
+            "thread_03": 0.015,
+            "thread_04": 0.008,
+            "thread_05": 0.004,
+            "thread_06": 0.803,
+            "thread_07": 0.005,
+            "unclear": 0.149
+          }
+        }
+      ]
+    },
+    {
+      "request": "Is it done?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.012,
+            "thread_01": 0.009,
+            "thread_02": 0.051,
+            "thread_03": 0.012,
+            "thread_04": 0.01,
+            "thread_05": 0.004,
+            "thread_06": 0.782,
+            "thread_07": 0.005,
+            "unclear": 0.116
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.013,
+            "thread_01": 0.009,
+            "thread_02": 0.096,
+            "thread_03": 0.011,
+            "thread_04": 0.012,
+            "thread_05": 0.006,
+            "thread_06": 0.708,
+            "thread_07": 0.006,
+            "unclear": 0.138
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.016,
+            "thread_01": 0.007,
+            "thread_02": 0.125,
+            "thread_03": 0.018,
+            "thread_04": 0.018,
+            "thread_05": 0.007,
+            "thread_06": 0.705,
+            "thread_07": 0.009,
+            "unclear": 0.095
+          }
+        }
+      ]
+    },
+    {
+      "request": "How is it going?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.015,
+            "thread_01": 0.008,
+            "thread_02": 0.006,
+            "thread_03": 0.006,
+            "thread_04": 0.006,
+            "thread_05": 0.007,
+            "thread_06": 0.589,
+            "thread_07": 0.006,
+            "unclear": 0.357
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.015,
+            "thread_01": 0.01,
+            "thread_02": 0.006,
+            "thread_03": 0.006,
+            "thread_04": 0.005,
+            "thread_05": 0.007,
+            "thread_06": 0.665,
+            "thread_07": 0.006,
+            "unclear": 0.28
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.017,
+            "thread_01": 0.006,
+            "thread_02": 0.007,
+            "thread_03": 0.006,
+            "thread_04": 0.005,
+            "thread_05": 0.007,
+            "thread_06": 0.666,
+            "thread_07": 0.006,
+            "unclear": 0.281
+          }
+        }
+      ]
+    },
+    {
+      "request": "How is it going?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": false,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.011,
+            "thread_01": 0.013,
+            "thread_02": 0.316,
+            "thread_03": 0.007,
+            "thread_04": 0.005,
+            "thread_05": 0.005,
+            "thread_06": 0.597,
+            "thread_07": 0.006,
+            "unclear": 0.041
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.013,
+            "thread_01": 0.015,
+            "thread_02": 0.207,
+            "thread_03": 0.006,
+            "thread_04": 0.005,
+            "thread_05": 0.005,
+            "thread_06": 0.617,
+            "thread_07": 0.007,
+            "unclear": 0.125
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.014,
+            "thread_01": 0.009,
+            "thread_02": 0.17,
+            "thread_03": 0.005,
+            "thread_04": 0.006,
+            "thread_05": 0.005,
+            "thread_06": 0.636,
+            "thread_07": 0.006,
+            "unclear": 0.148
+          }
+        }
+      ]
+    },
+    {
+      "request": "Can you check on this one for me?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.024,
+            "thread_02": 0.502,
+            "thread_03": 0.009,
+            "thread_04": 0.009,
+            "thread_05": 0.008,
+            "thread_06": 0.014,
+            "thread_07": 0.005,
+            "unclear": 0.418
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.06,
+            "thread_02": 0.445,
+            "thread_03": 0.011,
+            "thread_04": 0.009,
+            "thread_05": 0.017,
+            "thread_06": 0.026,
+            "thread_07": 0.007,
+            "unclear": 0.407
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.019,
+            "thread_01": 0.06,
+            "thread_02": 0.562,
+            "thread_03": 0.013,
+            "thread_04": 0.013,
+            "thread_05": 0.019,
+            "thread_06": 0.044,
+            "thread_07": 0.01,
+            "unclear": 0.259
+          }
+        }
+      ]
+    },
+    {
+      "request": "Can you check on this one for me?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.019,
+            "thread_01": 0.031,
+            "thread_02": 0.725,
+            "thread_03": 0.009,
+            "thread_04": 0.007,
+            "thread_05": 0.009,
+            "thread_06": 0.014,
+            "thread_07": 0.009,
+            "unclear": 0.177
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.027,
+            "thread_01": 0.054,
+            "thread_02": 0.607,
+            "thread_03": 0.013,
+            "thread_04": 0.008,
+            "thread_05": 0.017,
+            "thread_06": 0.04,
+            "thread_07": 0.012,
+            "unclear": 0.223
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.027,
+            "thread_01": 0.051,
+            "thread_02": 0.777,
+            "thread_03": 0.011,
+            "thread_04": 0.006,
+            "thread_05": 0.007,
+            "thread_06": 0.014,
+            "thread_07": 0.008,
+            "unclear": 0.1
+          }
+        }
+      ]
+    },
+    {
+      "request": "Has it finished yet?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.017,
+            "thread_01": 0.021,
+            "thread_02": 0.773,
+            "thread_03": 0.028,
+            "thread_04": 0.016,
+            "thread_05": 0.007,
+            "thread_06": 0.015,
+            "thread_07": 0.003,
+            "unclear": 0.12
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.029,
+            "thread_01": 0.057,
+            "thread_02": 0.576,
+            "thread_03": 0.074,
+            "thread_04": 0.023,
+            "thread_05": 0.012,
+            "thread_06": 0.047,
+            "thread_07": 0.006,
+            "unclear": 0.176
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.04,
+            "thread_02": 0.54,
+            "thread_03": 0.042,
+            "thread_04": 0.027,
+            "thread_05": 0.015,
+            "thread_06": 0.048,
+            "thread_07": 0.007,
+            "unclear": 0.249
+          }
+        }
+      ]
+    },
+    {
+      "request": "Has it finished yet?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.025,
+            "thread_01": 0.037,
+            "thread_02": 0.683,
+            "thread_03": 0.018,
+            "thread_04": 0.014,
+            "thread_05": 0.006,
+            "thread_06": 0.012,
+            "thread_07": 0.005,
+            "unclear": 0.2
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.076,
+            "thread_01": 0.042,
+            "thread_02": 0.708,
+            "thread_03": 0.024,
+            "thread_04": 0.021,
+            "thread_05": 0.01,
+            "thread_06": 0.017,
+            "thread_07": 0.006,
+            "unclear": 0.095
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.044,
+            "thread_01": 0.04,
+            "thread_02": 0.733,
+            "thread_03": 0.029,
+            "thread_04": 0.015,
+            "thread_05": 0.007,
+            "thread_06": 0.015,
+            "thread_07": 0.005,
+            "unclear": 0.113
+          }
+        }
+      ]
+    },
+    {
+      "request": "Did this thread get stuck?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.046,
+            "thread_01": 0.05,
+            "thread_02": 0.485,
+            "thread_03": 0.013,
+            "thread_04": 0.01,
+            "thread_05": 0.09,
+            "thread_06": 0.048,
+            "thread_07": 0.024,
+            "unclear": 0.234
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.032,
+            "thread_01": 0.077,
+            "thread_02": 0.475,
+            "thread_03": 0.012,
+            "thread_04": 0.009,
+            "thread_05": 0.061,
+            "thread_06": 0.053,
+            "thread_07": 0.041,
+            "unclear": 0.24
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.048,
+            "thread_01": 0.057,
+            "thread_02": 0.446,
+            "thread_03": 0.012,
+            "thread_04": 0.009,
+            "thread_05": 0.072,
+            "thread_06": 0.055,
+            "thread_07": 0.03,
+            "unclear": 0.27
+          }
+        }
+      ]
+    },
+    {
+      "request": "Did this thread get stuck?",
+      "recent": "Build a Recipe App",
+      "want": "Build a Recipe App",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.033,
+            "thread_01": 0.019,
+            "thread_02": 0.833,
+            "thread_03": 0.005,
+            "thread_04": 0.006,
+            "thread_05": 0.021,
+            "thread_06": 0.017,
+            "thread_07": 0.007,
+            "unclear": 0.059
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.046,
+            "thread_01": 0.032,
+            "thread_02": 0.675,
+            "thread_03": 0.008,
+            "thread_04": 0.007,
+            "thread_05": 0.019,
+            "thread_06": 0.015,
+            "thread_07": 0.009,
+            "unclear": 0.189
+          }
+        },
+        {
+          "choice": "thread_02",
+          "p": {
+            "none": 0.03,
+            "thread_01": 0.026,
+            "thread_02": 0.834,
+            "thread_03": 0.005,
+            "thread_04": 0.003,
+            "thread_05": 0.008,
+            "thread_06": 0.01,
+            "thread_07": 0.005,
+            "unclear": 0.078
+          }
+        }
+      ]
+    },
+    {
+      "request": "What's the latest on the farewell function?",
+      "recent": "Build a Recipe App",
+      "want": "Add Farewell Function",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_03",
+          "p": { "none": 0.009, "thread_03": 0.984, "thread_04": 0.001, "unclear": 0.003 }
+        },
+        { "choice": "thread_03", "p": { "none": 0.004, "thread_03": 0.991, "unclear": 0.003 } },
+        {
+          "choice": "thread_03",
+          "p": { "none": 0.006, "thread_03": 0.989, "thread_04": 0.001, "unclear": 0.001 }
+        }
+      ]
+    },
+    {
+      "request": "What's the latest on the farewell function?",
+      "recent": "Build a Recipe App",
+      "want": "Add Farewell Function",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_03",
+          "p": { "none": 0.007, "thread_02": 0.004, "thread_03": 0.983, "unclear": 0.003 }
+        },
+        {
+          "choice": "thread_03",
+          "p": { "none": 0.004, "thread_02": 0.002, "thread_03": 0.989, "unclear": 0.003 }
+        },
+        {
+          "choice": "thread_03",
+          "p": { "none": 0.006, "thread_02": 0.003, "thread_03": 0.986, "unclear": 0.003 }
+        }
+      ]
+    },
+    {
+      "request": "And what did it say?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": false,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.013,
+            "thread_01": 0.01,
+            "thread_02": 0.005,
+            "thread_03": 0.01,
+            "thread_04": 0.006,
+            "thread_05": 0.009,
+            "thread_06": 0.768,
+            "thread_07": 0.008,
+            "unclear": 0.171
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.007,
+            "thread_01": 0.007,
+            "thread_02": 0.006,
+            "thread_03": 0.008,
+            "thread_04": 0.006,
+            "thread_05": 0.008,
+            "thread_06": 0.825,
+            "thread_07": 0.007,
+            "unclear": 0.128
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.009,
+            "thread_02": 0.005,
+            "thread_03": 0.008,
+            "thread_04": 0.008,
+            "thread_05": 0.011,
+            "thread_06": 0.796,
+            "thread_07": 0.012,
+            "unclear": 0.141
+          }
+        }
+      ]
+    },
+    {
+      "request": "And what did it say?",
+      "recent": "Fix the flaky UI test",
+      "want": "Fix the flaky UI test",
+      "shown": true,
+      "held": true,
+      "samples": [
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.018,
+            "thread_01": 0.01,
+            "thread_02": 0.085,
+            "thread_03": 0.01,
+            "thread_04": 0.009,
+            "thread_05": 0.005,
+            "thread_06": 0.723,
+            "thread_07": 0.007,
+            "unclear": 0.134
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.019,
+            "thread_01": 0.01,
+            "thread_02": 0.056,
+            "thread_03": 0.011,
+            "thread_04": 0.009,
+            "thread_05": 0.008,
+            "thread_06": 0.753,
+            "thread_07": 0.007,
+            "unclear": 0.128
+          }
+        },
+        {
+          "choice": "thread_06",
+          "p": {
+            "none": 0.01,
+            "thread_01": 0.01,
+            "thread_02": 0.095,
+            "thread_03": 0.015,
+            "thread_04": 0.005,
+            "thread_05": 0.006,
+            "thread_06": 0.77,
+            "thread_07": 0.005,
+            "unclear": 0.083
+          }
+        }
+      ]
+    }
+  ]
+}

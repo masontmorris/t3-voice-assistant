@@ -902,8 +902,10 @@ class T3Tasks:
             answering = asked.op == ANSWER
             last = base.titles.get(self._recent(base.titles)) if recent and not answering else None
             call = self.call
+            own = self.following.link.thread_id if self.following is not None else None
+            own = own if own in base.titles and not answering else None
 
-        picked = self._picked(reference, options, last, answering)
+        picked = self._picked(reference, options, last, answering, base.titles.get(own))
 
         with self.lock:
             if self.call != call:
@@ -911,6 +913,9 @@ class T3Tasks:
                 return L.Update(key, (L.row_act(L.ROWS["ask"]),), "failed", "ask")
             if picked.choice == NONE and not answering:
                 return none
+            if asked.op == ASK and own is not None and picked.choice == own and own not in shared:
+                # The decider chose the call's own thread over every other: an ask only reads, and its answer names it.
+                return self._act(base, own, now)
             thread = picked.thread
             if thread is None:
                 candidates = picked.candidates[:3] or tuple(t.thread_id for t in listed[:3])
@@ -946,13 +951,16 @@ class T3Tasks:
         return tuple(options.values()), frozenset(shared)
 
     def _picked(self, reference: str, options: tuple[Listed, ...], last: str | None,
-                answering: bool = False) -> Picked:
+                answering: bool = False, call_thread: str | None = None) -> Picked:
         """The decider's pick, off the lock since it is a network call. With no decider nothing is picked. `answering`
-        says the words answer a question a thread asked: a thread is picked only when they name it."""
+        says the words answer a question a thread asked: a thread is picked only when they name it. `call_thread` is
+        the title of the thread the call was opened from, while it is listed."""
         picks = getattr(self.decider, "picks", None)
         if picks is None:
             return Picked(None)
-        return picks(reference, options, last, answering=True) if answering else picks(reference, options, last)
+        if answering:
+            return picks(reference, options, last, answering=True)
+        return picks(reference, options, last, call_thread=call_thread) if call_thread else picks(reference, options, last)
 
     def _list(self, key: str):
         try:

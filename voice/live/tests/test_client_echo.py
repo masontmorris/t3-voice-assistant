@@ -115,7 +115,7 @@ class CaptureSelectionTest(unittest.TestCase):
             yield "{}"
 
         sounddevice.RawInputStream.side_effect = open_input
-        socket = MagicMock()
+        socket = MagicMock(close_code=None)
         socket.__aenter__.return_value = socket
         socket.__aiter__.side_effect = receive
         socket.send.side_effect = send

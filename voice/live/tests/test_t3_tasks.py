@@ -2712,6 +2712,42 @@ class SpokenAbout(unittest.TestCase):
         self.assertIsNone(ask(4), "a new call has heard nothing yet")
 
 
+class CallThreadPicks(unittest.TestCase):
+    """On a call opened from a thread, the decider is shown that thread, and a question it chooses that thread for is
+    answered at once. The shares are d1.2's for "What is this thread working on right now?" before the thread was
+    shown to it, on a call opened on a cancelled thread beside one with a similar title."""
+
+    THIS = "What is this thread working on right now?"
+    LEANS = {"t5": 0.38, "unclear": 0.33, "t9": 0.08, "none": 0.06}
+
+    def over(self, picking):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Build a Recipe App", as_of=140))
+        seam.listing = listing(("t9", "Recipe App Photo Upload"), ("t5", "Build a Recipe App"),
+                               ("t2", "Add Clamp Helper"))
+        return seam, tasks_over(self, seam, decider=F.Reader(READINGS, picking=picking))
+
+    def test_a_question_the_decider_chose_the_calls_thread_for_is_answered_with_no_question_first(self):
+        seam, t3 = self.over({self.THIS: self.LEANS})
+        t3.begin_call()
+        t3.view("t5", 1)
+        asked = t3.about("k1", ASK, self.THIS, 2)
+        self.assertEqual((said(asked), asked.status), ([("thread_status", "Build a Recipe App", "working")],
+                                                       "completed"))
+        self.assertEqual(t3.decider.call_threads, ["Build a Recipe App"], "the decider was shown the call's thread")
+
+    def test_the_same_choice_off_a_call_or_for_a_message_or_for_another_thread_is_still_asked_about(self):
+        seam, t3 = self.over({self.THIS: self.LEANS, "Tell it to add tests.": self.LEANS})
+        t3.begin_call()
+        self.assertEqual(said(t3.about("k1", ASK, self.THIS, 2))[0][0], "confirm_thread", "no call thread")
+        self.assertEqual(t3.decider.call_threads, [None])
+        t3.view("t5", 3)
+        self.assertEqual(said(t3.about("k2", TELL, "Tell it to add tests.", 4))[0][0], "confirm_tell")
+        seam, t3 = self.over({self.THIS: {"t9": 0.45, "t5": 0.22, "unclear": 0.18}})
+        t3.begin_call()
+        t3.view("t5", 1)
+        self.assertEqual(said(t3.about("k3", ASK, self.THIS, 2))[0][0], "ask_which", "another thread was chosen")
+
+
 class CallThreadFollow(unittest.TestCase):
     """A call opened on a thread follows it for the call, as a thread the voice started or sent to is followed."""
 

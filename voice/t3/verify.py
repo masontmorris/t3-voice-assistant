@@ -495,15 +495,16 @@ class Decider:
         return judge_choice((record.get("response") or {}).get("answers"), len(options), own_words)
 
     def picks(self, request: str, threads: tuple[Listed, ...], recent: str | None = None,
-              answering: bool = False) -> Picked:
+              answering: bool = False, call_thread: str | None = None) -> Picked:
         """Which of `threads` the words `request` mean, with how sure it is. `recent` is the title the call was just
-        about. A timeout or any error picks nothing, and nothing is always asked about."""
+        about, and `call_thread` the title of the thread the call was opened from. A timeout or any error picks nothing,
+        and nothing is always asked about."""
         if not threads:
             return Picked(NONE, shares={NONE: 1.0})
         try:
             with self.lock:
                 self.calls += 1
-                record = self.client.call("decisions", pick_request(request, threads, recent, answering),
+                record = self.client.call("decisions", pick_request(request, threads, recent, answering, call_thread),
                                           label="t3_pick")
         except Exception as exc:
             return Picked(None, error=f"{type(exc).__name__}: {exc}")
@@ -570,8 +571,16 @@ ANSWERING_PICK = ("Which of the person's threads does `request` name or describe
                   "\"the second one\", name no thread: choose unclear. The options list the threads, newest first.")
 
 
+# A call opened from a thread is about it. Shown as `last_discussed` alone, "What is this thread working on?" went
+# to unclear 3 of 3 and "Is it waiting on anything from me?" to a similar title that waits, 1 of 3 for the call's
+# thread; marked as below, the call's thread was the choice in 15 of 15 over five such requests, and requests naming
+# another thread, and "it" after a line about another thread, were placed as before (d1.2, docs/voice/browser-client.md).
+CALL_THREAD = (" `call_thread` is the thread the person opened this call from: words that name or describe no other "
+               "thread, such as \"this thread\" or \"it\", mean it.")
+
+
 def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None = None,
-                 answering: bool = False) -> dict:
+                 answering: bool = False, call_thread: str | None = None) -> dict:
     """One decisions body asking which listed thread the person's words mean. The threads are the options, so the
     answer's shares say how sure the pick is and which others the words fit."""
     criteria = {f"thread_{i:02d}": f"{t.title!r} in the project {t.project!r}, {t.activity.replace('_', ' ')}."
@@ -584,6 +593,9 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
                         "is a transcript of what they said, and may mishear a word."}
     instructions = ("Which of the person's threads does `request` mean? The options list them, newest first. "
                     "`last_discussed` is the thread the conversation was just about, when there is one.")
+    if call_thread is not None and not answering:
+        state["call_thread"] = call_thread
+        instructions += CALL_THREAD
     if answering:
         state = {"request": request, "last_discussed": None, "context": ANSWERING_CONTEXT}
         instructions = ANSWERING_PICK

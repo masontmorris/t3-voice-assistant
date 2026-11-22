@@ -17,7 +17,8 @@ way a person waits, unless --barge-in-ms sends it over the reply. A clip that be
 from where they differ, because a recorded turn can hold the audio the server carried into it from the turn before.
 
 The server address and the shared secret come from config.json and the `secret` file beside this script unless
---server and --secret-file say otherwise. Each run records what this client sent and played, plus the metrics, the
+--server and --secret-file say otherwise. `--thread` sends the hello the T3 app sends, which opens the call on that thread,
+and `--environment` names its T3 environment; a call the server refuses prints the close code it gave. Each run records what this client sent and played, plus the metrics, the
 reply audio and the control log, under a new timestamped directory in --log-dir ($VOICE_HOME/live-client by
 default). `--no-record` turns the recording off. Stops on Ctrl+C, or after the last --wav clip's turn.
 """
@@ -538,7 +539,7 @@ class Client:
                 raw = self.echo is not None or getattr(self.args, "raw_mic", False)
                 source = mic_frames(device(self.args.input), frames, raw=raw)
             async with ws:
-                await ws.send(json.dumps({"type": "hello", "mode": "ptt" if self.args.ptt else "vad"}))
+                await ws.send(json.dumps(hello(self.args)))
                 tasks = [asyncio.create_task(c) for c in (source, self.send_audio(ws, frames), self.ping(ws),
                                                           self.receive(ws), self.finished.wait())]
                 if self.args.ptt:
@@ -552,6 +553,9 @@ class Client:
                     if task.exception() is not None and not isinstance(task.exception(),
                                                                        websockets.ConnectionClosed):
                         raise task.exception()
+            if ws.close_code not in (None, 1000, 1001):
+                self.log("closed", code=ws.close_code, reason=ws.close_reason)
+                print(f"the server closed the call: {ws.close_code} {ws.close_reason}", flush=True)
             self.log("summary", rtt_median_s=self.rtt_median(), rtt_samples=len(self.rtts),
                      rtt_max_s=round(max(self.rtts), 4) if self.rtts else None, turns=self.done_turns,
                      echo=self.echo_stats())
@@ -567,6 +571,16 @@ class Client:
                 self.log_file.close()
             except Exception as exc:
                 print(f"client log was not closed cleanly: {exc}", file=sys.stderr, flush=True)
+
+
+def hello(args) -> dict:
+    """The first frame. With `--thread` it is the T3 app's hello: the call opens on that thread, in `--environment`."""
+    frame = {"type": "hello", "mode": "ptt" if args.ptt else "vad"}
+    if getattr(args, "thread", None):
+        frame["thread"] = args.thread
+    if getattr(args, "environment", None):
+        frame["environment"] = args.environment
+    return frame
 
 
 def build_parser():
@@ -602,6 +616,8 @@ def build_parser():
                         help="echo path the canceller models, from output callback to microphone (default 256); "
                              "raise it for a Bluetooth speaker")
     parser.add_argument("--output-rate", type=int, default=24_000, help="rate to open the output at before a reply")
+    parser.add_argument("--thread", help="open the call on this T3 thread id, as the T3 app's call does")
+    parser.add_argument("--environment", help="the T3 environment id the --thread belongs to")
     parser.add_argument("--wait-for-server", type=float, default=0, help="keep retrying the connection this many s")
     parser.add_argument("--log-dir", type=Path, default=LOG_DIR)
     parser.add_argument("--no-record", dest="record", action="store_false",

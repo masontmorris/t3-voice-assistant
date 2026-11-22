@@ -116,6 +116,7 @@ class Plan:
     check: Callable[[Call], list[Verdict]]
     launch: str = "todo-list"
     notes: dict = field(default_factory=dict)
+    opened_on: str | None = None  # the seed the call is opened from, as the T3 app opens a call on a thread
 
 
 @dataclass(frozen=True)
@@ -211,6 +212,82 @@ def withdrawn(pool: Pool) -> Plan:
                          for v in out)]
 
     return Plan((finished(one), finished(two), finished(other)), lines, script(), check)
+
+
+# A call the T3 app opens on a thread is about that thread. The call opens on one of a twin pair whose other title
+# waits on the caller, as the dry run of 2026-11-21 had it: "this thread" and "it" mean the call's thread, and a closing
+# line is no answer to anything.
+def opened_on_twin(pool: Pool) -> tuple[str, str, tuple[Seed, ...]]:
+    _, one, two = pool.twin()
+    return one, two, (finished(one), pending(two))
+
+
+def stays_on(call: Call, turn: Turn | None, what: str, thread: str, other: str) -> list[Verdict]:
+    """The turn said a line about the call's thread, asked no question first, and said nothing about the other."""
+    if turn is None:
+        return [ok(f"{what}: a line about the call's thread", False, "the turn never happened")]
+    named = {name for e in turn.t3 if e["delivery"] == "sent" for name in e.get("threads", ())}
+    return [ok(f"{what}: a line about the call's thread", turn.said(Kind.THREAD_STATUS, Kind.NOTHING_PENDING)
+               and thread in named, f"said {sorted(turn.said_kinds)} about {sorted(named)}", turn.index),
+            ok(f"{what}: no question first", not turn.said(*ASKING), f"asked {sorted(turn.said_kinds)}", turn.index),
+            ok(f"{what}: nothing about the other thread", other not in named, f"named {other}", turn.index)]
+
+
+def closes_quietly(call: Call, turn: Turn | None, one: str, two: str) -> list[Verdict]:
+    """A closing line gets an answer and no question about a thread, checked or free."""
+    if turn is None:
+        return [ok("closing: answered with no question", False, "the turn never happened")]
+    offered = [line for line in turn.free if call.judge.yes(
+        "Does the reply ask the person to choose between threads, ask which thread they mean, or ask them to confirm "
+        "a thread?", line, f"The threads are {one} and {two}.")]
+    return [ok("closing: no thread question", not turn.said(*ASKING) and not offered,
+               f"asked {sorted(turn.said_kinds & set(ASKING))} {offered}", turn.index),
+            ok("closing: answered", turn.answered, "the closing line got no answer", turn.index)]
+
+
+def untouched(call: Call, two: str) -> Verdict:
+    still = call.world["seeded"][two]["waiting_on"] == "approval"
+    return ok("the other thread still waits on the caller", still, "its approval was answered")
+
+
+def call_this_thread(pool: Pool) -> Plan:
+    one, two, seeds = opened_on_twin(pool)
+    lines = {"this": "What is this thread working on right now?", "close": "Okay, thanks, that is all for now."}
+
+    def script():
+        for line in lines:
+            yield Say(line)
+
+    def check(call: Call) -> list[Verdict]:
+        turns = call.caller_turns()
+        return [*stays_on(call, nth(turns, 0), "this thread", one, two),
+                *closes_quietly(call, nth(turns, 1), one, two), untouched(call, two)]
+
+    return Plan(seeds, lines, script(), check, opened_on=one)
+
+
+def call_follow_up(pool: Pool) -> Plan:
+    one, two, seeds = opened_on_twin(pool)
+    lines = {"this": "What is this thread working on right now?", "yes": "Yes, that one.",
+             "waiting": "Is it waiting on anything from me?", "close": "Okay, thanks, that is all for now."}
+    notes = {"asked_first": False}
+
+    def script():
+        heard = yield Say("this")
+        if heard.turns and heard.turns[-1].said(*ASKING):
+            # The dry run's caller said yes to the question, and its follow-up came after the status line.
+            notes["asked_first"] = True
+            yield Say("yes")
+        yield Say("waiting")
+        yield Say("close")
+
+    def check(call: Call) -> list[Verdict]:
+        turns = call.caller_turns()
+        at = 2 if notes["asked_first"] else 1
+        return [*stays_on(call, nth(turns, at), "the follow-up about it", one, two),
+                *closes_quietly(call, nth(turns, at + 1), one, two), untouched(call, two)]
+
+    return Plan(seeds, lines, script(), check, notes=notes, opened_on=one)
 
 
 # A turn the decider reads as conversation must not get a free reply that claims something T3 does not support.
@@ -722,6 +799,10 @@ SCENARIOS = (
     Scenario("thread-lines", "every thread question ends in a checked line that is said", thread_lines),
     Scenario("follow-up", "a follow-up keeps the last question's context", follow_up),
     Scenario("withdrawn-question", "a withdrawn which-thread question is not offered again", withdrawn),
+    Scenario("call-this-thread", "a call opened on a thread answers \"this thread\" at once and asks nothing at a close",
+             call_this_thread),
+    Scenario("call-follow-up", "a call opened on a thread keeps \"it\" on that thread beside a similar title",
+             call_follow_up),
     # The scenarios that start threads come after, each run on a T3 and a live server of its own.
     Scenario("news-permission", "a started thread's need for permission is said unprompted, once, and not approved",
              news_permission, 2, 1, fresh=True),
@@ -803,7 +884,8 @@ def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool
             return read_turn(server, len(seen) - 1, n)
 
         asked = len(judge.asked)
-        R.hold_call(rig, plan.script, clips, load, work / "client", CALL_TIMEOUT_S)
+        opened_on = ((seeded[plan.opened_on], world.connection().hello.environment_id) if plan.opened_on else None)
+        R.hold_call(rig, plan.script, clips, load, work / "client", CALL_TIMEOUT_S, opened_on)
         turns = collect(server, seen)
         call = Call(turns, world.snapshot(seeded, before), judge, plan.notes)
         verdicts = (*plan.check(call), no_silent_turn(call), no_unexpected_fallback(call))

@@ -816,11 +816,14 @@ class CallClient(client_module.Client):
             raise TypeError(f"a caller script yields Say, WaitNews, Pause or Do, not {action!r}")
 
 
-def hold_call(rig, script, clips, load, log_dir, timeout_s=300):
-    """Runs `script` as one call to the rig's server, in this process, with the reply audio going nowhere."""
+def hold_call(rig, script, clips, load, log_dir, timeout_s=300, opened_on=None):
+    """Runs `script` as one call to the rig's server, in this process, with the reply audio going nowhere.
+    `opened_on` is (thread id, environment id) for a call opened from a T3 thread, as the app opens one."""
+    thread, environment = opened_on or (None, None)
+    on = [*(["--thread", thread] if thread else []), *(["--environment", environment] if environment else [])]
     args = client_module.build_parser().parse_args(
         ["--server", f"ws://127.0.0.1:{rig.port}", "--secret-file", str(VOICE / "live/secret"), "--log-dir",
-         str(log_dir), "--output", "null", "--no-record"])
+         str(log_dir), "--output", "null", "--no-record", *on])
     caller = CallClient(args, script, clips, load)
     asyncio.run(asyncio.wait_for(caller.run(), timeout_s))
     if not caller.finished.is_set():
@@ -839,6 +842,8 @@ def entries(record):
             kinds = [a["kind"] for a in event.get("acts") or ()]
             current = {"kinds": kinds, "nothing_new": any((a.get("slots") or {}).get("since_last_asked")
                                                           for a in event.get("acts") or ()),
+                       "threads": sorted({(a.get("slots") or {}).get("thread") for a in event.get("acts") or ()
+                                          if isinstance((a.get("slots") or {}).get("thread"), str)}),
                        "summary": next(((a.get("slots") or {}).get("summary") for a in event.get("acts") or ()
                                         if (a.get("slots") or {}).get("summary")), None),
                        "draft": event.get("line"), "draft_problems": event.get("problems") or

@@ -43,7 +43,10 @@ STATUS_LINE = "The Polish the Main Menu thread is working."
 TURNS = ("How is the volume slider thread going?", "Never mind.",
          "Can you tell me something interesting about octopuses?", "Can we start over?",
          "Okay. Hello again, how are you?", "How is the main menu thread going?",
-         "Sorry, can you say that again?")
+         "Sorry, can you say that again?", "What is this thread working on right now?", "Yes, that one.",
+         "Is it waiting on anything from me?", "Okay, thanks, that is all for now.")
+CALL_STATUS = act(Kind.THREAD_STATUS, thread=THREADS[0], status="cancelled")
+CALL_STATUS_LINE = f"The {THREADS[0]} thread is cancelled."
 QUESTION = "Does the reply ask the person to choose between threads, or list threads as options to choose from?"
 CONTEXT = f"The threads are {THREADS[0]} and {THREADS[1]}."
 READ_OUT = ("Does the reply speak instructions or notes meant for the assistant itself, such as being told what to do "
@@ -58,10 +61,11 @@ TOOK_BACK = (run.NOTE_OPEN + "they took your last question back: they do not wan
              "this turn.]")
 CLOSED = (run.NOTE_OPEN + "your earlier question about their coding threads is closed. Do not bring up its choices "
           "again. Answer what they said in this turn.]")
-NO_REPEAT = run.WITHDRAWN_NOTE
-ACKNOWLEDGE = (run.NOTE_OPEN + "they took your last question back and are not choosing. Acknowledge that to them, as "
-               "yourself, in your own words. Do not repeat any earlier line of yours, and do not list or offer those "
-               "choices again.]")
+# The note that shipped before the in-app call's shape was measured; `acknowledge` is the one that ships now.
+NO_REPEAT = (run.NOTE_OPEN + "they took your last question back: they do not want any of the choices it offered, and "
+             "they are not choosing. Do not list, offer or ask about those choices again. Do not repeat any earlier "
+             "line of yours. Answer what they said in this turn.]")
+ACKNOWLEDGE = run.WITHDRAWN_NOTE
 # arm: the note for the withdrawing turn, the note for each later turn, and whether the note comes before the audio
 ARMS = {
     "none": (None, None, False),
@@ -78,7 +82,11 @@ SHAPES = {
     "which": [(0, WHICH, LINE)],
     "confirm": [(0, CONFIRM, CONFIRM_LINE)],
     "status_then_which": [(5, STATUS, STATUS_LINE), (0, WHICH, LINE)],
+    # The in-app call's dry run (2026-11-21): confirmed, said yes to, read out, then asked which, and closed.
+    "call_closing": [(7, CONFIRM, CONFIRM_LINE), (8, CALL_STATUS, CALL_STATUS_LINE), (9, WHICH, LINE)],
 }
+# The person's turn that takes the question back, by shape: "Never mind." unless the shape names its own.
+WITHDRAWING = {"call_closing": 10}
 
 
 def words(text: str) -> list[str]:
@@ -126,9 +134,9 @@ async def trial(url: str, clips: list[Path], arm: tuple, shape: str, judge: Judg
             await person(clips[turn], None)
             relayed, _ = await run.relay_draft(voice, rate, clock(), checked(acts, line))
             out.append({"turn": TURNS[turn], "said": relayed["text"], "relay": True})
-        octopus = ""
-        for i in (1, 2, 6, 3, 4):
-            note = first if i == 1 else later
+        octopus, withdrawing = "", WITHDRAWING.get(shape, 1)
+        for i in (withdrawing, 2, 6, 3, 4):
+            note = first if i == withdrawing else later
             await person(clips[i], note)
             reply, _ = await run.respond(voice, rate, clock())
             if i == 2:

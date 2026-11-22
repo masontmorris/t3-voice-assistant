@@ -114,3 +114,11 @@ class UntilStepTest(unittest.IsolatedAsyncioTestCase):
     def test_only_clips_reach_the_microphone_stream(self):
         self.assertEqual(client.until_row("@until:done-event"), "done-event")
         self.assertIsNone(client.until_row("clip.wav"))
+
+
+class HelloTest(unittest.TestCase):
+    def test_the_hello_opens_the_call_on_a_thread_only_when_one_is_named(self):
+        parse = lambda *flags: client.build_parser().parse_args(["--server", "ws://127.0.0.1:1", *flags])
+        self.assertEqual(client.hello(parse()), {"type": "hello", "mode": "vad"})
+        self.assertEqual(client.hello(parse("--thread", "t5", "--environment", "env-a", "--ptt")),
+                         {"type": "hello", "mode": "ptt", "thread": "t5", "environment": "env-a"})

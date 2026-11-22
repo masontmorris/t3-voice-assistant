@@ -81,6 +81,13 @@ class Picks(unittest.TestCase):
                                                             "waiting on you.")
         self.assertEqual(set(question["criteria"]), {"thread_01", NONE, UNCLEAR})
         self.assertEqual(body["state"]["last_discussed"], "Add a clamp helper")
+        self.assertNotIn("call_thread", body["state"], "off a call the request is as it was recorded")
+        threads = (Listed("a", "Add a clamp helper", "Voice sandbox", "working"),)
+        on_call = pick_request("How is it going?", threads, None, call_thread="Add a clamp helper")
+        self.assertEqual(on_call["state"]["call_thread"], "Add a clamp helper")
+        self.assertIn("`call_thread`", on_call["questions"]["pick"]["instructions"])
+        answering = pick_request("Postgres.", threads, None, answering=True, call_thread="Add a clamp helper")
+        self.assertNotIn("call_thread", answering["state"], "an answer names no thread, so it is shown none")
 
     def test_an_answer_that_is_not_a_pick_picks_nothing(self):
         threads = listed("short")[:2]
@@ -99,3 +106,42 @@ class Picks(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class CallPicks(unittest.TestCase):
+    """On recorded d1.2 answers for a call opened on a thread (voice/t3/eval/record_call_picks.py): with the call's
+    thread shown, words that name no other thread choose it, in most samples of each case; words naming another thread
+    choose that one either way."""
+
+    FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "call_picks.json").read_text(encoding="utf-8"))
+
+    def choices(self, row):
+        from voice.t3.eval.record_call_picks import body, listed
+        threads, answers = listed(), iter(row["samples"])
+
+        class Replay:
+            def call(self, route, sent, label=""):
+                assert sent == body(row), "re-run record_call_picks"
+                sample = next(answers)
+                return {"status": 200, "response": {"answers": {"pick": {"choice": sample["choice"],
+                                                                         "probabilities": sample["p"]}}}}
+
+        titles = {t.thread_id: t.title for t in threads}
+        call = self.FIXTURE["call_thread"] if row["shown"] else None
+        return [titles.get(p.choice, p.choice) for p in
+                (Decider(Replay()).picks(row["request"], threads, row["recent"], call_thread=call)
+                 for _ in row["samples"])]
+
+    def test_each_case_chooses_its_thread_in_most_samples_with_the_calls_thread_shown(self):
+        for row in self.FIXTURE["rows"]:
+            if not row["shown"]:
+                continue
+            with self.subTest(row["request"], held=row["held"]):
+                choices = self.choices(row)
+                self.assertGreater(choices.count(row["want"]), len(choices) / 2, choices)
+
+    def test_the_dry_runs_question_did_not_choose_the_calls_thread_without_it(self):
+        row = next(r for r in self.FIXTURE["rows"]
+                   if r["request"] == "What is this thread working on right now?" and not r["shown"])
+        choices = self.choices(row)
+        self.assertLessEqual(choices.count(row["want"]), len(choices) / 2, choices)
