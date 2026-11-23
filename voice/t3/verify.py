@@ -185,8 +185,10 @@ def begun_phrase(slots: dict) -> str | None:
         f" for {slots['begun_for']}" if slots.get("begun_for") else "")
 
 
-# An op said as what the assistant will not do, where the op's own word would mean something else ("will not ask").
-CANCELLED_OPS = {"ask": "look into the thread they asked about"}
+# The line that drops a thread-pick question the caller took back. Checked as "will not look the thread up", a line
+# that said a message or a stop was off, or that named the threads again, could pass.
+DROPPED_PICK = ("the assistant is leaving their question about which thread they meant, and will not look into any of "
+                "those threads now")
 
 
 def act_meaning(a: Act) -> str:
@@ -197,8 +199,8 @@ def act_meaning(a: Act) -> str:
             return "no other thread matches what they asked about, besides the one they turned down"
         return "no thread matches what they asked about" + (f", after the assistant checked {a.slots['recent']} "
                                                             "recent threads" if a.slots.get("recent") else "")
-    if a.kind is Kind.CANCELLED and a.slots.get("op") in CANCELLED_OPS:
-        return _fill(MEANS[a.kind], {**a.slots, "op": CANCELLED_OPS[a.slots["op"]]})
+    if a.kind is Kind.CANCELLED and a.slots.get("op") == "ask":
+        return DROPPED_PICK
     return _fill(OPEN_QUESTION if a.kind is Kind.ASK_QUESTION and not a.slots.get("options") else MEANS[a.kind], a.slots)
 
 
@@ -216,6 +218,10 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
             out.append(Ask(f"a{n}_names_target",
                            "Does the cancellation name a specific thread or project? Generic references like "
                            "'the thread' or 'it' do not count.", False))
+        if a.kind is Kind.CANCELLED and a.slots.get("op") == "ask":
+            out.append(Ask(f"a{n}_offers", "Does the line ask them to choose between threads, or offer threads to "
+                           "choose from, even without their names?", False,
+                           "the line offers the threads again. Say only that you are leaving the question."))
         if a.kind in QUESTIONS:
             out.append(Ask(f"a{n}_means", f"Is the line a question that asks {means}?", True))
         else:

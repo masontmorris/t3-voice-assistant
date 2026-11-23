@@ -189,9 +189,22 @@ class LineCheck(unittest.TestCase):
                             or row["line"] in PASSED_WRONG_LINES)
                 self.assertIsNone(verdict.error, verdict)
                 self.assertEqual(verdict.passed, expected, verdict)
-        self.assertEqual(sum(not row["should_pass"] for row in rows), 34,
+        self.assertEqual(sum(not row["should_pass"] for row in rows), 43,
                          "3 escapes, 17 old word-list claims, 3 beside smoke-run lines, 3 takes of a false done, "
-                         "a status said again without its summary and 7 wrong lines beside summary paraphrases")
+                         "a status said again without its summary, 7 wrong lines beside summary paraphrases and 9 "
+                         "wrong lines for a dropped pick")
+
+    def test_a_dropped_pick_is_refused_on_its_own_terms_not_only_by_the_catch_all(self):
+        """The line that drops a taken-back pick: a line naming or offering a thread, dropping another action or
+        saying the thread stopped fails a question about that, not only `invents`."""
+        rows = [row for row in FIXTURE if row["case"].startswith("dropped pick")]
+        for row in rows:
+            with self.subTest(row["line"]):
+                verdict = Decider(Recorded([row])).verify(acts_of(row), row["line"])
+                self.assertEqual(verdict.passed, row["should_pass"], verdict)
+                if not row["should_pass"]:
+                    self.assertTrue(set(verdict.failed) - {"invents"}, verdict)
+        self.assertEqual(sum(not row["should_pass"] for row in rows), 9)
 
     def test_a_reply_is_never_asked_whether_its_run_ended(self):
         reply = act(Kind.REPLIED, thread="Alpha", status="running", reply="I added clamp. The tests pass.")

@@ -7,6 +7,7 @@ tests stand in for llama.cpp, so they pin what the turn sends and speaks, not wh
 
 import asyncio
 import socket
+import threading
 import tempfile
 import unittest
 from pathlib import Path
@@ -24,9 +25,10 @@ from voice.segmentation.tasks import Orchestrator
 from voice.t3 import fakes as F
 from voice.t3.acts import act
 from voice.t3.acts import Kind as S
-from voice.t3.speech import Speech
+from voice.t3.speech import Rendered, Speech
 from voice.t3.test_verify import Failing
 from voice.t3.verify import Claim, Decider
+from voice.prototype.tests.test_clarification import Decider as SegmentDecider, pick
 from voice.tools.registry import ToolCall
 
 EARLIER = ("Could you check the weather in Raleigh today?", "Okay, and these are decent results.")
@@ -99,10 +101,10 @@ class NoteTurn(unittest.IsolatedAsyncioTestCase):
         self.voice = await prototype.Session.open("ws://unused", "voice", lambda: CLOCK)
         self.spoken = []
 
-    async def turn(self, script, source=None, **more):
+    async def turn(self, script, source=None, decider=None, **more):
         self.voice.script, self.voice.asked = script, 0
         return await prototype.run_clip(
-            source or Source(), "c", False, "ws://unused", None, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
+            source or Source(), "c", False, "ws://unused", decider, 0.0, Path(self.tmp.name), {}, "hybrid", None, "gated",
             voice=self.voice, snapshot_mode="note", prior_utterances=EARLIER, final_decider=True, recall="note",
             speak=heard_by(self.spoken), **more)
 
@@ -176,7 +178,7 @@ class CorrectingService(MockTaskService):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.news, self.delivered = {}, []
+        self.news, self.own_lines, self.delivered, self.given_back = {}, {}, [], []
         self.t3 = SimpleNamespace(held=[], spoken=[], hold_news=lambda update: self.t3.held.append(update),
                                   spoke=lambda update: self.t3.spoken.append(update))
 
@@ -201,10 +203,12 @@ class CorrectingService(MockTaskService):
         self.delivered.append(state)
 
     def withdrawn_entry(self, question):
-        return self.correction_entry("withdrawn")
+        entry = {"type": "task_update", "task_id": "withdrawn", "acts": [CORRECTION.to_json()], "row": "withdrawn"}
+        self.own_lines[id(entry)] = "withdrawn"
+        return entry
 
-    def drop_entry(self, entry):
-        self.news.pop(id(entry), None)
+    def give_back_withdrawn(self, question):
+        self.given_back.append(question)
 
 
 class ReplyCheckTurn(NoteTurn):
@@ -280,40 +284,190 @@ class ReplyCheckTurn(NoteTurn):
         self.assertEqual(holder["service"].t3.spoken, [], "a line the caller never heard is not spoken of")
 
 
+class Segments(SegmentDecider):
+    """The decider's reading of the turn's segments: one, ready to answer now or not."""
+
+    def __init__(self, ready):
+        super().__init__(tool="none")
+        self.ready = ready
+
+    def call(self, route, body, label=""):
+        out = super().call(route, body, label)
+        for name, question in body["questions"].items():
+            if name.split("_", 1)[1] == "ready":
+                out["response"]["answers"][name] = pick(self.ready, question)
+        return out
+
+
+TAKEN_BACK = SimpleNamespace(took_back=True, candidates=("t1", "t2"),
+                             titles={"t1": "Tidy the Save Slots", "t2": "Tidy the Save Menu"})
+
+
 class WithdrawnReplyCheckTurn(ReplyCheckTurn):
     """The free reply on the turn that took a pick question back is held until the check reads it: one that offers the
-    taken-back threads as choices again is never heard, and a checked line is said in its place."""
+    taken-back threads as choices again is never heard. A turn that asks nothing else hears the checked line that
+    drops the question instead; one that asks something else is answered."""
 
     OFFER = "Which thread do you mean, Tidy the Save Slots or Tidy the Save Menu?"
+    ANSWER = "Two plus two is four."
 
-    async def withdrawing(self, reply, p_yes):
+    async def withdrawing(self, script, reads, ready="clarify", service=None):
+        """`reads` is the check's answers by reply, each a list taken in turn (None: it could not be read)."""
         asked = self.asked = []
+        holder = self.holder = {}
+        reads = {text: list(answers) for text, answers in reads.items()}
 
-        class Dropped(CorrectingService):
-            withdrawn_question = SimpleNamespace(took_back=True, candidates=("t1", "t2"),
-                                                 titles={"t1": "Tidy the Save Slots", "t2": "Tidy the Save Menu"})
+        class Dropped(service or CorrectingService):
+            withdrawn_question = TAKEN_BACK
+
+            def __init__(inner, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                holder["service"] = inner
+
+        def reoffers(text, threads):
+            asked.append(text)
+            return reads[text].pop(0), 1.0
 
         check = self.checker()
         check.judge = lambda text, facts: Claim(0.0, 1.0)
-        check.reoffers = lambda text, threads: (asked.append((text, threads)) or p_yes, 1.0)
-        return await self.turn([reply, CORRECTED], task_service=Dropped, send_checked=self.send_checked,
-                               reply_check=check)
+        check.reoffers = reoffers
+        return await self.turn(script, task_service=Dropped, send_checked=self.send_checked, reply_check=check,
+                               decider=Segments(ready))
 
     async def test_a_reply_that_offers_the_choices_again_is_never_heard_and_a_checked_line_is_said_instead(self):
-        record = await self.withdrawing(self.OFFER, 0.9)
-        self.assertEqual(self.asked, [(self.OFFER, ["Tidy the Save Slots", "Tidy the Save Menu"])])
+        record = await self.withdrawing([self.OFFER, CORRECTED], {self.OFFER: [0.9]})
+        self.assertEqual(self.asked, [self.OFFER])
         self.assertEqual(self.spoken, [CORRECTED])
         self.assertEqual([(r["kind"], r.get("delivery")) for r in record["replies"]], [("snapshot", "refused"),
                                                                                          ("t3", "sent")])
 
     async def test_a_reply_that_does_not_offer_them_is_spoken_whole_once_read(self):
-        record = await self.withdrawing("Okay, no problem.", 0.1)
+        record = await self.withdrawing(["Okay, no problem."], {"Okay, no problem.": [0.1]})
         self.assertEqual(self.spoken, ["Okay, no problem."])
         self.assertEqual([r["kind"] for r in record["replies"]], ["snapshot"])
 
-    async def test_a_check_that_did_not_finish_counts_as_an_offer(self):
-        await self.withdrawing("Okay, no problem.", None)
+    async def test_a_check_that_cannot_be_read_twice_counts_as_an_offer(self):
+        await self.withdrawing(["Okay, no problem.", CORRECTED], {"Okay, no problem.": [None, None]})
+        self.assertEqual(self.asked, ["Okay, no problem."] * 2, "an unreadable answer is asked once more")
         self.assertEqual(self.spoken, [CORRECTED])
+
+    async def test_every_checked_line_refused_still_ends_in_words_the_caller_hears(self):
+        drafted = []
+
+        class Refusing(CorrectingService):
+            def say(self, entry, turns=()):
+                drafted.append(entry["task_id"])
+                return Rendered(None, ["refused"], "a refused draft")
+
+            def unanswered(self, *, has_audio=False):
+                entry = {"type": "task_update", "task_id": "unanswered", "acts": [CORRECTION.to_json()]}
+                return entry, self, lambda state: None
+
+        sorry = "Sorry, I couldn't get you an answer just now."
+        record = await self.withdrawing([self.OFFER, sorry], {self.OFFER: [0.9]}, service=Refusing)
+        self.assertEqual(drafted, ["withdrawn", "withdrawn", "unanswered", "unanswered"],
+                         "the line is drafted again, then the turn's own fallback is tried")
+        self.assertEqual(self.spoken, [sorry])
+        self.assertEqual(record["replies"][-1]["kind"], "no_answer")
+        self.assertEqual(self.holder["service"].given_back, [])
+
+    async def test_a_turn_that_also_asks_something_is_answered_without_the_choices(self):
+        record = await self.withdrawing([self.OFFER, self.ANSWER], {self.OFFER: [0.9], self.ANSWER: [0.01]},
+                                        ready="dispatch_now")
+        self.assertEqual(self.spoken, [self.ANSWER])
+        self.assertIn(prototype.REOFFERED_NOTE, texts(self.voice), "the note says why the reply was not said")
+        self.assertNotIn("t3", [r["kind"] for r in record["replies"]], "no checked line takes the answer's place")
+
+    async def test_a_check_that_fails_once_does_not_lose_the_answer_to_the_other_request(self):
+        await self.withdrawing([self.ANSWER], {self.ANSWER: [None, 0.01]}, ready="dispatch_now")
+        self.assertEqual(self.spoken, [self.ANSWER])
+
+    async def test_an_unreadable_check_on_a_turn_that_asks_more_words_the_reply_again_rather_than_replace_it(self):
+        again = "Sure, two plus two makes four."
+        await self.withdrawing([self.ANSWER, again], {self.ANSWER: [None, None], again: [0.01]},
+                               ready="dispatch_now")
+        self.assertEqual(self.spoken, [again])
+        self.assertIn(prototype.UNREAD_NOTE, texts(self.voice), "a reply the check could not read is asked for again")
+
+    async def test_a_reply_refused_twice_is_replaced_by_the_checked_line_and_no_free_reply_follows_it(self):
+        record = await self.withdrawing([self.OFFER, self.OFFER, CORRECTED], {self.OFFER: [0.9, 0.9]},
+                                        ready="dispatch_now")
+        self.assertEqual(self.spoken, [CORRECTED])
+        self.assertEqual([(r["kind"], r.get("delivery")) for r in record["replies"]],
+                         [("snapshot", "refused"), ("snapshot", "refused"), ("t3", "sent")])
+
+    async def cut_off(self, blocking):
+        """The turn is cancelled, as the live server cancels one the caller's next words continue, while `blocking`
+        (`reoffers` or `say`) waits; nothing of it may be heard, and the withdrawal goes to the next turn."""
+        reached, release = asyncio.Event(), threading.Event()
+        self.addCleanup(release.set)
+        loop = asyncio.get_running_loop()
+        holder = {}
+
+        def wait(result):
+            loop.call_soon_threadsafe(reached.set)
+            release.wait()
+            return result
+
+        class Cut(CorrectingService):
+            withdrawn_question = TAKEN_BACK
+
+            def __init__(inner, *args, **kwargs):
+                super().__init__(*args, **kwargs)
+                holder["service"] = inner
+
+            def say(inner, entry, turns=()):
+                return wait(super().say(entry, turns)) if blocking == "say" else super().say(entry, turns)
+
+        check = self.checker()
+        check.judge = lambda text, facts: Claim(0.0, 1.0)
+        check.reoffers = lambda text, threads: wait((0.9, 1.0)) if blocking == "reoffers" else (0.9, 1.0)
+        turn = asyncio.ensure_future(self.turn([self.OFFER, CORRECTED], task_service=Cut,
+                                               send_checked=self.send_checked, reply_check=check,
+                                               decider=Segments("clarify")))
+        await reached.wait()
+        turn.cancel()
+        with self.assertRaises(asyncio.CancelledError):
+            await turn
+        self.assertEqual(self.spoken, [])
+        self.assertEqual(holder["service"].given_back, [TAKEN_BACK])
+
+    async def test_the_caller_speaking_during_the_hold_hears_nothing_of_that_turn(self):
+        await self.cut_off("reoffers")
+
+    async def test_the_caller_speaking_while_the_checked_line_is_drafted_hears_nothing_of_that_turn(self):
+        await self.cut_off("say")
+
+
+class HoldDeadline(unittest.IsolatedAsyncioTestCase):
+    """The hold ends at its deadline, the wait for the check's lock included, and a reply not read by then does not
+    pass."""
+
+    async def hold(self, reoffers):
+        logged = []
+        check = SimpleNamespace(reoffers=reoffers)
+        hold = prototype.withdrawn_hold(TAKEN_BACK, check, object(), lambda kind, **fields: logged.append(fields),
+                                        deadline_s=0)
+        return await hold("Okay, no problem."), logged
+
+    async def test_a_check_that_never_answers_does_not_pass_the_reply(self):
+        release = threading.Event()
+        self.addCleanup(release.set)
+        passed, logged = await self.hold(lambda text, threads: (release.wait(), (0.0, 1.0))[1])
+        self.assertFalse(passed)
+        self.assertTrue(logged[0]["past_deadline"])
+
+    async def test_a_check_held_up_by_its_lock_does_not_pass_the_reply(self):
+        class Answers:
+            def call(self, route, body, label=""):
+                return {"status": 200, "response": {"answers": {"answers": {"type": "noul", "noul": 0.0}}}}
+
+        decider = Decider(Answers())
+        decider.lock.acquire()
+        self.addCleanup(decider.lock.release)
+        passed, logged = await self.hold(decider.reoffers)
+        self.assertFalse(passed)
+        self.assertTrue(logged[0]["past_deadline"])
 
 
 class WithdrawnQuestionTurn(NoteTurn):

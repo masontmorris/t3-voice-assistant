@@ -548,6 +548,13 @@ class T3Tasks:
         with self.lock:
             return dict(self.declined) if self.declined is not None else None
 
+    def restore_withdrawn(self, question: Question) -> None:
+        """A turn that took `question` back ended before anything of it was heard: the turn that carries its words on
+        is told of the withdrawal again. Not across calls, and not over a newer one."""
+        with self.lock:
+            if question.call == self.call and self.withdrawn is None:
+                self.withdrawn = question
+
     def take_withdrawn(self) -> Question | None:
         """The question the person heard and a turn dropped unanswered, once: the voice session still holds its words,
         and a turn that answers freely can say them again."""
@@ -1738,6 +1745,8 @@ class T3TaskService(MockTaskService):
         self.t3 = t3
         self.spoken: dict[str, L.Update] = {}
         self.news: dict[int, L.Update] = {}
+        # Lines that belong to this turn alone: said in it or never, so `close` gives none of them back.
+        self.own_lines: dict[int, L.Update] = {}
         self.delivered: set[str] = set()
         self.prefetched: set[str] = set()
 
@@ -1820,20 +1829,23 @@ class T3TaskService(MockTaskService):
 
     def withdrawn_entry(self, question: Question) -> dict:
         """The checked line said in place of a free reply that offered a taken-back question's choices again: what was
-        asked will not be done, as for any other no. It is said in this turn or not at all."""
+        asked will not be done, as for any other no. It is said in this turn or not at all: a later turn would hear it
+        about nothing."""
         update = L.Update(f"withdrawn:{question.key}", (act(Say.CANCELLED, op=OPS[question.op]),), "cancelled", "pick")
-        return self.correction_entry(update)
+        entry = self.t3.news_entry(update, self.conversation_id)
+        self.own_lines[id(entry)] = update
+        return entry
 
-    def drop_entry(self, entry: dict) -> None:
-        """A line that belongs to this turn alone: if it was not said, `close` does not give it back."""
-        self.news.pop(id(entry), None)
+    def give_back_withdrawn(self, question: Question) -> None:
+        """This turn ended before anything of it was heard: the next turn is told of the withdrawal instead."""
+        self.t3.restore_withdrawn(question)
 
     def declined_state(self):
         return self.t3.declined_state()
 
     def update_for(self, entry) -> L.Update:
         if entry.get("type") == "task_update":
-            return self.news[id(entry)]
+            return self.own_lines.get(id(entry)) or self.news[id(entry)]
         return self.spoken[entry["task_id"]]
 
     def say(self, entry, turns=()) -> Rendered:
@@ -1903,7 +1915,7 @@ class T3TaskService(MockTaskService):
         if state != "sent":
             return
         if entry.get("type") == "task_update":
-            update = self.news.pop(id(entry))
+            update = self.own_lines.pop(id(entry), None) or self.news.pop(id(entry))
             self.t3.ack_news(update)
             self.t3.news_spoken(update)
         else:

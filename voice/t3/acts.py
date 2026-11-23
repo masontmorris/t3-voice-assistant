@@ -456,7 +456,8 @@ def forbidden_claims(acts: Iterable[Act]) -> set[str]:
     return forbidden - claimed
 
 
-OP_FORBIDS = {"start": ("started",), "tell": ("sent",), "stop": ("stopped",), "ask": (), "answer": ("answered",)}
+OP_FORBIDS = {"start": ("started",), "tell": ("sent",), "stop": ("stopped",), "ask": ("stopped",),
+              "answer": ("answered",)}
 # What an act states as true, so another act in the same line may not forbid it.
 CLAIMED = {Kind.LAUNCHED: ("started",), Kind.SENT_FOLLOWUP: ("sent",)}
 STATUS_CLAIMS = {"finished": ("finished",), "completed": ("finished",), "interrupted": ("stopped",),

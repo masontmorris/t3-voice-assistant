@@ -125,6 +125,26 @@ PARAPHRASES = [
 ]
 CASES += PARAPHRASES
 
+# The line said in place of a free reply that offered a taken-back pick again (`cancelled`, op `ask`): it must not name
+# or offer either thread, say another action was dropped, or say the thread itself stopped. The pair is the whole-call
+# scenario's own made-up pair.
+DROPPED = act(Kind.CANCELLED, op="ask")
+CASES += [
+    ("dropped pick names a thread", DROPPED, "Okay, I'll leave Add a Volume Slider to the Mixer.",
+     "Okay, I'll leave that one."),
+    ("dropped pick names the other thread", DROPPED, "Okay, I won't look into Add a Volume Slider to Settings.",
+     "No problem, I'll drop that question."),
+    ("dropped pick offers the choices", DROPPED, "Okay. Did you mean the mixer one or the settings one?",
+     "Okay, I won't look into it then."),
+    ("dropped pick offers them after leaving it", DROPPED,
+     "Okay, I'll leave it, but it's either the mixer one or the settings one.", None),
+    ("dropped pick drops a message", DROPPED, "Okay, I won't send that message.", None),
+    ("dropped pick drops a stop", DROPPED, "Okay, I won't stop the thread.", None),
+    ("dropped pick drops a launch", DROPPED, "Okay, I won't start a new thread.", None),
+    ("dropped pick cancels the thread", DROPPED, "Okay, I've cancelled that thread.", None),
+    ("dropped pick stops the thread", DROPPED, "Okay, that thread is stopped now.", None),
+]
+
 ATTRIBUTION_CASES = [
     ("historical bare status", act(Kind.THREAD_STATUS, thread=T, status="working", summary="It added the helper."),
      f"{T} is still working, and it has added the helper.", None),
