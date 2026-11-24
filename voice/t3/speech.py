@@ -1123,7 +1123,19 @@ READER_VARIANTS = {
     # No description passed the gate: the kind alone, never what the request does or is for.
     (Kind.CONFIRM_RESPOND, "kind_only"): ({"thread": "Example Archive Old Invoices", "decision": "approve",
                                           "need": "command_approval"},
-                                         "Should I approve Example Archive Old Invoices running a command?"),
+                                         "Should I approve the request to run a command from Example Archive Old "
+                                         "Invoices?"),
+    (Kind.CONFIRM_RESPOND, "kind_only_begun_for"): ({"begun_in": "Example Fleet Notes",
+                                                    "begun_for": "sorting the fleet log by date", "decision": "approve",
+                                                    "need": "command_approval"},
+                                                   "Should I approve the request to run a command from the thread you "
+                                                   "started in Example Fleet Notes for sorting the fleet log by date?"),
+    (Kind.CONFIRM_RESPOND, "kind_only_begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve",
+                                                "need": "command_approval"},
+                                               "Should I approve the request to run a command from the thread you "
+                                               "started in Example Fleet Notes?"),
+    (Kind.CONFIRM_RESPOND, "kind_only_on_call"): ({"on_call": True, "decision": "approve", "need": "command_approval"},
+                                                 "Should I approve this thread's request to run a command?"),
     (Kind.CONFIRM_RESPOND, "tool"): ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "permission",
                                      "tool": "ListPages"},
                                     "Should I let Example Mend Rail Maps use the ListPages tool?"),
@@ -1275,7 +1287,9 @@ def _shape(kind: Kind, slots: dict) -> str | None:
     if kind in (Kind.NEEDS_YOU, Kind.NEEDS_THE_APP) and slots.get("request"):
         return "request"
     if kind is Kind.CONFIRM_RESPOND and slots.get("decision") == "approve" and not slots.get("summary"):
-        return "tool" if slots.get("tool") else "kind_only"
+        place = ("begun_for" if slots.get("begun_for") else "begun" if slots.get("begun_in")
+                 else "on_call" if slots.get("on_call") else None)
+        return f"kind_only_{place}" if place else "tool" if slots.get("tool") else "kind_only"
     if kind is Kind.DONE and slots.get("status") in STOPPED:
         return "stopped"
     if kind is Kind.NEEDS_THE_APP and (kind, slots.get("need")) in READER_VARIANTS:

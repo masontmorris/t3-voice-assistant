@@ -746,6 +746,18 @@ class RenderTest(unittest.TestCase):
         self.assertNotIn("Which project do you mean", which("thread"))
         self.assertIn("Which project do you mean", which("project"))
 
+    def test_an_approval_asked_by_its_kind_is_shown_the_example_that_names_the_thread_as_the_act_does(self):
+        shown = lambda **slots: reader_messages((act(Kind.CONFIRM_RESPOND, decision="approve", need="command_approval",
+                                                      **slots),))[0]["content"]
+        self.assertIn("the request to run a command from the thread you started in Example Fleet Notes for sorting",
+                      shown(begun_in="Example Fleet Notes", begun_for="an account"))
+        self.assertIn("from the thread you started in Example Fleet Notes?", shown(begun_in="Example Fleet Notes"))
+        self.assertIn("this thread's request to run a command", shown(on_call=True))
+        self.assertIn("the request to run a command from Example Archive Old Invoices", shown(thread="Add a clamp helper"))
+        tool = reader_messages((act(Kind.CONFIRM_RESPOND, thread="T", decision="approve", need="permission",
+                                    tool="x"),))[0]["content"]
+        self.assertIn("use the ListPages tool", tool)
+
     def test_the_realtime_reader_gets_the_existing_thread_direction_and_example(self):
         for title in ("Rotate Signing Keys", "Refresh Onboarding Checklist"):
             with self.subTest(title=title):
