@@ -11,7 +11,11 @@ export const VoiceServerMessage = Schema.Union([
   Message("turn_start", {}),
   Message("turn_end", {}),
   Message("heard", { turn: Schema.Number, text: Schema.String }),
-  Message("reply_start", { rate: Schema.Number }),
+  Message("reply_start", {
+    rate: Schema.Number,
+    turn: Schema.optional(Schema.Number),
+    reply: Schema.optional(Schema.Number),
+  }),
   Message("say", {
     turn: Schema.Number,
     text: Schema.String,
@@ -20,7 +24,7 @@ export const VoiceServerMessage = Schema.Union([
   Message("reply_end", {}),
   Message("duck", {}),
   Message("unduck", {}),
-  Message("barge_in", {}),
+  Message("barge_in", { turn: Schema.optional(Schema.Number) }),
   Message("turn_done", {}),
 ]);
 export type VoiceServerMessage = typeof VoiceServerMessage.Type;

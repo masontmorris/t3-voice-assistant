@@ -56,3 +56,15 @@ it("reports a caption's mark only once its audio starts playing, and drops the r
   render(50);
   expect(posted).toEqual([{ type: "mark", id: 1 }, { type: "mark", id: 3 }, "drained"]);
 });
+
+it("says how many frames left the queue, played or dropped, so a barge-in can say where a reply stopped", async () => {
+  const { posted, send, render } = await loadProcessor();
+  send({ type: "config", deviceRate: 1_000 });
+  send({ type: "feed", pcm: new Float32Array(300).fill(0.5) });
+  render(128);
+  send({ type: "position" });
+  expect(posted.at(-1)).toEqual({ type: "position", frames: 128 });
+  send({ type: "flush" });
+  send({ type: "position" });
+  expect(posted.at(-1)).toEqual({ type: "position", frames: 300 });
+});

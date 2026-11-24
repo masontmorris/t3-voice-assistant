@@ -57,6 +57,12 @@ export function openVoiceCall(input: {
   // and a barge-in drops the marks with the audio they belonged to.
   const sayings = new Map<number, Say>();
   let nextMark = 0;
+  // Where a barge-in stopped the reply, for the server's trim: frames fed so far, the reply now
+  // playing and how many frames had been fed when it began, and the one a barge-in asked about.
+  type Playing = { turn: number; reply: number; from: number; rate: number };
+  let fed = 0;
+  let playing: Playing | null = null;
+  let stopped: Playing | null = null;
 
   const wire = (audio: AudioContext, media: MediaStream) => {
     const mic = new AudioWorkletNode(audio, "t3-pcm-capture", {
@@ -72,6 +78,20 @@ export function openVoiceCall(input: {
     speaker.port.onmessage = ({ data }: MessageEvent<PlaybackReport>) => {
       if (data === "drained") {
         input.onEvent({ type: "drained" });
+        return;
+      }
+      if (data.type === "position") {
+        const at = stopped;
+        stopped = null;
+        if (at && socket?.readyState === WebSocket.OPEN) {
+          const samples = Math.max(
+            0,
+            Math.round(((data.frames - at.from) * at.rate) / audio.sampleRate),
+          );
+          socket.send(
+            JSON.stringify({ type: "position", turn: at.turn, reply: at.reply, samples }),
+          );
+        }
         return;
       }
       const said = sayings.get(data.id);
@@ -113,7 +133,11 @@ export function openVoiceCall(input: {
     };
     ws.onmessage = ({ data }: MessageEvent<unknown>) => {
       if (data instanceof ArrayBuffer) {
-        if (replyRate > 0) play({ type: "feed", pcm: pcm16ToDeviceFloat(data, replyRate, rate) });
+        if (replyRate > 0) {
+          const pcm = pcm16ToDeviceFloat(data, replyRate, rate);
+          fed += pcm.length;
+          play({ type: "feed", pcm });
+        }
         return;
       }
       const message = Option.getOrNull(decodeVoiceServerMessage(data));
@@ -127,15 +151,25 @@ export function openVoiceCall(input: {
       if (message.type === "ready") {
         // oxlint-disable-next-line unicorn/require-post-message-target-origin -- AudioWorklet MessagePorts do not accept a target origin
         mic.port.postMessage("start");
-      } else if (message.type === "reply_start" && message.rate !== replyRate) {
-        play({ type: "flush" });
-        sayings.clear();
-        replyRate = message.rate;
+      } else if (message.type === "reply_start") {
+        if (message.rate !== replyRate) {
+          play({ type: "flush" });
+          sayings.clear();
+          replyRate = message.rate;
+        }
+        playing =
+          message.turn === undefined || message.reply === undefined
+            ? null
+            : { turn: message.turn, reply: message.reply, from: fed, rate: message.rate };
       } else if (message.type === "reply_end") {
         play({ type: "feed", pcm: new Float32Array(0), end: true });
       } else if (message.type === "duck" || message.type === "unduck") {
         play({ type: message.type });
       } else if (message.type === "barge_in") {
+        if (playing && playing.turn === message.turn) {
+          stopped = playing;
+          play({ type: "position" });
+        }
         play({ type: "flush" });
         sayings.clear();
       }

@@ -4,6 +4,8 @@
 // speech over the reply; a barge-in flushes everything still queued, like the Python client's buffer drop.
 // With recording on, the samples it hands to the output, after the gain, go back to the main thread in runs, each
 // stamped with the audio clock's frame it started on, so the recording is what was played rather than what was sent.
+// Asked for its `position`, it answers with how many frames have left the queue (played, or
+// dropped by a flush), so the main thread can tell the server where a reply stopped.
 class PlaybackProcessor extends AudioWorkletProcessor {
   constructor() {
     super();
@@ -15,6 +17,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     this.gain = 1;
     this.prebuffer = 0;
     this.played = 0;
+    this.out = 0;
     this.recording = false;
     this.run = new Float32Array(4096);
     this.runLength = 0;
@@ -44,7 +47,10 @@ class PlaybackProcessor extends AudioWorkletProcessor {
     } else if (message.type === "drain") {
       this.flushRun();
       this.port.postMessage({ type: "recorded" });
+    } else if (message.type === "position") {
+      this.port.postMessage({ type: "position", frames: this.out });
     } else if (message.type === "flush") {
+      this.out += this.queued;
       this.flushRun();
       this.queue = [];
       this.consumed = 0;
@@ -98,6 +104,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       this.consumed += take;
       this.queued -= take;
       this.played += take;
+      this.out += take;
       offset += take;
       if (this.consumed >= head.length) {
         this.queue.shift();

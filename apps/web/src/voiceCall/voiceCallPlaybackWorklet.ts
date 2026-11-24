@@ -7,10 +7,16 @@ export type PlaybackMessage =
   | { readonly type: "config"; readonly deviceRate: number }
   | { readonly type: "feed"; readonly pcm: Float32Array; readonly end?: boolean }
   | { readonly type: "mark"; readonly id: number }
-  | { readonly type: "duck" | "unduck" | "flush" };
+  | { readonly type: "duck" | "unduck" | "flush" | "position" };
 
-/** "drained" when a reply finished playing; a mark's id once playback reaches it. */
-export type PlaybackReport = "drained" | { readonly type: "mark"; readonly id: number };
+/**
+ * "drained" when a reply finished playing; a mark's id once playback reaches it; asked for its
+ * position, how many frames have left the queue, played or dropped by a flush.
+ */
+export type PlaybackReport =
+  | "drained"
+  | { readonly type: "mark"; readonly id: number }
+  | { readonly type: "position"; readonly frames: number };
 
 /**
  * Reply playback for a live call, ported from voice/live/web/playback-worklet.js without its
@@ -27,6 +33,7 @@ class VoiceCallPlaybackProcessor extends AudioWorkletProcessor {
   private gain = 1;
   private prebuffer = 0;
   private played = 0;
+  private out = 0;
 
   constructor() {
     super();
@@ -49,7 +56,10 @@ class VoiceCallPlaybackProcessor extends AudioWorkletProcessor {
       this.gain = 0.35;
     } else if (message.type === "unduck") {
       this.gain = 1;
+    } else if (message.type === "position") {
+      this.report({ type: "position", frames: this.out });
     } else {
+      this.out += this.queued;
       this.queue = [];
       this.consumed = 0;
       this.queued = 0;
@@ -89,6 +99,7 @@ class VoiceCallPlaybackProcessor extends AudioWorkletProcessor {
       this.consumed += take;
       this.queued -= take;
       this.played += take;
+      this.out += take;
       offset += take;
       if (this.consumed >= head.length) {
         this.queue.shift();
