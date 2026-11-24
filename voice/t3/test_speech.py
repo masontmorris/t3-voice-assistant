@@ -755,6 +755,11 @@ class RenderTest(unittest.TestCase):
                       shown(begun_in="Example Fleet Notes"))
         self.assertIn("this thread's request to run a command", shown(on_call=True))
         self.assertIn("the request to run a command from Example Archive Old Invoices", shown(thread="Add a clamp helper"))
+        for decision, said in (("approve", "I approved the command for the thread you started in Example Fleet Notes for sorting"),
+                               ("deny", "I said no to the command for the thread you started in Example Fleet Notes for sorting")):
+            answered = reader_messages((act(Kind.RESPONDED, decision=decision, need="command_approval",
+                                            begun_in="Example Fleet Notes", begun_for="an account"),))[0]["content"]
+            self.assertIn(said, answered)
         tool = reader_messages((act(Kind.CONFIRM_RESPOND, thread="T", decision="approve", need="permission",
                                     tool="x"),))[0]["content"]
         self.assertIn("use the ListPages tool", tool)

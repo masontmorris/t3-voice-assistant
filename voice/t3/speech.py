@@ -1142,6 +1142,20 @@ READER_VARIANTS = {
                                     "Should I let Example Mend Rail Maps use the ListPages tool?"),
     (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
                                "I said no to the file changes for Example Mend Rail Maps."),
+    # The answer to an untitled thread's request names the thread as its other lines do, by what it was started for.
+    (Kind.RESPONDED, "begun_for_approve"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                            "decision": "approve", "need": "command_approval"},
+                                           "I approved the command for the thread you started in Example Fleet Notes "
+                                           "for sorting the fleet log by date."),
+    (Kind.RESPONDED, "begun_for_deny"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                         "decision": "deny", "need": "command_approval"},
+                                        "I said no to the command for the thread you started in Example Fleet Notes "
+                                        "for sorting the fleet log by date."),
+    (Kind.RESPONDED, "begun_approve"): ({"begun_in": "Example Fleet Notes", "decision": "approve",
+                                        "need": "command_approval"},
+                                       "I approved the command for the thread you started in Example Fleet Notes."),
+    (Kind.RESPONDED, "begun_deny"): ({"begun_in": "Example Fleet Notes", "decision": "deny", "need": "command_approval"},
+                                    "I said no to the command for the thread you started in Example Fleet Notes."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
     (Kind.CANCELLED, "ask"): ({"op": "ask"}, "Okay, I'll leave that one."),
     (Kind.NEEDS_YOU, "request"): ({"thread": "Example Archive Old Invoices", "need": "command_approval",
@@ -1279,6 +1293,8 @@ def _shape(kind: Kind, slots: dict) -> str | None:
         return "thread_pair"
     if kind is Kind.NEEDS_THE_APP and slots.get("again"):
         return "again"
+    if kind is Kind.RESPONDED and (slots.get("begun_for") or slots.get("begun_in")):
+        return f"{'begun_for' if slots.get('begun_for') else 'begun'}_{slots.get('decision')}"
     if slots.get("begun_for") and (kind, "begun_for") in READER_VARIANTS:
         return "begun_for"
     if slots.get("begun_in") and (kind, "begun") in READER_VARIANTS:
