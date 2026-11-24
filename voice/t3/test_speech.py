@@ -341,12 +341,34 @@ class LocalTextTest(unittest.TestCase):
         filled, _ = speech.fill((act(Kind.NEEDS_YOU, need="command_approval", prompt="printf 'ready' > note.txt"),), "t5")
         self.assertEqual((gate.asked, "request" in filled[0].slots), ([], False))
 
-    def test_a_tool_permission_is_never_described(self):
+    def test_a_file_read_is_never_described(self):
         waiting = F.state(thread="t5", title="Add a clamp helper", as_of=140, activity=T.ThreadActivity.WAITING_ON_YOU,
-                          pending=F.need("q3", "Bash", source=T.NeedSource.PERMISSION))
+                          pending=F.need("q3", "notes.md", source=T.NeedSource.FILE_READ))
         speech = Speech(Lane(Text()), Reads(waiting), F.Agree(), gate=type("G", (), {"doubt": lambda *a: 0.0})())
-        filled, _ = speech.fill((act(Kind.NEEDS_YOU, need="permission", prompt="Bash"),), "t5")
-        self.assertEqual(filled[0].slots, {"need": "permission", "thread": "Add a clamp helper"})
+        filled, _ = speech.fill((act(Kind.NEEDS_YOU, need="file_read", prompt="notes.md"),), "t5")
+        self.assertEqual(filled[0].slots, {"need": "file_read", "thread": "Add a clamp helper"})
+
+    def test_a_tool_permission_confirmation_carries_the_tool_only_while_no_description_passed(self):
+        class Gate:
+            def __init__(self, doubt):
+                self.doubt_of = doubt
+
+            def doubt(self, need, description):
+                return self.doubt_of
+
+        class Describes(Text):
+            def complete(self, messages):
+                if messages[0]["content"] == LS.REQUEST_SYSTEM:
+                    return {"text": json.dumps({"gist": "It wants to use a tool that lists notes."})}
+                return super().complete(messages)
+
+        need = F.need("q3", "list_notes", source=T.NeedSource.PERMISSION)
+        confirm = (act(Kind.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve", need="permission",
+                       tool="list_notes"),)
+        for doubt, slots in ((0.01, {"summary": "It wants to use a tool that lists notes."}), (0.4, {"tool": "list_notes"})):
+            speech = Speech(Lane(Describes()), Reads(finished(140)), F.Agree(), gate=Gate(doubt))
+            filled, _ = speech.fill(confirm, "t5", (140,), need)
+            self.assertEqual({k: v for k, v in filled[0].slots.items() if k in ("summary", "tool")}, slots)
 
     def test_a_launched_thread_is_named_by_its_id_and_by_the_title_it_has_now(self):
         request = "Um, start a thread to sort the pantry list, a long hesitant request that runs well past the limit."
@@ -455,7 +477,7 @@ class LocalTextTest(unittest.TestCase):
         self.assertEqual(text.summaries, 0)
 
     def test_a_request_the_voice_cannot_describe_is_not_described_by_any_model(self):
-        for source in (T.NeedSource.PERMISSION, T.NeedSource.FILE_READ, T.NeedSource.MCP_ELICITATION):
+        for source in (T.NeedSource.FILE_READ, T.NeedSource.MCP_ELICITATION):
             text = Text()
 
             class Gate:

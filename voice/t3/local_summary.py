@@ -190,13 +190,14 @@ def unsupported(record: dict[str, Any]) -> float | None:
 # title, which the summariser borrowed facts from; the last reply is left out. Examples are made-up requests as chat
 # turns and teach how to read one, never wording to be spoken.
 #
-# Only a request whose stored prompt is the action itself can be approved by voice: a command, or a change to a file.
-# A tool permission stores only the tool's name, so it is described (which tool, in plain words) but approved in the app;
-# a file read stores only a path, and the others nothing the voice can describe. The choice is made on the request's
-# source, a typed field, never on its text. Moving a source from TOOL_KINDS to REQUEST_KINDS lets a yes approve it.
-REQUEST_KINDS = {T.NeedSource.COMMAND: "a shell command", T.NeedSource.FILE_CHANGE: "a change to a file"}
-TOOL_KINDS = {T.NeedSource.PERMISSION: "a tool it wants to use",
-              T.NeedSource.DYNAMIC_TOOL_CALL: "a tool it wants to use"}
+# What a yes may approve is chosen on the request's source, a typed field, never on its text. A command, a change to a
+# file and a tool permission are described from their stored prompt (the action, or the tool's name), and the
+# description is passed by the gate below. A file read stores only a path, so it is never described. Each is asked about
+# by its kind alone when no description passes. A tool's input request (an MCP elicitation) wants the person's input,
+# not a yes, so it is the app's.
+REQUEST_KINDS = {T.NeedSource.COMMAND: "a shell command", T.NeedSource.FILE_CHANGE: "a change to a file",
+                 T.NeedSource.PERMISSION: "a tool it wants to use"}
+UNDESCRIBED_KINDS = {T.NeedSource.FILE_READ: "a file it wants to read"}
 REQUEST_SYSTEM = ("You help a voice assistant tell a person what they would be approving. A coding agent asks "
                   "permission to do one thing. The request is JSON: `kind` is what sort of request it is and `text` "
                   "is the request as the agent wrote it. Say in one plain spoken sentence of at most 20 words what "
@@ -360,18 +361,31 @@ def account_gate(instruction: str, account: str) -> dict:
                                           "criteria": {"true": "Yes.", "false": "No."}}}}
 
 
+# A tool's name as the seam stores it is one token; anything longer is a sentence, not a name to say.
+MAX_TOOL_NAME = 80
+
+
 def approvable(need: T.PendingNeed) -> bool:
-    """Whether a yes by voice may answer this request: an approval whose stored prompt is a command or a file change."""
-    return need.kind is T.PendingKind.APPROVAL and need.source in REQUEST_KINDS
+    """Whether a yes by voice may answer this request: an approval of a command, a file change, a tool permission or
+    a file read. Decided by the request's source alone."""
+    return need.kind is T.PendingKind.APPROVAL and (need.source in REQUEST_KINDS or need.source in UNDESCRIBED_KINDS)
 
 
 def describable(need: T.PendingNeed) -> bool:
-    """Whether the voice can say what this request asks for: one it may approve, or a tool permission by its tool."""
-    return need.kind is T.PendingKind.APPROVAL and (need.source in REQUEST_KINDS or need.source in TOOL_KINDS)
+    """Whether a description of what this request asks may be written for it."""
+    return need.kind is T.PendingKind.APPROVAL and need.source in REQUEST_KINDS
+
+
+def tool_name(source: T.NeedSource | None, prompt: str | None) -> str | None:
+    """The tool a permission request asks for, from its stored prompt; None for another source, nothing stored, or a
+    prompt that is not a single name."""
+    if source is not T.NeedSource.PERMISSION or not prompt or len(prompt) > MAX_TOOL_NAME or len(prompt.split()) != 1:
+        return None
+    return prompt
 
 
 def request_view(need: T.PendingNeed) -> dict:
-    return {"kind": {**REQUEST_KINDS, **TOOL_KINDS}[need.source], "text": need.prompt}
+    return {"kind": REQUEST_KINDS[need.source], "text": need.prompt}
 
 
 def request_messages(need: T.PendingNeed) -> list[dict]:
@@ -379,7 +393,7 @@ def request_messages(need: T.PendingNeed) -> list[dict]:
         return f"{json.dumps({'request': request})}\n\n{REQUEST_ADJACENT}"
 
     out = [{"role": "system", "content": REQUEST_SYSTEM}]
-    for request, description in (*REQUEST_EXAMPLES, *(TOOL_EXAMPLES if need.source in TOOL_KINDS else ())):
+    for request, description in (*REQUEST_EXAMPLES, *(TOOL_EXAMPLES if need.source is T.NeedSource.PERMISSION else ())):
         out += [{"role": "user", "content": asked(request)},
                 {"role": "assistant", "content": json.dumps({"gist": description})}]
     out.append({"role": "user", "content": asked(request_view(need))})

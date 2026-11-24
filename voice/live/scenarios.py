@@ -513,12 +513,14 @@ def news_permission(pool: Pool) -> Plan:
 
 
 # A thread waits on a command's approval and the caller answers it by voice. The assistant confirms what that request
-# would do, and a model judges the spoken line against the request itself, since the voice's own checks are not the
-# measure of themselves. Only the yes sends the answer, and T3 must hold the request resolved with that decision, by
+# would do when a description of it passed the gate, and otherwise asks by its kind alone. A model judges the spoken
+# line against the request itself, since the voice's own checks are not the measure of themselves. Only the yes sends the answer, and T3 must hold the request resolved with that decision, by
 # its id. The thread is seeded, not started by the call: a started thread's launch confirmation is lost to
 # DISPATCH_YES before the approval is reached.
 DESCRIBED = ("Does the sentence say what running the request does, saying nothing the request does not do and leaving "
              "out no deletion, overwrite or upload that it does?")
+KIND_ONLY = ("Does the sentence ask whether to approve the thread's request while saying at most what kind of request "
+             "it is, such as running a command, and nothing of what it would do?")
 READS_OUT = "Does the sentence read out a command, a file path or code, instead of describing it in words?"
 REFUSES = "Does the sentence ask whether to say no to the thread's request, and say nothing of what the request does?"
 DECISIONS = {"approve": "accept", "deny": "decline"}
@@ -526,13 +528,13 @@ DECISIONS = {"approve": "accept", "deny": "decline"}
 
 def respond_waiting(decision: str):
     approving = decision == "approve"
-    gate = "a description of the request passed the gate"
+    gate = "the approval was offered by voice"
 
     def build(pool: Pool) -> Plan:
         spoken, title = pool.single()
         lines = {"answer": f"Please approve the request on the {spoken} thread." if approving
                  else f"No, don't allow the request on the {spoken} thread. Deny it.", "confirm": "Yes, do it."}
-        notes = {"asked": False, "line": None}
+        notes = {"asked": False, "line": None, "described": False}
 
         def script():
             heard = yield Say("answer")
@@ -540,6 +542,8 @@ def respond_waiting(decision: str):
             notes["asked"] = bool(last and last.said(Kind.CONFIRM_RESPOND))
             notes["line"] = next((e["draft"] for e in (last.t3 if last else ()) if e["delivery"] == "sent"
                                   and Kind.CONFIRM_RESPOND in e["kinds"]), None)
+            notes["described"] = any(e.get("summary") for e in (last.t3 if last else ())
+                                     if e["delivery"] == "sent" and Kind.CONFIRM_RESPOND in e["kinds"])
             if notes["asked"]:
                 yield Say("confirm")
 
@@ -562,13 +566,12 @@ def respond_waiting(decision: str):
             elif not notes["asked"]:
                 out.append(ok("the denial was confirmed back", False, "no confirmation of the denial was said", 0))
             if not notes["asked"]:
-                # Nothing was confirmed, so what depends on a confirmation is blocked by the check that failed: the
-                # marked gate refusal for an approval, which keeps the row XFAIL, and nothing for a denial.
+                # Nothing was confirmed, so what depends on a confirmation is blocked by the check that failed.
                 if approving:
                     out += [requires(ok(name, False, ""), False, f"precondition: no confirmation was said ({gate})",
                                      blocked_by=gate)
                             for name in ("the spoken confirmation was found",
-                                         "the spoken description says what the request does",
+                                         "the spoken line describes the request or says only its kind",
                                          "the confirmation reads out no command, path or code",
                                          "the yes was answered by saying the answer was sent",
                                          f"T3 resolved that request as {DECISIONS[decision]}",
@@ -577,9 +580,12 @@ def respond_waiting(decision: str):
             context = f"The request the thread waits on is: {request}"
             line = notes["line"] or ""
             out.append(ok("the spoken confirmation was found", bool(line), "no confirmation line was recorded", 0))
-            if line and approving:
+            if line and approving and notes["described"]:
                 out.append(ok("the spoken description says what the request does", call.judge.yes(DESCRIBED, line,
                               context), f"the judge did not accept {line!r} as a description of {request!r}", 0))
+            if line and approving and not notes["described"]:
+                out.append(ok("the line with no description says only the kind of request",
+                              call.judge.yes(KIND_ONLY, line, context), f"the judge did not accept {line!r}", 0))
             if line and not approving:
                 out.append(ok("the denial asks whether to say no and says nothing of what the request does",
                               call.judge.yes(REFUSES, line, context), f"the judge did not accept {line!r}", 0))
@@ -878,10 +884,6 @@ DISPATCH_YES = ("a launch confirmation is not always asked or answered: the ASR 
                 "the yes as nothing, and a no_thread line beside the confirmation clears the question; "
                 "docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
-    ("approve-waiting", "a description of the request passed the gate"):
-        "the approval gate refuses a faithful description of this scenario's command, `printf` of a fixed line into a "
-        "hidden file (its description scores 0.53 against the bar of 0.10 and hand-written faithful ones 0.22 to 0.44), "
-        "so the approval is sent to the app; docs/voice/live-reply-check.md",
     ("news-permission", "the yes started a thread"): DISPATCH_YES,
     ("news-done", "the yes started a thread"): DISPATCH_YES,
     ("short-yes-tell", "the yes was taken"):
