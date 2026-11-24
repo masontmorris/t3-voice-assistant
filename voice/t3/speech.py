@@ -1128,12 +1128,13 @@ READER_VARIANTS = {
     (Kind.CONFIRM_RESPOND, "kind_only_begun_for"): ({"begun_in": "Example Fleet Notes",
                                                     "begun_for": "sorting the fleet log by date", "decision": "approve",
                                                     "need": "command_approval"},
-                                                   "Should I approve the request to run a command from the thread you "
-                                                   "started in Example Fleet Notes for sorting the fleet log by date?"),
+                                                   "The thread you started in Example Fleet Notes for sorting the "
+                                                   "fleet log by date is waiting for your approval to run a command. "
+                                                   "Should I approve it?"),
     (Kind.CONFIRM_RESPOND, "kind_only_begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve",
                                                 "need": "command_approval"},
-                                               "Should I approve the request to run a command from the thread you "
-                                               "started in Example Fleet Notes?"),
+                                               "The thread you started in Example Fleet Notes is waiting for your "
+                                               "approval to run a command. Should I approve it?"),
     (Kind.CONFIRM_RESPOND, "kind_only_on_call"): ({"on_call": True, "decision": "approve", "need": "command_approval"},
                                                  "Should I approve this thread's request to run a command?"),
     (Kind.CONFIRM_RESPOND, "tool"): ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "permission",
