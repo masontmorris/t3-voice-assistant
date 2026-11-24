@@ -128,9 +128,9 @@ it.effect.each([
       Effect.gen(function* () {
         const fixture = FIXTURES.subagentAfterRoot;
         const threadId = fixture[0]!.event.threadId;
-        const rootEnds = indexOf(
-          fixture,
-          (event) =>
+        // A run reports completed when its provider turn ends and again after its checkpoint; it ends at the last.
+        const rootEnds = fixture.findLastIndex(
+          ({ event }) =>
             event.type === "run.updated" &&
             event.payload.ordinal === 1 &&
             event.payload.status === "completed",

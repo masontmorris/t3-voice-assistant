@@ -340,6 +340,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": false,
               "supportsActiveSteering": false,
               "supportsSteeringByInterruptRestart": true,
               "supportsQueuedMessages": true,
@@ -457,6 +458,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": false,
               "supportsActiveSteering": false,
               "supportsSteeringByInterruptRestart": true,
               "supportsQueuedMessages": true,
@@ -877,7 +879,7 @@
       "sequence": 22,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:b93128f7-9ed1-48f9-8694-bd1833f13cce",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AacpRegistry%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Ab840ed8c-dc22-461b-9638-4a7526021f79:45aabfbe-9d28-4faa-9cb6-f838414eda38",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:runtime-request:runtime-request%3Aprovider%3AacpRegistry%3Aprovider-turn%3Aprovider-turn%253Aprovider%253AacpRegistry%253Anative-turn%253Aprovider-instance%25253AacpRegistry%25253Agrok-replay-session-1%25253Aturn%25253A1%3Anative-request%3Awrite-probe%3A110eed0e-70f9-4e05-98b5-f71cdc6279a2",
@@ -915,7 +917,7 @@
       "sequence": 23,
       "commandId": "voice_link_card-ask",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-ask:45aabfbe-9d28-4faa-9cb6-f838414eda38",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-ask:b93128f7-9ed1-48f9-8694-bd1833f13cce",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
@@ -1348,11 +1350,11 @@
           "userMessageId": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
-          "status": "waiting",
+          "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.000Z",
           "startedAt": "1970-01-01T00:00:00.000Z",
-          "completedAt": null,
+          "completedAt": "1970-01-01T00:00:00.000Z",
           "checkpointId": null,
           "contextHandoffId": null
         }
@@ -1376,7 +1378,7 @@
           "parentNodeId": null,
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "kind": "root_turn",
-          "status": "waiting",
+          "status": "completed",
           "countsForRun": true,
           "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
           "providerTurnId": null,
@@ -1384,7 +1386,7 @@
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
           "startedAt": "1970-01-01T00:00:00.000Z",
-          "completedAt": null
+          "completedAt": "1970-01-01T00:00:00.000Z"
         }
       }
     },
@@ -1428,162 +1430,9 @@
     },
     {
       "sequence": 38,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:4e49b6cc-aaa7-4311-abd6-5b4610b80641",
-        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "driver": "acpRegistry",
-        "providerInstanceId": "acpRegistry",
-        "occurredAt": "1970-01-01T00:00:00.000Z",
-        "type": "checkpoint.captured",
-        "payload": {
-          "id": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:0",
-          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "scopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "runId": null,
-          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "parentCheckpointId": null,
-          "ordinalWithinScope": 0,
-          "appRunOrdinal": null,
-          "ref": "refs/t3/orchestration-v2/checkpoints/ZDM5NTkzOGExYzUxMTQzOGNjZWI2YTQzODcyNGRmZTU/ordinal/0",
-          "status": "ready",
-          "files": [],
-          "capturedAt": "1970-01-01T00:00:00.000Z"
-        }
-      }
-    },
-    {
-      "sequence": 39,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:449a6a16-7f83-4507-af08-671225bb42d8",
-        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "driver": "acpRegistry",
-        "providerInstanceId": "acpRegistry",
-        "occurredAt": "1970-01-01T00:00:00.000Z",
-        "type": "checkpoint.captured",
-        "payload": {
-          "id": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:1",
-          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "scopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "parentCheckpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:0",
-          "ordinalWithinScope": 1,
-          "appRunOrdinal": 1,
-          "ref": "refs/t3/orchestration-v2/checkpoints/ZDM5NTkzOGExYzUxMTQzOGNjZWI2YTQzODcyNGRmZTU/ordinal/1",
-          "status": "ready",
-          "files": [],
-          "capturedAt": "1970-01-01T00:00:00.000Z"
-        }
-      }
-    },
-    {
-      "sequence": 40,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:5ceb737a-54be-4285-ac81-7d6048b959bb",
-        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "driver": "acpRegistry",
-        "providerInstanceId": "acpRegistry",
-        "occurredAt": "1970-01-01T00:00:00.000Z",
-        "type": "turn-item.updated",
-        "payload": {
-          "id": "turn-item:provider:acpRegistry:native-item:checkpoint%3Acheckpoint%3Ascope%3Acheckpoint-scope%253Athread%253Athread%25253Afixture%25253Avoice_link_card%25253Aproject%25253Aproject%2525253Afixture%2525253Avoice_link_card%2525253Af2604e9d-55b7-45de-a716-838867faae7e%25253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%253Aname%253Aroot%3Aname%3A1",
-          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "parentItemId": null,
-          "ordinal": 1000006,
-          "status": "completed",
-          "title": null,
-          "startedAt": "1970-01-01T00:00:00.000Z",
-          "completedAt": "1970-01-01T00:00:00.000Z",
-          "updatedAt": "1970-01-01T00:00:00.000Z",
-          "type": "checkpoint",
-          "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:1",
-          "scopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "files": []
-        }
-      }
-    },
-    {
-      "sequence": 41,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:7aa211df-51c4-46ce-8a44-3565886d51b4",
-        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "providerInstanceId": "acpRegistry",
-        "occurredAt": "1970-01-01T00:00:00.000Z",
-        "type": "run.updated",
-        "payload": {
-          "id": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "ordinal": 1,
-          "providerInstanceId": "acpRegistry",
-          "modelSelection": {
-            "instanceId": "acpRegistry",
-            "model": "default"
-          },
-          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "userMessageId": "message:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
-          "status": "completed",
-          "queuePosition": null,
-          "requestedAt": "1970-01-01T00:00:00.000Z",
-          "startedAt": "1970-01-01T00:00:00.000Z",
-          "completedAt": "1970-01-01T00:00:00.000Z",
-          "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:1",
-          "contextHandoffId": null
-        }
-      }
-    },
-    {
-      "sequence": 42,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:9d769702-9e86-47b5-abac-4c43005766be",
-        "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "providerInstanceId": "acpRegistry",
-        "occurredAt": "1970-01-01T00:00:00.000Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-          "parentNodeId": null,
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "kind": "root_turn",
-          "status": "completed",
-          "countsForRun": true,
-          "providerThreadId": "provider-thread:provider:acpRegistry:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "runtimeRequestId": null,
-          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.000Z",
-          "completedAt": "1970-01-01T00:00:00.000Z"
-        }
-      }
-    },
-    {
-      "sequence": 43,
       "commandId": "voice_link_card-answer",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-answer:9201226e-f279-4fa0-8a89-bbede182dec4",
+        "id": "event:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:voice_link_card-answer:4e49b6cc-aaa7-4311-abd6-5b4610b80641",
         "threadId": "thread:fixture:voice_link_card:project:project%3Afixture%3Avoice_link_card%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Avoice_link_card%3Aproject%3Aproject%253Afixture%253Avoice_link_card%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Avoice_link_card%253Aproject%253Aproject%25253Afixture%25253Avoice_link_card%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",

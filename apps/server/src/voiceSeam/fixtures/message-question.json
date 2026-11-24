@@ -332,6 +332,7 @@
               "canRollbackThread": true,
               "canForkThread": true,
               "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
               "canForkFromSubagentThread": true,
               "exposesNativeThreadId": true
             },
@@ -340,6 +341,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
               "activeSteeringDuringCompaction": true,
               "supportsSteeringByInterruptRestart": true,
@@ -450,6 +452,7 @@
               "canRollbackThread": true,
               "canForkThread": true,
               "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
               "canForkFromSubagentThread": true,
               "exposesNativeThreadId": true
             },
@@ -458,6 +461,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
               "activeSteeringDuringCompaction": true,
               "supportsSteeringByInterruptRestart": true,
@@ -689,7 +693,7 @@
           },
           "ordinal": 1,
           "status": "running",
-          "startedAt": "2026-11-17T11:50:22.921Z",
+          "startedAt": "2026-11-24T00:53:06.731Z",
           "completedAt": null
         }
       }
@@ -834,7 +838,7 @@
           },
           "ordinal": 1,
           "status": "running",
-          "startedAt": "2026-11-17T11:50:22.921Z",
+          "startedAt": "2026-11-24T00:53:06.731Z",
           "completedAt": null,
           "tokenUsage": {
             "usedTokens": 21426,
@@ -872,7 +876,7 @@
           },
           "ordinal": 1,
           "status": "completed",
-          "startedAt": "2026-11-17T11:50:22.921Z",
+          "startedAt": "2026-11-24T00:53:06.731Z",
           "completedAt": "2026-09-25T00:18:05.000Z",
           "turnTokenUsage": {
             "usageScope": "main_agent",
@@ -940,11 +944,11 @@
           "userMessageId": "message:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
-          "status": "waiting",
+          "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.001Z",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null,
+          "completedAt": "1970-01-01T00:00:00.002Z",
           "checkpointId": null,
           "contextHandoffId": null
         }
@@ -968,7 +972,7 @@
           "parentNodeId": null,
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "kind": "root_turn",
-          "status": "waiting",
+          "status": "completed",
           "countsForRun": true,
           "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
           "providerTurnId": null,
@@ -976,7 +980,7 @@
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null
+          "completedAt": "1970-01-01T00:00:00.002Z"
         }
       }
     },
@@ -1141,39 +1145,9 @@
     },
     {
       "sequence": 30,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:987ce235-3bb2-4e54-ac94-197e4a733889",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.002Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-          "parentNodeId": null,
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "kind": "root_turn",
-          "status": "completed",
-          "countsForRun": true,
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "runtimeRequestId": null,
-          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": "1970-01-01T00:00:00.002Z"
-        }
-      }
-    },
-    {
-      "sequence": 31,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:21d01f76-b180-40f9-a076-6a385d05b519",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:987ce235-3bb2-4e54-ac94-197e4a733889",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbcd76887d0ba52ca8fee9da2e1",
@@ -1202,10 +1176,10 @@
       }
     },
     {
-      "sequence": 32,
+      "sequence": 31,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:5c0d54f6-b546-4f37-8dc7-d8295fa2d999",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:21d01f76-b180-40f9-a076-6a385d05b519",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbcd76887d0ba52ca8fee9da2e1",
@@ -1235,10 +1209,10 @@
       }
     },
     {
-      "sequence": 33,
+      "sequence": 32,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:26c6c88f-c7db-42d9-9760-efac21ca6b88",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:5c0d54f6-b546-4f37-8dc7-d8295fa2d999",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
         "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbcd76887d0ba52ca8fee9da2e1",
@@ -1293,10 +1267,10 @@
       }
     },
     {
-      "sequence": 34,
+      "sequence": 33,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:11e2f6e1-035e-4d31-b2e6-055db3fbc171",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:26c6c88f-c7db-42d9-9760-efac21ca6b88",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
@@ -1330,10 +1304,10 @@
       }
     },
     {
-      "sequence": 35,
+      "sequence": 34,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:d25dd6ec-4818-48ff-801a-062d5ce8afff",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:11e2f6e1-035e-4d31-b2e6-055db3fbc171",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1364,10 +1338,10 @@
       }
     },
     {
-      "sequence": 36,
+      "sequence": 35,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:e5cdcd6b-ba70-4e32-ad1e-79bcfaaa3b0a",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:d25dd6ec-4818-48ff-801a-062d5ce8afff",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1390,10 +1364,10 @@
       }
     },
     {
-      "sequence": 37,
+      "sequence": 36,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:d532cb45-a5b3-42a0-aecc-cb632d084e61",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:e5cdcd6b-ba70-4e32-ad1e-79bcfaaa3b0a",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1420,10 +1394,10 @@
       }
     },
     {
-      "sequence": 38,
+      "sequence": 37,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:179798cc-6c75-43a1-aaa0-1f6723c43873",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:d532cb45-a5b3-42a0-aecc-cb632d084e61",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1446,10 +1420,10 @@
       }
     },
     {
-      "sequence": 39,
+      "sequence": 38,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:b0626600-5a2f-4683-bdd5-290f29a5c874",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:179798cc-6c75-43a1-aaa0-1f6723c43873",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1473,10 +1447,10 @@
       }
     },
     {
-      "sequence": 40,
+      "sequence": 39,
       "commandId": "command:fixture:multi_turn:answer-user-input-request-1:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:fca0a642-9a33-4471-a7fd-daca4427241e",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Amulti_turn%3Aanswer-user-input-request-1%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:b0626600-5a2f-4683-bdd5-290f29a5c874",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1509,10 +1483,10 @@
       }
     },
     {
-      "sequence": 41,
+      "sequence": 40,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:14ba435c-3a39-4a8d-bd94-8a3af938693a",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:fca0a642-9a33-4471-a7fd-daca4427241e",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
@@ -1539,6 +1513,7 @@
               "canRollbackThread": true,
               "canForkThread": true,
               "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
               "canForkFromSubagentThread": true,
               "exposesNativeThreadId": true
             },
@@ -1547,6 +1522,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
               "activeSteeringDuringCompaction": true,
               "supportsSteeringByInterruptRestart": true,
@@ -1627,10 +1603,10 @@
       }
     },
     {
-      "sequence": 42,
+      "sequence": 41,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b3aab037-d9e6-4c94-babf-88939072f47d",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:14ba435c-3a39-4a8d-bd94-8a3af938693a",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
@@ -1667,10 +1643,10 @@
       }
     },
     {
-      "sequence": 43,
+      "sequence": 42,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:d3e4ec65-0311-41b3-87f1-fe67dc5c04df",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b3aab037-d9e6-4c94-babf-88939072f47d",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1701,10 +1677,10 @@
       }
     },
     {
-      "sequence": 44,
+      "sequence": 43,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:4e49b6cc-aaa7-4311-abd6-5b4610b80641",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:d3e4ec65-0311-41b3-87f1-fe67dc5c04df",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1728,10 +1704,10 @@
       }
     },
     {
-      "sequence": 45,
+      "sequence": 44,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:449a6a16-7f83-4507-af08-671225bb42d8",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:4e49b6cc-aaa7-4311-abd6-5b4610b80641",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1758,10 +1734,220 @@
       }
     },
     {
+      "sequence": 45,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:449a6a16-7f83-4507-af08-671225bb42d8",
+        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+        "driver": "codex",
+        "providerInstanceId": "codex",
+        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
+          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
+          "nativeTurnRef": {
+            "driver": "codex",
+            "nativeId": "01a0d5ed-2b29-7353-a6d5-7745731173b7",
+            "strength": "strong"
+          },
+          "ordinal": 2,
+          "status": "running",
+          "startedAt": "2026-11-24T00:53:07.668Z",
+          "completedAt": null
+        }
+      }
+    },
+    {
       "sequence": 46,
       "commandId": null,
       "event": {
         "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:5ceb737a-54be-4285-ac81-7d6048b959bb",
+        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+        "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+        "driver": "codex",
+        "providerInstanceId": "codex",
+        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "type": "node.updated",
+        "payload": {
+          "id": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+          "kind": "assistant_message",
+          "status": "completed",
+          "countsForRun": false,
+          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
+          "nativeItemRef": {
+            "driver": "codex",
+            "nativeId": "msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+            "strength": "strong"
+          },
+          "runtimeRequestId": null,
+          "checkpointScopeId": null,
+          "startedAt": "2026-09-25T00:18:07.332Z",
+          "completedAt": "1970-01-01T00:00:00.003Z"
+        }
+      }
+    },
+    {
+      "sequence": 47,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:7aa211df-51c4-46ce-8a44-3565886d51b4",
+        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+        "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+        "driver": "codex",
+        "providerInstanceId": "codex",
+        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "type": "message.updated",
+        "payload": {
+          "createdBy": "agent",
+          "creationSource": "provider",
+          "id": "message:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+          "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+          "role": "assistant",
+          "text": "second fixture turn complete",
+          "attachments": [],
+          "streaming": false,
+          "createdAt": "2026-09-25T00:18:07.332Z",
+          "updatedAt": "1970-01-01T00:00:00.003Z"
+        }
+      }
+    },
+    {
+      "sequence": 48,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:9d769702-9e86-47b5-abac-4c43005766be",
+        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+        "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+        "driver": "codex",
+        "providerInstanceId": "codex",
+        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "type": "turn-item.updated",
+        "payload": {
+          "id": "turn-item:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+          "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "providerTurnId": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
+          "nativeItemRef": {
+            "driver": "codex",
+            "nativeId": "msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+            "strength": "strong"
+          },
+          "parentItemId": null,
+          "ordinal": 2000002,
+          "status": "completed",
+          "title": null,
+          "startedAt": "2026-09-25T00:18:07.332Z",
+          "completedAt": "1970-01-01T00:00:00.003Z",
+          "updatedAt": "1970-01-01T00:00:00.003Z",
+          "type": "assistant_message",
+          "phase": "final_answer",
+          "messageId": "message:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
+          "text": "second fixture turn complete",
+          "streaming": false
+        }
+      }
+    },
+    {
+      "sequence": 49,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:9201226e-f279-4fa0-8a89-bbede182dec4",
+        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+        "driver": "codex",
+        "providerInstanceId": "codex",
+        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
+          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
+          "nativeTurnRef": {
+            "driver": "codex",
+            "nativeId": "01a0d5ed-2b29-7353-a6d5-7745731173b7",
+            "strength": "strong"
+          },
+          "ordinal": 2,
+          "status": "running",
+          "startedAt": "2026-11-24T00:53:07.668Z",
+          "completedAt": null,
+          "tokenUsage": {
+            "usedTokens": 25785,
+            "maxTokens": 258400,
+            "inputTokens": 25777,
+            "cachedInputTokens": 21248,
+            "outputTokens": 8,
+            "reasoningOutputTokens": 0,
+            "updatedAt": "1970-01-01T00:00:00.003Z"
+          }
+        }
+      }
+    },
+    {
+      "sequence": 50,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:e8f0f23d-4595-4d6a-aa8c-71ce799d652e",
+        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+        "driver": "codex",
+        "providerInstanceId": "codex",
+        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
+          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
+          "nativeTurnRef": {
+            "driver": "codex",
+            "nativeId": "01a0d5ed-2b29-7353-a6d5-7745731173b7",
+            "strength": "strong"
+          },
+          "ordinal": 2,
+          "status": "completed",
+          "startedAt": "2026-11-24T00:53:07.668Z",
+          "completedAt": "2026-09-25T00:18:07.000Z",
+          "turnTokenUsage": {
+            "usageScope": "main_agent",
+            "cachedInputTokens": 21248,
+            "cacheCreationTokens": 0,
+            "reasoningTokens": 0,
+            "hasSubagents": false,
+            "models": ["gpt-6-luna"],
+            "usageStatus": "complete",
+            "inputTokens": 25777,
+            "outputTokens": 8
+          },
+          "model": "gpt-6-luna"
+        }
+      }
+    },
+    {
+      "sequence": 51,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:eb354ed4-8815-4085-8b11-673cb3dd1f39",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
@@ -1788,6 +1974,7 @@
               "canRollbackThread": true,
               "canForkThread": true,
               "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
               "canForkFromSubagentThread": true,
               "exposesNativeThreadId": true
             },
@@ -1796,6 +1983,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
               "activeSteeringDuringCompaction": true,
               "supportsSteeringByInterruptRestart": true,
@@ -1871,176 +2059,7 @@
           "extensionStatuses": [],
           "createdAt": "1970-01-01T00:00:00.002Z",
           "updatedAt": "1970-01-01T00:00:00.003Z",
-          "lastError": "The provider event stream closed unexpectedly. Retry the turn; if it keeps failing, check the provider and server logs."
-        }
-      }
-    },
-    {
-      "sequence": 47,
-      "commandId": null,
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:7aa211df-51c4-46ce-8a44-3565886d51b4",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-        "driver": "codex",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "provider-turn.updated",
-        "payload": {
-          "id": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
-          "nativeTurnRef": {
-            "driver": "codex",
-            "nativeId": "01a0d5ed-2b29-7353-a6d5-7745731173b7",
-            "strength": "strong"
-          },
-          "ordinal": 2,
-          "status": "running",
-          "startedAt": "2026-11-17T11:50:24.181Z",
-          "completedAt": null
-        }
-      }
-    },
-    {
-      "sequence": 48,
-      "commandId": null,
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:9d769702-9e86-47b5-abac-4c43005766be",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-        "driver": "codex",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-          "parentNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "kind": "assistant_message",
-          "status": "completed",
-          "countsForRun": false,
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
-          "nativeItemRef": {
-            "driver": "codex",
-            "nativeId": "msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-            "strength": "strong"
-          },
-          "runtimeRequestId": null,
-          "checkpointScopeId": null,
-          "startedAt": "2026-09-25T00:18:07.332Z",
-          "completedAt": "1970-01-01T00:00:00.003Z"
-        }
-      }
-    },
-    {
-      "sequence": 49,
-      "commandId": null,
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:9201226e-f279-4fa0-8a89-bbede182dec4",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-        "driver": "codex",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "message.updated",
-        "payload": {
-          "createdBy": "agent",
-          "creationSource": "provider",
-          "id": "message:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-          "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-          "role": "assistant",
-          "text": "second fixture turn complete",
-          "attachments": [],
-          "streaming": false,
-          "createdAt": "2026-09-25T00:18:07.332Z",
-          "updatedAt": "1970-01-01T00:00:00.003Z"
-        }
-      }
-    },
-    {
-      "sequence": 50,
-      "commandId": null,
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:e8f0f23d-4595-4d6a-aa8c-71ce799d652e",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-        "driver": "codex",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "turn-item.updated",
-        "payload": {
-          "id": "turn-item:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-          "nodeId": "node:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
-          "nativeItemRef": {
-            "driver": "codex",
-            "nativeId": "msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-            "strength": "strong"
-          },
-          "parentItemId": null,
-          "ordinal": 2000002,
-          "status": "completed",
-          "title": null,
-          "startedAt": "2026-09-25T00:18:07.332Z",
-          "completedAt": "1970-01-01T00:00:00.003Z",
-          "updatedAt": "1970-01-01T00:00:00.003Z",
-          "type": "assistant_message",
-          "phase": "final_answer",
-          "messageId": "message:provider:codex:native-item:msg_06900ecb02a780a6016ab5bdbf08a087d08c1dafcd3f15697a",
-          "text": "second fixture turn complete",
-          "streaming": false
-        }
-      }
-    },
-    {
-      "sequence": 51,
-      "commandId": null,
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:eb354ed4-8815-4085-8b11-673cb3dd1f39",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-        "driver": "codex",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "provider-turn.updated",
-        "payload": {
-          "id": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
-          "nativeTurnRef": {
-            "driver": "codex",
-            "nativeId": "01a0d5ed-2b29-7353-a6d5-7745731173b7",
-            "strength": "strong"
-          },
-          "ordinal": 2,
-          "status": "running",
-          "startedAt": "2026-11-17T11:50:24.181Z",
-          "completedAt": null,
-          "tokenUsage": {
-            "usedTokens": 25785,
-            "maxTokens": 258400,
-            "inputTokens": 25777,
-            "cachedInputTokens": 21248,
-            "outputTokens": 8,
-            "reasoningOutputTokens": 0,
-            "updatedAt": "1970-01-01T00:00:00.003Z"
-          }
+          "lastError": "The provider event stream closed unexpectedly: the provider process exited with code 0. Check the server logs for the provider's output, then retry the turn."
         }
       }
     },
@@ -2048,48 +2067,7 @@
       "sequence": 52,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:267cba8d-d458-44a9-8da4-2b0298827bbf",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-        "driver": "codex",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "provider-turn.updated",
-        "payload": {
-          "id": "provider-turn:provider:codex:native-turn:01a0d5ed-2b29-7353-a6d5-7745731173b7",
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
-          "nativeTurnRef": {
-            "driver": "codex",
-            "nativeId": "01a0d5ed-2b29-7353-a6d5-7745731173b7",
-            "strength": "strong"
-          },
-          "ordinal": 2,
-          "status": "completed",
-          "startedAt": "2026-11-17T11:50:24.181Z",
-          "completedAt": "2026-09-25T00:18:07.000Z",
-          "turnTokenUsage": {
-            "usageScope": "main_agent",
-            "cachedInputTokens": 21248,
-            "cacheCreationTokens": 0,
-            "reasoningTokens": 0,
-            "hasSubagents": false,
-            "models": ["gpt-6-luna"],
-            "usageStatus": "complete",
-            "inputTokens": 25777,
-            "outputTokens": 8
-          },
-          "model": "gpt-6-luna"
-        }
-      }
-    },
-    {
-      "sequence": 53,
-      "commandId": null,
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:070cfe3b-ff5d-4e8d-806b-1c8fc88965c6",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:32d53656-b090-4708-a6e8-01fc7677036b",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2113,10 +2091,10 @@
       }
     },
     {
-      "sequence": 54,
+      "sequence": 53,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:5804ec87-08c2-431f-b952-257553c68874",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:267cba8d-d458-44a9-8da4-2b0298827bbf",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2136,21 +2114,21 @@
           "userMessageId": "async-answer:runtime-request:provider:codex:provider-turn:provider-turn%3Aprovider%3Acodex%3Anative-turn%3A01a0d5ed-1957-7a22-8399-d0172af342fd:native-request:async%3Amsg_06900ecb02a780a6016ab5bdbcd76887d0ba52ca8fee9da2e1:60ae850c-0af3-4468-9967-365ecc316207",
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
           "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
-          "status": "waiting",
+          "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.002Z",
           "startedAt": "1970-01-01T00:00:00.003Z",
-          "completedAt": null,
+          "completedAt": "1970-01-01T00:00:00.003Z",
           "checkpointId": null,
           "contextHandoffId": null
         }
       }
     },
     {
-      "sequence": 55,
+      "sequence": 54,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:7e094d24-af7a-4bcf-ae73-1f6491c3dfe4",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:5804ec87-08c2-431f-b952-257553c68874",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2164,7 +2142,7 @@
           "parentNodeId": null,
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
           "kind": "root_turn",
-          "status": "waiting",
+          "status": "completed",
           "countsForRun": true,
           "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
           "providerTurnId": null,
@@ -2172,15 +2150,15 @@
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
           "startedAt": "1970-01-01T00:00:00.003Z",
-          "completedAt": null
+          "completedAt": "1970-01-01T00:00:00.003Z"
         }
       }
     },
     {
-      "sequence": 56,
+      "sequence": 55,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:32d53656-b090-4708-a6e8-01fc7677036b",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:7e094d24-af7a-4bcf-ae73-1f6491c3dfe4",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "providerInstanceId": "codex",
         "occurredAt": "1970-01-01T00:00:00.003Z",
@@ -2216,10 +2194,10 @@
       }
     },
     {
-      "sequence": 57,
+      "sequence": 56,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:382ebbe0-dbde-4b35-8a82-98f6d3a5e979",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:070cfe3b-ff5d-4e8d-806b-1c8fc88965c6",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2244,10 +2222,10 @@
       }
     },
     {
-      "sequence": 58,
+      "sequence": 57,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:cfd5f98e-5cc3-4c51-b405-2e39eecd52be",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:382ebbe0-dbde-4b35-8a82-98f6d3a5e979",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2278,10 +2256,10 @@
       }
     },
     {
-      "sequence": 59,
+      "sequence": 58,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:7a36f44c-624c-4fd5-9ef8-46b72a922acc",
+        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:cfd5f98e-5cc3-4c51-b405-2e39eecd52be",
         "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2308,36 +2286,6 @@
           "completedAt": "1970-01-01T00:00:00.003Z",
           "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:2",
           "contextHandoffId": null
-        }
-      }
-    },
-    {
-      "sequence": 60,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:db84b5a1-3c64-4e20-83b1-824f43a10846",
-        "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "threadId": "thread:fixture:multi_turn:project:project%3Afixture%3Amulti_turn%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-          "parentNodeId": null,
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "kind": "root_turn",
-          "status": "completed",
-          "countsForRun": true,
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Amulti_turn%253Aproject%253Aproject%25253Afixture%25253Amulti_turn%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "runtimeRequestId": null,
-          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Amulti_turn%3Aproject%3Aproject%253Afixture%253Amulti_turn%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.003Z",
-          "completedAt": "1970-01-01T00:00:00.003Z"
         }
       }
     }

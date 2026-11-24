@@ -332,6 +332,7 @@
               "canRollbackThread": true,
               "canForkThread": true,
               "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
               "canForkFromSubagentThread": true,
               "exposesNativeThreadId": true
             },
@@ -340,6 +341,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
               "activeSteeringDuringCompaction": true,
               "supportsSteeringByInterruptRestart": true,
@@ -450,6 +452,7 @@
               "canRollbackThread": true,
               "canForkThread": true,
               "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
               "canForkFromSubagentThread": true,
               "exposesNativeThreadId": true
             },
@@ -458,6 +461,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
               "activeSteeringDuringCompaction": true,
               "supportsSteeringByInterruptRestart": true,
@@ -689,7 +693,7 @@
           },
           "ordinal": 1,
           "status": "running",
-          "startedAt": "2026-11-17T19:26:58.616Z",
+          "startedAt": "2026-11-24T00:52:52.626Z",
           "completedAt": null
         }
       }
@@ -820,7 +824,7 @@
           },
           "ordinal": 1,
           "status": "running",
-          "startedAt": "2026-11-17T19:26:58.616Z",
+          "startedAt": "2026-11-24T00:52:52.626Z",
           "completedAt": null,
           "tokenUsage": {
             "usedTokens": 21428,
@@ -858,7 +862,7 @@
           },
           "ordinal": 1,
           "status": "completed",
-          "startedAt": "2026-11-17T19:26:58.616Z",
+          "startedAt": "2026-11-24T00:52:52.626Z",
           "completedAt": "2026-09-25T00:20:49.000Z",
           "turnTokenUsage": {
             "usageScope": "main_agent",
@@ -926,11 +930,11 @@
           "userMessageId": "message:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
-          "status": "waiting",
+          "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.001Z",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null,
+          "completedAt": "1970-01-01T00:00:00.002Z",
           "checkpointId": null,
           "contextHandoffId": null
         }
@@ -954,7 +958,7 @@
           "parentNodeId": null,
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "kind": "root_turn",
-          "status": "waiting",
+          "status": "completed",
           "countsForRun": true,
           "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
           "providerTurnId": null,
@@ -962,7 +966,7 @@
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null
+          "completedAt": "1970-01-01T00:00:00.002Z"
         }
       }
     },
@@ -1127,39 +1131,9 @@
     },
     {
       "sequence": 30,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:b93128f7-9ed1-48f9-8694-bd1833f13cce",
-        "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.002Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-          "parentNodeId": null,
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "kind": "root_turn",
-          "status": "completed",
-          "countsForRun": true,
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "runtimeRequestId": null,
-          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": "1970-01-01T00:00:00.002Z"
-        }
-      }
-    },
-    {
-      "sequence": 31,
       "commandId": "command:fixture:thread_rollback:message-2:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:987ce235-3bb2-4e54-ac94-197e4a733889",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:b93128f7-9ed1-48f9-8694-bd1833f13cce",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
@@ -1193,10 +1167,10 @@
       }
     },
     {
-      "sequence": 32,
+      "sequence": 31,
       "commandId": "command:fixture:thread_rollback:message-2:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:21d01f76-b180-40f9-a076-6a385d05b519",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:987ce235-3bb2-4e54-ac94-197e4a733889",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1227,10 +1201,10 @@
       }
     },
     {
-      "sequence": 33,
+      "sequence": 32,
       "commandId": "command:fixture:thread_rollback:message-2:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:5c0d54f6-b546-4f37-8dc7-d8295fa2d999",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:21d01f76-b180-40f9-a076-6a385d05b519",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1253,10 +1227,10 @@
       }
     },
     {
-      "sequence": 34,
+      "sequence": 33,
       "commandId": "command:fixture:thread_rollback:message-2:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:26c6c88f-c7db-42d9-9760-efac21ca6b88",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:5c0d54f6-b546-4f37-8dc7-d8295fa2d999",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1283,10 +1257,10 @@
       }
     },
     {
-      "sequence": 35,
+      "sequence": 34,
       "commandId": "command:fixture:thread_rollback:message-2:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:11e2f6e1-035e-4d31-b2e6-055db3fbc171",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:26c6c88f-c7db-42d9-9760-efac21ca6b88",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1309,10 +1283,10 @@
       }
     },
     {
-      "sequence": 36,
+      "sequence": 35,
       "commandId": "command:fixture:thread_rollback:message-2:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:d25dd6ec-4818-48ff-801a-062d5ce8afff",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:11e2f6e1-035e-4d31-b2e6-055db3fbc171",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1336,10 +1310,10 @@
       }
     },
     {
-      "sequence": 37,
+      "sequence": 36,
       "commandId": "command:fixture:thread_rollback:message-2:8478dfa5-4dc9-4a11-8643-f5bef8200b7d",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:e5cdcd6b-ba70-4e32-ad1e-79bcfaaa3b0a",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Amessage-2%3A8478dfa5-4dc9-4a11-8643-f5bef8200b7d:d25dd6ec-4818-48ff-801a-062d5ce8afff",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1372,14 +1346,14 @@
       }
     },
     {
-      "sequence": 38,
+      "sequence": 37,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:d532cb45-a5b3-42a0-aecc-cb632d084e61",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:e5cdcd6b-ba70-4e32-ad1e-79bcfaaa3b0a",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
         "type": "provider-session.updated",
         "payload": {
           "id": "provider-session:provider-instance:codex:shared",
@@ -1402,6 +1376,7 @@
               "canRollbackThread": true,
               "canForkThread": true,
               "canForkFromTurn": true,
+              "canForkWhileSourceRunning": true,
               "canForkFromSubagentThread": true,
               "exposesNativeThreadId": true
             },
@@ -1410,6 +1385,7 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
               "activeSteeringDuringCompaction": true,
               "supportsSteeringByInterruptRestart": true,
@@ -1490,14 +1466,14 @@
       }
     },
     {
-      "sequence": 39,
+      "sequence": 38,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:179798cc-6c75-43a1-aaa0-1f6723c43873",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:d532cb45-a5b3-42a0-aecc-cb632d084e61",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
         "type": "provider-thread.updated",
         "payload": {
           "id": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
@@ -1525,20 +1501,20 @@
           "nativeMetadata": null,
           "goal": null,
           "createdAt": "1970-01-01T00:00:00.001Z",
-          "updatedAt": "1970-01-01T00:00:00.003Z"
+          "updatedAt": "1970-01-01T00:00:00.002Z"
         }
       }
     },
     {
-      "sequence": 40,
+      "sequence": 39,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b0626600-5a2f-4683-bdd5-290f29a5c874",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:179798cc-6c75-43a1-aaa0-1f6723c43873",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
         "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
         "type": "run.updated",
         "payload": {
           "id": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
@@ -1556,7 +1532,7 @@
           "status": "running",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.002Z",
-          "startedAt": "1970-01-01T00:00:00.003Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
           "completedAt": null,
           "checkpointId": null,
           "contextHandoffId": null
@@ -1564,15 +1540,15 @@
       }
     },
     {
-      "sequence": 41,
+      "sequence": 40,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:fca0a642-9a33-4471-a7fd-daca4427241e",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:b0626600-5a2f-4683-bdd5-290f29a5c874",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
         "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
         "type": "run-attempt.updated",
         "payload": {
           "id": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
@@ -1585,21 +1561,21 @@
           "providerTurnId": null,
           "reason": "initial",
           "status": "running",
-          "startedAt": "1970-01-01T00:00:00.003Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
           "completedAt": null
         }
       }
     },
     {
-      "sequence": 42,
+      "sequence": 41,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:14ba435c-3a39-4a8d-bd94-8a3af938693a",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:fca0a642-9a33-4471-a7fd-daca4427241e",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
         "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "occurredAt": "1970-01-01T00:00:00.002Z",
         "type": "node.updated",
         "payload": {
           "id": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1615,16 +1591,16 @@
           "nativeItemRef": null,
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.003Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
           "completedAt": null
         }
       }
     },
     {
-      "sequence": 43,
+      "sequence": 42,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:b3aab037-d9e6-4c94-babf-88939072f47d",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:14ba435c-3a39-4a8d-bd94-8a3af938693a",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1644,16 +1620,16 @@
           },
           "ordinal": 2,
           "status": "running",
-          "startedAt": "2026-11-17T19:26:59.727Z",
+          "startedAt": "2026-11-24T00:52:53.532Z",
           "completedAt": null
         }
       }
     },
     {
-      "sequence": 44,
+      "sequence": 43,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:d3e4ec65-0311-41b3-87f1-fe67dc5c04df",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:b3aab037-d9e6-4c94-babf-88939072f47d",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:provider:codex:native-item:msg_044082e5a0068297016ab5be62fefc87d0bbf3fdbed6561ac8",
@@ -1685,10 +1661,10 @@
       }
     },
     {
-      "sequence": 45,
+      "sequence": 44,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:4e49b6cc-aaa7-4311-abd6-5b4610b80641",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:d3e4ec65-0311-41b3-87f1-fe67dc5c04df",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:provider:codex:native-item:msg_044082e5a0068297016ab5be62fefc87d0bbf3fdbed6561ac8",
@@ -1713,10 +1689,10 @@
       }
     },
     {
-      "sequence": 46,
+      "sequence": 45,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:449a6a16-7f83-4507-af08-671225bb42d8",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:4e49b6cc-aaa7-4311-abd6-5b4610b80641",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:provider:codex:native-item:msg_044082e5a0068297016ab5be62fefc87d0bbf3fdbed6561ac8",
@@ -1752,6 +1728,44 @@
       }
     },
     {
+      "sequence": 46,
+      "commandId": null,
+      "event": {
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:449a6a16-7f83-4507-af08-671225bb42d8",
+        "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
+        "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
+        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+        "driver": "codex",
+        "providerInstanceId": "codex",
+        "occurredAt": "1970-01-01T00:00:00.003Z",
+        "type": "provider-turn.updated",
+        "payload": {
+          "id": "provider-turn:provider:codex:native-turn:01a0d5ef-ac4e-7471-a4a8-6776e39e6d29",
+          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
+          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
+          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
+          "nativeTurnRef": {
+            "driver": "codex",
+            "nativeId": "01a0d5ef-ac4e-7471-a4a8-6776e39e6d29",
+            "strength": "strong"
+          },
+          "ordinal": 2,
+          "status": "running",
+          "startedAt": "2026-11-24T00:52:53.532Z",
+          "completedAt": null,
+          "tokenUsage": {
+            "usedTokens": 25789,
+            "maxTokens": 258400,
+            "inputTokens": 25780,
+            "cachedInputTokens": 21248,
+            "outputTokens": 9,
+            "reasoningOutputTokens": 0,
+            "updatedAt": "1970-01-01T00:00:00.003Z"
+          }
+        }
+      }
+    },
+    {
       "sequence": 47,
       "commandId": null,
       "event": {
@@ -1774,46 +1788,8 @@
             "strength": "strong"
           },
           "ordinal": 2,
-          "status": "running",
-          "startedAt": "2026-11-17T19:26:59.727Z",
-          "completedAt": null,
-          "tokenUsage": {
-            "usedTokens": 25789,
-            "maxTokens": 258400,
-            "inputTokens": 25780,
-            "cachedInputTokens": 21248,
-            "outputTokens": 9,
-            "reasoningOutputTokens": 0,
-            "updatedAt": "1970-01-01T00:00:00.003Z"
-          }
-        }
-      }
-    },
-    {
-      "sequence": 48,
-      "commandId": null,
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3Acodex%3Ashared:7aa211df-51c4-46ce-8a44-3565886d51b4",
-        "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-        "driver": "codex",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "provider-turn.updated",
-        "payload": {
-          "id": "provider-turn:provider:codex:native-turn:01a0d5ef-ac4e-7471-a4a8-6776e39e6d29",
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "runAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
-          "nativeTurnRef": {
-            "driver": "codex",
-            "nativeId": "01a0d5ef-ac4e-7471-a4a8-6776e39e6d29",
-            "strength": "strong"
-          },
-          "ordinal": 2,
           "status": "completed",
-          "startedAt": "2026-11-17T19:26:59.727Z",
+          "startedAt": "2026-11-24T00:52:53.532Z",
           "completedAt": "2026-09-25T00:20:51.000Z",
           "turnTokenUsage": {
             "usageScope": "main_agent",
@@ -1831,10 +1807,10 @@
       }
     },
     {
-      "sequence": 49,
+      "sequence": 48,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:eb354ed4-8815-4085-8b11-673cb3dd1f39",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:e8f0f23d-4595-4d6a-aa8c-71ce799d652e",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1852,16 +1828,16 @@
           "providerTurnId": null,
           "reason": "initial",
           "status": "completed",
-          "startedAt": "1970-01-01T00:00:00.003Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
           "completedAt": "1970-01-01T00:00:00.003Z"
         }
       }
     },
     {
-      "sequence": 50,
+      "sequence": 49,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:9d769702-9e86-47b5-abac-4c43005766be",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:7aa211df-51c4-46ce-8a44-3565886d51b4",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1881,21 +1857,21 @@
           "userMessageId": "message:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2:63eeefed-6d16-4148-87c0-1fc053d7697f",
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
           "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
-          "status": "waiting",
+          "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.002Z",
-          "startedAt": "1970-01-01T00:00:00.003Z",
-          "completedAt": null,
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.003Z",
           "checkpointId": null,
           "contextHandoffId": null
         }
       }
     },
     {
-      "sequence": 51,
+      "sequence": 50,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:9201226e-f279-4fa0-8a89-bbede182dec4",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:9d769702-9e86-47b5-abac-4c43005766be",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1909,23 +1885,23 @@
           "parentNodeId": null,
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
           "kind": "root_turn",
-          "status": "waiting",
+          "status": "completed",
           "countsForRun": true,
           "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
           "providerTurnId": null,
           "nativeItemRef": null,
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.003Z",
-          "completedAt": null
+          "startedAt": "1970-01-01T00:00:00.002Z",
+          "completedAt": "1970-01-01T00:00:00.003Z"
         }
       }
     },
     {
-      "sequence": 52,
+      "sequence": 51,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:e8f0f23d-4595-4d6a-aa8c-71ce799d652e",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:9201226e-f279-4fa0-8a89-bbede182dec4",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "providerInstanceId": "codex",
         "occurredAt": "1970-01-01T00:00:00.003Z",
@@ -1961,10 +1937,10 @@
       }
     },
     {
-      "sequence": 53,
+      "sequence": 52,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:267cba8d-d458-44a9-8da4-2b0298827bbf",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:eb354ed4-8815-4085-8b11-673cb3dd1f39",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -1989,10 +1965,10 @@
       }
     },
     {
-      "sequence": 54,
+      "sequence": 53,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:5804ec87-08c2-431f-b952-257553c68874",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:267cba8d-d458-44a9-8da4-2b0298827bbf",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2023,10 +1999,10 @@
       }
     },
     {
-      "sequence": 55,
+      "sequence": 54,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:7e094d24-af7a-4bcf-ae73-1f6491c3dfe4",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:5804ec87-08c2-431f-b952-257553c68874",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2049,7 +2025,7 @@
           "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.002Z",
-          "startedAt": "1970-01-01T00:00:00.003Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
           "completedAt": "1970-01-01T00:00:00.003Z",
           "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:2",
           "contextHandoffId": null
@@ -2057,40 +2033,10 @@
       }
     },
     {
-      "sequence": 56,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:32d53656-b090-4708-a6e8-01fc7677036b",
-        "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-        "providerInstanceId": "codex",
-        "occurredAt": "1970-01-01T00:00:00.003Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-          "parentNodeId": null,
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "kind": "root_turn",
-          "status": "completed",
-          "countsForRun": true,
-          "providerThreadId": "provider-thread:provider:codex:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "runtimeRequestId": null,
-          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.003Z",
-          "completedAt": "1970-01-01T00:00:00.003Z"
-        }
-      }
-    },
-    {
-      "sequence": 57,
+      "sequence": 55,
       "commandId": "command:fixture:thread_rollback:rollback-1:b840ed8c-dc22-461b-9638-4a7526021f79",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Arollback-1%3Ab840ed8c-dc22-461b-9638-4a7526021f79:070cfe3b-ff5d-4e8d-806b-1c8fc88965c6",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Arollback-1%3Ab840ed8c-dc22-461b-9638-4a7526021f79:7e094d24-af7a-4bcf-ae73-1f6491c3dfe4",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "providerInstanceId": "codex",
         "occurredAt": "1970-01-01T00:00:00.003Z",
@@ -2128,15 +2074,16 @@
           "lastVisitedAt": "1970-01-01T00:00:00.000Z",
           "rollbackRequestId": "command:fixture:thread_rollback:rollback-1:b840ed8c-dc22-461b-9638-4a7526021f79",
           "rollbackFailure": null,
+          "rollbackUnrestored": null,
           "deletedAt": null
         }
       }
     },
     {
-      "sequence": 58,
+      "sequence": 56,
       "commandId": "command:fixture:thread_rollback:rollback-1:b840ed8c-dc22-461b-9638-4a7526021f79",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Arollback-1%3Ab840ed8c-dc22-461b-9638-4a7526021f79:382ebbe0-dbde-4b35-8a82-98f6d3a5e979",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Afixture%3Athread_rollback%3Arollback-1%3Ab840ed8c-dc22-461b-9638-4a7526021f79:32d53656-b090-4708-a6e8-01fc7677036b",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "providerInstanceId": "codex",
         "occurredAt": "1970-01-01T00:00:00.003Z",
@@ -2149,10 +2096,10 @@
       }
     },
     {
-      "sequence": 59,
+      "sequence": 57,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:cfd5f98e-5cc3-4c51-b405-2e39eecd52be",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:070cfe3b-ff5d-4e8d-806b-1c8fc88965c6",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "codex",
         "providerInstanceId": "codex",
@@ -2193,10 +2140,10 @@
       }
     },
     {
-      "sequence": 60,
+      "sequence": 58,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:7a36f44c-624c-4fd5-9ef8-46b72a922acc",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:382ebbe0-dbde-4b35-8a82-98f6d3a5e979",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2220,10 +2167,10 @@
       }
     },
     {
-      "sequence": 61,
+      "sequence": 59,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:db84b5a1-3c64-4e20-83b1-824f43a10846",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:cfd5f98e-5cc3-4c51-b405-2e39eecd52be",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2246,7 +2193,7 @@
           "status": "rolled_back",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.002Z",
-          "startedAt": "1970-01-01T00:00:00.003Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
           "completedAt": "1970-01-01T00:00:00.004Z",
           "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:2",
           "contextHandoffId": null
@@ -2254,10 +2201,10 @@
       }
     },
     {
-      "sequence": 62,
+      "sequence": 60,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:aeeaab33-11fe-4080-9121-6185f46a1654",
+        "id": "event:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:7a36f44c-624c-4fd5-9ef8-46b72a922acc",
         "threadId": "thread:fixture:thread_rollback:project:project%3Afixture%3Athread_rollback%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Athread_rollback%253Aproject%253Aproject%25253Afixture%25253Athread_rollback%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2278,7 +2225,7 @@
           "nativeItemRef": null,
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Athread_rollback%3Aproject%3Aproject%253Afixture%253Athread_rollback%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.003Z",
+          "startedAt": "1970-01-01T00:00:00.002Z",
           "completedAt": "1970-01-01T00:00:00.004Z"
         }
       }

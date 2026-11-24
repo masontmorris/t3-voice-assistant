@@ -29,7 +29,7 @@ const READERS: Record<string, string> = {
   "apps/server/src/voiceSeam/record.ts": "the voice seam reads back the card it recorded",
   "apps/server/src/ws.ts": "the owner's own thread subscription and its lines read",
   "apps/server/src/orchestration-v2/http.ts": "the owner's own snapshot and history reads",
-  "apps/server/src/persistence/Migrations/106_VoiceCalls.ts": "creates the table",
+  "apps/server/src/persistence/Migrations/112_VoiceCalls.ts": "creates the table",
   "apps/server/scripts/migrate-dev-db.ts": "clears every call from a dev seed",
 };
 

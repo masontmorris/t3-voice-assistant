@@ -341,8 +341,9 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
-              "activeSteeringInterruptsTools": true,
+              "activeSteeringInterruptsTools": false,
               "supportsSteeringByInterruptRestart": false,
               "supportsQueuedMessages": true,
               "terminalStatusQuality": "strong"
@@ -360,7 +361,8 @@
               "emitsToolCompleted": true,
               "emitsToolOutput": true,
               "supportsMcpTools": true,
-              "supportsDynamicToolCallbacks": true
+              "supportsDynamicToolCallbacks": true,
+              "supportsBackgroundWait": true
             },
             "approvals": {
               "supportsCommandApproval": true,
@@ -460,8 +462,9 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
-              "activeSteeringInterruptsTools": true,
+              "activeSteeringInterruptsTools": false,
               "supportsSteeringByInterruptRestart": false,
               "supportsQueuedMessages": true,
               "terminalStatusQuality": "strong"
@@ -479,7 +482,8 @@
               "emitsToolCompleted": true,
               "emitsToolOutput": true,
               "supportsMcpTools": true,
-              "supportsDynamicToolCallbacks": true
+              "supportsDynamicToolCallbacks": true,
+              "supportsBackgroundWait": true
             },
             "approvals": {
               "supportsCommandApproval": true,
@@ -1543,11 +1547,11 @@
           "userMessageId": "message:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:a209c1b9-9d82-4ff3-ba27-8bd6853514a5",
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:attempt:1",
-          "status": "waiting",
+          "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.001Z",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null,
+          "completedAt": "1970-01-01T00:00:00.002Z",
           "checkpointId": null,
           "contextHandoffId": null
         }
@@ -1571,7 +1575,7 @@
           "parentNodeId": null,
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
           "kind": "root_turn",
-          "status": "waiting",
+          "status": "completed",
           "countsForRun": true,
           "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
           "providerTurnId": null,
@@ -1579,7 +1583,7 @@
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null
+          "completedAt": "1970-01-01T00:00:00.002Z"
         }
       }
     },
@@ -2176,39 +2180,9 @@
     },
     {
       "sequence": 76,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:90d913fe-ad9f-4302-b541-76bdb3fb4c7f",
-        "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-        "providerInstanceId": "claudeAgent",
-        "occurredAt": "1970-01-01T00:00:00.002Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1",
-          "parentNodeId": null,
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1:root",
-          "kind": "root_turn",
-          "status": "completed",
-          "countsForRun": true,
-          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "runtimeRequestId": null,
-          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": "1970-01-01T00:00:00.002Z"
-        }
-      }
-    },
-    {
-      "sequence": 77,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:803e41af-6d31-41c4-8249-5254a53f0ca1",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:47e964d3-043a-4f72-bffd-514568da3eff",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "providerInstanceId": "claudeAgent",
         "occurredAt": "1970-01-01T00:00:00.002Z",
@@ -2247,10 +2221,10 @@
       }
     },
     {
-      "sequence": 78,
+      "sequence": 77,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:e7bccdef-9cfa-434d-a489-a799fe4bc12d",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:803e41af-6d31-41c4-8249-5254a53f0ca1",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2284,10 +2258,10 @@
       }
     },
     {
-      "sequence": 79,
+      "sequence": 78,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:e397cb32-0072-4ca3-886b-7c06ebfcbc68",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:e7bccdef-9cfa-434d-a489-a799fe4bc12d",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2319,10 +2293,10 @@
       }
     },
     {
-      "sequence": 80,
+      "sequence": 79,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:00d9ad53-5aa8-4d0b-a306-581dac2087a3",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:e397cb32-0072-4ca3-886b-7c06ebfcbc68",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "claudeAgent",
         "providerInstanceId": "claudeAgent",
@@ -2358,8 +2332,9 @@
               "emitsTurnStarted": true,
               "emitsTurnCompleted": true,
               "supportsInterrupt": true,
+              "supportsNativeResume": true,
               "supportsActiveSteering": true,
-              "activeSteeringInterruptsTools": true,
+              "activeSteeringInterruptsTools": false,
               "supportsSteeringByInterruptRestart": false,
               "supportsQueuedMessages": true,
               "terminalStatusQuality": "strong"
@@ -2377,7 +2352,8 @@
               "emitsToolCompleted": true,
               "emitsToolOutput": true,
               "supportsMcpTools": true,
-              "supportsDynamicToolCallbacks": true
+              "supportsDynamicToolCallbacks": true,
+              "supportsBackgroundWait": true
             },
             "approvals": {
               "supportsCommandApproval": true,
@@ -2438,10 +2414,10 @@
       }
     },
     {
-      "sequence": 81,
+      "sequence": 80,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:d093c0ad-5a3f-4b57-b85d-ff223af8df41",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:00d9ad53-5aa8-4d0b-a306-581dac2087a3",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "driver": "claudeAgent",
         "providerInstanceId": "claudeAgent",
@@ -2484,10 +2460,10 @@
       }
     },
     {
-      "sequence": 82,
+      "sequence": 81,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:f4aafb69-55d8-40e0-b247-4198535839b6",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:d093c0ad-5a3f-4b57-b85d-ff223af8df41",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2519,10 +2495,10 @@
       }
     },
     {
-      "sequence": 83,
+      "sequence": 82,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:1d1be401-29be-4f34-bada-9b6ef06bd5fb",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:f4aafb69-55d8-40e0-b247-4198535839b6",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2546,10 +2522,10 @@
       }
     },
     {
-      "sequence": 84,
+      "sequence": 83,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:771dba92-84b8-4d83-8e81-791972d85441",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:1d1be401-29be-4f34-bada-9b6ef06bd5fb",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2576,10 +2552,10 @@
       }
     },
     {
-      "sequence": 85,
+      "sequence": 84,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:a8f72397-731b-4c68-bdc1-0b4197ebb0ca",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:771dba92-84b8-4d83-8e81-791972d85441",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2605,10 +2581,10 @@
       }
     },
     {
-      "sequence": 86,
+      "sequence": 85,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:1bd6ac15-a48c-4239-a575-3d199a9ab27e",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:a8f72397-731b-4c68-bdc1-0b4197ebb0ca",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2645,10 +2621,10 @@
       }
     },
     {
-      "sequence": 87,
+      "sequence": 86,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:5017a3a8-f762-42bf-923a-24cf50dfff94",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:1bd6ac15-a48c-4239-a575-3d199a9ab27e",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:provider:claudeAgent:native-item:87d8990d-1cef-42f7-9b27-542c2a18e4b4",
@@ -2680,10 +2656,10 @@
       }
     },
     {
-      "sequence": 88,
+      "sequence": 87,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:78edbd98-08de-4ab2-ac80-85c945786c5a",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:5017a3a8-f762-42bf-923a-24cf50dfff94",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:provider:claudeAgent:native-item:87d8990d-1cef-42f7-9b27-542c2a18e4b4",
@@ -2708,10 +2684,10 @@
       }
     },
     {
-      "sequence": 89,
+      "sequence": 88,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:a28f1b14-3d20-4c1d-9189-98ddf6c9ea4b",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:78edbd98-08de-4ab2-ac80-85c945786c5a",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:provider:claudeAgent:native-item:87d8990d-1cef-42f7-9b27-542c2a18e4b4",
@@ -2746,10 +2722,10 @@
       }
     },
     {
-      "sequence": 90,
+      "sequence": 89,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:feb9a3bf-8f45-4ab8-a359-2fff44e38cd1",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:a28f1b14-3d20-4c1d-9189-98ddf6c9ea4b",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2794,10 +2770,10 @@
       }
     },
     {
-      "sequence": 91,
+      "sequence": 90,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:c46732c1-9160-457d-b953-2bb7e8f80637",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:feb9a3bf-8f45-4ab8-a359-2fff44e38cd1",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2839,10 +2815,10 @@
       }
     },
     {
-      "sequence": 92,
+      "sequence": 91,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:702e633b-1944-4194-a7dd-d4d69c44410b",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:provider-session:provider-session%3Aprovider-instance%3AclaudeAgent%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aea50ea93-b0ab-4c77-a9e4-4fcde38dabb3:c46732c1-9160-457d-b953-2bb7e8f80637",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2887,10 +2863,10 @@
       }
     },
     {
-      "sequence": 93,
+      "sequence": 92,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:5eddee17-e375-4d41-831e-cd9edacac7ad",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:de228ef4-2499-40f2-a8db-5ed864134ff7",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2914,10 +2890,10 @@
       }
     },
     {
-      "sequence": 94,
+      "sequence": 93,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:a4246c64-5c84-47a0-bcca-b8de84a3098a",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:702e633b-1944-4194-a7dd-d4d69c44410b",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2937,11 +2913,11 @@
           "userMessageId": "message:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:1:4d5d9862-e86b-4ae5-89bd-fef707188ea9",
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
           "activeAttemptId": "run-attempt:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:attempt:1",
-          "status": "waiting",
+          "status": "completed",
           "queuePosition": null,
           "requestedAt": "1970-01-01T00:00:00.002Z",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null,
+          "completedAt": "1970-01-01T00:00:00.002Z",
           "checkpointId": null,
           "contextHandoffId": null,
           "workStartedAt": "1970-01-01T00:00:00.002Z"
@@ -2949,10 +2925,10 @@
       }
     },
     {
-      "sequence": 95,
+      "sequence": 94,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:49a7690a-81ed-4dbe-97e7-0f797924a54e",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:a4246c64-5c84-47a0-bcca-b8de84a3098a",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -2966,7 +2942,7 @@
           "parentNodeId": null,
           "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
           "kind": "root_turn",
-          "status": "waiting",
+          "status": "completed",
           "countsForRun": true,
           "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
           "providerTurnId": null,
@@ -2974,15 +2950,15 @@
           "runtimeRequestId": null,
           "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
           "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": null
+          "completedAt": "1970-01-01T00:00:00.002Z"
         }
       }
     },
     {
-      "sequence": 96,
+      "sequence": 95,
       "commandId": null,
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:de228ef4-2499-40f2-a8db-5ed864134ff7",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:49a7690a-81ed-4dbe-97e7-0f797924a54e",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "providerInstanceId": "claudeAgent",
         "occurredAt": "1970-01-01T00:00:00.002Z",
@@ -3024,10 +3000,10 @@
       }
     },
     {
-      "sequence": 97,
+      "sequence": 96,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:f812f833-ad34-45ca-88ff-7b4626671058",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:5eddee17-e375-4d41-831e-cd9edacac7ad",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -3052,10 +3028,10 @@
       }
     },
     {
-      "sequence": 98,
+      "sequence": 97,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:089d9cb9-2755-468b-a55f-0efde377db1d",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:f812f833-ad34-45ca-88ff-7b4626671058",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -3086,10 +3062,10 @@
       }
     },
     {
-      "sequence": 99,
+      "sequence": 98,
       "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
       "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:482b16e2-f7f2-4a9e-9147-5e34e944a7a3",
+        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:089d9cb9-2755-468b-a55f-0efde377db1d",
         "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
         "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
         "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
@@ -3117,36 +3093,6 @@
           "checkpointId": "checkpoint:scope:checkpoint-scope%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aname%3Aroot:name:2",
           "contextHandoffId": null,
           "workStartedAt": "1970-01-01T00:00:00.002Z"
-        }
-      }
-    },
-    {
-      "sequence": 100,
-      "commandId": "command:effect:checkpoint.capture:run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-      "event": {
-        "id": "event:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:command:command%3Aeffect%3Acheckpoint.capture%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:0b7279b9-a922-403f-983f-3e1ac4565481",
-        "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-        "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-        "nodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-        "providerInstanceId": "claudeAgent",
-        "occurredAt": "1970-01-01T00:00:00.002Z",
-        "type": "node.updated",
-        "payload": {
-          "id": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "threadId": "thread:fixture:claude_background_subagent_after_root:project:project%3Afixture%3Aclaude_background_subagent_after_root%3Af2604e9d-55b7-45de-a716-838867faae7e:0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7",
-          "runId": "run:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:ordinal:2",
-          "parentNodeId": null,
-          "rootNodeId": "node:run:run%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A2:root",
-          "kind": "root_turn",
-          "status": "completed",
-          "countsForRun": true,
-          "providerThreadId": "provider-thread:provider:claudeAgent:native-thread:pending%3Arun%3Athread%3Athread%253Afixture%253Aclaude_background_subagent_after_root%253Aproject%253Aproject%25253Afixture%25253Aclaude_background_subagent_after_root%25253Af2604e9d-55b7-45de-a716-838867faae7e%253A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7%3Aordinal%3A1",
-          "providerTurnId": null,
-          "nativeItemRef": null,
-          "runtimeRequestId": null,
-          "checkpointScopeId": "checkpoint-scope:thread:thread%3Afixture%3Aclaude_background_subagent_after_root%3Aproject%3Aproject%253Afixture%253Aclaude_background_subagent_after_root%253Af2604e9d-55b7-45de-a716-838867faae7e%3A0f2eb5a3-17c3-45d8-831a-e78b17f6c3d7:name:root",
-          "startedAt": "1970-01-01T00:00:00.002Z",
-          "completedAt": "1970-01-01T00:00:00.002Z"
         }
       }
     }
