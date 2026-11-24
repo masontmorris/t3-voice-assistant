@@ -1123,8 +1123,7 @@ READER_VARIANTS = {
     # No description passed the gate: the kind alone, never what the request does or is for.
     (Kind.CONFIRM_RESPOND, "kind_only"): ({"thread": "Example Archive Old Invoices", "decision": "approve",
                                           "need": "command_approval"},
-                                         "Should I approve the request to run a command from Example Archive Old "
-                                         "Invoices?"),
+                                         "Should I approve Example Archive Old Invoices running a command?"),
     (Kind.CONFIRM_RESPOND, "kind_only_begun_for"): ({"begun_in": "Example Fleet Notes",
                                                     "begun_for": "sorting the fleet log by date", "decision": "approve",
                                                     "need": "command_approval"},

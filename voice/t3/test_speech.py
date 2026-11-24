@@ -754,7 +754,7 @@ class RenderTest(unittest.TestCase):
         self.assertIn("Example Fleet Notes is waiting for your approval to run a command. Should I",
                       shown(begun_in="Example Fleet Notes"))
         self.assertIn("this thread's request to run a command", shown(on_call=True))
-        self.assertIn("the request to run a command from Example Archive Old Invoices", shown(thread="Add a clamp helper"))
+        self.assertIn("Example Archive Old Invoices running a command?", shown(thread="Add a clamp helper"))
         for decision, said in (("approve", "I approved the command for the thread you started in Example Fleet Notes for sorting"),
                                ("deny", "I said no to the command for the thread you started in Example Fleet Notes for sorting")):
             answered = reader_messages((act(Kind.RESPONDED, decision=decision, need="command_approval",
