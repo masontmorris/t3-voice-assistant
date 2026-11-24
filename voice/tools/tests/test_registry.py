@@ -1,6 +1,6 @@
 import unittest
 import urllib.error
-from datetime import date
+from datetime import date, timedelta
 
 from voice.tools import open_meteo, registry
 from voice.tools.mcp import McpError
@@ -281,6 +281,55 @@ class DispatchTest(unittest.TestCase):
                                       choice=registry.ToolChoice("weather", 0.59, {"place": None, "when": None}))
         self.assertEqual(routed.call, ToolCall("weather", {"place": "Boston", "when": "today"}),
                          "nothing there continues the earlier forecast, so the worker's default place stands")
+
+
+class CountedDayTest(unittest.TestCase):
+    """A day counted from today is a whole number of days in `when`, resolved against the forecast's own first day."""
+
+    DENVER = ToolCall("weather", {"place": "Denver", "when": "tomorrow"})
+
+    def setUp(self):
+        self.tools, _, _ = replay_registry(None)
+
+    def test_a_number_of_days_picks_that_many_days_after_the_first(self):
+        from voice.tools.lookups import pick_days
+        days = [open_meteo.Day(date(2026, 11, 23) + timedelta(days=i), 50.0, 0) for i in range(16)]
+        self.assertEqual([d.date for d in pick_days(7, days)], [date(2026, 11, 30)])
+        self.assertEqual(pick_days(16, days), [], "a day past the forecast's last is no day")
+
+    def test_the_reading_of_a_counted_day_outranks_the_word_table_and_keeps_the_earlier_place(self):
+        routed = self.tools.dispatch("What about a week from today?", self.DENVER,
+                                     choice=registry.ToolChoice("weather", 0.9, {"place": None, "when": 7}))
+        self.assertEqual(routed.call, ToolCall("weather", {"place": "Denver", "when": 7}),
+                         "the table reads today in 'a week from today'; the decider's count is the day")
+
+    def test_a_follow_up_that_changes_only_the_place_keeps_the_earlier_counted_day(self):
+        earlier = ToolCall("weather", {"place": "Denver", "when": 7})
+        routed = self.tools.dispatch("What about Boston?", earlier,
+                                     choice=registry.ToolChoice("weather", 0.9, {"place": "Boston", "when": None}))
+        self.assertEqual(routed.call, ToolCall("weather", {"place": "Boston", "when": 7}),
+                         "'what about Boston?' has no preposition, so only the reading finds the place")
+
+    def test_the_day_after_a_counted_day_is_the_next_number(self):
+        from voice.tools.lookups import DAY_AFTER, resolved
+        self.assertEqual(resolved(DAY_AFTER, 7), 8)
+
+    def test_a_forecast_for_a_counted_day_names_that_day(self):
+        result = self.tools.run(ToolCall("weather", {"place": "Denver", "when": 3}))
+        self.assertEqual(result.outcome, Outcome.OK)
+        self.assertIn(spoken(recorded_days("Denver")[3]), result.summary)
+
+    def test_a_day_past_the_forecast_says_how_far_ahead_it_can_look(self):
+        result = self.tools.run(ToolCall("weather", {"place": "Denver", "when": 10}))
+        self.assertEqual((result.outcome, result.summary),
+                         (Outcome.FAILED, "The weather lookup can look ahead 6 days, so it has no forecast that far "
+                                          "ahead."))
+        far = self.tools.run(ToolCall("weather", {"place": "Denver", "when": "farther"}))
+        self.assertEqual((far.outcome, far.summary), (result.outcome, result.summary))
+
+    def test_the_forecast_asks_for_the_longest_range_the_source_gives(self):
+        self.assertIn(f"forecast_days={open_meteo.FORECAST_DAYS}", open_meteo.forecast_url(
+            open_meteo.parse_place(RECORDED["http"][open_meteo.geocode_url("Denver")])))
 
 
 class RecordedReadingTest(unittest.TestCase):

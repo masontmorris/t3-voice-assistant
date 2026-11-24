@@ -189,6 +189,51 @@ from the earlier Durham forecast even when the model reads one, because the word
 "Okay, and what about San Diego?" keeps its place, because those words do say it, which the preposition rule alone
 cannot read (measured, turn 022 of the replay).
 
+A day counted from today ("in three days", "a week from today") had no value to read as: the day question offered
+`today`, `tomorrow`, the weekend and the weekdays, the decider answered `none` (margin 0.28 on the recorded
+`follow-up` turn), and the word table then read `today` in "a week from today", so the lookup ran for today. The day
+question now also offers `in_2_days` to `in_15_days`, the days the 16-day forecast reaches, and `farther` for a day
+beyond it. `_reading` turns a counted name into a whole number of days, and that number is a `when` beside the named
+days. `pick_days` takes that many days after the forecast's first day, which is the place's own today. A number past
+the forecast's end, and `farther`, fail the lookup with the range it has ("can look ahead 15 days"), so the reply
+cannot answer for another day. A counted day is the decider's choice and is not checked against the word table, which
+has no way to say it. One more change rides along: a reading that states a place or day makes the request a follow-up
+of the earlier lookup of that tool, so "What about Boston?" keeps the earlier day instead of running today.
+
+Two shapes were tried first and dropped (measured). The decider's `text` and `number` question types only copy a span
+of the transcript ("a week" came back as span text with no number), so they cannot say 7. A count question plus a unit
+question did work, but two extra questions on every segment made the tool answer worse for other requests: "What time
+is it in Tokyo?" after a thread follow-up dispatched the time tool in 1 of 5 fresh samples, against 5 of 5 before and
+5 of 5 with the single longer day question that shipped.
+
+`python -m voice.tools.eval.record_days` records 66 made-up requests (11 kinds, six each: four seen, two held-out),
+three samples each against the hosted decider, on the code before and after, and `voice/tools/tests/test_day_decisions.py`
+replays the recording offline. Correct samples of samples run, measured on 2026-11-23:
+
+| Kind | Before, seen | After, seen | Before, held-out | After, held-out |
+| --- | --- | --- | --- | --- |
+| today | 12 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
+| tomorrow | 12 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
+| a named weekday | 9 of 12 | 9 of 12 | 6 of 6 | 6 of 6 |
+| the weekend | 10 of 12 | 9 of 12 | 6 of 6 | 6 of 6 |
+| in three days | 0 of 12 | 12 of 12 | 0 of 6 | 6 of 6 |
+| a week from today | 0 of 12 | 12 of 12 | 0 of 6 | 5 of 6 |
+| ten days from now | 0 of 12 | 12 of 12 | 0 of 6 | 6 of 6 |
+| follow-up, day only | 3 of 12 | 12 of 12 | 3 of 6 | 6 of 6 |
+| follow-up, place only | 3 of 12 | 12 of 12 | 0 of 6 | 6 of 6 |
+| no day | 12 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
+| past the forecast (picks no day) | 0 of 12 | 9 of 12 | 0 of 6 | 6 of 6 |
+| All | 61 of 132 | 123 of 132 | 33 of 66 | 65 of 66 |
+
+The seen cases were looked at while the question text was written. Half of them were held-out in a first round that ran
+on an earlier shape of the question (the count and unit pair); that shape changed after the run, so those cases count
+as seen and the held-out cases are new and were run once on the shipped text. The seen misses are not day misses: the
+decider does not pick the weather tool or the place for "How will Seattle look on Thursday?" and "How will Chicago look
+in a month and a half?" (the same misses before, and one sample of the second read "a month and a half" as `in_15_days`, a
+day the forecast has, with no place), "Will it be nice in Boston over the weekend?" is a tool miss that
+came up once more after than before (10 of 12 to 9 of 12, one sample), and the held-out miss is one "one week out"
+sample.
+
 | Split | n | Arguments exact, polish round | Arguments exact, now |
 | --- | --- | --- | --- |
 | The polish round's recorded answers, scored again | 10 | 7 | 9 |

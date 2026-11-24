@@ -24,7 +24,7 @@ from datetime import date
 from pathlib import Path
 
 from voice.segmentation import client
-from voice.tools.lookups import WEEKDAYS, remaining
+from voice.tools.lookups import MAX_AHEAD, WEEKDAYS, remaining
 
 MODEL = "deepseek/deepseek-v4.1-flash-1017"
 DAILY_CAP_USD = 0.50
@@ -69,7 +69,7 @@ def choose_messages(instruction, context, today, default_place):
             "names a place." if default_place else "The person has no default place.")
     system = f"""You are the lookup worker behind a voice assistant. Today is {today:%A, %B} {today.day}, {today.year}. {home}
 Reply with exactly one JSON object and nothing else, in one of these forms:
-{{"tool": "weather", "place": "<city>", "when": "today|tomorrow|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday"}} for a forecast, or for anything that depends on the weather, such as what to wear.
+{{"tool": "weather", "place": "<city>", "when": "today|tomorrow|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday"}} for a forecast, or for anything that depends on the weather, such as what to wear. For a day counted from today, make "when" a whole number of days after today instead, such as 7 for a week from today.
 {{"tool": "time", "place": "<city>"}} for the current time somewhere.
 {{"answer": "<one or two short spoken sentences>"}} for a question you can answer from general knowledge or from the conversation.
 {{"cannot": "<why>"}} when the request needs something you have no tool for, such as email, calendars, files, timers or live prices, or a fact you do not know.
@@ -102,8 +102,12 @@ def parse_choice(text):
     if tool in ("weather", "time"):
         arguments = {"place": place.strip() if isinstance(place, str) and place.strip() else None}
         if tool == "weather":
-            when = str(choice.get("when") or "today").strip().lower()
-            arguments["when"] = when if when in WHENS else "today"
+            when = choice.get("when")
+            if isinstance(when, int) and not isinstance(when, bool) and 0 < when <= MAX_AHEAD:
+                arguments["when"] = when
+            else:
+                when = str(when or "today").strip().lower()
+                arguments["when"] = when if when in WHENS else "today"
         return ("tool", tool, arguments)
     if isinstance(choice.get("answer"), str) and choice["answer"].strip():
         return ("answer", choice["answer"])

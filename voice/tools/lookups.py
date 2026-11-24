@@ -10,6 +10,9 @@ with Open-Meteo to get its IANA time zone, then asks the MCP server for the time
 
 The day table reads a weekday, `today`, `tomorrow`, `day after tomorrow`, and `the day after`, which is the day after
 the earlier task's own day (`resolved`). It also rejoins one word the ASR split in two: "And s aturday?" is Saturday.
+A day the words count from today ("in three days", "a week from today") is not in the table: the decider chooses it by
+name, `_reading` turns the name into a whole number of days, `pick_days` takes that many days after the forecast's
+first, and a day past the forecast's end is a failed lookup that says how far ahead it can look.
 `answer_place` reads the place a person gives in answer to a question about it, and `names` says whether a text says
 a value at all, which is what lets the registry keep a reading of the segment's own words and drop one it invented.
 """
@@ -24,6 +27,12 @@ WEEKDAYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", 
 DAY_AFTER_TOMORROW = "day after tomorrow"
 # A day named relative to the earlier lookup's: "And what about the day after?" after a forecast for tomorrow.
 DAY_AFTER = "the day after"
+# A day counted from today is a whole number of days in a `when`, beside the named days. The decider chooses one of
+# `COUNTED_DAYS` by name, one for each day the forecast reaches past tomorrow, or `FARTHER` for a day beyond it; the
+# general worker may write any number up to `MAX_AHEAD`. `pick_days` takes that many days after the forecast's first.
+COUNTED_DAYS = {f"in_{days}_days": days for days in range(2, open_meteo.FORECAST_DAYS)}
+FARTHER = "farther"
+MAX_AHEAD = 366
 LATER = {"today": "tomorrow", "tomorrow": DAY_AFTER_TOMORROW}
 # Longest phrase first, because "the day after tomorrow" holds "the day after".
 DAY_PHRASES = ([("the day after tomorrow", DAY_AFTER_TOMORROW), ("day after tomorrow", DAY_AFTER_TOMORROW),
@@ -94,6 +103,8 @@ def stated_when(text):
 
 def later(when):
     """The day after `when` names, or None when it names no single day to step from."""
+    if isinstance(when, int):
+        return when + 1
     if when in WEEKDAYS:
         return WEEKDAYS[(WEEKDAYS.index(when) + 1) % 7]
     return LATER.get(when)
@@ -102,7 +113,7 @@ def later(when):
 def resolved(when, earlier_when=None):
     """`when` with a relative day made absolute: the day after a Saturday is Sunday, and the day after a tomorrow is
     the day after tomorrow. A `when` that names no such reference stands as it is."""
-    return later(earlier_when or "today") if when == DAY_AFTER else when
+    return later("today" if earlier_when is None else earlier_when) if when == DAY_AFTER else when
 
 
 def find_when(text):
@@ -121,15 +132,17 @@ def supported(reading, text):
     """The decider's reading of this segment's own words: its place and day, with a value the words do not say
     dropped.
 
-    Measured on Mason's recording: the model answers `today` for words that name no day (turns 004 and 022), so a day
-    it read cannot be believed over the words; and turn 016's "Wait, do it again." names no place, so a place read
+    Measured on Mason's recording: the model answers `today` for words that name no day (turns 004 and 022), so a named
+    day it read cannot be believed over the words; and turn 016's "Wait, do it again." names no place, so a place read
     there could only be a guess or a copy of the earlier forecast's. A place the words do say stays, which is what
-    reads "what about San Diego?" where the preposition rule cannot.
+    reads "what about San Diego?" where the preposition rule cannot. A number of days is the decider's own count and
+    stays: the table of day words has no way to say it, and its `today` in "a week from today" is the fault.
     """
     reading = reading or {}
     place, when = reading.get("place"), reading.get("when")
+    counted = isinstance(when, int) or when == FARTHER
     return {"place": place if names(text, place) else None,
-            "when": when if when is not None and when == stated_when(text) else None}
+            "when": when if counted or (when is not None and when == stated_when(text)) else None}
 
 
 def answer_place(text):
@@ -158,7 +171,11 @@ def answer(field, text):
 
 
 def pick_days(when, days):
-    """The forecast days a `when` names. `days` starts with the place's today."""
+    """The forecast days a `when` names. `days` starts with the place's today. A number is that many days after it."""
+    if isinstance(when, int):
+        return days[when:when + 1]
+    if when == FARTHER:
+        return []
     if when == "today":
         return days[:1]
     if when == "tomorrow":
@@ -204,6 +221,8 @@ def weather_tool(fetch, default_place):
         place = geocode(fetch, arguments["place"], deadline)
         days = open_meteo.parse_days(fetch(open_meteo.forecast_url(place), remaining(deadline)))
         picked = pick_days(arguments["when"], days)
+        if not picked and (isinstance(arguments["when"], int) or arguments["when"] == FARTHER):
+            raise LookupFailed(f"can look ahead {len(days) - 1} days, so it has no forecast that far ahead")
         if not picked:
             raise LookupFailed(f"has no forecast for {arguments['when']}")
         summary = f"Forecast for {place.spoken()}. " + ". ".join(day_sentence(d) for d in picked) + "."

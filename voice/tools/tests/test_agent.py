@@ -116,6 +116,14 @@ class AgentTest(unittest.TestCase):
         self.assertIn("Monday, November 16, 2026", chat.calls[0][0][0]["content"])
         self.assertIn("default place is Denver", chat.calls[0][0][0]["content"])
 
+    def test_a_day_the_worker_counts_from_today_runs_as_that_many_days(self):
+        chat = FakeChat('{"tool": "weather", "place": "Denver", "when": 3}', "In three days it is mild.")
+        result, _ = run(chat, "What's the weather in Denver in three days?")
+        self.assertEqual(result.detail["tool_result"]["arguments"], {"place": "Denver", "when": 3})
+        bad = FakeChat('{"tool": "weather", "place": "Denver", "when": -2}', "Mild.")
+        result, _ = run(bad, "What's the weather in Denver?")
+        self.assertEqual(result.detail["tool_result"]["arguments"], {"place": "Denver", "when": "today"})
+
     def test_a_worded_answer_with_a_number_the_tool_did_not_give_is_replaced_by_the_tool_summary(self):
         chat = FakeChat('{"tool": "weather", "place": "Denver", "when": "tomorrow"}',
                         "Tomorrow in Denver the high is 999 degrees.")

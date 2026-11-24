@@ -9,6 +9,7 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 
 from voice.segmentation.client import MODEL
+from voice.tools.lookups import COUNTED_DAYS, FARTHER
 from voice.tools.registry import NONE, T3_ASK, T3_TOOLS, ToolChoice
 
 # A place answer is a name: letters, spaces, and the punctuation a name can carry. Measured in the 37-turn replay:
@@ -118,11 +119,14 @@ TOOL_INSTRUCTIONS = ("Which tool carries out segment {quote}? Pick the tool whos
                      "none when it asks for nothing looked up and the assistant answers it from this call. Pick agent "
                      "when it needs information from outside this call that no other tool covers, or asks for one of "
                      "them while leaving the assistant to choose a detail first, such as the city.")
+WEEKS = {7: ", which is a week from today", 14: ", which is two weeks from today"}
 WHEN_CRITERIA = {
     "none": "It names no day and asks about no particular day.",
     "today": "It asks about today, or about the day in progress.",
     "tomorrow": "It asks about tomorrow.",
     "weekend": "It asks about the weekend.",
+    **{name: f"It asks about the day {days} days from today{WEEKS.get(days, '')}." for name, days in COUNTED_DAYS.items()},
+    FARTHER: "It asks about a day counted from today that is further off than any of those.",
     **{day: f"It asks about {day.capitalize()}." for day in
        ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")},
 }
@@ -251,7 +255,8 @@ def _text(answers, name):
 
 
 def _reading(answers, sid, questions, problems):
-    """The place and day the decider read for one segment, or None when the request did not ask for them. An
+    """The place and day the decider read for one segment, or None when the request did not ask for them. The day is
+    a named value, a whole number of days after today when the decider chose one of the counted days, or `farther`. An
     unreadable answer leaves the argument to the tool's parser rather than failing the segment."""
     if f"{sid}_place" not in questions:
         return None
@@ -263,7 +268,7 @@ def _reading(answers, sid, questions, problems):
     if place is not None and not PLACE_NAME.match(place):
         problems.append(f"{sid}_place: not a name, {place[:40]!r}")
         place = None
-    return {"place": place, "when": None if when == "none" else when}
+    return {"place": place, "when": None if when == "none" else COUNTED_DAYS.get(when, when)}
 
 
 def _thread_pick(picked, margin, probabilities):

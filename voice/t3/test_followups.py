@@ -14,7 +14,9 @@ RECORDED = json.loads(FIXTURE.read_text(encoding="utf-8"))
 # Held-out cases d1.2 does not route as the case wants. "Cancel that one" with no follow-up held is read as withdrawing
 # the earlier request (correction 0.50, request 0.43), though its tool answer is t3_stop at 0.9, so nothing is
 # dispatched and nothing acts.
-MISSES = {("Cancel that one.", False)}
+# "Please tell it to stop touching the config." reads as t3_ask in 4 of 5 fresh samples with or without the day
+# question's counted days (measured on the code before them and after), so the recording that took t3_tell was a lucky one.
+MISSES = {("Cancel that one.", False), ("Please tell it to stop touching the config.", True)}
 
 
 class Replay:

@@ -79,7 +79,7 @@
    ],
    "generationtime_ms": 0.23913383
   },
-  "https://api.open-meteo.com/v1/forecast?latitude=39.73915&longitude=-104.9847&daily=temperature_2m_max%2Cprecipitation_probability_max&timezone=auto&temperature_unit=fahrenheit": {
+  "https://api.open-meteo.com/v1/forecast?latitude=39.73915&longitude=-104.9847&daily=temperature_2m_max%2Cprecipitation_probability_max&timezone=auto&temperature_unit=fahrenheit&forecast_days=16": {
    "latitude": 39.746895,
    "longitude": -104.987076,
    "generationtime_ms": 0.1289844512939453,
@@ -142,7 +142,7 @@
    ],
    "generationtime_ms": 0.18084049
   },
-  "https://api.open-meteo.com/v1/forecast?latitude=35.6895&longitude=139.69171&daily=temperature_2m_max%2Cprecipitation_probability_max&timezone=auto&temperature_unit=fahrenheit": {
+  "https://api.open-meteo.com/v1/forecast?latitude=35.6895&longitude=139.69171&daily=temperature_2m_max%2Cprecipitation_probability_max&timezone=auto&temperature_unit=fahrenheit&forecast_days=16": {
    "latitude": 35.7,
    "longitude": 139.6875,
    "generationtime_ms": 0.10728836059570312,

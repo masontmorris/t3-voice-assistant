@@ -191,14 +191,20 @@ class Registry:
 
         The reading is kept only where the words say it (`lookups.supported`), so a place or day the model inferred
         from the call cannot overrule an elliptical follow-up's own day or repeat an earlier forecast nobody asked
-        for."""
+        for. A place or day the reading does state makes the request a follow-up of an earlier call of the same tool
+        even where the word rules cannot see it, as "What about Boston?" has no preposition before the place, and what
+        it leaves out comes from that call."""
         reading = lookups.supported(reading, instruction)
-        prior = earlier.arguments if self.continues(name, instruction, earlier) else {}
+        states = reading.get("place") is not None or reading.get("when") is not None
+        prior = (earlier.arguments if earlier is not None and earlier.tool == name
+                 and (states or self.continues(name, instruction, earlier)) else {})
         place = reading.get("place") or lookups.find_place(instruction) or prior.get("place") or self.default_place
         if name != "weather":
             return {"place": place}
-        when = (reading.get("when") or lookups.resolved(lookups.stated_when(instruction), prior.get("when"))
-                or prior.get("when") or "today")
+        when = reading.get("when")
+        if when is None:
+            when = (lookups.resolved(lookups.stated_when(instruction), prior.get("when"))
+                    or prior.get("when") or "today")
         return {"place": place, "when": when}
 
     def waiting(self, name, instruction, earlier=None, reading=None):

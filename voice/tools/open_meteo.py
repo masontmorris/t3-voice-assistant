@@ -13,6 +13,7 @@ from datetime import date
 GEOCODE = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST = "https://api.open-meteo.com/v1/forecast"
 USER_AGENT = "t3-voice-assistant-dev"
+FORECAST_DAYS = 16
 
 
 @dataclass(frozen=True)
@@ -44,7 +45,7 @@ def forecast_url(place):
     return FORECAST + "?" + urllib.parse.urlencode({
         "latitude": place.latitude, "longitude": place.longitude,
         "daily": "temperature_2m_max,precipitation_probability_max", "timezone": "auto",
-        "temperature_unit": "fahrenheit"})
+        "temperature_unit": "fahrenheit", "forecast_days": FORECAST_DAYS})
 
 
 def fetch_json(url, timeout_s):
