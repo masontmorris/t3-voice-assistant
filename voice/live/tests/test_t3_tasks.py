@@ -1783,6 +1783,31 @@ class WithdrawnQuestion(unittest.TestCase):
         self.assertIsNone(t3.live_question())
         self.assertIsNone(t3.answer("Can we start over?", 2))
 
+    def test_the_line_said_in_place_of_a_refused_reply_is_never_given_back_to_a_later_turn(self):
+        """It belongs to its turn: a turn cut off before it was said leaves nothing for the quiet moment or the next
+        turn, and the question stays withdrawn."""
+        t3 = self.confirming({"Never mind.": "withdraw"})
+        t3.answer("Never mind.", 1)
+        question = t3.take_withdrawn()
+        service = T3TaskService(SimpleNamespace(records=lambda: [], dispatch_log=[]), "conv_turn_002", 0.0, None,
+                                holds_side_effects=False, t3=t3)
+        entry = service.withdrawn_entry(question)
+        self.assertEqual(service.update_for(entry).acts, (act(S.CANCELLED, op="ask"),))
+        service.close()
+        self.assertEqual((t3.has_news(), t3.has_news(idle=True), t3.follow.outbox), (False, False, []))
+        self.assertEqual(t3.declined_state(), {"threads": ["Add Clamp Helper"]})
+        self.assertIsNone(t3.live_question())
+
+    def test_a_withdrawal_whose_turn_was_cut_off_unheard_is_told_to_the_next_turn_of_the_same_call(self):
+        t3 = self.confirming({"Never mind.": "withdraw"})
+        t3.answer("Never mind.", 1)
+        question = t3.take_withdrawn()
+        t3.restore_withdrawn(question)
+        self.assertIs(t3.take_withdrawn(), question)
+        t3.begin_call()
+        t3.restore_withdrawn(question)
+        self.assertIsNone(t3.take_withdrawn(), "not across calls")
+
 
 class WithdrawalScope(unittest.TestCase):
     """A reply read as taking a request back drops the one thread-pick question and nothing else."""

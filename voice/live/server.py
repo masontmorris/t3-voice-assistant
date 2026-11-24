@@ -958,7 +958,7 @@ class Conversation:
             return max(0.0, sent_s - remaining), sent_s
 
         return ReplyCheck(
-            facts=live.t3.claim_facts, judge=live.claims.claims,
+            facts=live.t3.claim_facts, judge=live.claims.claims, reoffers=live.claims.reoffers,
             correction=lambda thread_id, replying_to: live.t3.correction(thread_id, replying_to),
             playing=playing, muted=lambda: turn.muted,
             owns=lambda: self.playback.turn in (None, turn.n),

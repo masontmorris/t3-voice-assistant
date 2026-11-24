@@ -1120,6 +1120,7 @@ READER_VARIANTS = {
     (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
                                "I said no to the file changes for Example Mend Rail Maps."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
+    (Kind.CANCELLED, "ask"): ({"op": "ask"}, "Okay, I'll leave that one."),
     (Kind.NEEDS_YOU, "request"): ({"thread": "Example Archive Old Invoices", "need": "command_approval",
                                    "request": "It wants to delete the old invoice folder."},
                                   "Example Archive Old Invoices needs your approval to delete the old invoice folder."),

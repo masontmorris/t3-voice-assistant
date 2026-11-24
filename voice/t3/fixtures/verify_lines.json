@@ -3237,6 +3237,606 @@
     "ms": 107.0
   },
   {
+    "case": "dropped pick names a thread",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I'll leave Add a Volume Slider to the Mixer.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.045213113315733855
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.2776794184446455
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.6744501849478968
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.027899131748028428
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.29630535968593597
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.7966872808172734
+      }
+    },
+    "ms": 162.0
+  },
+  {
+    "case": "dropped pick names a thread",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I'll leave that one.",
+    "should_pass": true,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.06946982793960087
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.7223205859093019
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.05148880499488322
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.03478232222401573
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.36672634086896316
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.25113398330780284
+      }
+    },
+    "ms": 166.6
+  },
+  {
+    "case": "dropped pick names the other thread",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I won't look into Add a Volume Slider to Settings.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.03797192430932643
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.6843652909772054
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.8660504351454897
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.03634346195166131
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.2776794184446455
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.6843652815991621
+      }
+    },
+    "ms": 170.2
+  },
+  {
+    "case": "dropped pick names the other thread",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "No problem, I'll drop that question.",
+    "should_pass": true,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.0585821215535049
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.7966872597206374
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.009532809244076424
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.01709667432909552
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.34584930969305466
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.07883440125270876
+      }
+    },
+    "ms": 183.0
+  },
+  {
+    "case": "dropped pick offers the choices",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay. Did you mean the mixer one or the settings one?",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.8551318796402044
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.03797192916630269
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.037971925102302094
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.9462419811618495
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.03967034316856058
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.7736689288717513
+      }
+    },
+    "ms": 123.9
+  },
+  {
+    "case": "dropped pick offers the choices",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I won't look into it then.",
+    "should_pass": true,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.031851768080363434
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.9106598612443149
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.019549641017445
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.010432010440057947
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.3562195272204035
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.19603843519100198
+      }
+    },
+    "ms": 209.2
+  },
+  {
+    "case": "dropped pick offers them after leaving it",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I'll leave it, but it's either the mixer one or the settings one.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.2426698545928815
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.8858035863646125
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.12373488004932448
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.6744501944803971
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.5900546060409535
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8946951125339684
+      }
+    },
+    "ms": 105.4
+  },
+  {
+    "case": "dropped pick drops a message",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I won't send that message.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.056121341102148004
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.2107861761620497
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.017878737317717625
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.026690673613065187
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.25113398330780284
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.7736689288717513
+      }
+    },
+    "ms": 106.4
+  },
+  {
+    "case": "dropped pick drops a stop",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I won't stop the thread.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.10109225163871785
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.16262021916363936
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.02442462275323888
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.037971919650594654
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.15651581300595324
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.9244087750122911
+      }
+    },
+    "ms": 110.7
+  },
+  {
+    "case": "dropped pick drops a launch",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I won't start a new thread.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.10530489360159384
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.345849329337249
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.03634347269023479
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.07247095953713843
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.2963053506335461
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.860680776602638
+      }
+    },
+    "ms": 168.8
+  },
+  {
+    "case": "dropped pick cancels the thread",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, I've cancelled that thread.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.10967166833445287
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.6541506804848483
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.012489558501363853
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.034782323863759075
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.9106598603612708
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.6437804727795965
+      }
+    },
+    "ms": 151.6
+  },
+  {
+    "case": "dropped pick stops the thread",
+    "take": 1,
+    "acts": [
+      {
+        "kind": "cancelled",
+        "slots": {
+          "op": "ask"
+        }
+      }
+    ],
+    "line": "Okay, that thread is stopped now.",
+    "should_pass": false,
+    "asked": {
+      "a1_names_target": "Does the cancellation name a specific thread or project? Generic references like 'the thread' or 'it' do not count.",
+      "a1_offers": "Does the line ask them to choose between threads, or offer threads to choose from, even without their names?",
+      "a1_means": "Does the line tell them that the assistant is leaving their question about which thread they meant, and will not look into any of those threads now?",
+      "a1_asks_unrequested": "Does the line ask the person a question the act did not call for?",
+      "claims_stopped": "Does the line say that the thread has already stopped or was cancelled?",
+      "invents": "Does the line state something about a thread that `facts` does not support?"
+    },
+    "status": 200,
+    "answers": {
+      "a1_asks_unrequested": {
+        "type": "noul",
+        "noul": 0.1287559166763931
+      },
+      "a1_means": {
+        "type": "noul",
+        "noul": 0.5453985287460232
+      },
+      "a1_names_target": {
+        "type": "noul",
+        "noul": 0.01787873160026394
+      },
+      "a1_offers": {
+        "type": "noul",
+        "noul": 0.04328808543411884
+      },
+      "claims_stopped": {
+        "type": "noul",
+        "noul": 0.8989077478681282
+      },
+      "invents": {
+        "type": "noul",
+        "noul": 0.8373797956164312
+      }
+    },
+    "ms": 113.1
+  },
+  {
     "case": "unsolicited question replied",
     "take": 1,
     "acts": [

@@ -107,6 +107,8 @@ class Check(unittest.TestCase):
             claim = Decider(client).claims("It is done.", {"thread": "x"})
             self.assertFalse(claim.wrong)
             self.assertTrue(claim.error)
+            self.assertIsNone(Decider(client).reoffers("Which one?", ["A", "B"])[0],
+                              "a re-offer check that did not finish has no answer, and the reply waiting on it is not said")
 
     def test_an_answer_that_is_not_a_reading_flags_nothing(self):
         class Bad:

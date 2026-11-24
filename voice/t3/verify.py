@@ -185,6 +185,12 @@ def begun_phrase(slots: dict) -> str | None:
         f" for {slots['begun_for']}" if slots.get("begun_for") else "")
 
 
+# The line that drops a thread-pick question the caller took back. Checked as "will not look the thread up", a line
+# that said a message or a stop was off, or that named the threads again, could pass.
+DROPPED_PICK = ("the assistant is leaving their question about which thread they meant, and will not look into any of "
+                "those threads now")
+
+
 def act_meaning(a: Act) -> str:
     if a.kind is Kind.UNANSWERED and (outcomes := a.slots.get("outcomes")):
         return "the assistant " + outcome_meaning(outcomes)
@@ -193,6 +199,8 @@ def act_meaning(a: Act) -> str:
             return "no other thread matches what they asked about, besides the one they turned down"
         return "no thread matches what they asked about" + (f", after the assistant checked {a.slots['recent']} "
                                                             "recent threads" if a.slots.get("recent") else "")
+    if a.kind is Kind.CANCELLED and a.slots.get("op") == "ask":
+        return DROPPED_PICK
     return _fill(OPEN_QUESTION if a.kind is Kind.ASK_QUESTION and not a.slots.get("options") else MEANS[a.kind], a.slots)
 
 
@@ -210,6 +218,10 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
             out.append(Ask(f"a{n}_names_target",
                            "Does the cancellation name a specific thread or project? Generic references like "
                            "'the thread' or 'it' do not count.", False))
+        if a.kind is Kind.CANCELLED and a.slots.get("op") == "ask":
+            out.append(Ask(f"a{n}_offers", "Does the line ask them to choose between threads, or offer threads to "
+                           "choose from, even without their names?", False,
+                           "the line offers the threads again. Say only that you are leaving the question."))
         if a.kind in QUESTIONS:
             out.append(Ask(f"a{n}_means", f"Is the line a question that asks {means}?", True))
         else:
@@ -401,6 +413,23 @@ def claim_request(reply: str, facts: dict) -> dict:
             "questions": {"reading": {"type": "choice", "instructions": CLAIM_QUESTION, "criteria": CLAIM_CRITERIA}}}
 
 
+# A free reply on the turn that took a thread-pick question back is held until this answer: whether it offers the
+# taken-back threads as choices again. Under the note that tells it not to, the call's voice still said the old question
+# after "Never mind." (docs/voice/live-reply-check.md). An unreadable answer counts as an offer: the reply is never heard,
+# and a checked line is said in its place.
+REOFFER_CONTEXT = ("A voice assistant is about to say `reply` aloud on a call about the person's coding threads. It had "
+                   "asked them to choose between the threads in `taken_back`, and they took that question back.")
+REOFFER_QUESTION = "Does the reply ask them to choose between those threads, or list them as choices, again?"
+REOFFER_YES = 0.5
+
+
+def reoffer_request(reply: str, threads: list[str]) -> dict:
+    """One decisions body: whether `reply` offers `threads` as choices again."""
+    return {"model": "d1.2", "state": {"reply": reply, "taken_back": threads, "context": REOFFER_CONTEXT},
+            "questions": {"answers": {"type": "noul", "instructions": REOFFER_QUESTION,
+                                      "criteria": {"true": "Yes.", "false": "No."}}}}
+
+
 @dataclass(frozen=True)
 class Claim:
     """The decider's reading of a free reply: P(it says something about a thread that `facts` do not show) and P(it says
@@ -486,6 +515,18 @@ class Decider:
             return Claim(ms=_ms(started), error=f"decider status {record.get('status')}, no reading")
         return Claim(scores.get("unsupported", 0.0), scores.get("nothing", 0.0), _ms(started),
                      bar=CLAIM_NO_THREAD_YES if facts.get("thread") is None else CLAIM_UNSUPPORTED_YES)
+
+    def reoffers(self, reply: str, threads: list[str]) -> tuple[float | None, float]:
+        """P(`reply` offers the taken-back `threads` as choices again), or None when the check did not finish, and the
+        time it took in ms."""
+        started = time.perf_counter()
+        try:
+            with self.lock:
+                self.calls += 1
+                record = self.client.call("decisions", reoffer_request(reply, threads), label="t3_reoffer")
+        except Exception:
+            return None, _ms(started)
+        return noul(record, "answers"), _ms(started)
 
     def reads(self, said: Act, reply: str, options: tuple[str, ...] = ()) -> Reading:
         """What `reply` does about the question `said` asked, and which of `options` it changes to when it asks for
