@@ -37,62 +37,6 @@ class FakeChat:
         return reply
 
 
-class RouteTest(unittest.TestCase):
-    """The six instructions from the recorded call, each after the lookup that preceded it there."""
-
-    CASES = [
-        ("check the weather in Raleigh today", SAN_DIEGO, ToolCall("weather", {"place": "Raleigh", "when": "today"})),
-        ("What about in Durham?", RALEIGH, ToolCall("weather", {"place": "Durham", "when": "today"})),
-        ("how is the weather in Seattle right now?", RALEIGH, ToolCall("weather", {"place": "Seattle", "when": "today"})),
-        ("What time is it in Tokyo?", RALEIGH, ToolCall("time", {"place": "Tokyo"})),
-    ]
-    TO_AGENT = [
-        ("tell me what, uhm, day George Washington was born on?", RALEIGH, None),
-        ("Do I need to wear a jacket?", SAN_DIEGO, None),
-        ("Pick a city on the east coast to check the weather for.", SAN_DIEGO, SAN_DIEGO),
-        ("Are you checking the weather?", RALEIGH, RALEIGH),
-    ]
-
-    def test_requests_that_state_their_own_place_keep_the_fast_path_with_or_without_the_worker(self):
-        for chat in (None, FakeChat()):
-            tools, _, _ = replay_registry(chat=chat)
-            for instruction, earlier, expected in self.CASES:
-                with self.subTest(instruction, agent=chat is not None):
-                    self.assertEqual(tools.route(instruction, earlier, CONTEXT), expected)
-
-    def test_requests_the_parsers_would_guess_at_go_to_the_worker_with_the_context(self):
-        tools, _, _ = replay_registry(chat=FakeChat())
-        for instruction, earlier, _ in self.TO_AGENT:
-            with self.subTest(instruction):
-                self.assertEqual(tools.route(instruction, earlier, CONTEXT),
-                                 ToolCall("agent", {"instruction": instruction, "context": CONTEXT}))
-
-    def test_without_the_worker_routing_is_unchanged(self):
-        tools, _, _ = replay_registry()
-        for instruction, earlier, before in self.TO_AGENT:
-            with self.subTest(instruction):
-                self.assertEqual(tools.route(instruction, earlier, CONTEXT), before)
-
-    def test_a_follow_up_that_states_a_day_or_names_a_subject_with_nothing_earlier_stays_fast(self):
-        tools, _, _ = replay_registry(chat=FakeChat())
-        self.assertEqual(tools.route("What's the weather on Saturday?", RALEIGH),
-                         ToolCall("weather", {"place": "Raleigh", "when": "saturday"}))
-        self.assertEqual(tools.route("And what about Saturday?", RALEIGH),
-                         ToolCall("weather", {"place": "Raleigh", "when": "saturday"}))
-        self.assertEqual(tools.route("What's the weather like?"), ToolCall("weather", {"place": "Denver", "when": "today"}),
-                         "no earlier lookup, so the default place applies")
-
-    def test_a_follow_up_to_a_worker_answer_goes_back_to_the_worker(self):
-        tools, _, _ = replay_registry(chat=FakeChat())
-        earlier = ToolCall("agent", {"instruction": "Pick a city on the east coast", "context": []})
-        self.assertEqual(tools.route("And tomorrow?", earlier).tool, "agent")
-
-    def test_ask_reaches_the_worker_only_when_one_is_configured(self):
-        self.assertIsNone(replay_registry()[0].ask("When was George Washington born?"))
-        self.assertEqual(replay_registry(chat=FakeChat())[0].ask("When was George Washington born?"),
-                         ToolCall("agent", {"instruction": "When was George Washington born?", "context": []}))
-
-
 def run(chat, instruction, context=None, **kw):
     tools, fetch, mcp = replay_registry(chat=chat, **kw)
     tools.agent.today = lambda: date(2026, 11, 16)
@@ -120,8 +64,30 @@ class AgentTest(unittest.TestCase):
         chat = FakeChat('{"tool": "weather", "place": "Denver", "when": 3}', "In three days it is mild.")
         result, _ = run(chat, "What's the weather in Denver in three days?")
         self.assertEqual(result.detail["tool_result"]["arguments"], {"place": "Denver", "when": 3})
-        bad = FakeChat('{"tool": "weather", "place": "Denver", "when": -2}', "Mild.")
-        result, _ = run(bad, "What's the weather in Denver?")
+        self.assertEqual(result.outcome, Outcome.OK)
+
+    def test_a_day_past_the_forecast_fails_as_out_of_range_not_as_today(self):
+        for when in ("400", '"farther"'):
+            with self.subTest(when):
+                chat = FakeChat('{"tool": "weather", "place": "Denver", "when": %s}' % when)
+                result, _ = run(chat, "What's the weather in Denver in a year?")
+                self.assertEqual((result.outcome, result.summary),
+                                 (Outcome.FAILED, "The weather lookup can look ahead 6 days, so it has no forecast "
+                                                  "that far ahead."))
+                self.assertEqual(result.detail["tool_result"]["detail"]["out_of_range"]["days_ahead"], 6)
+                self.assertEqual(len(chat.calls), 1, "nothing is worded for a lookup that failed")
+
+    def test_a_day_that_is_not_a_day_fails_the_lookup_instead_of_defaulting(self):
+        for when in ("-2", "3.5", "true", '"someday"', '["friday"]', '"next-ish"'):
+            with self.subTest(when):
+                chat = FakeChat('{"tool": "weather", "place": "Denver", "when": %s}' % when)
+                result, fetch = run(chat, "What's the weather in Denver?")
+                self.assertEqual((result.outcome, result.summary, fetch.urls),
+                                 (Outcome.FAILED, "The lookup got no usable answer.", []))
+
+    def test_a_day_left_out_is_no_day_stated_which_is_today(self):
+        chat = FakeChat('{"tool": "weather", "place": "Denver"}', "Mild.")
+        result, _ = run(chat, "What's the weather in Denver?")
         self.assertEqual(result.detail["tool_result"]["arguments"], {"place": "Denver", "when": "today"})
 
     def test_a_worded_answer_with_a_number_the_tool_did_not_give_is_replaced_by_the_tool_summary(self):
@@ -266,7 +232,7 @@ class OpenRouterChatTest(unittest.TestCase):
 
 
 class ServiceTest(unittest.TestCase):
-    def test_a_task_no_parser_claims_runs_on_the_worker_with_the_workers_own_due_time(self):
+    def test_a_task_with_no_confident_tool_runs_on_the_worker_with_the_workers_own_due_time(self):
         tools, _, _ = replay_registry(chat=FakeChat('{"answer": "Yes, it will be cool, so bring a jacket."}'))
         segmenter = ScriptedSegmenter()
         service = MockTaskService(segmenter, "conv_test", tools=tools, simulate=False, earlier=SAN_DIEGO,

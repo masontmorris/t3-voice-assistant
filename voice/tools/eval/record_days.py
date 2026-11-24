@@ -1,24 +1,27 @@
-"""Record the hosted decider's reading of the day a forecast asks about, so voice/tools/tests/test_day_decisions.py
-replays real answers.
+"""Record the hosted decider's reading of the day and place a lookup runs for, so
+voice/tools/tests/test_day_decisions.py replays real answers.
 
     VOICE_ENV_FILE=<env file> python -m voice.tools.eval.record_days --label after [--samples 3]
 
-Each case is a made-up request, the lookup the call made before it when there is one, and the day and place the lookup
+Each case is a made-up request, the lookup the call made before it when there is one, and the place and day the lookup
 must run for. A case runs as the end of a live turn does (`run.close_with_decider` with the `--t3 on` tool options and
 the gate), the dispatched call is built by `Registry.dispatch` from the decider's tool answer and reading, and the
-call's day is resolved over a made-up 16-day forecast that starts on `TODAY`. It passes when the first day it picks is
-the case's day and the place is the case's place; a case past the forecast passes when the lookup picks no day.
+call's day is resolved over a made-up 16-day forecast that starts on `TODAY`. It passes when the place is the case's
+(none when the case says the voice must ask) and the first day it picks is the case's day; a case past the forecast
+passes when the lookup picks no day. A clarification case is a person's answer to "which city?", read by the decider,
+and passes when the place it gives is the case's, or none for words that are not an answer.
 
 `SEEN` was looked at while the decider text was written. `HELD` was written before any run of the shipped text and was
-run once on it: report both. `--label before` records the same cases on the code this change started from, which cannot
-say a day by a number, and `--label after` the shipped code. The fixture keeps each recorded answer under a hash of the
-request it answered and the sample's index, so a changed request text finds no answer and the test says to record again.
+run once on it: report both. `--label before` records the same cases on the code this change started from, and
+`--label after` the shipped code. The fixture keeps each recorded answer under a hash of the request it answered and
+the sample's index, so a changed request text finds no answer and the test says to record again.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import inspect
 import json
 from collections import defaultdict
 from datetime import date, timedelta
@@ -26,6 +29,7 @@ from pathlib import Path
 
 from voice.live.t3_tasks import T3Registry
 from voice.prototype import run
+from voice.segmentation import contract
 from voice.segmentation.contract import TranscriptUpdate
 from voice.segmentation.gate import PLAN_A
 from voice.segmentation.hybrid import HybridSegmenter
@@ -54,6 +58,9 @@ FARGO_TOMORROW = earlier("Fargo", "tomorrow", "How cold will it get in Fargo tom
 TULSA_TODAY = earlier("Tulsa", "today", "Is it going to be windy in Tulsa today?")
 RENO_TOMORROW = earlier("Reno", "tomorrow", "Will it be windy in Reno tomorrow?")
 DULUTH_WEDNESDAY = earlier("Duluth", "wednesday", "Will it freeze in Duluth on Wednesday?")
+SPOKANE_TODAY = earlier("Spokane", "today", "What does today look like in Spokane?")
+MADISON_TOMORROW = earlier("Madison", "tomorrow", "Do I need a coat in Madison tomorrow?")
+ANY = "any"
 
 # (category, utterance, the call before it, the place it runs for, the day as days after TODAY or None past the forecast)
 SEEN = [
@@ -103,8 +110,8 @@ SEEN = [
     ("no day", "How hot is it in Phoenix?", None, "Phoenix", 0),
     ("past the forecast", "What's the weather in Seattle in twenty days?", None, "Seattle", None),
     ("past the forecast", "How will Chicago look in a month and a half?", None, "Chicago", None),
-]
-HELD = [
+    # Held-out in the last round, on the code before the rules came out of the day and place path. That change moved the
+    # question set, so these were looked at: they are seen now, and `HELD` below is new.
     ("today", "Is it going to be windy in Tulsa today?", None, "Tulsa", 0),
     ("today", "Give me today's forecast for Reno.", None, "Reno", 0),
     ("tomorrow", "How cold will it get in Fargo tomorrow?", None, "Fargo", 1),
@@ -127,6 +134,71 @@ HELD = [
     ("no day", "Is it raining in Nashville?", None, "Nashville", 0),
     ("past the forecast", "What's the weather in Reno in three weeks?", None, "Reno", None),
     ("past the forecast", "Will it be warm in Tampa in two months?", None, "Tampa", None),
+    ("fresh request after a lookup", "What's the weather in Boston?", DENVER_TOMORROW, "Boston", 0),
+    ("fresh request after a lookup", "Is it going to rain in Seattle?", BOSTON_FRIDAY, "Seattle", 0),
+    ("no place stated", "What's the weather tomorrow?", None, None, ANY),
+    ("no place stated", "Is it going to rain on Friday?", None, None, ANY),
+    ("place with a day or month word", "What's the weather in Friday Harbor?", None, "Friday Harbor", 0),
+    ("place with a day or month word", "Will it rain in Augusta tomorrow?", None, "Augusta", 1),
+    ("two-word place", "What's the weather in Salt Lake City tomorrow?", None, "Salt Lake City", 1),
+    ("two-word place", "Will it rain in Kansas City today?", None, "Kansas City", 0),
+    ("place with a state or country", "What's the weather in Portland, Maine tomorrow?", None, "Portland, Maine", 1),
+    ("place with a state or country", "Will it rain in Paris, France today?", None, "Paris, France", 0),
+    ("clarification, just the place", "Seattle.", None, "Seattle", ANY),
+    ("clarification, just the place", "Salt Lake City", None, "Salt Lake City", ANY),
+    ("clarification, with filler", "Uh, in Boston, I guess.", None, "Boston", ANY),
+    ("clarification, with filler", "Um, Salt Lake City, please.", None, "Salt Lake City", ANY),
+    ("clarification, not an answer", "What time is it in Tokyo?", None, None, ANY),
+    ("clarification, not an answer", "Never mind that.", None, None, ANY),
+    ("place with a state or country", "How's the weather in Springfield, Illinois on Friday?", None,
+     "Springfield, Illinois", 4),
+    ("place with a state or country", "What will it be like in Cairo, Egypt tomorrow?", None, "Cairo, Egypt", 1),
+    ("clarification, just the place", "Denver", None, "Denver", ANY),
+    ("clarification, just the place", "Friday Harbor.", None, "Friday Harbor", ANY),
+    ("clarification, with filler", "Oh, let's say Seattle.", None, "Seattle", ANY),
+    ("clarification, with filler", "Sure, how about Kansas City?", None, "Kansas City", ANY),
+    ("clarification, not an answer", "Actually, what's the weather in Paris tomorrow?", None, None, ANY),
+    ("clarification, not an answer", "What did you say?", None, None, ANY),
+]
+HELD = [
+    ("today", "Is it going to be hot in Lincoln today?", None, "Lincoln", 0),
+    ("today", "What does today look like in Spokane?", None, "Spokane", 0),
+    ("tomorrow", "Do I need a coat in Madison tomorrow?", None, "Madison", 1),
+    ("tomorrow", "Will Boise be sunny tomorrow?", None, "Boise", 1),
+    ("weekday", "What's the forecast for Salem on Thursday?", None, "Salem", 3),
+    ("weekday", "Is it going to rain in Provo on Saturday?", None, "Provo", 5),
+    ("weekend", "How does the weekend look in Boise?", None, "Boise", 5),
+    ("weekend", "Will it snow in Lincoln this weekend?", None, "Lincoln", 5),
+    ("in three days", "What's the weather going to be in Spokane three days from now?", None, "Spokane", 3),
+    ("in three days", "Will it be warm in Madison in three days?", None, "Madison", 3),
+    ("a week from today", "How's the weather looking in Salem a week from today?", None, "Salem", 7),
+    ("a week from today", "What will Provo be like one week from now?", None, "Provo", 7),
+    ("ten days from now", "What's the forecast for Boise ten days from now?", None, "Boise", 10),
+    ("ten days from now", "Will it rain in Lincoln ten days out?", None, "Lincoln", 10),
+    ("follow-up, day only", "And three days from now?", SPOKANE_TODAY, "Spokane", 3),
+    ("follow-up, day only", "What about on Saturday?", MADISON_TOMORROW, "Madison", 5),
+    ("follow-up, place only", "What about Lincoln?", SPOKANE_TODAY, "Lincoln", 0),
+    ("follow-up, place only", "And Boise?", MADISON_TOMORROW, "Boise", 1),
+    ("no day", "What's the weather in Provo?", None, "Provo", 0),
+    ("no day", "Is it snowing in Salem?", None, "Salem", 0),
+    ("past the forecast", "What's the weather in Boise in four weeks?", None, "Boise", None),
+    ("past the forecast", "How will Lincoln look in three months?", None, "Lincoln", None),
+    ("fresh request after a lookup", "How's the weather in Omaha?", FARGO_TOMORROW, "Omaha", 0),
+    ("fresh request after a lookup", "Will it be sunny in Tampa?", DULUTH_WEDNESDAY, "Tampa", 0),
+    ("no place stated", "How will the weather be this weekend?", None, None, ANY),
+    ("no place stated", "Will it snow in a week?", None, None, ANY),
+    ("place with a day or month word", "How's the weather in Sunday River today?", None, "Sunday River", 0),
+    ("place with a day or month word", "Is it going to be cold in Mayfield tomorrow?", None, "Mayfield", 1),
+    ("two-word place", "How's the forecast for Santa Fe on Friday?", None, "Santa Fe", 4),
+    ("two-word place", "Is it going to snow in Grand Rapids this weekend?", None, "Grand Rapids", 5),
+    ("place with a state or country", "What's the forecast for Austin, Texas today?", None, "Austin, Texas", 0),
+    ("place with a state or country", "Is it going to rain in Lima, Peru tomorrow?", None, "Lima, Peru", 1),
+    ("clarification, just the place", "Omaha.", None, "Omaha", ANY),
+    ("clarification, just the place", "Spokane", None, "Spokane", ANY),
+    ("clarification, with filler", "Hmm, let me think, Madison I guess.", None, "Madison", ANY),
+    ("clarification, with filler", "Yeah, Boise, thanks.", None, "Boise", ANY),
+    ("clarification, not an answer", "Could you check the time in Reno?", None, None, ANY),
+    ("clarification, not an answer", "Wait, how long is that forecast good for?", None, None, ANY),
 ]
 CASES = [(*case, False) for case in SEEN] + [(*case, True) for case in HELD]
 
@@ -137,9 +209,12 @@ def key(body: dict) -> str:
 
 def picked_offset(when):
     """Days after TODAY that `when` picks over the made-up forecast, or None when it picks none (or is no day the
-    lookup knows: the code this change started from has no number for a day)."""
+    code under test knows: the code this change started from has no number for a day)."""
     try:
-        days = lookups.pick_days(when, FORECAST)
+        if "today" in inspect.signature(lookups.pick_days).parameters:
+            days = lookups.pick_days(when, FORECAST, TODAY)
+        else:
+            days = lookups.pick_days(when, FORECAST)
     except (ValueError, TypeError):
         return None
     return (days[0].date - TODAY).days if days else None
@@ -168,9 +243,36 @@ def decide(client, utterance, before, sample):
     return None
 
 
+def clarify(client, text, sample):
+    """What the decider reads in a person's answer to "which city?", run as the live turn runs it, or what the word
+    rules read in the code this change started from. The task waited on a place, the call's earlier lookup is none."""
+    waiting = {"tool": "weather", "arguments": {"place": None, "when": "today"}, "missing": ("place",)}
+    if hasattr(contract, "reading_request"):
+        body = contract.reading_request(text, None, {"tool": "weather", "needs": ["place"]})
+        record = client.call("decisions", body, label=f"days:{sample}:answer")
+        reading = contract.parse_reading(record["response"], body) if record["status"] == 200 else None
+        call = RULES.answered(waiting, reading)
+    else:
+        call = RULES.answered(waiting, text)
+    return {"arguments": call.arguments if call else {"place": None, "when": None}, "offset": ANY, "reading": None}
+
+
+def run_case(client, category, utterance, before, sample):
+    """One case as the live turn runs it: a reading of the answer to "which city?" for a clarification case, else one
+    end of turn."""
+    if category.startswith("clarification"):
+        return clarify(client, utterance, sample)
+    return decide(client, utterance, before, sample)
+
+
 def passes(case_place, case_offset, got):
-    return (got is not None and (got["arguments"]["place"] or "").lower() == case_place.lower()
-            and got["offset"] == case_offset)
+    """The place is the case's, none when the case says to ask (a turn that dispatched nothing asks too), and the day
+    is the case's unless it says any."""
+    if got is None:
+        return case_place is None
+    place = got["arguments"]["place"]
+    same_place = place is None if case_place is None else (place or "").lower() == case_place.lower()
+    return same_place and (case_offset == ANY or got["offset"] == case_offset)
 
 
 class Recording:
@@ -242,7 +344,7 @@ def main() -> int:
             if args.only and held != (args.only == "held"):
                 continue
             for sample in range(args.samples):
-                got = decide(Recording(client, answers, sample), utterance, before, sample)
+                got = run_case(Recording(client, answers, sample), category, utterance, before, sample)
                 rows.append({"label": args.label, "category": category, "utterance": utterance, "before": before,
                              "place": place, "offset": offset, "held": held, "sample": sample, "got": got,
                              "passes": passes(place, offset, got)})

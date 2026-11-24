@@ -19,6 +19,7 @@ from enum import StrEnum
 
 from voice.live.facts import facts_in
 from voice.prototype.segmenter import Segmenter
+from voice.segmentation.contract import parse_reading, reading_request
 from voice.tools.registry import Routed, ToolCall, ToolChoice
 
 
@@ -191,7 +192,7 @@ class MockTaskService:
         choice = task.tool
         if choice is None or choice.confidence < self.tools.tool_threshold or choice.tool not in self.tools.tools:
             return None
-        return self.tools.waiting(choice.tool, task.instruction, self.earlier, choice.arguments)
+        return self.tools.waiting(choice.tool, self.earlier, choice.arguments)
 
     def _start(self, task_id, instruction, side_effect, now, choice=None):
         answered = self.answer_calls.pop(task_id, None)
@@ -311,14 +312,31 @@ class MockTaskService:
         due = [e.due_at for e in self.executions.values() if e.state == Run.RUNNING]
         return min(due) if due else None
 
+    def read(self, text, earlier=None, asking=None):
+        """The decider's reading of words no decision point asked about, as `parse_reading` gives it, or None when the
+        service has no decider to ask or its answer is unreadable. `earlier` is the lookup the words may continue, and
+        `asking` what the assistant asked the person for."""
+        client = getattr(self.segmenter, "client", None)
+        if client is None:
+            return None
+        body = reading_request(text, None if earlier is None else {"tool": earlier.tool, "arguments": earlier.arguments},
+                               asking)
+        record = client.call("decisions", body, label=f"{self.conversation_id}:reading")
+        return parse_reading(record["response"], body) if record["status"] == 200 else None
+
     def answer(self, waiting, instruction, now):
         """The person answered the question a task could not start without, so that task runs with the value they
         gave. Returns the service events, empty when these words are not that answer.
 
         `waiting` is the earlier turn's task as `carried_tasks` gives it: `{"ref", "instruction", "side_effect",
         "waiting": {"tool", "arguments", "missing"}}`. The words must fill what it lacked and name no other tool's
-        subject, so "What's the time in Tokyo?" runs a time lookup rather than a forecast in Tokyo."""
-        call = self.tools.answered(waiting["waiting"], instruction) if self.tools else None
+        subject, so "What's the time in Tokyo?" runs a time lookup rather than a forecast in Tokyo. The decider reads the
+        words (`read`): it says whether they answer the question and what place they give."""
+        if not self.tools:
+            return []
+        pending = waiting["waiting"]
+        reading = self.read(instruction, asking={"tool": pending["tool"], "needs": list(pending["missing"])})
+        call = self.tools.answered(pending, reading)
         if call is None:
             return []
         task = self.segmenter.orch.answer_earlier(waiting["ref"], waiting["instruction"],
@@ -339,7 +357,9 @@ class MockTaskService:
         else:
             task = orch.amend_earlier(target["ref"], change[0], target["side_effect"])
             if self.tools is not None and target.get("call"):
-                self.corrected_calls[task.task_id] = self.tools.corrected(ToolCall(**target["call"]), change[0])
+                earlier = ToolCall(**target["call"])
+                self.corrected_calls[task.task_id] = self.tools.corrected(earlier, change[0],
+                                                                          self.read(change[0], earlier))
             self.correction = {"status": "amended", "task_id": task.task_id,
                                "changed": {"from": change[1], "to": change[2]}}
         return self.sync(now)

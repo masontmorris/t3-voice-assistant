@@ -1,0 +1,6102 @@
+{
+ "rows": [
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 0,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 1,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 2,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 3,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 4,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 5,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 6,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 7,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 0,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 1,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 2,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 3,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 4,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 5,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 6,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Tell it to also add tests.",
+   "want": "t3_tell",
+   "sample": 7,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 0,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 1,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 2,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 3,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 4,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 5,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 6,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 7,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 0,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 1,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 2,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 3,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 4,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 5,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 6,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Stop it.",
+   "want": "t3_stop",
+   "sample": 7,
+   "routed": [
+    "t3_stop"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 0,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 1,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 2,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 3,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 4,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 5,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 6,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 7,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 0,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 1,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 2,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 3,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 4,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 5,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 6,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Ask it to log the load times too.",
+   "want": "t3_tell",
+   "sample": 7,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 0,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 1,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 2,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 3,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 4,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 5,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 6,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "base",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 7,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 0,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 1,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 2,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 3,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 4,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 5,
+   "routed": [
+    "t3_ask"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 6,
+   "routed": [
+    "t3_tell"
+   ]
+  },
+  {
+   "arm": "shipped",
+   "utterance": "Please tell it to stop touching the config.",
+   "want": "t3_tell",
+   "sample": 7,
+   "routed": [
+    "t3_tell"
+   ]
+  }
+ ],
+ "answers": {
+  "b0f0fd8324b4678fcbf84e6b4b83d2ccd9def035870943ec1086a0510f872d76": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.0250465191186958,
+       "m2": 0.9558934886987427,
+       "none": 0.019059992182561592
+      },
+      "confidence": 0.9338402330481141
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9652176775026937
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.009181218429308033,
+       "correction": 0.10728086205227909,
+       "description": 0.009608842975273063,
+       "request": 0.8709194244609111,
+       "topic_change": 0.0030096520822287414
+      },
+      "confidence": 0.838649280576139
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.003034350815862907
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.18426475820264018,
+       "dispatch_now": 0.790873696886162,
+       "wait": 0.0248615449111977
+      },
+      "confidence": 0.6863105453292431
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7223205859093021
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0035504025505605813,
+       "none": 0.007355463115473819,
+       "t3_ask": 0.0016751734586450905,
+       "t3_start": 0.024024270707026684,
+       "t3_stop": 0.001713740939643755,
+       "t3_tell": 0.9595842589129899,
+       "time": 0.0009060544542455428,
+       "weather": 0.0011906358614146362
+      },
+      "confidence": 0.9538105816148457
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008781066425463613,
+       "monday": 0.00858344985187433,
+       "none": 0.8717575074552618,
+       "saturday": 0.008016886024316655,
+       "sunday": 0.00544445118711704,
+       "thursday": 0.008781066425463613,
+       "today": 0.049526401281712464,
+       "tomorrow": 0.017382366836503526,
+       "tuesday": 0.006993480682177301,
+       "wednesday": 0.008201458611600465,
+       "weekend": 0.006531865218509182
+      },
+      "confidence": 0.858933258200788
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.0307779926161965,
+       "m2": 0.9355102149514936,
+       "none": 0.03371179243231003
+      },
+      "confidence": 0.9032653224272402
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.8946951043532186
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.013078570746414843,
+       "correction": 0.10617346924084438,
+       "description": 0.014992450226133568,
+       "request": 0.8619294714391251,
+       "topic_change": 0.003826038347482061
+      },
+      "confidence": 0.8274118392989065
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.010269349896134091
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.26963396609159024,
+       "dispatch_now": 0.7013921611946045,
+       "wait": 0.02897387271380525
+      },
+      "confidence": 0.5520882417919066
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8110373380917895
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004219289754941225,
+       "none": 0.012581661272741258,
+       "t3_ask": 0.0024996282283356245,
+       "t3_start": 0.026065761305974062,
+       "t3_stop": 0.001659351649457074,
+       "t3_tell": 0.9505211025180551,
+       "time": 0.0010056801753130296,
+       "weather": 0.0014475250951826077
+      },
+      "confidence": 0.943452688592063
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.00608736842259334,
+       "monday": 0.005557609573529503,
+       "none": 0.9103638628994866,
+       "saturday": 0.004632387997595851,
+       "sunday": 0.0026825980764377732,
+       "thursday": 0.004229250161397984,
+       "today": 0.035932701810749014,
+       "tomorrow": 0.017344326815946255,
+       "tuesday": 0.004848146159702347,
+       "wednesday": 0.004632387997595851,
+       "weekend": 0.0036893600849655503
+      },
+      "confidence": 0.9014002491894353
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.03786806547548089,
+       "m2": 0.9167005234840799,
+       "none": 0.045431411040439296
+      },
+      "confidence": 0.87505078522612
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.941417881589075
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.012245939934235187,
+       "correction": 0.09076246745750587,
+       "description": 0.008507969264865042,
+       "request": 0.8839854618822937,
+       "topic_change": 0.004498161461100179
+      },
+      "confidence": 0.8549818273528671
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.010858526814095912
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3725773561689585,
+       "dispatch_now": 0.5873868536442125,
+       "wait": 0.04003579018682905
+      },
+      "confidence": 0.3810802804663187
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7488660166921972
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.003294237908433497,
+       "none": 0.006981886330574665,
+       "t3_ask": 0.002237192525478804,
+       "t3_start": 0.02996661058447271,
+       "t3_stop": 0.0018227825617028526,
+       "t3_tell": 0.9532715758711953,
+       "time": 0.00113016462933719,
+       "weather": 0.0012955495888049742
+      },
+      "confidence": 0.9465960867099374
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.007461227388595236,
+       "monday": 0.007461227388595236,
+       "none": 0.8886726527268954,
+       "saturday": 0.006508755325846195,
+       "sunday": 0.004128479955261758,
+       "thursday": 0.004732629538729931,
+       "today": 0.05529991259856043,
+       "tomorrow": 0.010261378606849806,
+       "tuesday": 0.004732629538729931,
+       "wednesday": 0.0062190946925967105,
+       "weekend": 0.0045220122393393545
+      },
+      "confidence": 0.877539917999585
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.03930120557217057,
+       "m2": 0.9090535268263151,
+       "none": 0.05164526760151429
+      },
+      "confidence": 0.8635802902394727
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9388561922925499
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.01151945553069747,
+       "correction": 0.062079853832246144,
+       "description": 0.010516964293082427,
+       "request": 0.9108073013433833,
+       "topic_change": 0.005076425000590749
+      },
+      "confidence": 0.8885091266792291
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.012099393022121357
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.29772773103762357,
+       "dispatch_now": 0.6756056393119664,
+       "wait": 0.026666629650410115
+      },
+      "confidence": 0.5134084589679495
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7402079379821799
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.002565931665583627,
+       "none": 0.006674694521943262,
+       "t3_ask": 0.0015201314903205611,
+       "t3_start": 0.03284041028933314,
+       "t3_stop": 0.0011567952490591162,
+       "t3_tell": 0.9537752325942342,
+       "time": 0.0006256781843402834,
+       "weather": 0.0008411260051856166
+      },
+      "confidence": 0.9471716943934105
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008518656837441178,
+       "monday": 0.006940689706217987,
+       "none": 0.885095910038134,
+       "saturday": 0.00777731287261342,
+       "sunday": 0.005046696561532752,
+       "thursday": 0.008139549095570813,
+       "today": 0.04804637574416715,
+       "tomorrow": 0.012261323084753917,
+       "tuesday": 0.0063366697857498155,
+       "wednesday": 0.005918408136909459,
+       "weekend": 0.005918408136909459
+      },
+      "confidence": 0.8736055010419473
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.03506894029770919,
+       "m2": 0.9298621194045815,
+       "none": 0.03506894029770919
+      },
+      "confidence": 0.8947931791068724
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.8989077527996676
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.010953811364169407,
+       "correction": 0.10193734303708939,
+       "description": 0.0137536871226223,
+       "request": 0.8660835871484583,
+       "topic_change": 0.007271571327660502
+      },
+      "confidence": 0.8326044839355728
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.00884518873481866
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.4366736963618525,
+       "dispatch_now": 0.5482907450903781,
+       "wait": 0.015035558547769326
+      },
+      "confidence": 0.32243611763556723
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8179155570468132
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.005434730166844417,
+       "none": 0.01548480880841351,
+       "t3_ask": 0.002745467694267763,
+       "t3_start": 0.04028024982627423,
+       "t3_stop": 0.0016264937814565485,
+       "t3_tell": 0.9316992349961988,
+       "time": 0.0012098801722316519,
+       "weather": 0.0015191345543132152
+      },
+      "confidence": 0.9219419828527986
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.006956271508449872,
+       "monday": 0.006646694959736854,
+       "none": 0.9075062352213865,
+       "saturday": 0.004313038853944072,
+       "sunday": 0.0035141061492834835,
+       "thursday": 0.006646694959736854,
+       "today": 0.03422580758871682,
+       "tomorrow": 0.012571775584183528,
+       "tuesday": 0.0057982030254954365,
+       "wednesday": 0.006646694959736854,
+       "weekend": 0.005174477189329672
+      },
+      "confidence": 0.8982568587435251
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.04207889204669243,
+       "m2": 0.9299874824111216,
+       "none": 0.027933625542186008
+      },
+      "confidence": 0.8949812236166825
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9275290379093426
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.013562809625420487,
+       "correction": 0.12059989820857724,
+       "description": 0.009422875504696815,
+       "request": 0.854063838116175,
+       "topic_change": 0.0023505785451304636
+      },
+      "confidence": 0.8175797976452188
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.012283426780627852
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2615134332494813,
+       "dispatch_now": 0.6802684201365378,
+       "wait": 0.05821814661398088
+      },
+      "confidence": 0.5204026302048066
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7488660166921972
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.005693967282903216,
+       "none": 0.015501440296649275,
+       "t3_ask": 0.0018245070805361346,
+       "t3_start": 0.04032351290490874,
+       "t3_stop": 0.0018665126661651114,
+       "t3_tell": 0.9326999283245985,
+       "time": 0.0008225398793536703,
+       "weather": 0.0012675915648854236
+      },
+      "confidence": 0.9230856323709696
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.010616454647907598,
+       "monday": 0.009261198209398492,
+       "none": 0.8785062109622036,
+       "saturday": 0.010143988128238947,
+       "sunday": 0.005874344518279601,
+       "thursday": 0.009261198209398492,
+       "today": 0.025212984898857246,
+       "tomorrow": 0.02409092564078192,
+       "tuesday": 0.009261198209398492,
+       "wednesday": 0.009692547894615025,
+       "weekend": 0.008078948680920546
+      },
+      "confidence": 0.866356832058424
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.030679405770011162,
+       "m2": 0.9325136257061735,
+       "none": 0.03680696852381528
+      },
+      "confidence": 0.8987704385592603
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.93053017627016
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.011830535947008997,
+       "correction": 0.08005289376419535,
+       "description": 0.010800972649372116,
+       "request": 0.8937749815355185,
+       "topic_change": 0.003540616103905118
+      },
+      "confidence": 0.867218726919398
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.009655939035844923
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.21962434982623405,
+       "dispatch_now": 0.7507432848204693,
+       "wait": 0.029632365353296747
+      },
+      "confidence": 0.6261149272307038
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6941153564572748
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0029474773780274847,
+       "none": 0.00919856104513126,
+       "t3_ask": 0.001706872815650148,
+       "t3_start": 0.02742954051234306,
+       "t3_stop": 0.0011330893890362246,
+       "t3_tell": 0.9557385529955612,
+       "time": 0.0006867293836024011,
+       "weather": 0.0011591764806480917
+      },
+      "confidence": 0.9494154891377843
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.005804025963582788,
+       "monday": 0.004220208525849942,
+       "none": 0.9507280831209142,
+       "saturday": 0.0025577339508011895,
+       "sunday": 0.002131926667027494,
+       "thursday": 0.0032115097962430233,
+       "today": 0.01730724670105324,
+       "tomorrow": 0.006653370009414459,
+       "tuesday": 0.002676862999721242,
+       "wednesday": 0.0029320251954588054,
+       "weekend": 0.00177700706993362
+      },
+      "confidence": 0.9458008914330056
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.03312400518731993,
+       "m2": 0.9191989798544404,
+       "none": 0.04767701495823965
+      },
+      "confidence": 0.8787984697816607
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9142950354025414
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.013642563486980832,
+       "correction": 0.07694590167409854,
+       "description": 0.006585117951100113,
+       "request": 0.8990988207661375,
+       "topic_change": 0.003727596121683073
+      },
+      "confidence": 0.8738735259576718
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.013738006385317011
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.31848293369276065,
+       "dispatch_now": 0.6598095394323998,
+       "wait": 0.02170752687483951
+      },
+      "confidence": 0.4897143091485998
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6744501849478968
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0030580383675683277,
+       "none": 0.007954799503695277,
+       "t3_ask": 0.002076783999430252,
+       "t3_start": 0.035732620325688046,
+       "t3_stop": 0.0013172965772747713,
+       "t3_tell": 0.9474597688397794,
+       "time": 0.0009578293207799921,
+       "weather": 0.0014428630657839009
+      },
+      "confidence": 0.9399540215311765
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.009456423081874913,
+       "monday": 0.007196183595867118,
+       "none": 0.8571044993782232,
+       "saturday": 0.0065699290841064305,
+       "sunday": 0.004461789539322652,
+       "thursday": 0.008633469145076622,
+       "today": 0.0733519797939301,
+       "tomorrow": 0.013611096308443506,
+       "tuesday": 0.007531353134263088,
+       "wednesday": 0.007196183595867118,
+       "weekend": 0.004887093343025351
+      },
+      "confidence": 0.8428149493160456
+     }
+    },
+    "usage": {
+     "input_tokens": 1611.0,
+     "output_tokens": 0.0,
+     "cost": 3.222e-05
+    }
+   }
+  },
+  "9c546e6c07ed3a97c71f07571c065fc5e188f5bd250a8117be363815620023c6": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.0456002827320982,
+       "m2": 0.8791601866252062,
+       "none": 0.07523953064269544
+      },
+      "confidence": 0.8187402799378094
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9177956435683693
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.008197140629594674,
+       "correction": 0.09151948006327856,
+       "description": 0.0062378902065800546,
+       "request": 0.891358422938889,
+       "topic_change": 0.0026870661616576735
+      },
+      "confidence": 0.8641980286736113
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.013666385002454963
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.1627933536711866,
+       "dispatch_now": 0.8009655736846815,
+       "wait": 0.036241072644131886
+      },
+      "confidence": 0.7014483605270221
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7573301454071185
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.003030150742019399,
+       "none": 0.01271287263642289,
+       "t3_ask": 0.001795148181514104,
+       "t3_start": 0.018298264820975033,
+       "t3_stop": 0.0013975296554122483,
+       "t3_tell": 0.9604338769415546,
+       "time": 0.0011130307156718088,
+       "weather": 0.0012191263064300008
+      },
+      "confidence": 0.9547815736474909
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.005945649903731861,
+       "friday": 0.0032898737928938105,
+       "in_10_days": 0.0011812362463904647,
+       "in_11_days": 0.0016619486044976057,
+       "in_12_days": 0.0009624280461562241,
+       "in_13_days": 0.0016619486044976057,
+       "in_14_days": 0.0010304440957701515,
+       "in_15_days": 0.0012647157578834433,
+       "in_2_days": 0.0017393555437712493,
+       "in_3_days": 0.0017393555437712493,
+       "in_4_days": 0.0028699009500219707,
+       "in_5_days": 0.0017393555437712493,
+       "in_6_days": 0.0031434637838439446,
+       "in_7_days": 0.004130790034269244,
+       "in_8_days": 0.0023921246246752285,
+       "in_9_days": 0.0028699009500219707,
+       "monday": 0.0028699009500219707,
+       "none": 0.9305838957957246,
+       "saturday": 0.002620145174017346,
+       "sunday": 0.0018203677896298852,
+       "thursday": 0.003946956536581032,
+       "today": 0.008557867256499372,
+       "tomorrow": 0.003946956536581032,
+       "tuesday": 0.003003569493055455,
+       "wednesday": 0.002285667353060852,
+       "weekend": 0.0027421810888611756
+      },
+      "confidence": 0.9278072516275536
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.03808896632330985,
+       "m2": 0.9220480351750052,
+       "none": 0.039862998501684926
+      },
+      "confidence": 0.8830720527625078
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9388561922925499
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.019956616915706757,
+       "correction": 0.14791121000928437,
+       "description": 0.026224763490777032,
+       "request": 0.7971128733521907,
+       "topic_change": 0.00879453623204117
+      },
+      "confidence": 0.7463910916902384
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.010554060670555625
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.25882332616444764,
+       "dispatch_now": 0.7046289763492763,
+       "wait": 0.03654769748627601
+      },
+      "confidence": 0.5569434645239144
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7313584434962098
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004029378805992653,
+       "none": 0.00956935910872008,
+       "t3_ask": 0.001735716257182975,
+       "t3_start": 0.03125525478293878,
+       "t3_stop": 0.0014141980583365964,
+       "t3_tell": 0.9500168021017655,
+       "time": 0.0008005261616713426,
+       "weather": 0.0011787647233919226
+      },
+      "confidence": 0.9428763452591606
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.003865176465327817,
+       "friday": 0.0017033164794983242,
+       "in_10_days": 0.0007172170303583211,
+       "in_11_days": 0.000880276459285829,
+       "in_12_days": 0.0007679036965622348,
+       "in_13_days": 0.0009005430444814523,
+       "in_14_days": 0.0005978159349170029,
+       "in_15_days": 0.0007679036965622348,
+       "in_2_days": 0.0014197511918283671,
+       "in_3_days": 0.0009424867487385114,
+       "in_4_days": 0.0021386968563706717,
+       "in_5_days": 0.0008604659705289138,
+       "in_6_days": 0.0014858775413388945,
+       "in_7_days": 0.0028104372336097885,
+       "in_8_days": 0.0015550837925425891,
+       "in_9_days": 0.0015550837925425891,
+       "monday": 0.0018656789063352707,
+       "none": 0.9537472344060641,
+       "saturday": 0.0019525747907302444,
+       "sunday": 0.0013565676784385384,
+       "thursday": 0.0021386968563706717,
+       "today": 0.00960693512450384,
+       "tomorrow": 0.0017826501694424726,
+       "tuesday": 0.0018656789063352707,
+       "wednesday": 0.0012961960354575966,
+       "weekend": 0.0014197511918283671
+      },
+      "confidence": 0.9518971237823066
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.025996801536917552,
+       "m2": 0.948006396926165,
+       "none": 0.025996801536917552
+      },
+      "confidence": 0.9220095953892473
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.93053017627016
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.012404963659165087,
+       "correction": 0.06685197305576697,
+       "description": 0.019557046215185038,
+       "request": 0.8954647490327552,
+       "topic_change": 0.005721268037127724
+      },
+      "confidence": 0.869330936290944
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.009239787826469933
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3398839507829091,
+       "dispatch_now": 0.6142579036367412,
+       "wait": 0.04585814558034967
+      },
+      "confidence": 0.4213868554551117
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7313584434962098
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0028042167818854236,
+       "none": 0.010988410650241864,
+       "t3_ask": 0.0018615495255288833,
+       "t3_start": 0.028583880605935797,
+       "t3_stop": 0.001993107666828731,
+       "t3_tell": 0.9516362679849258,
+       "time": 0.0008392396710729478,
+       "weather": 0.0012933271135804403
+      },
+      "confidence": 0.9447271634113438
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.003018409046810987,
+       "friday": 0.001670159693241314,
+       "in_10_days": 0.0007032556719955567,
+       "in_11_days": 0.0009033426488183545,
+       "in_12_days": 0.0007194467115723351,
+       "in_13_days": 0.0010122305863553677,
+       "in_14_days": 0.0006719585232953109,
+       "in_15_days": 0.0008247284219921729,
+       "in_2_days": 0.001595832192797263,
+       "in_3_days": 0.001108717772675345,
+       "in_4_days": 0.002003738785546095,
+       "in_5_days": 0.0010593762509787455,
+       "in_6_days": 0.00121440224788329,
+       "in_7_days": 0.0031589945048433334,
+       "in_8_days": 0.0015248125061776139,
+       "in_9_days": 0.001595832192797263,
+       "monday": 0.001595832192797263,
+       "none": 0.9351815752493287,
+       "saturday": 0.002003738785546095,
+       "sunday": 0.0014569534249839725,
+       "thursday": 0.003018409046810987,
+       "today": 0.021375756147534043,
+       "tomorrow": 0.00716841019339904,
+       "tuesday": 0.0019145659381380725,
+       "wednesday": 0.001670159693241314,
+       "weekend": 0.0018293615704401875
+      },
+      "confidence": 0.9325888382593018
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.04105654528398874,
+       "m2": 0.9073925507065761,
+       "none": 0.05155090400943504
+      },
+      "confidence": 0.8610888260598641
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.93053017627016
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.012657321869204692,
+       "correction": 0.08963656733099906,
+       "description": 0.015892627598902115,
+       "request": 0.8730197028935417,
+       "topic_change": 0.008793780307352403
+      },
+      "confidence": 0.841274628616927
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0075110918137111455
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.25588595589482943,
+       "dispatch_now": 0.6966321847273157,
+       "wait": 0.047481859377854915
+      },
+      "confidence": 0.5449482770909735
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7488660166921972
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004227090442081083,
+       "none": 0.007639441954980942,
+       "t3_ask": 0.0020873462843244567,
+       "t3_start": 0.029935390830795956,
+       "t3_stop": 0.0013239961963700429,
+       "t3_tell": 0.9522784404045771,
+       "time": 0.0009198574389559968,
+       "weather": 0.0015884364479144743
+      },
+      "confidence": 0.9454610747480882
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.004213326925748185,
+       "friday": 0.0024399214211507083,
+       "in_10_days": 0.0008962285103204163,
+       "in_11_days": 0.0007470258821500617,
+       "in_12_days": 0.001051033293430192,
+       "in_13_days": 0.0014129491127330327,
+       "in_14_days": 0.0007818193691080474,
+       "in_15_days": 0.001232577374160723,
+       "in_2_days": 0.0011253111918324103,
+       "in_3_days": 0.0012048384065270214,
+       "in_4_days": 0.002553563232196104,
+       "in_5_days": 0.0009379712607796892,
+       "in_6_days": 0.0016951558288965706,
+       "in_7_days": 0.0032062730109028528,
+       "in_8_days": 0.0016197159196861413,
+       "in_9_days": 0.0014129491127330327,
+       "monday": 0.0021284502827021955,
+       "none": 0.949177797054841,
+       "saturday": 0.0020337273708914937,
+       "sunday": 0.0014787586485213774,
+       "thursday": 0.0035118992837757136,
+       "today": 0.006064449323892391,
+       "tomorrow": 0.0030635835066560313,
+       "tuesday": 0.0019432199345818253,
+       "wednesday": 0.0020337273708914937,
+       "weekend": 0.0020337273708914937
+      },
+      "confidence": 0.9471449089370345
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.036528391869271495,
+       "m2": 0.8842700446441936,
+       "none": 0.07920156348653488
+      },
+      "confidence": 0.8264050669662903
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9068862167073495
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.009089643492766884,
+       "correction": 0.11115770238948261,
+       "description": 0.01369253435066724,
+       "request": 0.8622327352549471,
+       "topic_change": 0.0038273845121361214
+      },
+      "confidence": 0.8277909190686839
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.022010202059417467
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.354686684960503,
+       "dispatch_now": 0.5852257508670474,
+       "wait": 0.06008756417244961
+      },
+      "confidence": 0.3778386263005711
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.765598294839593
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0034605814736650403,
+       "none": 0.009421198689845197,
+       "t3_ask": 0.0016327935082311375,
+       "t3_start": 0.04635358657608902,
+       "t3_stop": 0.0012711359276162838,
+       "t3_tell": 0.9353078873522593,
+       "time": 0.0011605141516254668,
+       "weather": 0.0013923023206686197
+      },
+      "confidence": 0.9260661569740106
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.0047985437072622684,
+       "friday": 0.0026551518239694826,
+       "in_10_days": 0.000870372846171951,
+       "in_11_days": 0.0011700795288149103,
+       "in_12_days": 0.001068252279096046,
+       "in_13_days": 0.001068252279096046,
+       "in_14_days": 0.0009533379611452292,
+       "in_15_days": 0.0011180072107907692,
+       "in_2_days": 0.0011180072107907692,
+       "in_3_days": 0.001537588211377669,
+       "in_4_days": 0.0033338284032705975,
+       "in_5_days": 0.0011700795288149103,
+       "in_6_days": 0.00202052719455923,
+       "in_7_days": 0.004185979770391282,
+       "in_8_days": 0.001537588211377669,
+       "in_9_days": 0.0014691605700410813,
+       "monday": 0.0023162051865095817,
+       "none": 0.9430170330944763,
+       "saturday": 0.0022131265750896796,
+       "sunday": 0.0016841531959122435,
+       "thursday": 0.0026551518239694826,
+       "today": 0.006906780711303855,
+       "tomorrow": 0.004380946017247833,
+       "tuesday": 0.0024240847886418293,
+       "wednesday": 0.0022131265750896796,
+       "weekend": 0.002114635294789725
+      },
+      "confidence": 0.9407377144182553
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.040426104742312015,
+       "m2": 0.9350729209658472,
+       "none": 0.024500974291840706
+      },
+      "confidence": 0.9026093814487708
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9506896280246605
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.020886394946829253,
+       "correction": 0.08964546746403644,
+       "description": 0.012658578631393238,
+       "request": 0.8731063861717082,
+       "topic_change": 0.003703172786032753
+      },
+      "confidence": 0.8413829827146353
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.01788968694446166
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3501710288023659,
+       "dispatch_now": 0.6046854671139913,
+       "wait": 0.04514350408364286
+      },
+      "confidence": 0.4070282006709869
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6941153564572748
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004137462465035088,
+       "none": 0.007144689930212317,
+       "t3_ask": 0.002289359372514885,
+       "t3_start": 0.050597234281190624,
+       "t3_stop": 0.0015197669029014167,
+       "t3_tell": 0.932087060218267,
+       "time": 0.000986176399076326,
+       "weather": 0.001238250430802318
+      },
+      "confidence": 0.9223852116780195
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.003665839313964326,
+       "friday": 0.002919574364206228,
+       "in_10_days": 0.0010724139558429666,
+       "in_11_days": 0.0010724139558429666,
+       "in_12_days": 0.0008938802684453943,
+       "in_13_days": 0.0012293478520345263,
+       "in_14_days": 0.0008540997095451485,
+       "in_15_days": 0.0008160895139947597,
+       "in_2_days": 0.0011223627218466172,
+       "in_3_days": 0.0011223627218466172,
+       "in_4_days": 0.0025468725455650644,
+       "in_5_days": 0.0011223627218466172,
+       "in_6_days": 0.0017694610177384858,
+       "in_7_days": 0.004015272067403568,
+       "in_8_days": 0.0014748840976211094,
+       "in_9_days": 0.0017694610177384858,
+       "monday": 0.0021228734504265124,
+       "none": 0.946690820771204,
+       "saturday": 0.0022217484311678514,
+       "sunday": 0.0016154720413622003,
+       "thursday": 0.0024335284916835783,
+       "today": 0.00911148062243104,
+       "tomorrow": 0.003665839313964326,
+       "tuesday": 0.0017694610177384858,
+       "wednesday": 0.0016154720413622003,
+       "weekend": 0.0012866059731768387
+      },
+      "confidence": 0.9445584536020522
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.0452680100409095,
+       "m2": 0.9134034702256307,
+       "none": 0.041328519733459676
+      },
+      "confidence": 0.8701052053384462
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9177956435683693
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.02009304823959424,
+       "correction": 0.07523126205684041,
+       "description": 0.01752804571294084,
+       "request": 0.8790635697082567,
+       "topic_change": 0.008084074282367675
+      },
+      "confidence": 0.848829462135321
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.011090138938954882
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3670621816968598,
+       "dispatch_now": 0.578691904993077,
+       "wait": 0.054245913310063294
+      },
+      "confidence": 0.3680378574896155
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.713097947596787
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.00412721228531364,
+       "none": 0.009801703532402884,
+       "t3_ask": 0.0018606651250875387,
+       "t3_start": 0.05047188432353583,
+       "t3_stop": 0.0016231396540790758,
+       "t3_tell": 0.9297779009294486,
+       "time": 0.0011023113699886763,
+       "weather": 0.001235182780143697
+      },
+      "confidence": 0.9197461724907984
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.0032168334496143016,
+       "friday": 0.002135460717772574,
+       "in_10_days": 0.0006842616063990236,
+       "in_11_days": 0.0008789444815357311,
+       "in_12_days": 0.0006842616063990236,
+       "in_13_days": 0.00112901760729742,
+       "in_14_days": 0.0005089933694429403,
+       "in_15_days": 0.0007843944322741638,
+       "in_2_days": 0.0012942347149419993,
+       "in_3_days": 0.0010075666253188634,
+       "in_4_days": 0.0022349219632374095,
+       "in_5_days": 0.0010075666253188634,
+       "in_6_days": 0.0017799527778027675,
+       "in_7_days": 0.0025619738534743658,
+       "in_8_days": 0.001155010954369561,
+       "in_9_days": 0.0016250507463342898,
+       "monday": 0.0017799527778027675,
+       "none": 0.952304085402084,
+       "saturday": 0.0025619738534743658,
+       "sunday": 0.001483629206962169,
+       "thursday": 0.0024479577426184044,
+       "today": 0.009592398527850031,
+       "tomorrow": 0.002681300380155076,
+       "tuesday": 0.0016250507463342898,
+       "wednesday": 0.0014176029155928247,
+       "weekend": 0.0014176029155928247
+      },
+      "confidence": 0.9503962488181673
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_at": {
+      "type": "choice",
+      "choice": "m2",
+      "probabilities": {
+       "m1": 0.026822053600431838,
+       "m2": 0.9345716412898217,
+       "none": 0.038606305109746435
+      },
+      "confidence": 0.9018574619347326
+     },
+     "s1_finished": {
+      "type": "noul",
+      "noul": 0.9211655983531946
+     },
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.01032940466555888,
+       "correction": 0.06989528944784844,
+       "description": 0.020447345732264612,
+       "request": 0.894563956455538,
+       "topic_change": 0.004764003698790162
+      },
+      "confidence": 0.8682049455694225
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0114021655930217
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.33918486713213924,
+       "dispatch_now": 0.6415453179312424,
+       "wait": 0.019269814936618425
+      },
+      "confidence": 0.4623179768968635
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7573301454071185
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.002692664904718541,
+       "none": 0.0055784652886363174,
+       "t3_ask": 0.0022960671859137897,
+       "t3_start": 0.03006307970059354,
+       "t3_stop": 0.0012997202481249668,
+       "t3_tell": 0.9563403669207586,
+       "time": 0.0009237810742751107,
+       "weather": 0.0008058546769791034
+      },
+      "confidence": 0.950103276480867
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.004471537669982782,
+       "friday": 0.0032513330431195556,
+       "in_10_days": 0.001278676071420906,
+       "in_11_days": 0.0014005612011622549,
+       "in_12_days": 0.0011673981074640553,
+       "in_13_days": 0.001680293693864375,
+       "in_14_days": 0.001065804210910314,
+       "in_15_days": 0.0010418184481256981,
+       "in_2_days": 0.002158362906481917,
+       "in_3_days": 0.0017189790579237513,
+       "in_4_days": 0.0037271235338093536,
+       "in_5_days": 0.0018404615576867176,
+       "in_6_days": 0.0025894502702364934,
+       "in_7_days": 0.00390071808677338,
+       "in_8_days": 0.0023641009731942535,
+       "in_9_days": 0.0029683827875619227,
+       "monday": 0.0032513330431195556,
+       "none": 0.9196821398836029,
+       "saturday": 0.0027100565388526693,
+       "sunday": 0.0027100565388526693,
+       "thursday": 0.004272539801996748,
+       "today": 0.015285085106534734,
+       "tomorrow": 0.005125889307887504,
+       "tuesday": 0.00390071808677338,
+       "wednesday": 0.0037271235338093536,
+       "weekend": 0.0027100565388526693
+      },
+      "confidence": 0.916469425478947
+     }
+    },
+    "usage": {
+     "input_tokens": 1811.0,
+     "output_tokens": 0.0,
+     "cost": 3.622e-05
+    }
+   }
+  },
+  "39b6f832d347726f59d14c24d14c6ba0ff7b580d8c817e80b8e5585ad64c77af": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.04425739320931606,
+       "correction": 0.18995497849623402,
+       "description": 0.01031147943154775,
+       "request": 0.7112187556535862,
+       "topic_change": 0.04425739320931606
+      },
+      "confidence": 0.6390234445669827
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.002852673821846738
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.41862989952204377,
+       "dispatch_now": 0.5501167934176663,
+       "wait": 0.0312533070602899
+      },
+      "confidence": 0.3251751901264994
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6437804827358287
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.007342523471111135,
+       "none": 0.07832956688675444,
+       "t3_ask": 0.005847785857164613,
+       "t3_start": 0.014534730782856177,
+       "t3_stop": 0.8745343722878198,
+       "t3_tell": 0.015211700588073132,
+       "time": 0.0020996600631103084,
+       "weather": 0.0020996600631103084
+      },
+      "confidence": 0.8566107111860798
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.009233409750482927,
+       "monday": 0.009663465160084704,
+       "none": 0.8368911768457568,
+       "saturday": 0.005991557495786682,
+       "sunday": 0.00842986375445025,
+       "thursday": 0.004664450193413545,
+       "today": 0.09850141977602889,
+       "tomorrow": 0.00882249319555326,
+       "tuesday": 0.005991557495786682,
+       "wednesday": 0.007353739237568813,
+       "weekend": 0.0044568670950875695
+      },
+      "confidence": 0.8205802945303324
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.09744530364416573,
+       "correction": 0.29057587278392283,
+       "description": 0.013147607912471734,
+       "request": 0.5496046809649844,
+       "topic_change": 0.04922653469445533
+      },
+      "confidence": 0.4370058512062305
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0008603049513091097
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.27040014407073554,
+       "dispatch_now": 0.6720822878454853,
+       "wait": 0.057517568083779204
+      },
+      "confidence": 0.5081234317682279
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6437804827358287
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.014527494398789507,
+       "none": 0.10767252205141407,
+       "t3_ask": 0.009214737138361,
+       "t3_start": 0.013263225805497195,
+       "t3_stop": 0.8351987420079445,
+       "t3_tell": 0.016653405093518397,
+       "time": 0.001872861969649108,
+       "weather": 0.0015970115348261944
+      },
+      "confidence": 0.8116557051519366
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.012452776094199825,
+       "monday": 0.015635798400539837,
+       "none": 0.8206871320221073,
+       "saturday": 0.009476359324895994,
+       "sunday": 0.010863101806625607,
+       "thursday": 0.008266643142363972,
+       "today": 0.08818801594525097,
+       "tomorrow": 0.008456965882179665,
+       "tuesday": 0.007898750823850165,
+       "wednesday": 0.010863101806625607,
+       "weekend": 0.007211354751361049
+      },
+      "confidence": 0.8027558452243181
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.051761070654918126,
+       "correction": 0.14747931510932263,
+       "description": 0.006983756391028036,
+       "request": 0.7594148208732083,
+       "topic_change": 0.03436103697152281
+      },
+      "confidence": 0.6992685260915104
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.004594784867980929
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3099435760706243,
+       "dispatch_now": 0.6421183257953583,
+       "wait": 0.047938098134017414
+      },
+      "confidence": 0.46317748869303754
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.5789994208237278
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.007676484286701589,
+       "none": 0.05436329325751111,
+       "t3_ask": 0.0037053560004274293,
+       "t3_start": 0.009638650837678167,
+       "t3_stop": 0.9143109168750079,
+       "t3_tell": 0.00803402431616322,
+       "time": 0.001083974267799433,
+       "weather": 0.0011873001587111172
+      },
+      "confidence": 0.9020696192857233
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.014207395448346519,
+       "monday": 0.01953934066338197,
+       "none": 0.6808171344942744,
+       "saturday": 0.01184217194124008,
+       "sunday": 0.01783891152837495,
+       "thursday": 0.008227448072291256,
+       "today": 0.190304357792851,
+       "tomorrow": 0.01866977689788633,
+       "tuesday": 0.01184217194124008,
+       "wednesday": 0.014869119278873303,
+       "weekend": 0.01184217194124008
+      },
+      "confidence": 0.6488988479437018
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.06915019024871868,
+       "correction": 0.2258570077637592,
+       "description": 0.01119340754500753,
+       "request": 0.6435190848293499,
+       "topic_change": 0.050280309613164605
+      },
+      "confidence": 0.5543988560366875
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.003469529681619853
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3344999085114612,
+       "dispatch_now": 0.6326840344276164,
+       "wait": 0.03281605706092229
+      },
+      "confidence": 0.4490260516414246
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6010195533002328
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.004785099823591761,
+       "none": 0.07020480216917775,
+       "t3_ask": 0.0045721474270621855,
+       "t3_start": 0.007895316503203688,
+       "t3_stop": 0.8985252952918606,
+       "t3_tell": 0.011364118586944829,
+       "time": 0.0014320738781480027,
+       "weather": 0.001221146320011043
+      },
+      "confidence": 0.8840289089049836
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.013361075061152939,
+       "monday": 0.01755763689513334,
+       "none": 0.7681402433635428,
+       "saturday": 0.009715070752852323,
+       "sunday": 0.016029667357537317,
+       "thursday": 0.007915483961407682,
+       "today": 0.1243395971112127,
+       "tomorrow": 0.010401647517700226,
+       "tuesday": 0.010167560011407064,
+       "wednesday": 0.014634670777621511,
+       "weekend": 0.007737347190432086
+      },
+      "confidence": 0.7449542676998971
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.051576419143943356,
+       "correction": 0.19310953013716547,
+       "description": 0.010482720504662698,
+       "request": 0.6908526871183392,
+       "topic_change": 0.05397864309588927
+      },
+      "confidence": 0.613565858897924
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.005925044489641815
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.41878433805189336,
+       "dispatch_now": 0.45870342664512764,
+       "wait": 0.12251223530297903
+      },
+      "confidence": 0.18805513996769152
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.5900546165426078
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.00780523789509494,
+       "none": 0.0726363807396745,
+       "t3_ask": 0.005422754355570425,
+       "t3_start": 0.014763081470220417,
+       "t3_stop": 0.8882739129796305,
+       "t3_tell": 0.00780523789509494,
+       "time": 0.0017776076305470877,
+       "weather": 0.0015157870341670932
+      },
+      "confidence": 0.872313043405292
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.010770668507565794,
+       "monday": 0.01234681637870329,
+       "none": 0.8516030545799762,
+       "saturday": 0.008578054018970696,
+       "sunday": 0.010291338973079694,
+       "thursday": 0.004855724852637032,
+       "today": 0.07627567370529033,
+       "tomorrow": 0.007831540959660684,
+       "tuesday": 0.006096884285881168,
+       "wednesday": 0.007483012093521486,
+       "weekend": 0.003867231644713633
+      },
+      "confidence": 0.8367633600379738
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.06535011557898376,
+       "correction": 0.20394627349504982,
+       "description": 0.01010751793410575,
+       "request": 0.6661253557001564,
+       "topic_change": 0.0544707372917043
+      },
+      "confidence": 0.5826566946251955
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0019431008699580003
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.35399059955302,
+       "dispatch_now": 0.6112812124314548,
+       "wait": 0.03472818801552521
+      },
+      "confidence": 0.41692181864718225
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6843652815991621
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.005184814394696927,
+       "none": 0.0420909702083268,
+       "t3_ask": 0.004129327527330868,
+       "t3_start": 0.00895328755459703,
+       "t3_stop": 0.9302544224036966,
+       "t3_tell": 0.007130642284344964,
+       "time": 0.0011282678135034376,
+       "weather": 0.0011282678135034376
+      },
+      "confidence": 0.9202907684613676
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.011361046761000885,
+       "monday": 0.015624775403970618,
+       "none": 0.7154166039115911,
+       "saturday": 0.009469678637818103,
+       "sunday": 0.01635251514128042,
+       "thursday": 0.007893182326418693,
+       "today": 0.19107615558730673,
+       "tomorrow": 0.009048247354327216,
+       "tuesday": 0.007541910220376386,
+       "wednesday": 0.010855443487499328,
+       "weekend": 0.005360441168410464
+      },
+      "confidence": 0.6869582643027503
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.08524233071299861,
+       "correction": 0.3049559138146921,
+       "description": 0.01150114679566555,
+       "request": 0.5511339381867009,
+       "topic_change": 0.04716667048994285
+      },
+      "confidence": 0.4389174227333761
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0016276573460119184
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.4343288250523865,
+       "dispatch_now": 0.5210768263417729,
+       "wait": 0.04459434860584061
+      },
+      "confidence": 0.2816152395126593
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6010195533002328
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.007822633204202007,
+       "none": 0.06955850551655524,
+       "t3_ask": 0.008186980267498046,
+       "t3_start": 0.010758417728097736,
+       "t3_stop": 0.8902535834900881,
+       "t3_tell": 0.010758417728097736,
+       "time": 0.001209904599293938,
+       "weather": 0.0014515574661671535
+      },
+      "confidence": 0.8745755239886721
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.011440718130284223,
+       "monday": 0.020211008884512563,
+       "none": 0.7370201170186449,
+       "saturday": 0.011973581162968374,
+       "sunday": 0.019311553713897762,
+       "thursday": 0.009536086450374424,
+       "today": 0.14313023540246447,
+       "tomorrow": 0.011704117527417518,
+       "tuesday": 0.011440718130284223,
+       "wednesday": 0.014695777128777171,
+       "weekend": 0.009536086450374424
+      },
+      "confidence": 0.7107221287205094
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.09096635522378031,
+       "correction": 0.25918427877650174,
+       "description": 0.008527081469474925,
+       "request": 0.5619683500903664,
+       "topic_change": 0.07935393443987655
+      },
+      "confidence": 0.45246043761295796
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.001173987188793744
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.42832939591512675,
+       "dispatch_now": 0.5138791380595618,
+       "wait": 0.05779146602531142
+      },
+      "confidence": 0.27081870708934264
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.5340899513699624
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.0067200623487131276,
+       "none": 0.08217997671651676,
+       "t3_ask": 0.005352040850353891,
+       "t3_start": 0.01059451470666808,
+       "t3_stop": 0.876690692007309,
+       "t3_tell": 0.015249207735858762,
+       "time": 0.0018784150468682474,
+       "weather": 0.0013350905877121029
+      },
+      "confidence": 0.8590750765797817
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.011905410194686937,
+       "monday": 0.010869330896617546,
+       "none": 0.7496957198428962,
+       "saturday": 0.006587555208820403,
+       "sunday": 0.012459916730854177,
+       "thursday": 0.0052465085518618605,
+       "today": 0.16689733598522222,
+       "tomorrow": 0.011905410194686937,
+       "tuesday": 0.00948179323282409,
+       "wednesday": 0.008656631435250117,
+       "weekend": 0.00629438772627952
+      },
+      "confidence": 0.7246652918271858
+     }
+    },
+    "usage": {
+     "input_tokens": 1293.0,
+     "output_tokens": 0.0,
+     "cost": 2.586e-05
+    }
+   }
+  },
+  "31221ca8a601980ff2ff58138d954258d1121f3f502835603cbe92311cb28c3a": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.09586672812538675,
+       "correction": 0.20786008814848564,
+       "description": 0.009843036075740993,
+       "request": 0.6198259359039484,
+       "topic_change": 0.06660421174643819
+      },
+      "confidence": 0.5247824198799356
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0015624878999517203
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3714783156726735,
+       "dispatch_now": 0.5595906596252839,
+       "wait": 0.06893102470204264
+      },
+      "confidence": 0.33938598943792586
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6332736591310367
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.00621865133229518,
+       "none": 0.0726638061024174,
+       "t3_ask": 0.00621865133229518,
+       "t3_start": 0.009804015138082586,
+       "t3_stop": 0.8886092991047437,
+       "t3_tell": 0.013483399708863893,
+       "time": 0.001738258907084018,
+       "weather": 0.0012639183742179936
+      },
+      "confidence": 0.8726963418339928
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.011109746072465865,
+       "friday": 0.01162719374638894,
+       "in_10_days": 0.004270884480213493,
+       "in_11_days": 0.004080816327219403,
+       "in_12_days": 0.008078090172102936,
+       "in_13_days": 0.003105434608564549,
+       "in_14_days": 0.00398897817215275,
+       "in_15_days": 0.003105434608564549,
+       "in_2_days": 0.00398897817215275,
+       "in_3_days": 0.0035598747525358836,
+       "in_4_days": 0.007375086927494973,
+       "in_5_days": 0.0038114557603367983,
+       "in_6_days": 0.006433611230142297,
+       "in_7_days": 0.011109746072465865,
+       "in_8_days": 0.00478569223684671,
+       "in_9_days": 0.005362554358920521,
+       "monday": 0.0077185890697330185,
+       "none": 0.8019681678993212,
+       "saturday": 0.007046871739991293,
+       "sunday": 0.00614729475184362,
+       "thursday": 0.012168742069732964,
+       "today": 0.041596486914098604,
+       "tomorrow": 0.007046871739991293,
+       "tuesday": 0.006733263188364195,
+       "wednesday": 0.006733263188364195,
+       "weekend": 0.007046871739991293
+      },
+      "confidence": 0.7940468946152941
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.058382914189963886,
+       "correction": 0.19068913991480874,
+       "description": 0.010351332508455748,
+       "request": 0.6821936991968077,
+       "topic_change": 0.058382914189963886
+      },
+      "confidence": 0.6027421239960097
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0019691943584361307
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.4136541604187797,
+       "dispatch_now": 0.51938724433222,
+       "wait": 0.06695859524900026
+      },
+      "confidence": 0.2790808664983301
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6941153564572753
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.009095298200602163,
+       "none": 0.05880561306045919,
+       "t3_ask": 0.00603781710431489,
+       "t3_start": 0.011952028001356987,
+       "t3_stop": 0.9029534802204449,
+       "t3_tell": 0.0075811281202085214,
+       "time": 0.0014067441023499978,
+       "weather": 0.0021678911902634395
+      },
+      "confidence": 0.8890896916805084
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.011635610751335455,
+       "friday": 0.007380425803280806,
+       "in_10_days": 0.0031076826538824075,
+       "in_11_days": 0.0028372337058827986,
+       "in_12_days": 0.0067381374435627325,
+       "in_13_days": 0.0022087971812789603,
+       "in_14_days": 0.002475043184190082,
+       "in_15_days": 0.0031792307619812723,
+       "in_2_days": 0.0067381374435627325,
+       "in_3_days": 0.005616383556048927,
+       "in_4_days": 0.007380425803280806,
+       "in_5_days": 0.004083770458023556,
+       "in_6_days": 0.00643826856524217,
+       "in_7_days": 0.01062301099855817,
+       "in_8_days": 0.005366436348637861,
+       "in_9_days": 0.005877972307761253,
+       "monday": 0.01062301099855817,
+       "none": 0.7668327081932242,
+       "saturday": 0.011117788493507972,
+       "sunday": 0.007724176609065133,
+       "thursday": 0.011117788493507972,
+       "today": 0.05470104053998419,
+       "tomorrow": 0.013338331720068224,
+       "tuesday": 0.01062301099855817,
+       "wednesday": 0.011117788493507972,
+       "weekend": 0.011117788493507972
+      },
+      "confidence": 0.7575060165209533
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.10154288050259708,
+       "correction": 0.13965127818781478,
+       "description": 0.013700465073475611,
+       "request": 0.6565250757237222,
+       "topic_change": 0.08858030051239031
+      },
+      "confidence": 0.5706563446546528
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.008443130772313874
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.41029516028382057,
+       "dispatch_now": 0.5391642073053543,
+       "wait": 0.050540632410825084
+      },
+      "confidence": 0.3087463109580315
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6226385869145172
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.007917188197190672,
+       "none": 0.08839386563090416,
+       "t3_ask": 0.00867186526683267,
+       "t3_start": 0.014974827922111886,
+       "t3_stop": 0.8609163493035265,
+       "t3_tell": 0.014974827922111886,
+       "time": 0.002263990566073597,
+       "weather": 0.001887085191248707
+      },
+      "confidence": 0.8410472563468874
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.011842877554966533,
+       "friday": 0.011315831254970345,
+       "in_10_days": 0.004252210604463783,
+       "in_11_days": 0.002697161802406188,
+       "in_12_days": 0.007511894386956721,
+       "in_13_days": 0.002697161802406188,
+       "in_14_days": 0.003091856507752444,
+       "in_15_days": 0.0028877737569329926,
+       "in_2_days": 0.004552719893025321,
+       "in_3_days": 0.0046575370610984785,
+       "in_4_days": 0.007511894386956721,
+       "in_5_days": 0.003971536894333085,
+       "in_6_days": 0.007177590825661569,
+       "in_7_days": 0.014208241993498473,
+       "in_8_days": 0.004450261619487784,
+       "in_9_days": 0.005218951498077191,
+       "monday": 0.00901223649270311,
+       "none": 0.7457579762807477,
+       "saturday": 0.00901223649270311,
+       "sunday": 0.007177590825661569,
+       "thursday": 0.012394471570113353,
+       "today": 0.08013640489464026,
+       "tomorrow": 0.008227938303333524,
+       "tuesday": 0.010812240217519127,
+       "wednesday": 0.008611162862065265,
+       "weekend": 0.010812240217519127
+      },
+      "confidence": 0.7355882953319777
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.0651555416240097,
+       "correction": 0.16948749749853756,
+       "description": 0.00802593497927044,
+       "request": 0.6950751163085155,
+       "topic_change": 0.06225590958966676
+      },
+      "confidence": 0.6188438953856443
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.002218822360394776
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.344337243068878,
+       "dispatch_now": 0.5946115170691758,
+       "wait": 0.061051239861946265
+      },
+      "confidence": 0.39191727560376366
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6541506804848479
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.005072471392550936,
+       "none": 0.05170460343804648,
+       "t3_ask": 0.005072471392550936,
+       "t3_start": 0.011510483978474175,
+       "t3_stop": 0.910097948783482,
+       "t3_tell": 0.013194894264213674,
+       "time": 0.0018632130692327125,
+       "weather": 0.0014839136814491503
+      },
+      "confidence": 0.8972547986096938
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.0097627292162149,
+       "friday": 0.008913118705684873,
+       "in_10_days": 0.00254878577613262,
+       "in_11_days": 0.0020299224746441495,
+       "in_12_days": 0.005653558948385359,
+       "in_13_days": 0.0018532665998551275,
+       "in_14_days": 0.002326975344179322,
+       "in_15_days": 0.0020299224746441495,
+       "in_2_days": 0.0028560136334133436,
+       "in_3_days": 0.00279173947797332,
+       "in_4_days": 0.005653558948385359,
+       "in_5_days": 0.002380549245382117,
+       "in_6_days": 0.004110801334293652,
+       "in_7_days": 0.011191378223453409,
+       "in_8_days": 0.003927857398311618,
+       "in_9_days": 0.0032739542473206465,
+       "monday": 0.006480884094878215,
+       "none": 0.8454878045954408,
+       "saturday": 0.007429277563868167,
+       "sunday": 0.005161552768753592,
+       "thursday": 0.008913118705684873,
+       "today": 0.03188683647074975,
+       "tomorrow": 0.007775303689872964,
+       "tuesday": 0.005916879181642465,
+       "wednesday": 0.004931847000338735,
+       "weekend": 0.0047123638804963145
+      },
+      "confidence": 0.8393073167792585
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.05808326757064303,
+       "correction": 0.19854639580534392,
+       "description": 0.011279843749665447,
+       "request": 0.6484883801126619,
+       "topic_change": 0.08360211276168573
+      },
+      "confidence": 0.5606104751408273
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.002610374293484706
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.38332393671997217,
+       "dispatch_now": 0.5517370547884566,
+       "wait": 0.06493900849157132
+      },
+      "confidence": 0.3276055821826849
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6226385869145167
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.0037039053565556617,
+       "none": 0.0474049146412011,
+       "t3_ask": 0.0048672599357983135,
+       "t3_start": 0.008030879002153303,
+       "t3_stop": 0.9139529648919043,
+       "t3_tell": 0.019960830833601624,
+       "time": 0.0011340173262942251,
+       "weather": 0.0009452280124915147
+      },
+      "confidence": 0.9016605313050334
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.010639750093459029,
+       "friday": 0.008868462236914147,
+       "in_10_days": 0.004184374122852398,
+       "in_11_days": 0.003042531418606338,
+       "in_12_days": 0.007392055429565353,
+       "in_13_days": 0.0035680652650956035,
+       "in_14_days": 0.0029071289440509764,
+       "in_15_days": 0.003409274837061083,
+       "in_2_days": 0.005887234459169887,
+       "in_3_days": 0.005135692379406451,
+       "in_4_days": 0.007736347896970952,
+       "in_5_days": 0.003908178064171068,
+       "in_6_days": 0.007736347896970952,
+       "in_7_days": 0.012196739749900555,
+       "in_8_days": 0.006448413597429883,
+       "in_9_days": 0.0061614383659798835,
+       "monday": 0.009281519846497048,
+       "none": 0.7680410365548609,
+       "saturday": 0.008473787025004915,
+       "sunday": 0.00809667613470346,
+       "thursday": 0.013359349452282907,
+       "today": 0.057339006071372156,
+       "tomorrow": 0.010639750093459029,
+       "tuesday": 0.00809667613470346,
+       "wednesday": 0.009713816032540717,
+       "weekend": 0.007736347896970952
+      },
+      "confidence": 0.7587626780170553
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.04097922557728336,
+       "correction": 0.14660388892244622,
+       "description": 0.0060560734094221745,
+       "request": 0.7549069912809575,
+       "topic_change": 0.051453820809890694
+      },
+      "confidence": 0.6936337391011969
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.006025339558254987
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2317483007351909,
+       "dispatch_now": 0.7232458872490838,
+       "wait": 0.045005812015725344
+      },
+      "confidence": 0.5848688308736256
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6843652815991621
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.004493603487326814,
+       "none": 0.05017020853417042,
+       "t3_ask": 0.0027234299278279545,
+       "t3_start": 0.007414353530814003,
+       "t3_stop": 0.9242205201033357,
+       "t3_tell": 0.008499348164642389,
+       "time": 0.0014074725882341885,
+       "weather": 0.0010710636636485345
+      },
+      "confidence": 0.9133948801180979
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.011684995731415258,
+       "friday": 0.014671767659315433,
+       "in_10_days": 0.0033414287296999667,
+       "in_11_days": 0.002722473792623853,
+       "in_12_days": 0.0077569603035461294,
+       "in_13_days": 0.0026013149161110013,
+       "in_14_days": 0.002849275766505245,
+       "in_15_days": 0.00254277271683349,
+       "in_2_days": 0.004101103190015887,
+       "in_3_days": 0.004008808482166182,
+       "in_4_days": 0.00741175051747629,
+       "in_5_days": 0.003744200904001581,
+       "in_6_days": 0.00676673609562636,
+       "in_7_days": 0.012229236240746694,
+       "in_8_days": 0.0042921162241887885,
+       "in_9_days": 0.005267929668073494,
+       "monday": 0.00973969712373849,
+       "none": 0.6418845114358042,
+       "saturday": 0.008496364234008047,
+       "sunday": 0.006465594484924247,
+       "thursday": 0.010193333380455843,
+       "today": 0.19652450248485862,
+       "tomorrow": 0.00741175051747629,
+       "tuesday": 0.008892091002290048,
+       "wednesday": 0.008496364234008047,
+       "weekend": 0.005902920164090591
+      },
+      "confidence": 0.6275598918932362
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.061352774801444555,
+       "correction": 0.19147127252150745,
+       "description": 0.008663448873082364,
+       "request": 0.684991792137312,
+       "topic_change": 0.05352071166665366
+      },
+      "confidence": 0.60623974017164
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.002419406217866539
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.416032943919642,
+       "dispatch_now": 0.5467041635738048,
+       "wait": 0.03726289250655311
+      },
+      "confidence": 0.3200562453607072
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.5900546165426078
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.006034674651352215,
+       "none": 0.05877500698713974,
+       "t3_ask": 0.006917771146064201,
+       "t3_start": 0.009957089323692015,
+       "t3_stop": 0.9024835274560503,
+       "t3_tell": 0.013084497922333184,
+       "time": 0.0015754910921229048,
+       "weather": 0.0011719414212454623
+      },
+      "confidence": 0.8885526028069146
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.013735573539573168,
+       "friday": 0.011982142182920527,
+       "in_10_days": 0.006480805459405653,
+       "in_11_days": 0.00516149014131956,
+       "in_12_days": 0.012540222589144563,
+       "in_13_days": 0.005401891771580208,
+       "in_14_days": 0.005401891771580208,
+       "in_15_days": 0.00516149014131956,
+       "in_2_days": 0.006053029913430308,
+       "in_3_days": 0.006192388685482122,
+       "in_4_days": 0.011448898157199081,
+       "in_5_days": 0.006480805459405653,
+       "in_6_days": 0.009118214601179236,
+       "in_7_days": 0.018465320334696188,
+       "in_8_days": 0.007954217819222327,
+       "in_9_days": 0.007954217819222327,
+       "monday": 0.012540222589144563,
+       "none": 0.7375470808268029,
+       "saturday": 0.007954217819222327,
+       "sunday": 0.007261994680324632,
+       "thursday": 0.013735573539573168,
+       "today": 0.03188644957346574,
+       "tomorrow": 0.011191242433443537,
+       "tuesday": 0.016108107394718883,
+       "wednesday": 0.009118214601179236,
+       "weekend": 0.013124296155444373
+      },
+      "confidence": 0.727048964059875
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.11031648130389997,
+       "correction": 0.1993703156216309,
+       "description": 0.011854202695102395,
+       "request": 0.5945099589458789,
+       "topic_change": 0.08394904143348784
+      },
+      "confidence": 0.49313744868234854
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.00530804973647325
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3718839014794045,
+       "dispatch_now": 0.5862935876110046,
+       "wait": 0.041822510909591
+      },
+      "confidence": 0.3794403814165068
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.5678644349724793
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_stop",
+      "probabilities": {
+       "agent": 0.00814335283496226,
+       "none": 0.07241033016730343,
+       "t3_ask": 0.006787661031919205,
+       "t3_start": 0.014062177358659703,
+       "t3_stop": 0.8855095292864098,
+       "t3_tell": 0.009335027077441386,
+       "time": 0.001897310464364947,
+       "weather": 0.0018546117789392648
+      },
+      "confidence": 0.8691537477558969
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.009973742006509906,
+       "friday": 0.008313330065885163,
+       "in_10_days": 0.0027251536749389594,
+       "in_11_days": 0.002984919003045827,
+       "in_12_days": 0.006326308470886488,
+       "in_13_days": 0.002545275709388881,
+       "in_14_days": 0.002377270865999944,
+       "in_15_days": 0.0022714746346196254,
+       "in_2_days": 0.002984919003045827,
+       "in_3_days": 0.0033447178837715955,
+       "in_4_days": 0.005273115184126194,
+       "in_5_days": 0.0033447178837715955,
+       "in_6_days": 0.004395255759820053,
+       "in_7_days": 0.008313330065885163,
+       "in_8_days": 0.005038444527915456,
+       "in_9_days": 0.0045999692478134865,
+       "monday": 0.005775755643835504,
+       "none": 0.825322067473862,
+       "saturday": 0.008313330065885163,
+       "sunday": 0.005038444527915456,
+       "thursday": 0.008313330065885163,
+       "today": 0.040902721366015894,
+       "tomorrow": 0.010438279140654485,
+       "tuesday": 0.008313330065885163,
+       "wednesday": 0.005518715863795812,
+       "weekend": 0.007252081798841254
+      },
+      "confidence": 0.8183349501728165
+     }
+    },
+    "usage": {
+     "input_tokens": 1493.0,
+     "output_tokens": 0.0,
+     "cost": 2.986e-05
+    }
+   }
+  },
+  "475f536d9197eef0c99e5a239d4c0d7a06a8b7c2c5423d88c37441df5ff8dcef": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.014807305082195944,
+       "correction": 0.035165822471983105,
+       "description": 0.010766649829762281,
+       "request": 0.9324309755815318,
+       "topic_change": 0.0068292470345268546
+      },
+      "confidence": 0.9155387194769147
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.004233605152623102
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.1897370865221021,
+       "dispatch_now": 0.7781195039682908,
+       "wait": 0.03214340950960706
+      },
+      "confidence": 0.6671792559524361
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6332736591310371
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0027508618188878432,
+       "none": 0.003783242776099098,
+       "t3_ask": 0.0019111842727203645,
+       "t3_start": 0.01293228237783806,
+       "t3_stop": 0.0006862148150926227,
+       "t3_tell": 0.9770098747205601,
+       "time": 0.0004158929397337489,
+       "weather": 0.0005104462790682695
+      },
+      "confidence": 0.9737255711092115
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.007465325205549791,
+       "monday": 0.008557778883964563,
+       "none": 0.8891607249533169,
+       "saturday": 0.004524495795657636,
+       "sunday": 0.003143431322968547,
+       "thursday": 0.00568099061525274,
+       "today": 0.060604441529026984,
+       "tomorrow": 0.007465325205549791,
+       "tuesday": 0.005186597169521943,
+       "wednesday": 0.004524495795657636,
+       "weekend": 0.003686393523533498
+      },
+      "confidence": 0.8780767974486485
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.027108651310805983,
+       "correction": 0.04472871830563939,
+       "description": 0.013694502601626203,
+       "request": 0.9025218135763872,
+       "topic_change": 0.011946314205541306
+      },
+      "confidence": 0.878152266970484
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.012628302255645178
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2969728559884274,
+       "dispatch_now": 0.673892672103855,
+       "wait": 0.029134471907717653
+      },
+      "confidence": 0.5108390081557825
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.765598294839593
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.002994859631356834,
+       "none": 0.0051716102880399375,
+       "t3_ask": 0.0020807037951358653,
+       "t3_start": 0.016139690601459346,
+       "t3_stop": 0.0011513043985478637,
+       "t3_tell": 0.9711025542843403,
+       "time": 0.0005949958047798671,
+       "weather": 0.0007642811963399986
+      },
+      "confidence": 0.9669743477535319
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.005374404290028692,
+       "monday": 0.00390782311251804,
+       "none": 0.9213573097203912,
+       "saturday": 0.0037339123629613596,
+       "sunday": 0.002594166866110707,
+       "thursday": 0.005135225941473077,
+       "today": 0.03983313629634213,
+       "tomorrow": 0.006748142050110855,
+       "tuesday": 0.0035677412034374185,
+       "wednesday": 0.004906691801899642,
+       "weekend": 0.0028414463547268122
+      },
+      "confidence": 0.9134930406924303
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.01941529776972649,
+       "correction": 0.07962292531679824,
+       "description": 0.0074637614021581195,
+       "request": 0.8889744674870796,
+       "topic_change": 0.004523548024237632
+      },
+      "confidence": 0.8612180843588495
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.008242582746382959
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2806116863243024,
+       "dispatch_now": 0.6974631792048223,
+       "wait": 0.02192513447087535
+      },
+      "confidence": 0.5461947688072333
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6541506804848484
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.005155561519397507,
+       "none": 0.007090410990865676,
+       "t3_ask": 0.00312462160408328,
+       "t3_start": 0.013411034554280298,
+       "t3_stop": 0.0014411003693954895,
+       "t3_tell": 0.9680889861007853,
+       "time": 0.0008345356824386152,
+       "weather": 0.0008537491787539111
+      },
+      "confidence": 0.9635302698294689
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.00688932182897217,
+       "monday": 0.005742399017036016,
+       "none": 0.8987720661340687,
+       "saturday": 0.00600985706645693,
+       "sunday": 0.002588837415355752,
+       "thursday": 0.0038120305942872298,
+       "today": 0.05853329491318436,
+       "tomorrow": 0.005742399017036016,
+       "tuesday": 0.004369871911349054,
+       "wednesday": 0.005009346081905712,
+       "weekend": 0.002530576020348103
+      },
+      "confidence": 0.8886492727474755
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.0138787619996314,
+       "correction": 0.056917367083051236,
+       "description": 0.010091489956556112,
+       "request": 0.9146652357139955,
+       "topic_change": 0.004447145246765855
+      },
+      "confidence": 0.8933315446424943
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.014240575741029302
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2688913342951796,
+       "dispatch_now": 0.6994603714864819,
+       "wait": 0.03164829421833847
+      },
+      "confidence": 0.5491905572297229
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8310849849994955
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.003280320100108629,
+       "none": 0.007790421933725064,
+       "t3_ask": 0.0013197774196832088,
+       "t3_start": 0.01407930040366083,
+       "t3_stop": 0.0010511067155309691,
+       "t3_tell": 0.9710985295600458,
+       "time": 0.0006667131868790073,
+       "weather": 0.0007138306803665791
+      },
+      "confidence": 0.9669697480686238
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008939668616385562,
+       "monday": 0.00621090959409782,
+       "none": 0.8875030495040175,
+       "saturday": 0.00621090959409782,
+       "sunday": 0.0030669604166625292,
+       "thursday": 0.006500188998095849,
+       "today": 0.05779939062460807,
+       "tomorrow": 0.008161685713354537,
+       "tuesday": 0.0056703994606883005,
+       "wednesday": 0.006500188998095849,
+       "weekend": 0.003436648479896211
+      },
+      "confidence": 0.8762533544544192
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.022738885981592377,
+       "correction": 0.051599223046153844,
+       "description": 0.01258198284152032,
+       "request": 0.9082430563343328,
+       "topic_change": 0.004836851796400651
+      },
+      "confidence": 0.885303820417916
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.00688246621626298
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.28088575759547846,
+       "dispatch_now": 0.6981443861161477,
+       "wait": 0.020969856288373858
+      },
+      "confidence": 0.5472165791742216
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7488660166921972
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004095714323997733,
+       "none": 0.004286476366278655,
+       "t3_ask": 0.0020224724767521625,
+       "t3_start": 0.02109005020399606,
+       "t3_stop": 0.0010692807493594895,
+       "t3_tell": 0.9656568944622118,
+       "time": 0.0007098306680444995,
+       "weather": 0.0010692807493594895
+      },
+      "confidence": 0.960750736528242
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008462685019071296,
+       "monday": 0.021034089047841997,
+       "none": 0.8792803890631794,
+       "saturday": 0.006739913050720562,
+       "sunday": 0.004275102463847708,
+       "thursday": 0.006439965152146824,
+       "today": 0.0435768800736596,
+       "tomorrow": 0.010625810332131402,
+       "tuesday": 0.007382370663710553,
+       "wednesday": 0.007053831326421076,
+       "weekend": 0.005128963807269681
+      },
+      "confidence": 0.8672084279694973
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.016727450908239398,
+       "correction": 0.04351270395889719,
+       "description": 0.015271729071520744,
+       "request": 0.918878525983097,
+       "topic_change": 0.00560959007824564
+      },
+      "confidence": 0.8985981574788713
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.008325638041683264
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.24608050981961932,
+       "dispatch_now": 0.7337968710843037,
+       "wait": 0.020122619096077123
+      },
+      "confidence": 0.6006953066264555
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7815409681912361
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.00450341857076934,
+       "none": 0.006783897908070945,
+       "t3_ask": 0.0016922737509498776,
+       "t3_start": 0.014708978231922581,
+       "t3_stop": 0.001443021826566797,
+       "t3_tell": 0.9693797647060178,
+       "time": 0.0005939402493525869,
+       "weather": 0.0008947047563499784
+      },
+      "confidence": 0.9650054453783061
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008342466058356104,
+       "monday": 0.00797119937519628,
+       "none": 0.8667895337008193,
+       "saturday": 0.0057959981184659,
+       "sunday": 0.004119527549176217,
+       "thursday": 0.0057959981184659,
+       "today": 0.07763588362929646,
+       "tomorrow": 0.00797119937519628,
+       "tuesday": 0.0057959981184659,
+       "wednesday": 0.006348480485532339,
+       "weekend": 0.0034337154710294
+      },
+      "confidence": 0.8534684870709013
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.017117009516083765,
+       "correction": 0.06707353400130642,
+       "description": 0.011892185626528506,
+       "request": 0.8984325001315513,
+       "topic_change": 0.005484770724530006
+      },
+      "confidence": 0.8730406251644391
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.008863983670883771
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.24423606566001704,
+       "dispatch_now": 0.7282968525976793,
+       "wait": 0.027467081742303803
+      },
+      "confidence": 0.5924452788965189
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7573301454071185
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.002510357418338793,
+       "none": 0.005200774034575773,
+       "t3_ask": 0.0014537383278563762,
+       "t3_start": 0.012351301968964903,
+       "t3_stop": 0.0007685911311283393,
+       "t3_tell": 0.9765787961463676,
+       "time": 0.0006262199139970625,
+       "weather": 0.0005102210587712428
+      },
+      "confidence": 0.973232909881563
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.007451459516139474,
+       "monday": 0.007451459516139474,
+       "none": 0.8875092461351022,
+       "saturday": 0.004516092243004063,
+       "sunday": 0.0041230751520653286,
+       "thursday": 0.005670439051959092,
+       "today": 0.06049187813225732,
+       "tomorrow": 0.008161742699023956,
+       "tuesday": 0.005670439051959092,
+       "wednesday": 0.005670439051959092,
+       "weekend": 0.0032837294503909567
+      },
+      "confidence": 0.8762601707486123
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.019501391912561842,
+       "correction": 0.03217689642410022,
+       "description": 0.007846032067949576,
+       "request": 0.9345049772726205,
+       "topic_change": 0.005970702322767859
+      },
+      "confidence": 0.9181312215907755
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.011943210574940981
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2530424254326383,
+       "dispatch_now": 0.720976655316954,
+       "wait": 0.025980919250407658
+      },
+      "confidence": 0.581464982975431
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7892138093933236
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0019173672338801107,
+       "none": 0.0027597612599437327,
+       "t3_ask": 0.0016726033861661695,
+       "t3_start": 0.011317893101558568,
+       "t3_stop": 0.000946800033300148,
+       "t3_tell": 0.9801706448222768,
+       "time": 0.000614378327164987,
+       "weather": 0.0006005518357094859
+      },
+      "confidence": 0.9773378797968878
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008186623690972162,
+       "monday": 0.006229886987969931,
+       "none": 0.8902148092999009,
+       "saturday": 0.005434603182627776,
+       "sunday": 0.0036077035988838382,
+       "thursday": 0.005434603182627776,
+       "today": 0.05797599628676323,
+       "tomorrow": 0.008567923979794763,
+       "tuesday": 0.005434603182627776,
+       "wednesday": 0.004961651830371516,
+       "weekend": 0.003951594777460169
+      },
+      "confidence": 0.879236290229891
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   }
+  },
+  "e5e7db6ea2bb971941f26e05c9756b697b5873945f9fc65bc098489c0aa990a9": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.0312103544305371,
+       "correction": 0.04101317206525006,
+       "description": 0.014394464033671962,
+       "request": 0.9064339572518317,
+       "topic_change": 0.006948052218709191
+      },
+      "confidence": 0.8830424465647897
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.010713919580771685
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3694410745599976,
+       "dispatch_now": 0.6095701908984252,
+       "wait": 0.020988734541577177
+      },
+      "confidence": 0.41435528634763785
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7815409681912361
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004468274933542339,
+       "none": 0.00467638936349682,
+       "t3_ask": 0.0026471341871619138,
+       "t3_start": 0.023008475498770473,
+       "t3_stop": 0.0015329452287327068,
+       "t3_tell": 0.961814949166297,
+       "time": 0.0006309522521662398,
+       "weather": 0.0012208793698325806
+      },
+      "confidence": 0.9563599419043394
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.011466374221586324,
+       "friday": 0.005288383113257945,
+       "in_10_days": 0.0029261919710693615,
+       "in_11_days": 0.003591462274949971,
+       "in_12_days": 0.002993561623244929,
+       "in_13_days": 0.004509466778288704,
+       "in_14_days": 0.0022780515275064622,
+       "in_15_days": 0.0025526453737703264,
+       "in_2_days": 0.004407981909565249,
+       "in_3_days": 0.004828156697342309,
+       "in_4_days": 0.006344625846105192,
+       "in_5_days": 0.003674148430423438,
+       "in_6_days": 0.004308780942483869,
+       "in_7_days": 0.00872572360215224,
+       "in_8_days": 0.004117026274524994,
+       "in_9_days": 0.004308780942483869,
+       "monday": 0.008337400720491177,
+       "none": 0.7908758835114026,
+       "saturday": 0.005534694912188374,
+       "sunday": 0.004613288130870559,
+       "thursday": 0.010468502433833581,
+       "today": 0.07083651298297874,
+       "tomorrow": 0.008337400720491177,
+       "tuesday": 0.00872572360215224,
+       "wednesday": 0.008337400720491177,
+       "weekend": 0.007611830736345254
+      },
+      "confidence": 0.7825109188518587
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.0206666945134658,
+       "correction": 0.0644971366024245,
+       "description": 0.007253425567661115,
+       "request": 0.9041603860422615,
+       "topic_change": 0.003422357274187145
+      },
+      "confidence": 0.8802004825528269
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.003770004117630273
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.23018594323038521,
+       "dispatch_now": 0.7518288551383512,
+       "wait": 0.017985201631263607
+      },
+      "confidence": 0.6277432827075269
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.6843652815991624
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004459106908651088,
+       "none": 0.00882692696921127,
+       "t3_ask": 0.0023044730021519293,
+       "t3_start": 0.021939416092029283,
+       "t3_stop": 0.0011379536880691107,
+       "t3_tell": 0.9598414932966637,
+       "time": 0.0006441542559754339,
+       "weather": 0.0008464757872481789
+      },
+      "confidence": 0.9541045637676157
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.0048686337348311255,
+       "friday": 0.00257404557450255,
+       "in_10_days": 0.0010838557280297338,
+       "in_11_days": 0.0012424639794260375,
+       "in_12_days": 0.0012424639794260375,
+       "in_13_days": 0.0016327077953083797,
+       "in_14_days": 0.0007880904070592437,
+       "in_15_days": 0.0010838557280297338,
+       "in_2_days": 0.0017883397070244857,
+       "in_3_days": 0.0016327077953083797,
+       "in_4_days": 0.0028194070744325178,
+       "in_5_days": 0.0012424639794260375,
+       "in_6_days": 0.0017883397070244857,
+       "in_7_days": 0.0030881567638507425,
+       "in_8_days": 0.0018716334398918364,
+       "in_9_days": 0.0018716334398918364,
+       "monday": 0.0038775126304024664,
+       "none": 0.9142109309170952,
+       "saturday": 0.00257404557450255,
+       "sunday": 0.001560047025280293,
+       "thursday": 0.0038775126304024664,
+       "today": 0.031478131362930185,
+       "tomorrow": 0.004058111707836082,
+       "tuesday": 0.0033825240365606382,
+       "wednesday": 0.00257404557450255,
+       "weekend": 0.0017883397070244857
+      },
+      "confidence": 0.9107793681537789
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.026531817639111565,
+       "correction": 0.06901656042843045,
+       "description": 0.01223668560394373,
+       "request": 0.883317428764294,
+       "topic_change": 0.008897507564220256
+      },
+      "confidence": 0.8541467859553675
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.010388409610231452
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2703155608271137,
+       "dispatch_now": 0.7031651767072171,
+       "wait": 0.02651926246566917
+      },
+      "confidence": 0.5547477650608257
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7573301454071185
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.003251139585554447,
+       "none": 0.009694697304906052,
+       "t3_ask": 0.002474064152045371,
+       "t3_start": 0.018336866609971997,
+       "t3_stop": 0.001400477866371211,
+       "t3_tell": 0.962459996151543,
+       "time": 0.0008487850219301292,
+       "weather": 0.0015339733076778271
+      },
+      "confidence": 0.9570971384589063
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.005668259723606587,
+       "friday": 0.0032824674097222182,
+       "in_10_days": 0.001584411542910582,
+       "in_11_days": 0.001775394782042536,
+       "in_12_days": 0.0015139001120960255,
+       "in_13_days": 0.002082057202400111,
+       "in_14_days": 0.000982369439851494,
+       "in_15_days": 0.0014465266676826438,
+       "in_2_days": 0.0027360077080117733,
+       "in_3_days": 0.0022805217063627528,
+       "in_4_days": 0.004313453119320957,
+       "in_5_days": 0.0014798300187368293,
+       "in_6_days": 0.0027360077080117733,
+       "in_7_days": 0.0037628140118182393,
+       "in_8_days": 0.0022805217063627528,
+       "in_9_days": 0.0027360077080117733,
+       "monday": 0.004944671130207973,
+       "none": 0.8871681483743311,
+       "saturday": 0.00343535165341331,
+       "sunday": 0.0024979041148324027,
+       "thursday": 0.004724617295168429,
+       "today": 0.03835503273175595,
+       "tomorrow": 0.005932264660356782,
+       "tuesday": 0.004724617295168429,
+       "wednesday": 0.00343535165341331,
+       "weekend": 0.004121490524403158
+      },
+      "confidence": 0.8826548743093043
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.021639685092255573,
+       "correction": 0.05891257708893177,
+       "description": 0.007256919386927288,
+       "request": 0.9045959006755877,
+       "topic_change": 0.007594917756297698
+      },
+      "confidence": 0.8807448758444847
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0027964190415109757
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.20850657598147684,
+       "dispatch_now": 0.7806786044203395,
+       "wait": 0.010814819598183631
+      },
+      "confidence": 0.6710179066305093
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7223205859093018
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004100457357022253,
+       "none": 0.005639332942186332,
+       "t3_ask": 0.0020248145965851318,
+       "t3_start": 0.018419079680397597,
+       "t3_stop": 0.0014067568881859227,
+       "t3_tell": 0.9667751713190604,
+       "time": 0.0009553608703725782,
+       "weather": 0.0006790263461897914
+      },
+      "confidence": 0.9620287672217833
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.008904661522505014,
+       "friday": 0.0035826293924592434,
+       "in_10_days": 0.002122452374968684,
+       "in_11_days": 0.0027263224837625376,
+       "in_12_days": 0.002324767401326706,
+       "in_13_days": 0.0026049923280639445,
+       "in_14_days": 0.002272448862098939,
+       "in_15_days": 0.002324767401326706,
+       "in_2_days": 0.004927167433637766,
+       "in_3_days": 0.004298183878438756,
+       "in_4_days": 0.006776302056305074,
+       "in_5_days": 0.0029861992243047242,
+       "in_6_days": 0.0041069008140551,
+       "in_7_days": 0.005648194587691483,
+       "in_8_days": 0.0037494939844638204,
+       "in_9_days": 0.00470789256962708,
+       "monday": 0.006186588122623403,
+       "none": 0.8446855662907669,
+       "saturday": 0.005396831686632616,
+       "sunday": 0.003924130463821146,
+       "thursday": 0.008508375325474589,
+       "today": 0.03185658075151569,
+       "tomorrow": 0.016842567169425074,
+       "tuesday": 0.00742222831844394,
+       "wednesday": 0.006186588122623403,
+       "weekend": 0.004927167433637766
+      },
+      "confidence": 0.8384729889423975
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.0226410026311821,
+       "correction": 0.0928516720671157,
+       "description": 0.010442210734458952,
+       "request": 0.864087615935551,
+       "topic_change": 0.009977498631692252
+      },
+      "confidence": 0.8301095199194386
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.011836570871635943
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.29905536221082674,
+       "dispatch_now": 0.678618308318029,
+       "wait": 0.022326329471144265
+      },
+      "confidence": 0.5179274624770436
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7892138093933236
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0034026705066619494,
+       "none": 0.006149502638692521,
+       "t3_ask": 0.0024741410829266152,
+       "t3_start": 0.02199995214821562,
+       "t3_stop": 0.0016424322786902654,
+       "t3_tell": 0.9624899237892734,
+       "time": 0.0008683535810338503,
+       "weather": 0.0009730239745056285
+      },
+      "confidence": 0.9571313414734554
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.00893014505724108,
+       "friday": 0.00359288223141763,
+       "in_10_days": 0.0018568068162146795,
+       "in_11_days": 0.002033800149207498,
+       "in_12_days": 0.0018995560379343644,
+       "in_13_days": 0.0026124473461251714,
+       "in_14_days": 0.0014129996760772136,
+       "in_15_days": 0.0016952164911998653,
+       "in_2_days": 0.0029947451877272596,
+       "in_3_days": 0.00359288223141763,
+       "in_4_days": 0.00566435870157809,
+       "in_5_days": 0.0029947451877272596,
+       "in_6_days": 0.00359288223141763,
+       "in_7_days": 0.007443469396804307,
+       "in_8_days": 0.0027341247268395,
+       "in_9_days": 0.0029947451877272596,
+       "monday": 0.004310484505238704,
+       "none": 0.847102903986897,
+       "saturday": 0.004511249686204007,
+       "sunday": 0.0031342284775589067,
+       "thursday": 0.0067956946102384775,
+       "today": 0.05516829680094174,
+       "tomorrow": 0.00893014505724108,
+       "tuesday": 0.0049412680978941385,
+       "wednesday": 0.004118654023235264,
+       "weekend": 0.0049412680978941385
+      },
+      "confidence": 0.8409870201463729
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.016430196616847827,
+       "correction": 0.05877931283126966,
+       "description": 0.015000343608883209,
+       "request": 0.9025496432014706,
+       "topic_change": 0.007240503741528635
+      },
+      "confidence": 0.8781870540018382
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.011943703562044373
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.2882977865976677,
+       "dispatch_now": 0.6846775106126028,
+       "wait": 0.02702470278972937
+      },
+      "confidence": 0.5270162659189044
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7892138093933239
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.003448122266399337,
+       "none": 0.0045311382838859465,
+       "t3_ask": 0.00262396475656495,
+       "t3_start": 0.011786737849365861,
+       "t3_stop": 0.0009421401776568677,
+       "t3_tell": 0.9753465493955652,
+       "time": 0.0005710011493618124,
+       "weather": 0.0007503461212000255
+      },
+      "confidence": 0.9718246278806459
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.006912030634231381,
+       "friday": 0.003824595932727917,
+       "in_10_days": 0.0016104261129438154,
+       "in_11_days": 0.0016104261129438154,
+       "in_12_days": 0.0018045451199713047,
+       "in_13_days": 0.0025389173868085963,
+       "in_14_days": 0.0013423250586273425,
+       "in_15_days": 0.001976556797508531,
+       "in_2_days": 0.003824595932727917,
+       "in_3_days": 0.003187883578365701,
+       "in_4_days": 0.0048021911351567486,
+       "in_5_days": 0.002780930420453509,
+       "in_6_days": 0.0033363624843283767,
+       "in_7_days": 0.007570894727694307,
+       "in_8_days": 0.0025389173868085963,
+       "in_9_days": 0.0025389173868085963,
+       "monday": 0.006604422947305309,
+       "none": 0.8232603403618354,
+       "saturday": 0.005504929626194318,
+       "sunday": 0.0034917569456976195,
+       "thursday": 0.006310504795924315,
+       "today": 0.07045555809726015,
+       "tomorrow": 0.01307364013106432,
+       "tuesday": 0.006604422947305309,
+       "wednesday": 0.005259942478623209,
+       "weekend": 0.007233965460683643
+      },
+      "confidence": 0.8161907539763088
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.025037088943855274,
+       "correction": 0.08558443729451601,
+       "description": 0.011033412466231872,
+       "request": 0.8723773971953201,
+       "topic_change": 0.005967664100076734
+      },
+      "confidence": 0.8404717464941502
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0070861578134579295
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.26402235088765,
+       "dispatch_now": 0.7187829690477452,
+       "wait": 0.017194680064604718
+      },
+      "confidence": 0.5781744535716178
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7130979475967867
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.0039061667746615775,
+       "none": 0.009708816952160412,
+       "t3_ask": 0.0016077578491484406,
+       "t3_start": 0.01754633466537543,
+       "t3_stop": 0.0012804621802009553,
+       "t3_tell": 0.9638617516901317,
+       "time": 0.0009968446548826568,
+       "weather": 0.0010918652334388258
+      },
+      "confidence": 0.9586991447887219
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.010242741481797697,
+       "friday": 0.006207799324796962,
+       "in_10_days": 0.0035140097503392705,
+       "in_11_days": 0.003065424559041939,
+       "in_12_days": 0.003357624967293857,
+       "in_13_days": 0.0051743352430944954,
+       "in_14_days": 0.002735669894038961,
+       "in_15_days": 0.0034349274916733235,
+       "in_2_days": 0.008935191852324494,
+       "in_3_days": 0.0064969338648526,
+       "in_4_days": 0.009786906404997875,
+       "in_5_days": 0.005415335146978266,
+       "in_6_days": 0.005057887609994097,
+       "in_7_days": 0.009351357461320759,
+       "in_8_days": 0.00593153220558817,
+       "in_9_days": 0.005540012286712446,
+       "monday": 0.010719807538913717,
+       "none": 0.7738200635856504,
+       "saturday": 0.006799535138911583,
+       "sunday": 0.005667559865440779,
+       "thursday": 0.013459870176989004,
+       "today": 0.04815291857129953,
+       "tomorrow": 0.017687462434090577,
+       "tuesday": 0.013459870176989004,
+       "wednesday": 0.00853754695701366,
+       "weekend": 0.007447676009856451
+      },
+      "confidence": 0.7647728661290764
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.02123114539802953,
+       "correction": 0.07257455673393529,
+       "description": 0.011224901857464062,
+       "request": 0.8875178641383379,
+       "topic_change": 0.007451531872233221
+      },
+      "confidence": 0.8593973301729223
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.00563566674937424
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.3112420333839862,
+       "dispatch_now": 0.6448083742446371,
+       "wait": 0.04394959237137668
+      },
+      "confidence": 0.46721256136695566
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.713097947596787
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.004419770559598273,
+       "none": 0.005066546751209187,
+       "t3_ask": 0.0032136922741129916,
+       "t3_start": 0.03275773715529286,
+       "t3_stop": 0.001263872804576118,
+       "t3_tell": 0.951374178924263,
+       "time": 0.0008016699473972914,
+       "weather": 0.001102531583550327
+      },
+      "confidence": 0.9444276330563006
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.006875413723191318,
+       "friday": 0.0038043348985335197,
+       "in_10_days": 0.001715102781372157,
+       "in_11_days": 0.0026430935121190538,
+       "in_12_days": 0.0017545895542731723,
+       "in_13_days": 0.0028950367546989857,
+       "in_14_days": 0.001601894780715308,
+       "in_15_days": 0.0019218393998323802,
+       "in_2_days": 0.0028950367546989857,
+       "in_3_days": 0.002525467314462212,
+       "in_4_days": 0.004999233255573946,
+       "in_5_days": 0.0019660858652673524,
+       "in_6_days": 0.0036350297087337983,
+       "in_7_days": 0.004776751229736976,
+       "in_8_days": 0.0021534958247768406,
+       "in_9_days": 0.002766198269049253,
+       "monday": 0.004361050050170179,
+       "none": 0.8570401209983661,
+       "saturday": 0.004166969238106352,
+       "sunday": 0.0026430935121190538,
+       "thursday": 0.006277074505325508,
+       "today": 0.05095807407673801,
+       "tomorrow": 0.01083943392559847,
+       "tuesday": 0.004776751229736976,
+       "wednesday": 0.005232077607066982,
+       "weekend": 0.004776751229736976
+      },
+      "confidence": 0.8513217258383008
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   }
+  },
+  "29efd868f3cffa19a1fe3dd34bbd81b9b1cf19ab6fc784e089938cf7d4dc412e": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.049513879885458696,
+       "correction": 0.08948434308035186,
+       "description": 0.01818736883296853,
+       "request": 0.8327508913352646,
+       "topic_change": 0.01006351686595627
+      },
+      "confidence": 0.7909386141690806
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.018309841845368692
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.48893856451679013,
+       "dispatch_now": 0.48893856451679013,
+       "wait": 0.022122870966419697
+      },
+      "confidence": 0.23340784677518522
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8039615699408873
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.007621988482856592,
+       "none": 0.01148167573403206,
+       "t3_ask": 0.0036790514648830804,
+       "t3_start": 0.00834852671711611,
+       "t3_stop": 0.24246402347850465,
+       "t3_tell": 0.7230127323348582,
+       "time": 0.0019451136925332708,
+       "weather": 0.0014468880952159789
+      },
+      "confidence": 0.6834431226684093
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.007937963889563124,
+       "monday": 0.00758469885933041,
+       "none": 0.9033787746180522,
+       "saturday": 0.004702677409301849,
+       "sunday": 0.00577183201708905,
+       "thursday": 0.006322010838740436,
+       "today": 0.03731775613738942,
+       "tomorrow": 0.009523404371538653,
+       "tuesday": 0.006924633448585494,
+       "wednesday": 0.006616464895717505,
+       "weekend": 0.003919783514691938
+      },
+      "confidence": 0.8937166520798574
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.038702266030242134,
+       "correction": 0.044365841524085785,
+       "description": 0.014216062013156892,
+       "request": 0.8951998016029016,
+       "topic_change": 0.007516028829613649
+      },
+      "confidence": 0.868999752003627
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.013685975581779149
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.49694159758193146,
+       "dispatch_now": 0.47482609152319377,
+       "wait": 0.02823231089487471
+      },
+      "confidence": 0.24541239637289713
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.9029701536646942
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.005725589957628669,
+       "none": 0.005725589957628669,
+       "t3_ask": 0.002640687689083092,
+       "t3_start": 0.007523932694514143,
+       "t3_stop": 0.22869314383490563,
+       "t3_tell": 0.7469531027587571,
+       "time": 0.0016004366880118292,
+       "weather": 0.001137516419470843
+      },
+      "confidence": 0.7108035460100082
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008955347806073108,
+       "monday": 0.009808983651474664,
+       "none": 0.8116883975711792,
+       "saturday": 0.006081782109154616,
+       "sunday": 0.008176000407104513,
+       "thursday": 0.006365047269776821,
+       "today": 0.11461618412516354,
+       "tomorrow": 0.012316232920953686,
+       "tuesday": 0.006814873490682546,
+       "wednesday": 0.008955347806073108,
+       "weekend": 0.00622180284236427
+      },
+      "confidence": 0.7928572373282972
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.05066112509796131,
+       "correction": 0.06967392336464329,
+       "description": 0.017780622819609612,
+       "request": 0.852045874388538,
+       "topic_change": 0.009838454329247938
+      },
+      "confidence": 0.8150573429856725
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.019602417622231444
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.5435785969324257,
+       "dispatch_now": 0.43292081311083463,
+       "wait": 0.0235005899567397
+      },
+      "confidence": 0.3153678953986385
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7892138093933239
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.008464252758203753,
+       "none": 0.02201785116700508,
+       "t3_ask": 0.0040856033276947794,
+       "t3_start": 0.01275045294533942,
+       "t3_stop": 0.3086597306434845,
+       "t3_tell": 0.6394585491782517,
+       "time": 0.0025914834095174307,
+       "weather": 0.001972076570503194
+      },
+      "confidence": 0.5879526276322877
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.012866724235672452,
+       "monday": 0.036660286465639395,
+       "none": 0.7741727570294289,
+       "saturday": 0.012294113451679457,
+       "sunday": 0.014093197763927662,
+       "thursday": 0.011224206894315648,
+       "today": 0.08318975255901921,
+       "tomorrow": 0.021229830922069058,
+       "tuesday": 0.010483335830922173,
+       "wednesday": 0.015436580405019858,
+       "weekend": 0.008349214442306253
+      },
+      "confidence": 0.7515900327323719
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.03524831943584395,
+       "correction": 0.08761005379846751,
+       "description": 0.01701398284014548,
+       "request": 0.8532823758766847,
+       "topic_change": 0.006845268048858403
+      },
+      "confidence": 0.8166029698458559
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.01905163983504341
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.5063245131538293,
+       "dispatch_now": 0.4416890412204607,
+       "wait": 0.051986445625709934
+      },
+      "confidence": 0.2594867697307439
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8373797897044031
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.009524760199853757,
+       "none": 0.01434798915074572,
+       "t3_ask": 0.004597498808184875,
+       "t3_start": 0.007248187027093745,
+       "t3_stop": 0.24131214887204178,
+       "t3_tell": 0.7195779134508942,
+       "time": 0.0018497204324242407,
+       "weather": 0.001541782058761666
+      },
+      "confidence": 0.6795176153724505
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.009571385080172877,
+       "monday": 0.014418224333882807,
+       "none": 0.8289167075260188,
+       "saturday": 0.005934465853827117,
+       "sunday": 0.007977956849819267,
+       "thursday": 0.00695952105882794,
+       "today": 0.08510832919312307,
+       "tomorrow": 0.013163465068727648,
+       "tuesday": 0.012577648359283372,
+       "wednesday": 0.009571385080172877,
+       "weekend": 0.005800911596144344
+      },
+      "confidence": 0.8118083782786206
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.04303807586717772,
+       "correction": 0.09766227237101785,
+       "description": 0.014432920155956633,
+       "request": 0.8297615835777234,
+       "topic_change": 0.015105148028124323
+      },
+      "confidence": 0.7872019794721543
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.02152598146721204
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.48942041810760195,
+       "dispatch_now": 0.48942041810760195,
+       "wait": 0.021159163784796094
+      },
+      "confidence": 0.23413062716140298
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8310849849994955
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.009807966008655364,
+       "none": 0.011766899882920944,
+       "t3_ask": 0.0036026483021182206,
+       "t3_start": 0.007131543178939024,
+       "t3_stop": 0.18909473165422988,
+       "t3_tell": 0.7754851805456946,
+       "time": 0.0014494603377390597,
+       "weather": 0.0016615700897030046
+      },
+      "confidence": 0.7434116349093652
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.017479711439720977,
+       "monday": 0.07168500710271074,
+       "none": 0.637419885586577,
+       "saturday": 0.012423770911547595,
+       "sunday": 0.020970914286614954,
+       "thursday": 0.01670180782663815,
+       "today": 0.13558735995935656,
+       "tomorrow": 0.034601578181936536,
+       "tuesday": 0.020037640871349214,
+       "wednesday": 0.02296989015372291,
+       "weekend": 0.010122433679825323
+      },
+      "confidence": 0.6011618741452347
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.024025772168606577,
+       "correction": 0.06845500642792558,
+       "description": 0.0229565477113542,
+       "request": 0.8761303068219777,
+       "topic_change": 0.008432366870136064
+      },
+      "confidence": 0.845162883527472
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.016470775596306886
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.524867302324244,
+       "dispatch_now": 0.4578647280723925,
+       "wait": 0.01726796960336362
+      },
+      "confidence": 0.287300953486366
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8110373380917891
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.007788004599417099,
+       "none": 0.011731760501446536,
+       "t3_ask": 0.00493990314131216,
+       "t3_start": 0.010234128336855148,
+       "t3_stop": 0.18853003985124758,
+       "t3_tell": 0.7731693565089406,
+       "time": 0.0019874806184646556,
+       "weather": 0.0016193264423161058
+      },
+      "confidence": 0.7407649788673607
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.01002147389414754,
+       "monday": 0.010488234189295896,
+       "none": 0.8292718568471789,
+       "saturday": 0.005803396996422537,
+       "sunday": 0.01002147389414754,
+       "thursday": 0.008742170447862756,
+       "today": 0.09326091057461046,
+       "tomorrow": 0.010488234189295896,
+       "tuesday": 0.007454552055039722,
+       "wednesday": 0.009149345889477642,
+       "weekend": 0.005298351022521126
+      },
+      "confidence": 0.8121990425318968
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.03955809271772047,
+       "correction": 0.056937914589633314,
+       "description": 0.021888462091790396,
+       "request": 0.8742751832609222,
+       "topic_change": 0.007340347339933504
+      },
+      "confidence": 0.8428439790761528
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.013510831827235904
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.5029178143359144,
+       "dispatch_now": 0.4805363473303086,
+       "wait": 0.01654583833377708
+      },
+      "confidence": 0.2543767215038717
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.7573301454071185
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.009834263334598903,
+       "none": 0.015504208461340655,
+       "t3_ask": 0.003297943382482018,
+       "t3_start": 0.008978427501467528,
+       "t3_stop": 0.24915348712737503,
+       "t3_tell": 0.7098961666310384,
+       "time": 0.0017436219339946432,
+       "weather": 0.0015918816277028242
+      },
+      "confidence": 0.6684527618640439
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008509961962819805,
+       "monday": 0.010209646968147915,
+       "none": 0.844843082809865,
+       "saturday": 0.00470877049495154,
+       "sunday": 0.008509961962819805,
+       "thursday": 0.006777565697540178,
+       "today": 0.08288318802952402,
+       "tomorrow": 0.010685171614776614,
+       "tuesday": 0.008509961962819805,
+       "wednesday": 0.009321143028231966,
+       "weekend": 0.005041545468503421
+      },
+      "confidence": 0.8293273910908514
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.024851476344800113,
+       "correction": 0.09304750116066932,
+       "description": 0.009553574306657552,
+       "request": 0.8659100224772166,
+       "topic_change": 0.00663742571065642
+      },
+      "confidence": 0.8323875280965207
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.016177531910315596
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.5069882522794147,
+       "dispatch_now": 0.46286713222044396,
+       "wait": 0.030144615500141362
+      },
+      "confidence": 0.26048237841912203
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8660504250726018
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.009226638279530651,
+       "none": 0.014546257143628038,
+       "t3_ask": 0.0046610294431331375,
+       "t3_start": 0.008423681577000366,
+       "t3_stop": 0.2935097377105128,
+       "t3_tell": 0.6660341423323445,
+       "time": 0.001962623937391394,
+       "weather": 0.0016358895764590972
+      },
+      "confidence": 0.6183247340941079
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "friday": 0.008147582704101592,
+       "monday": 0.007107493118243906,
+       "none": 0.8859694859536971,
+       "saturday": 0.004718233813960302,
+       "sunday": 0.005660601276971042,
+       "thursday": 0.007784988959618528,
+       "today": 0.055131701181410926,
+       "tomorrow": 0.009774890113034285,
+       "tuesday": 0.005660601276971042,
+       "wednesday": 0.006200177434278008,
+       "weekend": 0.003844244167713256
+      },
+      "confidence": 0.8745664345490667
+     }
+    },
+    "usage": {
+     "input_tokens": 1349.0,
+     "output_tokens": 0.0,
+     "cost": 2.698e-05
+    }
+   }
+  },
+  "8ec51a0b2c4d7bf3f54f48d197182a27f752bdb3cbc55810254f22da0854f287": {
+   "0": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.02797194777001762,
+       "correction": 0.05290705412951382,
+       "description": 0.02033889117732128,
+       "request": 0.8898191090295657,
+       "topic_change": 0.008962997893581601
+      },
+      "confidence": 0.8622738862869572
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.0133614995391778
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.458216858755317,
+       "dispatch_now": 0.5252709627730184,
+       "wait": 0.016512178471664595
+      },
+      "confidence": 0.2879064441595276
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.765598294839593
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.005429492469831245,
+       "none": 0.010747832355869855,
+       "t3_ask": 0.002504125169485736,
+       "t3_start": 0.0049569858820677935,
+       "t3_stop": 0.19799334107132519,
+       "t3_tell": 0.7758430631180815,
+       "time": 0.001007489438191786,
+       "weather": 0.0015176704951468064
+      },
+      "confidence": 0.7438206435635217
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.008481609105155994,
+       "friday": 0.005140433093009999,
+       "in_10_days": 0.002717745834817417,
+       "in_11_days": 0.002265300039370872,
+       "in_12_days": 0.003737698573679467,
+       "in_13_days": 0.002717745834817417,
+       "in_14_days": 0.0016850612237422915,
+       "in_15_days": 0.0023708086827246002,
+       "in_2_days": 0.002717745834817417,
+       "in_3_days": 0.002717745834817417,
+       "in_4_days": 0.005140433093009999,
+       "in_5_days": 0.0024812314979888337,
+       "in_6_days": 0.0032605581134050247,
+       "in_7_days": 0.005892668914823769,
+       "in_8_days": 0.0034124219094330763,
+       "in_9_days": 0.0032605581134050247,
+       "monday": 0.004093981048787285,
+       "none": 0.8812466181899534,
+       "saturday": 0.004284662362020027,
+       "sunday": 0.003571358915550294,
+       "thursday": 0.005140433093009999,
+       "today": 0.02646961761142685,
+       "tomorrow": 0.005892668914823769,
+       "tuesday": 0.004911667218375696,
+       "wednesday": 0.0034124219094330763,
+       "weekend": 0.0029768050376009904
+      },
+      "confidence": 0.8764964829175516
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "1": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.039563720943276495,
+       "correction": 0.05959833391563792,
+       "description": 0.019096980508429527,
+       "request": 0.8743995729266358,
+       "topic_change": 0.007341391706020186
+      },
+      "confidence": 0.8429994661582949
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.020061724161601017
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.4992882865039436,
+       "dispatch_now": 0.4770683452091032,
+       "wait": 0.02364336828695329
+      },
+      "confidence": 0.24893242975591534
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8245975561799573
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.007775462359342591,
+       "none": 0.014052264596944123,
+       "t3_ask": 0.004110885222807009,
+       "t3_start": 0.0074294291720339405,
+       "t3_stop": 0.25886659979840093,
+       "t3_tell": 0.7047467858869533,
+       "time": 0.001730974206574891,
+       "weather": 0.0012875987569432503
+      },
+      "confidence": 0.6625677552993752
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.00695934980435236,
+       "friday": 0.003679406696205246,
+       "in_10_days": 0.0026151522032675993,
+       "in_11_days": 0.002082778506431781,
+       "in_12_days": 0.0033592029363366973,
+       "in_13_days": 0.003679406696205246,
+       "in_14_days": 0.0016214509522765965,
+       "in_15_days": 0.0022813117660687083,
+       "in_2_days": 0.0032097075564921133,
+       "in_3_days": 0.004414290402779612,
+       "in_4_days": 0.006649636261529745,
+       "in_5_days": 0.0031374735727360786,
+       "in_6_days": 0.003679406696205246,
+       "in_7_days": 0.004217840223074935,
+       "in_8_days": 0.003679406696205246,
+       "in_9_days": 0.004619890448544856,
+       "monday": 0.007283488569072104,
+       "none": 0.8288963101890695,
+       "saturday": 0.005542615903248104,
+       "sunday": 0.004414290402779612,
+       "thursday": 0.009571149554981047,
+       "today": 0.044995647500598986,
+       "tomorrow": 0.015089396415999705,
+       "tuesday": 0.008349332810265977,
+       "wednesday": 0.007622724425006934,
+       "weekend": 0.008349332810265977
+      },
+      "confidence": 0.8220521625966323
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "2": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.03398679419360693,
+       "correction": 0.08447452007347174,
+       "description": 0.01139755151849975,
+       "request": 0.8610638134760649,
+       "topic_change": 0.009077320738356697
+      },
+      "confidence": 0.8263297668450811
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.021541363452042803
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.5210768263417724,
+       "dispatch_now": 0.4343288250523869,
+       "wait": 0.04459434860584062
+      },
+      "confidence": 0.28161523951265865
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8494006553403637
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.012588756892909678,
+       "none": 0.014430958457565516,
+       "t3_ask": 0.004033791369898917,
+       "t3_start": 0.007985002952509054,
+       "t3_stop": 0.2658427844117266,
+       "t3_tell": 0.6915302541416282,
+       "time": 0.00203775413893343,
+       "weather": 0.0015506976348287137
+      },
+      "confidence": 0.6474631475904322
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.012426184578031834,
+       "friday": 0.010357494086909837,
+       "in_10_days": 0.005602078760164233,
+       "in_11_days": 0.00499945045556958,
+       "in_12_days": 0.009456123615179899,
+       "in_13_days": 0.0059979849979492185,
+       "in_14_days": 0.003395241479696444,
+       "in_15_days": 0.005602078760164233,
+       "in_2_days": 0.009896552148567408,
+       "in_3_days": 0.011873179231609505,
+       "in_4_days": 0.013004946708480243,
+       "in_5_days": 0.0071959557066008,
+       "in_6_days": 0.0071959557066008,
+       "in_7_days": 0.011873179231609505,
+       "in_8_days": 0.007531114630823405,
+       "in_9_days": 0.010357494086909837,
+       "monday": 0.01871866144341377,
+       "none": 0.652221877136136,
+       "saturday": 0.013610665271254098,
+       "sunday": 0.007531114630823405,
+       "thursday": 0.01871866144341377,
+       "today": 0.08799970026093352,
+       "tomorrow": 0.024597980273454997,
+       "tuesday": 0.016329107935882083,
+       "wednesday": 0.013610665271254098,
+       "weekend": 0.009896552148567408
+      },
+      "confidence": 0.6383107522215815
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "3": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.03317670449728528,
+       "correction": 0.0656742154148596,
+       "description": 0.012186420509771836,
+       "request": 0.8796889925048699,
+       "topic_change": 0.009273667073213412
+      },
+      "confidence": 0.8496112406310874
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.017681372833108496
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.352822637448196,
+       "dispatch_now": 0.609264341665924,
+       "wait": 0.037913020885879875
+      },
+      "confidence": 0.41389651249888604
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8245975561799573
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.006817800196943294,
+       "none": 0.012321522233520944,
+       "t3_ask": 0.003604569450199815,
+       "t3_start": 0.006224474849314473,
+       "t3_stop": 0.22698338356264622,
+       "t3_tell": 0.7413687169790952,
+       "time": 0.0016250428142038453,
+       "weather": 0.0010544899140762264
+      },
+      "confidence": 0.7044213908332517
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.008636770005119265,
+       "friday": 0.005733428032023225,
+       "in_10_days": 0.0032454853891490873,
+       "in_11_days": 0.0031724462306730867,
+       "in_12_days": 0.00627994613396072,
+       "in_13_days": 0.005001520298902595,
+       "in_14_days": 0.002767463746168148,
+       "in_15_days": 0.003396647157781102,
+       "in_2_days": 0.00788514713298302,
+       "in_3_days": 0.007534232618999769,
+       "in_4_days": 0.009460038584354008,
+       "in_5_days": 0.004566258383871783,
+       "in_6_days": 0.005001520298902595,
+       "in_7_days": 0.013010330940703365,
+       "in_8_days": 0.005733428032023225,
+       "in_9_days": 0.007198934934233187,
+       "monday": 0.011349481310643705,
+       "none": 0.7146883158065152,
+       "saturday": 0.009460038584354008,
+       "sunday": 0.00627994613396072,
+       "thursday": 0.011349481310643705,
+       "today": 0.09213650544846368,
+       "tomorrow": 0.023513021402888037,
+       "tuesday": 0.011349481310643705,
+       "wednesday": 0.011349481310643705,
+       "weekend": 0.009900649461395407
+      },
+      "confidence": 0.7032758484387758
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "4": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.026137275575500465,
+       "correction": 0.0853690616229174,
+       "description": 0.011005646569825243,
+       "request": 0.8701820346533918,
+       "topic_change": 0.007305981578364955
+      },
+      "confidence": 0.8377275433167397
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.019934470512529626
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.4919081874683051,
+       "dispatch_now": 0.4919081874683051,
+       "wait": 0.016183625063389738
+      },
+      "confidence": 0.23786228120245767
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8179155570468132
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.009497769484020977,
+       "none": 0.009940137715923626,
+       "t3_ask": 0.0033334486057391382,
+       "t3_start": 0.004797997045936559,
+       "t3_stop": 0.25183584069133763,
+       "t3_tell": 0.7175388150826438,
+       "time": 0.001683961333239954,
+       "weather": 0.0013720300411582777
+      },
+      "confidence": 0.6771872172373072
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.006155902221685298,
+       "friday": 0.003564859305222805,
+       "in_10_days": 0.0015709718964057578,
+       "in_11_days": 0.002017937388391712,
+       "in_12_days": 0.002017937388391712,
+       "in_13_days": 0.0019281326573000002,
+       "in_14_days": 0.0011422810705329245,
+       "in_15_days": 0.0018847403230777807,
+       "in_2_days": 0.004086530304649138,
+       "in_3_days": 0.0032546241376584257,
+       "in_4_days": 0.00468454109993888,
+       "in_5_days": 0.0020643963156637807,
+       "in_6_days": 0.0024767158393136446,
+       "in_7_days": 0.005131077883183948,
+       "in_8_days": 0.0029713874715644128,
+       "in_9_days": 0.0032546241376584257,
+       "monday": 0.005620179155572568,
+       "none": 0.8796428142161459,
+       "saturday": 0.00468454109993888,
+       "sunday": 0.0024767158393136446,
+       "thursday": 0.00644261960160845,
+       "today": 0.02765205040646954,
+       "tomorrow": 0.010157112326759834,
+       "tuesday": 0.006155902221685298,
+       "wednesday": 0.00468454109993888,
+       "weekend": 0.004276864591928443
+      },
+      "confidence": 0.8748285267847917
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "5": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.034500046626641634,
+       "correction": 0.10287700673836062,
+       "description": 0.01824016699061032,
+       "request": 0.8351683775170694,
+       "topic_change": 0.009214402127317892
+      },
+      "confidence": 0.7939604718963367
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.013554077915473316
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.4426370935564662,
+       "dispatch_now": 0.5310444958465048,
+       "wait": 0.026318410597029003
+      },
+      "confidence": 0.2965667437697572
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8660504250726018
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.006757077771389343,
+       "none": 0.009292966113610076,
+       "t3_ask": 0.0029777274141306554,
+       "t3_start": 0.007745888608618676,
+       "t3_stop": 0.23543958852683217,
+       "t3_tell": 0.7347657504173918,
+       "time": 0.0016476495489552954,
+       "weather": 0.0013733515990720234
+      },
+      "confidence": 0.696875143334162
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.015015221176147705,
+       "friday": 0.008308289832354092,
+       "in_10_days": 0.004811298693962525,
+       "in_11_days": 0.005035389802931265,
+       "in_12_days": 0.00910024723796966,
+       "in_13_days": 0.0064680350881572484,
+       "in_14_days": 0.002983109296378649,
+       "in_15_days": 0.005515369958301298,
+       "in_2_days": 0.016446492333913338,
+       "in_3_days": 0.013708507710409056,
+       "in_4_days": 0.018014194191101913,
+       "in_5_days": 0.0075852532500863094,
+       "in_6_days": 0.006925139592974762,
+       "in_7_days": 0.022618756379265328,
+       "in_8_days": 0.008308289832354092,
+       "in_9_days": 0.008308289832354092,
+       "monday": 0.021612148668860725,
+       "none": 0.6276758402802032,
+       "saturday": 0.013098434843092237,
+       "sunday": 0.00910024723796966,
+       "thursday": 0.01721250436937008,
+       "today": 0.06744773355309325,
+       "tomorrow": 0.04278185337464339,
+       "tuesday": 0.018853223528134736,
+       "wednesday": 0.013098434843092237,
+       "weekend": 0.009967695092879258
+      },
+      "confidence": 0.6127828738914113
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "6": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.028289676641800356,
+       "correction": 0.07031427688461758,
+       "description": 0.029607296979731818,
+       "request": 0.8598767894353149,
+       "topic_change": 0.011911960058535426
+      },
+      "confidence": 0.8248459867941436
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.01692679653899338
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "clarify",
+      "probabilities": {
+       "clarify": 0.48423198998705724,
+       "dispatch_now": 0.48423198998705724,
+       "wait": 0.03153602002588556
+      },
+      "confidence": 0.22634798498058584
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8179155570468132
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.01347346115859395,
+       "none": 0.022230934392685756,
+       "t3_ask": 0.003766148416546212,
+       "t3_start": 0.010253083996935869,
+       "t3_stop": 0.17244184574376725,
+       "t3_tell": 0.7746014213633592,
+       "time": 0.0014152257906628054,
+       "weather": 0.0018178791374489865
+      },
+      "confidence": 0.7424016244152677
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.0084443415781761,
+       "friday": 0.0058667769885343,
+       "in_10_days": 0.002255346488188763,
+       "in_11_days": 0.0024703291608676346,
+       "in_12_days": 0.004672461128067453,
+       "in_13_days": 0.003894597589579658,
+       "in_14_days": 0.0016776571965300018,
+       "in_15_days": 0.002585387243183602,
+       "in_2_days": 0.003894597589579658,
+       "in_3_days": 0.00310176369109309,
+       "in_4_days": 0.0058667769885343,
+       "in_5_days": 0.002831829846287055,
+       "in_6_days": 0.004265835890745936,
+       "in_7_days": 0.0077094649672988695,
+       "in_8_days": 0.0027058042722002498,
+       "in_9_days": 0.003894597589579658,
+       "monday": 0.005117846432081991,
+       "none": 0.838328491052608,
+       "saturday": 0.004672461128067453,
+       "sunday": 0.00407599241628852,
+       "thursday": 0.007038541670983198,
+       "today": 0.04154731593167214,
+       "tomorrow": 0.012720458972890685,
+       "tuesday": 0.008068541105358136,
+       "wednesday": 0.0058667769885343,
+       "weekend": 0.00642600609306932
+      },
+      "confidence": 0.8318616306947123
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   },
+   "7": {
+    "model": "d1.2",
+    "answers": {
+     "s1_kind": {
+      "type": "choice",
+      "choice": "request",
+      "probabilities": {
+       "chitchat": 0.041694427775281706,
+       "correction": 0.047795867396243405,
+       "description": 0.018374013856794675,
+       "request": 0.8804811204573681,
+       "topic_change": 0.011654570514312053
+      },
+      "confidence": 0.8506014005717102
+     },
+     "s1_place": {
+      "type": "text",
+      "text": null,
+      "span": null,
+      "found": 0.014350328347930303
+     },
+     "s1_ready": {
+      "type": "choice",
+      "choice": "dispatch_now",
+      "probabilities": {
+       "clarify": 0.47420253961916786,
+       "dispatch_now": 0.496289003116519,
+       "wait": 0.029508457264313125
+      },
+      "confidence": 0.24443350467477853
+     },
+     "s1_side_effect": {
+      "type": "noul",
+      "noul": 0.8110373380917895
+     },
+     "s1_tool": {
+      "type": "choice",
+      "choice": "t3_tell",
+      "probabilities": {
+       "agent": 0.007941159402269523,
+       "none": 0.009103245253993437,
+       "t3_ask": 0.0030527947465973523,
+       "t3_start": 0.005774155530121662,
+       "t3_stop": 0.1836823796274292,
+       "t3_tell": 0.7883740984753898,
+       "time": 0.0010007223046109525,
+       "weather": 0.001071444659588058
+      },
+      "confidence": 0.7581418268290169
+     },
+     "s1_when": {
+      "type": "choice",
+      "choice": "none",
+      "probabilities": {
+       "farther": 0.008076956523657364,
+       "friday": 0.006146432063882557,
+       "in_10_days": 0.0024172533236275547,
+       "in_11_days": 0.0021086759087558726,
+       "in_12_days": 0.0031049988036847046,
+       "in_13_days": 0.0026476691744854288,
+       "in_14_days": 0.0016794069784158664,
+       "in_15_days": 0.0024729056927281063,
+       "in_2_days": 0.002966816328743188,
+       "in_3_days": 0.0035593751732549313,
+       "in_4_days": 0.006146432063882557,
+       "in_5_days": 0.0023628534026877285,
+       "in_6_days": 0.003400971482373607,
+       "in_7_days": 0.005123184301463184,
+       "in_8_days": 0.0031764851215606116,
+       "in_9_days": 0.004469177974445604,
+       "monday": 0.007374051935850521,
+       "none": 0.8392028603880618,
+       "saturday": 0.004469177974445604,
+       "sunday": 0.003898659621041792,
+       "thursday": 0.006732318267821779,
+       "today": 0.054653799745212533,
+       "tomorrow": 0.009690157846051825,
+       "tuesday": 0.005361801798441031,
+       "wednesday": 0.004080243640979532,
+       "weekend": 0.00467733446444464
+      },
+      "confidence": 0.8327709748035842
+     }
+    },
+    "usage": {
+     "input_tokens": 1549.0,
+     "output_tokens": 0.0,
+     "cost": 3.098e-05
+    }
+   }
+  }
+ }
+}

@@ -909,8 +909,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
 
     A `prior_tasks` entry with `waiting` is a task an earlier turn could not start for a missing argument, which it
     asked the person for. When this turn's words fill it and name no other tool's subject, that task runs with what
-    they said (`MockTaskService.answer`), and the decider is asked nothing: the turn answers the assistant's own
-    question, so it is not a new decision."""
+    they said (`MockTaskService.answer`), and no decision point is asked: the decider only reads whether the words answer
+    the question and what place they give, since the turn answers the assistant's own question and is not a new decision."""
     t0 = time.perf_counter()
     if prior_snapshot is not None and "tasks" in prior_snapshot:
         prior_snapshot = {**prior_snapshot, "tasks": [entry for entry in prior_snapshot["tasks"] if not entry.get("acts")]}

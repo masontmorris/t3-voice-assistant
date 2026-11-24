@@ -301,19 +301,19 @@ def earlier_of(item):
 
 
 def rules_tool(item):
-    """The tool a dispatch runs with no decider answer: for a correction, the corrected task's own tool on the amended
-    words, which is what live mode re-runs; otherwise what the word rules route. A correction turn asks the decider
-    nothing, so this is the whole answer for those items."""
-    earlier, amended_text = earlier_of(item), amended_of(item)
-    if earlier is not None and amended_text is not None:
-        call = RULES.corrected(earlier, amended_text)
+    """The tool a dispatch runs with no decider answer: for a correction, the corrected task's own tool, which is what
+    live mode re-runs; otherwise none, since the word rules this eval once scored against are gone and the general
+    worker is not asked here."""
+    earlier, intent = earlier_of(item), utterance_intent(item["utterance"])
+    if earlier is not None and intent.intent == Intent.CORRECTION and intent.replacement:
+        call = RULES.corrected(earlier, amended_of(item) or item["utterance"])
         return call.tool if call is not None else NONE
-    return RULES.dispatch(instruction_of(item), earlier).record()["tool"] or NONE
+    return NONE
 
 
 def decided_tool(trace, item, bar):
     """The tool a dispatch would run: the decider's answer for this utterance's last segment when it clears `bar`,
-    else the word rules."""
+    else `rules_tool`."""
     answered = next((s["tool"] for s in reversed(trace.get("segments") or []) if s.get("tool")), None)
     if answered is not None and answered["confidence"] >= bar and answered["tool"] in TOOLS:
         return answered["tool"], answered
@@ -386,8 +386,8 @@ def reading_accuracy(traces, items):
         name = item["tool"]
         instruction = instruction_of(item)
         earlier = earlier_of(item)
-        read = RULES.filled(name, answered.get("arguments"), instruction, earlier)
-        ruled = RULES.named(name, instruction, earlier).arguments
+        read = RULES.filled(name, answered.get("arguments"), earlier)
+        ruled = None
 
         def same(got):
             fields = [field for field in ("place", "when") if field in want]

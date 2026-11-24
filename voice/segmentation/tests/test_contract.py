@@ -126,7 +126,7 @@ class ToolQuestion(unittest.TestCase):
 
     def test_a_tool_added_to_the_registry_appears_with_no_other_edit(self):
         extra = Tool("calendar", "calendar lookup", "Reads the speaker's own calendar for a day.",
-                     lambda instruction, earlier=None: {}, lambda arguments, deadline: ("", {}))
+                     lambda arguments, deadline: ("", {}))
         runner = registry.Registry([*registry.build(None, None, None).tools.values(), extra])
         criteria = self.body(tools=runner.choices())["questions"]["s1_tool"]["criteria"]
         self.assertEqual(criteria["calendar"], "Reads the speaker's own calendar for a day.")
@@ -173,7 +173,8 @@ class ToolQuestion(unittest.TestCase):
         response = good_answers(body, s1_place={"type": "text", "text": "Denver", "found": 0.99},
                                 s1_when={"type": "choice", "choice": "tomorrow", "confidence": 0.9})
         parsed = parse_decisions(response, body)
-        self.assertEqual(parsed.segments["s1"].tool.arguments, {"place": "Denver", "when": "tomorrow"})
+        self.assertEqual(parsed.segments["s1"].tool.arguments,
+                         {"place": "Denver", "when": "tomorrow", "continues": False})
         self.assertEqual(parsed.problems, [])
 
     def test_a_day_counted_from_today_is_a_whole_number_of_days(self):

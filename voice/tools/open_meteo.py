@@ -14,6 +14,8 @@ GEOCODE = "https://geocoding-api.open-meteo.com/v1/search"
 FORECAST = "https://api.open-meteo.com/v1/forecast"
 USER_AGENT = "t3-voice-assistant-dev"
 FORECAST_DAYS = 16
+# One past day, so the caller's today is in the response for a place a day ahead of the caller.
+PAST_DAYS = 1
 
 
 @dataclass(frozen=True)
@@ -45,7 +47,8 @@ def forecast_url(place):
     return FORECAST + "?" + urllib.parse.urlencode({
         "latitude": place.latitude, "longitude": place.longitude,
         "daily": "temperature_2m_max,precipitation_probability_max", "timezone": "auto",
-        "temperature_unit": "fahrenheit", "forecast_days": FORECAST_DAYS})
+        "temperature_unit": "fahrenheit", "forecast_days": FORECAST_DAYS,
+        "past_days": PAST_DAYS})
 
 
 def fetch_json(url, timeout_s):
@@ -65,7 +68,7 @@ def parse_place(body):
 
 
 def parse_days(body):
-    """The daily forecast, one Day per local date, starting with the place's today."""
+    """The daily forecast, one Day per local date, from the place's yesterday to its fifteenth day ahead."""
     daily = body["daily"]
     return [Day(date.fromisoformat(d), high, pct)
             for d, high, pct in zip(daily["time"], daily["temperature_2m_max"], daily["precipitation_probability_max"])]

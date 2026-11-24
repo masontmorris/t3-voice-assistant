@@ -2,7 +2,7 @@
 
     python -m voice.research.tools.bench [-n 10]
 
-Routes and runs each instruction in INSTRUCTIONS n times, one at a time, against Open-Meteo and the running
+Sends each instruction to the general worker and runs the lookup it picks, for each instruction in INSTRUCTIONS n times, one at a time, against Open-Meteo and the running
 `mcp-server-time`. Prints the median, min and max latency per tool, the MCP call's share of each time lookup, and
 the MCP server's startup time.
 """
@@ -29,7 +29,7 @@ def main():
     with open_registry() as registry:
         for _ in range(args.n):
             for instruction in INSTRUCTIONS:
-                result = registry.run(registry.route(instruction))
+                result = registry.run(registry.ask(instruction))
                 outcomes.append(result.outcome.value)
                 by_instruction.setdefault(instruction, []).append(result.latency_s)
                 if "mcp_latency_s" in result.detail:

@@ -21,6 +21,74 @@ items, and the word rules' own number rose from 70% when a correction began runn
 row is the only real-audio claim in that table and it is one turn. The sections below are the evidence, including the two
 samples the earlier round measured.
 
+## The day and the place are the decider's typed answers (2026-11-23)
+
+The sections below measure a decider whose reading was checked against, and filled in from, word rules over the
+caller's transcript. Those rules are gone, so read the word-rule rows below as history. Nothing in `voice/tools/` reads
+the caller's words now, and the day and place of a lookup are the decider's typed answers:
+
+- **Day.** The day question offers `today`, `tomorrow`, the weekend, the weekdays, `in_2_days` to `in_15_days` (the days
+  the 16-day forecast reaches), `farther` for a day beyond it, and `none`, which means no day was stated and is today.
+  `_reading` turns a counted name into a whole number of days. The decider's `text` and `number` question types only copy
+  a span of the transcript ("a week" came back as span text with no number), so a count has to be a choice. Two extra
+  choice questions, a count and a unit, worked but made the tool answer worse for other requests, so the counted days
+  are options of the one day question.
+- **Dates.** Every relative day is a calendar date counted from the caller's today, which the registry takes as an
+  injected `today` (the server's own date stands for the caller's, since a call carries no time zone). The forecast's
+  days are selected by date. A date the forecast does not hold, and `farther`, fail the lookup as out of range with
+  the range it has. The forecast asks for one past day, so the caller's today is in the response for a place a day ahead.
+- **Place.** The decider's span answer, as it gave it. No code cuts a word out of a place or reads a capital letter.
+- **Continuing.** When the call has an earlier lookup, a `continues` question asks whether the segment continues the
+  last lookup in `prior_resolved_tasks` or is a new request. A new request takes nothing from it: no day means today and
+  no place means the default place, else the voice asks. Only the immediately preceding lookup of the same tool can be
+  continued, and a call's lookups live in its own ledger (`Conversation.ledger`), so a new call has none.
+- **Answers and corrections.** A person's answer to "which city?" and the amended words of a correction are read by a
+  decision request of their own (`reading_request`): a place, a day, and for an answer whether the words ask something of
+  their own. A tool answer under the bar goes to the general worker, a model, where the word rules used to run.
+
+Text rules that remain, none of which reads the caller's words to decide a day or a place: `PLACE_NAME` in
+`voice/segmentation/contract.py` rejects a decider place answer that is not a name (a model echo of the request's own
+state, measured on turn 020), so it validates model output and never the transcript. `utterance_intent`
+(`voice/segmentation/intent.py`) and `amended` (`voice/prototype/tasks.py`) still decide whether a turn is a correction
+and which words it replaces. They are outside this change and decide neither a day nor a place.
+
+`python -m voice.tools.eval.record_days` records 120 made-up requests and answers, three samples each against the hosted
+decider, on the code before this change (word rules) and after, and `voice/tools/tests/test_day_decisions.py` replays the
+recording offline. Correct samples of samples run, measured on 2026-11-23. Seen cases were looked at while the question
+texts were written. Held-out cases were written before the shipped texts were run and run once on them; cases looked at
+while tuning moved to seen, and the previous round's held-out cases are seen now.
+
+| Kind | Before, seen | After, seen | Before, held-out | After, held-out |
+| --- | --- | --- | --- | --- |
+| today | 18 of 18 | 18 of 18 | 6 of 6 | 6 of 6 |
+| tomorrow | 18 of 18 | 18 of 18 | 6 of 6 | 6 of 6 |
+| a named weekday | 15 of 18 | 15 of 18 | 6 of 6 | 6 of 6 |
+| the weekend | 16 of 18 | 17 of 18 | 6 of 6 | 6 of 6 |
+| in three days | 0 of 18 | 18 of 18 | 0 of 6 | 6 of 6 |
+| a week from today | 0 of 18 | 17 of 18 | 0 of 6 | 4 of 6 |
+| ten days from now | 0 of 18 | 18 of 18 | 0 of 6 | 6 of 6 |
+| follow-up, day only | 6 of 18 | 17 of 18 | 3 of 6 | 6 of 6 |
+| follow-up, place only | 3 of 18 | 17 of 18 | 3 of 6 | 6 of 6 |
+| no day | 18 of 18 | 18 of 18 | 6 of 6 | 6 of 6 |
+| past the forecast (picks no day) | 0 of 18 | 15 of 18 | 0 of 6 | 3 of 6 |
+| fresh request after a lookup (day is today) | 0 of 6 | 6 of 6 | 0 of 6 | 5 of 6 |
+| no place stated (nothing runs or no place) | 6 of 6 | 6 of 6 | 6 of 6 | 6 of 6 |
+| place with a weekday or month word | 3 of 6 | 6 of 6 | 6 of 6 | 6 of 6 |
+| two-word place | 6 of 6 | 6 of 6 | 6 of 6 | 6 of 6 |
+| place with a state or country | 0 of 12 | 0 of 12 | 0 of 6 | 0 of 6 |
+| answer to "which city?": just the place | 6 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
+| answer to "which city?": with filler | 0 of 12 | 10 of 12 | 0 of 6 | 6 of 6 |
+| words that are not an answer | 12 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
+| All | 127 of 270 | 246 of 270 | 66 of 114 | 102 of 114 |
+
+What the decider alone gets wrong that the rules got right: nothing in a typed field. One sample of "And on Wednesday?"
+dispatched no lookup (3 of 3 before, 2 of 3 after), a tool miss and not a day or place miss. The misses left are the
+tool or the place not read at all ("How will Seattle look on Thursday?", "Will it be nice in Boston over the weekend?",
+"What will Provo be like one week from now?" read no place, "Will it be sunny in Tampa?" dispatched nothing), one
+"a month and a half" read as `in_15_days`, and a state or country: the decider's span ends at the comma, so
+"Portland, Maine" reads as "Portland", as the old capitalised-words rule did, and geocoding then picks the first
+Portland. Fixing that takes one more typed question on every segment, which is not done here.
+
 ## What a tool now declares
 
 Each tool in the registry carries two lines. `label` is the short name a failure sentence speaks, unchanged in wording
@@ -45,12 +113,12 @@ question adds only its own tokens, so this is one call per decision point as bef
 ## Dispatch
 
 `Registry.dispatch` is the entry. Three sources decide a call, in this order. `Registry.corrected` is a correction's
-call and it wins, because a correction is about that task and the words of an amended instruction are no evidence of
-which tool it needs. Then a tool answer that clears `TOOL_THRESHOLD` decides, and only an answer under the bar falls
-back to the word rules. A confident `none` runs nothing, and so does `agent` when no general worker is configured,
-because the rules are what misrouted the requests this replaces. The routing record on each execution says
-`via: decider`, `via: correction` or `via: rules`, carries the tool answer and its margin, and sets
-`disagreement: true` when the rules ran against an unsure answer that named a different tool.
+call and it wins, because a correction is about that task. Then a tool answer that clears `TOOL_THRESHOLD` decides, and
+only an answer under the bar goes to the general worker, a model, when one is configured. A confident `none` runs
+nothing, and so does `agent` when no general worker is configured. The routing record on each execution says
+`via: decider`, `via: correction` or `via: worker` (it said `rules` before the word rules were removed), carries the tool
+answer and its margin, and sets `disagreement: true` when the worker took a task against an unsure answer that named a
+different tool.
 
 The bar is 0.30. Two independent samples of the 70 items, three readings each, put train accuracy at 91% at every bar
 from 0.00 to 0.45, and held-out at 88% and 92% across the same range (measured). Above 0.50 both samples lose accuracy,
@@ -188,51 +256,6 @@ cases. `t52` keeps the words' day over the model's `tomorrow`. Turn 016's "Wait,
 from the earlier Durham forecast even when the model reads one, because the words name no place. And turn 022's
 "Okay, and what about San Diego?" keeps its place, because those words do say it, which the preposition rule alone
 cannot read (measured, turn 022 of the replay).
-
-A day counted from today ("in three days", "a week from today") had no value to read as: the day question offered
-`today`, `tomorrow`, the weekend and the weekdays, the decider answered `none` (margin 0.28 on the recorded
-`follow-up` turn), and the word table then read `today` in "a week from today", so the lookup ran for today. The day
-question now also offers `in_2_days` to `in_15_days`, the days the 16-day forecast reaches, and `farther` for a day
-beyond it. `_reading` turns a counted name into a whole number of days, and that number is a `when` beside the named
-days. `pick_days` takes that many days after the forecast's first day, which is the place's own today. A number past
-the forecast's end, and `farther`, fail the lookup with the range it has ("can look ahead 15 days"), so the reply
-cannot answer for another day. A counted day is the decider's choice and is not checked against the word table, which
-has no way to say it. One more change rides along: a reading that states a place or day makes the request a follow-up
-of the earlier lookup of that tool, so "What about Boston?" keeps the earlier day instead of running today.
-
-Two shapes were tried first and dropped (measured). The decider's `text` and `number` question types only copy a span
-of the transcript ("a week" came back as span text with no number), so they cannot say 7. A count question plus a unit
-question did work, but two extra questions on every segment made the tool answer worse for other requests: "What time
-is it in Tokyo?" after a thread follow-up dispatched the time tool in 1 of 5 fresh samples, against 5 of 5 before and
-5 of 5 with the single longer day question that shipped.
-
-`python -m voice.tools.eval.record_days` records 66 made-up requests (11 kinds, six each: four seen, two held-out),
-three samples each against the hosted decider, on the code before and after, and `voice/tools/tests/test_day_decisions.py`
-replays the recording offline. Correct samples of samples run, measured on 2026-11-23:
-
-| Kind | Before, seen | After, seen | Before, held-out | After, held-out |
-| --- | --- | --- | --- | --- |
-| today | 12 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
-| tomorrow | 12 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
-| a named weekday | 9 of 12 | 9 of 12 | 6 of 6 | 6 of 6 |
-| the weekend | 10 of 12 | 9 of 12 | 6 of 6 | 6 of 6 |
-| in three days | 0 of 12 | 12 of 12 | 0 of 6 | 6 of 6 |
-| a week from today | 0 of 12 | 12 of 12 | 0 of 6 | 5 of 6 |
-| ten days from now | 0 of 12 | 12 of 12 | 0 of 6 | 6 of 6 |
-| follow-up, day only | 3 of 12 | 12 of 12 | 3 of 6 | 6 of 6 |
-| follow-up, place only | 3 of 12 | 12 of 12 | 0 of 6 | 6 of 6 |
-| no day | 12 of 12 | 12 of 12 | 6 of 6 | 6 of 6 |
-| past the forecast (picks no day) | 0 of 12 | 9 of 12 | 0 of 6 | 6 of 6 |
-| All | 61 of 132 | 123 of 132 | 33 of 66 | 65 of 66 |
-
-The seen cases were looked at while the question text was written. Half of them were held-out in a first round that ran
-on an earlier shape of the question (the count and unit pair); that shape changed after the run, so those cases count
-as seen and the held-out cases are new and were run once on the shipped text. The seen misses are not day misses: the
-decider does not pick the weather tool or the place for "How will Seattle look on Thursday?" and "How will Chicago look
-in a month and a half?" (the same misses before, and one sample of the second read "a month and a half" as `in_15_days`, a
-day the forecast has, with no place), "Will it be nice in Boston over the weekend?" is a tool miss that
-came up once more after than before (10 of 12 to 9 of 12, one sample), and the held-out miss is one "one week out"
-sample.
 
 | Split | n | Arguments exact, polish round | Arguments exact, now |
 | --- | --- | --- | --- |

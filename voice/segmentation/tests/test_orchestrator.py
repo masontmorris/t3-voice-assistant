@@ -124,9 +124,8 @@ class Lacks(unittest.TestCase):
         self.assertEqual(orch.snapshot("c", "u")["clarification_needed"], ["What's the weather like?"])
 
     def test_a_place_in_the_words_lets_the_same_task_run(self):
-        from voice.tools import lookups
         orch = Orchestrator()
-        orch.waits = lambda task: None if lookups.find_place(task.instruction) else dict(self.PLACE)
+        orch.waits = lambda task: None if "Denver" in task.instruction else dict(self.PLACE)
         step(orch, 1, "What's the weather like", s1={})
         self.assertEqual(statuses(orch), [("What's the weather like", Status.NEEDS_CLARIFICATION)])
         step(orch, 2, "What's the weather like in Denver?", final=True, s1={})

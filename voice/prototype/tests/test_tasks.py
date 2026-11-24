@@ -3,6 +3,7 @@ from concurrent.futures import Future, wait
 
 from voice.prototype.tasks import DEFAULT_RESULT, Execution, MockTaskService, Run, build_snapshot
 from voice.prototype.run import carried_tasks
+from voice.prototype.tests.test_clarification import Decider
 from voice.segmentation.contract import (Correction, CorrectionMode, Decisions, Kind, Readiness, SegmentDecision,
                                          TranscriptUpdate)
 from voice.segmentation.spans import clause_segments
@@ -22,8 +23,8 @@ def decide(sid, kind="request", ready="dispatch_now", depends=None, corrects=Non
 class ScriptedSegmenter:
     """The real orchestrator, with decisions written by the test instead of the decider."""
 
-    def __init__(self):
-        self.orch = Orchestrator()
+    def __init__(self, client=None):
+        self.orch, self.client = Orchestrator(), client
 
     @property
     def dispatch_log(self):
@@ -230,7 +231,10 @@ class RealLookupTest(unittest.TestCase):
     def test_a_segmented_weather_task_completes_with_the_lookups_summary_and_record(self):
         service = self.service()
         self.segmenter.step(1, "What's the weather going to be in Denver this weekend, and what time is it in Tokyo?",
-                            final=True, s1={}, s2={})
+                            final=True,
+                            s1={"tool": ToolChoice("weather", 0.9, {"place": "Denver", "when": "weekend",
+                                                                    "continues": False})},
+                            s2={"tool": ToolChoice("time", 0.9, {"place": "Tokyo", "when": None, "continues": False})})
         service.sync(now=1.0)
         self.assertEqual(self.finish(service, now=1.5), ["task_1", "task_2"])
         tasks = service.snapshot("utt_1", "")["tasks"]
@@ -247,7 +251,8 @@ class RealLookupTest(unittest.TestCase):
     def test_a_delegated_request_takes_the_same_registry(self):
         service = self.service()
         self.segmenter.submit_delegate("what time is it in Tokyo")
-        self.segmenter.step(1, "What time is it in Tokyo right now?", final=True, delegates={"d1": "s1"}, s1={})
+        self.segmenter.step(1, "What time is it in Tokyo right now?", final=True, delegates={"d1": "s1"},
+                            s1={"tool": ToolChoice("time", 0.9, {"place": "Tokyo", "when": None, "continues": False})})
         service.sync(now=0.0)
         self.finish(service, now=0.5)
         self.assertEqual(self.mcp.calls, [("get_current_time", {"timezone": "Asia/Tokyo"})])
@@ -255,13 +260,16 @@ class RealLookupTest(unittest.TestCase):
 
     def test_a_failed_lookup_is_reported_as_failed_with_its_reason_exactly_once(self):
         service = self.service(default_place=None)
-        self.segmenter.step(1, "I wonder if it's going to rain on Saturday.", final=True, s1={})
+        self.segmenter.step(1, "I wonder if it's going to rain in Atlantis Nowhere on Saturday.", final=True,
+                            s1={"tool": ToolChoice("weather", 0.9, {"place": "Atlantis Nowhere", "when": "saturday",
+                                                                    "continues": False})})
         service.sync(now=0.0)
-        self.assertEqual(statuses(service.snapshot("utt_1", "")), {"I wonder if it's going to rain on Saturday.": "running"})
+        self.assertEqual(statuses(service.snapshot("utt_1", "")),
+                         {"I wonder if it's going to rain in Atlantis Nowhere on Saturday.": "running"})
         self.finish(service, now=0.2)
         updates = service.take_updates()
         self.assertEqual([(u["status"], u["result_summary"]) for u in updates],
-                         [("failed", "The weather lookup needs a place, and none was given.")])
+                         [("failed", "The weather lookup found no place named Atlantis Nowhere.")])
         self.assertEqual(service.take_updates(), [])
 
     def test_requests_no_tool_covers_still_run_on_the_mock(self):
@@ -282,7 +290,9 @@ class RealLookupTest(unittest.TestCase):
 
     def test_a_lookup_that_never_returns_fails_at_its_deadline(self):
         service = self.service()
-        self.segmenter.step(1, "What's the weather in Denver?", final=True, s1={})
+        self.segmenter.step(1, "What's the weather in Denver?", final=True,
+                            s1={"tool": ToolChoice("weather", 0.9, {"place": "Denver", "when": None,
+                                                                    "continues": False})})
         service._pool.submit = lambda *args: Future()
         service.sync(now=0.0)
         self.assertEqual(service.poll(now=5.9), [])
@@ -315,12 +325,12 @@ class ToolChoiceDispatchTest(unittest.TestCase):
         self.assertEqual((routed["via"], routed["tool"], routed["disagreement"]), ("decider", "agent", False))
         self.assertEqual(service.executions["task_1"].tool["tool"], "agent")
 
-    def test_a_task_with_no_tool_answer_runs_on_the_word_rules_and_logs_nothing(self):
+    def test_a_task_with_no_tool_answer_goes_to_the_general_worker_and_logs_nothing(self):
         segmenter, service = self.service(simulate=False)
         segmenter.step(1, "What time is it in Tokyo?", final=True, s1={})
         service.sync(now=0.0)
         self.assertEqual(service.executions["task_1"].routing,
-                         {"tool": "time", "via": "rules", "disagreement": False, "choice": None})
+                         {"tool": "agent", "via": "worker", "disagreement": False, "choice": None})
 
     def test_a_confident_none_leaves_the_task_unavailable_and_the_record_says_which_answer(self):
         segmenter, service = self.service(simulate=False)
@@ -336,7 +346,7 @@ class ClarificationTest(unittest.TestCase):
     """A confident tool choice with no place asks for one instead of running a lookup that cannot answer, and the
     next turn's answer runs that task."""
 
-    ASKED = ToolChoice("weather", 0.8, {"place": None, "when": None})
+    ASKED = ToolChoice("weather", 0.8, {"place": None, "when": None, "continues": False})
 
     def service(self, default_place=None):
         self.tools, self.fetch, _ = replay_registry(default_place)
@@ -362,23 +372,20 @@ class ClarificationTest(unittest.TestCase):
                          ("needs_clarification", "weather", ["place"]))
         self.assertEqual(task["arguments"], {"place": None, "when": "today"}, "the call it would run")
 
-    def test_an_answer_under_the_bar_runs_on_the_rules_as_before(self):
+    def test_an_answer_under_the_bar_decides_nothing_and_no_lookup_runs_without_a_worker(self):
         service = self.service()
         self.segmenter.step(1, "What's the weather like?", final=True,
-                            s1={"tool": ToolChoice("weather", 0.2, {"place": None, "when": None})})
+                            s1={"tool": ToolChoice("weather", 0.2, {"place": None, "when": None, "continues": False})})
         service.sync(now=0.0)
-        wait(service.pending_calls(), timeout=5)
-        service.poll(now=1.0)
         execution, = service.executions.values()
-        self.assertEqual((execution.state, execution.result_summary),
-                         ("failed", "The weather lookup needs a place, and none was given."),
-                         "an unsure tool answer decides nothing, so the rules run and fail as before")
+        self.assertEqual((execution.mode, service.pending_calls(), self.fetch.urls), ("simulated", [], []),
+                         "an unsure tool answer decides nothing, and no word rule stands in for it")
 
     def test_the_next_turns_answer_runs_the_waiting_task(self):
         service = self.service()
         self.segmenter.step(1, "What's the weather like?", final=True, s1={"tool": self.ASKED})
         waiting = self.carried_after_first_turn(service)
-        segmenter = ScriptedSegmenter()
+        segmenter = ScriptedSegmenter(Decider(place="Denver"))
         service = MockTaskService(segmenter, "conv_test", tools=self.tools)
         self.addCleanup(service.close)
         events = service.answer(waiting, "In Denver", now=1.0)
@@ -396,7 +403,7 @@ class ClarificationTest(unittest.TestCase):
         service = self.service()
         self.segmenter.step(1, "What's the weather like?", final=True, s1={"tool": self.ASKED})
         waiting = self.carried_after_first_turn(service)
-        segmenter = ScriptedSegmenter()
+        segmenter = ScriptedSegmenter(Decider(place="Tokyo", answers=False))
         service = MockTaskService(segmenter, "conv_test", tools=self.tools)
         self.addCleanup(service.close)
         for words in ("Never mind.", "What time is it in Tokyo?"):

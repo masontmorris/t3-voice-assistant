@@ -28,7 +28,7 @@ from voice.segmentation.intent import utterance_intent
 from voice.segmentation.score import score
 from voice.segmentation.spans import _is_filler, clause_cuts
 from voice.segmentation.tasks import Orchestrator
-from voice.tools.registry import T3_TOOLS
+from voice.tools.registry import GENERAL, NONE, T3_TOOLS
 
 # With the T3 tools offered, the decider called 3 of 5 thread status questions chitchat, "How's the PR thread going?"
 # among them, so no task reached T3 (measured, #57's tool-pick eval).
@@ -341,13 +341,20 @@ class HybridSegmenter:
     def _segment(self, sid, piece, open_):
         return Segment(sid, *span_text(self.last.text, self.ws, piece), open=open_)
 
+    def continuing(self):
+        """Whether the call has a lookup a segment could continue, which is when the decider is asked whether it does.
+        A thread the call last spoke about is not one."""
+        lookups = set(self.tool_choices or ()) - T3_TOOLS - {NONE, GENERAL}
+        return bool(self.read_arguments) and any((t.get("call") or {}).get("tool") in lookups
+                                                 for t in self.prior_resolved_tasks)
+
     def _ask(self, update, committed, proposal, sids, live, kind):
         final = update.is_final
         asked_segs = committed + [self._segment(sid, p, not final and p.w1 == proposal.n) for sid, p in live.items()]
         tasks = [{"task": t.task_id, "instruction": t.instruction, "status": t.status.value,
                   "sources": sorted(t.sources)} for t in self.orch.tasks.values()]
         body = decision_request(update, asked_segs, tasks, dict(self.orch.pending_delegates), tools=self.tool_choices,
-                                arguments=self.read_arguments)
+                                arguments=self.read_arguments, continuing=self.continuing())
         if self.conversation_mode:
             for name, question in body["questions"].items():
                 if name.endswith("_side_effect"):

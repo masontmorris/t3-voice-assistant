@@ -25,6 +25,16 @@ class LedgerTest(unittest.TestCase):
         self.assertEqual(ledger.turns[0].executions["turn_001:task_1"]["state"], "completed")
         self.assertEqual(ledger.turns[0].revisions[0]["text"], "Weather?")
 
+    def test_a_new_call_has_a_ledger_with_no_lookup_to_continue(self):
+        """A call is one connection and owns one ledger (`Conversation.__init__`), so the earlier lookup a follow-up may
+        continue is the call's own: a second call starts with none."""
+        first, second = ConversationLedger(), ConversationLedger()
+        task = {"task_id": "task_1", "instruction": "weather", "status": "dispatched", "side_effect": False}
+        result = {"state": "completed", "tool": {"tool": "weather", "arguments": {"place": "Denver"}, "outcome": "ok"}}
+        first.record(record("turn_001", "Weather in Denver?", "Checking.", task, result), muted=False)
+        self.assertEqual([t["call"] for t in first.tasks], [{"tool": "weather", "arguments": {"place": "Denver"}}])
+        self.assertEqual(second.tasks, [])
+
     def test_interrupted_generated_reply_is_not_reseeded_as_a_complete_reply(self):
         ledger = ConversationLedger()
         ledger.record(record("turn_001", "Hello", "A long reply"), muted=True)

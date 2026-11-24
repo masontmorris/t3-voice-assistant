@@ -11,11 +11,11 @@ Side-effect tasks are still held and never run. Read-only tasks that no tool cov
 The registry lives in `voice/tools/`, apart from `voice/prototype/`:
 
 - `registry.py` has the registry. `Registry.route` gives the first tool whose parser accepts the task's instruction, or none. `Registry.run` runs the call under a 5 s timeout and never raises. Its `ToolResult` has the tool, the arguments, an outcome (`ok`, `failed`, or `timeout`), a summary the voice may speak, the latency, and a detail record.
-- `lookups.py` has the two tools. Each one is a word-rule parser plus a call. The place is the capitalized name after "in", "for", or "at". When the request names no place, the tool uses `VOICE_DEFAULT_PLACE`. When that is unset too, the lookup fails and says that it needs a place.
+- `lookups.py` has the two tools, each a call from typed arguments to a spoken summary and a detail record. It reads no words: the decider reads the place and the day (see [the decider picks the tool](decider-tool-pick.md#the-day-and-the-place-are-the-deciders-typed-answers-2026-11-23)). When the request names no place, the tool uses `VOICE_DEFAULT_PLACE`. When that is unset too, the voice asks which city, and a lookup that runs anyway fails and says that it needs a place.
 - `open_meteo.py` sends the two Open-Meteo requests. A geocoding request sends only the place name. A forecast request sends only the coordinates that geocoding returned.
 - `mcp.py` is a minimal MCP client over stdio. It does the `initialize` handshake and then sends `tools/call` requests one at a time. If a response comes after its call timed out, the client drops it.
 
-The weather tool geocodes the place, fetches a 16-day forecast in Fahrenheit, and picks today, tomorrow, a weekday, the weekend, or a day counted from today (`when` is then a number of days; see [the decider picks the tool](decider-tool-pick.md)). The time tool geocodes the place to get its IANA time zone, then calls `get_current_time` on the MCP server. The MCP call is the only part of the time lookup that runs locally, and it takes 1.7 ms (median of 10, measured). The rest is the geocoding request.
+The weather tool geocodes the place, fetches a 16-day forecast, with one past day, in Fahrenheit, and selects by calendar date, counted from the caller's today: today, tomorrow, a weekday, the weekend, or a day counted from today (`when` is then a number of days). A date the forecast does not hold fails the lookup as out of range. The time tool geocodes the place to get its IANA time zone, then calls `get_current_time` on the MCP server. The MCP call is the only part of the time lookup that runs locally, and it takes 1.7 ms (median of 10, measured). The rest is the geocoding request.
 
 The prototype hook is in `voice/prototype/tasks.py`. When the service starts a read-only task, it asks the registry for a route. A routed task runs its lookup on a worker thread and finishes when the lookup returns. It finishes as `completed` with the result, or as the new status `failed` with the reason as its summary. A task with no route runs on the mock worker, as before. Segmenter tasks and voice `delegate` tasks both come through the dispatch log, so they share this one hook. The execution record keeps the tool, the arguments, the outcome, the summary, and the latency. `run.py` starts the MCP server once per run and waits on running lookups as well as on mock deadlines. It also tells the voice what `failed` means.
 
@@ -58,7 +58,7 @@ The 0.47 s time lookup is one geocoding request plus a 1.7 ms MCP call (measured
 
 ## Limits
 
-- The parsers are word rules written for these clips. A lowercase place name, a place after another preposition such as "on", or a request with both weather and time in one task gets no lookup, or only the first tool (inferred from the rules). This is enough for development tests, not for use.
+- The clip results above were measured when word-rule parsers read the place and day. Those parsers are gone: the decider reads them now, and a request it does not give to a tool goes to the general worker, a model.
 - A task gets at most one tool call.
 - The timings come from 3 passes on one machine, with the decider cache warm in passes 2 and 3. The spread between passes, 0.5 s on the update, is larger than any tool-side change would be (measured).
 - Weather results change by the hour, so the offline tests check the replayed recording, not today's forecast.

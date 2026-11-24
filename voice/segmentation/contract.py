@@ -121,7 +121,7 @@ TOOL_INSTRUCTIONS = ("Which tool carries out segment {quote}? Pick the tool whos
                      "them while leaving the assistant to choose a detail first, such as the city.")
 WEEKS = {7: ", which is a week from today", 14: ", which is two weeks from today"}
 WHEN_CRITERIA = {
-    "none": "It names no day and asks about no particular day.",
+    "none": "It names no day and asks about no particular day. That is today unless it continues an earlier lookup.",
     "today": "It asks about today, or about the day in progress.",
     "tomorrow": "It asks about tomorrow.",
     "weekend": "It asks about the weekend.",
@@ -131,16 +131,27 @@ WHEN_CRITERIA = {
        ("monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday")},
 }
 
+CONTINUES_CRITERIA = {
+    "new": "It is a request of its own. Whatever it does not name is not taken from an earlier lookup.",
+    "continues": "It asks about the last lookup in prior_resolved_tasks again, changing the place or the day and "
+                 "leaving whatever it does not name as it was.",
+}
+ANSWERS_CRITERIA = {
+    "other": "Yes. They ask something, or ask for something, even if they also name a place.",
+    "answers": "No. They only give what the assistant asked for, with at most a few filler words.",
+}
+
 
 def _quote(segment):
     return f"{segment.sid} (\"{segment.text}\")"
 
 
-def segment_questions(segment, earlier, tools=None, arguments=False):
+def segment_questions(segment, earlier, tools=None, arguments=False, continuing=False):
     """The choice questions for one segment. `earlier` is the list of segments before it.
 
     `tools` is the tool question's option set, as `Registry.choices` gives it, and `arguments` adds the two
-    extraction questions a weather lookup needs when the decider reads them instead of the word rules.
+    extraction questions a lookup needs, and `continuing` the question of whether the segment continues the last lookup
+    in `prior_resolved_tasks`, which is asked only when the call has one.
     """
     q = {
         f"{segment.sid}_kind": {"type": "choice", "instructions": f"Classify segment {_quote(segment)}.",
@@ -167,6 +178,12 @@ def segment_questions(segment, earlier, tools=None, arguments=False):
             "type": "choice",
             "instructions": f"In segment {_quote(segment)}, which day does the request ask about?",
             "criteria": WHEN_CRITERIA}
+        if continuing:
+            q[f"{segment.sid}_continues"] = {
+                "type": "choice",
+                "instructions": f"Does segment {_quote(segment)} continue the last lookup in prior_resolved_tasks, or "
+                                "is it a new request?",
+                "criteria": CONTINUES_CRITERIA}
     if earlier:
         q[f"{segment.sid}_depends"] = {
             "type": "choice",
@@ -207,7 +224,8 @@ def decision_state(update, segments, tasks, delegates):
     }
 
 
-def decision_request(update, segments, tasks, delegates, only=None, tools=None, arguments=False):
+def decision_request(update, segments, tasks, delegates, only=None, tools=None, arguments=False,
+                     continuing=False):
     """Build one decisions body. `only` limits the questions to one segment id, for the bundling comparison.
 
     `tools` adds the tool question to every segment, and `arguments` the place and day extraction questions, so every
@@ -215,7 +233,7 @@ def decision_request(update, segments, tasks, delegates, only=None, tools=None, 
     questions = {}
     for i, segment in enumerate(segments):
         if only is None or only == segment.sid:
-            questions.update(segment_questions(segment, segments[:i], tools, arguments))
+            questions.update(segment_questions(segment, segments[:i], tools, arguments, continuing))
     if only is None:
         for did, instruction in delegates.items():
             questions.update(delegate_question(did, instruction, segments))
@@ -254,21 +272,79 @@ def _text(answers, name):
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
-def _reading(answers, sid, questions, problems):
-    """The place and day the decider read for one segment, or None when the request did not ask for them. The day is
-    a named value, a whole number of days after today when the decider chose one of the counted days, or `farther`. An
-    unreadable answer leaves the argument to the tool's parser rather than failing the segment."""
-    if f"{sid}_place" not in questions:
-        return None
-    answer = answers.get(f"{sid}_when")
+def _place_and_day(answers, place_name, when_name, problems):
+    """The place and day the decider read, or None when the day answer is unusable. The place is the decider's own
+    span answer, kept as it gave it, and the day is a named value, a whole number of days after today, or `farther`."""
+    answer = answers.get(when_name)
     when = answer.get("choice") if isinstance(answer, dict) and answer.get("type") == "choice" else None
     if when not in WHEN_CRITERIA:
         return None
-    place = _text(answers, f"{sid}_place")
+    place = _text(answers, place_name)
     if place is not None and not PLACE_NAME.match(place):
-        problems.append(f"{sid}_place: not a name, {place[:40]!r}")
+        problems.append(f"{place_name}: not a name, {place[:40]!r}")
         place = None
     return {"place": place, "when": None if when == "none" else COUNTED_DAYS.get(when, when)}
+
+
+def _reading(answers, sid, questions, problems):
+    """The place, day and continuation the decider read for one segment, or None when the request did not ask for
+    them. An unreadable day answer leaves the arguments to the registry's defaults rather than failing the segment.
+    `continues` is the typed answer to whether the segment continues the last lookup; with no such question it is False."""
+    if f"{sid}_place" not in questions:
+        return None
+    reading = _place_and_day(answers, f"{sid}_place", f"{sid}_when", problems)
+    if reading is None:
+        return None
+    reading["continues"] = (f"{sid}_continues" in questions
+                            and _choice_of(answers, f"{sid}_continues", questions) == "continues")
+    return reading
+
+
+def _choice_of(answers, name, questions):
+    """A choice answer's option, or None when the answer is missing or not one of the question's options."""
+    answer = answers.get(name)
+    choice = answer.get("choice") if isinstance(answer, dict) and answer.get("type") == "choice" else None
+    return choice if choice in questions[name]["criteria"] else None
+
+
+def reading_request(text, earlier=None, asking=None):
+    """A decisions body that reads the place and day of some words that no decision point asked about: a correction's
+    amended words, or a person's answer to the assistant's question.
+
+    `earlier` is the last lookup, as `{"tool", "arguments"}`, for the context a day or place may continue. `asking` is
+    what the assistant asked for, as `{"tool", "needs"}`, which adds the question of whether the words answer it."""
+    state = {"transcript": text}
+    if earlier is not None:
+        state["earlier_lookup"] = earlier
+    if asking is not None:
+        state["assistant_asked_for"] = asking
+    questions = {
+        "r_place": {"type": "text",
+                    "instructions": "Which city, town or place do these words name, exactly as it is written? Read "
+                                    "only a place the speaker says in them."},
+        "r_when": {"type": "choice", "instructions": "Which day do these words ask about?",
+                   "criteria": WHEN_CRITERIA},
+    }
+    if asking is not None:
+        questions["r_answers"] = {"type": "choice",
+                                  "instructions": "Do these words ask a question or make a request of their own?",
+                                  "criteria": ANSWERS_CRITERIA}
+    return {"model": MODEL, "state": state, "questions": questions}
+
+
+def parse_reading(response, body):
+    """The reading of a `reading_request` answer as `{"place", "when", "answers"}`, or None when it is unreadable.
+    `answers` is True when the decider says the words answer the question, False otherwise, and None when none was
+    asked. Never raises on bad model output."""
+    answers = response.get("answers") if isinstance(response, dict) else None
+    if not isinstance(answers, dict):
+        return None
+    reading = _place_and_day(answers, "r_place", "r_when", [])
+    if reading is None:
+        return None
+    asked = "r_answers" in body["questions"]
+    reading["answers"] = _choice_of(answers, "r_answers", body["questions"]) == "answers" if asked else None
+    return reading
 
 
 def _thread_pick(picked, margin, probabilities):

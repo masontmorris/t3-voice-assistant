@@ -140,46 +140,6 @@ class CorrectionTest(Call):
                          "a later correction amends the amended task")
 
 
-class FollowUpTest(Call):
-    """A follow-up that names no place runs the real lookup for the place of the task it continues. The replayed
-    registry has no default place, so a place can only come from the call."""
-
-    async def asyncSetUp(self):
-        await super().asyncSetUp()
-        self.tools, self.fetch, _ = replay_registry(None)
-
-    def lookup(self, record):
-        return [(e["tool"]["tool"], e["tool"]["arguments"], e["tool"]["outcome"]) if e["tool"] else None
-                for e in record["executions"].values()]
-
-    async def test_a_follow_up_with_no_place_inherits_it_and_runs_the_real_tool(self):
-        records, items = await self.call(*DEMO, tools=self.tools)
-        self.assertEqual(self.lookup(records[0]), [("weather", {"place": "Denver", "when": "tomorrow"}, "ok")])
-        self.assertEqual(self.lookup(records[1]), [("weather", {"place": "Denver", "when": "saturday"}, "ok")],
-                         "turn 2 asks about Saturday in turn 1's place, and the real lookup answers it")
-        result = records[1]["executions"]["task_1"]["result_summary"]
-        self.assertTrue(result.startswith("Forecast for Denver, Colorado. Saturday"), result)
-        self.assert_no_item_holds("And what about Saturday?", items[1])
-
-    async def test_an_amended_correction_inherits_the_place(self):
-        records, items = await self.call(*DEMO, "No, Sunday.", tools=self.tools)
-        self.assertEqual(self.lookup(records[2]), [("weather", {"place": "Denver", "when": "sunday"}, "ok")],
-                         "the amended task keeps the place and changes only the day")
-        self.assert_no_item_holds("No, Sunday.", items[2])
-
-    async def test_a_correction_that_names_the_rejected_place_runs_the_new_one(self):
-        records, _ = await self.call("What time is it in Tokyo?", "No, not Tokyo, Denver.", tools=self.tools)
-        self.assertEqual(self.lookup(records[1]), [("time", {"place": "Denver"}, "ok")],
-                         "the corrected task runs again, in the place the correction states")
-
-    async def test_with_no_earlier_place_a_follow_up_stays_empty(self):
-        records, _ = await self.call("What's the weather tomorrow?", "And what about Saturday?", tools=self.tools)
-        self.assertEqual(self.lookup(records[0]), [("weather", {"place": None, "when": "tomorrow"}, "failed")],
-                         "the fixture's turn 1 resolves no place")
-        self.assertEqual(self.lookup(records[1]), [None], "turn 2 is not given a place nobody said")
-        self.assertEqual(self.fetch.urls, [], "no place is looked up at all")
-
-
 class ThirdPersonTest(unittest.IsolatedAsyncioTestCase):
     """A reply that talks about the person instead of to them is spoken and logged, never asked again."""
 
