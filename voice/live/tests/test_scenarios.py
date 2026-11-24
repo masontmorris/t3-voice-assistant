@@ -48,6 +48,22 @@ def failed(verdicts):
     return [v.check for v in verdicts if not v.ok]
 
 
+class ThanksNotYes(unittest.TestCase):
+    def test_a_thanks_must_start_nothing_and_the_yes_after_it_one_thread(self):
+        def run(thanks_kinds, made):
+            plan = S.thanks_not_yes(S.Pool())
+            plan.notes.update(asked=True, thanks=[2], again=Kind.CONFIRM_LAUNCH in thanks_kinds,
+                              started=bool(made))
+            turns = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1, thanks_kinds), turn(2, [Kind.LAUNCHED])]
+            world = {"seeded": {}, "made": {f"t{i}": {"title": "Example"} for i in range(made)}}
+            return failed(plan.check(call(turns, world)))
+
+        self.assertEqual(run([Kind.CONFIRM_LAUNCH], 1), [])
+        self.assertIn("the thanks started nothing", run([Kind.LAUNCHED], 1))
+        self.assertIn("the question was put once more", run([], 1))
+        self.assertIn("the yes after it started one thread", run([Kind.CONFIRM_LAUNCH], 2))
+
+
 class TwoRequests(unittest.TestCase):
     def test_the_message_may_be_asked_in_the_turn_that_answers_the_first_question(self):
         plan = S.two_requests(S.Pool())

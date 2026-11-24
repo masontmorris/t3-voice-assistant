@@ -60,7 +60,7 @@ READINGS = {"yes": "yes", "Yes.": "yes", "Yes, send it.": "yes", "Yes, stop it."
             "Yes, go ahead.": "yes", "No.": "no", "No, don't.": "no", "No, never mind.": "no",
             "No, the toolchain one.": "no", "What do you mean?": "question", "The voice server.": "yes",
             "yes, start it in the voice server": "other", "start it in the other project": ("other", "Voice server"),
-            "yes please": "yes"}
+            "yes please": "yes", "Okay, thanks.": "thanks"}
 
 
 def tasks_over(test: unittest.TestCase, seam: F.FakeSeam, model=None, path: Path | None = None,
@@ -303,8 +303,10 @@ class TwinA(unittest.TestCase):
         self.assertEqual(said(again), [("confirm_launch", "Voice server")], "the retarget asks its own question")
 
     def test_a_no_that_points_at_the_only_other_project_asks_about_that_one(self):
+        # Scripted: the recorded d1.2 read of these words now points elsewhere at 0.67, under the 0.7 a change needs
+        # (voice/t3/test_replies.py lists it as a misread), and this is about what a no that points away does.
         seam = F.FakeSeam(projects=TWO_PROJECTS)
-        t3 = tasks_over(self, seam, decider=ReplayReading())
+        t3 = tasks_over(self, seam, decider=F.Reader({"No, the other one.": ("no", ELSEWHERE)}))
         t3.start("k1", "Add a clamp helper in the sandbox project", 0)
         self.assertEqual(said(t3.answer("No, the other one.", 1)), [("confirm_launch", "Voice server")])
         self.assertEqual(seam.ops("launch"), [])
@@ -1191,6 +1193,127 @@ class Authorization(unittest.TestCase):
         service.close()
         self.assertFalse(t3.has_news(idle=True))
 
+    def test_a_thanks_is_no_consent_and_the_confirmation_is_asked_once_more(self):
+        for op, words, done in ((STOP, "Stop the clamp helper thread.", "interrupt"),
+                                (TELL, "Tell the clamp helper thread to also add a test.", "send"),
+                                (START, "Start a thread to add a clamp helper.", "launch")):
+            with self.subTest(op):
+                seam = busy_seam().answer("interrupt", F.requested()).answer("send", F.requested())
+                t3 = tasks_over(self, seam)
+                t3.begin_call()
+                self.ask(t3, 1, op, words)
+                turn = self.turn(t3, 2)
+                turn.answer(turn.open_question(), "Okay, thanks.", 1)
+                lines = [e for e in turn.snapshot("utt_1", "Okay, thanks.")["tasks"] if e.get("acts")]
+                self.assertEqual(len(lines), 1)
+                self.assertTrue(lines[0]["acts"][0]["kind"].startswith("confirm_"), "the same question, once more")
+                self.assertEqual(seam.ops(done), [], "a thanks authorises nothing")
+                turn.record_delivery(lines[0], "sent")
+                turn.close()
+                self.say_yes(t3, 3, "Yes.")
+                self.assertEqual(len(seam.ops(done)), 1, "then a yes acts, once")
+
+    def test_a_second_thanks_drops_the_confirmation(self):
+        seam = busy_seam().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        for n in (2, 3):
+            turn = self.turn(t3, n)
+            turn.answer(turn.open_question(), "Okay, thanks.", n)
+            for entry in turn.snapshot("utt_1", "Okay, thanks.")["tasks"]:
+                if entry.get("acts"):
+                    turn.record_delivery(entry, "sent")
+            turn.close()
+        self.assertIsNone(t3.live_question())
+        self.say_yes(t3, 4, "Yes.")
+        self.assertEqual(seam.ops("interrupt"), [])
+
+    def held_turn(self, *requests, t3=None, seam=None):
+        """Turn 1 asks to stop the clamp helper thread and to tell other threads things: the stop is asked, and each
+        message is held behind it. Returns the seam and T3 after the stop question was heard."""
+        if t3 is None:
+            seam = busy_seam().answer("interrupt", F.requested())
+            t3 = tasks_over(self, seam)
+            t3.begin_call()
+        records = [{"task_id": f"task_{i}", "instruction": words, "status": "dispatched", "depends_on": [],
+                    "side_effect": True, "sources": ["orchestrator"], "history": [],
+                    "tool": {"tool": tool, "confidence": 0.9}}
+                   for i, (words, tool) in enumerate((("Stop the clamp helper thread.", STOP), *requests), 1)]
+        service = self.turn(t3, 1, records)
+        service.sync(0)
+        for entry in service.snapshot("utt_1", "...")["tasks"]:
+            if entry.get("acts"):
+                service.record_delivery(entry, "sent")
+        service.close()
+        return seam, t3
+
+    def not_asked(self, t3):
+        return [u for u in t3.follow.outbox if any(a.kind is S.NOT_ASKED for a in u.acts)]
+
+    MESSAGE = ("Tell the toolchain thread to add a test.", TELL)
+
+    def test_a_held_request_is_asked_after_a_no_as_after_a_yes(self):
+        seam, t3 = self.held_turn(self.MESSAGE)
+        turn = self.turn(t3, 2)
+        turn.answer(turn.open_question(), "No.", 1)
+        kinds = [[a["kind"] for a in e["acts"]] for e in turn.snapshot("utt_1", "No.")["tasks"] if e.get("acts")]
+        self.assertEqual(kinds, [["cancelled"], ["confirm_tell"]])
+        self.assertEqual((seam.ops("interrupt"), self.not_asked(t3)), ([], []))
+
+    def test_a_held_request_goes_with_a_question_the_reply_does_not_answer_and_is_said_once(self):
+        seam, t3 = self.held_turn(self.MESSAGE)
+        turn = self.turn(t3, 2)
+        self.assertEqual(turn.answer(turn.open_question(), "What's two plus two?", 1), [])
+        turn.close()
+        self.assertEqual(t3.queued, [])
+        self.assertEqual(len(self.not_asked(t3)), 1, "the caller is told once that the other request was not got to")
+        # A later question, answered, never brings it back.
+        self.held_turn(t3=t3, seam=seam)
+        self.say_yes(t3, 4, "Yes, stop it.")
+        self.assertEqual((len(seam.ops("interrupt")), seam.ops("send")), (1, []))
+
+    def test_a_held_request_goes_with_a_question_that_expires_or_a_call_that_ends(self):
+        seam, t3 = self.held_turn(self.MESSAGE)
+        t3.question.heard_at -= 2 * CONFIRM_TTL_S
+        self.assertIsNone(t3.live_question())
+        self.assertEqual((t3.queued, len(self.not_asked(t3))), ([], 1))
+        seam, t3 = self.held_turn(self.MESSAGE)
+        t3.end_call()
+        self.assertEqual((t3.queued, self.not_asked(t3)), ([], []), "nothing is said to a call that has gone")
+        seam, t3 = self.held_turn(self.MESSAGE)
+        t3.begin_call()
+        self.assertEqual(t3.queued, [], "a new call holds nothing from the last")
+
+    def test_held_requests_are_bounded_and_the_same_one_is_held_once(self):
+        seam, t3 = self.held_turn(self.MESSAGE, self.MESSAGE, ("Tell the clamp helper thread to log it.", TELL),
+                                  ("Stop the flaky ASR test thread.", STOP))
+        self.assertEqual([q[2] for q in t3.queued], ["Tell the toolchain thread to add a test.",
+                                                     "Tell the clamp helper thread to log it."])
+        self.assertEqual(len(self.not_asked(t3)), 1, "the one past the bound was not held, and the caller is told")
+
+    def test_a_held_fragment_the_segmenter_rejoins_leaves_only_the_whole_request_held(self):
+        seam = busy_seam().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        records = [{"task_id": tid, "instruction": words, "status": "dispatched", "depends_on": [], "side_effect": True,
+                    "sources": ["orchestrator"], "history": [], "tool": {"tool": tool, "confidence": 0.9}}
+                   for tid, words, tool in (("task_1", "Stop the clamp helper thread", STOP),
+                                            ("task_2", "and tell the toolchain thread", TELL))]
+        log = [{"task_id": r["task_id"], "instruction": r["instruction"]} for r in records]
+        service = T3TaskService(SimpleNamespace(records=lambda: records, dispatch_log=log), "conv_turn_001", 0.0, None,
+                                holds_side_effects=False, t3=t3)
+        service.sync(0)
+        self.assertEqual([q[0] for q in t3.queued], ["conv_turn_001:task_2"])
+        records[1] = {**records[1], "status": "superseded"}
+        records.append({**records[1], "task_id": "task_3", "status": "dispatched",
+                        "instruction": "and tell the toolchain thread to add a test."})
+        log.append({"task_id": "task_3", "instruction": records[2]["instruction"]})
+        service.sync(1)
+        self.assertEqual([(q[0], q[2]) for q in t3.queued],
+                         [("conv_turn_001:task_3", "and tell the toolchain thread to add a test.")])
+        self.assertEqual(self.not_asked(t3), [], "a fragment is replaced, not lost: nothing to tell the caller")
+
     def test_two_actions_in_one_turn_are_asked_one_at_a_time_and_each_yes_acts_once(self):
         seam = busy_seam().answer("interrupt", F.requested())
         t3 = tasks_over(self, seam)
@@ -1396,7 +1519,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(by_id["task_2"]["status"], "running")
         self.assertNotIn("acts", by_id["task_2"])
         self.assertNotIn("acts", by_id["task_3"], "the stop waits for the launch question's answer")
-        self.assertEqual(t3.queued, [("conv_turn_001:task_3", STOP, "Stop the toolchain thread.")])
+        self.assertEqual(t3.queued, [("conv_turn_001:task_3", STOP, "Stop the toolchain thread.", "conv_turn_001:task_1")])
         self.assertIs(service.open_question(), T3_WAITING)
         self.assertEqual(service.executions["task_1"].state.value, "completed")
         self.assertEqual((seam.ops("launch"), seam.ops("interrupt")), ([], []))
@@ -2168,7 +2291,8 @@ class DroppedConfirmations(unittest.TestCase):
             def reads(self, said_, reply, options=()):
                 whole = {"yes": 0.36, "no": 0.04, "question": 0.5, "other": 0.04, "unrelated": 0.06}
                 return judge_reading({"reading": {"choice": "question", "probabilities": whole},
-                                      "agrees": {"noul": 0.8}, "asks": {"noul": 0.2}, "adds": {"noul": 0.1}})
+                                      "agrees": {"noul": 0.8}, "asks": {"noul": 0.2}, "adds": {"noul": 0.1},
+                                      "closes": {"noul": 0.1}})
 
         seam = F.FakeSeam()
         t3 = tasks_over(self, seam, decider=Marked({}))
@@ -3378,7 +3502,7 @@ class CallThreadConfirmations(unittest.TestCase):
 
     def test_stop_tell_approve_and_deny_on_the_calls_thread_act_only_on_a_reply_reads_yes_passes(self):
         from voice.t3.verify import Reading as Read
-        full = Read("yes", self.SHARES, agrees=0.9, asks=0.05, adds=0.05, complete=True, kept=True)
+        full = Read("yes", self.SHARES, agrees=0.9, asks=0.05, adds=0.05, closes=0.05, complete=True, kept=True)
         cases = ((STOP, "Stop it.", "interrupt"), (TELL, "Tell it to add tests too.", "send"),
                  (APPROVE, "Approve it.", "respond"), (DENY, "Deny it.", "respond"))
         for op, said, wire in cases:

@@ -13,9 +13,10 @@ from voice.t3.verify import ELSEWHERE, Decider, judge_reading, reading_request
 
 FIXTURE = json.loads((Path(__file__).parent / "fixtures" / "reply_reads.json").read_text(encoding="utf-8"))
 ROWS = FIXTURE["rows"]
-# Replies d1.2 misreads. This one names no project and the decider says it keeps the proposed one. It is still not a
-# yes, so nothing starts, and the person has to name the project.
-TARGET_MISREADS = {"Yes, but in the other project."}
+# Replies d1.2 misreads. The first names no project and the decider says it keeps the proposed one; the second points
+# away from it at 0.67, under the 0.7 a change of target needs. Neither is a yes, so nothing starts, and the person has
+# to name the project.
+TARGET_MISREADS = {"Yes, but in the other project.", "No, the other one."}
 DECLINES = {"No.", "No, don't.", "Nope.", "No, cancel that.", "No, leave it running.", "Don't stop it.",
             "Hold on, not yet.", "Not that one."}
 
@@ -39,12 +40,12 @@ class Recorded:
         raise KeyError(body["state"])
 
 
-def answered(shares, agrees=0.9, asks=0.1, withdraws=None, adds=0.1):
+def answered(shares, agrees=0.9, asks=0.1, withdraws=None, adds=0.1, closes=0.1):
     """A decider's answers: the choice's shares with the label that has the most, and the yes-or-no questions' shares."""
     whole = {label: 0.0 for label in ("yes", "no", "question", "other", "unrelated")} | shares
     answers = {"reading": {"choice": max(shares, key=shares.get), "probabilities": whole},
                "agrees": {"type": "noul", "noul": agrees}, "asks": {"type": "noul", "noul": asks},
-               "adds": {"type": "noul", "noul": adds}}
+               "adds": {"type": "noul", "noul": adds}, "closes": {"type": "noul", "noul": closes}}
     if withdraws is not None:
         answers["withdraws"] = {"type": "noul", "noul": withdraws}
     return answers
@@ -106,7 +107,7 @@ class Reads(unittest.TestCase):
                                                 agrees=0.6, asks=0.97)).yes)
 
     def test_a_reading_missing_one_of_the_yes_questions_is_not_a_yes(self):
-        for left_out in ("agrees", "asks", "adds"):
+        for left_out in ("agrees", "asks", "adds", "closes"):
             answers = answered({"yes": 0.9, "other": 0.1})
             del answers[left_out]
             self.assertFalse(judge_reading(answers).yes, left_out)

@@ -47,6 +47,7 @@ MEANS: dict[Kind, str] = {
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet",
     Kind.LAUNCHED: "a new coding thread started in {project}",
     Kind.LAUNCH_UNCONFIRMED: "T3 never confirmed that the thread started",
+    Kind.NOT_ASKED: "the assistant did not get to another thing they asked for, so nothing was done about it",
     Kind.NO_THREAD: "no thread matches what they asked about",
     Kind.CONFIRM_THREAD: "whether {thread} is the thread they mean",
     Kind.CONFIRM_TELL: "whether to send the message \"{message}\" to {thread}",
@@ -740,7 +741,8 @@ def judge_pick(answers: Any, threads: tuple[Listed, ...], sure: float = PICK_SUR
 
 READ_CRITERIA = {
     "yes": ("It agrees to exactly what the assistant asked, with nothing added, changed or conditional. A short "
-            "agreement such as okay, sure, mm-hmm or please do counts."),
+            "agreement on its own, such as okay, alright, sure, mm-hmm or please do, counts. Words that thank, say "
+            "goodbye or note what was said, such as got it or cool, are not agreement, even after okay."),
     "no": "It declines what the assistant asked, or takes it back.",
     "question": "It asks the assistant something, or asks about what was proposed, instead of answering.",
     "other": "It agrees but changes the project, thread or terms, adds a condition, or names something else.",
@@ -751,11 +753,17 @@ READ_CRITERIA = {
 # words, ask for anything. A real question scores 0.89 or more on the second, a bare word of agreement with a rising
 # voice 0.53 or less. The choice still catches a no, a condition and another target. Without the last sentence of the
 # first question a hesitant "hmm, maybe?" was a yes at 0.66.
-AGREES = ("Do the person's words say yes to what the assistant asked? A bare yeah, sure or okay counts, however it is "
-          "said. A condition, a change, or another target does not. A reply that is unsure, undecided or "
+AGREES = ("Do the person's words say yes to what the assistant asked? A bare yeah, sure, okay or alright on its own "
+          "counts, however it is said. Words that thank, say goodbye or note what was said, such as got it or cool, are "
+          "not yes, even after okay. A condition, a change, or another target does not. A reply that is unsure, undecided or "
           "non-committal, such as maybe, perhaps or I don't know, is not yes. The words must answer this very "
           "question: repeating the question back, agreeing with something else, or a word cut off before it is a whole "
           "word is not yes.")
+# "Okay, thanks." was a yes to every kind of confirmation (5 of 5 samples each), since the text above said okay agrees
+# and nothing said a thanks does not. Told so, the choice and `agrees` refuse it; this question checks the same apart,
+# and a missing answer is no yes (voice/t3/eval/record_consent.py).
+CLOSES = ("Instead of answering what the assistant asked, do the person's words thank the assistant, say goodbye, or "
+          "only note what it said? A bare okay, alright or sure on its own answers the question.")
 ADDS = ("Beyond agreeing, do the person's words add a remark, a fact or an opinion about something other than what the "
         "assistant asked? Words that only agree, however hesitantly or politely, add nothing.")
 ASKS = ("Do the person's words ask the assistant for information, an explanation or a different choice before "
@@ -764,6 +772,8 @@ WITHDRAWS = ("Does the person take back what they asked about altogether, so tha
              "looked up? Saying this is not the thread they mean, or naming another one, does not.")
 AGREES_CONFIDENCE = 0.5
 ADDS_CEILING = 0.5
+# On the seen replies every real yes scored 0.49 or less and every thanks or goodbye 0.58 or more.
+CLOSES_CEILING = 0.55
 ASKS_CEILING = 0.7
 YES_OR_QUESTION = 0.5
 # A choice that says question counts for a yes the transcript marked as one only when the choice still gives yes a real
@@ -795,6 +805,7 @@ def reading_request(said: Act, reply: str, options: tuple[str, ...] = ()) -> dic
         questions["agrees"] = {"type": "noul", "instructions": AGREES, "criteria": YES_NO}
         questions["asks"] = {"type": "noul", "instructions": ASKS, "criteria": YES_NO}
         questions["adds"] = {"type": "noul", "instructions": ADDS, "criteria": YES_NO}
+        questions["closes"] = {"type": "noul", "instructions": CLOSES, "criteria": YES_NO}
     if said.kind is Kind.CONFIRM_THREAD or (said.kind is Kind.ASK_WHICH and said.slots.get("of") == "thread"):
         questions["withdraws"] = {"type": "noul", "instructions": WITHDRAWS, "criteria": YES_NO}
     if options and said.kind is Kind.ASK_WHICH:
@@ -835,13 +846,14 @@ class Reading:
     asks: float | None = None
     withdraws: float | None = None
     adds: float | None = None
+    closes: float | None = None
     complete: bool = False
     kept: bool = False
 
     @property
     def yes(self) -> bool:
         return reads_yes(self.label, self.probabilities if self.complete else None, self.agrees, self.asks, self.adds,
-                         self.kept)
+                         self.kept, self.closes)
 
     @property
     def withdrawing(self) -> bool:
@@ -851,29 +863,37 @@ class Reading:
                 and self.withdraws >= WITHDRAWS_CONFIDENCE)
 
     @property
+    def acknowledges(self) -> bool:
+        """A reply that thanks, says goodbye or notes what was said, and so neither answers the question nor declines,
+        asks, or changes it."""
+        return (self.closes is not None and self.closes >= CLOSES_CEILING
+                and self.label not in (None, "no", "question", "other") and not self.yes)
+
+    @property
     def kind(self) -> str | None:
         """"yes", "no", or None for a reply that neither agrees outright nor declines."""
         return "yes" if self.yes else "no" if self.label == "no" else None
 
 
 def reads_yes(label: str | None, shares: dict[str, float] | None, agrees: float | None, asks: float | None,
-              adds: float | None, kept: bool) -> bool:
+              adds: float | None, kept: bool, closes: float | None) -> bool:
     """Whether the decider's answers together are an unconditional yes, the one function that can authorise an action.
     Every answer it rests on must be there: `shares` is the choice's complete map (None when it is missing, partial or
     not shares of one whole), `agrees`, `asks` and `adds` are probabilities, and `kept` says the target answer was present and
     says the proposal is kept (or none was asked). Then all of these must hold: the choice's own label is yes, or
     question, which counts only when yes still has at least QUESTION_LABEL_YES_FLOOR of the choice; the shares of yes
     and question together are at least half; a no and another target each have at most OTHER_CEILING; the words say yes (`agrees`), do not ask
-    for anything in words (`asks`) and add nothing but the agreement (`adds`). Anything missing, malformed or in
-    disagreement is not a yes."""
-    if (shares is None or agrees is None or asks is None or adds is None or not kept
+    for anything in words (`asks`), add nothing but the agreement (`adds`), and are not a thanks, a goodbye or a note of
+    what was said (`closes`). Anything missing, malformed or in disagreement is not a yes."""
+    if (shares is None or agrees is None or asks is None or adds is None or closes is None or not kept
             or label not in ("yes", "question")):
         return False
     if label == "question" and shares.get("yes", 0.0) < QUESTION_LABEL_YES_FLOOR:
         return False
     return (shares.get("yes", 0.0) + shares.get("question", 0.0) >= YES_OR_QUESTION
             and shares.get("no", 1.0) <= OTHER_CEILING and shares.get("other", 1.0) <= OTHER_CEILING
-            and agrees >= AGREES_CONFIDENCE and asks < ASKS_CEILING and adds < ADDS_CEILING)
+            and agrees >= AGREES_CONFIDENCE and asks < ASKS_CEILING and adds < ADDS_CEILING
+            and closes < CLOSES_CEILING)
 
 
 def _complete(shares: dict[str, float]) -> bool:
@@ -924,7 +944,7 @@ def judge_reading(answers: Any, options: tuple[str, ...] = ()) -> Reading:
     kept = not options or (shares is not None and picked["choice"] == KEEPS and share >= OPTION_CONFIDENCE)
     return Reading(answers["reading"]["choice"], scores, target=target, elsewhere=elsewhere,
                    complete=_complete(scores), kept=kept,
-                   **{name: _noul(answers, name) for name in ("agrees", "asks", "withdraws", "adds")})
+                   **{name: _noul(answers, name) for name in ("agrees", "asks", "withdraws", "adds", "closes")})
 
 
 OWN_WORDS, NO_ANSWER = "own_words", "no_answer"

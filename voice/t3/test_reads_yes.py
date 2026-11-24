@@ -24,7 +24,7 @@ class Canned:
 
 class Pure(unittest.TestCase):
     def test_the_truth_table(self):
-        good = dict(label="yes", shares=WHOLE, agrees=0.8, asks=0.2, adds=0.1, kept=True)
+        good = dict(label="yes", shares=WHOLE, agrees=0.8, asks=0.2, adds=0.1, kept=True, closes=0.1)
         self.assertTrue(reads_yes(**good))
         self.assertTrue(reads_yes(**{**good, "label": "question"}), "a yes the transcript marked as a question")
         for name, value in (
@@ -33,25 +33,25 @@ class Pure(unittest.TestCase):
             ("shares", {"yes": 0.2, "question": 0.2, "unrelated": 0.4, "no": 0.1, "other": 0.1}),
             ("shares", {}),
             ("agrees", None), ("agrees", 0.49), ("asks", None), ("asks", 0.7), ("asks", 0.95), ("adds", None),
-            ("adds", 0.5), ("adds", 0.9), ("kept", False)):
+            ("adds", 0.5), ("adds", 0.9), ("kept", False), ("closes", None), ("closes", 0.55), ("closes", 0.9)):
             with self.subTest(**{name: value}):
                 self.assertFalse(reads_yes(**{**good, name: value}))
 
     def test_a_question_label_is_a_yes_only_with_a_real_share_of_yes(self):
         marked = {"yes": 0.36, "question": 0.5, "no": 0.04, "other": 0.04, "unrelated": 0.06}
-        self.assertTrue(reads_yes("question", marked, 0.8, 0.2, 0.1, True))
+        self.assertTrue(reads_yes("question", marked, 0.8, 0.2, 0.1, True, 0.1))
         for yes in (0.0, 0.1, 0.29):
             shares = {**marked, "yes": yes, "question": 0.86 - yes}
             with self.subTest(yes=yes):
-                self.assertFalse(reads_yes("question", shares, 0.9, 0.1, 0.1, True))
-        self.assertTrue(reads_yes("question", {**marked, "yes": 0.3, "question": 0.56}, 0.9, 0.1, 0.1, True))
-        self.assertTrue(reads_yes("yes", {**marked, "yes": 0.55, "question": 0.31}, 0.9, 0.1, 0.1, True),
+                self.assertFalse(reads_yes("question", shares, 0.9, 0.1, 0.1, True, 0.1))
+        self.assertTrue(reads_yes("question", {**marked, "yes": 0.3, "question": 0.56}, 0.9, 0.1, 0.1, True, 0.1))
+        self.assertTrue(reads_yes("yes", {**marked, "yes": 0.55, "question": 0.31}, 0.9, 0.1, 0.1, True, 0.1),
                         "the floor is for the question label only")
 
     def test_every_combination_of_a_missing_answer_is_not_a_yes(self):
-        names = ("label", "shares", "agrees", "asks", "adds")
-        for gone in itertools.chain.from_iterable(itertools.combinations(names, n) for n in (1, 2, 3, 4, 5)):
-            args = dict(label="yes", shares=WHOLE, agrees=0.8, asks=0.2, adds=0.1, kept=True)
+        names = ("label", "shares", "agrees", "asks", "adds", "closes")
+        for gone in itertools.chain.from_iterable(itertools.combinations(names, n) for n in (1, 2, 3, 4, 5, 6)):
+            args = dict(label="yes", shares=WHOLE, agrees=0.8, asks=0.2, adds=0.1, kept=True, closes=0.1)
             args.update({name: None for name in gone})
             with self.subTest(missing=gone):
                 self.assertFalse(reads_yes(**args))
@@ -59,13 +59,14 @@ class Pure(unittest.TestCase):
     def test_each_label_with_agreeing_questions_is_a_yes_only_as_yes_or_question(self):
         for label in LABELS:
             with self.subTest(label=label):
-                self.assertEqual(reads_yes(label, WHOLE, 0.9, 0.1, 0.1, True), label in ("yes", "question"))
+                self.assertEqual(reads_yes(label, WHOLE, 0.9, 0.1, 0.1, True, 0.1), label in ("yes", "question"))
 
 
 def valid():
     return {"reading": {"choice": "yes", "probabilities": dict(WHOLE)},
             "agrees": {"type": "noul", "noul": 0.8}, "asks": {"type": "noul", "noul": 0.2},
-            "adds": {"type": "noul", "noul": 0.1}, "withdraws": {"type": "noul", "noul": 0.05},
+            "adds": {"type": "noul", "noul": 0.1}, "closes": {"type": "noul", "noul": 0.1},
+            "withdraws": {"type": "noul", "noul": 0.05},
             "target": {"choice": KEEPS, "probabilities": {KEEPS: 0.9, "option_1": 0.1}}}
 
 
@@ -111,7 +112,7 @@ def mutations():
         edit("reading share NaN", lambda a: a["reading"]["probabilities"].update(yes=float("nan"))),
         edit("reading shares with an unknown label", lambda a: a["reading"]["probabilities"].update(sure=0.0)),
     ]
-    for name in ("agrees", "asks", "adds"):
+    for name in ("agrees", "asks", "adds", "closes"):
         out += [
             edit(f"{name} missing", lambda a, n=name: a.pop(n)),
             edit(f"{name} not a mapping", lambda a, n=name: a.update({n: 0.9})),
@@ -139,6 +140,7 @@ def mutations():
         edit("the words ask for something", lambda a: a["asks"].update(noul=0.9)),
         edit("the words add a remark about something else", lambda a: a["adds"].update(noul=0.9)),
         edit("the choice says yes and the words say no", lambda a: a["agrees"].update(noul=0.01)),
+        edit("the words thank or close instead of answering", lambda a: a["closes"].update(noul=0.8)),
     ]
     return out
 

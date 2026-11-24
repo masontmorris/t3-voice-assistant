@@ -24,6 +24,7 @@ class Kind(StrEnum):
     LAUNCH_PENDING = "launch_pending"
     LAUNCHED = "launched"
     LAUNCH_UNCONFIRMED = "launch_unconfirmed"
+    NOT_ASKED = "not_asked"
     NO_THREAD = "no_thread"
     CONFIRM_THREAD = "confirm_thread"
     CONFIRM_TELL = "confirm_tell"
@@ -144,6 +145,7 @@ RULES: dict[Kind, Rule] = {
     Kind.LAUNCH_PENDING: Rule(("project",)),
     Kind.LAUNCHED: Rule(("project", "request", "recap"), ("project",)),
     Kind.LAUNCH_UNCONFIRMED: Rule(("project",)),
+    Kind.NOT_ASKED: Rule((), forbids=("started", "sent", "stopped", "answered")),
     Kind.NO_THREAD: Rule(("recent", "other")),
     Kind.CONFIRM_THREAD: Rule(("thread",), ("thread",), True),
     Kind.CONFIRM_TELL: Rule(("thread", "message"), ("thread", "message"), True, ("sent",)),

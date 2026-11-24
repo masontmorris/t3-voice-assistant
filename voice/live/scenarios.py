@@ -727,6 +727,40 @@ def two_requests(pool: Pool) -> Plan:
     return Plan((finished(first), finished(second)), lines, script(), check)
 
 
+# A thanks is not a yes: asked to confirm a start, the caller thanks the assistant, nothing starts and the question is
+# put once more, and only the yes after it starts the thread.
+def thanks_not_yes(pool: Pool) -> Plan:
+    request = pool.request()
+    lines = {"request": request, "thanks": "Okay, thanks.", "yes": "Yes."}
+    notes = {"asked": False}
+
+    def script():
+        heard = yield Say("request")
+        notes["asked"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+        if notes["asked"]:
+            heard = yield Say("thanks")
+            notes["thanks"] = [t.n for t in heard.turns if not t.idle]
+            notes["again"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+            if notes["again"]:
+                heard = yield Say("yes")
+                notes["started"] = bool(heard.turns and heard.turns[-1].said(Kind.LAUNCHED))
+
+    def check(call: Call) -> list[Verdict]:
+        thanks = [t for t in call.caller_turns() if t.n in notes.get("thanks", ())]
+        asked = ok("the start was confirmed back", notes["asked"], "no launch confirmation was asked", 0)
+        nothing = ok("the thanks started nothing", bool(thanks) and not any(t.said(Kind.LAUNCHED) for t in thanks),
+                     "the thanks turn said a thread started" if thanks else "the thanks turn was not found",
+                     thanks[0].index if thanks else None)
+        again = ok("the question was put once more", notes.get("again", False),
+                   "the thanks turn did not ask to confirm the start again", thanks[0].index if thanks else None)
+        started = ok("the yes after it started one thread", notes.get("started", False) and len(call.world["made"]) == 1,
+                     f"{len(call.world['made'])} threads were started")
+        return [asked, *(requires(v, asked.ok, "precondition: no launch confirmation was asked")
+                         for v in (nothing, again, started))]
+
+    return Plan((), lines, script(), check, notes=notes)
+
+
 # A message to a thread, confirmed with a short yes, reaches the thread.
 def short_yes_tell(pool: Pool) -> Plan:
     spoken, title = pool.single()
@@ -900,6 +934,8 @@ SCENARIOS = (
              approve_waiting, 2, 1, fresh=True),
     Scenario("deny-waiting", "a thread's command approval is denied by voice", deny_waiting, 2, 1, fresh=True),
     Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
+    Scenario("thanks-not-yes", "a thanks to a confirm question starts nothing, and the yes after it does",
+             thanks_not_yes, 2, 1, fresh=True),
     Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
     Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),
     Scenario("questioning-yes", "a yes the recogniser transcribes as a question answers the confirm question",
