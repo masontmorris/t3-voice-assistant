@@ -760,8 +760,10 @@ AGREES = ("Do the person's words say yes to what the assistant asked? A bare yea
           "question: repeating the question back, agreeing with something else, or a word cut off before it is a whole "
           "word is not yes.")
 # "Okay, thanks." was a yes to every kind of confirmation (5 of 5 samples each), since the text above said okay agrees
-# and nothing said a thanks does not. Told so, the choice and `agrees` refuse it; this question checks the same apart,
-# and a missing answer is no yes (voice/t3/eval/record_consent.py).
+# and nothing said a thanks does not. Told so, the choice and `agrees` refuse it (voice/t3/eval/record_consent.py).
+# This question tells a thanks from other replies that answer nothing, so a confirmation is asked once more instead of
+# dropped. It is no part of a yes: as a veto it refused real yeses, and the local d1-2B answers it backwards (0.89 for
+# "Yes.").
 CLOSES = ("Instead of answering what the assistant asked, do the person's words thank the assistant, say goodbye, or "
           "only note what it said? A bare okay, alright or sure on its own answers the question.")
 ADDS = ("Beyond agreeing, do the person's words add a remark, a fact or an opinion about something other than what the "
@@ -772,7 +774,7 @@ WITHDRAWS = ("Does the person take back what they asked about altogether, so tha
              "looked up? Saying this is not the thread they mean, or naming another one, does not.")
 AGREES_CONFIDENCE = 0.5
 ADDS_CEILING = 0.5
-# On the seen replies every real yes scored 0.49 or less and every thanks or goodbye 0.58 or more.
+# On the hosted seen replies every real yes scored 0.49 or less and every thanks or goodbye 0.58 or more.
 CLOSES_CEILING = 0.55
 ASKS_CEILING = 0.7
 YES_OR_QUESTION = 0.5
@@ -853,7 +855,7 @@ class Reading:
     @property
     def yes(self) -> bool:
         return reads_yes(self.label, self.probabilities if self.complete else None, self.agrees, self.asks, self.adds,
-                         self.kept, self.closes)
+                         self.kept)
 
     @property
     def withdrawing(self) -> bool:
@@ -876,24 +878,23 @@ class Reading:
 
 
 def reads_yes(label: str | None, shares: dict[str, float] | None, agrees: float | None, asks: float | None,
-              adds: float | None, kept: bool, closes: float | None) -> bool:
+              adds: float | None, kept: bool) -> bool:
     """Whether the decider's answers together are an unconditional yes, the one function that can authorise an action.
     Every answer it rests on must be there: `shares` is the choice's complete map (None when it is missing, partial or
     not shares of one whole), `agrees`, `asks` and `adds` are probabilities, and `kept` says the target answer was present and
     says the proposal is kept (or none was asked). Then all of these must hold: the choice's own label is yes, or
     question, which counts only when yes still has at least QUESTION_LABEL_YES_FLOOR of the choice; the shares of yes
     and question together are at least half; a no and another target each have at most OTHER_CEILING; the words say yes (`agrees`), do not ask
-    for anything in words (`asks`), add nothing but the agreement (`adds`), and are not a thanks, a goodbye or a note of
-    what was said (`closes`). Anything missing, malformed or in disagreement is not a yes."""
-    if (shares is None or agrees is None or asks is None or adds is None or closes is None or not kept
+    for anything in words (`asks`) and add nothing but the agreement (`adds`). Anything missing, malformed or in
+    disagreement is not a yes."""
+    if (shares is None or agrees is None or asks is None or adds is None or not kept
             or label not in ("yes", "question")):
         return False
     if label == "question" and shares.get("yes", 0.0) < QUESTION_LABEL_YES_FLOOR:
         return False
     return (shares.get("yes", 0.0) + shares.get("question", 0.0) >= YES_OR_QUESTION
             and shares.get("no", 1.0) <= OTHER_CEILING and shares.get("other", 1.0) <= OTHER_CEILING
-            and agrees >= AGREES_CONFIDENCE and asks < ASKS_CEILING and adds < ADDS_CEILING
-            and closes < CLOSES_CEILING)
+            and agrees >= AGREES_CONFIDENCE and asks < ASKS_CEILING and adds < ADDS_CEILING)
 
 
 def _complete(shares: dict[str, float]) -> bool:

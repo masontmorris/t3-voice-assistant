@@ -107,7 +107,7 @@ class Reads(unittest.TestCase):
                                                 agrees=0.6, asks=0.97)).yes)
 
     def test_a_reading_missing_one_of_the_yes_questions_is_not_a_yes(self):
-        for left_out in ("agrees", "asks", "adds", "closes"):
+        for left_out in ("agrees", "asks", "adds"):
             answers = answered({"yes": 0.9, "other": 0.1})
             del answers[left_out]
             self.assertFalse(judge_reading(answers).yes, left_out)
