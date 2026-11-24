@@ -129,9 +129,11 @@ MEANINGS: dict[Kind, str] = {
                         "same news in your own words, adding nothing. Attribute any work or results to the thread.",
     Kind.CONFIRM_RESPOND: "Ask whether to approve or deny the request the thread is waiting on, as `decision` says, "
                           "naming the thread. When `summary` is given, say what this request would do, in your own "
-                          "words, from it: what the person would be allowing. A denial has no `summary`: name the "
-                          "thread and ask whether to say no to its request. Never read out a command line, flag, path "
-                          "or code. Nothing is answered yet.",
+                          "words, from it: what the person would be allowing. With no `summary`, name the thread and ask "
+                          "whether to approve what kind of thing `need` says it waits for, and say what it would do "
+                          "or is for in no way; when `tool` is given, say it as given. A denial has no `summary`: name "
+                          "the thread and ask whether to say no to its request. Never read out a command line, flag, "
+                          "path or code. Nothing is answered yet.",
     Kind.NEEDS_THE_APP: "Name the thread using the full thread title from the record exactly as supplied, without "
                         "wrapping it in quotes. Say that its request has to be approved in the app. When `request` is "
                         "given, say what it asks to do, in your own words, from it; otherwise say only what kind of "
@@ -873,7 +875,8 @@ class Speech:
         gate, and never one it was given; a denial carries none, since nothing runs when a request is denied."""
         slots = {k: v for k, v in a.slots.items() if k != "summary"}
         text = self.describe(thread_id, need) if a.slots.get("decision") == "approve" else None
-        return Act(a.kind, {**slots, "summary": text} if text else slots)
+        # The tool's name is said only when no description is: the description says what the tool is for.
+        return Act(a.kind, {**{k: v for k, v in slots.items() if k != "tool"}, "summary": text} if text else slots)
 
     def _request(self, acts: tuple[Act, ...], thread_id: str | None, state: T.ThreadState | None) -> tuple[Act, ...]:
         """A line about a pending request never sees the request's stored text. What it may say the request is about is
@@ -1117,8 +1120,41 @@ READER_VARIANTS = {
     (Kind.CONFIRM_RESPOND, "deny"): ({"thread": "Example Archive Old Invoices", "decision": "deny",
                                      "need": "command_approval"},
                                     "Should I say no to the request Example Archive Old Invoices is waiting on?"),
+    # No description passed the gate: the kind alone, never what the request does or is for.
+    (Kind.CONFIRM_RESPOND, "kind_only"): ({"thread": "Example Archive Old Invoices", "decision": "approve",
+                                          "need": "command_approval"},
+                                         "Should I approve Example Archive Old Invoices running a command?"),
+    (Kind.CONFIRM_RESPOND, "kind_only_begun_for"): ({"begun_in": "Example Fleet Notes",
+                                                    "begun_for": "sorting the fleet log by date", "decision": "approve",
+                                                    "need": "command_approval"},
+                                                   "The thread you started in Example Fleet Notes for sorting the "
+                                                   "fleet log by date is waiting for your approval to run a command. "
+                                                   "Should I approve it?"),
+    (Kind.CONFIRM_RESPOND, "kind_only_begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve",
+                                                "need": "command_approval"},
+                                               "The thread you started in Example Fleet Notes is waiting for your "
+                                               "approval to run a command. Should I approve it?"),
+    (Kind.CONFIRM_RESPOND, "kind_only_on_call"): ({"on_call": True, "decision": "approve", "need": "command_approval"},
+                                                 "Should I approve this thread's request to run a command?"),
+    (Kind.CONFIRM_RESPOND, "tool"): ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "permission",
+                                     "tool": "ListPages"},
+                                    "Should I let Example Mend Rail Maps use the ListPages tool?"),
     (Kind.RESPONDED, "deny"): ({"thread": "Example Mend Rail Maps", "decision": "deny", "need": "file_change"},
                                "I said no to the file changes for Example Mend Rail Maps."),
+    # The answer to an untitled thread's request names the thread as its other lines do, by what it was started for.
+    (Kind.RESPONDED, "begun_for_approve"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                            "decision": "approve", "need": "command_approval"},
+                                           "I approved the command for the thread you started in Example Fleet Notes "
+                                           "for sorting the fleet log by date."),
+    (Kind.RESPONDED, "begun_for_deny"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date",
+                                         "decision": "deny", "need": "command_approval"},
+                                        "I said no to the command for the thread you started in Example Fleet Notes "
+                                        "for sorting the fleet log by date."),
+    (Kind.RESPONDED, "begun_approve"): ({"begun_in": "Example Fleet Notes", "decision": "approve",
+                                        "need": "command_approval"},
+                                       "I approved the command for the thread you started in Example Fleet Notes."),
+    (Kind.RESPONDED, "begun_deny"): ({"begun_in": "Example Fleet Notes", "decision": "deny", "need": "command_approval"},
+                                    "I said no to the command for the thread you started in Example Fleet Notes."),
     (Kind.CANCELLED, "stop"): ({"op": "stop"}, "I won't stop the thread."),
     (Kind.CANCELLED, "ask"): ({"op": "ask"}, "Okay, I'll leave that one."),
     (Kind.NEEDS_YOU, "request"): ({"thread": "Example Archive Old Invoices", "need": "command_approval",
@@ -1256,6 +1292,8 @@ def _shape(kind: Kind, slots: dict) -> str | None:
         return "thread_pair"
     if kind is Kind.NEEDS_THE_APP and slots.get("again"):
         return "again"
+    if kind is Kind.RESPONDED and (slots.get("begun_for") or slots.get("begun_in")):
+        return f"{'begun_for' if slots.get('begun_for') else 'begun'}_{slots.get('decision')}"
     if slots.get("begun_for") and (kind, "begun_for") in READER_VARIANTS:
         return "begun_for"
     if slots.get("begun_in") and (kind, "begun") in READER_VARIANTS:
@@ -1264,6 +1302,10 @@ def _shape(kind: Kind, slots: dict) -> str | None:
         return "on_call"
     if kind in (Kind.NEEDS_YOU, Kind.NEEDS_THE_APP) and slots.get("request"):
         return "request"
+    if kind is Kind.CONFIRM_RESPOND and slots.get("decision") == "approve" and not slots.get("summary"):
+        place = ("begun_for" if slots.get("begun_for") else "begun" if slots.get("begun_in")
+                 else "on_call" if slots.get("on_call") else None)
+        return f"kind_only_{place}" if place else "tool" if slots.get("tool") else "kind_only"
     if kind is Kind.DONE and slots.get("status") in STOPPED:
         return "stopped"
     if kind is Kind.NEEDS_THE_APP and (kind, slots.get("need")) in READER_VARIANTS:

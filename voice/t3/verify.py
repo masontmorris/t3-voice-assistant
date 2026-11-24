@@ -250,8 +250,11 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
                            "your own words, to tell it from the other thread started in the same project."))
     # A request is described only from `request`, which the approval gate passed against the stored request. A thread
     # that has none is told only by the kind of thing it waits for.
+    # An approval asked with no description of the request is told by its kind alone, as a thread's need is.
     for n, a in enumerate(acts, 1):
-        if a.kind not in REQUEST_ACTS or not a.slots.get("need"):
+        asks_by_kind = (a.kind is Kind.CONFIRM_RESPOND and a.slots.get("decision") == "approve"
+                        and not a.slots.get("summary"))
+        if (a.kind not in REQUEST_ACTS and not asks_by_kind) or not a.slots.get("need"):
             continue
         if request := a.slots.get("request"):
             out.append(Ask(f"a{n}_request", f'Does the line say what the request would do, as this description does: '
@@ -311,11 +314,12 @@ def kind_only_names(a: Act) -> str:
     """How a line may name the thread, quoted for the kind-only question: told only "the thread's name", d1.2 read a
     title that reads as an instruction, or what an untitled thread was started for, as what the request is for (5 of 5
     file-change lines, and the gate's untitled-thread approvals)."""
+    named = f' and the tool "{a.slots["tool"]}"' if a.slots.get("tool") else ""
     if a.slots.get("begun_for"):
-        return f'the thread started for "{a.slots["begun_for"]}"'
+        return f'the thread started for "{a.slots["begun_for"]}"{named}'
     if a.slots.get("thread"):
-        return f'its name, "{a.slots["thread"]}"'
-    return "its name"
+        return f'its name, "{a.slots["thread"]}"{named}'
+    return f"its name{named}"
 
 
 # A reply reports its own work ("I added clamp, the tests pass"), which d1.2 reads as the run ending on every smoke

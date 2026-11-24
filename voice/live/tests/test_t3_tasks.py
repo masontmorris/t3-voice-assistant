@@ -1220,9 +1220,8 @@ class Service(unittest.IsolatedAsyncioTestCase):
                 "tool": {"tool": tool, "confidence": confidence} if tool else None}
 
     async def test_an_approval_sent_to_the_app_whose_line_was_not_heard_is_never_recapped_as_approved(self):
-        for pending, why in ((F.need("q1", "mcp__github__create_issue", source=T.NeedSource.PERMISSION),
-                              "a tool permission goes to the app"),
-                             (F.need("q1", "Read the notes", source=T.NeedSource.FILE_READ), "a file read goes to the app")):
+        for pending, why in ((F.need("q1", "Which repository?", source=T.NeedSource.MCP_ELICITATION),
+                              "a tool's input request goes to the app"),):
             with self.subTest(why):
                 seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
                                                activity=T.ThreadActivity.WAITING_ON_YOU, pending=pending))
@@ -2248,7 +2247,7 @@ class Respond(unittest.TestCase):
         self.assertEqual([(n.request_id, n.prompt, d) for n, d in gate.asked],
                          [("q1", "Run the formatter?", FakeText.GIST)], "the gate saw the request and the description")
 
-    def test_a_description_the_gate_doubts_or_no_gate_at_all_sends_the_approval_to_the_app(self):
+    def test_a_description_the_gate_doubts_or_no_gate_at_all_still_offers_the_approval_by_its_kind_and_a_yes_approves(self):
         for gate, why in ((FakeGate(0.4), "the gate doubts it"), (FakeGate(None), "the gate gives no answer"),
                           (None, "there is no gate")):
             with self.subTest(why):
@@ -2257,10 +2256,13 @@ class Respond(unittest.TestCase):
                 update = t3.about("k1", APPROVE, "I approve.", 0)
                 t3.spoke(update)
                 t3.say(update)
-                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
-                                                   need="command_approval"),))
-                self.assertIsNone(t3.answer("Yes.", 1))
-                self.assertEqual(seam.ops("respond"), [])
+                self.assertEqual(update.acts, (act(S.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve",
+                                                   need="command_approval"),), "the kind and the thread, no description")
+                self.assertEqual((update.status, seam.ops("respond")), ("needs_clarification", []))
+                seam.answer("respond", F.responded("t5", "q1", "approve", sequence=141))
+                done = t3.answer("Yes.", 1)
+                self.assertEqual([c[2:] for c in seam.ops("respond")], [("t5", "q1", "approve")])
+                self.assertEqual(done.acts[0].kind, S.RESPONDED)
 
     def test_a_second_draft_says_only_the_kind_of_request(self):
         t3 = worded(tasks_over(self, self.seam()), FakeText(), None)
@@ -2273,48 +2275,74 @@ class Respond(unittest.TestCase):
         self.assertEqual(update.refused, ())
         self.assertEqual(update.acts[0].slots, {"thread": "Add a clamp helper", "need": "command_approval"})
 
-    def test_an_approval_whose_stored_prompt_is_not_an_action_goes_to_the_app_by_its_source_and_never_by_its_text(self):
-        for source, prompt in ((T.NeedSource.PERMISSION, "mcp__github__create_issue"),
-                               (T.NeedSource.FILE_READ, "Read the project notes"),
-                               (T.NeedSource.PERMISSION, "rm -rf dist && pnpm build")):
-            with self.subTest(source=source, prompt=prompt):
-                seam = self.seam(pending=F.need("q1", prompt, source=source))
-                update = tasks_over(self, seam).about("k1", APPROVE, "I approve.", 0)
-                self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
-                                                   need=L.need_of(T.PendingKind.APPROVAL, source), prompt=prompt),),
-                                 "the request's own text goes with it, for a gated description to replace")
-                self.assertEqual(seam.ops("respond"), [])
-        seam = self.seam(pending=F.need("q1", "mcp__github__create_issue", source=T.NeedSource.PERMISSION))
-        self.assertEqual(tasks_over(self, seam).about("k1", DENY, "No.", 0).acts[0].kind, S.CONFIRM_RESPOND,
-                         "a denial needs no description, whatever the request is")
-
-    def test_a_tool_permission_is_named_in_plain_words_once_and_then_only_said_to_still_wait(self):
-        seam = self.seam(pending=F.need("q1", "mcp__notes__list_pages", source=T.NeedSource.PERMISSION))
-        text, gate = FakeText(), FakeGate(0.02)
-        t3 = worded(tasks_over(self, seam), text, gate)
+    def test_a_tool_input_request_goes_to_the_app_by_its_source_and_is_told_once_then_only_said_to_still_wait(self):
+        seam = self.seam(pending=F.need("q1", "Which repository?", source=T.NeedSource.MCP_ELICITATION))
+        t3 = worded(tasks_over(self, seam), FakeText(), FakeGate(0.02))
         t3.begin_call()
         first = t3.about("k1", APPROVE, "I approve.", 0)
-        t3.say(first)
-        self.assertEqual(first.acts[0].slots, {"thread": "Add a clamp helper", "decision": "approve",
-                                               "need": "permission", "request": FakeText.GIST},
-                         "the gated description of the tool, never its stored name")
-        self.assertEqual([(n.source, n.prompt) for n, _ in gate.asked],
-                         [(T.NeedSource.PERMISSION, "mcp__notes__list_pages")])
+        self.assertEqual(first.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
+                                          need="tool_input", prompt="Which repository?"),),
+                         "the request's own text goes with it, for a gated description to replace")
         t3.spoke(first)
         again = t3.about("k2", APPROVE, "Permission granted.", 1)
         t3.say(again)
         self.assertEqual(again.acts[0].slots, {"thread": "Add a clamp helper", "decision": "approve",
-                                               "need": "permission", "again": True},
-                         "a second try is told it still waits in the app, not the same line")
-        self.assertEqual(seam.ops("respond"), [], "a tool permission is still approved only in the app")
-        t3.begin_call()
-        self.assertNotIn("again", t3.about("k3", APPROVE, "I approve.", 2).acts[0].slots, "a new call says it whole")
+                                               "need": "tool_input", "again": True})
+        self.assertIsNone(t3.answer("Yes.", 2))
+        self.assertEqual(seam.ops("respond"), [])
+        self.assertEqual(tasks_over(self, seam).about("k1", DENY, "No.", 0).acts[0].kind, S.CONFIRM_RESPOND,
+                         "a denial needs no description, whatever the request is")
+
+    def test_a_tool_permission_is_asked_with_its_description_when_one_passed_and_by_its_name_when_none_did(self):
+        for gate, slots in ((FakeGate(0.02), {"summary": FakeText.GIST}),
+                            (FakeGate(0.4), {"tool": "mcp__notes__list_pages"})):
+            seam = self.seam(pending=F.need("q1", "mcp__notes__list_pages", source=T.NeedSource.PERMISSION))
+            t3 = worded(tasks_over(self, seam), FakeText(), gate)
+            update = t3.about("k1", APPROVE, "I approve.", 0)
+            t3.spoke(update)
+            self.assertEqual(update.acts[0].slots, {"thread": "Add a clamp helper", "decision": "approve",
+                                                    "need": "permission", "tool": "mcp__notes__list_pages"})
+            t3.say(update)
+            self.assertEqual(update.acts[0].slots, {"thread": "Add a clamp helper", "decision": "approve",
+                                                    "need": "permission", **slots})
+            seam.answer("respond", F.responded("t5", "q1", "approve", sequence=141))
+            t3.answer("Yes.", 1)
+            self.assertEqual([c[2:] for c in seam.ops("respond")], [("t5", "q1", "approve")])
+
+    def test_every_approval_the_seam_can_answer_is_offered_and_a_yes_answers_that_request(self):
+        for source, prompt, need in ((T.NeedSource.COMMAND, "pnpm test", "command_approval"),
+                                     (T.NeedSource.FILE_CHANGE, "Rename a helper in lib/users.ts", "file_change"),
+                                     (T.NeedSource.PERMISSION, "WebFetch", "permission"),
+                                     (T.NeedSource.FILE_READ, "notes.md", "file_read")):
+            with self.subTest(source=source):
+                seam = self.seam(pending=F.need("q1", prompt, source=source))
+                t3 = tasks_over(self, seam)
+                update = t3.about("k1", APPROVE, "I approve.", 0)
+                t3.spoke(update)
+                self.assertEqual((update.acts[0].kind, update.acts[0].slots["need"], update.status),
+                                 (S.CONFIRM_RESPOND, need, "needs_clarification"))
+                seam.answer("respond", F.responded("t5", "q1", "approve", sequence=141))
+                t3.answer("Yes.", 1)
+                self.assertEqual([c[2:] for c in seam.ops("respond")], [("t5", "q1", "approve")])
+
+    def test_a_request_replaced_or_resolved_after_the_kind_only_question_is_not_answered_by_the_yes(self):
+        for pending, then in ((F.need("q2", "WebFetch", source=T.NeedSource.PERMISSION), S.CONFIRM_RESPOND),
+                              (None, S.NOTHING_PENDING)):
+            with self.subTest(replaced=pending is not None):
+                seam = self.seam(pending=F.need("q1", "Bash", source=T.NeedSource.PERMISSION))
+                t3 = tasks_over(self, seam)
+                t3.spoke(t3.about("k1", APPROVE, "I approve.", 0))
+                seam.read = F.state(thread="t5", title="Add a clamp helper", as_of=150,
+                                    activity=T.ThreadActivity.WAITING_ON_YOU if pending else T.ThreadActivity.WORKING,
+                                    pending=pending)
+                update = t3.answer("Yes.", 1)
+                self.assertEqual((update.acts[0].kind, seam.ops("respond")), (then, []))
 
     def test_a_free_line_that_a_request_waits_in_the_app_is_supported_by_the_facts(self):
-        seam = self.seam(pending=F.need("q1", "mcp__notes__list_pages", source=T.NeedSource.PERMISSION))
+        seam = self.seam(pending=F.need("q1", "Which repository?", source=T.NeedSource.MCP_ELICITATION))
         t3 = tasks_over(self, seam)
         t3.follow.ensure(0)
-        t3.spoke(L.Update("k1", (act(S.NEEDS_YOU, thread="Add a clamp helper", need="permission"),), "live",
+        t3.spoke(L.Update("k1", (act(S.NEEDS_YOU, thread="Add a clamp helper", need="tool_input"),), "live",
                           "needs_you", "t5"))
         _, facts = t3.claim_facts()
         self.assertEqual({k: facts["waiting_on_the_person"][k] for k in ("approved_by_voice", "approved_in")},
@@ -2330,18 +2358,21 @@ class Respond(unittest.TestCase):
                                            need="command_approval"),))
         self.assertFalse([m for m in text.seen if ".probe.txt" in m["content"]], "no model was shown the command")
 
-    def test_a_request_with_nothing_stored_about_what_it_does_cannot_be_approved_by_voice(self):
+    def test_a_request_with_nothing_stored_is_asked_by_its_kind_with_no_text_and_a_yes_answers_it(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
                                        activity=T.ThreadActivity.WAITING_ON_YOU, pending_detailed=False,
                                        pending=F.need("q1", "It wants your approval to run a command.")))
         seam.listing = waiting_listing(("t5", "Add a clamp helper"))
-        t3 = tasks_over(self, seam)
+        t3 = worded(tasks_over(self, seam), FakeText(), FakeGate(0.02))
         update = t3.about("k1", APPROVE, "I approve.", 0)
-        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
-                                           need="command_approval"),), "nothing stored to describe, so no prompt")
-        self.assertEqual((update.status, t3.live_question(), seam.ops("respond")), ("completed", None, []))
-        self.assertIsNone(t3.answer("Yes.", 1), "there is nothing to say yes to")
-        self.assertEqual(seam.ops("respond"), [])
+        t3.spoke(update)
+        t3.say(update)
+        self.assertEqual(update.acts, (act(S.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve",
+                                           need="command_approval"),), "nothing stored to describe")
+        self.assertIsNone(t3.live_question().prompt)
+        seam.answer("respond", F.responded("t5", "q1", "approve", sequence=141))
+        t3.answer("Yes.", 1)
+        self.assertEqual([c[2:] for c in seam.ops("respond")], [("t5", "q1", "approve")])
 
     def test_denying_a_request_with_nothing_stored_is_still_confirmed_because_nothing_runs(self):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140,
@@ -2350,23 +2381,6 @@ class Respond(unittest.TestCase):
         seam.listing = waiting_listing(("t5", "Add a clamp helper"))
         update = tasks_over(self, seam).about("k1", DENY, "No, do not allow that.", 0)
         self.assertEqual((update.acts[0].kind, update.acts[0].slots["decision"]), (S.CONFIRM_RESPOND, "deny"))
-
-    def test_an_approval_whose_description_did_not_pass_is_sent_to_the_app_and_asks_nothing(self):
-        class NoGist(FakeText):
-            def complete(self, messages):
-                record = super().complete(messages)
-                return {**record, "text": ""} if messages[0]["content"] != RENDER_SYSTEM else record
-
-        seam = self.seam()
-        t3 = worded(tasks_over(self, seam), NoGist())
-        update = t3.about("k1", APPROVE, "I approve.", 0)
-        t3.spoke(update)
-        t3.say(update)
-        self.assertEqual(update.acts, (act(S.NEEDS_THE_APP, thread="Add a clamp helper", decision="approve",
-                                           need="command_approval"),))
-        self.assertEqual((update.status, t3.live_question()), ("completed", None))
-        self.assertIsNone(t3.answer("Yes.", 1))
-        self.assertEqual(seam.ops("respond"), [])
 
     def test_a_request_that_became_a_question_before_the_yes_is_read_out_and_not_answered(self):
         seam, t3, _ = self.asked()

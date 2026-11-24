@@ -115,6 +115,15 @@ class DescribingARequest(unittest.TestCase):
         self.assertEqual(invented.failed, ("a1_kind_only",))
         self.assertIn("kind of thing", invented.problems[0])
 
+    def test_an_approval_asked_with_no_description_is_checked_for_its_kind_and_names_the_tool(self):
+        base = dict(thread="Add clamp helper", decision="approve", need="permission")
+        by_kind = act(Kind.CONFIRM_RESPOND, **base, tool="list_pages")
+        names = lambda said: [ask.name for ask in asks([said]) if ask.name.startswith("a1_k") or ask.name == "a1_need_kind"]
+        self.assertEqual(names(by_kind), ["a1_kind_only", "a1_need_kind"])
+        self.assertIn('the tool "list_pages"', next(ask.question for ask in asks([by_kind]) if ask.name == "a1_kind_only"))
+        self.assertEqual(names(act(Kind.CONFIRM_RESPOND, **base, summary="It lists pages.")), [], "a description is checked")
+        self.assertEqual(names(act(Kind.CONFIRM_RESPOND, **{**base, "decision": "deny"})), [], "a denial says no kind")
+
     def test_a_thread_with_no_title_is_asked_about_as_the_one_started_for_them(self):
         said = act(Kind.NEEDS_YOU, begun_in="Voice sandbox", need="command_approval")
         self.assertIn("started for them in Voice sandbox", act_meaning(said))
