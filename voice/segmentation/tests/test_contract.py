@@ -4,6 +4,7 @@ from voice.segmentation.contract import Kind, Readiness, TranscriptUpdate, decis
 from voice.segmentation.client import MODEL
 from voice.segmentation.spans import clause_segments, extracted_segments, fine_pieces, merge_pieces
 from voice.tools import registry
+from voice.tools.lookups import WEEKDAYS
 from voice.tools.registry import GENERAL, NONE, Tool, ToolChoice
 
 TOOLS = registry.build(None, None, None).choices()
@@ -125,7 +126,7 @@ class ToolQuestion(unittest.TestCase):
 
     def test_a_tool_added_to_the_registry_appears_with_no_other_edit(self):
         extra = Tool("calendar", "calendar lookup", "Reads the speaker's own calendar for a day.",
-                     lambda instruction, earlier=None: {}, lambda arguments, deadline: ("", {}))
+                     lambda arguments, deadline: ("", {}))
         runner = registry.Registry([*registry.build(None, None, None).tools.values(), extra])
         criteria = self.body(tools=runner.choices())["questions"]["s1_tool"]["criteria"]
         self.assertEqual(criteria["calendar"], "Reads the speaker's own calendar for a day.")
@@ -172,8 +173,21 @@ class ToolQuestion(unittest.TestCase):
         response = good_answers(body, s1_place={"type": "text", "text": "Denver", "found": 0.99},
                                 s1_when={"type": "choice", "choice": "tomorrow", "confidence": 0.9})
         parsed = parse_decisions(response, body)
-        self.assertEqual(parsed.segments["s1"].tool.arguments, {"place": "Denver", "when": "tomorrow"})
+        self.assertEqual(parsed.segments["s1"].tool.arguments,
+                         {"place": "Denver", "when": "tomorrow", "continues": False})
         self.assertEqual(parsed.problems, [])
+
+    def test_a_day_counted_from_today_is_a_whole_number_of_days(self):
+        body = self.body(tools=TOOLS, arguments=True)
+        self.assertEqual(set(body["questions"]["s1_when"]["criteria"]) - {"none", "today", "tomorrow", "weekend"},
+                         {*(f"in_{n}_days" for n in range(2, 16)), "farther", *WEEKDAYS})
+        for choice, when in (("in_3_days", 3), ("in_7_days", 7), ("in_15_days", 15), ("farther", "farther"),
+                             ("friday", "friday"), ("none", None)):
+            with self.subTest(choice):
+                response = good_answers(body, s1_when={"type": "choice", "choice": choice})
+                parsed = parse_decisions(response, body)
+                self.assertEqual(parsed.segments["s1"].tool.arguments["when"], when)
+                self.assertEqual(parsed.problems, [])
 
     def test_a_place_answer_that_is_not_a_name_leaves_the_argument_to_the_words(self):
         """The recorded answer from turn 020 of the 37-turn replay: the model copied the request's own state."""

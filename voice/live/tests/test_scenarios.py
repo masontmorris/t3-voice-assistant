@@ -207,6 +207,9 @@ class FollowUp(unittest.TestCase):
         self.assertEqual(len(failed(plan.check(call([first, turn(1, tools=[self.lookup("Paris", "2026-11-27")])])))), 3)
         self.assertEqual(len(failed(plan.check(call([first, turn(1, tools=[self.lookup(city, "2026-11-20")])])))), 1)
         self.assertEqual(len(failed(plan.check(call([first, turn(1)])))), 3)
+        today = {**self.lookup(city, "2026-11-20"), "arguments": {"place": city, "when": "today"}}
+        self.assertEqual(failed(plan.check(call([first, turn(1, tools=[today])]))),
+                         ["the follow-up did not fall back to today", "the follow-up's forecast is for a week from today"])
 
 
 class Silence(unittest.TestCase):

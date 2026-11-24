@@ -24,7 +24,7 @@ from datetime import date
 from pathlib import Path
 
 from voice.segmentation import client
-from voice.tools.lookups import WEEKDAYS, remaining
+from voice.tools.lookups import FARTHER, WEEKDAYS, counted, remaining
 
 MODEL = "deepseek/deepseek-v4.1-flash-1017"
 DAILY_CAP_USD = 0.50
@@ -32,7 +32,7 @@ HOST = "openrouter.ai"
 PATH = "/api/v1/chat/completions"
 TIMEOUT_S = 12.0
 CONTEXT_TURNS = 6
-WHENS = ("today", "tomorrow", "weekend", *WEEKDAYS)
+WHENS = ("today", "tomorrow", "weekend", FARTHER, *WEEKDAYS)
 NUMBER = re.compile(r"\d+(?:\.\d+)?")
 VOICE_HOME = Path(os.environ.get("VOICE_HOME", Path.home() / "voice"))
 LEDGER = VOICE_HOME / "evidence" / "agent" / "calls.jsonl"
@@ -69,7 +69,7 @@ def choose_messages(instruction, context, today, default_place):
             "names a place." if default_place else "The person has no default place.")
     system = f"""You are the lookup worker behind a voice assistant. Today is {today:%A, %B} {today.day}, {today.year}. {home}
 Reply with exactly one JSON object and nothing else, in one of these forms:
-{{"tool": "weather", "place": "<city>", "when": "today|tomorrow|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday"}} for a forecast, or for anything that depends on the weather, such as what to wear.
+{{"tool": "weather", "place": "<city>", "when": "today|tomorrow|weekend|monday|tuesday|wednesday|thursday|friday|saturday|sunday"}} for a forecast, or for anything that depends on the weather, such as what to wear. For a day counted from today, make "when" a whole number of days after today instead, such as 7 for a week from today. Leave "when" out when the request names no day.
 {{"tool": "time", "place": "<city>"}} for the current time somewhere.
 {{"answer": "<one or two short spoken sentences>"}} for a question you can answer from general knowledge or from the conversation.
 {{"cannot": "<why>"}} when the request needs something you have no tool for, such as email, calendars, files, timers or live prices, or a fact you do not know.
@@ -88,7 +88,8 @@ Answer the request directly from the lookup result. Use its numbers exactly as g
 
 def parse_choice(text):
     """The model's JSON choice as ("tool", name, arguments), ("answer", text) or ("cannot", reason); None when the
-    reply holds no such object."""
+    reply holds no such object, or a weather day that is not a day: a named day, `farther`, or a whole number of days
+    after today, however large, which the lookup fails as out of range. A `when` left out is no day stated, today."""
     start, end = (text or "").find("{"), (text or "").rfind("}")
     if start < 0 or end < start:
         return None
@@ -102,8 +103,14 @@ def parse_choice(text):
     if tool in ("weather", "time"):
         arguments = {"place": place.strip() if isinstance(place, str) and place.strip() else None}
         if tool == "weather":
-            when = str(choice.get("when") or "today").strip().lower()
-            arguments["when"] = when if when in WHENS else "today"
+            when = choice.get("when")
+            if when is None:
+                when = "today"
+            elif isinstance(when, str):
+                when = when.strip().lower()
+            if not (counted(when) and when >= 0) and when not in WHENS:
+                return None
+            arguments["when"] = when
         return ("tool", tool, arguments)
     if isinstance(choice.get("answer"), str) and choice["answer"].strip():
         return ("answer", choice["answer"])

@@ -446,7 +446,7 @@ def follow_up(pool: Pool) -> Plan:
         ready = all(v.ok for v in out) and days is not None
         out.extend(requires(v, ready, "precondition: both forecasts must return dates for the requested city") for v in (
             ok("the follow-up did not fall back to today", not fell_back_to_today, "the tool ran today's forecast", 1),
-            ok("the follow-up's forecast is for a week from today", days == 6 or fell_back_to_today,
+            ok("the follow-up's forecast is for a week from today", days == 6,
                f"the follow-up's forecast is {days} days after the first, not 6", 1)))
         return out
 
@@ -889,8 +889,6 @@ KNOWN: dict[tuple[str, str], str] = {
         "read as the choice's question, and since then 15 of 16 decider reads and 3 of 4 gate runs take it)",
     ("withdrawn-launch", "the question was not asked again"):
         "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
-    ("follow-up", "the follow-up did not fall back to today"):
-        "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
     ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
 
 
