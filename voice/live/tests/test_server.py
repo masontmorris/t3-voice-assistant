@@ -51,6 +51,9 @@ class FakeSession:
 class FakeVoice:
     """The call's voice session, standing in for llama-server's realtime socket."""
 
+    # A llama-server without the truncate patch answers conversation.item.truncate with an error.
+    refuse_truncate = False
+
     def __init__(self, name, on_event):
         self.name, self.on_event, self.config = name, on_event, None
         self.events, self.sent, self.audio = [], [], []
@@ -68,6 +71,10 @@ class FakeVoice:
 
     async def send(self, **event):
         self.sent.append(event)
+        if event["type"] == "conversation.item.truncate":
+            self.events.append({"type": "error", "error": {"message": "unknown event type"}} if self.refuse_truncate
+                               else {"type": "conversation.item.truncated", "item_id": event["item_id"],
+                                     "removed_item_ids": []})
         if event["type"] == "response.create":
             draft = next(e["item"]["content"][0]["text"] for e in reversed(self.sent)
                          if e["type"] == "conversation.item.create")
@@ -134,6 +141,22 @@ async def talking_run_clip(source, *args, persona, voice=None, speak=None, **kwa
     await source.stream(FakeSession(), FakeSession())
     if source.n == 1:
         speak(f"reply to {source.name}", b"\x01\x00" * (OUT_RATE * 2), True)
+    else:
+        await source.send_voice(voice)
+    return {"clip": source.name, "final_transcript": f"words in {source.name}", "replies": [], "metrics": {}}
+
+
+async def session_run_clip(source, *args, persona, voice=None, speak=None, **kwargs):
+    """Turn 1 speaks a 2 s reply the voice session made, as its item `item_1`; later turns hand their audio to the
+    session, as run_clip does at turn end."""
+    VOICES.append(voice)
+    voice.on_event({"type": "session.created", "session": {"audio": {"output": {"format": {"rate": OUT_RATE}}}}})
+    await source.stream(FakeSession(), FakeSession())
+    if source.n == 1:
+        pcm = b"\x01\x00" * (OUT_RATE * 2)
+        voice.audio.append((len(voice.events), pcm[:1920]))
+        voice.events.append({"type": "response.output_audio.delta", "item_id": "item_1", "_t": 0})
+        speak(f"reply to {source.name}", pcm, True)
     else:
         await source.send_voice(voice)
     return {"clip": source.name, "final_transcript": f"words in {source.name}", "replies": [], "metrics": {}}
@@ -415,6 +438,7 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(played, 0)
         self.assertLess(played, OUT_RATE * 2 * 2, "only the part of the reply the client had played")
         self.assertEqual(self.created(1), [], "the note ships off")
+        self.assertNotIn("conversation.item.truncate", [e["type"] for e in SENT_BEFORE[1]], "and so does the trim")
         barge = record["live"]["barge_in"]
         self.assertEqual((barge["heard"], barge["whole"], barge["note"]), ("reply to turn", False, None),
                          "the record keeps what the read-back matched, up to its last matched word")
@@ -442,6 +466,43 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         note_at = next(i for i, event in enumerate(sent) if event["type"] == "conversation.item.create")
         audio_at = next(i for i, event in enumerate(sent) if event["type"] == "input_audio_buffer.append")
         self.assertLess(note_at, audio_at, "the note is in the session before the barge-in turn's audio")
+
+    async def trimmed(self, read_back):
+        """A barge-in with --trim-unheard on, over a reply the session made, read back as `read_back`. Returns what
+        the second turn's session got, in order, and the turn's barge-in record."""
+        self.live.trim_unheard = True
+        self.heard_reply(read_back)
+        with mock.patch.object(server, "run_clip", session_run_clip):
+            ws = await self.connect()
+            record = await self.barge_in(ws, await self.reply_playing(ws))
+        return VOICES[1].sent, record["live"]["barge_in"]
+
+    async def test_with_the_trim_on_the_session_keeps_only_what_was_heard_then_learns_it_was_cut_off(self):
+        sent, barge = await self.trimmed("Reply to turn")
+        kinds = [event["type"] for event in sent]
+        truncate = sent[kinds.index("conversation.item.truncate")]
+        self.assertEqual((truncate["item_id"], truncate["text"]), ("item_1", "reply to turn"),
+                         "the reply the session made keeps the words the read-back matched, and nothing after them")
+        note_at, audio_at = kinds.index("conversation.item.create"), kinds.index("input_audio_buffer.append")
+        self.assertLess(kinds.index("conversation.item.truncate"), note_at)
+        self.assertLess(note_at, audio_at, "both before the barge-in turn's audio")
+        self.assertEqual(sent[note_at]["item"]["content"][0]["text"], prototype_run.cut_note(True))
+        self.assertEqual((barge["trim"]["cut"], barge["trim"]["accepted"]),
+                         ({"item": "item_1", "heard": "reply to turn"}, True))
+
+    async def test_with_the_trim_on_a_reply_nobody_heard_leaves_none_of_it_in_the_session(self):
+        sent, barge = await self.trimmed("")
+        truncate = next(event for event in sent if event["type"] == "conversation.item.truncate")
+        self.assertEqual((truncate["item_id"], truncate["text"]), ("item_1", ""))
+        note = next(event for event in sent if event["type"] == "conversation.item.create")
+        self.assertEqual(note["item"]["content"][0]["text"], prototype_run.cut_note(False))
+
+    async def test_a_session_that_refuses_the_trim_gets_no_note_saying_it_was_cut(self):
+        with mock.patch.object(FakeVoice, "refuse_truncate", True):
+            sent, barge = await self.trimmed("Reply to turn")
+        self.assertNotIn("conversation.item.create", [event["type"] for event in sent])
+        self.assertIs(barge["trim"]["accepted"], False)
+        self.assertIsNone(barge["note"])
 
     async def test_no_note_when_nothing_of_the_reply_was_heard(self):
         self.live.barge_in_note = True
@@ -1163,6 +1224,31 @@ class SpeakTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(second["heard"], "The forecast is sunny. The task found", "both replies, in order")
         self.assertEqual(read_back, [0.5, 1.5], "only the audio the client had played")
         self.assertEqual((first["whole"], first["played_s"]), (False, 0.5))
+
+    async def test_the_cut_is_the_first_reply_the_session_made_that_was_not_heard_to_its_end(self):
+        conversation = await self.conversation()
+        conversation.voice = SimpleNamespace(events=[], audio=[])
+        turn = server.MicTurn(1, b"")
+        turn.out_rate = OUT_RATE
+        for item, text, pcm in (("answer", "The forecast is sunny.", b"\x01\x00" * OUT_RATE),
+                                ("update", "The task found three results.", b"\x02\x00" * OUT_RATE)):
+            conversation.voice.audio.append((len(conversation.voice.events), pcm[:960]))
+            conversation.voice.events.append({"type": "response.output_audio.delta", "item_id": item})
+            conversation.speak(turn, text, pcm, True)
+        conversation.speak(turn, "A line rendered ahead.", b"\x03\x00" * OUT_RATE, True)
+        self.assertEqual([reply.item for reply in turn.replies], ["answer", "update", None],
+                         "audio the session did not make is no item of it")
+        said = ["The forecast", "The forecast is sunny. The task", "The forecast is sunny. The task found three "
+                "results. A line"]
+
+        async def hear(pcm, rate):
+            return said.pop(0)
+
+        conversation.live.hear_reply = hear
+        cuts = [(await conversation.heard_before(turn, remaining, False))["cut"] for remaining in (2.5, 1.5, 0.5, 3.0)]
+        self.assertEqual(cuts, [server.Cut("answer", "The forecast"), server.Cut("update", "The task"), None,
+                                server.Cut("answer", "")],
+                         "a line the session never held is never cut, and nothing played cuts the first reply whole")
 
     async def test_a_reply_that_had_finished_playing_was_heard_whole(self):
         conversation, turn, read_back = await self.two_replies()

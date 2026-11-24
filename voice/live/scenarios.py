@@ -1,6 +1,6 @@
 """Whole-call scenarios, and the gate that runs them.
 
-    python -m voice.live.scenarios gate [--long] [--only ID ...] [--spread N] [--out DIR]
+    python -m voice.live.scenarios gate [--long] [--only ID ...] [--spread N] [--out DIR] [--server-arg=ARG ...]
     python -m voice.live.scenarios list
 
 A scenario is a caller who holds a whole call with the real live server (voice/live/server.py: LFM3, the decider, the T3
@@ -1030,7 +1030,8 @@ class Session:
         self.world.up()
         env = {"VOICE_T3_ORIGIN": self.world.origin, "VOICE_T3_TOKEN_FILE": str(self.world.token_file)}
         self.rig = R.Rig(self.out, self.args.port, self.args.max_minutes, ["--real-seam", "--summaries"],
-                         ["--decider", "liquid", "--local-text", "on", "--lfm-port", str(self.args.lfm_port)], env)
+                         ["--decider", "liquid", "--local-text", "on", "--lfm-port", str(self.args.lfm_port),
+                          *(getattr(self.args, "server_arg", None) or ())], env)
         self.rig.__enter__()
         return self
 
@@ -1137,6 +1138,8 @@ def main() -> None:
     parser.add_argument("--port", type=int, default=8771)
     parser.add_argument("--lfm-port", type=int, default=8095)
     parser.add_argument("--max-minutes", type=float, default=24.0)
+    parser.add_argument("--server-arg", action="append", metavar="ARG",
+                        help="an argument for the live server, such as --server-arg=--trim-unheard=on (repeatable)")
     args = parser.parse_args()
     if args.mode == "list":
         for s in SCENARIOS:

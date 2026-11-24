@@ -38,14 +38,15 @@ def write_pcm16(path, pcm, rate):
 class Server:
     """Starts llama-server with every layer on the GPU and stops that one process on exit."""
 
-    def __init__(self, port, log_path, extra_args=(), slots=2):
+    def __init__(self, port, log_path, extra_args=(), slots=2, binary=SERVER):
         self.port, self.log_path, self.proc, self.extra_args, self.slots = port, log_path, None, list(extra_args), slots
+        self.binary = binary
 
     def __enter__(self):
         # `--temp 0` only repeats the text sampling the GGUF already asks for (general.sampling.temp 0, top_k 1).
         # Audio codes are sampled from the projector's own settings whatever this says, with a fresh seed per
         # response, so two runs differ (docs/voice/spoken-acts.md, "The prompt format").
-        command = [str(SERVER), "-m", str(GGUF / "LFM3-Audio-2B-Q4_K_M.gguf"),
+        command = [str(self.binary), "-m", str(GGUF / "LFM3-Audio-2B-Q4_K_M.gguf"),
                    "-mm", str(GGUF / "mmproj-LFM3-Audio-2B-Q8_0.gguf"),
                    "--host", "127.0.0.1", "--port", str(self.port), "--temp", "0", "-np", str(self.slots), "-ngl", "99",
                    *self.extra_args]

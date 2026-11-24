@@ -364,6 +364,34 @@ def interrupted_note():
             "turn, and do not repeat or continue that reply.]")
 
 
+# After the unheard part of a reply was taken out of the session (`truncate_item`): whether the caller heard any of it
+# is the one fact each note states. Neither quotes the words: the session itself now holds what was heard.
+CUT_NOTE = (NOTE_OPEN + "they talked over your last reply. It stops above where they stopped hearing it, and they "
+            "never heard the rest. Answer what they say now.]")
+CUT_ALL_NOTE = (NOTE_OPEN + "they talked over you before they heard any of your answer, so they have not heard an "
+                "answer from you yet. Answer what they say now.]")
+
+
+def cut_note(heard_any):
+    return CUT_NOTE if heard_any else CUT_ALL_NOTE
+
+
+async def truncate_item(session, item_id, heard):
+    """Takes back what the caller did not hear of the reply `item_id`: the session goes back to where that response
+    began and keeps only `heard` of it, as text, and nothing after it; an empty `heard` keeps none of it. Only a
+    llama-server with the truncate patch (docs/voice/barge-in.md) knows the event; any other answers with an error."""
+    await floor_free(session)
+    mark = len(session.events)
+    await session.send(type="conversation.item.truncate", item_id=item_id, content_index=0, text=heard)
+    try:
+        answer = await session.wait_for("conversation.item.truncated", "error", after=mark, timeout=5)
+    except asyncio.TimeoutError:
+        return {"accepted": None, "answer": "no event in 5 s"}
+    if answer["type"] == "error":
+        return {"accepted": False, "answer": answer.get("error")}
+    return {"accepted": True, "removed": answer.get("removed_item_ids", [])}
+
+
 async def stream_reply(session, rate, since, out=None, stop=None, **response):
     """One response, read event by event as llama.cpp sends it. `out(text, pcm)` gets each piece of audio the moment
     it arrives, with the reply's text so far. `stop(text)` is asked after each text delta and, when it says yes,
@@ -400,8 +428,9 @@ STREAM_EVENTS = ("response.output_text.delta", "response.output_audio.delta", "r
 WORD = re.compile(r"[A-Za-z0-9']+")
 
 
-def heard_prefix(text, transcript):
-    """The start of `text` up to the last of its words that the transcript of its released audio matched.
+def heard_end(text, transcript):
+    """Where the heard part of `text` ends: just past the last of its words that the transcript of its released audio
+    matched, or 0 when none did.
 
     The released audio lags the text it was released on by a median of 7 words at a block boundary (measured,
     docs/voice/stream-release.md), so the text a stopped reply was released on overstates what was heard."""
@@ -409,7 +438,7 @@ def heard_prefix(text, transcript):
     said = WORD.findall((transcript or "").lower())
     matcher = difflib.SequenceMatcher(a=[word for word, _ in spans], b=said, autojunk=False)
     ends = [block.a + block.size for block in matcher.get_matching_blocks() if block.size]
-    return text[:spans[max(ends) - 1][1]].strip() if ends else ""
+    return spans[max(ends) - 1][1] if ends else 0
 
 
 # Silence after a stopped reply's audio before it is transcribed. Without it the ASR read nothing from 16 of 24
