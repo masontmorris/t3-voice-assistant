@@ -698,6 +698,32 @@ def news_done(pool: Pool) -> Plan:
     return Plan((), lines, script(), check, notes=notes)
 
 
+# Two requests in one breath stay two: a question about one thread and a message for another are each answered, in
+# that turn, about the thread each named.
+def two_requests(pool: Pool) -> Plan:
+    (one, first), (two, second) = pool.single(), pool.single()
+    lines = {"both": f"How is the {one} thread going, and tell the {two} thread to also add a unit test.",
+             "thanks": "Okay, thanks."}
+
+    def script():
+        for line in lines:
+            yield Say(line)
+
+    def check(call: Call) -> list[Verdict]:
+        t = nth(call.caller_turns(), 0)
+        said = [e for e in (t.t3 if t else ()) if e["delivery"] == "sent"]
+
+        def about(title, *kinds):
+            return any(title in e["threads"] and set(kinds) & set(e["kinds"]) for e in said)
+
+        heard = f"the turn said {[(e['kinds'], e['threads']) for e in said]}"
+        return [ok("the question was answered about its thread",
+                   about(first, Kind.THREAD_STATUS, Kind.CONFIRM_THREAD), heard, 0),
+                ok("the message was confirmed back about its thread", about(second, Kind.CONFIRM_TELL), heard, 0)]
+
+    return Plan((finished(first), finished(second)), lines, script(), check)
+
+
 # A message to a thread, confirmed with a short yes, reaches the thread.
 def short_yes_tell(pool: Pool) -> Plan:
     spoken, title = pool.single()
@@ -862,6 +888,8 @@ SCENARIOS = (
              call_this_thread),
     Scenario("call-follow-up", "a call opened on a thread keeps \"it\" on that thread beside a similar title",
              call_follow_up),
+    Scenario("two-requests", "a question and a message for two threads in one breath are each answered",
+             two_requests),
     # The scenarios that start threads come after, each run on a T3 and a live server of its own.
     Scenario("news-permission", "a started thread's need for permission is said unprompted, once, and not approved",
              news_permission, 2, 1, fresh=True),

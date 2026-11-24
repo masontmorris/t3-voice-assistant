@@ -578,18 +578,6 @@ class Decider:
         return judge_pick((record.get("response") or {}).get("answers"), threads,
                           sure=getattr(self.client, "pick_sure", PICK_SURE))
 
-    def one_question(self, first: str, second: str, title: str) -> float | None:
-        """P(two pieces of one utterance, both about the thread `title`, ask one question between them), or None on
-        a timeout or any error."""
-        try:
-            with self.lock:
-                self.calls += 1
-                record = self.client.call("decisions", one_question_request(first, second, title),
-                                          label="t3_one_question")
-        except Exception:
-            return None
-        return noul(record, "one")
-
     def names(self, request: str, thread: Listed) -> float | None:
         """P(the words `request` say `thread`'s title), or None on a timeout or any error. A pick between its confirm
         and sure bars is held under the bar by a near twin's share or by the rest of a long request; this asks only
@@ -706,22 +694,6 @@ def pick_request(request: str, threads: tuple[Listed, ...], recent: str | None =
         instructions = ANSWERING_PICK
     return {"model": "d1.2", "state": state,
             "questions": {"pick": {"type": "choice", "instructions": instructions, "criteria": criteria}}}
-
-
-# A segmenter can cut one question in two ("look at the X thread" / "and say how it is doing"), and each piece reaches
-# the same thread. Two pieces that each ask their own thing are answered each; one question cut in two is answered once.
-ONE_QUESTION_CONTEXT = ("A person on a voice call asked their assistant about their coding thread `thread`. A speech "
-                        "segmenter cut what they said into pieces; `first` and `second` are two of them, in order.")
-ONE_QUESTION = ("Do `first` and `second` ask one single thing about the thread between them, as one sentence cut in two, "
-                "rather than each asking something of its own?")
-ONE_QUESTION_YES = 0.5
-
-
-def one_question_request(first: str, second: str, title: str) -> dict:
-    return {"model": "d1.2", "state": {"first": first, "second": second, "thread": title,
-                                       "context": ONE_QUESTION_CONTEXT},
-            "questions": {"one": {"type": "noul", "instructions": ONE_QUESTION,
-                                  "criteria": {"true": "Yes.", "false": "No."}}}}
 
 
 NAMES_CONTEXT = ("A person on a voice call asked their assistant about one of their coding threads. `request` is a "

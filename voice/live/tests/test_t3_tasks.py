@@ -1236,29 +1236,20 @@ class Service(unittest.IsolatedAsyncioTestCase):
                                  "the fallback reports no outcome, so it cannot say the request was approved")
                 self.assertEqual(seam.ops("respond"), [])
 
-    def asks_in_one_turn(self, *asks, joining=None):
+    def asks_in_one_turn(self, *asks):
         seam = F.FakeSeam(read=F.state(thread="t5", title="Add a clamp helper", as_of=140))
         seam.listing = listing(("t5", "Add a clamp helper"), ("t6", "Fix the flaky ASR test"))
         t3 = worded(tasks_over(self, seam), FakeText())
         t3.decider.picking.update({words: thread for words, thread in asks})
-        t3.decider.joining.update(joining or {})
         t3.recent = t3.spoken_id = "t5"
         service = self.service(t3, [self.record(f"task_{i}", words, ASK) for i, (words, _) in enumerate(asks, 1)])
         service.sync(0)
         return [[(a["slots"].get("thread"), a["slots"].get("asked")) for a in entry.get("acts", [])]
                 for entry in service.snapshot("utt_1", "...")["tasks"]]
 
-    async def test_one_question_cut_in_two_about_a_thread_gets_one_answer_asked_in_both_pieces(self):
-        first, second = "Could you look at the clamp helper thread", "and say how it's doing?"
-        said = self.asks_in_one_turn((first, "t5"), (second, "t5"), ("How is the flaky ASR test thread?", "t6"),
-                                     joining={(first, second): 0.9})
-        self.assertEqual(said, [[("Add a clamp helper", f"{first} {second}")], [],
-                                [("Fix the flaky ASR test", None)]],
-                         "one line, asked in both pieces' words; another thread is its own answer")
-
     async def test_two_different_questions_about_one_thread_are_answered_each(self):
         first, second = "How is the clamp helper thread going?", "And is the clamp helper thread waiting on me?"
-        said = self.asks_in_one_turn((first, "t5"), (second, "t5"), joining={(first, second): 0.1})
+        said = self.asks_in_one_turn((first, "t5"), (second, "t5"))
         self.assertEqual(said, [[("Add a clamp helper", first)], [("Add a clamp helper", second)]])
         self.assertEqual(self.asks_in_one_turn((first, "t5"), (first, "t5")), [[("Add a clamp helper", first)], []],
                          "the same words twice are one question, with no decider needed")

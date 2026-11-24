@@ -221,7 +221,6 @@ class Reader(Agree):
         self.call_threads = []  # the call's own thread each pick was shown, or None
         self.spoken = []  # the thread just spoken about each pick was shown, or None
         self.naming = {}  # request to P(it says the picked thread's title); unscripted is no answer
-        self.joining = {}  # (first, second) to P(they are one question cut in two); unscripted is no answer
         self.about = {}  # words to P(they are about the line just said); unscripted is no answer
         self.lines = []  # (words, the said line's facts) each about-line read was given
 
@@ -238,9 +237,6 @@ class Reader(Agree):
 
     def names(self, request, thread):
         return self.naming.get(request)
-
-    def one_question(self, first, second, title):
-        return self.joining.get((first, second))
 
     def about_line(self, words, said):
         self.lines.append((words, said))

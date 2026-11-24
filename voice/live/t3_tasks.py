@@ -48,7 +48,7 @@ from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import (Brief, Launch, Lane, LocalText, Rendered, RequestGate, Speech, candidate_names, named, reference,
                              text_model, without_request)
-from voice.t3.verify import (ABOUT_LINE_YES, NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, ONE_QUESTION_YES, UNCLEAR,
+from voice.t3.verify import (ABOUT_LINE_YES, NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, UNCLEAR,
                              Chosen, Decider, Listed, Picked, Reading, default_decider)
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
@@ -83,7 +83,9 @@ T3_TOOLS = {
     ASK: "Report how an existing T3 coding thread is going. Use it when the speaker asks about a thread's "
          "progress, state, or result.",
     TELL: "Pass a message or more work to an existing T3 coding thread. Use it when the speaker asks to tell, "
-          "remind, or ask a thread to do something, or adds to the work a thread already has.",
+          "remind, or ask a thread to do something, or adds to the work a thread already has. What the message asks "
+          "the thread to do, even to stop doing one thing, is not another tool. Examples: Tell it to stop renaming "
+          "the assets. Have it add a test first. Let the save slots thread know the API changed.",
     STOP: "Stop the work an existing T3 coding thread is doing now. Use it when the speaker asks to stop, halt, "
           "or interrupt a thread.",
     APPROVE: "Approve the permission or approval request a T3 coding thread is waiting on, such as a command it wants "
@@ -1106,18 +1108,6 @@ class T3Tasks:
         marks = {k: v for k, v in (("call_thread", call_thread), ("spoken", spoken)) if v}
         return picks(reference, options, last, **marks)
 
-    def one_question(self, earlier: L.Update, update: L.Update) -> bool:
-        """Whether two asks of one utterance about one thread are one question cut in two, by the decider. Off the lock;
-        no answer is no, so each is answered."""
-        decide = getattr(self.decider, "one_question", None)
-        first = next((a.slots.get("asked") for a in earlier.acts if a.slots.get("asked")), None)
-        second = next((a.slots.get("asked") for a in update.acts if a.slots.get("asked")), None)
-        title = next((a.slots.get("thread") for a in update.acts if a.slots.get("thread")), None)
-        if decide is None or not (first and second and title):
-            return False
-        p = decide(first, second, title)
-        return p is not None and p >= ONE_QUESTION_YES
-
     def _says_title(self, reference: str, thread: Listed) -> bool:
         """Whether the decider reads the words as saying `thread`'s title. Off the lock; no answer is no."""
         names = getattr(self.decider, "names", None)
@@ -1629,20 +1619,11 @@ OUTCOMES = {Say.LAUNCHED: Outcome.STARTED, Say.SENT_FOLLOWUP: Outcome.SENT,
             Say.STOPPING: Outcome.STOP_REQUESTED, Say.ANSWERED: Outcome.ANSWERED}
 
 
-def same_answer(update: L.Update, earlier: L.Update, *, asked: bool = True) -> bool:
-    """Whether `update` would say what `earlier` says about the same thread: the same acts, and, with `asked`, asked in
-    the same words, so the same summary answers both."""
-    def gist(u: L.Update):
-        return [(a.kind, {k: v for k, v in a.slots.items() if asked or k != "asked"}) for a in u.acts]
-
-    return update.thread_id is not None and update.thread_id == earlier.thread_id and gist(update) == gist(earlier)
-
-
-def merge_asked(earlier: L.Update, update: L.Update) -> None:
-    """`earlier` answers `update` too: its question becomes both pieces' words, so its summary answers all of it."""
-    joined = {a.kind: " ".join(dict.fromkeys(x for x in (a.slots.get("asked"), b.slots.get("asked")) if x))
-              for a, b in zip(earlier.acts, update.acts)}
-    earlier.acts = tuple(a.with_slots(asked=joined[a.kind]) if joined.get(a.kind) else a for a in earlier.acts)
+def same_answer(update: L.Update, earlier: L.Update) -> bool:
+    """Whether `update` would say what `earlier` says about the same thread, asked in the same words, so the same
+    summary answers both."""
+    return (update.thread_id is not None and update.thread_id == earlier.thread_id
+            and [(a.kind, a.slots) for a in update.acts] == [(a.kind, a.slots) for a in earlier.acts])
 
 
 def confirmed_outcome(said: Act) -> Outcome | None:
@@ -1753,12 +1734,9 @@ class T3TaskService(MockTaskService):
                              tool={"tool": choice.tool, "arguments": {}})
         update = (self.t3.start(key, instruction, now) if choice.tool == START
                   else self.t3.about(key, choice.tool, instruction, now))
-        earlier = (next((e for e in self.spoken.values() if same_answer(update, e, asked=False)), None)
-                   if choice.tool == ASK else None)
-        if earlier is not None and (same_answer(update, earlier) or self.t3.one_question(earlier, update)):
-            # The same question twice, or one question cut in two ("look at the X thread", "and say how it is doing"):
-            # one line answers it, asked in all the words that asked it. Two different questions are answered each.
-            merge_asked(earlier, update)
+        if choice.tool == ASK and any(same_answer(update, e) for e in self.spoken.values()):
+            # The same question twice in one utterance: one line answers it. One question the segmenter would have
+            # cut in two reaches here whole, since the decider rejoins it (`HybridSegmenter`).
             return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
                              tool={"tool": choice.tool, "arguments": {}})
         return self._execution(task_id, update, now, choice.tool)
