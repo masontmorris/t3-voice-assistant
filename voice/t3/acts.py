@@ -183,7 +183,8 @@ RULES: dict[Kind, Rule] = {
     Kind.CORRECTION: Rule(("thread", "status", "need", "pending", "request", "waiting_for"), ("thread",), plain=True),
     # `decision` is approve or deny. `need` and `pending` say what is being answered, as a thread's status does.
     # An approval is confirmed only with a description of this request in `summary`, from the thread's own records.
-    Kind.CONFIRM_RESPOND: Rule(("thread", "decision", "need", "pending", "summary", "asked"), ("thread",), True,
+    # With no `summary` an approval is asked by its kind alone, and `tool` names the tool a permission asks for.
+    Kind.CONFIRM_RESPOND: Rule(("thread", "decision", "need", "pending", "summary", "tool", "asked"), ("thread", "tool"), True,
                                ("answered",), plain=True),
     Kind.RESPONDED: Rule(("thread", "decision", "need", "recap"), ("thread",), forbids=("finished",)),
     Kind.NOTHING_PENDING: Rule(("thread",), (), forbids=("answered",)),

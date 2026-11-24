@@ -84,21 +84,29 @@ class DescribesTest(unittest.TestCase):
     def need(self, source=T.NeedSource.COMMAND, kind=T.PendingKind.APPROVAL, prompt="pnpm test"):
         return T.PendingNeed("q1", kind, prompt, source)
 
-    def test_only_an_approval_whose_prompt_is_an_action_can_be_approved_and_by_its_source_alone(self):
-        self.assertTrue(LS.approvable(self.need()))
-        self.assertTrue(LS.approvable(self.need(T.NeedSource.FILE_CHANGE)))
-        tools = {"a tool permission": self.need(T.NeedSource.PERMISSION),
-                 "a tool permission with a command for its text": self.need(T.NeedSource.PERMISSION, prompt="rm -rf dist")}
-        others = {"a file read": self.need(T.NeedSource.FILE_READ),
-                  "a question": self.need(T.NeedSource.USER_INPUT, T.PendingKind.QUESTION),
-                  "an in-app card": self.need(T.NeedSource.CARD, T.PendingKind.IN_APP)}
-        for name, need in {**tools, **others}.items():
-            self.assertFalse(LS.approvable(need), name)
-        for name, need in tools.items():
-            self.assertTrue(LS.describable(need), f"{name}: which tool it asks for is said, approved in the app")
-            self.assertEqual(LS.request_view(need)["kind"], "a tool it wants to use")
-        for name, need in others.items():
+    def test_a_yes_may_answer_an_approval_by_its_source_alone_and_only_some_are_described(self):
+        described = {"a command": self.need(), "a file change": self.need(T.NeedSource.FILE_CHANGE),
+                     "a tool permission": self.need(T.NeedSource.PERMISSION),
+                     "a tool permission with a command for its text": self.need(T.NeedSource.PERMISSION, prompt="rm -rf dist")}
+        asked_by_kind = {"a file read": self.need(T.NeedSource.FILE_READ)}
+        app_only = {"a tool's input request": self.need(T.NeedSource.MCP_ELICITATION),
+                    "a question": self.need(T.NeedSource.USER_INPUT, T.PendingKind.QUESTION),
+                    "an in-app card": self.need(T.NeedSource.CARD, T.PendingKind.IN_APP)}
+        for name, need in {**described, **asked_by_kind}.items():
+            self.assertTrue(LS.approvable(need), name)
+        for name, need in {**asked_by_kind, **app_only}.items():
             self.assertFalse(LS.describable(need), name)
+            self.assertFalse(name in app_only and LS.approvable(need), name)
+        for name, need in described.items():
+            self.assertTrue(LS.describable(need), name)
+        self.assertEqual(LS.request_view(self.need(T.NeedSource.PERMISSION))["kind"], "a tool it wants to use")
+
+    def test_a_tool_is_named_only_by_a_single_stored_token_of_a_permission(self):
+        tool = T.NeedSource.PERMISSION
+        self.assertEqual(LS.tool_name(tool, "mcp__notes__list_pages"), "mcp__notes__list_pages")
+        for source, prompt in ((tool, "rm -rf dist"), (tool, None), (tool, ""), (tool, "x" * 81),
+                               (T.NeedSource.COMMAND, "pnpm")):
+            self.assertIsNone(LS.tool_name(source, prompt), (source, prompt))
 
     def test_the_model_is_shown_the_request_by_its_kind_and_never_a_thread_title_or_reply(self):
         shown = LS.request_messages(self.need())[-1]["content"]

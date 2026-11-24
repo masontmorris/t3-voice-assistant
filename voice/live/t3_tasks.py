@@ -127,12 +127,14 @@ def tell_parts(instruction: str) -> tuple[str, str, str | None]:
 
 
 def confirm_act(op: str, title: str, message: str | None = None, need: str | None = None,
-                prompt: str | None = None) -> Act:
+                tool: str | None = None) -> Act:
     """The confirming question for one picked thread. Only a yes to it acts."""
     if op in RESPONDS:
         # The request's own prompt is never given to the line's writer, which could read a command out. An approval's
-        # description is added by `Speech.fill` from the request itself, and a denial names the thread only.
-        return act(Say.CONFIRM_RESPOND, thread=title, decision=RESPONDS[op], need=need)
+        # description is added by `Speech.fill` from the request itself, and a denial names the thread only. `tool` is a
+        # permission's tool name, which a line with no description says as given.
+        return act(Say.CONFIRM_RESPOND, thread=title, decision=RESPONDS[op], need=need,
+                   tool=tool if RESPONDS[op] == "approve" else None)
     if op == TELL:
         return act(Say.CONFIRM_TELL, thread=title, message=message)
     if op == STOP:
@@ -827,7 +829,7 @@ class T3Tasks:
             return which_project(question.candidates, names)
         if question.kind == "thread_confirm":
             return confirm_act(question.op, question.titles[question.candidates[0]], question.message, question.need,
-                               question.prompt)
+                               LS.tool_name(question.source, question.prompt))
         if question.kind == "answer":
             return self._question_act(question)
         if question.kind == "answer_confirm":
@@ -1156,7 +1158,8 @@ class T3Tasks:
         if question.op == ASK and self.lane is not None:
             # A yes reads this thread and says its summary: the summary starts now, so the yes does not wait for it.
             self.speech.prefetch(thread, question.instruction)
-        said = confirm_act(question.op, question.titles[thread], question.message, question.need, question.prompt)
+        said = confirm_act(question.op, question.titles[thread], question.message, question.need,
+                           LS.tool_name(question.source, question.prompt))
         return L.Update(question.key, (said,), "needs_clarification", "pick", thread, question.evidence)
 
     def _approval(self, question: Question, thread: str) -> Question | L.Update:
@@ -1174,10 +1177,10 @@ class T3Tasks:
                             (state.as_of_sequence,))
         if need.kind is not T.PendingKind.APPROVAL:
             return self._read(question.key, thread, question.instruction)
-        if question.op == APPROVE and not (state.pending_detailed and LS.approvable(need)):
-            # What this request does is not stored, or not stored as an action a yes may answer (a tool permission is
-            # only the tool's name): a yes could approve anything. Denying is safe without detail: nothing runs.
-            # Approving is left to the app, and the line says what is asked when it can. The source is a typed field.
+        if question.op == APPROVE and not LS.approvable(need):
+            # A request a yes may not answer (a tool's input request, one only the app can take) is the app's: a yes
+            # could approve anything. Denying is safe without detail: nothing runs. The line says what is asked when it
+            # can. The source is a typed field.
             told = (thread, need.request_id) in self.app_told
             said = act(Say.NEEDS_THE_APP, thread=state.title, decision="approve",
                        need=L.need_of(need.kind, need.source),
@@ -1185,7 +1188,7 @@ class T3Tasks:
             self.app_asked[question.key] = need.request_id
             return L.Update(question.key, (said,), "completed", "ask", thread, (state.as_of_sequence,))
         return replace(question, request_id=need.request_id, need=L.need_of(need.kind, need.source),
-                       prompt=need.prompt, source=need.source)
+                       prompt=need.prompt if state.pending_detailed else None, source=need.source)
 
     def _which(self, question: Question, evidence, now: float | None = None) -> L.Update | Choose:
         """Ask which of the candidates. Threads that share a title cannot be told apart by voice, so the newest of
@@ -1518,7 +1521,6 @@ class T3Tasks:
         if update.tries and any("request" in a.slots for a in acts):
             # A new request to the writer: the refused wording carried the description, and it was copied back.
             acts, update.problems, update.refused = without_request(acts), (), ()
-        acts = self._described(update, acts)
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
         rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names(listing))
@@ -1585,25 +1587,9 @@ class T3Tasks:
         return T.PendingNeed(question.request_id, T.PendingKind.APPROVAL, question.prompt, question.source)
 
     def use_approval_gate(self, url: str | None) -> None:
-        """The d1-2B that checks an approval's description. With none, no approval is described and every one goes to
-        the app."""
+        """The d1-2B that checks an approval's description. With none, no approval is described and each is asked by its
+        kind alone."""
         self.speech.gate = RequestGate(url) if url else None
-
-    def _described(self, update: L.Update, acts: tuple[Act, ...]) -> tuple[Act, ...]:
-        """An approval is confirmed only with a description of the request that passed the approval gate, whichever
-        model wrote it. Without one, nothing is asked and the voice says this one has to be approved in the app. A
-        denial needs none."""
-        for a in acts:
-            if a.kind is Say.CONFIRM_RESPOND and a.slots.get("decision") == "approve" and not a.slots.get("summary"):
-                with self.lock:
-                    if self.question is not None and self.question.key == update.task_id:
-                        self._drop_question()
-                    if self.unasked is update:
-                        self.unasked = None
-                update.status = "completed"
-                known = {name: a.slots[name] for name in ("thread", "begun_in", "begun_for", "need") if name in a.slots}
-                return (act(Say.NEEDS_THE_APP, **known, decision="approve"),)
-        return acts
 
     def say_entry(self, update: L.Update, entry: dict, turns=()) -> Rendered:
         """Draft the entry with its updated acts and evidence."""
