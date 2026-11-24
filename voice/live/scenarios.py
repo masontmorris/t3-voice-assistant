@@ -514,9 +514,9 @@ def news_permission(pool: Pool) -> Plan:
 
 # A thread waits on a command's approval and the caller answers it by voice. The assistant confirms what that request
 # would do when a description of it passed the gate, and otherwise asks by its kind alone. A model judges the spoken
-# line against the request itself, since the voice's own checks are not the measure of themselves. Only the yes sends the answer, and T3 must hold the request resolved with that decision, by
-# its id. The thread is seeded, not started by the call: a started thread's launch confirmation is lost to
-# DISPATCH_YES before the approval is reached.
+# line against the request itself, since the voice's own checks are not the measure of themselves. Only the yes sends
+# the answer, and T3 must hold the request resolved with that decision, by its id. The thread is seeded, not started by
+# the call: a started thread's launch confirmation is lost to DISPATCH_YES before the approval is reached.
 DESCRIBED = ("Does the sentence say what running the request does, saying nothing the request does not do and leaving "
              "out no deletion, overwrite or upload that it does?")
 KIND_ONLY = ("Does the sentence ask whether to approve the thread's request while saying at most what kind of request "
