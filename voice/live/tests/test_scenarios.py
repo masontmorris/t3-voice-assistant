@@ -48,6 +48,24 @@ def failed(verdicts):
     return [v.check for v in verdicts if not v.ok]
 
 
+class TwoRequests(unittest.TestCase):
+    def test_the_message_may_be_asked_in_the_turn_that_answers_the_first_question(self):
+        plan = S.two_requests(S.Pool())
+        first, second = (seed.title for seed in plan.seeds)
+
+        def about(index, *pairs):
+            entries = tuple({"kinds": [k], "threads": [title], "delivery": "sent", "draft": "", "draft_problems": [],
+                             "reply": "", "status": None, "relays": 1} for k, title in pairs)
+            return dataclasses.replace(turn(index), t3=entries, first_audio_s=1.0)
+
+        together = [about(0, (Kind.THREAD_STATUS, first), (Kind.CONFIRM_TELL, second))]
+        after = [about(0, (Kind.CONFIRM_THREAD, first)), about(1, (Kind.THREAD_STATUS, first), (Kind.CONFIRM_TELL, second))]
+        never = [about(0, (Kind.CONFIRM_THREAD, first)), about(1, (Kind.THREAD_STATUS, first))]
+        self.assertEqual(failed(plan.check(call(together))), [])
+        self.assertEqual(failed(plan.check(call(after))), [])
+        self.assertEqual(failed(plan.check(call(never))), ["the message was confirmed back about its thread"])
+
+
 class Withdrawn(unittest.TestCase):
     def plan(self):
         return S.withdrawn(S.Pool())

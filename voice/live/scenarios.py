@@ -698,25 +698,28 @@ def news_done(pool: Pool) -> Plan:
     return Plan((), lines, script(), check, notes=notes)
 
 
-# Two requests in one breath stay two: a question about one thread and a message for another are each answered, in
-# that turn, about the thread each named.
+# Two requests in one breath stay two: a question about one thread and a message for another are each asked about the
+# thread each named. One question is open at a time, so when the first asks back ("do you mean ...?") the message is asked
+# in the turn that answers it.
 def two_requests(pool: Pool) -> Plan:
     (one, first), (two, second) = pool.single(), pool.single()
     lines = {"both": f"How is the {one} thread going, and tell the {two} thread to also add a unit test.",
-             "thanks": "Okay, thanks."}
+             "yes": "Yes.", "thanks": "Okay, thanks."}
 
     def script():
-        for line in lines:
-            yield Say(line)
+        heard = yield Say("both")
+        if heard.turns and heard.turns[-1].said(Kind.CONFIRM_THREAD, Kind.ASK_WHICH):
+            yield Say("yes")
+        yield Say("thanks")
 
     def check(call: Call) -> list[Verdict]:
-        t = nth(call.caller_turns(), 0)
-        said = [e for e in (t.t3 if t else ()) if e["delivery"] == "sent"]
+        turns = call.caller_turns()[:2]
+        said = [e for t in turns for e in t.t3 if e["delivery"] == "sent"]
 
         def about(title, *kinds):
             return any(title in e["threads"] and set(kinds) & set(e["kinds"]) for e in said)
 
-        heard = f"the turn said {[(e['kinds'], e['threads']) for e in said]}"
+        heard = f"the turns said {[(e['kinds'], e['threads']) for e in said]}"
         return [ok("the question was answered about its thread",
                    about(first, Kind.THREAD_STATUS, Kind.CONFIRM_THREAD), heard, 0),
                 ok("the message was confirmed back about its thread", about(second, Kind.CONFIRM_TELL), heard, 0)]
