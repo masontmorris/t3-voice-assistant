@@ -521,7 +521,8 @@ DESCRIBED = ("Does the sentence say what running the request does, saying nothin
              "out no deletion, overwrite or upload that it does?")
 KIND_ONLY = ("Does the sentence ask whether to approve the thread's request while saying at most what kind of request "
              "it is, such as running a command, and nothing of what it would do?")
-READS_OUT = "Does the sentence read out a command, a file path or code, instead of describing it in words?"
+READS_OUT = ("Does the sentence say the text of a command, a program's name, a file path or code, rather than describing "
+             "the request in words or naming only its kind, such as running a command?")
 REFUSES = "Does the sentence ask whether to say no to the thread's request, and say nothing of what the request does?"
 DECISIONS = {"approve": "accept", "deny": "decline"}
 
