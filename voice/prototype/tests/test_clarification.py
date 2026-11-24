@@ -99,7 +99,10 @@ class Call(unittest.IsolatedAsyncioTestCase):
 
 class ClarificationTest(Call):
     async def test_a_forecast_with_no_place_asks_which_city_and_runs_nothing(self):
-        record, _ = await self.first_turn()
+        flags = []
+        record = await self.turn(1, "What's the weather like?", Decider(place=None),
+                                 speak=lambda text, pcm, done, kept=False: flags.append(kept))
+        self.assertTrue(flags and all(flags), "the question the task waits on is a line a barge-in trim never cuts")
         self.assertEqual(record["executions"], {}, "nothing runs until they say where")
         self.assertEqual(record["dispatch_log"], [], "and no task is dispatched")
         task, = record["snapshot"]["tasks"]

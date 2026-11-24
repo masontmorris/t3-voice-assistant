@@ -38,9 +38,10 @@ import numpy as np
 import websockets
 
 from voice.prototype.realtime import MODEL_RATE, Server, Session, read_pcm16, write_pcm16
-from voice.prototype.run import FORMAT_LINES, NOTE_PERSONA, plain_text, update_session
+from voice.prototype.run import FORMAT_LINES, NOTE_PERSONA, RESPONSE_CHECKPOINTS, last_item, plain_text, update_session
 
 PORT = 8121
+ARMS = ("control", "truncate", "seed", "slot-save", "cut-only")
 CHUNK_BYTES = 32000
 HEARD_WORDS = 12
 LINES = ("Hi there. Can you tell me a little about the history of lighthouses?",
@@ -71,11 +72,13 @@ def at_model_rate(path):
     return np.interp(positions, np.arange(len(samples)), samples).astype("<i2").tobytes()
 
 
-async def opened(url, clock):
+async def opened(url, clock, checkpoints=0):
+    """A session with the shipped instructions; only one that may be truncated asks for response checkpoints."""
     session = await Session.open(url, "voice", clock)
     created = await session.wait_for("session.created")
     await update_session(session, {"type": "realtime", "instructions": NOTE_PERSONA + FORMAT_LINES["c"],
-                                   "output_modalities": ["text", "audio"]})
+                                   "output_modalities": ["text", "audio"],
+                                   **({"response_checkpoints": checkpoints} if checkpoints else {})})
     return session, created["session"]["audio"]["output"]["format"]["rate"]
 
 
@@ -99,9 +102,9 @@ async def respond(session, started):
             "first_audio_s": None if first is None else round(first - started, 4)}, pcm
 
 
-async def call_so_far(url, clips, clock):
+async def call_so_far(url, clips, clock, checkpoints=0):
     """A session that has heard the first three turns and answered each, and those answers."""
-    session, rate = await opened(url, clock)
+    session, rate = await opened(url, clock, checkpoints)
     replies = []
     for pcm in clips[:LONG + 1]:
         await say(session, pcm)
@@ -111,7 +114,7 @@ async def call_so_far(url, clips, clock):
 
 
 def heard_part(text):
-    return " ".join(text.split()[:HEARD_WORDS])
+    return " ".join(text.lstrip().split(" ")[:HEARD_WORDS])
 
 
 async def arm(name, url, clips, clock, out, trial):
@@ -128,12 +131,12 @@ async def arm(name, url, clips, clock, out, trial):
                            item=plain_text("Earlier in this call:\n" + "\n".join(lines)))
         await session.wait_for("conversation.item.added", "error", after=0)
     else:
-        session, rate, replies = await call_so_far(url, clips, clock)
+        session, rate, replies = await call_so_far(url, clips, clock, RESPONSE_CHECKPOINTS if name == "truncate" else 0)
         started = clock()
         if name == "truncate":
             mark = len(session.events)
             await session.send(type="conversation.item.truncate", item_id=replies[LONG]["item"], content_index=0,
-                               text=heard_part(replies[LONG]["text"]))
+                               text=heard_part(replies[LONG]["text"]), expect_last_item_id=last_item(session))
             answer = await session.wait_for("conversation.item.truncated", "error", after=mark)
             if answer["type"] == "error":
                 raise RuntimeError(f"truncate refused: {answer}")
@@ -146,10 +149,10 @@ async def arm(name, url, clips, clock, out, trial):
 
 
 async def cut_only(url, clips, clock):
-    session, _, replies = await call_so_far(url, clips, clock)
+    session, _, replies = await call_so_far(url, clips, clock, RESPONSE_CHECKPOINTS)
     mark = len(session.events)
     await session.send(type="conversation.item.truncate", item_id=replies[LONG]["item"], content_index=0,
-                       text=heard_part(replies[LONG]["text"]))
+                       text=heard_part(replies[LONG]["text"]), expect_last_item_id=last_item(session))
     await session.wait_for("conversation.item.truncated", "error", after=mark)
     try:
         await say(session, clips[LONG + 1])
@@ -202,7 +205,10 @@ def main():
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--bin", type=Path, required=True)
     parser.add_argument("--trials", type=int, default=5)
+    parser.add_argument("--arms", default=",".join(ARMS), help=f"a comma-separated subset of {', '.join(ARMS)}")
+    parser.add_argument("--clips", type=Path, help="the callers' clips of an earlier run, so two runs hear the same audio")
     args = parser.parse_args()
+    arms = args.arms.split(",")
     args.out.mkdir(parents=True, exist_ok=True)
     url, started = f"ws://127.0.0.1:{PORT}/v1/realtime", time.perf_counter()
 
@@ -213,16 +219,20 @@ def main():
     flags = ("-c", "32768", "-kvu", "--slot-save-path", str(args.out / "slots"))
     (args.out / "slots").mkdir(exist_ok=True)
     with Server(PORT, args.out / "llama-server.log", flags, slots=2, binary=args.bin):
-        clips = render(args.out / "clips", PORT)
+        clips = ([at_model_rate(path) for path in sorted(args.clips.glob("turn_*.wav"))] if args.clips
+                 else render(args.out / "clips", PORT))
         for trial in range(args.trials):
-            for name in ("control", "truncate", "seed"):
+            for name in (a for a in ARMS[:3] if a in arms):
                 rows.append(asyncio.run(arm(name, url, clips, clock, args.out, trial)))
                 print(json.dumps({"arm": name, "heard": rows[-1]["heard"], "next": rows[-1]["next"]["text"],
                                   "first_audio_s": rows[-1]["next"]["first_audio_s"]}), flush=True)
-        rows.append(asyncio.run(slot_save(PORT, url, clips, clock)))
-        print(json.dumps(rows[-1]), flush=True)
+        if "slot-save" in arms:
+            rows.append(asyncio.run(slot_save(PORT, url, clips, clock)))
+            print(json.dumps(rows[-1]), flush=True)
     found = server_lines(args.out / "llama-server.log")
     (args.out / "rows.json").write_text(json.dumps({"rows": rows, "server": found}, indent=1), encoding="utf-8")
+    if "cut-only" not in arms:
+        return
     os.environ["LLAMA_RT_REWIND_CUT_ONLY"] = "1"
     try:
         with Server(PORT, args.out / "llama-server-cut-only.log", flags, slots=2, binary=args.bin):

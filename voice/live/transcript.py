@@ -3,8 +3,10 @@
 The caller's side is each turn's final transcript. The voice's side is the text of the reply pieces the server released
 to the client with their audio, so a reply muted before it went out is not in it. The server does not know how much of
 a reply the client played (the page reports played audio only when a recording is on, and calls from the app never
-record), so a reply the caller cut off keeps the text that was sent and is marked `interrupted`, never cut at a guessed
-point. A checked T3 line carries its act and the thread events it rests on, from the update the line was spoken for.
+record), so a reply the caller cut off keeps the text that was sent and is marked `interrupted`. With `--trim-unheard
+on`, a reply whose unheard part was taken out of the voice session keeps only the words the server counts as heard
+(`server.hearing`: the playback clock and the read-back, the longer of the two), still marked `interrupted`. A checked
+T3 line carries its act and the thread events it rests on, from the update the line was spoken for.
 Text only; nothing here holds audio, and nothing here is logged.
 """
 
@@ -55,6 +57,13 @@ class CallTranscript:
         line = next((line for line in reversed(self.lines) if line.turn == turn), None)
         if line is not None and line.speaker == "voice":
             line.interrupted = True
+
+    def cut(self, reply: object, text: str) -> None:
+        """The unheard part of `reply` was taken out of the call: its line keeps only `text`, what the caller heard,
+        and is marked cut off. A line left with no text is not recorded."""
+        line = self._replies.get(id(reply))
+        if line is not None:
+            line.text, line.interrupted = text, True
 
     def spoken(self, acts: tuple[str, ...], sequences: tuple[int, ...]) -> None:
         """A checked T3 line was heard: the newest relay line spoken for those acts gets its claim."""

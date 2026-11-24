@@ -131,8 +131,8 @@ from voice.live.overlap import (Overlap, OverlapSettings, Playback, Verdict, cla
                                  words)
 from voice.local_decider.client import D1Client, decider as make_decider, default_decider
 from voice.prototype.realtime import SERVER as LLAMA_SERVER, VOICE_HOME, Server, Session, write_pcm16
-from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, WORD, by_ear, create_item, cut_note,
-                                 floor_free, heard_end, interrupted_note, plain_text, run_clip, say_acts,
+from voice.prototype.run import (FORMAT_LINES, NOTE_PERSONA, PERSONA, RESPONSE_CHECKPOINTS, WORD, by_ear, create_item,
+                                 cut_note, floor_free, heard_end, interrupted_note, plain_text, run_clip, say_acts,
                                  truncate_item, update_session)
 from voice.live.ledger import ConversationLedger
 from voice.t3.speech import speakable
@@ -183,6 +183,10 @@ PLAYED_ESTIMATE = ("the server's estimate from the audio it sent and its playbac
 # The barge-in read-back runs beside the turns, never in front of them; past this bound the record says `heard: null`.
 # A guess sized for a few seconds of reply audio through the ASR session, not a measured read-back time.
 READBACK_TIMEOUT_S = 5.0
+# How long a barge-in turn waits for the trim's answer before its audio goes in without the note: about 25 times the
+# slowest answer measured, 19 ms beside a session generating a long reply (median 10 ms, idle 1.1 ms;
+# docs/voice/barge-in.md).
+TRUNCATE_WAIT_S = 0.5
 # Thread news is spoken only after the person and the assistant have both been quiet this long. A guess: longer than a
 # breath between sentences, and short enough that news does not sit unsaid.
 IDLE_GRACE_S = 1.5
@@ -351,6 +355,8 @@ class Reply:
     first_sent: float | None = None
     # The voice session's item for this reply, or None for audio the session did not make (`reply_item`).
     item: str | None = None
+    # A line the barge-in trim never cuts: a relayed T3 line, a question the call waits on, or a correction.
+    kept: bool = False
 
 
 def reply_item(voice, pcm):
@@ -371,23 +377,59 @@ def reply_item(voice, pcm):
 
 @dataclass(frozen=True)
 class Cut:
-    """Where a barge-in stopped the caller hearing a turn's replies: the first reply the voice session made that they
-    did not hear to its last word (`item`), and the words of it they heard, "" for none."""
+    """Where a barge-in stopped the caller hearing a turn's replies: the reply that was playing (`index` in the turn,
+    `item` in the voice session) and the words of it they heard, "" for none."""
 
+    index: int
     item: str
     heard: str
 
 
-def cut_at(replies, end):
-    """The Cut for `replies` whose texts, joined by spaces in the order spoken, were heard up to character `end`; None
-    when every reply the session made was heard to its last word."""
-    start = 0
-    for reply in replies:
-        last = max((match.end() for match in WORD.finditer(reply.text)), default=0)
-        if reply.item is not None and start + last > end:
-            return Cut(reply.item, reply.text[:max(0, end - start)].strip())
-        start += len(reply.text) + 1
-    return None
+def played_words_end(text, share):
+    """Where the words of `text` that `share` of its audio carried end, by time: that share of its words, at least one
+    once any played, as the reply check reads a cut-off reply (`replycheck._heard_words`). Audio lags the text it was
+    released on, so this errs towards more words heard."""
+    ends = [match.end() for match in re.finditer(r"\S+", text)]
+    if share <= 0 or not ends:
+        return 0
+    return ends[max(1, round(len(ends) * min(1.0, share))) - 1]
+
+
+def hearing(replies, played, transcript):
+    """What the caller heard of a turn's `replies`, spoken in order, when the first `played` bytes of their joined audio
+    had played, and a read-back of that audio said `transcript` (None when there is none): `heard`, the replies' text
+    up to there; `cut`, the Cut for the reply that was playing, or None with `why`; and what each signal gave (`by`).
+
+    Every reply before the playing one played whole. In the playing one, the playback clock's share of its audio gives
+    one end, by time, and the read-back's continuous match (`heard_end`) the other, and the later of the two is kept:
+    trimming too little leaves a few unheard words, trimming too much takes away words the caller heard. A turn whose
+    playing reply, or a later one, is a kept line is never cut, nor one whose playing reply the session never made."""
+    i, start = 0, 0
+    while i < len(replies) - 1 and start + len(replies[i].pcm) <= played:
+        start += len(replies[i].pcm)
+        i += 1
+    playing = replies[i]
+    before = " ".join(reply.text for reply in replies[:i])
+    offset = len(before) + 1 if i else 0
+    joined = (before + " " if i else "") + playing.text
+    share = (played - start) / len(playing.pcm) if playing.pcm else 0.0
+    by_time = played_words_end(playing.text, share)
+    read_end = heard_end(joined, transcript) if transcript is not None else 0
+    by_ear = min(len(playing.text), max(0, read_end - offset))
+    end = max(by_time, by_ear)
+    heard = (joined[:offset] + playing.text[:end]).strip()
+    by = {"playback": (joined[:offset] + playing.text[:by_time]).strip(),
+          "read_back": None if transcript is None else joined[:read_end].strip()}
+    last = max((match.end() for match in WORD.finditer(playing.text)), default=0)
+    if any(reply.kept for reply in replies[i:]):
+        cut, why = None, "a kept line"
+    elif playing.item is None:
+        cut, why = None, "not the session's reply"
+    elif end >= last and i == len(replies) - 1:
+        cut, why = None, "heard to the last word"
+    else:
+        cut, why = Cut(i, playing.item, playing.text[:end].strip()), None
+    return {"heard": heard, "cut": cut, "why": why, "by": by}
 
 
 @dataclass
@@ -398,7 +440,10 @@ class BargeIn:
     heard: asyncio.Task
     note: str | None = None
     note_item: dict | None = None
-    # With --trim-unheard on: what was taken out of the voice session, once it has been asked.
+    # The turn whose replies were stopped.
+    stopped: "MicTurn | None" = None
+    # With --trim-unheard on: the trim, run once whichever turn holds the barge-in, and its record.
+    trimming: asyncio.Task | None = None
     trim: dict | None = None
 
     def result(self):
@@ -412,7 +457,11 @@ class BargeIn:
         else:
             heard = self.heard.result()
             heard = {**heard, "cut": heard["cut"] and asdict(heard["cut"])} if "cut" in heard else heard
-        return {**heard, "note": self.note, "note_item": self.note_item, "trim": self.trim}
+        trim = self.trim
+        if trim is not None and trim.get("pending") and self.trimming is not None and self.trimming.done() \
+                and not self.trimming.cancelled() and self.trimming.exception() is None:
+            trim = {**self.trimming.result()[0], "late": True}
+        return {**heard, "note": self.note, "note_item": self.note_item, "trim": trim}
 
 
 def note_for(heard):
@@ -540,6 +589,7 @@ class Conversation:
         self.pending, self.started = set(), time.perf_counter()
         self.playback, self.overlap = Playback(), None
         self.checks, self.read_backs = set(), set()
+        self.trim_refused = False
         self.heard_at, self.news = time.perf_counter(), None
         self.call_recording = None
         # A call opened on a T3 thread: the thread, when it started, and its transcript for the thread at the end.
@@ -840,43 +890,50 @@ class Conversation:
         heard = {"whole": whole, "played_s": round(max(0.0, sent_s - max(0.0, remaining_s)), 3),
                  "played_s_is": PLAYED_ESTIMATE}
         if whole:
-            return {"heard": " ".join(reply.text for reply in turn.replies), "cut": None, **heard}
+            return {"heard": " ".join(reply.text for reply in turn.replies), "cut": None, "why": "heard whole", **heard}
         pcm = played_part(sent, turn.out_rate, remaining_s)
         if not pcm:
-            return {"heard": "", "cut": cut_at(turn.replies, 0), **heard}
-        texts, start = [], 0
-        for reply in turn.replies:
-            if start >= len(pcm):
-                break
-            texts.append(reply.text)
-            start += len(reply.pcm)
+            return {**hearing(turn.replies, 0, ""), **heard}
         try:
             transcript = await asyncio.wait_for(self.live.hear_reply(pcm, turn.out_rate), READBACK_TIMEOUT_S)
         except TimeoutError:
-            return {"heard": None, "cut": None, "error": f"read-back timed out after {READBACK_TIMEOUT_S} s", **heard}
+            error = f"read-back timed out after {READBACK_TIMEOUT_S} s"
         except Exception as exc:
-            return {"heard": None, "cut": None, "error": repr(exc), **heard}
-        joined = " ".join(texts)
-        end = heard_end(joined, transcript)
-        return {"heard": joined[:end].strip(), "cut": cut_at(turn.replies, end), **heard}
+            error = repr(exc)
+        else:
+            return {**hearing(turn.replies, len(pcm), transcript), **heard}
+        # The playback clock alone still says where the caller stopped hearing; the record says the read-back failed.
+        return {**hearing(turn.replies, len(pcm), None), "heard": None, "error": error, **heard}
 
-    async def trim(self, heard):
-        """Takes what the caller did not hear of the stopped replies out of the voice session (`truncate_item`), and
-        returns the record of it with the note for the session: they were cut off there, and whether they heard any of
-        the reply. No cut, when they heard it all or the read-back did not finish, takes nothing out and sends no note;
-        neither does a session that refuses the truncate."""
+    async def trim(self, barge):
+        """Takes what the caller did not hear of the stopped replies out of the voice session (`truncate_item`), brings
+        the call's other records of those replies to what was heard (`cut_records`), and returns the trim's record with
+        the note for the session: they were cut off there, and whether they heard any of the reply. No cut takes
+        nothing out and sends no note; neither does a session that refuses the truncate, which is logged once a call."""
+        heard = barge.result()
         cut = heard.get("cut") if heard else None
         if cut is None:
-            why = ("nothing known" if not heard or heard.get("heard") is None else "heard whole" if heard.get("whole")
-                   else "heard to the last word")
-            return {"cut": None, "why": why}, None
+            return {"cut": None, "why": heard.get("why") if heard else "nothing known"}, None
         started = time.perf_counter()
         answer = await truncate_item(self.voice, cut.item, cut.heard)
         record = {"cut": asdict(cut), **answer, "ms": round((time.perf_counter() - started) * 1000, 1)}
         if not answer["accepted"]:
-            print(f"trim refused by the voice session: {answer.get('answer')}", flush=True)
+            if not self.trim_refused:
+                self.trim_refused = True
+                print(f"trim refused by the voice session, the call goes on untrimmed: {answer.get('answer')}",
+                      flush=True)
             return record, None
+        self.cut_records(barge.stopped, cut)
         return record, cut_note(bool(cut.heard))
+
+    def cut_records(self, turn, cut):
+        """The ledger's replies for `turn` and the call transcript's lines for them become what the caller heard: the
+        replies before the cut whole, the cut one to its heard words, and none after it, each marked cut off."""
+        replies = turn.replies
+        said = [reply.text for reply in replies[:cut.index]] + ([cut.heard] if cut.heard else [])
+        self.ledger.cut(turn.name, said)
+        for n, reply in enumerate(replies[cut.index:]):
+            self.transcript.cut(reply, cut.heard if n == 0 else "")
 
     async def on_control(self, message):
         kind = message.get("type")
@@ -975,7 +1032,7 @@ class Conversation:
             now = time.perf_counter()
             if prior is not None and prior.replies:
                 barge = BargeIn(asyncio.create_task(self.heard_before(prior, self.playback.until - now,
-                                                                      prior.speaking)))
+                                                                      prior.speaking)), stopped=prior)
                 self.read_backs.add(barge.heard)
                 barge.heard.add_done_callback(self.read_backs.discard)
             self.stop_playback(now)
@@ -1088,7 +1145,7 @@ class Conversation:
         if event.get("type") == "session.created":
             self.out_rate = turn.out_rate = event["session"]["audio"]["output"]["format"]["rate"]
 
-    def speak(self, turn, text, pcm, done, relay=False, acts=()):
+    def speak(self, turn, text, pcm, done, relay=False, acts=(), kept=False):
         """Send a reply to the client as its audio is released: `reply_start` before the first piece, each piece in
         40 ms frames, and `reply_end` once the reply is `done`. A muted turn sends no more audio but still ends the
         reply it started, so the client is not left waiting for the rest."""
@@ -1099,7 +1156,7 @@ class Conversation:
         if pcm and not turn.muted:
             if not turn.speaking:
                 turn.speaking, turn.reply_started = True, True
-                turn.replies.append(Reply(item=reply_item(self.voice, pcm)))
+                turn.replies.append(Reply(item=reply_item(self.voice, pcm), kept=relay or kept))
                 self.post({"type": "reply_start", "turn": turn.n, "rate": turn.out_rate}, turn)
             reply = turn.replies[-1]
             new_text = text[len(reply.text):] if text.startswith(reply.text) else text
@@ -1144,11 +1201,15 @@ class Conversation:
         try:
             created = await voice.wait_for("session.created")
             self.out_rate = created["session"]["audio"]["output"]["format"]["rate"]
+            # Only a session that may take a reply back asks llama-server to keep the state from before each one.
+            checkpoints = {"response_checkpoints": RESPONSE_CHECKPOINTS} if live.trim_unheard else {}
             if live.t3 is not None:
                 config = {"type": "realtime", "instructions": self.persona + FORMAT_LINES["c"],
-                          "output_modalities": ["text", "audio"]}
+                          "output_modalities": ["text", "audio"], **checkpoints}
                 await update_session(voice, config)
                 voice.config = config
+            elif checkpoints:
+                await update_session(voice, {"type": "realtime", **checkpoints})
             voice.floor = asyncio.Event()
             voice.floor.set()
         except BaseException:
@@ -1176,7 +1237,15 @@ class Conversation:
                 await asyncio.wait({barge.heard})
                 waited = round(time.perf_counter() - waited, 3)
                 if live.trim_unheard:
-                    barge.trim, barge.note = await self.trim(barge.result())
+                    # One trim per barge-in: a turn that continues this one waits on the same task, never a second.
+                    if barge.trimming is None:
+                        barge.trimming = asyncio.create_task(self.trim(barge))
+                    done, _ = await asyncio.wait({barge.trimming}, timeout=TRUNCATE_WAIT_S)
+                    if done:
+                        barge.trim, barge.note = barge.trimming.result()
+                    else:
+                        # The answer still comes before anything this turn sends: the server runs events in order.
+                        barge.trim = {"pending": True, "waited_s": TRUNCATE_WAIT_S}
                     barge.trim["read_back_wait_s"] = waited
                 else:
                     barge.note = note_for(barge.result())
@@ -1186,7 +1255,8 @@ class Conversation:
                                     live.args.segmenter, live.tools, "gated", persona=self.persona,
                                     voice=self.voice, snapshot_mode=live.args.snapshot,
                                     prior_snapshot=self.ledger.snapshot,
-                                    speak=lambda text, pcm, done: self.speak(turn, text, pcm, done),
+                                    speak=lambda text, pcm, done, kept=False: self.speak(turn, text, pcm, done,
+                                                                                         kept=kept),
                                     prior_utterances=tuple(turn_text["user"] for turn_text in self.ledger.conversation()
                                                            if "user" in turn_text),
                                     prior_tasks=tuple(self.ledger.tasks), asr_stagger=getattr(live.args, "asr_stagger", 1),
@@ -1220,6 +1290,8 @@ class Conversation:
         self.write_record(turn, record)
         if turn.barge_in is not None and not turn.barge_in.heard.done():
             turn.barge_in.heard.add_done_callback(lambda _: self.write_record(turn, record))
+        if turn.barge_in is not None and turn.barge_in.trimming is not None and not turn.barge_in.trimming.done():
+            turn.barge_in.trimming.add_done_callback(lambda _: self.write_record(turn, record))
         replies = [r for r in record.get("replies", []) if r.get("text") and r.get("delivery", "sent") == "sent"]
         done = {"type": "turn_done", "turn": turn.n, "transcript": record.get("final_transcript"),
                 "replies": [r.get("text") for r in replies], "error": record.get("error"),
@@ -1445,7 +1517,7 @@ async def main_async(args):
     eou_context = eou_audio.server(eou_port, out / "eou-server.log") if eou_mode == "audio" else nullcontext()
     async with AsyncExitStack() as stack:
         tools = stack.enter_context(tools_context)
-        binary = getattr(args, "llama_server", None)
+        binary = llama_binary(args)
         server = stack.enter_context(Server(args.lfm_port, out / "llama-server.log", lfm_args,
                                             slots(getattr(args, "asr_stagger", 1)),
                                             **({"binary": binary} if binary else {})))
@@ -1501,6 +1573,17 @@ async def main_async(args):
                 await live.active.ws.close(1001, "server stopping")
         if live.saves:
             await asyncio.wait(live.saves, timeout=RECORD_TIMEOUT_S)
+
+
+def llama_binary(args):
+    """The --llama-server to run, or None for the installed build. One that is not there runs the installed build with
+    the trim off, and says so once: the call goes on as it would without the flag."""
+    binary = getattr(args, "llama_server", None)
+    if binary is None or Path(binary).is_file():
+        return binary
+    print(f"llama-server {binary} not found: running {LLAMA_SERVER}, trim off", flush=True)
+    args.trim_unheard = "off"
+    return None
 
 
 EOU_MODES = ("silence", "audio", "smart")

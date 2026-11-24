@@ -44,6 +44,8 @@ SHAPES = {
     "new": {"ask": "Can you tell me about the history of lighthouses, in some detail?",
             "over": "Actually, never mind that. How many legs does a spider have?"},
 }
+# Frozen on 2026-11-24, before either arm of the 15-calls-per-shape run: the context and the questions below are the
+# ones the first run (5 calls per shape) used, and are not to be changed in the light of that run's results.
 CONTEXT = ("An assistant on a phone call was giving a spoken reply when the caller talked over it, and the reply "
            "stopped there. The caller heard only this start of it: \"{heard}\". The caller never heard the rest of it: "
            "\"{unheard}\". The caller then said: \"{over}\". The text is the assistant's next reply.")

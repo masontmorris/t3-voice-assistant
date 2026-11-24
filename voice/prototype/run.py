@@ -376,20 +376,60 @@ def cut_note(heard_any):
     return CUT_NOTE if heard_any else CUT_ALL_NOTE
 
 
+# A session that can take a reply back: how many responses llama-server keeps the state from before (the patched
+# build's session.update field; others ignore it).
+RESPONSE_CHECKPOINTS = 8
+# The longest a truncate's answer is waited for before the session counts as broken. The patched server answers once
+# the rewind has run (at most 19 ms measured, docs/voice/barge-in.md); a turn waits for it only
+# `server.TRUNCATE_WAIT_S`, and an answer later than that still lands before anything sent after the truncate.
+TRUNCATE_ANSWER_S = 60
+
+
+def last_item(session):
+    """The id of the newest item the session told us of: what a truncate expects to be last, so that a session that has
+    moved on refuses it. "" before any."""
+    for event in reversed(session.events):
+        kind = event.get("type")
+        if kind == "conversation.item.truncated":
+            return event.get("last_item_id") or ""
+        if kind in ("conversation.item.added", "response.output_item.done"):
+            return (event.get("item") or {}).get("id") or ""
+        if kind == "input_audio_buffer.committed":
+            return event.get("item_id") or ""
+    return ""
+
+
 async def truncate_item(session, item_id, heard):
     """Takes back what the caller did not hear of the reply `item_id`: the session goes back to where that response
-    began and keeps only `heard` of it, as text, and nothing after it; an empty `heard` keeps none of it. Only a
-    llama-server with the truncate patch (docs/voice/barge-in.md) knows the event; any other answers with an error."""
+    began and keeps only `heard` of it, as text, and nothing after it in the caller's turn; an empty `heard` keeps none
+    of it. The server refuses it, changing nothing, once anything newer than the last item we know of is in the
+    session, after the caller has spoken since that reply, or for words the reply did not say. Its answer is definite:
+    it comes once the rewind has run. Only a llama-server with the truncate patch (docs/voice/barge-in.md) knows the
+    event; any other answers with an error."""
     await floor_free(session)
     mark = len(session.events)
-    await session.send(type="conversation.item.truncate", item_id=item_id, content_index=0, text=heard)
+    await session.send(type="conversation.item.truncate", item_id=item_id, content_index=0, text=heard,
+                       expect_last_item_id=last_item(session))
     try:
-        answer = await session.wait_for("conversation.item.truncated", "error", after=mark, timeout=5)
+        answer = await session.wait_for("conversation.item.truncated", "error", after=mark, timeout=TRUNCATE_ANSWER_S)
     except asyncio.TimeoutError:
-        return {"accepted": None, "answer": "no event in 5 s"}
+        return {"accepted": None, "answer": f"no answer in {TRUNCATE_ANSWER_S} s"}
     if answer["type"] == "error":
         return {"accepted": False, "answer": answer.get("error")}
     return {"accepted": True, "removed": answer.get("removed_item_ids", [])}
+
+
+def kept_speak(speak):
+    """`speak` for a line the barge-in trim must never cut: one that asks the caller something the call waits on, or
+    takes back something said."""
+    return None if speak is None else (lambda text, pcm, done: speak(text, pcm, done, kept=True))
+
+
+def asks_caller(entries):
+    """Whether the notes for `entries` ask the caller for something a task waits on (`task_note`: a task that needs
+    clarification and names what)."""
+    return any(entry.get("status") == "needs_clarification" and entry.get("needs") and not entry.get("acts")
+               and entry.get("capability") not in T3_TOOLS for entry in entries)
 
 
 async def stream_reply(session, rate, since, out=None, stop=None, **response):
@@ -428,17 +468,26 @@ STREAM_EVENTS = ("response.output_text.delta", "response.output_audio.delta", "r
 WORD = re.compile(r"[A-Za-z0-9']+")
 
 
+# How many words a read-back may miss, or add, between two runs it matched, and still count as one continuous hearing.
+READBACK_GAP_WORDS = 2
+
+
 def heard_end(text, transcript):
-    """Where the heard part of `text` ends: just past the last of its words that the transcript of its released audio
-    matched, or 0 when none did.
+    """Where the part of `text` that the transcript of its played audio heard ends, as one continuous run from the
+    start: just past the last word of the runs matched in order from the first word, each starting within
+    READBACK_GAP_WORDS of where the last one ended in both texts; 0 when the transcript does not match the start.
 
     The released audio lags the text it was released on by a median of 7 words at a block boundary (measured,
     docs/voice/stream-release.md), so the text a stopped reply was released on overstates what was heard."""
     spans = [(match.group(0).lower(), match.end()) for match in WORD.finditer(text or "")]
     said = WORD.findall((transcript or "").lower())
     matcher = difflib.SequenceMatcher(a=[word for word, _ in spans], b=said, autojunk=False)
-    ends = [block.a + block.size for block in matcher.get_matching_blocks() if block.size]
-    return spans[max(ends) - 1][1] if ends else 0
+    end_a = end_b = 0
+    for block in matcher.get_matching_blocks():
+        if not block.size or block.a - end_a > READBACK_GAP_WORDS or block.b - end_b > READBACK_GAP_WORDS:
+            break
+        end_a, end_b = block.a + block.size, block.b + block.size
+    return spans[end_a - 1][1] if end_a else 0
 
 
 # Silence after a stopped reply's audio before it is transcribed. Without it the ASR read nothing from 16 of 24
@@ -1138,7 +1187,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     if is_muted():
                         return
                     _, held, held_pcm = await speak_note(voice, out_rate, flagged, TRANSITION_NOTE, [], log,
-                                                         speak=speak, previous=said)
+                                                         speak=kept_speak(speak), previous=said)
                     replies.append({"kind": "transition", **held})
                     log("reply", reply="transition", text=held["text"], flag_to_audio_s=held["first_audio_after_s"])
                     if held_pcm:
@@ -1260,8 +1309,10 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if note is not None:
                 injection.append(await create_item(voice, plain_text(note)))
                 log("recall_note", note=note)
+            asking = False
             if noted and not t3_entries and heard:
                 asks = service.correction is ASK_WHAT_CHANGED and not answered["tasks"]
+                asking = asks or asks_caller(ordinary["tasks"])
                 item = ASK_NOTE if asks else task_notes(ordinary["tasks"])
                 if item is None and dropped_question is not None:
                     item = WITHDRAWN_NOTE if getattr(dropped_question, "took_back", False) else DROPPED_NOTE
@@ -1289,7 +1340,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             elif noted and (hold := withdrawn_hold(dropped_question, reply_check, send_checked, log)) is not None:
                 reply, reply_pcm = await answer_withdrawn(hold, sources, asks_more(closed.get("final_decision")))
             elif noted:
-                reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, speak=speak,
+                reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log,
+                                                speak=kept_speak(speak) if asking else speak,
                                                 previous=prior_replies, watch=watch)
             elif service.correction is ASK_WHAT_CHANGED:
                 reply, reply_pcm = fixed_reply(ASK_INSTEAD_LINE, ask_pcm, out_rate, clock() - audio_end), ask_pcm
@@ -1297,7 +1349,7 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
                     speak(reply["text"], reply_pcm, True)
                 elif send_checked is not None:
                     _, reply, reply_pcm = await speak_note(
-                        voice, out_rate, audio_end, ASK_NOTE, sources, log, speak=speak)
+                        voice, out_rate, audio_end, ASK_NOTE, sources, log, speak=kept_speak(speak))
             else:
                 reply, reply_pcm = await answer(voice, out_rate, audio_end, sources, log, speak=speak,
                                                 previous=prior_replies, watch=watch)
@@ -1348,7 +1400,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
         ordinary_updates = [entry for entry in task_updates if not entry.get("acts")]
         updates = None
         if snapshot_mode == "note" and (owed or ordinary_updates):
-            updates = task_notes([*owed, *service.update_entries(ordinary_updates)])
+            noted_updates = [*owed, *service.update_entries(ordinary_updates)]
+            updates = task_notes(noted_updates)
         elif ordinary_updates:
             updates = shown({"updates": ordinary_updates}, snapshot_mode, adapter.text(), update=True)
         if updates is not None:
@@ -1358,7 +1411,8 @@ async def run_clip(source, inject, status_only, url, decider, delay_s, out, part
             if snapshot_mode == "note":
                 injection_update, update_reply, update_pcm = await speak_note(
                     voice, out_rate, boundary, updates, [adapter.text(), *prior_utterances], log,
-                    speak=speak, previous=said, watch=watch, **extra)
+                    speak=kept_speak(speak) if asks_caller(noted_updates) else speak, previous=said, watch=watch,
+                    **extra)
             else:
                 injection_update = await create_item(voice, user_text(UPDATE_PREFIX, updates))
                 update_reply, update_pcm = await answer(voice, out_rate, boundary,

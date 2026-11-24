@@ -1,7 +1,54 @@
-diff --git a/tools/server/server-realtime.cpp b/tools/server/server-realtime.cpp
-index e747d32..55f4ed5 100644
---- a/tools/server/server-realtime.cpp
-+++ b/tools/server/server-realtime.cpp
+diff -ruN a/tools/server/server-context.cpp b/tools/server/server-context.cpp
+--- a/tools/server/server-context.cpp	2026-11-24 02:35:20.126218200 -0500
++++ b/tools/server/server-context.cpp	2026-11-24 02:35:20.817553800 -0500
+@@ -3033,6 +3033,7 @@
+                 {
+                     auto res = std::make_unique<server_task_result_control>();
+                     res->id = task.id;
++                    bool answered = true;
+ 
+                     server_slot * slot = get_slot_by_cmpl_id(task.params.control_cmpl_id);
+                     if (slot == nullptr) {
+@@ -3056,16 +3057,22 @@
+                         common_sampler_reasoning_budget_force(slot->smpl.get());
+                         res->success = true;
+                     } else if (slot->rt) {
+-                        // a cancel acts now, everything else runs after what is already queued
++                        // a cancel acts now, everything else runs after what is already queued; a rewind is answered by
++                        // the slot once it has run
+                         if (task.params.control_action == SERVER_CONTROL_ACTION_RESPONSE_CANCEL) {
+                             slot->rt->cancel();
+                         } else {
+-                            slot->rt->push({
++                            server_realtime_op op{
+                                 task.params.control_action,
+                                 std::move(task.params.control_text),
+                                 std::move(task.params.control_audio),
+                                 task.params.control_response,
+-                            });
++                            };
++                            if (task.params.control_action == SERVER_CONTROL_ACTION_REWIND) {
++                                op.ack_id = task.id;
++                                answered  = false;
++                            }
++                            slot->rt->push(std::move(op));
+                         }
+                         slot->audio_wait = false;
+                         res->success = true;
+@@ -3094,7 +3101,9 @@
+                         res->message = "unknown control action";
+                     }
+ 
+-                    queue_results.send(std::move(res));
++                    if (answered) {
++                        queue_results.send(std::move(res));
++                    }
+                 } break;
+             case SERVER_TASK_TYPE_NEXT_RESPONSE:
+                 {
+diff -ruN a/tools/server/server-realtime.cpp b/tools/server/server-realtime.cpp
+--- a/tools/server/server-realtime.cpp	2026-11-24 02:35:20.140203500 -0500
++++ b/tools/server/server-realtime.cpp	2026-11-24 02:35:20.326222500 -0500
 @@ -10,8 +10,11 @@
  #include "json-schema-to-grammar.h"
  #include "mtmd.h"
@@ -14,115 +61,191 @@ index e747d32..55f4ed5 100644
  #include <atomic>
  #include <climits>
  #include <cmath>
-@@ -176,6 +179,22 @@ struct realtime_conversation {
-     int         idx_message = -1;          // output index of the message, added with its first delta
+@@ -177,6 +180,36 @@
      std::map<size_t, int> call_items;      // tool call -> output index
      std::optional<task_result_state> parse; // the tool call parser, with tools
-+    bool        responding = false;        // a response was asked for and is not done
-+    std::vector<std::string> items;        // ids of the conversation's items, in order
-+
-+    // the last responses, which conversation.item.truncate can take back; the slot keeps a checkpoint of each,
-+    // dropped in the same order. Owned by the reader thread
+ 
++    // conversation.item.truncate, for a session that asked for it with session.update response_checkpoints: N. The
++    // slot saves the state before each of the last N responses. With 0, the default, nothing is saved and nothing
++    // below is kept. `items`, `marks` and `responding` are shared with the result loop, under `mutex`
++    int32_t keep_checkpoints = 0;
++    struct conv_item {
++        std::string id;
++        bool        caller_audio; // a committed audio turn of the caller
++    };
++    std::vector<conv_item> items;
 +    struct response_mark {
-+        std::string item_id;      // the response's message item
-+        int32_t     checkpoint;   // the slot's checkpoint of the conversation before it
-+        size_t      n_items;      // items before it
-+        bool        turn_open;    // the turn state when it was asked for
++        std::string item_id;    // the response's message item
++        int32_t     checkpoint; // the slot's checkpoint from before it
++        size_t      n_items;    // items before it
++        bool        turn_open;  // the turn state when it was asked for
 +        bool        tool_results;
 +        int         n_turns;
 +        std::string next_header;
++        bool        done = false;
++        std::string text;       // what it generated, once done
 +    };
 +    std::deque<response_mark> marks;
 +    int32_t                   n_checkpoints = 0;
- 
++    bool                      responding    = false; // a response was asked for and is not done
++
++    void add_item(const std::string & item_id, bool caller_audio) {
++        if (keep_checkpoints > 0) {
++            items.push_back({item_id, caller_audio});
++        }
++    }
++
      std::atomic<bool> closed{false};
  
-@@ -419,6 +438,7 @@ struct realtime_conversation {
+     realtime_conversation(const server_realtime_deps & deps, server_http_context::ws_conn & conn)
+@@ -228,6 +261,7 @@
+             {"tools",             tools_json},
+             {"tool_choice",       tool_choice_str(tool_choice)},
+             {"audio",             audio},
++            {"response_checkpoints", keep_checkpoints},
+         };
+     }
+ 
+@@ -236,7 +270,7 @@
+     //
+ 
+     bool control(server_control_action action, std::string text = {}, std::vector<float> audio = {},
+-                 server_control_response response = {}) {
++                 server_control_response response = {}, std::string * message = nullptr) {
+         server_response_reader ctl(deps.queue_tasks, deps.queue_results, 1);
+         server_task task(SERVER_TASK_TYPE_CONTROL);
+         task.id                       = ctl.get_new_id();
+@@ -248,6 +282,9 @@
+         ctl.post_task(std::move(task));
+         auto result = ctl.next([this]() { return closed.load() || !conn.is_open(); });
+         auto * res = result ? dynamic_cast<server_task_result_control *>(result.get()) : nullptr;
++        if (res && message) {
++            *message = res->message;
++        }
+         return res && res->success;
+     }
+ 
+@@ -419,6 +456,7 @@
          std::lock_guard<std::mutex> lock(mutex);
          const json prev = last_item_id.empty() ? json(nullptr) : json(last_item_id);
          last_item_id = "item_" + random_string();
-+        items.push_back(last_item_id);
++        add_item(last_item_id, true);
          send_event({{"type", "input_audio_buffer.committed"}, {"previous_item_id", prev}, {"item_id", last_item_id}});
          const json item = {{"id", last_item_id}, {"object", "realtime.item"}, {"type", "message"}, {"role", "user"},
                             {"status", "completed"}, {"content", json::array({{{"type", "input_audio"}}})}};
-@@ -487,6 +507,7 @@ struct realtime_conversation {
+@@ -487,6 +525,7 @@
          std::lock_guard<std::mutex> lock(mutex);
          const json prev = last_item_id.empty() ? json(nullptr) : json(last_item_id);
          last_item_id = item.contains("id") && item["id"].is_string() ? item["id"].get<std::string>() : "item_" + random_string();
-+        items.push_back(last_item_id);
++        add_item(last_item_id, false);
          const json out = {{"id", last_item_id}, {"object", "realtime.item"}, {"type", "message"}, {"role", "user"},
                            {"status", "completed"}, {"content", json::array({{{"type", "input_text"}, {"text", text}}})}};
          send_event({{"type", "conversation.item.added"}, {"previous_item_id", prev}, {"item", out}});
-@@ -509,6 +530,7 @@ struct realtime_conversation {
+@@ -509,6 +548,7 @@
          std::lock_guard<std::mutex> lock(mutex);
          const json prev = last_item_id.empty() ? json(nullptr) : json(last_item_id);
          last_item_id = item.contains("id") && item["id"].is_string() ? item["id"].get<std::string>() : "item_" + random_string();
-+        items.push_back(last_item_id);
++        add_item(last_item_id, false);
          const json out = {{"id", last_item_id}, {"object", "realtime.item"}, {"type", "function_call_output"},
                            {"call_id", json_value(item, "call_id", std::string())}, {"output", output}, {"status", "completed"}};
          send_event({{"type", "conversation.item.added"}, {"previous_item_id", prev}, {"item", out}});
-@@ -583,12 +605,18 @@ struct realtime_conversation {
+@@ -583,12 +623,21 @@
                  return;
              }
          }
 -        response.sampling = response_sampling(chat ? &*chat : nullptr);
-+        response.sampling   = response_sampling(chat ? &*chat : nullptr);
-+        response.checkpoint = n_checkpoints++;
++        response.sampling        = response_sampling(chat ? &*chat : nullptr);
++        response.checkpoint      = keep_checkpoints > 0 ? n_checkpoints++ : -1;
++        response.checkpoint_keep = keep_checkpoints;
  
          {
              std::lock_guard<std::mutex> lock(mutex);
              response_id      = "resp_" + random_string();
              response_item_id = "item_" + random_string();
 +            responding       = true;
-+            marks.push_back({response_item_id, response.checkpoint, items.size(), turn_open, tool_results, n_turns, next_header});
-+            while (marks.size() > server_realtime_slot::n_checkpoints_max) {
-+                marks.pop_front();
++            if (keep_checkpoints > 0) {
++                marks.push_back({response_item_id, response.checkpoint, items.size(), turn_open, tool_results, n_turns, next_header});
++                while (marks.size() > (size_t) keep_checkpoints) {
++                    marks.pop_front();
++                }
 +            }
              response_text.clear();
              parts       = json::array();
              idx_text    = -1;
-@@ -613,6 +641,69 @@ struct realtime_conversation {
+@@ -613,6 +662,105 @@
          n_turns++;
      }
  
-+    // takes back the part of one of the last responses that the listener did not hear: the conversation goes back to
-+    // where that response started and only `text`, what was heard, goes in as the assistant's turn, as text. Everything
-+    // after it goes too. An empty text removes the response, and the user turn before it stays open
++    // takes back what the listener did not hear of one of the last responses: the conversation goes back to where that
++    // response began, and only `text`, the part that was heard, goes in as the assistant's turn, as text. The items
++    // after it go too: the rest of the same caller turn. Refused, with nothing changed, when the conversation has moved
++    // past `expect_last_item_id`, when the caller has spoken since the response, when `text` is not the start of what
++    // the response itself said, or while a response or uncommitted audio is in progress. The reader thread waits for
++    // the slot to run it, so nothing sent after this event can enter the conversation before it, and the reply is
++    // definite: conversation.item.truncated once it has run, or an error
 +    void on_item_truncate(const json & ev) {
 +        if (type == "transcription") {
 +            send_error("conversation.item.truncate: not supported in a transcription session");
 +            return;
 +        }
-+        const std::string item_id = json_value(ev, "item_id", std::string());
-+        if (!ev.contains("text") || !ev["text"].is_string()) {
-+            send_error("conversation.item.truncate: text, the part of the response that was heard, is required");
++        if (keep_checkpoints == 0) {
++            send_error("conversation.item.truncate: the session keeps no response checkpoints, see session.update "
++                       "response_checkpoints", "item_truncate_off");
 +            return;
 +        }
-+        const std::string text = ev["text"];
++        if (!ev.contains("text") || !ev["text"].is_string() || !ev.contains("expect_last_item_id") ||
++            !ev["expect_last_item_id"].is_string()) {
++            send_error("conversation.item.truncate: text (the part that was heard) and expect_last_item_id are required");
++            return;
++        }
++        const std::string item_id = json_value(ev, "item_id", std::string());
++        const std::string text    = ev["text"];
++        const std::string expect  = ev["expect_last_item_id"];
++        if (has_audio) {
++            send_error("conversation.item.truncate: audio was appended and not committed");
++            return;
++        }
++        response_mark mark;
 +        {
 +            std::lock_guard<std::mutex> lock(mutex);
 +            if (responding) {
 +                send_error("conversation.item.truncate: a response is in progress");
 +                return;
 +            }
++            const std::string last = items.empty() ? std::string() : items.back().id;
++            if (expect != last) {
++                send_error("conversation.item.truncate: the conversation has moved past " + expect + ", its last item is " + last,
++                           "item_truncate_stale");
++                return;
++            }
++            auto it = std::find_if(marks.begin(), marks.end(), [&](const response_mark & m) { return m.item_id == item_id; });
++            if (it == marks.end() || !it->done) {
++                send_error("conversation.item.truncate: not one of the last responses: " + item_id, "item_truncate_invalid_item_id");
++                return;
++            }
++            for (size_t i = it->n_items; i < items.size(); i++) {
++                if (items[i].caller_audio) {
++                    send_error("conversation.item.truncate: the caller has spoken since " + item_id, "item_truncate_caller_turn");
++                    return;
++                }
++            }
++            const size_t      lead = it->text.find_first_not_of(" \t\r\n");
++            const std::string said = lead == std::string::npos ? std::string() : it->text.substr(lead);
++            if (text.size() > said.size() || said.compare(0, text.size(), text) != 0) {
++                send_error("conversation.item.truncate: text is not the start of what the response said", "item_truncate_invalid_text");
++                return;
++            }
++            mark = *it;
 +        }
-+        if (has_audio) {
-+            send_error("conversation.item.truncate: audio was appended and not committed");
-+            return;
-+        }
-+        auto it = std::find_if(marks.begin(), marks.end(), [&](const response_mark & m) { return m.item_id == item_id; });
-+        if (it == marks.end()) {
-+            send_error("conversation.item.truncate: not one of the last responses: " + item_id, "item_truncate_invalid_item_id");
-+            return;
-+        }
-+        const response_mark mark = *it;
 +        const std::string append = text.empty() ? std::string() : (mark.turn_open ? user_footer : "") + assistant_header + text;
 +        server_control_response rewind;
 +        rewind.checkpoint = mark.checkpoint;
-+        if (!control(SERVER_CONTROL_ACTION_REWIND, append, {}, rewind)) {
++        std::string refused;
++        if (!control(SERVER_CONTROL_ACTION_REWIND, append, {}, rewind, &refused)) {
++            send_error("conversation.item.truncate: " + (refused.empty() ? std::string("the rewind did not run") : refused),
++                       "item_truncate_failed");
 +            return;
 +        }
-+        marks.erase(it, marks.end());
 +        if (text.empty()) {
 +            turn_open    = mark.turn_open;
 +            tool_results = mark.tool_results;
@@ -135,23 +258,47 @@ index e747d32..55f4ed5 100644
 +            next_header  = assistant_footer;
 +        }
 +        std::lock_guard<std::mutex> lock(mutex);
-+        const size_t keep = std::min(mark.n_items, items.size());
-+        std::vector<std::string> removed(items.begin() + (std::ptrdiff_t) keep, items.end());
-+        items.resize(keep);
-+        if (!text.empty()) {
-+            items.push_back(item_id);
-+            removed.erase(std::remove(removed.begin(), removed.end(), item_id), removed.end());
++        marks.erase(std::find_if(marks.begin(), marks.end(), [&](const response_mark & m) { return m.item_id == item_id; }),
++                    marks.end());
++        json removed = json::array();
++        for (size_t i = mark.n_items; i < items.size(); i++) {
++            if (items[i].id != item_id || text.empty()) {
++                removed.push_back(items[i].id);
++            }
 +        }
-+        last_item_id = items.empty() ? std::string() : items.back();
++        items.resize(std::min(mark.n_items, items.size()));
++        if (!text.empty()) {
++            items.push_back({item_id, false});
++        }
++        last_item_id = items.empty() ? std::string() : items.back().id;
 +        send_event({{"type", "conversation.item.truncated"}, {"item_id", item_id}, {"content_index", 0},
-+                    {"audio_end_ms", ev.contains("audio_end_ms") ? ev["audio_end_ms"] : json(nullptr)},
-+                    {"transcript", text}, {"removed_item_ids", removed}});
++                    {"transcript", text}, {"removed_item_ids", removed}, {"last_item_id", last_item_id}});
 +    }
 +
      void on_session_update(const json & ev) {
          const json session = ev.value("session", json::object());
          if (!session.is_object()) {
-@@ -750,6 +841,8 @@ struct realtime_conversation {
+@@ -663,6 +811,19 @@
+                 return;
+             }
+         }
++        if (session.contains("response_checkpoints")) {
++            const json & n = session["response_checkpoints"];
++            if (!n.is_number_integer() || n.get<int64_t>() < 0 || n.get<int64_t>() > (int64_t) server_realtime_slot::n_checkpoints_max) {
++                send_error("session.update: response_checkpoints must be an integer from 0 to " +
++                           std::to_string(server_realtime_slot::n_checkpoints_max));
++                return;
++            }
++            if (started && n.get<int32_t>() != keep_checkpoints) {
++                send_error("session.update: response_checkpoints cannot change after the first audio or message");
++                return;
++            }
++            keep_checkpoints = n.get<int32_t>();
++        }
+         if (session.contains("max_output_tokens") && !parse_max_output_tokens(session["max_output_tokens"], max_output_tokens)) {
+             send_error("session.update: max_output_tokens must be an integer or \"inf\"");
+             return;
+@@ -750,6 +911,8 @@
              on_item_create(ev);
          } else if (t == "response.create") {
              on_response_create(ev);
@@ -160,154 +307,196 @@ index e747d32..55f4ed5 100644
          } else if (t == "response.cancel") {
              control(SERVER_CONTROL_ACTION_RESPONSE_CANCEL);
          } else {
-@@ -892,7 +985,9 @@ struct realtime_conversation {
+@@ -892,7 +1055,15 @@
              output[i]["status"] = status;
              send_event({{"type", "response.output_item.done"}, {"response_id", response_id}, {"output_index", i}, {"item", output[i]}});
              last_item_id = output[i]["id"];
-+            items.push_back(last_item_id);
++            add_item(last_item_id, false);
++        }
++        for (auto & mark : marks) {
++            if (mark.item_id == response_item_id) {
++                mark.done = true;
++                mark.text = response_text;
++            }
          }
 +        responding = false;
          send_event({{"type", "response.done"}, {"response", {{"id", response_id}, {"object", "realtime.response"}, {"status", status},
                      {"output", output}, {"usage", {{"output_tokens", res.n_decoded}}}}}});
          parse.reset();
-@@ -1084,7 +1179,62 @@ void server_realtime_slot::sample_next() {
+@@ -1084,7 +1255,76 @@
      common_sampler_accept(smpl.get(), sampled, true);
  }
  
-+bool server_realtime_slot::save_checkpoint(int32_t id) {
++// keeps at most `keep` checkpoints and checkpoint_bytes_max bytes, dropping the oldest first; one larger than that is
++// not kept, and a truncate of its response is refused
++bool server_realtime_slot::save_checkpoint(int32_t id, int32_t keep) {
 +    const auto t0 = std::chrono::steady_clock::now();
 +    checkpoint cp;
 +    cp.id     = id;
 +    cp.n_past = n_past;
 +    const size_t size = llama_state_seq_get_size_ext(ctx, seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY);
-+    cp.state.resize(size);
-+    if (llama_state_seq_get_data_ext(ctx, cp.state.data(), size, seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) != size) {
-+        return fail("failed to save the conversation state");
++    if (size <= checkpoint_bytes_max) {
++        cp.state.resize(size);
++        if (llama_state_seq_get_data_ext(ctx, cp.state.data(), size, seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) != size) {
++            return fail("failed to save the conversation state");
++        }
++        checkpoint_bytes += size;
++        checkpoints.push_back(std::move(cp));
 +    }
-+    checkpoints.push_back(std::move(cp));
-+    while (checkpoints.size() > n_checkpoints_max) {
++    const size_t n_keep = std::min((size_t) std::max(keep, 0), n_checkpoints_max);
++    while (!checkpoints.empty() && (checkpoints.size() > n_keep || checkpoint_bytes > checkpoint_bytes_max)) {
++        checkpoint_bytes -= checkpoints.front().state.size();
 +        checkpoints.pop_front();
 +    }
-+    LOG_INF("realtime: checkpoint %d at n_past = %d, %.3f MiB, %.2f ms\n", id, n_past, size / 1048576.0,
-+            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
++    LOG_INF("realtime: checkpoint %d at n_past = %d, %.3f MiB, %.2f ms, %zu kept (%.3f MiB)\n", id, n_past,
++            size / 1048576.0, std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count(),
++            checkpoints.size(), checkpoint_bytes / 1048576.0);
 +    return true;
 +}
 +
 +// the conversation as it was at the checkpoint: its SWA and recurrent state put back, the full-attention cells after it
-+// removed, and the checkpoints after it dropped
-+bool server_realtime_slot::rewind(int32_t id) {
++// removed, and the checkpoints after it dropped. 1 when done; 0 with `refused` set when the checkpoint is gone, and
++// nothing changed; -1 on a failure that leaves the sequence unknown, which ends the session
++int server_realtime_slot::rewind(int32_t id, std::string & refused) {
 +    const auto t0 = std::chrono::steady_clock::now();
 +    auto it = std::find_if(checkpoints.begin(), checkpoints.end(), [id](const checkpoint & c) { return c.id == id; });
 +    if (it == checkpoints.end()) {
-+        return fail("no checkpoint for the response", ERROR_TYPE_INVALID_REQUEST);
++        refused = "the response's checkpoint was dropped";
++        return 0;
 +    }
 +    const llama_pos from = n_past;
 +    if (std::getenv("LLAMA_RT_REWIND_CUT_ONLY")) {
-+        // research: cut the sequence at the checkpoint with no saved state, as a plain KV rewind would
++        // research only: cut the sequence at the checkpoint with no saved state, as a plain KV rewind would
 +        const bool ok = llama_memory_seq_rm(llama_get_memory(ctx), seq_id, it->n_past, -1);
 +        LOG_INF("realtime: cut-only rewind from n_past = %d to %d: seq_rm %s\n", from, it->n_past, ok ? "true" : "false");
 +        if (!ok) {
-+            return fail("the sequence cannot be cut at the checkpoint without its saved state");
++            fail("the sequence cannot be cut at the checkpoint without its saved state");
++            return -1;
 +        }
-+        n_past = it->n_past;
-+        checkpoints.erase(it, checkpoints.end());
-+        return true;
-+    }
-+    if (llama_state_seq_set_data_ext(ctx, it->state.data(), it->state.size(), seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) != it->state.size()) {
-+        return fail("failed to restore the conversation state");
-+    }
-+    if (!llama_memory_seq_rm(llama_get_memory(ctx), seq_id, it->n_past, -1)) {
-+        return fail("failed to remove the conversation after the checkpoint");
++    } else {
++        if (llama_state_seq_set_data_ext(ctx, it->state.data(), it->state.size(), seq_id, LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY) != it->state.size()) {
++            fail("failed to restore the conversation state");
++            return -1;
++        }
++        if (!llama_memory_seq_rm(llama_get_memory(ctx), seq_id, it->n_past, -1)) {
++            fail("failed to remove the conversation after the checkpoint");
++            return -1;
++        }
 +    }
 +    n_past = it->n_past;
++    for (auto c = it; c != checkpoints.end(); ++c) {
++        checkpoint_bytes -= c->state.size();
++    }
 +    checkpoints.erase(it, checkpoints.end());
 +    LOG_INF("realtime: rewound checkpoint %d from n_past = %d to %d, %.2f ms\n", id, from, n_past,
 +            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
-+    return true;
++    return 1;
 +}
 +
  bool server_realtime_slot::response_start(const server_realtime_op & op) {
-+    if (op.response.checkpoint >= 0 && !save_checkpoint(op.response.checkpoint)) {
++    if (op.response.checkpoint >= 0 && !save_checkpoint(op.response.checkpoint, op.response.checkpoint_keep)) {
 +        return false;
 +    }
      auto sparams = op.response.sampling;
      n_predict = op.response.n_predict;
      n_decoded = 0;
-@@ -1263,6 +1413,21 @@ bool server_realtime_slot::update() {
+@@ -1263,6 +1503,31 @@
                      llama_memory_seq_rm(llama_get_memory(ctx), seq_id, -1, -1);
                      stream.reset();
                      n_past = 0;
 +                    checkpoints.clear();
++                    checkpoint_bytes = 0;
 +                } break;
 +            case SERVER_CONTROL_ACTION_REWIND:
 +                {
-+                    if (!rewind(op.response.checkpoint)) {
++                    std::string refused;
++                    const int ret = rewind(op.response.checkpoint, refused);
++                    if (ret < 0) {
 +                        return false;
 +                    }
-+                    stream.reset();
-+                    const auto t0 = std::chrono::steady_clock::now();
-+                    const llama_tokens toks = common_tokenize(vocab, op.text, false, true);
-+                    if (!toks.empty() && !decode(toks.data(), nullptr, (int32_t) toks.size(), false)) {
-+                        return false;
++                    if (ret > 0) {
++                        stream.reset();
++                        const auto t0 = std::chrono::steady_clock::now();
++                        const llama_tokens toks = common_tokenize(vocab, op.text, false, true);
++                        if (!toks.empty() && !decode(toks.data(), nullptr, (int32_t) toks.size(), false)) {
++                            return false;
++                        }
++                        LOG_INF("realtime: heard text in, %d tokens, %.2f ms\n", (int) toks.size(),
++                                std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
 +                    }
-+                    LOG_INF("realtime: heard text in, %d tokens, %.2f ms\n", (int) toks.size(),
-+                            std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count());
++                    auto res = std::make_unique<server_task_result_control>();
++                    res->id      = op.ack_id;
++                    res->success = ret > 0;
++                    res->message = refused;
++                    queue_results.send(std::move(res));
                  } break;
              default:
                  break;
-diff --git a/tools/server/server-realtime.h b/tools/server/server-realtime.h
-index 93c864d..783f4d9 100644
---- a/tools/server/server-realtime.h
-+++ b/tools/server/server-realtime.h
-@@ -60,6 +60,8 @@ struct server_realtime_slot {
+diff -ruN a/tools/server/server-realtime.h b/tools/server/server-realtime.h
+--- a/tools/server/server-realtime.h	2026-11-24 02:35:20.151262400 -0500
++++ b/tools/server/server-realtime.h	2026-11-24 02:35:20.363732500 -0500
+@@ -40,6 +40,7 @@
+     std::string             text;
+     std::vector<float>      audio;
+     server_control_response response;
++    int                     ack_id = -1; // REWIND: the control task the slot answers once the rewind has run
+ };
+ 
+ // the conversation of a slot that holds a realtime session (SERVER_TASK_TYPE_REALTIME), it runs on the server thread
+@@ -60,6 +61,10 @@
      std::string error;
      enum error_type error_type = ERROR_TYPE_SERVER;
  
-+    static constexpr size_t n_checkpoints_max = 8; // responses that can be taken back
++    // the bounds on the checkpoints a session can ask for (session.update response_checkpoints)
++    static constexpr size_t n_checkpoints_max     = 8;
++    static constexpr size_t checkpoint_bytes_max  = 64u << 20;
 +
  private:
      llama_context *        ctx;
      const llama_model *    model;
-@@ -72,6 +74,15 @@ private:
+@@ -72,6 +77,16 @@
      int                    id_task;
      int                    index;
  
-+    // the sequence before each of the last responses, so a response can be taken back (REWIND): the SWA and recurrent
-+    // state as of its start (llama_state_seq PARTIAL_ONLY), the full-attention cells are cut at n_past
++    // the sequence before each of the last responses of a session that asked for them, so one can be taken back:
++    // the SWA and recurrent state at its start (llama_state_seq PARTIAL_ONLY); the full-attention cells are cut there
 +    struct checkpoint {
 +        int32_t              id;
 +        llama_pos            n_past;
 +        std::vector<uint8_t> state;
 +    };
 +    std::deque<checkpoint> checkpoints;
++    size_t                 checkpoint_bytes = 0;
 +
      std::deque<server_realtime_op> ops;
      llama_pos   n_past     = 0;     // positions of the conversation in the sequence
      bool        responding = false;
-@@ -94,4 +105,6 @@ private:
+@@ -94,4 +109,6 @@
      std::string piece(llama_token tok) const;
      bool response_start(const server_realtime_op & op);
      bool response_step();
-+    bool save_checkpoint(int32_t id);
-+    bool rewind(int32_t id);
++    bool save_checkpoint(int32_t id, int32_t keep);
++    int  rewind(int32_t id, std::string & refused);
  };
-diff --git a/tools/server/server-task.h b/tools/server/server-task.h
-index aa6b779..da053ea 100644
---- a/tools/server/server-task.h
-+++ b/tools/server/server-task.h
-@@ -63,6 +63,7 @@ enum server_control_action {
+diff -ruN a/tools/server/server-task.h b/tools/server/server-task.h
+--- a/tools/server/server-task.h	2026-11-24 02:35:20.164568500 -0500
++++ b/tools/server/server-task.h	2026-11-24 02:35:20.523521600 -0500
+@@ -63,6 +63,8 @@
      SERVER_CONTROL_ACTION_RESPONSE_CREATE, // generate after control_text, see control_response
      SERVER_CONTROL_ACTION_RESPONSE_CANCEL, // stop the response being generated
      SERVER_CONTROL_ACTION_CLEAR,           // drop the conversation
-+    SERVER_CONTROL_ACTION_REWIND,          // back to the checkpoint control_response.checkpoint, then append control_text
++    SERVER_CONTROL_ACTION_REWIND,          // back to checkpoint control_response.checkpoint, then append control_text;
++                                           // answered once it has run, not when it is queued
  };
  
  // a response of a realtime conversation
-@@ -72,6 +73,7 @@ struct server_control_response {
+@@ -72,6 +74,9 @@
      int32_t                        n_predict = -1; // text tokens and audio frames, -1: until the context is full
      std::string                    lang;           // empty: model default
      std::string                    voice;          // empty: model default
-+    int32_t                        checkpoint = -1; // RESPONSE_CREATE: keep the state before it under this id; REWIND: the id
++    int32_t                        checkpoint      = -1; // RESPONSE_CREATE: save the state before it under this id;
++                                                         // REWIND: the id to go back to
++    int32_t                        checkpoint_keep = 0;  // RESPONSE_CREATE: how many checkpoints the session keeps
  };
  
  struct task_params {
