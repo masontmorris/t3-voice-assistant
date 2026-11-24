@@ -23,6 +23,8 @@ CASES = {
     Kind.LAUNCH_PENDING: ({"project": "Voice sandbox"}, "I've asked T3 to start it.", {"": "empty"}),
     Kind.LAUNCHED: ({"project": "Voice sandbox"}, "It's started in Voice sandbox.",
                     {"It's started.": "project missing"}),
+    Kind.NOT_ASKED: ({}, "I didn't get to your other request, so ask again if you still want it.",
+                     {"": "empty"}),
     Kind.LAUNCH_UNCONFIRMED: ({}, "T3 never confirmed the start, so check the app.",
                               {"**Check** the app.": "not plain speech",
                                "No need to think.</think> Check the app.": "not plain speech"}),

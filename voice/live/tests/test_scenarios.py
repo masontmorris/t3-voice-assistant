@@ -48,6 +48,40 @@ def failed(verdicts):
     return [v.check for v in verdicts if not v.ok]
 
 
+class ThanksNotYes(unittest.TestCase):
+    def test_a_thanks_must_start_nothing_and_the_yes_after_it_one_thread(self):
+        def run(thanks_kinds, made):
+            plan = S.thanks_not_yes(S.Pool())
+            plan.notes.update(asked=True, thanks=[2], again=Kind.CONFIRM_LAUNCH in thanks_kinds,
+                              started=bool(made))
+            turns = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1, thanks_kinds), turn(2, [Kind.LAUNCHED])]
+            world = {"seeded": {}, "made": {f"t{i}": {"title": "Example"} for i in range(made)}}
+            return failed(plan.check(call(turns, world)))
+
+        self.assertEqual(run([Kind.CONFIRM_LAUNCH], 1), [])
+        self.assertIn("the thanks started nothing", run([Kind.LAUNCHED], 1))
+        self.assertIn("the question was put once more", run([], 1))
+        self.assertIn("the yes after it started one thread", run([Kind.CONFIRM_LAUNCH], 2))
+
+
+class TwoRequests(unittest.TestCase):
+    def test_the_message_may_be_asked_in_the_turn_that_answers_the_first_question(self):
+        plan = S.two_requests(S.Pool())
+        first, second = (seed.title for seed in plan.seeds)
+
+        def about(index, *pairs):
+            entries = tuple({"kinds": [k], "threads": [title], "delivery": "sent", "draft": "", "draft_problems": [],
+                             "reply": "", "status": None, "relays": 1} for k, title in pairs)
+            return dataclasses.replace(turn(index), t3=entries, first_audio_s=1.0)
+
+        together = [about(0, (Kind.THREAD_STATUS, first), (Kind.CONFIRM_TELL, second))]
+        after = [about(0, (Kind.CONFIRM_THREAD, first)), about(1, (Kind.THREAD_STATUS, first), (Kind.CONFIRM_TELL, second))]
+        never = [about(0, (Kind.CONFIRM_THREAD, first)), about(1, (Kind.THREAD_STATUS, first))]
+        self.assertEqual(failed(plan.check(call(together))), [])
+        self.assertEqual(failed(plan.check(call(after))), [])
+        self.assertEqual(failed(plan.check(call(never))), ["the message was confirmed back about its thread"])
+
+
 class Withdrawn(unittest.TestCase):
     def plan(self):
         return S.withdrawn(S.Pool())
@@ -375,7 +409,7 @@ class Gate(unittest.TestCase):
         table, green = self.table([run], known=["c"])
         self.assertEqual((table[0][1], green), ("FAIL", False))
 
-    def test_news_blocked_by_the_marked_yes_is_expected_but_missing_exchange_is_an_error(self):
+    def test_news_after_a_yes_that_started_nothing_fails_and_a_missing_exchange_is_an_error(self):
         plan = S.news_permission(S.Pool())
         plan.notes.update(confirmed=True, timed_out=True, approve=[3])
         turns = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1), turn(2), turn(3)]
@@ -384,7 +418,7 @@ class Gate(unittest.TestCase):
             verdicts = plan.check(call(items, world))
             return S.unexpected(Result("news-permission", 1, tuple(verdicts), (), 0, 0, 0))
 
-        self.assertEqual(unexpected(turns), [])
+        self.assertIn("the yes started a thread", failed(unexpected(turns)))
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(turns[:2])))
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(
             turns[:2], {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}})))

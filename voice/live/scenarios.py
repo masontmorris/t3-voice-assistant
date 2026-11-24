@@ -698,6 +698,69 @@ def news_done(pool: Pool) -> Plan:
     return Plan((), lines, script(), check, notes=notes)
 
 
+# Two requests in one breath stay two: a question about one thread and a message for another are each asked about the
+# thread each named. One question is open at a time, so when the first asks back ("do you mean ...?") the message is asked
+# in the turn that answers it.
+def two_requests(pool: Pool) -> Plan:
+    (one, first), (two, second) = pool.single(), pool.single()
+    lines = {"both": f"How is the {one} thread going, and tell the {two} thread to also add a unit test.",
+             "yes": "Yes.", "thanks": "Okay, thanks."}
+
+    def script():
+        heard = yield Say("both")
+        if heard.turns and heard.turns[-1].said(Kind.CONFIRM_THREAD, Kind.ASK_WHICH):
+            yield Say("yes")
+        yield Say("thanks")
+
+    def check(call: Call) -> list[Verdict]:
+        turns = call.caller_turns()[:2]
+        said = [e for t in turns for e in t.t3 if e["delivery"] == "sent"]
+
+        def about(title, *kinds):
+            return any(title in e["threads"] and set(kinds) & set(e["kinds"]) for e in said)
+
+        heard = f"the turns said {[(e['kinds'], e['threads']) for e in said]}"
+        return [ok("the question was answered about its thread",
+                   about(first, Kind.THREAD_STATUS, Kind.CONFIRM_THREAD), heard, 0),
+                ok("the message was confirmed back about its thread", about(second, Kind.CONFIRM_TELL), heard, 0)]
+
+    return Plan((finished(first), finished(second)), lines, script(), check)
+
+
+# A thanks is not a yes: asked to confirm a start, the caller thanks the assistant, nothing starts and the question is
+# put once more, and only the yes after it starts the thread.
+def thanks_not_yes(pool: Pool) -> Plan:
+    request = pool.request()
+    lines = {"request": request, "thanks": "Okay, thanks.", "yes": "Yes."}
+    notes = {"asked": False}
+
+    def script():
+        heard = yield Say("request")
+        notes["asked"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+        if notes["asked"]:
+            heard = yield Say("thanks")
+            notes["thanks"] = [t.n for t in heard.turns if not t.idle]
+            notes["again"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+            if notes["again"]:
+                heard = yield Say("yes")
+                notes["started"] = bool(heard.turns and heard.turns[-1].said(Kind.LAUNCHED))
+
+    def check(call: Call) -> list[Verdict]:
+        thanks = [t for t in call.caller_turns() if t.n in notes.get("thanks", ())]
+        asked = ok("the start was confirmed back", notes["asked"], "no launch confirmation was asked", 0)
+        nothing = ok("the thanks started nothing", bool(thanks) and not any(t.said(Kind.LAUNCHED) for t in thanks),
+                     "the thanks turn said a thread started" if thanks else "the thanks turn was not found",
+                     thanks[0].index if thanks else None)
+        again = ok("the question was put once more", notes.get("again", False),
+                   "the thanks turn did not ask to confirm the start again", thanks[0].index if thanks else None)
+        started = ok("the yes after it started one thread", notes.get("started", False) and len(call.world["made"]) == 1,
+                     f"{len(call.world['made'])} threads were started")
+        return [asked, *(requires(v, asked.ok, "precondition: no launch confirmation was asked")
+                         for v in (nothing, again, started))]
+
+    return Plan((), lines, script(), check, notes=notes)
+
+
 # A message to a thread, confirmed with a short yes, reaches the thread.
 def short_yes_tell(pool: Pool) -> Plan:
     spoken, title = pool.single()
@@ -862,6 +925,8 @@ SCENARIOS = (
              call_this_thread),
     Scenario("call-follow-up", "a call opened on a thread keeps \"it\" on that thread beside a similar title",
              call_follow_up),
+    Scenario("two-requests", "a question and a message for two threads in one breath are each answered",
+             two_requests),
     # The scenarios that start threads come after, each run on a T3 and a live server of its own.
     Scenario("news-permission", "a started thread's need for permission is said unprompted, once, and not approved",
              news_permission, 2, 1, fresh=True),
@@ -869,6 +934,8 @@ SCENARIOS = (
              approve_waiting, 2, 1, fresh=True),
     Scenario("deny-waiting", "a thread's command approval is denied by voice", deny_waiting, 2, 1, fresh=True),
     Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
+    Scenario("thanks-not-yes", "a thanks to a confirm question starts nothing, and the yes after it does",
+             thanks_not_yes, 2, 1, fresh=True),
     Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
     Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),
     Scenario("questioning-yes", "a yes the recogniser transcribes as a question answers the confirm question",
@@ -885,7 +952,6 @@ DISPATCH_YES = ("a launch confirmation is not always asked or answered: the ASR 
                 "the yes as nothing, and a no_thread line beside the confirmation clears the question; "
                 "docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
-    ("news-permission", "the yes started a thread"): DISPATCH_YES,
     ("news-done", "the yes started a thread"): DISPATCH_YES,
     ("short-yes-tell", "the yes was taken"):
         "a short yes to the confirmation of a message is not always taken (1 of 2 baseline runs said nothing; \"Yeah?\" "
@@ -893,8 +959,7 @@ KNOWN: dict[tuple[str, str], str] = {
     ("withdrawn-launch", "the question was not asked again"):
         "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
     ("follow-up", "the follow-up did not fall back to today"):
-        "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
-    ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
+        "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow"}
 
 
 def collect(server: Path, seen: list[int]) -> tuple[Turn, ...]:

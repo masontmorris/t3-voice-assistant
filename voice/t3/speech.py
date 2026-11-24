@@ -82,6 +82,8 @@ MEANINGS: dict[Kind, str] = {
     Kind.LAUNCH_PENDING: "T3 was asked to start the thread and has not confirmed it yet.",
     Kind.LAUNCHED: "A new thread started in this project.",
     Kind.LAUNCH_UNCONFIRMED: "T3 was asked to start the thread but never confirmed it. They can check the app.",
+    Kind.NOT_ASKED: "In one sentence, tell them you did not get to another thing they asked for at the same time, so "
+                    "nothing was done about it, and they can ask again.",
     Kind.NO_THREAD: "No thread matches what they asked about. `recent` is how many recent threads were checked, "
                     "and `other` means there is no other thread besides the one they turned down.",
     Kind.CONFIRM_THREAD: "Ask whether the existing thread named in thread is the one they mean.",
@@ -1029,6 +1031,8 @@ READER_EXAMPLES = {
                           "I asked T3 to start the thread in Example Forest Timer and am waiting for confirmation."),
     Kind.LAUNCHED: ({"project": "Example Dune Tracker"},
                     "A new coding thread has started in Example Dune Tracker."),
+    Kind.NOT_ASKED: ({}, "I didn't get to the other thing you asked for, so nothing happened with it. Ask again if you "
+                         "still want it."),
     Kind.LAUNCH_UNCONFIRMED: ({"project": "Example Reef Cards"},
                               "T3 never confirmed the start in Example Reef Cards. You can check in the app."),
     Kind.NO_THREAD: ({"recent": 19}, "I checked 19 recent threads and couldn't find a match."),

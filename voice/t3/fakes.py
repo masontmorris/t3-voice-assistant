@@ -221,7 +221,6 @@ class Reader(Agree):
         self.call_threads = []  # the call's own thread each pick was shown, or None
         self.spoken = []  # the thread just spoken about each pick was shown, or None
         self.naming = {}  # request to P(it says the picked thread's title); unscripted is no answer
-        self.joining = {}  # (first, second) to P(they are one question cut in two); unscripted is no answer
         self.about = {}  # words to P(they are about the line just said); unscripted is no answer
         self.lines = []  # (words, the said line's facts) each about-line read was given
 
@@ -238,9 +237,6 @@ class Reader(Agree):
 
     def names(self, request, thread):
         return self.naming.get(request)
-
-    def one_question(self, first, second, title):
-        return self.joining.get((first, second))
 
     def about_line(self, words, said):
         self.lines.append((words, said))
@@ -282,11 +278,13 @@ class Reader(Agree):
             named = prefilter(reply, [{"threadId": title, "title": title, "projectId": ""} for title in options])
             if len(named.candidates) == 1:
                 label, target = "yes", named.candidates[0]
-        # A scripted "withdraw" is a no that takes the whole request back; a yes says yes and asks nothing.
+        # A scripted "withdraw" is a no that takes the whole request back, and "thanks" thanks or acknowledges without
+        # answering; a yes says yes and asks nothing.
         withdraws = 1.0 if label == "withdraw" else 0.0
-        label = "no" if label == "withdraw" else label
+        closes = 1.0 if label == "thanks" else 0.0
+        label = "no" if label == "withdraw" else "unrelated" if label == "thanks" else label
         shares = {"agrees": 1.0 if label == "yes" else 0.0, "asks": 1.0 if label == "question" else 0.0,
-                  "withdraws": withdraws, "adds": 0.0}
+                  "withdraws": withdraws, "adds": 0.0, "closes": closes}
         whole = {name: 1.0 if name == label else 0.0 for name in ("yes", "no", "question", "other", "unrelated")}
         kept = target is None and label != "other"
         if target == ELSEWHERE:

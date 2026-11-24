@@ -20,7 +20,9 @@ def choice(pick, options, margin=0.8):
 class FakeDecider:
     """Answers like a careful decider. A request ends before a word in `starters`. Kinds come from the opening words."""
 
-    def __init__(self, starters=(), ready_margin=0.8, depends=None, malformed=False):
+    def __init__(self, starters=(), ready_margin=0.8, depends=None, malformed=False, joins=None, tools=None):
+        self.joins = joins  # the later segment's words -> whether it finishes the request before it; None asks nothing
+        self.tools = tools  # a segment's words -> the tool it picks, at 0.9; None answers no tool question
         self.starters, self.ready_margin, self.depends, self.malformed = set(starters), ready_margin, depends or {}, \
             malformed
         self.bodies = []
@@ -64,6 +66,10 @@ class FakeDecider:
                     answers[name] = choice(f"replace_{earlier[-1]}", options)
                 else:
                     answers[name] = choice("none", options)
+            elif kind == "tool" and self.tools is not None:
+                answers[name] = choice(self.tools(text), options, 0.9)
+            elif kind == "joins" and self.joins is not None:
+                answers[name] = {"type": "noul", "noul": 0.9 if self.joins(text) else 0.1}
             elif kind == "finished":
                 answers[name] = {"type": "noul", "noul": 0.9}
             elif kind == "at":
@@ -78,8 +84,9 @@ class FakeDecider:
         return {"status": 200, "response": {"answers": answers}, "timing": {"ms": 1.0, "started_at": "t"}}
 
 
-def stream(texts, decider, delegate_after=None):
+def stream(texts, decider, delegate_after=None, conversation=False):
     seg = HybridSegmenter(decider, "test")
+    seg.conversation_mode = conversation
     for i, text in enumerate(texts, 1):
         seg.update(TranscriptUpdate(i, text, i == len(texts)))
         if delegate_after and delegate_after[0] == i:
@@ -174,6 +181,45 @@ class Hybrid(unittest.TestCase):
         ferry = next(t for t in seg.records() if "ferry" in t["instruction"])
         self.assertEqual(ferry["status"], "withdrawn")
         self.assertEqual([d["instruction"] for d in seg.dispatch_log], ["look up the tide at rye"])
+
+    def test_one_request_cut_at_a_hard_cut_is_one_task_when_the_decider_reads_it_as_one(self):
+        text = "Could you check the tide at Rye and tell me when it's high?"
+        joined = stream([text], FakeDecider(joins=lambda words: words.startswith("and tell")), conversation=True)
+        self.assertEqual([d["instruction"] for d in joined.dispatch_log], [text])
+        apart = stream([text], FakeDecider(joins=lambda words: False), conversation=True)
+        self.assertEqual(len(apart.dispatch_log), 2, "two requests of their own stay two")
+
+    def test_with_no_join_answer_the_cut_stays_and_the_turn_goes_on(self):
+        text = "Could you check the tide at Rye and tell me when it's high?"
+        self.assertEqual(len(stream([text], FakeDecider(joins=None), conversation=True).dispatch_log), 2,
+                         "a missing answer keeps the cut")
+
+        class Refused:
+            def call(self, route, body, label=""):
+                return {"status": 402, "response": None, "timing": {"ms": 1.0, "started_at": "t"}}
+
+        for client in (Refused(), FakeDecider(malformed=True)):
+            with self.subTest(type(client).__name__):
+                seg = stream([text], client, conversation=True)
+                close = seg.close(TranscriptUpdate(2, text, True), settle=False)
+                self.assertEqual(len(close["segments"]), 2, "the cut stays, and the close still reports each piece")
+                self.assertEqual(seg.joined, {})
+
+    def test_a_committed_piece_is_read_again_with_the_piece_that_finishes_it(self):
+        seg = stream(["email dana the q3 numbers and", "email dana the q3 numbers and",
+                      "email dana the q3 numbers and the q4 ones, thanks",
+                      "Email Dana the Q3 numbers and the Q4 ones, thanks."],
+                     FakeDecider(joins=lambda words: "q4" in words), conversation=True)
+        self.assertEqual(seg.points[1]["committed"], ["s1"], "the pause committed the first piece")
+        self.assertEqual([d["instruction"] for d in seg.dispatch_log],
+                         ["Email Dana the Q3 numbers and the Q4 ones, thanks."])
+        self.assertEqual([t["status"] for t in seg.records()], ["dispatched"], "the first piece's task is the whole")
+
+    def test_a_join_is_read_again_once_the_piece_after_it_grows(self):
+        seg = stream(["find the tide at rye and the ferry", "find the tide at rye and the ferry fare to calais",
+                      "Find the tide at Rye and the ferry fare to Calais."],
+                     FakeDecider(joins=lambda words: "fare" not in words), conversation=True)
+        self.assertEqual(len(seg.dispatch_log), 2)
 
     def test_one_request_with_no_marker_costs_one_call_on_the_final_transcript(self):
         decider = FakeDecider()

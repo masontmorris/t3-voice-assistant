@@ -10,7 +10,7 @@ from dataclasses import dataclass, field, replace
 from enum import StrEnum
 
 from voice.segmentation.contract import CorrectionMode, Kind, Readiness
-from voice.tools.registry import T3_ANSWER, T3_ASK, T3_TOOLS, ToolChoice
+from voice.tools.registry import T3_ANSWER, T3_TOOLS, ToolChoice
 
 
 class Status(StrEnum):
@@ -31,7 +31,7 @@ TRANSITIONS = {
     Status.NEEDS_CLARIFICATION: UNDISPATCHED | {Status.DISPATCHED, Status.SUPERSEDED, Status.WITHDRAWN},
     Status.HELD: UNDISPATCHED | {Status.DISPATCHED, Status.SUPERSEDED, Status.WITHDRAWN},
     Status.WITHDRAWN: UNDISPATCHED,
-    Status.DISPATCHED: {Status.CANCEL_REQUESTED},
+    Status.DISPATCHED: {Status.CANCEL_REQUESTED, Status.SUPERSEDED},
     Status.SUPERSEDED: set(),
     Status.CANCEL_REQUESTED: set(),
 }
@@ -75,8 +75,6 @@ class Task:
         if self.tool is not None:
             record["tool"] = {"tool": self.tool.tool, "confidence": self.tool.confidence,
                               "arguments": self.tool.arguments}
-            if self.tool.fallback_from is not None:
-                record["tool"]["fallback_from"] = self.tool.fallback_from
         if self.waiting:
             record["waiting"] = self.waiting
         return record
@@ -173,6 +171,16 @@ class Orchestrator:
             if task.status in UNDISPATCHED and "orchestrator" in task.sources:
                 self._move(task, Status.WITHDRAWN, "segment no longer in transcript")
         return bound
+
+    def rejoin(self, start):
+        """The segment at `start` was only the start of a longer request. A task already sent for it answered the
+        fragment, so it is superseded, which stops its run and drops what it would say, and it binds to no segment: the
+        whole request is read as a new task. A task not sent yet keeps its binding and takes the longer words."""
+        task = next((t for t in self.tasks.values() if t.segment_start == start and t.status == Status.DISPATCHED),
+                    None)
+        if task is not None:
+            self._move(task, Status.SUPERSEDED, "the request it was sent for went on in the next words")
+            task.segment_start = None
 
     def _instruction_for(self, task, text):
         if task.revises is None:
@@ -420,12 +428,9 @@ class Orchestrator:
             status, reason = Status.DISPATCHED, "ready"
         if (status != Status.DISPATCHED and self.is_final and not seg.open and not task.depends_on
                 and task.tool is not None and task.tool.tool in T3_TOOLS):
-            # Parked, a thread request is answered by the voice alone, unchecked, so T3 asks back itself. A firm pick
-            # keeps its act, which T3 reads back and confirms before acting. An unsure one goes as a lookup, which
-            # acts on nothing.
-            bar = getattr(self.gate, "named_tool_threshold", None)
-            if task.tool.tool != T3_ASK and (bar is None or task.tool.confidence < bar):
-                task.tool = replace(task.tool, tool=T3_ASK, fallback_from=task.tool.tool)
+            # Parked, a thread request is answered by the voice alone, unchecked, so T3 asks back itself. It keeps its
+            # act however sure the pick: every act but a lookup is read back and confirmed before anything is sent, so
+            # an unsure "tell it to ..." is asked about as that message, not answered with the thread's status.
             status, reason = Status.DISPATCHED, f"{reason}; T3 asks back"
         self._move(task, status, reason)
 

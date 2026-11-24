@@ -35,6 +35,7 @@ from pathlib import Path
 from typing import Callable
 
 from voice.prototype.tasks import Execution, MockTaskService, Run
+from voice.segmentation.gate import PLAN_A
 from voice.t3 import lifecycle as L
 from voice.t3 import local_summary as LS
 from voice.t3 import types as T
@@ -48,7 +49,7 @@ from voice.t3.realtime_writer import RealtimeWriter
 from voice.t3.seam import SeamConnectionEnded, SeamRefused, SeamUnavailable, T3Seam
 from voice.t3.speech import (Brief, Launch, Lane, LocalText, Rendered, RequestGate, Speech, candidate_names, named, reference,
                              text_model, without_request)
-from voice.t3.verify import (ABOUT_LINE_YES, NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, ONE_QUESTION_YES, UNCLEAR,
+from voice.t3.verify import (ABOUT_LINE_YES, NAMES_SURE, NEED, NO_ANSWER, NO_THREAD_NOTE, NONE, UNCLEAR,
                              Chosen, Decider, Listed, Picked, Reading, default_decider)
 
 START, ASK, TELL, STOP = "t3_start", "t3_ask", "t3_tell", "t3_stop"
@@ -74,6 +75,12 @@ OWN_WORDS_MAX = 240
 WAITING_ASKS = "{thread} asks for {asks_for}."
 WAITING_QUESTIONS = "{thread} asks: {question} The options are {options}."
 WAITING_NOW = " Waiting on them now: "
+# A thread pick at or over this margin keeps its act on its own: the gate's bar for a firm tool answer.
+FIRM_PICK = PLAN_A.named_tool_threshold
+# Requests held behind an open question at once. A turn rarely asks for more than two things that each need a yes.
+MAX_QUEUED = 2
+# What a held request waits behind once its question was withdrawn: the next question its turn asks.
+WAITING = ""
 # The newest threads the decider chooses among. Its picks held, at about 185 ms, with 40 listed.
 PICK_LIMIT = 40
 MAX_ALTERNATIVES = 8
@@ -83,7 +90,10 @@ T3_TOOLS = {
     ASK: "Report how an existing T3 coding thread is going. Use it when the speaker asks about a thread's "
          "progress, state, or result.",
     TELL: "Pass a message or more work to an existing T3 coding thread. Use it when the speaker asks to tell, "
-          "remind, or ask a thread to do something, or adds to the work a thread already has.",
+          "remind, or ask a thread to do something, or adds to the work a thread already has. A message that asks it "
+          "to stop doing one particular thing is still a message; telling or asking it just to stop is t3_stop. "
+          "Examples: Tell it to stop renaming the assets. Have it add a test first. Let the save slots thread know the "
+          "API changed.",
     STOP: "Stop the work an existing T3 coding thread is doing now. Use it when the speaker asks to stop, halt, "
           "or interrupt a thread.",
     APPROVE: "Approve the permission or approval request a T3 coding thread is waiting on, such as a command it wants "
@@ -192,8 +202,12 @@ class Question:
     heard_at: float = 0.0
     asked_at: float = 0.0
     expired: bool = False
+    # Asked once more after a reply that only thanked, or that may have been a yes; a second such reply drops it.
+    reasked: bool = False
 
 
+# The questions that ask for a yes before something is done.
+CONFIRMS = frozenset({"confirm", "thread_confirm", "answer_confirm"})
 CONFIRM_TTL_S = 90.0  # How long a heard question can be answered.
 MAX_IDLE_DELIVERY_FAILURES = 2  # The first attempt and one retry before waiting for a person turn.
 
@@ -248,6 +262,10 @@ class T3Tasks:
     turns_closed: int = field(default=0, init=False)
     declined_at: int = field(default=0, init=False)
     before_pick: tuple | None = field(default=None, init=False)
+    # Requests that need the caller's yes, held while another request of the same turn waits on its answer: one
+    # question is open at a time, so each is asked once the one before it is answered, and goes with that question if
+    # it is dropped instead. (key, op, instruction, the key of the question it waits behind)
+    queued: list[tuple[str, str, str, str]] = field(default_factory=list, init=False)
     call: int = field(default=0, init=False)
     following: JournalTask | None = field(default=None, init=False)
     # Told of each line said aloud, whole, with the update it was for: the call's transcript keeps its evidence.
@@ -392,6 +410,7 @@ class T3Tasks:
         read from T3 and raised. Off the event loop: it reads the seam."""
         with self.lock:
             self.call += 1
+            self.queued.clear()
             self._hold_old_news(time.time())
             self.before_call = self._statuses()
             self.spoken_of = self.spoken_id = None
@@ -445,6 +464,7 @@ class T3Tasks:
 
     def end_call(self) -> None:
         with self.lock:
+            self.queued.clear()
             self._drop_question()
             self._unfollow_calls()
             self.withdrawn = self.declined = self.before_pick = None
@@ -499,6 +519,8 @@ class T3Tasks:
         self.follow.outbox = [update for update in self.follow.outbox if update.row != "correction"]
 
     def _drop_question(self) -> None:
+        if self.question is not None:
+            self._drop_held(self.question.key)
         self.question = self.unasked = None
         self.just_held = False
 
@@ -506,6 +528,9 @@ class T3Tasks:
         """Open `question` as a new prompt: this call's, not yet heard."""
         self.question = question = replace(question, call=self.call, owner=None, heard=False, heard_at=0.0,
                                            asked_at=time.monotonic(), expired=False)
+        turn = question.key.rpartition(":")[0]
+        self.queued = [(k, o, i, question.key if b == WAITING and k.rpartition(":")[0] == turn else b)
+                       for k, o, i, b in self.queued]
         return question
 
     def live_question(self) -> Question | None:
@@ -763,10 +788,83 @@ class T3Tasks:
         """The launch carries everything the person said in the turn that asked, not the fragment that asked."""
         with self.lock:
             question = self.question
+            # A turn that also queued a launch of its own asked for two threads: each carries its own words.
             if (question is not None and question.op == START and question.key.startswith(prefix)
-                    and (transcript or "").strip()):
+                    and (transcript or "").strip() and not any(op == START for _, op, _, _ in self.queued)):
                 question.instruction = transcript.strip()
                 self.speech.start_brief(question.instruction)
+
+    def asking(self, prefix: str) -> Question | None:
+        """The open question a request of this turn (`prefix`) asked, or None."""
+        with self.lock:
+            question = self.question
+            return question if question is not None and question.key.startswith(prefix) else None
+
+    def extend(self, question: Question, words: str) -> None:
+        """More words for the launch `question` asks about, said in the same turn."""
+        with self.lock:
+            if self.question is question:
+                question.instruction = f"{question.instruction} {words.strip()}".strip()
+                self.speech.start_brief(question.instruction)
+
+    def queue(self, key: str, op: str, instruction: str, behind: str) -> None:
+        """Hold a request behind the open question `behind`. The same request twice is held once, and past MAX_QUEUED
+        one is not held: the caller is told it was not got to."""
+        with self.lock:
+            if any((o, i) == (op, instruction) for _, o, i, _ in self.queued):
+                return
+            if len(self.queued) >= MAX_QUEUED:
+                self._said_not_asked()
+                return
+            self.queued.append((key, op, instruction, behind))
+
+    def next_queued(self, answered: str) -> tuple[str, str, str] | None:
+        """The next request held behind the question `answered`, now that it is answered and no other is open. The
+        others held behind it wait behind this one. When the answer opened a question of its own request (which
+        project, which thread), they wait behind that."""
+        with self.lock:
+            if self.question is not None:
+                self.queued = [(k, o, i, self.question.key if b == answered else b) for k, o, i, b in self.queued]
+                return None
+            held = next((q for q in self.queued if q[3] == answered), None)
+            if held is None:
+                return None
+            self.queued.remove(held)
+            self.queued = [(k, o, i, held[0] if b == answered else b) for k, o, i, b in self.queued]
+            return held[:3]
+
+    def unqueue(self, key: str) -> None:
+        """A held request that turned out to be a fragment of a longer one: it goes, and nothing is said of it."""
+        with self.lock:
+            self.queued = [q for q in self.queued if q[0] != key]
+
+    def _drop_held(self, behind: str) -> None:
+        """The question `behind` went without an answer, so what waited on it goes too, and the caller is told once."""
+        dropped = [q for q in self.queued if q[3] == behind]
+        if dropped:
+            self.queued = [q for q in self.queued if q[3] != behind]
+            self._said_not_asked()
+
+    def _said_not_asked(self) -> None:
+        self.follow.outbox.append(L.Update(f"held:{len(self.follow.outbox)}:{time.monotonic()}",
+                                           (act(Say.NOT_ASKED),), "completed", "ask"))
+
+    def withdraw(self, update: L.Update) -> None:
+        """`update` will never be said: the question it asked, if still open, is closed. What waited behind it waits for
+        the next question its turn asks, the longer request's own."""
+        with self.lock:
+            if self.question is not None and self.question.key == update.task_id:
+                gone, self.question, self.unasked, self.just_held = self.question.key, None, None, False
+                self.queued = [(k, o, i, WAITING if b == gone else b) for k, o, i, b in self.queued]
+            elif self.unasked is update:
+                self.unasked = None
+
+    def orphans(self, turn: str) -> None:
+        """The turn `turn` closed with requests held for a question it never asked: they go, and the caller is told."""
+        with self.lock:
+            if any(b == WAITING and k.rpartition(":")[0] == turn for k, _, _, b in self.queued):
+                self.queued = [q for q in self.queued if not (q[3] == WAITING and q[0].rpartition(":")[0] == turn)]
+                self._said_not_asked()
 
     def claim(self, update: L.Update, owner: object) -> None:
         """The turn `owner` asked the question `update` says."""
@@ -774,16 +872,6 @@ class T3Tasks:
             question = self.question
             if question is not None and question.key == update.task_id:
                 question.owner = owner
-
-    def asking_start(self, prefix: str) -> bool:
-        """Whether a launch question, or a question about answering an approval, that a task with this key prefix (one
-        turn's) asked is still open."""
-        with self.lock:
-            question = self.question
-            return (question is not None and question.key.startswith(prefix)
-                    and ((question.op == START and question.kind in ("confirm", "project"))
-                         or (question.op in RESPONDS and question.kind in ("thread", "thread_confirm"))
-                         or (question.op == ANSWER and question.kind in ("thread", "answer", "answer_confirm"))))
 
     def projects(self) -> list[dict]:
         return [{"projectId": p.project_id, "name": p.name, "spokenNames": list(p.spoken_names)}
@@ -877,6 +965,11 @@ class T3Tasks:
             # Off the lock: the brief may still be in the writer.
             question.brief = self.speech.brief(question.instruction)
         update = self._answer(text, now, reading, kind, question)
+        if update is None and question is not None:
+            # The reply answered nothing, so the question is gone, and what waited on it with it.
+            with self.lock:
+                if self.question is not question:
+                    self._drop_held(question.key)
         if update is None and question is not None and question.heard:
             with self.lock:
                 if self.question is None or self.question is not question:
@@ -908,6 +1001,14 @@ class T3Tasks:
                     return self.unasked
                 self._drop_question()
                 return None
+            if (self.question is not None and self.question.kind in CONFIRMS and not self.question.reasked
+                    and isinstance(reading, Reading) and (reading.acknowledges or reading.unsure)):
+                # A thanks or a note of what was said is no consent and no answer, and a reply that may be a yes is not
+                # read as one: the confirmation is asked once more, so a yes can still come, rather than dropped.
+                again = self._ask(replace(self.question, reasked=True))
+                said = self.pending_act(again)
+                if said is not None:
+                    return L.Update(again.key, (said,), "needs_clarification", "pick", sequences=again.evidence)
             question, self.question = self.question, None
             just_held, self.just_held = self.just_held, False
             if question is None:
@@ -1105,18 +1206,6 @@ class T3Tasks:
             return picks(reference, options, last, answering=True)
         marks = {k: v for k, v in (("call_thread", call_thread), ("spoken", spoken)) if v}
         return picks(reference, options, last, **marks)
-
-    def one_question(self, earlier: L.Update, update: L.Update) -> bool:
-        """Whether two asks of one utterance about one thread are one question cut in two, by the decider. Off the lock;
-        no answer is no, so each is answered."""
-        decide = getattr(self.decider, "one_question", None)
-        first = next((a.slots.get("asked") for a in earlier.acts if a.slots.get("asked")), None)
-        second = next((a.slots.get("asked") for a in update.acts if a.slots.get("asked")), None)
-        title = next((a.slots.get("thread") for a in update.acts if a.slots.get("thread")), None)
-        if decide is None or not (first and second and title):
-            return False
-        p = decide(first, second, title)
-        return p is not None and p >= ONE_QUESTION_YES
 
     def _says_title(self, reference: str, thread: Listed) -> bool:
         """Whether the decider reads the words as saying `thread`'s title. Off the lock; no answer is no."""
@@ -1629,20 +1718,21 @@ OUTCOMES = {Say.LAUNCHED: Outcome.STARTED, Say.SENT_FOLLOWUP: Outcome.SENT,
             Say.STOPPING: Outcome.STOP_REQUESTED, Say.ANSWERED: Outcome.ANSWERED}
 
 
-def same_answer(update: L.Update, earlier: L.Update, *, asked: bool = True) -> bool:
-    """Whether `update` would say what `earlier` says about the same thread: the same acts, and, with `asked`, asked in
-    the same words, so the same summary answers both."""
-    def gist(u: L.Update):
-        return [(a.kind, {k: v for k, v in a.slots.items() if asked or k != "asked"}) for a in u.acts]
+def acts_on(choice, side_effect: bool, threshold: float) -> bool:
+    """Whether a thread pick is taken as its own act, which T3 confirms before anything is sent, rather than as a
+    lookup, which acts on nothing. Under the registry's bar it never is. Under the firm-pick bar (0.70) it is when the
+    decider also reads the words as acting outside the assistant: unsure tells read so at 0.72 or more, and a stray
+    "Yes, that one." picked as a message at 0.29 to 0.51 read so at 0.40 or less (record_whole_requests.py)."""
+    if choice.confidence < threshold:
+        return False
+    return choice.tool == ASK or side_effect or choice.confidence >= FIRM_PICK
 
-    return update.thread_id is not None and update.thread_id == earlier.thread_id and gist(update) == gist(earlier)
 
-
-def merge_asked(earlier: L.Update, update: L.Update) -> None:
-    """`earlier` answers `update` too: its question becomes both pieces' words, so its summary answers all of it."""
-    joined = {a.kind: " ".join(dict.fromkeys(x for x in (a.slots.get("asked"), b.slots.get("asked")) if x))
-              for a, b in zip(earlier.acts, update.acts)}
-    earlier.acts = tuple(a.with_slots(asked=joined[a.kind]) if joined.get(a.kind) else a for a in earlier.acts)
+def same_answer(update: L.Update, earlier: L.Update) -> bool:
+    """Whether `update` would say what `earlier` says about the same thread, asked in the same words, so the same
+    summary answers both."""
+    return (update.thread_id is not None and update.thread_id == earlier.thread_id
+            and [(a.kind, a.slots) for a in update.acts] == [(a.kind, a.slots) for a in earlier.acts])
 
 
 def confirmed_outcome(said: Act) -> Outcome | None:
@@ -1735,6 +1825,7 @@ class T3TaskService(MockTaskService):
         self.own_lines: dict[int, L.Update] = {}
         self.delivered: set[str] = set()
         self.prefetched: set[str] = set()
+        self.superseded: set[str] = set()
 
     def _threshold(self) -> float:
         return getattr(self.tools, "tool_threshold", 0.5) if self.tools is not None else 0.5
@@ -1742,26 +1833,32 @@ class T3TaskService(MockTaskService):
     def _start(self, task_id, instruction, side_effect, now, choice=None):
         if choice is None or choice.tool not in T3_TOOLS:
             return super()._start(task_id, instruction, side_effect, now, choice)
-        picked = choice.fallback_from or choice.tool
-        if choice.confidence < self._threshold():
-            choice = replace(choice, tool=ASK)
-        key = f"{self.conversation_id}:{task_id}"
-        if ((picked in (START, TELL) or choice.tool in RESPONDS) and self.t3.asking_start(f"{self.conversation_id}:")
-                and not (picked == TELL and self.t3.names_thread(instruction, now))):
-            # The launch carries the whole utterance, including continuations routed to a lookup.
+        key, op = f"{self.conversation_id}:{task_id}", choice.tool
+        trusted = acts_on(choice, side_effect, self._threshold())
+        asking = self.t3.asking(f"{self.conversation_id}:") if op != ASK else None
+        if asking is not None:
+            # Another request of this turn waits on its answer. An answer to the same pending request is part of it,
+            # and an instruction for the thread being started joins the launch's words, however unsure the pick. A
+            # trusted action is asked once that answer is in, since a second question would take the open one's place.
+            absorbed = op in WAITS and asking.op in WAITS
+            if op == TELL and asking.op == START and not self.t3.names_thread(instruction, now):
+                self.t3.extend(asking, instruction)
+                absorbed = True
+            elif trusted and not absorbed:
+                self.t3.queue(key, op, instruction, asking.key)
+                absorbed = True
+            if absorbed:
+                return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
+                                 tool={"tool": op, "arguments": {}})
+        if not trusted:
+            op = ASK
+        update = (self.t3.start(key, instruction, now) if op == START else self.t3.about(key, op, instruction, now))
+        if op == ASK and any(same_answer(update, e) for e in self.spoken.values()):
+            # The same question twice in one utterance: one line answers it. One question the segmenter would have
+            # cut in two reaches here whole, since the decider rejoins it (`HybridSegmenter`).
             return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
-                             tool={"tool": choice.tool, "arguments": {}})
-        update = (self.t3.start(key, instruction, now) if choice.tool == START
-                  else self.t3.about(key, choice.tool, instruction, now))
-        earlier = (next((e for e in self.spoken.values() if same_answer(update, e, asked=False)), None)
-                   if choice.tool == ASK else None)
-        if earlier is not None and (same_answer(update, earlier) or self.t3.one_question(earlier, update)):
-            # The same question twice, or one question cut in two ("look at the X thread", "and say how it is doing"):
-            # one line answers it, asked in all the words that asked it. Two different questions are answered each.
-            merge_asked(earlier, update)
-            return Execution(task_id, Run.COMPLETED, now, None, result_summary=None, finished_at=now, mode="t3",
-                             tool={"tool": choice.tool, "arguments": {}})
-        return self._execution(task_id, update, now, choice.tool)
+                             tool={"tool": op, "arguments": {}})
+        return self._execution(task_id, update, now, op)
 
     def _execution(self, task_id, update: L.Update, now, tool):
         with self.t3.lock:
@@ -1774,8 +1871,17 @@ class T3TaskService(MockTaskService):
                          tool={"tool": tool, "arguments": {}})
 
     def sync(self, now):
-        """The parent's sync, plus the speculative start of each t3_ask the decider has marked, even mid-utterance."""
-        events = super().sync(now)
+        """The parent's sync, plus the speculative start of each t3_ask the decider has marked, even mid-utterance.
+        A thread task superseded first, before anything new starts: a launch question it left open would take in the
+        request that replaced it."""
+        events = []
+        for record in self.segmenter.records():
+            if record["status"] == "superseded" and record["task_id"] not in self.superseded:
+                self.superseded.add(record["task_id"])
+                self.t3.unqueue(f"{self.conversation_id}:{record['task_id']}")
+                if record["task_id"] in self.spoken:
+                    events.append(self._supersede(record["task_id"]))
+        events += super().sync(now)
         for record in self.segmenter.records():
             tool = record.get("tool") or {}
             if (tool.get("tool") == ASK and tool.get("confidence", 0) >= self._threshold()
@@ -1783,6 +1889,18 @@ class T3TaskService(MockTaskService):
                 self.prefetched.add(record["task_id"])
                 self.t3.prefetch(record["instruction"])
         return events
+
+    def _supersede(self, task_id) -> dict:
+        """A thread task sent for a fragment of a longer request: what it would say is dropped and a question it asked
+        is closed, unless its line was already said. Nothing it asked was answered, so it did nothing."""
+        with self.t3.lock:
+            update = self.spoken.pop(task_id)
+            if task_id in self.delivered:
+                self.spoken[task_id] = update
+                return {"task_id": task_id, "event": "superseded", "line": "said"}
+            self.t3.withdraw(update)
+        self.executions[task_id].state = Run.CANCELLED
+        return {"task_id": task_id, "event": "superseded", "line": "dropped"}
 
     def unanswered(self, *, has_audio: bool = False) -> tuple[dict, Words, Callable[[str], None]] | None:
         with self.t3.lock:
@@ -1860,12 +1978,23 @@ class T3TaskService(MockTaskService):
         update = self.t3.answer(instruction, now, reading, question)
         if update is None:
             return []
+        events = [self._answered(update, instruction, now, tool)]
+        answered = question.key if question is not None else None
+        while answered is not None and (held := self.t3.next_queued(answered)) is not None:
+            # The next request of the turn that asked: its own question, asked now that the last one is answered.
+            key, op, words = held
+            follow = self.t3.start(key, words, now) if op == START else self.t3.about(key, op, words, now)
+            events.append(self._answered(follow, words, now, op))
+            answered = key
+        return events
+
+    def _answered(self, update: L.Update, instruction: str, now, tool) -> dict:
         task_id = f"t3_{len(self.extra) + 1}"
         self.extra[task_id] = {"task_id": task_id, "instruction": instruction, "status": "dispatched",
                                "depends_on": [], "side_effect": True}
         execution = self._execution(task_id, update, now, tool)
         self.executions[task_id] = execution
-        return [{"task_id": task_id, "event": execution.state.value, "instruction": instruction}]
+        return {"task_id": task_id, "event": execution.state.value, "instruction": instruction}
 
     def snapshot(self, utterance_id, final_transcript, unreviewed=None, notes=False):
         self.t3.bind_request(f"{self.conversation_id}:", final_transcript)
@@ -1920,6 +2049,7 @@ class T3TaskService(MockTaskService):
 
     def close(self):
         super().close()
+        self.t3.orphans(self.conversation_id)
         asked = any((record.get("tool") or {}).get("tool") not in (None, "none") for record in self.segmenter.records())
         self.t3.turn_closed(self, asked, heard=not self.no_words)
         # A question nobody heard goes back too, to be asked when the call is quiet: no reply can answer it unheard.

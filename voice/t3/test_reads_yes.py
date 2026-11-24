@@ -65,7 +65,8 @@ class Pure(unittest.TestCase):
 def valid():
     return {"reading": {"choice": "yes", "probabilities": dict(WHOLE)},
             "agrees": {"type": "noul", "noul": 0.8}, "asks": {"type": "noul", "noul": 0.2},
-            "adds": {"type": "noul", "noul": 0.1}, "withdraws": {"type": "noul", "noul": 0.05},
+            "adds": {"type": "noul", "noul": 0.1}, "closes": {"type": "noul", "noul": 0.1},
+            "withdraws": {"type": "noul", "noul": 0.05},
             "target": {"choice": KEEPS, "probabilities": {KEEPS: 0.9, "option_1": 0.1}}}
 
 

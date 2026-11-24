@@ -1,7 +1,9 @@
 """The hybrid segmenter (plan A): variant E's break-finding with the baseline's per-segment classification.
 
 Breaks come in two kinds. Hard cuts are the baseline splitter's cuts (sentence punctuation, "and", "but", "actually",
-"no wait", ...) plus "I mean", and the decider cannot merge across them, so a correction always gets its own segment.
+"no wait", ...) plus "I mean". E's break questions cannot merge across them. A hard cut falls inside one request as
+often as between two ("could you check the X thread / and tell me how it's going"), so the decider is also asked, for
+each live piece after a hard cut, whether it and the piece before it are one request; a yes removes that cut.
 Soft cuts sit at variant E's other markers (commas, "then", "also", word gaps in a long stretch) and exist only where
 E's `finished` and `at` answers put them. The words after the cursor split into pieces at hard cuts and at the soft
 cuts chosen so far.
@@ -20,7 +22,7 @@ import re
 from dataclasses import asdict, dataclass, replace
 
 from voice.segmentation import client as api
-from voice.segmentation.contract import (Decisions, Intent, Kind, Readiness, Segment, TranscriptUpdate,
+from voice.segmentation.contract import (Decisions, Intent, Kind, Readiness, Segment, TranscriptUpdate, _quote,
                                          decision_request, parse_decisions)
 from voice.segmentation.cursor import (ONE_ACTION, SNIPPET, THRESHOLDS, Verdict, _noul, _pick, _span, commits,
                                        judge, marked_text, markers, words)
@@ -60,6 +62,20 @@ T3_CORRECTS = " Later words that add detail to or restate the same request do no
 T3_READY = (" For a request about a coding thread, one that says what the thread is for is complete even if it names no "
             "project or thread: the assistant works that out and asks the speaker back. This does not change how any "
             "other request is judged.")
+# Each piece became a task with its own spoken line, so one request cut at "and" or a sentence end was answered twice,
+# or a fragment that asked for nothing got a line of its own beside the real request's question.
+JOIN_INSTRUCTIONS = ("Segment {b} comes right after segment {a} in the transcript. Are the two one request that a pause "
+                     "or a joining word cut in two, so that a worker would carry them out together as one task?")
+JOIN_CRITERIA = {
+    "true": "Together they ask for one thing: one says which work or thread it is about and the other what to do or "
+            "find out, or one leads into, adds a detail to, or finishes the request the other makes. One of them may "
+            "ask for nothing on its own.",
+    "false": "Each asks for something of its own, even about the same thread, such as two threads started, or one "
+             "request answered and then a thread told something; or one changes or takes back the other; or one is "
+             "only thanks, a greeting or a reaction."}
+# A bar alone cannot part two actions from one hesitant request: their cuts read 0.23 to 0.69 and 0.56 to 0.71
+# (voice/t3/eval/record_whole_requests.py). The `false` line's two-action examples do it, at 0.5.
+JOIN_YES = 0.5
 I_MEAN = re.compile(r"\bi mean\b", re.IGNORECASE)
 MAX_DRAIN = 4
 QUIET = (0, (), ())
@@ -99,18 +115,23 @@ def span_text(text, ws, p):
 
 
 class Proposal:
-    """The words after the cursor at one decision point: hard cuts, soft cuts, and the pieces between them."""
+    """The words after the cursor at one decision point: hard cuts, soft cuts, and the pieces between them. `spans`
+    are (first word, end) of the words the decider read as one request, which nothing inside cuts."""
 
-    def __init__(self, text, ws, cursor, soft):
+    def __init__(self, text, ws, cursor, soft, spans=()):
         self.text, self.ws, self.cursor, self.n = text, ws, cursor, len(ws)
-        self.hard = {g for g in hard_cuts(text, ws) if cursor < g < self.n}
-        self.soft = {g for g in soft if cursor < g < self.n and g not in self.hard}
+        self.spans = tuple(spans)
+        self.hard = {g for g in hard_cuts(text, ws) if cursor < g < self.n and not self.joined(g)}
+        self.soft = {g for g in soft if cursor < g < self.n and g not in self.hard and not self.joined(g)}
         bounds = [cursor, *sorted(self.hard | self.soft), self.n] if self.n > cursor else []
         self.pieces = []
         for a, b in zip(bounds, bounds[1:]):
             if self.pieces and self.filler(self.pieces[-1]):
                 a = self.pieces.pop().w0
             self.pieces.append(Piece(a, b))
+
+    def joined(self, gap):
+        return any(start < gap < end for start, end in self.spans)
 
     def filler(self, piece):
         return _is_filler(" ".join(piece_words(self.ws, piece)))
@@ -121,7 +142,7 @@ class Proposal:
     def options(self, piece):
         """E's markers from the piece start up to its hard end, which is the last option."""
         end = self.hard_end(piece.w0)
-        return sorted({g for g in markers(self.text, self.ws, piece.w0) if g < end} | {end})
+        return sorted({g for g in markers(self.text, self.ws, piece.w0) if g < end and not self.joined(g)} | {end})
 
     def in_doubt(self, piece, is_final):
         """The piece's end is a soft cut or the open end, or a soft marker inside it could split it."""
@@ -158,6 +179,26 @@ def break_questions(proposal, sids, is_final):
             "criteria": criteria}
     marked = marked_text(proposal.text, ws, proposal.cursor, gaps) if proposal.pieces else ""
     return asked, gaps, marked, questions
+
+
+def join_questions(ordered, cuts, live):
+    """`<sid>_joins` for each live segment that starts at a hard cut right after another segment. `ordered` is every
+    segment with its piece, in order. Returns ({gap: (sid, first word of the segment before)}, questions)."""
+    asked, questions = {}, {}
+    for (a, before), (b, piece) in zip(ordered, ordered[1:]):
+        if b.sid in live and piece.w0 in cuts:
+            asked[piece.w0] = (b.sid, before.w0)
+            questions[f"{b.sid}_joins"] = {"type": "noul",
+                                           "instructions": JOIN_INSTRUCTIONS.format(a=_quote(a), b=_quote(b)),
+                                           "criteria": JOIN_CRITERIA}
+    return asked, questions
+
+
+def joins_read(answers, asked):
+    """Each asked gap's answer, and the gaps whose two segments are one request. A missing or malformed answer keeps
+    the cut, as before the question was asked."""
+    read = {gap: _noul(answers, f"{sid}_joins", []) for gap, (sid, _) in asked.items()}
+    return {gap for gap, p in read.items() if p is not None and p >= JOIN_YES}, read
 
 
 def parse_breaks(answers, asked, gaps, body, is_final, t):
@@ -242,6 +283,9 @@ class HybridSegmenter:
         self.committed: list[Piece] = []
         self.soft: set[int] = set()
         self.soft_words: tuple = ()
+        # gap -> (first word of the piece before it, end of the piece after it, the words up to that end, and whether
+        # that end was still open)
+        self.joined: dict[int, tuple] = {}
         self.seen: dict[tuple, bool | None] = {}
         self.called_on = QUIET
         self.last_text = None
@@ -273,6 +317,7 @@ class HybridSegmenter:
         self.last_text = update.text.strip()
         current = tuple(w.text for w in self.ws)
         self.soft = {g for g in self.soft if current[:g] == self.soft_words[:g]}
+        self._keep_joins(current)
         if not self._needs_call(update, self._proposal(), pause):
             return None
         first = len(self.points)
@@ -298,6 +343,7 @@ class HybridSegmenter:
         self.last, self.ws = update, words(update.text)
         current = tuple(w.text for w in self.ws)
         self.soft = {g for g in self.soft if current[:g] == self.soft_words[:g]}
+        self._keep_joins(current)
         proposal = self._proposal()
         k = len(self.committed)
         segments = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(self.committed) if c.w0 < len(self.ws)]
@@ -320,7 +366,22 @@ class HybridSegmenter:
         return point
 
     def _proposal(self):
-        return Proposal(self.last.text, self.ws, self.cursor, self.soft)
+        return Proposal(self.last.text, self.ws, self.cursor, self.soft, self._spans())
+
+    def _spans(self):
+        return [(start, end) for start, end, _, _ in self.joined.values()]
+
+    def _keep_joins(self, current):
+        """A join holds while the words through the piece after it are the words it was read on. A piece that was still
+        being spoken and has grown is read again."""
+        self.joined = {g: (start, end, said, open_) for g, (start, end, said, open_) in self.joined.items()
+                       if current[:end] == said and not (open_ and len(current) > end)}
+
+    def _join(self, gaps, asked, proposal, is_final):
+        for gap in gaps:
+            after = next(p for p in proposal.pieces if p.w0 == gap)
+            self.joined[gap] = (asked[gap][1], after.w1, tuple(w.text for w in self.ws[:after.w1]),
+                                not is_final and after.w1 == proposal.n)
 
     @staticmethod
     def _signature(proposal):
@@ -400,17 +461,23 @@ class HybridSegmenter:
         asked, gaps, marked, questions = break_questions(proposal, sids, final)
         body["state"]["new_speech"] = marked
         body["questions"].update(questions)
+        joins = {}
+        if self.conversation_mode:
+            pieces = [c for c in self.committed if c.w0 < len(self.ws)] + list(live.values())
+            joins, questions = join_questions(list(zip(asked_segs, pieces)), hard_cuts(update.text, self.ws), live)
+            body["questions"].update(questions)
         label = f"{self.label}:r{update.revision}" + ("" if kind == "revision" else f":{kind}{len(self.points)}")
         record = self.client.call("decisions", body, label=label)
         call = {"label": label, "route": "decisions", "file": api.cache_path("decisions", body).name,
                 "status": record["status"], "ms": round(record["timing"]["ms"], 1),
                 "started_at": record["timing"]["started_at"]}
         if record["status"] != 200:
-            return asked_segs, call, Decisions({}, {}, [f"decisions http {record['status']}"]), {}, []
+            return asked_segs, call, Decisions({}, {}, [f"decisions http {record['status']}"]), {}, [], (set(), {}), {}
         self.reviewed = tuple(w.text for w in self.ws)
         answers = (record["response"] or {}).get("answers") or {}
         verdicts, problems = parse_breaks(answers, asked, gaps, body, final, self.t)
-        return asked_segs, call, parse_decisions(record["response"], body), verdicts, problems
+        joined, read = joins_read(answers, joins)
+        return asked_segs, call, parse_decisions(record["response"], body), verdicts, problems, (joined, joins), read
 
     def _point(self, update, proposal, pause, kind, last=False):
         """One decisions call and its effect on the pieces, the commits, and the tasks."""
@@ -419,12 +486,21 @@ class HybridSegmenter:
         committed = [self._segment(f"s{i + 1}", c, False) for i, c in enumerate(self.committed) if c.w0 < len(self.ws)]
         sids = [f"s{k + i + 1}" for i in range(len(proposal.pieces))]
         live = {sid: p for sid, p in zip(sids, proposal.pieces) if not proposal.filler(p)}
-        asked_segs, call, decisions, verdicts, problems = self._ask(update, committed, proposal, sids, live, kind)
+        asked_segs, call, decisions, verdicts, problems, (joined, joins), join_read = self._ask(
+            update, committed, proposal, sids, live, kind)
 
         soft, candidates = (proposal.soft, set()) if kind == "delegate" else revise(proposal, sids, verdicts)
-        revised = Proposal(update.text, self.ws, proposal.cursor, soft)
-        same = next((i for i, (a, b) in enumerate(zip(proposal.pieces, revised.pieces)) if a != b),
-                    min(len(proposal.pieces), len(revised.pieces)))
+        joined = set() if kind == "delegate" else joined - ({proposal.cursor} if last else set())
+        self._join(joined, joins, proposal, final)
+        cursor = proposal.cursor
+        if cursor in joined:
+            # The last committed piece is the start of the request the next piece finishes: read it again with it.
+            self.orch.rejoin(self.ws[self.committed.pop().w0].start)
+            committed, cursor, k = committed[:-1], self.cursor, k - 1
+        revised = Proposal(update.text, self.ws, cursor, soft, self._spans())
+        same = 0 if cursor != proposal.cursor else next(
+            (i for i, (a, b) in enumerate(zip(proposal.pieces, revised.pieces)) if a != b),
+            min(len(proposal.pieces), len(revised.pieces)))
         valid = {s.sid for s in committed} | set(sids[:same])
 
         if final:
@@ -454,6 +530,7 @@ class HybridSegmenter:
                  "cursor": proposal.cursor, "pause": pause, "pieces": [[p.w0, p.w1] for p in proposal.pieces],
                  "revised": [[p.w0, p.w1] for p in revised.pieces], "hard": sorted(proposal.hard),
                  "soft": sorted(soft), "breaks": {sid: v[2] for sid, v in verdicts.items()},
+                 "joins": {str(gap): p for gap, p in join_read.items()}, "joined": sorted(self.joined),
                  "committed": newly, "applied": applied,
                  "segments": [asdict(s) for s in (apply_segs if applied else asked_segs)], "calls": [call],
                  "decisions": {sid: _jsonable(asdict(d)) for sid, d in kept.items()},

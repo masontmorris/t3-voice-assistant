@@ -96,7 +96,8 @@ def main() -> int:
         rows.append({"act": said.to_json(), "reply": reply, "options": list(options), "must_act": must_act,
                      "expected_target": target, "target_answer": target_answer, "choice": answer.get("choice"),
                      "p": {k: round(v, 3) for k, v in answer["probabilities"].items()},
-                     "noul": {k: round(answers[k]["noul"], 3) for k in ("agrees", "asks", "withdraws", "adds") if k in answers}})
+                     "noul": {k: round(answers[k]["noul"], 3) for k in ("agrees", "asks", "withdraws", "adds", "closes")
+                              if k in answers}})
         took.append(record["timing"]["ms"])
         print(json.dumps({"reply": reply, "choice": rows[-1]["choice"], "p": rows[-1]["p"], "noul": rows[-1]["noul"],
                           "target": target_answer, "ms": round(took[-1])}), flush=True)
