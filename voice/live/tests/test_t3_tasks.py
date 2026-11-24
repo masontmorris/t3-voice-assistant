@@ -1213,6 +1213,30 @@ class Authorization(unittest.TestCase):
                 self.say_yes(t3, 3, "Yes.")
                 self.assertEqual(len(seam.ops(done)), 1, "then a yes acts, once")
 
+    def test_a_rising_okay_read_as_unsure_is_asked_once_more_not_dropped(self):
+        from voice.t3.verify import Reading as Read
+
+        class Unsure(F.Reader):
+            def reads(self, said_, reply, options=()):
+                if reply != "Okay?":
+                    return super().reads(said_, reply, options)
+                shares = {"yes": 0.23, "question": 0.6, "unrelated": 0.13, "no": 0.02, "other": 0.02}
+                return Read("question", shares, agrees=0.56, asks=0.4, adds=0.02, closes=0.1, complete=True, kept=True)
+
+        seam = busy_seam().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam, decider=Unsure(READINGS))
+        t3.begin_call()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        turn = self.turn(t3, 2)
+        turn.answer(turn.open_question(), "Okay?", 1)
+        lines = [e for e in turn.snapshot("utt_1", "Okay?")["tasks"] if e.get("acts")]
+        self.assertEqual([[a["kind"] for a in e["acts"]] for e in lines], [["confirm_stop"]])
+        self.assertEqual(seam.ops("interrupt"), [], "it may be a yes, so nothing runs until one is heard")
+        turn.record_delivery(lines[0], "sent")
+        turn.close()
+        self.say_yes(t3, 3, "Yes.")
+        self.assertEqual(len(seam.ops("interrupt")), 1)
+
     def test_a_second_thanks_drops_the_confirmation(self):
         seam = busy_seam().answer("interrupt", F.requested())
         t3 = tasks_over(self, seam)

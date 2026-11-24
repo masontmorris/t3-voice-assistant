@@ -202,7 +202,7 @@ class Question:
     heard_at: float = 0.0
     asked_at: float = 0.0
     expired: bool = False
-    # Asked once more after a reply that only thanked or acknowledged; a second such reply drops it.
+    # Asked once more after a reply that only thanked, or that may have been a yes; a second such reply drops it.
     reasked: bool = False
 
 
@@ -1002,9 +1002,9 @@ class T3Tasks:
                 self._drop_question()
                 return None
             if (self.question is not None and self.question.kind in CONFIRMS and not self.question.reasked
-                    and isinstance(reading, Reading) and reading.acknowledges):
-                # A thanks or a note of what was said is no consent, and no answer: the confirmation is asked once
-                # more, so a yes can still come, rather than dropped on it.
+                    and isinstance(reading, Reading) and (reading.acknowledges or reading.unsure)):
+                # A thanks or a note of what was said is no consent and no answer, and a reply that may be a yes is not
+                # read as one: the confirmation is asked once more, so a yes can still come, rather than dropped.
                 again = self._ask(replace(self.question, reasked=True))
                 said = self.pending_act(again)
                 if said is not None:

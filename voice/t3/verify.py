@@ -776,6 +776,9 @@ AGREES_CONFIDENCE = 0.5
 ADDS_CEILING = 0.5
 # On the hosted seen replies every real yes scored 0.49 or less and every thanks or goodbye 0.58 or more.
 CLOSES_CEILING = 0.55
+# A reply that may be a yes needs this share of yes in the choice: the recorded rising yeses the question floor refused
+# gave it 0.23 and 0.27, and a question back with no yes in it is no maybe.
+UNSURE_YES_FLOOR = 0.15
 ASKS_CEILING = 0.7
 YES_OR_QUESTION = 0.5
 # A choice that says question counts for a yes the transcript marked as one only when the choice still gives yes a real
@@ -863,6 +866,17 @@ class Reading:
         another. Its choice is a no, or unrelated for a "never mind" that declines nothing in particular."""
         return (self.label in ("no", "unrelated") and self.withdraws is not None
                 and self.withdraws >= WITHDRAWS_CONFIDENCE)
+
+    @property
+    def unsure(self) -> bool:
+        """A reply that may be a yes and is not read as one: the choice says yes or question and gives yes a real share,
+        the words say yes, and nothing declines, changes, or asks in words. A rising "Okay?" reads so."""
+        if self.yes or self.label not in ("yes", "question") or self.agrees is None or self.asks is None:
+            return False
+        return (self.probabilities.get("yes", 0.0) >= UNSURE_YES_FLOOR
+                and self.agrees >= AGREES_CONFIDENCE and self.asks < ASKS_CEILING
+                and self.probabilities.get("no", 1.0) <= OTHER_CEILING
+                and self.probabilities.get("other", 1.0) <= OTHER_CEILING)
 
     @property
     def acknowledges(self) -> bool:
