@@ -375,7 +375,7 @@ class Gate(unittest.TestCase):
         table, green = self.table([run], known=["c"])
         self.assertEqual((table[0][1], green), ("FAIL", False))
 
-    def test_news_blocked_by_the_marked_yes_is_expected_but_missing_exchange_is_an_error(self):
+    def test_news_after_a_yes_that_started_nothing_fails_and_a_missing_exchange_is_an_error(self):
         plan = S.news_permission(S.Pool())
         plan.notes.update(confirmed=True, timed_out=True, approve=[3])
         turns = [turn(0, [Kind.CONFIRM_LAUNCH]), turn(1), turn(2), turn(3)]
@@ -384,7 +384,7 @@ class Gate(unittest.TestCase):
             verdicts = plan.check(call(items, world))
             return S.unexpected(Result("news-permission", 1, tuple(verdicts), (), 0, 0, 0))
 
-        self.assertEqual(unexpected(turns), [])
+        self.assertIn("the yes started a thread", failed(unexpected(turns)))
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(turns[:2])))
         self.assertIn("no approval claimed while T3 still holds it", failed(unexpected(
             turns[:2], {"seeded": {}, "made": {"t": {"title": "Example", "waiting_on": "approval"}}})))

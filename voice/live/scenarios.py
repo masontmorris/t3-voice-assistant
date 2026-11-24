@@ -913,7 +913,6 @@ DISPATCH_YES = ("a launch confirmation is not always asked or answered: the ASR 
                 "the yes as nothing, and a no_thread line beside the confirmation clears the question; "
                 "docs/voice/spoken-acts.md")
 KNOWN: dict[tuple[str, str], str] = {
-    ("news-permission", "the yes started a thread"): DISPATCH_YES,
     ("news-done", "the yes started a thread"): DISPATCH_YES,
     ("short-yes-tell", "the yes was taken"):
         "a short yes to the confirmation of a message is not always taken (1 of 2 baseline runs said nothing; \"Yeah?\" "
@@ -921,8 +920,7 @@ KNOWN: dict[tuple[str, str], str] = {
     ("withdrawn-launch", "the question was not asked again"):
         "after 'never mind' the launch confirmation is put again in some runs (1 of 2 in the baseline)",
     ("follow-up", "the follow-up did not fall back to today"):
-        "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow",
-    ("short-yes", "each yes to a confirmation started a thread"): DISPATCH_YES}
+        "'a week from today' runs as today: the forecast tool's `when` takes a weekday, today or tomorrow"}
 
 
 def collect(server: Path, seen: list[int]) -> tuple[Turn, ...]:
