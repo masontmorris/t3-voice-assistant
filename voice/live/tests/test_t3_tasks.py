@@ -33,6 +33,9 @@ from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, NO_T
 from voice.segmentation.gate import PLAN_A
 from voice.segmentation.tasks import Orchestrator
 from voice.segmentation.tests.test_orchestrator import step
+from voice.segmentation.contract import TranscriptUpdate
+from voice.segmentation.hybrid import HybridSegmenter
+from voice.segmentation.tests.test_hybrid import FakeDecider
 from voice.tools import registry as tool_registry
 
 TWO_PROJECTS = (("p1", "Voice sandbox", ("sandbox", "voice sandbox")),
@@ -1188,23 +1191,117 @@ class Authorization(unittest.TestCase):
         service.close()
         self.assertFalse(t3.has_news(idle=True))
 
-    def test_two_prompts_queued_in_a_turn_leave_only_the_last_one_heard(self):
-        seam, t3 = self.stop_setup()
+    def test_two_actions_in_one_turn_are_asked_one_at_a_time_and_each_yes_acts_once(self):
+        seam = busy_seam().answer("interrupt", F.requested())
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
         records = [{"task_id": "task_1", "instruction": "Stop the clamp helper thread.", "status": "dispatched",
                     "depends_on": [], "side_effect": True, "sources": ["orchestrator"], "history": [],
                     "tool": {"tool": STOP, "confidence": 0.9}},
-                   {"task_id": "task_2", "instruction": "Tell the clamp helper thread to add a test.",
+                   {"task_id": "task_2", "instruction": "Tell the toolchain thread to add a test.",
                     "status": "dispatched", "depends_on": [], "side_effect": True, "sources": ["orchestrator"],
                     "history": [], "tool": {"tool": TELL, "confidence": 0.9}}]
         service = self.turn(t3, 1, records)
         service.sync(0)
         first, second = service.snapshot("utt_1", "...")["tasks"]
+        self.assertEqual([a["kind"] for a in first["acts"]], ["confirm_stop"])
+        self.assertNotIn("acts", second, "the message waits: a second question would take the first one's place")
         service.record_delivery(first, "sent")
-        self.assertEqual(t3.question.key, "conv_turn_001:task_2", "the later prompt replaced the first")
-        self.assertFalse(t3.question.heard, "so a yes cannot reach the one that was heard first")
         service.close()
-        self.say_yes(t3, 2, "Yes, stop it.")
-        self.assertEqual((seam.ops("interrupt"), seam.ops("send")), ([], []))
+        turn = self.turn(t3, 2)
+        turn.answer(turn.open_question(), "Yes, stop it.", 1)
+        lines = [e for e in turn.snapshot("utt_1", "Yes, stop it.")["tasks"] if e.get("acts")]
+        self.assertEqual([[a["kind"] for a in e["acts"]] for e in lines], [["stopping"], ["confirm_tell"]])
+        for entry in lines:
+            turn.record_delivery(entry, "sent")
+        turn.close()
+        self.assertEqual(len(seam.ops("interrupt")), 1)
+        self.say_yes(t3, 3, "Yes, send it.")
+        self.assertEqual((len(seam.ops("interrupt")), len(seam.ops("send"))), (1, 1), "each yes acted once")
+
+
+class Rejoined(unittest.TestCase):
+    """A thread task sent while the caller paused, for words the next words turn out to finish, through the real
+    segmenter and task service: the fragment's task is superseded and the whole request is read on its own."""
+
+    FIRST = "check the importer thread and"
+    WHOLE = "Check the importer thread and tell me whether it needs approval."
+
+    def turn(self, t3, texts, tool, deliver_first=False):
+        decider = FakeDecider(joins=lambda words: "approval" in words or "hour" in words, tools=lambda words: tool)
+        segmenter = HybridSegmenter(decider, "rejoin", tools=T3Registry(tool_registry.build(None, None, None)).choices())
+        segmenter.conversation_mode = True
+        segmenter.orch.gate, segmenter.orch.side_effects_wait_for_final = PLAN_A, True
+        service = T3TaskService(segmenter, "conv_turn_001", 0.0, None, holds_side_effects=False, t3=t3)
+        early = None
+        for i, text in enumerate(texts, 1):
+            segmenter.update(TranscriptUpdate(i, text, i == len(texts)))
+            service.sync(i)
+            if early is None and service.spoken:
+                early = dict(service.spoken)
+                if deliver_first:
+                    entry, = [e for e in service.snapshot("utt_1", text)["tasks"] if e.get("acts")]
+                    service.record_delivery(entry, "sent")
+        lines = [e for e in service.snapshot("utt_1", texts[-1])["tasks"] if e.get("acts")]
+        return segmenter, service, early, lines
+
+    def t3(self, spoken=True):
+        seam = F.FakeSeam(read=F.state(thread="t5", title="Speed up the importer", as_of=140))
+        seam.listing = listing(("t5", "Speed up the importer"), ("t6", "Fix the flaky ASR test"))
+        t3 = tasks_over(self, seam)
+        t3.decider.picking.update({"check the importer thread": "t5", self.WHOLE: "t5"})
+        if spoken:
+            t3.recent = t3.spoken_id = "t5"
+        return seam, t3
+
+    def texts(self, whole):
+        first = whole.split(" and ")[0].lower() + " and"
+        return [first, first, whole.rstrip(".").lower() + ",", whole]
+
+    def test_a_lookup_sent_for_a_fragment_is_superseded_and_the_whole_request_is_answered(self):
+        _, t3 = self.t3()
+        segmenter, _, early, lines = self.turn(t3, self.texts(self.WHOLE), ASK)
+        self.assertIsNotNone(early, "the fragment's task was sent while the caller paused")
+        sent = {d["task_id"]: d for d in segmenter.dispatch_log}
+        fragment, = [t for t in segmenter.records() if t["status"] == "superseded"]
+        self.assertFalse(sent[fragment["task_id"]]["is_final"])
+        self.assertEqual([[(a["slots"].get("thread"), a["slots"].get("asked")) for a in e["acts"]] for e in lines],
+                         [[("Speed up the importer", self.WHOLE)]], "one line, for the whole request")
+
+    def test_a_question_asked_for_a_fragment_is_closed_and_only_the_whole_request_is_asked(self):
+        _, t3 = self.t3(spoken=False)
+        _, _, early, lines = self.turn(t3, self.texts(self.WHOLE), ASK)
+        fragment_key = f"conv_turn_001:{next(iter(early))}"
+        self.assertEqual([a.kind for u in early.values() for a in u.acts], [S.CONFIRM_THREAD],
+                         "the fragment asked \"do you mean ...?\" while the caller paused")
+        self.assertEqual([[a["kind"] for a in e["acts"]] for e in lines], [["confirm_thread"]])
+        self.assertNotEqual(t3.question.key, fragment_key, "the open question is the whole request's own")
+        self.assertEqual(t3.question.instruction, self.WHOLE)
+
+    def test_a_launch_asked_for_a_fragment_is_withdrawn_and_one_launch_carries_the_whole_request(self):
+        seam = F.FakeSeam()
+        seam.listing = listing()
+        t3 = tasks_over(self, seam)
+        whole = "Start a thread for the importer logging and keep it under an hour."
+        _, service, early, lines = self.turn(t3, self.texts(whole), START)
+        self.assertEqual([a.kind for u in early.values() for a in u.acts], [S.CONFIRM_LAUNCH])
+        self.assertEqual([[a["kind"] for a in e["acts"]] for e in lines], [["confirm_launch"]], "asked once")
+        for entry in lines:
+            service.record_delivery(entry, "sent")
+        service.close()
+        t3.answer("yes", 5)
+        launch, = seam.ops("launch")
+        self.assertEqual(launch[2:], ("p1", LS.framed(whole)), "the launch is the whole request, started once")
+
+    def test_a_fragment_line_already_said_stays_said_and_the_whole_request_is_still_answered(self):
+        """Within one turn a line is said only after the final transcript (`run_clip`), so this cannot happen in a
+        call; if it did, the caller would have heard the fragment's answer and then hears the whole request's."""
+        _, t3 = self.t3()
+        _, service, early, lines = self.turn(t3, self.texts(self.WHOLE), ASK, deliver_first=True)
+        fragment = next(iter(early))
+        self.assertIn(fragment, service.delivered, "the fragment's answer was heard")
+        self.assertEqual([[a["slots"].get("asked") for a in e["acts"]] for e in lines], [[self.WHOLE]],
+                         "it is not said again, and the whole request gets its own answer")
 
 
 class Service(unittest.IsolatedAsyncioTestCase):
@@ -1289,9 +1386,7 @@ class Service(unittest.IsolatedAsyncioTestCase):
         t3 = tasks_over(self, seam)
         records = [self.record("task_1", "Add a clamp helper in the sandbox project", START),
                    self.record("task_2", "What's the weather in Lisbon?"),
-                   self.record("task_3", "Stop the toolchain thread.", STOP),
-                   self.record("task_4", "Tell me, uh, the fix our toolchain thread been going?", TELL,
-                               confidence=0.2)]
+                   self.record("task_3", "Stop the toolchain thread.", STOP)]
         service = self.service(t3, records)
         service.sync(0)
         snapshot = service.snapshot("utt_1", "...")
@@ -1300,46 +1395,87 @@ class Service(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(by_id["task_1"]["evidence"], {"thread_id": None, "project_id": "p1", "sequences": [1]})
         self.assertEqual(by_id["task_2"]["status"], "running")
         self.assertNotIn("acts", by_id["task_2"])
-        self.assertEqual(by_id["task_3"]["acts"], [act(S.CONFIRM_STOP, thread="Upgrade the toolchain").to_json()])
-        self.assertIn(by_id["task_4"]["acts"][0]["kind"], {"thread_status", "confirm_thread", "ask_which", "no_thread"},
-                      "an unsure pick reaches T3 as a lookup, never as a message to send")
+        self.assertNotIn("acts", by_id["task_3"], "the stop waits for the launch question's answer")
+        self.assertEqual(t3.queued, [("conv_turn_001:task_3", STOP, "Stop the toolchain thread.")])
         self.assertIs(service.open_question(), T3_WAITING)
         self.assertEqual(service.executions["task_1"].state.value, "completed")
         self.assertEqual((seam.ops("launch"), seam.ops("interrupt")), ([], []))
+        unsure = self.service(t3, [self.record("task_5", "Tell me, uh, the fix our toolchain thread been going?", TELL,
+                                               confidence=0.2)])
+        t3.end_call()
+        unsure.sync(0)
+        entry, = unsure.snapshot("utt_1", "...")["tasks"]
+        self.assertIn(entry["acts"][0]["kind"], {"thread_status", "confirm_thread", "ask_which", "no_thread"},
+                      "a pick under the registry's bar reaches T3 as a lookup, never as a message to send")
 
-    def test_one_request_cut_into_several_launch_segments_asks_one_question_and_launches_all_of_it(self):
-        said_whole = ("Start a thread for the importer logging. Can you kick that off? Keep it under an hour, and use "
-                      "my old config as the base. Also look at the retry counts. And keep it organized and tidy.")
+    def test_an_unsure_action_is_confirmed_when_it_reads_as_acting_and_is_a_lookup_otherwise(self):
+        """Sent as a lookup, "tell it to ..." was answered with the thread's status; offered as a message, a stray
+        "Yes, that one." could be sent by an "Okay, thanks." read as the yes (record_whole_requests.py)."""
+        for confidence, side_effect, kinds in ((0.6, True, {"confirm_tell"}), (0.6, False, {"thread_status", "confirm_thread"}),
+                                               (0.8, False, {"confirm_tell"}), (0.2, True, {"thread_status", "confirm_thread"})):
+            with self.subTest(confidence=confidence, side_effect=side_effect):
+                seam = F.FakeSeam(read=F.state(thread="t5", title="Upgrade the toolchain", as_of=140))
+                seam.listing = listing(*THREADS)
+                t3 = tasks_over(self, seam, decider=F.Reader(READINGS, {"Tell the toolchain thread to retry.": "t5"}))
+                record = {**self.record("task_1", "Tell the toolchain thread to retry.", TELL, confidence),
+                          "side_effect": side_effect}
+                service = self.service(t3, [record])
+                service.sync(0)
+                entry, = service.snapshot("utt_1", "...")["tasks"]
+                self.assertIn(entry["acts"][0]["kind"], kinds)
+                self.assertEqual(seam.ops("send"), [], "nothing is sent before a yes")
+
+    def answer_turn(self, t3, n, reply):
+        """A turn whose words answer the open question: the lines it says, each delivered."""
+        service = T3TaskService(SimpleNamespace(records=lambda: [], dispatch_log=[]), f"conv_turn_{n:03d}", 0.0, None,
+                                holds_side_effects=False, t3=t3)
+        service.answer(service.open_question(), reply, n)
+        entries = [e for e in service.snapshot("utt_1", reply)["tasks"] if e.get("acts")]
+        for entry in entries:
+            service.record_delivery(entry, "sent")
+        service.close()
+        return [[a["kind"] for a in e["acts"]] for e in entries]
+
+    def test_a_launch_takes_the_instructions_for_it_and_a_second_launch_is_asked_after_the_first_is_answered(self):
         seam = F.FakeSeam()
         seam.listing = listing()
         t3 = tasks_over(self, seam)
         service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
-                                    self.record("task_2", "Can you kick that off?", START),
-                                    self.record("task_3", "Also look at the retry counts.", START),
-                                    self.record("task_4", "And keep it organized.", TELL),
-                                    self.record("task_5", "And tidy.", TELL, confidence=0.49)])
-        service.sync(0)
-        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", said_whole)["tasks"]}
-        self.assertEqual([a["kind"] for a in tasks["task_1"]["acts"]], ["confirm_launch"])
-        self.assertNotIn("acts", tasks["task_2"], "the second segment is the same request, already asked")
-        self.assertNotIn("acts", tasks["task_3"])
-        self.assertNotIn("acts", tasks["task_4"], "an instruction for the thread being started is part of the launch")
-        self.assertNotIn("acts", tasks["task_5"], "an unsure tell about the new thread is part of the launch too")
-        service.record_delivery(tasks["task_1"], "sent")
-        self.assertEqual(said(t3.answer("yes", 1)), [("launched", "Voice sandbox")])
-        launch, = seam.ops("launch")
-        self.assertEqual(launch[2:], ("p1", LS.framed(said_whole)), "the launch carries every constraint and the second request")
-        self.assertEqual(t3.follow.journal.tasks[next(iter(t3.follow.journal.tasks))].instruction, LS.framed(said_whole))
-
-    def test_a_message_for_a_thread_there_is_stays_its_own_request_beside_a_launch(self):
-        seam = F.FakeSeam()
-        seam.listing = listing(*THREADS)
-        t3 = tasks_over(self, seam)
-        service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
-                                    self.record("task_2", "Tell the toolchain thread to retry.", TELL)])
+                                    self.record("task_2", "And keep it organized.", TELL),
+                                    self.record("task_3", "And tidy.", TELL, confidence=0.49),
+                                    self.record("task_4", "And start another one for the retry counts.", START)])
         service.sync(0)
         tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
-        self.assertEqual([a["kind"] for a in tasks["task_2"]["acts"]], ["confirm_tell"])
+        self.assertEqual([a["kind"] for a in tasks["task_1"]["acts"]], ["confirm_launch"])
+        self.assertEqual([t for t, entry in tasks.items() if "acts" in entry], ["task_1"], "one question in the turn")
+        service.record_delivery(tasks["task_1"], "sent")
+        service.close()
+        self.assertEqual(self.answer_turn(t3, 2, "yes"), [["launched"], ["confirm_launch"]],
+                         "the first starts, then the second is asked")
+        self.assertEqual(self.answer_turn(t3, 3, "yes"), [["launched"]])
+        first, second = seam.ops("launch")
+        self.assertEqual(first[2:], ("p1", LS.framed("Start a thread for the importer logging. And keep it organized. "
+                                                     "And tidy.")), "an instruction for the new thread is part of it")
+        self.assertEqual(second[2:], ("p1", LS.framed("And start another one for the retry counts.")),
+                         "each launch carries its own words, not the other's")
+
+    def test_a_message_beside_a_launch_is_asked_after_the_launch_is_answered(self):
+        for rows, then in (((("t5", "Upgrade the toolchain"), ("t6", "Fix the flaky ASR test")), "confirm_tell"),
+                           ((("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test")), "ask_which")):
+            with self.subTest(then):
+                seam = F.FakeSeam()
+                seam.listing = listing(*rows)
+                t3 = tasks_over(self, seam)
+                words = "Tell the toolchain thread to retry." if then == "confirm_tell" else "Tell the flaky test thread to retry."
+                service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
+                                            self.record("task_2", words, TELL)])
+                service.sync(0)
+                tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
+                self.assertNotIn("acts", tasks["task_2"], "a second question would take the launch question's place")
+                service.record_delivery(tasks["task_1"], "sent")
+                service.close()
+                self.assertEqual(self.answer_turn(t3, 2, "No."), [["cancelled"], [then]])
+                self.assertEqual(seam.ops("launch"), [])
 
     async def test_a_parked_continuation_leaves_the_launch_question_as_the_turns_only_reply(self):
         request = "Start a thread for the importer logging, and keep it tidy."
@@ -1391,16 +1527,6 @@ class Service(unittest.IsolatedAsyncioTestCase):
         service.close()
         self.assertIs(self.service(t3, []).open_question(), T3_WAITING)
         self.assertEqual(seam.ops("launch"), [])
-
-    def test_a_message_that_may_mean_several_threads_is_asked_about_beside_a_launch(self):
-        seam = F.FakeSeam()
-        seam.listing = listing(("t5", "Fix the flaky UI test"), ("t6", "Fix the flaky ASR test"))
-        t3 = tasks_over(self, seam)
-        service = self.service(t3, [self.record("task_1", "Start a thread for the importer logging.", START),
-                                    self.record("task_2", "Tell the flaky test thread to retry.", TELL)])
-        service.sync(0)
-        tasks = {t["task_id"]: t for t in service.snapshot("utt_1", "...")["tasks"]}
-        self.assertEqual([a["kind"] for a in tasks["task_2"]["acts"]], ["ask_which"])
 
     def test_a_launch_question_from_an_earlier_turn_does_not_swallow_a_new_request(self):
         t3 = tasks_over(self, F.FakeSeam())
@@ -2219,6 +2345,39 @@ class Respond(unittest.TestCase):
         t3.spoke(update)
         return seam, t3, update
 
+    def test_approve_it_and_then_tell_it_are_each_asked_and_each_yes_acts_once(self):
+        seam = self.seam()
+        seam.answer("respond", F.responded("t5", "q1", "approve", sequence=141))
+        t3 = tasks_over(self, seam, decider=F.Reader(READINGS, {"and then tell it to push.": "t5"}))
+        records = [{"task_id": tid, "instruction": words, "status": "dispatched", "depends_on": [], "side_effect": True,
+                    "sources": ["orchestrator"], "history": [], "tool": {"tool": tool, "confidence": 0.9}}
+                   for tid, words, tool in (("task_1", "Approve it", APPROVE), ("task_2", "and then tell it to push.", TELL))]
+        turns = []
+
+        def turn(n, reply=None):
+            service = T3TaskService(SimpleNamespace(records=lambda: records if n == 1 else [],
+                                                    dispatch_log=[{"task_id": r["task_id"], "instruction": r["instruction"]}
+                                                                  for r in records] if n == 1 else []),
+                                    f"conv_turn_{n:03d}", 0.0, None, holds_side_effects=False, t3=t3)
+            if reply is None:
+                service.sync(0)
+            else:
+                service.answer(service.open_question(), reply, n)
+            lines = [e for e in service.snapshot("utt_1", reply or "...")["tasks"] if e.get("acts")]
+            for entry in lines:
+                service.record_delivery(entry, "sent")
+            service.close()
+            turns.append([[a["kind"] for a in e["acts"]] for e in lines])
+
+        turn(1)
+        turn(2, "Yes.")
+        turn(3, "Yes.")
+        self.assertEqual(turns[0], [["confirm_respond"]], "the message waits for the approval's answer")
+        self.assertEqual(turns[1][-1], ["confirm_tell"], "then it is asked on its own")
+        self.assertEqual(len(seam.ops("respond")), 1)
+        self.assertIn(turns[2], ([["sent_followup"]], [["held_followup"]], [["tell_pending"]]), "the message went")
+        self.assertLessEqual(len(seam.ops("send")), 1, "each yes acted once")
+
     def test_the_confirmation_names_the_thread_and_what_is_asked_and_answers_nothing_yet(self):
         seam, t3, update = self.asked()
         self.assertEqual(update.acts, (act(S.CONFIRM_RESPOND, thread="Add a clamp helper", decision="approve",
@@ -2504,8 +2663,8 @@ class Respond(unittest.TestCase):
         seam = self.seam()
         t3 = tasks_over(self, seam)
         t3.about("conv_turn_001:task_1", APPROVE, "Go ahead", 0)
-        self.assertTrue(t3.asking_start("conv_turn_001:"), "the next segment of this turn is covered by that question")
-        self.assertFalse(t3.asking_start("conv_turn_002:"), "a later turn is a new request")
+        self.assertIsNotNone(t3.asking("conv_turn_001:"), "the next segment of this turn is covered by that question")
+        self.assertIsNone(t3.asking("conv_turn_002:"), "a later turn is a new request")
 
     def test_the_tools_are_offered_only_while_a_thread_waits_and_the_decider_is_shown_what_for(self):
         base = SimpleNamespace(choices=lambda: {"weather": "w", "none": "n"})
@@ -2832,8 +2991,8 @@ class Answer(unittest.TestCase):
         seam = self.seam()
         t3 = tasks_over(self, seam, decider=F.Reader(READINGS, choosing={"Postgres": 0}))
         t3.about("conv_turn_001:task_1", ANSWER, "Postgres", 0)
-        self.assertTrue(t3.asking_start("conv_turn_001:"))
-        self.assertFalse(t3.asking_start("conv_turn_002:"))
+        self.assertIsNotNone(t3.asking("conv_turn_001:"))
+        self.assertIsNone(t3.asking("conv_turn_002:"))
 
     def test_the_tool_is_offered_only_while_a_thread_waits_on_a_question_and_the_decider_is_shown_it(self):
         base = SimpleNamespace(choices=lambda: {"weather": "w", "none": "n"})

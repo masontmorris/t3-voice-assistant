@@ -264,7 +264,8 @@ class MockTaskService:
             events.append({"task_id": task_id, "event": execution.state.value, "instruction": entry["instruction"]})
         self._seen = len(self.segmenter.dispatch_log)
         for task_id, execution in self.executions.items():
-            if records[task_id]["status"] == "cancel_requested" and execution.state in (Run.RUNNING, Run.HELD):
+            if (records[task_id]["status"] in ("cancel_requested", "superseded")
+                    and execution.state in (Run.RUNNING, Run.HELD)):
                 execution.state, execution.finished_at = Run.CANCELLED, now
                 events.append({"task_id": task_id, "event": Run.CANCELLED.value})
         return events

@@ -116,6 +116,24 @@ class NoteTurnTest(NoteTurn):
         self.assertEqual(self.spoken, ["Glad to hear it."])
         self.assertEqual(record["replies"][0]["text"], "Glad to hear it.")
 
+    async def test_a_turn_the_decider_reads_as_asking_for_nothing_is_still_answered(self):
+        from voice.segmentation.tests.test_hybrid import FakeDecider, choice
+
+        class AsksNothing(FakeDecider):
+            def call(self, route, body, label=""):
+                record = super().call(route, body, label)
+                for name, question in body["questions"].items():
+                    if name.endswith("_kind"):
+                        record["response"]["answers"][name] = choice("chitchat", list(question["criteria"]))
+                return record
+
+        FakeSession.transcript = "Can you, hmm, so, well, a few things."
+        decider = AsksNothing(joins=lambda words: False)
+        record = await self.turn(["What's on your mind?"], decider=decider)
+        self.assertTrue(decider.bodies, "the decider read the turn")
+        self.assertEqual(self.spoken, ["What's on your mind?"], "a turn with no request is answered, not silent")
+        self.assertEqual([t for t in record.get("tasks", ()) if t.get("status") == "dispatched"], [])
+
     async def test_the_earlier_turns_never_reach_the_voice_session(self):
         await self.turn(["Glad to hear it."])
         sent = " ".join(str(event) for event in self.voice.sent)

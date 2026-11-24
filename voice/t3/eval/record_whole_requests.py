@@ -20,9 +20,14 @@ The groups:
 
 `SEEN` was looked at while the decider text was written. `HELD` was written before any run and first run on the first
 text, whose stop line lowered the stop margin there ("Cancel that one."), so that line went back: it has informed one
-change. `FRESH` was written after that and before any run, and never used to change anything. Each case runs `--samples` times with fresh calls. `--before` keeps only the routings, under `before`, for the
-code it ran on; the default run keeps every answer, by sample, so the test replays it. Every thread, title and request
-here is made up.
+change. `FRESH` was written after that and before any run, and never used to change anything. `REVIEW` was written for
+the review of the first version, before any run; its stop and two-action cases moved the tell line and the join
+question's criteria. `LATE` was written after that, before any run, and `CONTROLS` must reach no thread at all.
+
+Each case runs `--samples` times with fresh calls. `--before` keeps only the routings, under `before`, for the code it
+ran on; the default run keeps every answer, by case and sample, so the test replays it. `--replay` routes the kept
+answers again with the code as it is now, with no call: for a change that moves what the code does with the answers and
+not what the decider is asked. Every thread, title and request here is made up.
 """
 
 from __future__ import annotations
@@ -32,6 +37,7 @@ import hashlib
 import json
 from pathlib import Path
 
+from voice.live import t3_tasks
 from voice.live.t3_tasks import T3Registry
 from voice.prototype import run
 from voice.segmentation.contract import TranscriptUpdate
@@ -40,6 +46,7 @@ from voice.segmentation.hybrid import HybridSegmenter
 from voice.tools import registry
 
 FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "whole_requests.json"
+ACTS_ON = getattr(t3_tasks, "acts_on", None)
 T3 = registry.T3_TOOLS
 LOADER, RETRY, SPRITES = "Speed Up the Map Loader", "Add a Retry Button", "Batch the Sprite Draws"
 APPROVAL = {"kind": "approval", "thread": LOADER, "asks_for": "approval to run a command"}
@@ -127,8 +134,44 @@ FRESH = [
     ("mixed", "Did it finish? And have it add a changelog entry.", LOADER, False, ["t3_ask", "t3_tell"]),
     ("none", "Okay, sounds good.", LOADER, False, []),
 ]
-SETS = ("seen", "held", "fresh")
-CASES = [(*case, name) for name, cases in zip(SETS, (SEEN, HELD, FRESH)) for case in cases]
+REVIEW = [
+    ("two", "Stop the importer thread and tell the tests thread to rerun.", None, False, ["t3_stop", "t3_tell"]),
+    ("two", "Start a thread for the sprite atlas, and another one for the save screen.", None, False,
+     ["t3_start", "t3_start"]),
+    ("two", "Approve it and then tell it to push.", LOADER, True, ["t3_approve", "t3_tell"]),
+    ("stop", "Tell it to stop.", LOADER, False, ["t3_stop"]),
+    ("stop", "Ask it to stop.", LOADER, False, ["t3_stop"]),
+    ("stop", "Can you tell the map loader thread to stop?", RETRY, False, ["t3_stop"]),
+    ("tell", "Tell it to stop adding comments everywhere.", LOADER, False, ["t3_tell"]),
+    ("tell", "Ask it to stop rebuilding the whole project each time.", LOADER, False, ["t3_tell"]),
+]
+LATE = [
+    ("stop", "Could you ask the sprite batching thread to stop?", LOADER, False, ["t3_stop"]),
+    ("stop", "Tell the retry button thread to stop, please.", LOADER, False, ["t3_stop"]),
+    ("stop", "Just tell it to stop now.", LOADER, False, ["t3_stop"]),
+    ("tell", "Tell it to stop retrying the network calls.", LOADER, False, ["t3_tell"]),
+    ("tell", "Ask the release notes thread to stop using bullet points.", LOADER, False, ["t3_tell"]),
+    ("tell", "Have it stop printing debug logs.", LOADER, False, ["t3_tell"]),
+    ("two", "Stop the sprite batching thread, and ask the release notes thread to add a date.", None, False,
+     ["t3_stop", "t3_tell"]),
+    ("two", "Start a thread to fix the menu music and another to tidy the save code.", None, False,
+     ["t3_start", "t3_start"]),
+    ("two", "Deny that request and tell it to try a smaller change.", LOADER, True, ["t3_deny", "t3_tell"]),
+    ("one", "Could you tell the shader cache thread, uh, to keep the old cache around?", LOADER, False, ["t3_tell"]),
+    ("ask", "Did it stop on its own?", LOADER, False, ["t3_ask"]),
+    ("ask", "Is it still stopped?", LOADER, False, ["t3_ask"]),
+]
+# Turns that must reach no thread at all, from what an unsure action once did: a stray "Yes, that one." with no question
+# open read as a message at 0.32 (docs/voice/spoken-acts.md).
+CONTROLS = [
+    ("none", "Yes, that one.", LOADER, False, []),
+    ("none", "Okay, thanks.", LOADER, False, []),
+    ("none", "Stop, I was talking to someone else.", LOADER, False, []),
+    ("none", "Sure, sounds right to me.", LOADER, False, []),
+    ("none", "Hmm, let me think about it.", LOADER, False, []),
+]
+SETS = ("seen", "held", "fresh", "review", "late", "controls")
+CASES = [(*case, name) for name, cases in zip(SETS, (SEEN, HELD, FRESH, REVIEW, LATE, CONTROLS)) for case in cases]
 
 
 def key(body: dict) -> str:
@@ -164,10 +207,16 @@ def decide(client, utterance: str, recent: str | None, waiting: bool) -> list[st
     routed = []
     for record in segmenter.records():
         tool = record.get("tool") or {}
-        if record["task_id"] not in dispatched or not tool.get("tool"):
+        # A superseded task was sent for a fragment of a longer request, and nothing it would say is said.
+        if record["task_id"] not in dispatched or record["status"] == "superseded" or not tool.get("tool"):
             continue
         sure = (tool.get("confidence") or 0) >= registry.TOOL_THRESHOLD
         if tool["tool"] in T3:
+            # What the task service then does with the pick: its own act, or a lookup. Code before `acts_on` turned an
+            # unsure act into a lookup in the record itself, so the margin alone decides there.
+            if ACTS_ON is not None:
+                sure = ACTS_ON(registry.ToolChoice(tool["tool"], tool.get("confidence") or 0), record["side_effect"],
+                               registry.TOOL_THRESHOLD)
             routed.append(tool["tool"] if sure else "t3_ask")
         elif sure and tool["tool"] != registry.NONE:
             routed.append(tool["tool"])
@@ -176,6 +225,24 @@ def decide(client, utterance: str, recent: str | None, waiting: bool) -> list[st
 
 def passes(want: list[str], routed: list[str]) -> bool:
     return sorted(want) == routed
+
+
+class Recorded:
+    """The decider, answering each request from one kept sample of one case, and only a request it kept."""
+
+    def __init__(self, answers: dict, row: dict, sample: int):
+        self.answers = answers.get(f"{row['set']}:{row['utterance']}", {}).get(str(sample), {})
+
+    def call(self, route, body, label=""):
+        answer = self.answers.get(key(body))
+        if answer is None:
+            raise KeyError("no recorded answer for this request: re-run voice.t3.eval.record_whole_requests")
+        return {"status": 200, "response": answer, "timing": {"ms": 0.0, "started_at": ""}}
+
+
+def replayed(answers: dict, row: dict) -> list[list[str]]:
+    return [decide(Recorded(answers, row, n), row["utterance"], row["recent"], row["waiting"])
+            for n in range(len(row["routed"]))]
 
 
 class Sampling:
@@ -213,8 +280,14 @@ def main() -> int:
     parser.add_argument("--before", action="store_true", help="keep the routings only, under `before`")
     parser.add_argument("--samples", type=int, default=3)
     parser.add_argument("--missing", action="store_true", help="run only the cases with no row yet, and keep the rest")
+    parser.add_argument("--replay", action="store_true", help="route the kept answers again with no call")
     args = parser.parse_args()
     stored = json.loads(FIXTURE.read_text(encoding="utf-8")) if FIXTURE.exists() else {}
+    if args.replay:
+        stored["rows"] = [{**row, "routed": replayed(stored["answers"], row)} for row in stored["rows"]]
+        FIXTURE.write_bytes((json.dumps(stored, separators=(",", ":")) + "\n").encode("utf-8"))
+        print("\n".join(summary(stored["rows"])))
+        return 0
     section = "before" if args.before else "rows"
     kept = {(r["utterance"], r["set"]): r for r in stored.get(section, [])} if args.missing else {}
     answers, rows = dict(stored.get("answers", {})) if args.missing and not args.before else {}, []

@@ -70,8 +70,11 @@ JOIN_CRITERIA = {
     "true": "Together they ask for one thing: one says which work or thread it is about and the other what to do or "
             "find out, or one leads into, adds a detail to, or finishes the request the other makes. One of them may "
             "ask for nothing on its own.",
-    "false": "Each asks for something of its own, even about the same thread; or one changes or takes back the other; "
-             "or one is only thanks, a greeting or a reaction."}
+    "false": "Each asks for something of its own, even about the same thread, such as two threads started, or one "
+             "request answered and then a thread told something; or one changes or takes back the other; or one is "
+             "only thanks, a greeting or a reaction."}
+# A bar alone cannot part two actions from one hesitant request: their cuts read 0.23 to 0.69 and 0.56 to 0.71
+# (voice/t3/eval/record_whole_requests.py). The `false` line's two-action examples do it, at 0.5.
 JOIN_YES = 0.5
 I_MEAN = re.compile(r"\bi mean\b", re.IGNORECASE)
 MAX_DRAIN = 4
@@ -492,7 +495,7 @@ class HybridSegmenter:
         cursor = proposal.cursor
         if cursor in joined:
             # The last committed piece is the start of the request the next piece finishes: read it again with it.
-            self.committed.pop()
+            self.orch.rejoin(self.ws[self.committed.pop().w0].start)
             committed, cursor, k = committed[:-1], self.cursor, k - 1
         revised = Proposal(update.text, self.ws, cursor, soft, self._spans())
         same = 0 if cursor != proposal.cursor else next(

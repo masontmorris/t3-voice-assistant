@@ -247,6 +247,8 @@ class LiveServerTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(CALLS[0][9], "gated", "the live turn keeps the default gated pipeline")
         self.assertEqual(CALLS[0][0], "c", "gated injects the snapshot as in c")
         self.assertEqual(CALLS[0][7], "hybrid", "gated needs the hybrid segmenter")
+        self.assertIs(CALLS[0][-1]["final_decider"], True,
+                      "live mode, so the segmenter asks whether a cut falls inside one request (`conversation_mode`)")
         self.assertTrue((Path(self.tmp.name) / "turn_001.json").is_file())
         await ws.close()
 
