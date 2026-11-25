@@ -1128,16 +1128,18 @@ READER_VARIANTS = {
     (Kind.CONFIRM_RESPOND, "kind_only"): ({"thread": "Example Archive Old Invoices", "decision": "approve",
                                           "need": "command_approval"},
                                          "Should I approve Example Archive Old Invoices running a command?"),
+    # Opens on "Should I approve it": asked right after the caller said to approve, the call's voice opened on those
+    # words wherever the line put them, so its recital refused a line that put them last (docs/voice/spoken-acts.md).
     (Kind.CONFIRM_RESPOND, "kind_only_begun_for"): ({"begun_in": "Example Fleet Notes",
                                                     "begun_for": "sorting the fleet log by date", "decision": "approve",
                                                     "need": "command_approval"},
-                                                   "The thread you started in Example Fleet Notes for sorting the "
-                                                   "fleet log by date is waiting for your approval to run a command. "
-                                                   "Should I approve it?"),
+                                                   "Should I approve it for the thread you started in Example Fleet "
+                                                   "Notes for sorting the fleet log by date, which is waiting for your "
+                                                   "approval to run a command?"),
     (Kind.CONFIRM_RESPOND, "kind_only_begun"): ({"begun_in": "Example Fleet Notes", "decision": "approve",
                                                 "need": "command_approval"},
-                                               "The thread you started in Example Fleet Notes is waiting for your "
-                                               "approval to run a command. Should I approve it?"),
+                                               "Should I approve it for the thread you started in Example Fleet "
+                                               "Notes, which is waiting for your approval to run a command?"),
     (Kind.CONFIRM_RESPOND, "kind_only_on_call"): ({"on_call": True, "decision": "approve", "need": "command_approval"},
                                                  "Should I approve this thread's request to run a command?"),
     (Kind.CONFIRM_RESPOND, "tool"): ({"thread": "Example Mend Rail Maps", "decision": "approve", "need": "permission",
