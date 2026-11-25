@@ -156,6 +156,9 @@ const layerCountedRestore = Layer.effect(
         yield* Ref.update(restores.threadIds, (ids) => [...ids, thread.id]);
         yield* Effect.flatten(Ref.get(restores.during));
       }),
+      takeRecreated: Effect.fn("test.ThreadWorktreeRestore.takeRecreated")(function () {
+        return Effect.undefined;
+      }),
     };
   }),
 );
