@@ -249,6 +249,17 @@ def asks(acts: Iterable[Act]) -> list[Ask]:
             out.append(Ask(f"a{n}_begun_for", f'Does the line say what the thread was started for, as: "{account}"?',
                            True, f"the line left out what the thread was started for: \"{account}\". Say that, in "
                            "your own words, to tell it from the other thread started in the same project."))
+    # A request held behind an earlier one of the same breath is asked after that one is answered. Worded like it, the
+    # caller cannot tell the two questions apart.
+    for n, a in enumerate(acts, 1):
+        if a.slots.get("another"):
+            out.append(Ask(f"a{n}_another", "Does the line say in words that this is another or a second request, "
+                           "apart from the one the person has just answered, rather than only asking the question?", True,
+                           "the line asks as if it were the first question. Say that this is another request, apart "
+                           "from the one just answered."))
+        if about := a.slots.get("about"):
+            out.append(Ask(f"a{n}_about_request", f'Does the line say what the request is about, as: "{about}"?', True,
+                           f'the line left out what the request is about: "{about}". Say that, in your own words.'))
     # A request is described only from `request`, which the approval gate passed against the stored request. A thread
     # that has none is told only by the kind of thing it waits for.
     # An approval asked with no description of the request is told by its kind alone, as a thread's need is.
@@ -473,13 +484,17 @@ class Decider:
     lock: threading.Lock = field(default_factory=threading.Lock)
     calls: int = 0
 
-    def verify(self, acts: Iterable[Act], line: str) -> Verdict:
+    def verify(self, acts: Iterable[Act], line: str, *, fresh: bool = False) -> Verdict:
+        """The decider's verdict on `line` for `acts`. The hosted decider keeps the first answer it gave for a request
+        and serves it again, so a line it refused once is refused every time it is asked about. `fresh` is for the one
+        line that was refused and came back: it asks again and takes the new answer."""
         acts = list(acts)
         started = time.perf_counter()
         try:
             with self.lock:
                 self.calls += 1
-                record = self.client.call("decisions", request(acts, line), label="t3_line")
+                record = self.client.call("decisions", request(acts, line), label="t3_line",
+                                          **({"fresh": True} if fresh else {}))
         except Exception as exc:
             # A spend or billing stop, a timeout, or a dropped connection: the line is not spoken on it.
             return Verdict(False, ms=_ms(started), error=f"{type(exc).__name__}: {exc}")

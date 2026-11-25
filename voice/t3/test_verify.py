@@ -264,6 +264,20 @@ class LineCheck(unittest.TestCase):
         self.assertIn(("a1_summary", True), [(a.name, a.want) for a in again],
                       "a status said again still passes on what the thread reported")
 
+    def test_a_request_held_behind_another_must_be_worded_as_another_and_as_what_it_is_about(self):
+        first = asks([act(Kind.CONFIRM_LAUNCH, project="Alpha")])
+        second = asks([act(Kind.CONFIRM_LAUNCH, project="Alpha", another=True, about="speeding up the loader")])
+        self.assertFalse({"a1_another", "a1_about_request"} & {a.name for a in first},
+                         "the first question is asked as it always was")
+        self.assertIn(("a1_another", True), [(a.name, a.want) for a in second])
+        about = next(a for a in second if a.name == "a1_about_request")
+        self.assertTrue(about.want)
+        self.assertIn("speeding up the loader", about.question)
+        self.assertIn("another request", next(a for a in second if a.name == "a1_another").fix)
+        unnamed = asks([act(Kind.CONFIRM_LAUNCH, project="Alpha", another=True)])
+        self.assertIn("a1_another", {a.name for a in unnamed})
+        self.assertNotIn("a1_about_request", {a.name for a in unnamed}, "with no account it is not asked what it is about")
+
     def test_an_unnamed_cancellation_cannot_name_a_thread(self):
         acts = (act(Kind.CANCELLED, op="start"),)
 
@@ -289,6 +303,22 @@ class LineCheck(unittest.TestCase):
         self.assertFalse(rate_limited.verify(stop, "Want me to stop Alpha?").passed)
         unanswered = Decider(type("Empty", (), {"call": lambda self, *a, **k: {"status": 200, "response": {}}})())
         self.assertFalse(unanswered.verify(stop, "Want me to stop Alpha?").passed)
+
+    def test_a_fresh_reading_is_asked_of_the_client_only_when_a_line_asks_for_one(self):
+        class Records:
+            def __init__(self):
+                self.kwargs = []
+
+            def call(self, route, body, label="", **kwargs):
+                self.kwargs.append(kwargs)
+                return Recorded().call(route, body, label)
+
+        row = next(r for r in FIXTURE if r["should_pass"])
+        client = Records()
+        decider = Decider(client)
+        decider.verify(acts_of(row), row["line"])
+        decider.verify(acts_of(row), row["line"], fresh=True)
+        self.assertEqual(client.kwargs, [{}, {"fresh": True}])
 
     def test_a_decider_timeout_sends_the_line_to_the_fallback_never_to_speech(self):
         class Text:

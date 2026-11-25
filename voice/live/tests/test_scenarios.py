@@ -82,6 +82,43 @@ class TwoRequests(unittest.TestCase):
         self.assertEqual(failed(plan.check(call(never))), ["the message was confirmed back about its thread"])
 
 
+class TwoLaunches(unittest.TestCase):
+    ASKED = "Should I start a new coding thread in Voice sandbox?"
+    OTHER = "Should I also start a second new coding thread in Voice sandbox?"
+
+    def run_call(self, first, second, made=2, asked=True):
+        plan = S.two_launches(S.Pool())
+        plan.notes.update(first=True, second=asked)
+
+        def said(index, draft, another):
+            entry = {"kinds": [Kind.CONFIRM_LAUNCH], "threads": [], "delivery": "sent", "draft": draft,
+                     "draft_problems": [], "reply": "", "status": None, "relays": 1, "another": another}
+            return dataclasses.replace(turn(index), t3=(entry,), first_audio_s=1.0)
+
+        turns = [said(0, *first), *([said(1, *second)] if second else [])]
+        world = {"seeded": {}, "made": {f"t{i}": {"title": "Example"} for i in range(made)}}
+        return failed(plan.check(call(turns, world)))
+
+    def test_the_second_question_must_be_another_request_in_other_words(self):
+        self.assertEqual(self.run_call((self.ASKED, False), (self.OTHER, True)), [])
+
+    def test_the_fault_the_scenario_reproduces_fails_on_each_of_its_checks(self):
+        same = self.run_call((self.ASKED, False), (self.ASKED, False))
+        self.assertEqual(same, ["the second question is marked as another request",
+                                "the two questions are worded differently"])
+        marked_only = self.run_call((self.ASKED, False), (self.ASKED, True))
+        self.assertEqual(marked_only, ["the two questions are worded differently"])
+        worded_only = self.run_call((self.ASKED, False), (self.OTHER, False))
+        self.assertEqual(worded_only, ["the second question is marked as another request"])
+        self.assertEqual(self.run_call((self.ASKED, True), (self.OTHER, True)),
+                         ["the first question is not marked"])
+
+    def test_a_call_that_never_asked_the_second_launch_or_started_one_fails(self):
+        self.assertIn("the second launch was asked after the first answer",
+                      self.run_call((self.ASKED, False), None, made=1, asked=False))
+        self.assertIn("each yes started one thread", self.run_call((self.ASKED, False), (self.OTHER, True), made=1))
+
+
 class Withdrawn(unittest.TestCase):
     def plan(self):
         return S.withdrawn(S.Pool())

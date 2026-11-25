@@ -121,8 +121,9 @@ class D1Client:
             self._conn.close()
             self._conn = None
 
-    def call(self, route, body, label=""):
-        """Ask every question in `body` and return a record shaped like the cloud client's cache record."""
+    def call(self, route, body, label="", fresh=False):
+        """Ask every question in `body` and return a record shaped like the cloud client's cache record. Nothing is
+        cached here, so every call is already `fresh`."""
         assert route == "decisions", route
         request = to_systemone(body)
         if self.set_size is not None:

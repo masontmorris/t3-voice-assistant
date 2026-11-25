@@ -7,7 +7,8 @@ from the server's own TTS, and after each the turn's checked line relayed throug
 (`run.say_acts`: two relays, then nothing). Idle news is relayed with no caller audio before it. A shape is what comes
 just before the scored relay: a yes to a confirmation and its result, a thanks and the confirmation asked again, an
 approval asked for after the news of it (in two sentences as the writer worded it before 2026-11-24, or in one of
-four one-sentence forms, `FORMS`), a question about a status just said and that status again, or idle news. Each
+four one-sentence forms, `FORMS`), a question about a status just said and that status again, idle news, or the
+second of two launches asked in one breath, in one of three forms (`ANOTHER_FORMS`). Each
 shape has 15 calls (10 for a one-sentence form) that differ in thread, project, message and the caller's words: the
 voice's text is decoded greedily, so a shape is many different calls rather than repeats of one; the caller audio and
 the reply's audio codes are still sampled afresh, so a rerun of one call can differ. A relay recites on the first try, on the
@@ -126,6 +127,48 @@ def approval(i: int, form: str) -> list:
              f"Should I approve {thread} running a command?", "approve")]
 
 
+# How the second of two requests asked in one breath is worded, by shape: the kind of request and the line. It is
+# relayed right after the first request's result, in the same turn as the caller's yes.
+ANOTHER_FORMS = {
+    "another-for": ("launch", "For the other thing you asked, should I start a new coding thread in {project} for "
+                              "{purpose}?"),
+    "another-also": ("launch", "Should I also start a second new coding thread in {project}, for {purpose}?"),
+    "another-other": ("launch", "Should I start the other new coding thread you asked for in {project}, for "
+                                "{purpose}?"),
+    "another-tell-also": ("tell", "Should I also send '{message}' to {thread} as a follow-up?"),
+    "another-stop-also": ("stop", "Should I also stop {thread}?"),
+    "another-thread-for": ("thread", "Do you mean the thread called {thread} for the other thing you asked?"),
+    "another-which-for": ("which", "Which thread do you mean for the other thing you asked, {thread} or {other}?"),
+}
+
+
+def another(i: int, form: str) -> list:
+    """Two requests in one breath: the first is asked and said yes to, and the second question is relayed in the turn
+    that answers the first, after its result."""
+    kind, line = ANOTHER_FORMS[form]
+    project, purpose = PROJECTS[i % 5]
+    thread, other, message = THREADS[i % 5], THREADS[(i + 1) % 5], MESSAGES[i % 5]
+    first = {"launch": (act(Kind.CONFIRM_LAUNCH, project=project), f"Should I start a new coding thread in {project}?",
+                        act(Kind.LAUNCHED, project=project), f"A new coding thread has started in {project}."),
+             "tell": (act(Kind.CONFIRM_TELL, thread=other, message=message),
+                      f"Should I send '{message}' to {other} as a follow-up?",
+                      act(Kind.SENT_FOLLOWUP, thread=other), f"Your follow-up reached {other}."),
+             "stop": (act(Kind.CONFIRM_STOP, thread=other), f"Should I stop {other}?",
+                      act(Kind.STOPPING, thread=other), f"I'm stopping {other} now."),
+             }.get(kind) or (act(Kind.CONFIRM_STOP, thread=other), f"Should I stop {other}?",
+                             act(Kind.STOPPING, thread=other), f"I'm stopping {other} now.")
+    second = {"launch": act(Kind.CONFIRM_LAUNCH, project=project, another=True, about=purpose),
+              "tell": act(Kind.CONFIRM_TELL, thread=thread, message=message, another=True),
+              "stop": act(Kind.CONFIRM_STOP, thread=thread, another=True),
+              "thread": act(Kind.CONFIRM_THREAD, thread=thread, another=True),
+              "which": act(Kind.ASK_WHICH, of="thread", candidates=[thread, other], another=True)}[kind]
+    ask = (f"Uhm, I was wondering if you could do something for, uhm, {purpose}? Can you kick that off?"
+           f" And, uhm, do something else too.")
+    return [(ask, first[0], first[1], "request"), (YES[i % 3], first[2], first[3], "yes"),
+            (None, second, line.format(project=project, purpose=purpose, thread=thread, other=other,
+                                       message=message), "another")]
+
+
 def calls() -> list[tuple[str, list]]:
     """(shape, steps) per call. A step is (caller words or None for idle news, acts, line, label)."""
     out = []
@@ -138,6 +181,7 @@ def calls() -> list[tuple[str, list]]:
         thread = THREADS[i % 5]
         need = act(Kind.NEEDS_YOU, thread=thread, need="command_approval")
         working = act(Kind.THREAD_STATUS, thread=thread, status="working")
+        out.extend((form, another(i, form)) for form in ANOTHER_FORMS if i < 10)
         out.append(("question", [(f"How is the {thread.lower()} thread going?", working,
                                   f"The {thread} thread is working.", "request"),
                                  (QUESTIONS[i // 5], working, f"The {thread} thread is still working.", "question")]))
@@ -306,7 +350,7 @@ def main(argv=None) -> int:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--port", type=int, default=8095)
     parser.add_argument("--arms", nargs="+", default=list(ARMS), choices=list(ARMS))
-    shapes = ["yes", "thanks", *FORMS, "question", "idle"]
+    shapes = ["yes", "thanks", *FORMS, "question", "idle", *ANOTHER_FORMS]
     parser.add_argument("--shapes", nargs="+", default=shapes, choices=shapes)
     return asyncio.run(main_async(parser.parse_args(argv)))
 

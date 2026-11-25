@@ -41,7 +41,7 @@ from voice.live import rehearse as R
 from voice.live.rehearse import Say, WaitNews
 from voice.live.scenario_score import Call, Judge, Result, Turn, Verdict, median_audio, turn_of
 from voice.live.scenario_world import Seed, World, finished, pending
-from voice.t3.acts import Kind
+from voice.t3.acts import Kind, normalise
 from voice.t3.journal import launch_title
 from voice.t3.verify import default_decider
 
@@ -90,13 +90,22 @@ EVEN_TWINS = (
     ("loading tips", "Shorten the Loading Tips for Mobile", "Shorten the Loading Tips for Desktop"),
     ("save icon", "Animate the Save Icon in Menus", "Animate the Save Icon in Levels"))
 CITIES = ("Denver", "Seattle", "Chicago", "Portland", "Atlanta", "Boston", "Austin", "Phoenix")
+# Two threads asked for in one breath, each said as a request of its own.
+PAIRS = (
+    "Please start a thread to speed up the shader compile step, and also start another thread to clean up the save "
+    "slot writer.",
+    "Could you start a thread to fix the minimap zoom, and then start a second thread to trim the intro video?",
+    "Start a thread to profile the asset loader, and start another one to tidy the log output.",
+    "I need a thread to add a photo mode, and I need another thread to fix the footstep sounds.",
+    "Please open a thread to polish the main menu, and open another thread to batch the sprite draws.",
+    "Start one thread to tune the camera shake and start one more thread to sort the inventory icons.")
 
 
 class Pool:
     """Hands out each name, twin pair, request and city once, so a repeated run never meets a thread of an earlier one."""
 
     def __init__(self):
-        self.used = {"single": 0, "twin": 0, "even_twin": 0, "request": 0, "city": 0}
+        self.used = {"single": 0, "twin": 0, "even_twin": 0, "request": 0, "city": 0, "pair": 0}
 
     def _next(self, kind: str, items: tuple):
         i = self.used[kind]
@@ -119,6 +128,9 @@ class Pool:
 
     def city(self) -> str:
         return self._next("city", CITIES)
+
+    def pair(self) -> str:
+        return self._next("pair", PAIRS)
 
 
 @dataclass
@@ -727,6 +739,43 @@ def two_requests(pool: Pool) -> Plan:
     return Plan((finished(first), finished(second)), lines, script(), check)
 
 
+# Two launches in one breath are asked one at a time, and the second question is not the first said again: it is another
+# request, said as one, so the caller can tell which of the two their yes answers.
+def two_launches(pool: Pool) -> Plan:
+    lines = {"both": pool.pair(), "yes": "Yes.", "yes_again": "Yeah."}
+    notes = {"first": False, "second": False}
+
+    def script():
+        heard = yield Say("both")
+        notes["first"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+        if notes["first"]:
+            heard = yield Say("yes")
+            notes["second"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+            if notes["second"]:
+                yield Say("yes_again")
+
+    def check(call: Call) -> list[Verdict]:
+        turns = call.caller_turns()
+        asked = [(t, e) for t in turns for e in t.t3 if e["delivery"] == "sent" and Kind.CONFIRM_LAUNCH in e["kinds"]]
+        first, second = (asked + [(None, None)] * 2)[:2]
+        reached = ok("the first launch was asked about", notes["first"], "no launch confirmation was said", 0)
+        out = [ok("the second launch was asked after the first answer", notes["second"] and len(asked) == 2,
+                  f"{len(asked)} launch questions were said", 1),
+               ok("the second question is marked as another request", bool(second[1] and second[1].get("another")),
+                  "its act does not say it is another request", second[0].index if second[0] else None),
+               ok("the first question is not marked", bool(first[1]) and not first[1].get("another"),
+                  "the first question says it is another request", first[0].index if first[0] else None),
+               ok("the two questions are worded differently",
+                  bool(first[1] and second[1]) and normalise(first[1]["draft"] or "") != normalise(second[1]["draft"] or ""),
+                  "both questions were said in the same words", second[0].index if second[0] else None),
+               ok("each yes started one thread", len(call.world["made"]) == 2,
+                  f"{len(call.world['made'])} threads were started")]
+        return [reached, *(requires(v, reached.ok, "precondition: the first launch was not asked about",
+                                    blocked_by=reached.check) for v in out)]
+
+    return Plan((), lines, script(), check, notes=notes)
+
+
 # A thanks is not a yes: asked to confirm a start, the caller thanks the assistant, nothing starts and the question is
 # put once more, and only the yes after it starts the thread.
 def thanks_not_yes(pool: Pool) -> Plan:
@@ -936,6 +985,8 @@ SCENARIOS = (
     Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
     Scenario("thanks-not-yes", "a thanks to a confirm question starts nothing, and the yes after it does",
              thanks_not_yes, 2, 1, fresh=True),
+    Scenario("two-launches", "a second launch asked in the same breath is asked as another request, in other words",
+             two_launches, 2, 1, long=True, fresh=True),
     Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
     Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),
     Scenario("questioning-yes", "a yes the recogniser transcribes as a question answers the confirm question",

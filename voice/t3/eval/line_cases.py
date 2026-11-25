@@ -318,6 +318,25 @@ HELD_OUT = [
 APP_THREAD_REFERENCES.update({clipped(request): ref for ref, (request, _) in HELD_OUT_REQUESTS.items()})
 LAUNCH_TITLES.update({clipped(request): ref for ref, (request, _) in HELD_OUT_REQUESTS.items()})
 
+# The second question of a request held behind another one of the same breath. Each is worded beside its twin, the same
+# act without `another`, which is what the first question says: the caller can tell the two apart only when they differ.
+ANOTHER_REQUEST = [
+    act(Kind.CONFIRM_LAUNCH, project="Pebble Garden", another=True, about="speeding up the shader compile step"),
+    act(Kind.CONFIRM_LAUNCH, project="Ferry Times", another=True, about="cleaning up the save slot writer"),
+    act(Kind.CONFIRM_LAUNCH, project="Quilt Maker", another=True, about="a photo mode for the gallery"),
+    act(Kind.CONFIRM_LAUNCH, project="Moss Notes", another=True),
+    act(Kind.CONFIRM_LAUNCH, project="Kite Planner", another=True),
+    act(Kind.CONFIRM_TELL, thread="Tidy the tide table export", message="keep the date column first", another=True),
+    act(Kind.CONFIRM_TELL, thread="Rename the orchard sync job", message="skip the archive folder", another=True),
+    act(Kind.CONFIRM_STOP, thread="Rename the orchard sync job", another=True),
+    act(Kind.CONFIRM_STOP, thread="Speed up the loom importer", another=True),
+    act(Kind.CONFIRM_THREAD, thread="Lantern app: fix the dimmer slider", another=True),
+    act(Kind.CONFIRM_THREAD, thread="Sort the seed catalogue", another=True),
+    act(Kind.ASK_WHICH, of="project", candidates=["Moss Notes", "Kite Planner"], another=True),
+    act(Kind.ASK_WHICH, of="thread", candidates=["Trim the harbour map tiles", "Trim the harbour map labels"],
+        another=True),
+]
+
 GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_status_summary": SUMMARY,
           "status_without_summary": STATUS_WITHOUT_SUMMARY,
           "done_summary": DONE, "done_stopped": DONE_STOPPED, "needs_the_app_need": NEEDS_THE_APP_NEED, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
@@ -326,7 +345,7 @@ GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_stat
           "needs_with_command": NEEDS_WITH_COMMAND, "launch_needs_you": LAUNCH_NEEDS,
           "launch_status_waiting": LAUNCH_STATUS, "launch_confirm_thread": LAUNCH_CONFIRM_THREAD,
           "no_thread_other": NO_THREAD_OTHER, "held_out_launch": HELD_OUT, "held_out_shapes": HELD_OUT_SHAPES,
-          "call_thread": CALL_THREAD}
+          "call_thread": CALL_THREAD, "another_request": ANOTHER_REQUEST}
 
 
 REQUESTS_BY_TITLE = {clipped(request): request for request in

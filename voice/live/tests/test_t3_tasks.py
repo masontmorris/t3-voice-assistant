@@ -456,6 +456,15 @@ class Retries(unittest.TestCase):
         restored = L.Update.from_json(json.loads(json.dumps(update.to_json())))
         self.assertEqual((restored.tries, restored.refused), (2, (refused,)), "a restart keeps counting")
 
+    def test_what_each_route_wrote_is_kept_as_refused_so_either_one_repeating_is_read_again(self):
+        t3 = worded(tasks_over(self, F.FakeSeam()), FakeText())
+        t3.speech.writer = Lane(type("Writer", (), {"model": "fake/text:free",
+                                                    "complete": lambda self, messages: {"text": "I've stopped Add a clamp helper."}})())
+        t3.speech.lane = Lane(Wordings("It was stopped."))
+        update = L.Update("k1", (act(S.CONFIRM_STOP, thread="Add a clamp helper"),), "needs_clarification")
+        self.assertIsNone(t3.say(update).line)
+        self.assertEqual(set(update.refused), {"I've stopped Add a clamp helper.", "It was stopped."})
+
 
 class RefusesReplies(FakeText):
     """The text model, except that every wording of a replied act fails the slot check, so it waits."""
@@ -1365,6 +1374,70 @@ class Authorization(unittest.TestCase):
         self.assertEqual(len(seam.ops("interrupt")), 1)
         self.say_yes(t3, 3, "Yes, send it.")
         self.assertEqual((len(seam.ops("interrupt")), len(seam.ops("send"))), (1, 1), "each yes acted once")
+
+
+    def two_launches(self, accounts=None):
+        """Turn 1 asks to start two threads in one breath: the first is asked and the second held behind it."""
+        seam = F.FakeSeam()
+        t3 = tasks_over(self, seam)
+        t3.begin_call()
+        if accounts is not None:
+            t3.speech.account = lambda launch: accounts.get(launch.instruction)
+        records = [{"task_id": f"task_{i}", "instruction": words, "status": "dispatched", "depends_on": [],
+                    "side_effect": True, "sources": ["orchestrator"], "history": [], "tool": {"tool": START,
+                                                                                               "confidence": 0.9}}
+                   for i, words in enumerate(("Start a thread to fix the flaky test.",
+                                              "Start a thread to speed up the loader."), 1)]
+        service = self.turn(t3, 1, records)
+        service.sync(0)
+        first, second = service.snapshot("utt_1", "...")["tasks"]
+        service.record_delivery(first, "sent")
+        service.close()
+        return seam, t3, first, second
+
+    def test_a_second_launch_of_one_breath_is_asked_as_another_and_the_first_is_not(self):
+        seam, t3, first, second = self.two_launches()
+        self.assertEqual(first["acts"], [{"kind": "confirm_launch", "slots": {"project": "Voice sandbox"}}])
+        self.assertNotIn("acts", second, "the second launch waits behind the first question")
+        turn = self.turn(t3, 2)
+        turn.answer(turn.open_question(), "Yes.", 1)
+        lines = [e for e in turn.snapshot("utt_1", "Yes.")["tasks"] if e.get("acts")]
+        self.assertEqual([[a["kind"] for a in e["acts"]] for e in lines], [["launched"], ["confirm_launch"]])
+        self.assertEqual(lines[1]["acts"][0]["slots"], {"project": "Voice sandbox", "another": True})
+        self.assertEqual(t3.pending_act(t3.question).slots.get("another"), True,
+                         "asked again after a thanks, it is still the other request")
+
+    def test_the_second_question_carries_what_it_is_about_when_the_gate_passes_an_account_of_it(self):
+        _, t3, _, _ = self.two_launches({"Start a thread to speed up the loader.": "speeding up the loader"})
+        turn = self.turn(t3, 2)
+        turn.answer(turn.open_question(), "Yes.", 1)
+        update = t3.unasked
+        self.assertEqual(update.acts[0].slots, {"project": "Voice sandbox", "another": True})
+        t3.lane = Lane(FakeText())
+        t3.speech = Speech(t3.lane, t3._read_quiet, F.Agree(), gate=FakeGate())
+        t3.speech.account = lambda launch: "speeding up the loader"
+        t3.say(update)
+        self.assertEqual(update.acts[0].slots["about"], "speeding up the loader")
+        self.assertEqual(update.acts[0].slots["another"], True)
+
+    def test_a_second_question_with_no_account_says_only_that_it_is_another(self):
+        _, t3, _, _ = self.two_launches({})
+        turn = self.turn(t3, 2)
+        turn.answer(turn.open_question(), "Yes.", 1)
+        update = t3.unasked
+        t3.lane = Lane(FakeText())
+        t3.speech = Speech(t3.lane, t3._read_quiet, F.Agree(), gate=FakeGate())
+        t3.speech.account = lambda launch: None
+        t3.say(update)
+        self.assertEqual(update.acts[0].slots, {"project": "Voice sandbox", "another": True})
+
+    def test_a_held_message_and_a_held_stop_are_asked_as_another_too(self):
+        seam, t3 = self.held_turn(self.MESSAGE)
+        turn = self.turn(t3, 2)
+        turn.answer(turn.open_question(), "No.", 1)
+        lines = [e for e in turn.snapshot("utt_1", "No.")["tasks"] if e.get("acts")]
+        self.assertEqual([[a["kind"] for a in e["acts"]] for e in lines], [["cancelled"], ["confirm_tell"]])
+        self.assertTrue(lines[1]["acts"][0]["slots"].get("another"))
 
 
 class Rejoined(unittest.TestCase):

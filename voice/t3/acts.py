@@ -212,6 +212,11 @@ for _kind, _rule in list(RULES.items()):
     if "thread" in _rule.slots:
         RULES[_kind] = replace(_rule, slots=(*_rule.slots, "begun_in", "begun_for", "on_call"),
                                named=(*_rule.named, "begun_in") if "thread" in _rule.named else _rule.named)
+# A request of one breath that is held behind another's question is asked once that one is answered. Its question is
+# marked `another` and, for a launch, says what it is `about`, or it would be worded exactly like the question before
+# it, and the caller could not tell the two apart.
+for _kind in (Kind.CONFIRM_LAUNCH, Kind.CONFIRM_THREAD, Kind.CONFIRM_TELL, Kind.CONFIRM_STOP, Kind.ASK_WHICH):
+    RULES[_kind] = replace(RULES[_kind], slots=(*RULES[_kind].slots, "another", "about"))
 QUESTIONS = frozenset(kind for kind, rule in RULES.items() if rule.question)
 # A status asked again on a call with nothing new in T3's record since the last one was said: the line says so rather
 # than offering the same status as news.

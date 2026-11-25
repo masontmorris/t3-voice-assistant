@@ -199,7 +199,7 @@ class Agree:
 
     calls = 0
 
-    def verify(self, acts, line):
+    def verify(self, acts, line, *, fresh=False):
         self.calls += 1
         return Verdict(True)
 

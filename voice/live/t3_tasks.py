@@ -204,6 +204,9 @@ class Question:
     expired: bool = False
     # Asked once more after a reply that only thanked, or that may have been a yes; a second such reply drops it.
     reasked: bool = False
+    # A request of the turn that was held behind another's question and is asked now that it is answered: its acts say
+    # so, so it is not worded as the one before it.
+    another: bool = False
 
 
 # The questions that ask for a yes before something is done.
@@ -817,6 +820,9 @@ class T3Tasks:
                 self._said_not_asked()
                 return
             self.queued.append((key, op, instruction, behind))
+            if op == START:
+                # What it is about is said when it is asked, so it starts now, while the first question is answered.
+                self.speech.start_account(Launch(key, instruction, ""))
 
     def next_queued(self, answered: str) -> tuple[str, str, str] | None:
         """The next request held behind the question `answered`, now that it is answered and no other is open. The
@@ -880,8 +886,9 @@ class T3Tasks:
     def project_names(self) -> dict[str, str]:
         return {p.project_id: p.name for p in self.follow.seam.hello.projects}
 
-    def start(self, key: str, instruction: str, now: float) -> L.Update:
-        """Twin A, first turn: pick the project and ask. Nothing is launched until a yes."""
+    def start(self, key: str, instruction: str, now: float, another: bool = False) -> L.Update:
+        """Twin A, first turn: pick the project and ask. Nothing is launched until a yes. `another` is a launch held
+        behind an earlier request of the turn, asked after that one's question was answered."""
         with self.lock:
             down = self._down(key, now)
             if down is not None:
@@ -895,15 +902,15 @@ class T3Tasks:
                 self._drop_question()
                 return L.Update(key, (act(Say.NO_PROJECT),), "failed", "pick", sequences=hello_seq)
             if len(candidates) == 1:
-                return self._confirm(Question(key, "confirm", instruction, candidates), names)
-            self._ask(Question(key, "project", instruction, candidates))
-            return L.Update(key, (which_project(candidates, names),), "needs_clarification", "pick",
-                            sequences=hello_seq)
+                return self._confirm(Question(key, "confirm", instruction, candidates, another=another), names)
+            question = self._ask(Question(key, "project", instruction, candidates, another=another))
+            return L.Update(key, (self._marked(question, which_project(candidates, names)),), "needs_clarification",
+                            "pick", sequences=hello_seq)
 
     def _confirm(self, question: Question, names: dict[str, str]) -> L.Update:
         question = self._ask(question)
         project_id = question.candidates[0]
-        said = act(Say.CONFIRM_LAUNCH, project=names[project_id])
+        said = self._marked(question, act(Say.CONFIRM_LAUNCH, project=names[project_id]))
         return L.Update(question.key, (said,), "needs_clarification", "pick",
                         sequences=(self.follow.seam.hello.latest_sequence,), project_id=project_id)
 
@@ -912,17 +919,24 @@ class T3Tasks:
         names = self.project_names() if self.follow.seam is not None else {}
         if question.kind == "confirm":
             name = names.get(question.candidates[0])
-            return act(Say.CONFIRM_LAUNCH, project=name) if name else None
+            return self._marked(question, act(Say.CONFIRM_LAUNCH, project=name)) if name else None
         if question.kind == "project":
-            return which_project(question.candidates, names)
+            return self._marked(question, which_project(question.candidates, names))
         if question.kind == "thread_confirm":
-            return confirm_act(question.op, question.titles[question.candidates[0]], question.message, question.need,
-                               LS.tool_name(question.source, question.prompt))
+            return self._marked(question, confirm_act(question.op, question.titles[question.candidates[0]],
+                                                      question.message, question.need,
+                                                      LS.tool_name(question.source, question.prompt)))
         if question.kind == "answer":
             return self._question_act(question)
         if question.kind == "answer_confirm":
             return self._confirm_answers_act(question)
-        return act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
+        return self._marked(question, act(Say.ASK_WHICH, of="thread",
+                                          candidates=[question.titles[t] for t in question.candidates]))
+
+    @staticmethod
+    def _marked(question: Question, said: Act) -> Act:
+        """`said` as the question of a request held behind an earlier one, when that is what `question` is."""
+        return said.with_slots(another=True) if question.another and "another" in RULES[said.kind].slots else said
 
     def alternatives(self, question: Question) -> dict[str, str]:
         """What a reply could be choosing, as name to id: the other projects for a launch question, and the listed
@@ -1047,8 +1061,8 @@ class T3Tasks:
                 target = next(iter(others.values()))
             elif others:
                 question = self._ask(replace(question, kind="project", candidates=tuple(others.values())))
-                return L.Update(question.key, (which_project(question.candidates, names),), "needs_clarification",
-                                "pick", sequences=(self.follow.seam.hello.latest_sequence,))
+                return L.Update(question.key, (self._marked(question, which_project(question.candidates, names)),),
+                                "needs_clarification", "pick", sequences=(self.follow.seam.hello.latest_sequence,))
         if target is not None and (question.kind == "project" or (target,) != question.candidates):
             return self._confirm(replace(question, kind="confirm", candidates=(target,)), names)
         if reading.kind == "no":
@@ -1086,11 +1100,13 @@ class T3Tasks:
         update.handed = handed
         return update
 
-    def about(self, key: str, op: str, instruction: str, now: float) -> L.Update:
-        """List threads, pick a target, and ask the speaker to confirm or choose it."""
+    def about(self, key: str, op: str, instruction: str, now: float, another: bool = False) -> L.Update:
+        """List threads, pick a target, and ask the speaker to confirm or choose it. `another` is a request held behind
+        an earlier one of the turn, asked after that one's question was answered."""
         reference, message, _ = (tell_parts(instruction) if op == TELL else
                                  (_STOP_VERBS.sub(" ", instruction) if op == STOP else instruction, None, None))
-        update = self._refer(Question(key, "thread_confirm", instruction, (), op=op, message=message), reference, now)
+        update = self._refer(Question(key, "thread_confirm", instruction, (), op=op, message=message,
+                                      another=another), reference, now)
         return self._choose(update) if isinstance(update, Choose) else update
 
     def _refer(self, asked: Question, reference: str, now: float, without: str | None = None,
@@ -1247,8 +1263,8 @@ class T3Tasks:
         if question.op == ASK and self.lane is not None:
             # A yes reads this thread and says its summary: the summary starts now, so the yes does not wait for it.
             self.speech.prefetch(thread, question.instruction)
-        said = confirm_act(question.op, question.titles[thread], question.message, question.need,
-                           LS.tool_name(question.source, question.prompt))
+        said = self._marked(question, confirm_act(question.op, question.titles[thread], question.message, question.need,
+                                                  LS.tool_name(question.source, question.prompt)))
         return L.Update(question.key, (said,), "needs_clarification", "pick", thread, question.evidence)
 
     def _approval(self, question: Question, thread: str) -> Question | L.Update:
@@ -1289,7 +1305,8 @@ class T3Tasks:
         if len(question.candidates) == 1:
             return self._ask_back(replace(question, kind="thread_confirm"), evidence, now)
         question = self._ask(question)
-        said = act(Say.ASK_WHICH, of="thread", candidates=[question.titles[t] for t in question.candidates])
+        said = self._marked(question, act(Say.ASK_WHICH, of="thread",
+                                          candidates=[question.titles[t] for t in question.candidates]))
         return L.Update(question.key, (said,), "needs_clarification", "pick", sequences=evidence)
 
     def _answer_thread_confirm(self, question: Question, text: str, reading: Reading | None, now: float):
@@ -1607,6 +1624,7 @@ class T3Tasks:
         acts, read = self.speech.fill(update.acts, update.thread_id, update.sequences, self._asked_request(update))
         listing = self._listing()
         acts = self._offered(update, self._named(update, acts, listing), listing)
+        acts = self._about(update, acts)
         if update.tries and any("request" in a.slots for a in acts):
             # A new request to the writer: the refused wording carried the description, and it was copied back.
             acts, update.problems, update.refused = without_request(acts), (), ()
@@ -1615,6 +1633,17 @@ class T3Tasks:
         rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names(listing))
         refuse(update, rendered)
         return rendered
+
+    def _about(self, update: L.Update, acts: tuple[Act, ...]) -> tuple[Act, ...]:
+        """A launch held behind another request, asked now, says what it is about: the gated account of its own words,
+        the one a thread started from them is told by. With no account the question only says it is another."""
+        with self.lock:
+            question = self.question if self.question is not None and self.question.key == update.task_id else None
+        if question is None or question.op != START or not question.another:
+            return acts
+        todo = [a for a in acts if a.slots.get("another") and "about" in RULES[a.kind].slots and "about" not in a.slots]
+        about = self.speech.account(Launch(question.key, question.instruction, "")) if todo else None
+        return tuple(a.with_slots(about=about) if about and a in todo else a for a in acts)
 
     def _launched(self) -> tuple[Launch, ...]:
         """The threads this voice started on the person's request, in this call or an earlier one."""
@@ -1746,8 +1775,9 @@ def refuse(update: L.Update, rendered: Rendered) -> None:
     update.problems = tuple(rendered.problems or ([rendered.error] if rendered.error else []))
     if rendered.line is None:
         update.tries += 1
-        if rendered.raw and rendered.raw not in update.refused:
-            update.refused += (rendered.raw,)
+        for raw in rendered.tried or (rendered.raw,):
+            if raw and raw not in update.refused:
+                update.refused += (raw,)
 
 
 def _related(reading: Reading | Chosen | None) -> bool:
@@ -1983,7 +2013,8 @@ class T3TaskService(MockTaskService):
         while answered is not None and (held := self.t3.next_queued(answered)) is not None:
             # The next request of the turn that asked: its own question, asked now that the last one is answered.
             key, op, words = held
-            follow = self.t3.start(key, words, now) if op == START else self.t3.about(key, op, words, now)
+            follow = (self.t3.start(key, words, now, another=True) if op == START
+                      else self.t3.about(key, op, words, now, another=True))
             events.append(self._answered(follow, words, now, op))
             answered = key
         return events
