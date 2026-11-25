@@ -9,7 +9,8 @@ just before the scored relay: a yes to a confirmation and its result, a thanks a
 approval asked for after the news of it (in two sentences as the writer worded it before 2026-11-24, or in one of
 four one-sentence forms, `FORMS`), a question about a status just said and that status again, or idle news. Each
 shape has 15 calls (10 for a one-sentence form) that differ in thread, project, message and the caller's words: the
-voice decodes greedily, so the same call gives the same reply every time. A relay recites on the first try, on the
+voice's text is decoded greedily, so a shape is many different calls rather than repeats of one; the caller audio and
+the reply's audio codes are still sampled afresh, so a rerun of one call can differ. A relay recites on the first try, on the
 second, or falls back, by the live recital check (`recites`). An arm is the relay note's wording, or a text-only
 answer to the audio before the relay. Results: docs/voice/spoken-acts.md.
 """
