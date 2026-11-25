@@ -1630,7 +1630,8 @@ class T3Tasks:
             acts, update.problems, update.refused = without_request(acts), (), ()
         update.acts = acts
         update.sequences = tuple(dict.fromkeys((*update.sequences, *read)))
-        rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries, known_names=self.known_names(listing))
+        rendered = self.speech.render(acts, turns, update.problems, update.refused, update.tries,
+                                      known_names=self.known_names(listing), reread=update.reread)
         refuse(update, rendered)
         return rendered
 
@@ -1773,6 +1774,7 @@ def confirmed_outcome(said: Act) -> Outcome | None:
 def refuse(update: L.Update, rendered: Rendered) -> None:
     """Keep a failed wording's problems and the wording itself on the update, for the next attempt to avoid."""
     update.problems = tuple(rendered.problems or ([rendered.error] if rendered.error else []))
+    update.reread = tuple(dict.fromkeys((*update.reread, *rendered.read)))
     if rendered.line is None:
         update.tries += 1
         for raw in rendered.tried or (rendered.raw,):

@@ -16,8 +16,10 @@ the decider refused (not the slot check) is then retried twice from that same re
 change did, where the kept refusal serves the same words again, and once as the code now does.
 
 `resample`: the recorded line-check cases (voice/t3/fixtures/verify_lines.json) read again, fresh, a number of times,
-with the share that pass among the lines that should pass and among those that should not. It shows what a second
-reading can rescue and what it could let through. Nothing from a call is read in any mode.
+once per reading and by the rule a refused wording that comes back is held to (two fresh readings, both must pass),
+with the share that pass among the lines that should pass and among those that should not, and the time each
+takes. It shows what overturning a refusal can rescue and what it could let through. Nothing from a call is read in
+any mode.
 """
 
 from __future__ import annotations
@@ -45,7 +47,7 @@ FIXTURE = Path(__file__).resolve().parents[1] / "fixtures" / "verify_lines.json"
 class Refuser:
     """A check that refuses every line it is asked about, for the reason a real refusal gives."""
 
-    def verify(self, acts, line, *, fresh=False) -> Verdict:
+    def verify(self, acts, line, *, fresh=0) -> Verdict:
         return Verdict(False, {}, ("a1_claims",), problems=(REASON,))
 
 
@@ -53,8 +55,15 @@ class Keeps:
     """A decider client over `inner` that keeps the first reading it gave for a request and serves it again unless
     asked `fresh`, as the hosted client's cache does within a process. Every reading it makes is a real call."""
 
-    def __init__(self, inner):
-        self.inner, self.kept = inner, {}
+    def __init__(self, inner, kept=None):
+        self.inner, self.kept = inner, {} if kept is None else kept
+        self._spare = None
+
+    def spare(self):
+        """A second connection to the same decider that shares what this one kept, as the client's cache does."""
+        if self._spare is None:
+            self._spare = Keeps(self.inner.spare(), self.kept)
+        return self._spare
 
     def call(self, route, body, label="", fresh=False):
         key = json.dumps(body, sort_keys=True)
@@ -104,12 +113,14 @@ def trial(after: Speech, before: Speech, acts, turns, scene) -> dict:
     first = after.render(acts, turns, (), (), 0)
     if first.line is not None:
         return {"first_passed": True}
-    row = {"first_passed": False, "by_decider": first.verdict is not None, "first": first.raw}
+    row = {"first_passed": False, "by_decider": first.verdict is not None, "first": first.raw,
+           "first_error": first.error}
     if first.verdict is None:
         return row
     for name, speech in (("before", before), ("after", after)):
         second = speech.render(acts, turns, first.problems, [first.raw], 1)
-        row[name] = {"passed": second.line is not None, "same": normalise(second.raw or "") == normalise(first.raw)}
+        row[name] = {"passed": second.line is not None, "same": normalise(second.raw or "") == normalise(first.raw),
+                     "error": second.error}
     return row
 
 
@@ -123,31 +134,41 @@ def turns_mode(writer: Lane, checker: Decider, groups: list[str], trials: int) -
             rows.append({"trial": t, "group": group, **trial(after, before, acts, turns_for(acts), scene)})
             print(json.dumps({k: v for k, v in rows[-1].items() if k != "first"})[:300], flush=True)
     refused = [r for r in rows if r.get("by_decider")]
+    answered = [r for r in refused if not r["first_error"] and not r["after"]["error"]]
+    same = [r for r in answered if r["after"]["same"]]
     return {"trials": trials, "draws": len(rows), "first_passed": sum(r["first_passed"] for r in rows),
             "first_refused_by_slot_check": sum(1 for r in rows if not r["first_passed"] and not r.get("by_decider")),
-            "first_refused_by_decider": len(refused),
-            "second_draft_same_words": sum(r["after"]["same"] for r in refused),
-            "passed_on_the_retry_before": sum(r["before"]["passed"] for r in refused),
-            "passed_on_the_retry_after": sum(r["after"]["passed"] for r in refused), "rows": rows}
+            "first_refused_by_decider": len(refused), "refused_on_a_decider_error": len(refused) - len(answered),
+            "first_refused_with_an_answer": len(answered), "reworded_with_an_answer": len(answered) - len(same),
+            "same_words_with_an_answer": len(same),
+            "same_words_passed_before": sum(r["before"]["passed"] for r in same),
+            "same_words_passed_after": sum(r["after"]["passed"] for r in same),
+            "rows": rows}
 
 
 def resample(client, samples: int) -> dict:
-    """Each recorded line read `samples` more times, fresh."""
+    """Each recorded line read `samples` times fresh, one reading at a time, and `samples` times by the rule a refused
+    wording that comes back is held to: two fresh readings that must both pass."""
     reads = Decider(client)
-    by = {True: [0, 0, 0], False: [0, 0, 0]}
-    rows = []
+    stats = {rule: {should: [0, 0, 0] for should in (True, False)} for rule in ("single", "both_of_two")}
+    rows, timing = [], {"single": [], "both_of_two": []}
     for row in json.loads(FIXTURE.read_text(encoding="utf-8")):
         acts = [Act.from_json(a) for a in row["acts"]]
-        passed = [reads.verify(acts, row["line"], fresh=True).passed for _ in range(samples)]
-        rows.append({"case": row["case"], "line": row["line"], "should_pass": row["should_pass"], "passed": passed})
-        stat = by[row["should_pass"]]
-        stat[0] += len(passed)
-        stat[1] += sum(passed)
-        stat[2] += 0 < sum(passed) < len(passed)
+        found = {}
+        for rule, fresh in (("single", 1), ("both_of_two", 2)):
+            verdicts = [reads.verify(acts, row["line"], fresh=fresh) for _ in range(samples)]
+            found[rule] = [v.passed for v in verdicts]
+            timing[rule] += [v.ms for v in verdicts]
+            stat = stats[rule][row["should_pass"]]
+            stat[0] += len(verdicts)
+            stat[1] += sum(found[rule])
+            stat[2] += 0 < sum(found[rule]) < len(verdicts)
+        rows.append({"case": row["case"], "line": row["line"], "should_pass": row["should_pass"], **found})
+    names = {True: "lines_that_should_pass", False: "lines_that_should_not"}
     return {"samples_per_line": samples,
-            "lines_that_should_pass": {"readings": by[True][0], "passed": by[True][1], "lines_that_flip": by[True][2]},
-            "lines_that_should_not": {"readings": by[False][0], "passed": by[False][1], "lines_that_flip": by[False][2]},
-            "rows": rows}
+            **{rule: {names[should]: {"readings": n, "passed": passed, "lines_that_flip": flips}
+                      for should, (n, passed, flips) in by.items()} for rule, by in stats.items()},
+            "median_ms": {rule: round(sorted(ms)[len(ms) // 2], 1) for rule, ms in timing.items()}, "rows": rows}
 
 
 async def main_async(args) -> int:

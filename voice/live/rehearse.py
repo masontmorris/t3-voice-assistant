@@ -843,6 +843,8 @@ def entries(record):
             current = {"kinds": kinds, "nothing_new": any((a.get("slots") or {}).get("since_last_asked")
                                                           for a in event.get("acts") or ()),
                        "another": any((a.get("slots") or {}).get("another") for a in event.get("acts") or ()),
+                       "about": next(((a.get("slots") or {}).get("about") for a in event.get("acts") or ()
+                                      if (a.get("slots") or {}).get("about")), None),
                        "threads": sorted({(a.get("slots") or {}).get("thread") for a in event.get("acts") or ()
                                           if isinstance((a.get("slots") or {}).get("thread"), str)}),
                        "summary": next(((a.get("slots") or {}).get("summary") for a in event.get("acts") or ()

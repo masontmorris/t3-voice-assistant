@@ -696,17 +696,17 @@ class SummaryTest(unittest.TestCase):
 class Remembers:
     """A decider that, as the hosted one does, serves the first reading it gave for a line again until it is asked
     for a fresh one, which it does not keep. `readings` are what it reads, in order, one for each time it really reads;
-    `asked` records each ask and whether it was fresh."""
+    `asked` records each ask and how many fresh readings it was for. Several fresh readings pass only if all do."""
 
     def __init__(self, *readings):
         self.readings, self.kept, self.asked = list(readings), {}, []
 
-    def verify(self, acts, line, *, fresh=False):
+    def verify(self, acts, line, *, fresh=0):
         self.asked.append((line, fresh))
-        if fresh or line not in self.kept:
-            passed = self.readings.pop(0)
-            if not fresh:
-                self.kept[line] = passed
+        if fresh:
+            passed = all([self.readings.pop(0) for _ in range(fresh)])
+        elif line not in self.kept:
+            passed = self.kept[line] = self.readings.pop(0)
         else:
             passed = self.kept[line]
         return Verdict(passed, problems=() if passed else ("the line says something the facts do not support.",))
@@ -748,19 +748,43 @@ class RenderTest(unittest.TestCase):
     def test_a_wording_that_was_refused_and_comes_back_is_read_again_and_not_served_its_refusal(self):
         acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
         line = "Should I stop Add a clamp helper?"
-        decider = Remembers(False, True)
+        decider = Remembers(False, True, True)
         speech = Speech(None, Reads(), decider, Lane(Writes(line)))
         refused = speech.render(acts)
         self.assertEqual((refused.line, refused.raw, refused.problems),
                          (None, line, ["the line says something the facts do not support."]))
         again = speech.render(acts, (), refused.problems, [refused.raw], 1)
         self.assertEqual(again.text, line, "the same words, read again, pass")
-        self.assertEqual(decider.asked, [(line, False), (line, True)])
-        stale = Remembers(False, False)
+        self.assertEqual(decider.asked, [(line, 0), (line, 2)])
+        stale = Remembers(False, False, False)
         self.assertIsNone(Speech(None, Reads(), stale, Lane(Writes(line))).render(acts).line)
         self.assertIsNone(Speech(None, Reads(), stale, Lane(Writes(line))).render(acts, (), (), [line], 1).line,
-                          "the fresh reading is the only one that can change the refusal, and here it refuses too")
-        self.assertEqual(stale.asked, [(line, False), (line, True)])
+                          "the fresh readings are the only ones that can change the refusal, and here they refuse")
+        self.assertEqual(stale.asked, [(line, 0), (line, 2)])
+
+    def test_overturning_a_refusal_takes_two_new_readings_that_both_pass(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        line = "Should I stop Add a clamp helper?"
+        for second, third, said in ((True, True, True), (True, False, False), (False, True, False),
+                                    (False, False, False)):
+            with self.subTest(readings=(second, third)):
+                speech = Speech(None, Reads(), Remembers(False, second, third), Lane(Writes(line)))
+                self.assertIsNone(speech.render(acts).line)
+                self.assertEqual(speech.render(acts, (), ["no"], [line], 1).line is not None, said)
+
+    def test_a_refused_wording_is_read_again_once_whichever_route_says_it_and_however_many_drafts(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        line = "Should I stop Add a clamp helper?"
+        decider = Remembers(False, False, False)
+        speech = Speech(Lane(Writes(line)), Reads(), decider, Lane(Writes(line)))
+        first = speech.render(acts)
+        self.assertEqual(decider.asked, [(line, 0), (line, 2)],
+                         "the text model's identical wording is the writer's again: one fresh round, not two")
+        second = speech.render(acts, (), first.problems, first.tried, 1, reread=first.read)
+        self.assertIsNone(second.line)
+        self.assertEqual(decider.asked, [(line, 0), (line, 2), (line, 0), (line, 0)],
+                         "the second draft, from either route, is not read again: the refusal stands")
+        self.assertEqual(decider.readings, [], "three real readings were all that were made")
 
     def test_a_new_wording_is_read_as_any_first_wording_is(self):
         acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)

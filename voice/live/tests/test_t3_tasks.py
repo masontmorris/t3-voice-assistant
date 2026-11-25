@@ -29,7 +29,8 @@ from voice.t3.acts import Kind as S
 from voice.t3.journal import Kind, Status, T3Journal, launch_title
 from voice.t3.speech import RENDER_SYSTEM, Lane, Speech, kept_exact
 from voice.t3.test_replies import Recorded
-from voice.t3.verify import ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, NO_THREAD_NOTE, Picked, judge_reading, reading_request
+from voice.t3.verify import (ELSEWHERE, OWN_WORDS, UNCLEAR, Chosen, Decider, NO_THREAD_NOTE, Picked, Verdict, judge_reading,
+                            reading_request)
 from voice.segmentation.gate import PLAN_A
 from voice.segmentation.tasks import Orchestrator
 from voice.segmentation.tests.test_orchestrator import step
@@ -455,6 +456,36 @@ class Retries(unittest.TestCase):
         self.assertEqual([body.get("refused wordings") for body in text.bodies], [None, [refused], [refused]])
         restored = L.Update.from_json(json.loads(json.dumps(update.to_json())))
         self.assertEqual((restored.tries, restored.refused), (2, (refused,)), "a restart keeps counting")
+
+    def test_a_refused_wording_is_read_again_once_for_the_whole_line_across_routes_and_drafts(self):
+        line = "Should I stop Add a clamp helper?"
+
+        class Refuses:
+            def __init__(self):
+                self.asked = []
+
+            def verify(self, acts, text, *, fresh=0):
+                self.asked.append(fresh)
+                return Verdict(False, problems=("the line says something the facts do not support.",))
+
+        class Says:
+            model = "fake/text:free"
+
+            def complete(self, messages):
+                return {"text": line}
+
+        decider = Refuses()
+        t3 = worded(tasks_over(self, F.FakeSeam()), FakeText())
+        t3.speech.decider = decider
+        t3.speech.writer, t3.speech.lane = Lane(Says()), Lane(Says())
+        update = L.Update("k1", (act(S.CONFIRM_STOP, thread="Add a clamp helper"),), "needs_clarification")
+        for _ in range(3):
+            self.assertIsNone(t3.say(update).line)
+        self.assertEqual(decider.asked, [0, 2, 0, 0, 0, 0],
+                         "one fresh round for the wording, not one per route or per draft")
+        restored = L.Update.from_json(json.loads(json.dumps(update.to_json())))
+        self.assertEqual(restored.reread, update.reread)
+        self.assertEqual(len(update.reread), 1, "a restart does not give it another")
 
     def test_what_each_route_wrote_is_kept_as_refused_so_either_one_repeating_is_read_again(self):
         t3 = worded(tasks_over(self, F.FakeSeam()), FakeText())

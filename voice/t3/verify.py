@@ -484,17 +484,34 @@ class Decider:
     lock: threading.Lock = field(default_factory=threading.Lock)
     calls: int = 0
 
-    def verify(self, acts: Iterable[Act], line: str, *, fresh: bool = False) -> Verdict:
+    def verify(self, acts: Iterable[Act], line: str, *, fresh: int = 0) -> Verdict:
         """The decider's verdict on `line` for `acts`. The hosted decider keeps the first answer it gave for a request
-        and serves it again, so a line it refused once is refused every time it is asked about. `fresh` is for the one
-        line that was refused and came back: it asks again and takes the new answer."""
+        and serves it again, so a line it refused once is refused every time it is asked about. `fresh` is for a line
+        that was refused and came back. 1 reads it once anew. 2 reads it twice anew and passes it only if both pass,
+        since overturning a refusal takes more evidence than making it: the two readings run side by side when the
+        client has a second connection (`spare`), so they cost one call's time."""
         acts = list(acts)
+        if fresh < 2:
+            with self.lock:
+                return self._read(self.client, acts, line, bool(fresh))
+        with self.lock:
+            spare = getattr(self.client, "spare", None)
+            if spare is None:
+                first = self._read(self.client, acts, line, True)
+                return first if not first.passed else self._read(self.client, acts, line, True)
+            other, second = spare(), []
+            worker = threading.Thread(target=lambda: second.append(self._read(other, acts, line, True)))
+            worker.start()
+            first = self._read(self.client, acts, line, True)
+            worker.join()
+        return first if not first.passed else second[0]
+
+    def _read(self, client, acts: list[Act], line: str, fresh: bool) -> Verdict:
         started = time.perf_counter()
         try:
-            with self.lock:
-                self.calls += 1
-                record = self.client.call("decisions", request(acts, line), label="t3_line",
-                                          **({"fresh": True} if fresh else {}))
+            self.calls += 1
+            record = client.call("decisions", request(acts, line), label="t3_line",
+                                 **({"fresh": True} if fresh else {}))
         except Exception as exc:
             # A spend or billing stop, a timeout, or a dropped connection: the line is not spoken on it.
             return Verdict(False, ms=_ms(started), error=f"{type(exc).__name__}: {exc}")

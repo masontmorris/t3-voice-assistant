@@ -90,16 +90,20 @@ EVEN_TWINS = (
     ("loading tips", "Shorten the Loading Tips for Mobile", "Shorten the Loading Tips for Desktop"),
     ("save icon", "Animate the Save Icon in Menus", "Animate the Save Icon in Levels"))
 CITIES = ("Denver", "Seattle", "Chicago", "Portland", "Atlanta", "Boston", "Austin", "Phoenix")
-# Two threads asked for in one breath, each said as a request of its own.
+# Two threads asked for in one breath, each said as a request of its own: the words, and the work each asks for.
 PAIRS = (
-    "Please start a thread to speed up the shader compile step, and also start another thread to clean up the save "
-    "slot writer.",
-    "Could you start a thread to fix the minimap zoom, and then start a second thread to trim the intro video?",
-    "Start a thread to profile the asset loader, and start another one to tidy the log output.",
-    "I need a thread to add a photo mode, and I need another thread to fix the footstep sounds.",
-    "Please open a thread to polish the main menu, and open another thread to batch the sprite draws.",
-    "Start one thread to tune the camera shake and start one more thread to sort the inventory icons.")
-
+    ("Please start a thread to speed up the shader compile step, and also start another thread to clean up the save "
+     "slot writer.", "speeding up the shader compile step", "cleaning up the save slot writer"),
+    ("Could you start a thread to fix the minimap zoom, and then start a second thread to trim the intro video?",
+     "fixing the minimap zoom", "trimming the intro video"),
+    ("Start a thread to profile the asset loader, and start another one to tidy the log output.",
+     "profiling the asset loader", "tidying the log output"),
+    ("I need a thread to add a photo mode, and I need another thread to fix the footstep sounds.",
+     "adding a photo mode", "fixing the footstep sounds"),
+    ("Please open a thread to polish the main menu, and open another thread to batch the sprite draws.",
+     "polishing the main menu", "batching the sprite draws"),
+    ("Start one thread to tune the camera shake and start one more thread to sort the inventory icons.",
+     "tuning the camera shake", "sorting the inventory icons"))
 
 class Pool:
     """Hands out each name, twin pair, request and city once, so a repeated run never meets a thread of an earlier one."""
@@ -129,7 +133,7 @@ class Pool:
     def city(self) -> str:
         return self._next("city", CITIES)
 
-    def pair(self) -> str:
+    def pair(self) -> tuple[str, str, str]:
         return self._next("pair", PAIRS)
 
 
@@ -742,7 +746,8 @@ def two_requests(pool: Pool) -> Plan:
 # Two launches in one breath are asked one at a time, and the second question is not the first said again: it is another
 # request, said as one, so the caller can tell which of the two their yes answers.
 def two_launches(pool: Pool) -> Plan:
-    lines = {"both": pool.pair(), "yes": "Yes.", "yes_again": "Yeah."}
+    line, first_work, second_work = pool.pair()
+    lines = {"both": line, "yes": "Yes.", "yes_again": "Yeah."}
     notes = {"first": False, "second": False}
 
     def script():
@@ -754,10 +759,16 @@ def two_launches(pool: Pool) -> Plan:
             if notes["second"]:
                 yield Say("yes_again")
 
+    def is_work(call: Call, text: str | None, work: str, other: str) -> bool:
+        """Whether `text` is about this work and not the other's, by the decider's reading."""
+        context = "A voice assistant was asked to start two coding threads in one breath."
+        return bool(text) and call.judge.yes(f"Does the text describe this work: {work}?", text, context) and             not call.judge.yes(f"Does the text describe this work: {other}?", text, context)
+
     def check(call: Call) -> list[Verdict]:
         turns = call.caller_turns()
         asked = [(t, e) for t in turns for e in t.t3 if e["delivery"] == "sent" and Kind.CONFIRM_LAUNCH in e["kinds"]]
         first, second = (asked + [(None, None)] * 2)[:2]
+        started = call.world.get("started", [])
         reached = ok("the first launch was asked about", notes["first"], "no launch confirmation was said", 0)
         out = [ok("the second launch was asked after the first answer", notes["second"] and len(asked) == 2,
                   f"{len(asked)} launch questions were said", 1),
@@ -768,8 +779,16 @@ def two_launches(pool: Pool) -> Plan:
                ok("the two questions are worded differently",
                   bool(first[1] and second[1]) and normalise(first[1]["draft"] or "") != normalise(second[1]["draft"] or ""),
                   "both questions were said in the same words", second[0].index if second[0] else None),
-               ok("each yes started one thread", len(call.world["made"]) == 2,
-                  f"{len(call.world['made'])} threads were started")]
+               ok("the second question's act is about the second request",
+                  bool(second[1]) and is_work(call, second[1].get("about"), second_work, first_work),
+                  f"its account of the request is {second[1].get('about') if second[1] else None!r}",
+                  second[0].index if second[0] else None),
+               ok("each yes started one thread", len(call.world["made"]) == 2 and len(started) == 2,
+                  f"{len(call.world['made'])} threads exist and the journal holds {len(started)} starts"),
+               ok("each thread was handed its own request, in the order asked",
+                  len(started) == 2 and is_work(call, started[0]["handed"], first_work, second_work)
+                  and is_work(call, started[1]["handed"], second_work, first_work),
+                  "the threads were handed " + "; ".join(repr(t["handed"][:90]) for t in started))]
         return [reached, *(requires(v, reached.ok, "precondition: the first launch was not asked about",
                                     blocked_by=reached.check) for v in out)]
 
@@ -1032,6 +1051,17 @@ def read_turn(server: Path, index: int, n: int) -> Turn:
         raise RuntimeError(f"cannot score {path.name}: {exc}") from exc
 
 
+def started_threads(journal: Path) -> list[dict]:
+    """The threads the voice started on the call, in the order it started them, from its journal: the thread, and what
+    it was handed (`instruction`, the work or the request as heard)."""
+    try:
+        tasks = json.loads(journal.read_text(encoding="utf-8")).get("tasks", [])
+    except (OSError, ValueError):
+        return []
+    return [{"thread": (t.get("link") or {}).get("thread_id"), "handed": t.get("instruction") or ""}
+            for t in tasks if t.get("kind") == "start"]
+
+
 def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool: Pool, out: Path,
              lfm_port: int) -> Result:
     started, name = time.time(), f"{scenario.id}-{run}"
@@ -1058,7 +1088,9 @@ def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool
         opened_on = ((seeded[plan.opened_on], world.connection().hello.environment_id) if plan.opened_on else None)
         R.hold_call(rig, plan.script, clips, load, work / "client", CALL_TIMEOUT_S, opened_on)
         turns = collect(server, seen)
-        call = Call(turns, world.snapshot(seeded, before), judge, plan.notes)
+        snapshot = world.snapshot(seeded, before)
+        snapshot["started"] = started_threads(rig.out / "t3-journal.json")
+        call = Call(turns, snapshot, judge, plan.notes)
         verdicts = (*plan.check(call), no_silent_turn(call), no_unexpected_fallback(call))
         (work / "call.json").write_text(json.dumps({"turns": [t.__dict__ for t in turns], "world": call.world,
                                                     "judge": judge.asked[asked:]}, indent=1, default=str),
