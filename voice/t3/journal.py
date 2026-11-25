@@ -136,6 +136,8 @@ class Update:
     problems: tuple[str, ...] = ()
     tries: int = 0
     refused: tuple[str, ...] = ()
+    # The refused wordings the decider has already read again for this line, by `normalise`: each gets one new reading.
+    reread: tuple[str, ...] = ()
     n: int = 0
     superseded: bool = False
     project_id: str | None = None
@@ -159,7 +161,7 @@ class Update:
     def from_json(cls, raw: dict) -> Update:
         return cls(**{**raw, "acts": tuple(Act.from_json(a) for a in raw["acts"]),
                       "sequences": tuple(raw["sequences"]), "problems": tuple(raw.get("problems", ())),
-                      "refused": tuple(raw.get("refused", ()))})
+                      "refused": tuple(raw.get("refused", ())), "reread": tuple(raw.get("reread", ()))})
 
 
 def legacy_update(raw: dict) -> Update:

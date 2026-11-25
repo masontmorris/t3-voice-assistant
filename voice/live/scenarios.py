@@ -41,7 +41,7 @@ from voice.live import rehearse as R
 from voice.live.rehearse import Say, WaitNews
 from voice.live.scenario_score import Call, Judge, Result, Turn, Verdict, median_audio, turn_of
 from voice.live.scenario_world import Seed, World, finished, pending
-from voice.t3.acts import Kind
+from voice.t3.acts import Kind, normalise
 from voice.t3.journal import launch_title
 from voice.t3.verify import default_decider
 
@@ -90,13 +90,26 @@ EVEN_TWINS = (
     ("loading tips", "Shorten the Loading Tips for Mobile", "Shorten the Loading Tips for Desktop"),
     ("save icon", "Animate the Save Icon in Menus", "Animate the Save Icon in Levels"))
 CITIES = ("Denver", "Seattle", "Chicago", "Portland", "Atlanta", "Boston", "Austin", "Phoenix")
-
+# Two threads asked for in one breath, each said as a request of its own: the words, and the work each asks for.
+PAIRS = (
+    ("Please start a thread to speed up the shader compile step, and also start another thread to clean up the save "
+     "slot writer.", "speeding up the shader compile step", "cleaning up the save slot writer"),
+    ("Could you start a thread to fix the minimap zoom, and then start a second thread to trim the intro video?",
+     "fixing the minimap zoom", "trimming the intro video"),
+    ("Start a thread to profile the asset loader, and start another one to tidy the log output.",
+     "profiling the asset loader", "tidying the log output"),
+    ("I need a thread to add a photo mode, and I need another thread to fix the footstep sounds.",
+     "adding a photo mode", "fixing the footstep sounds"),
+    ("Please open a thread to polish the main menu, and open another thread to batch the sprite draws.",
+     "polishing the main menu", "batching the sprite draws"),
+    ("Start one thread to tune the camera shake and start one more thread to sort the inventory icons.",
+     "tuning the camera shake", "sorting the inventory icons"))
 
 class Pool:
     """Hands out each name, twin pair, request and city once, so a repeated run never meets a thread of an earlier one."""
 
     def __init__(self):
-        self.used = {"single": 0, "twin": 0, "even_twin": 0, "request": 0, "city": 0}
+        self.used = {"single": 0, "twin": 0, "even_twin": 0, "request": 0, "city": 0, "pair": 0}
 
     def _next(self, kind: str, items: tuple):
         i = self.used[kind]
@@ -119,6 +132,9 @@ class Pool:
 
     def city(self) -> str:
         return self._next("city", CITIES)
+
+    def pair(self) -> tuple[str, str, str]:
+        return self._next("pair", PAIRS)
 
 
 @dataclass
@@ -727,6 +743,58 @@ def two_requests(pool: Pool) -> Plan:
     return Plan((finished(first), finished(second)), lines, script(), check)
 
 
+# Two launches in one breath are asked one at a time, and the second question is not the first said again: it is another
+# request, said as one, so the caller can tell which of the two their yes answers.
+def two_launches(pool: Pool) -> Plan:
+    line, first_work, second_work = pool.pair()
+    lines = {"both": line, "yes": "Yes.", "yes_again": "Yeah."}
+    notes = {"first": False, "second": False}
+
+    def script():
+        heard = yield Say("both")
+        notes["first"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+        if notes["first"]:
+            heard = yield Say("yes")
+            notes["second"] = bool(heard.turns and heard.turns[-1].said(Kind.CONFIRM_LAUNCH))
+            if notes["second"]:
+                yield Say("yes_again")
+
+    def is_work(call: Call, text: str | None, work: str, other: str) -> bool:
+        """Whether `text` is about this work and not the other's, by the decider's reading."""
+        context = "A voice assistant was asked to start two coding threads in one breath."
+        return bool(text) and call.judge.yes(f"Does the text describe this work: {work}?", text, context) and             not call.judge.yes(f"Does the text describe this work: {other}?", text, context)
+
+    def check(call: Call) -> list[Verdict]:
+        turns = call.caller_turns()
+        asked = [(t, e) for t in turns for e in t.t3 if e["delivery"] == "sent" and Kind.CONFIRM_LAUNCH in e["kinds"]]
+        first, second = (asked + [(None, None)] * 2)[:2]
+        started = call.world.get("started", [])
+        reached = ok("the first launch was asked about", notes["first"], "no launch confirmation was said", 0)
+        out = [ok("the second launch was asked after the first answer", notes["second"] and len(asked) == 2,
+                  f"{len(asked)} launch questions were said", 1),
+               ok("the second question is marked as another request", bool(second[1] and second[1].get("another")),
+                  "its act does not say it is another request", second[0].index if second[0] else None),
+               ok("the first question is not marked", bool(first[1]) and not first[1].get("another"),
+                  "the first question says it is another request", first[0].index if first[0] else None),
+               ok("the two questions are worded differently",
+                  bool(first[1] and second[1]) and normalise(first[1]["draft"] or "") != normalise(second[1]["draft"] or ""),
+                  "both questions were said in the same words", second[0].index if second[0] else None),
+               ok("the second question's act is about the second request",
+                  bool(second[1]) and is_work(call, second[1].get("about"), second_work, first_work),
+                  f"its account of the request is {second[1].get('about') if second[1] else None!r}",
+                  second[0].index if second[0] else None),
+               ok("each yes started one thread", len(call.world["made"]) == 2 and len(started) == 2,
+                  f"{len(call.world['made'])} threads exist and the journal holds {len(started)} starts"),
+               ok("each thread was handed its own request, in the order asked",
+                  len(started) == 2 and is_work(call, started[0]["handed"], first_work, second_work)
+                  and is_work(call, started[1]["handed"], second_work, first_work),
+                  "the threads were handed " + "; ".join(repr(t["handed"][:90]) for t in started))]
+        return [reached, *(requires(v, reached.ok, "precondition: the first launch was not asked about",
+                                    blocked_by=reached.check) for v in out)]
+
+    return Plan((), lines, script(), check, notes=notes)
+
+
 # A thanks is not a yes: asked to confirm a start, the caller thanks the assistant, nothing starts and the question is
 # put once more, and only the yes after it starts the thread.
 def thanks_not_yes(pool: Pool) -> Plan:
@@ -936,6 +1004,8 @@ SCENARIOS = (
     Scenario("short-yes", "a short yes answers the confirm question", short_yes, 2, 1, fresh=True),
     Scenario("thanks-not-yes", "a thanks to a confirm question starts nothing, and the yes after it does",
              thanks_not_yes, 2, 1, fresh=True),
+    Scenario("two-launches", "a second launch asked in the same breath is asked as another request, in other words",
+             two_launches, 2, 1, long=True, fresh=True),
     Scenario("news-done", "a started thread's end is said unprompted, once", news_done, 2, 1, long=True, fresh=True),
     Scenario("short-yes-tell", "a short yes sends a message to a thread", short_yes_tell, 2, 1, long=True),
     Scenario("questioning-yes", "a yes the recogniser transcribes as a question answers the confirm question",
@@ -981,6 +1051,17 @@ def read_turn(server: Path, index: int, n: int) -> Turn:
         raise RuntimeError(f"cannot score {path.name}: {exc}") from exc
 
 
+def started_threads(journal: Path) -> list[dict]:
+    """The threads the voice started on the call, in the order it started them, from its journal: the thread, and what
+    it was handed (`instruction`, the work or the request as heard)."""
+    try:
+        tasks = json.loads(journal.read_text(encoding="utf-8")).get("tasks", [])
+    except (OSError, ValueError):
+        return []
+    return [{"thread": (t.get("link") or {}).get("thread_id"), "handed": t.get("instruction") or ""}
+            for t in tasks if t.get("kind") == "start"]
+
+
 def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool: Pool, out: Path,
              lfm_port: int) -> Result:
     started, name = time.time(), f"{scenario.id}-{run}"
@@ -1007,7 +1088,9 @@ def run_once(scenario: Scenario, run: int, world: World, rig, judge: Judge, pool
         opened_on = ((seeded[plan.opened_on], world.connection().hello.environment_id) if plan.opened_on else None)
         R.hold_call(rig, plan.script, clips, load, work / "client", CALL_TIMEOUT_S, opened_on)
         turns = collect(server, seen)
-        call = Call(turns, world.snapshot(seeded, before), judge, plan.notes)
+        snapshot = world.snapshot(seeded, before)
+        snapshot["started"] = started_threads(rig.out / "t3-journal.json")
+        call = Call(turns, snapshot, judge, plan.notes)
         verdicts = (*plan.check(call), no_silent_turn(call), no_unexpected_fallback(call))
         (work / "call.json").write_text(json.dumps({"turns": [t.__dict__ for t in turns], "world": call.world,
                                                     "judge": judge.asked[asked:]}, indent=1, default=str),

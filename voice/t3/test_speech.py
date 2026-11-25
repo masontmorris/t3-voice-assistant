@@ -19,7 +19,7 @@ from voice.t3 import types as T
 from voice.t3.acts import Kind, act
 from voice.t3.pick.model import ModelFailed
 from voice.t3.realtime_writer import RealtimeWriter
-from voice.t3.verify import Decider
+from voice.t3.verify import Decider, Verdict
 from voice.t3.speech import (LINE_SCHEMA, READER_VARIANTS, RENDER_SYSTEM, SUMMARY_SYSTEM, SUMMARY_TIMEOUT_S, Lane,
                               LocalText, RequestGate, Speech, local_messages, read_line, reader_messages, render_messages,
                               text_model, wording_direction, Launch, named, reference)
@@ -693,6 +693,25 @@ class SummaryTest(unittest.TestCase):
                          ((act(Kind.DONE, status="failed"),), ()))
 
 
+class Remembers:
+    """A decider that, as the hosted one does, serves the first reading it gave for a line again until it is asked
+    for a fresh one, which it does not keep. `readings` are what it reads, in order, one for each time it really reads;
+    `asked` records each ask and how many fresh readings it was for. Several fresh readings pass only if all do."""
+
+    def __init__(self, *readings):
+        self.readings, self.kept, self.asked = list(readings), {}, []
+
+    def verify(self, acts, line, *, fresh=0):
+        self.asked.append((line, fresh))
+        if fresh:
+            passed = all([self.readings.pop(0) for _ in range(fresh)])
+        elif line not in self.kept:
+            passed = self.kept[line] = self.readings.pop(0)
+        else:
+            passed = self.kept[line]
+        return Verdict(passed, problems=() if passed else ("the line says something the facts do not support.",))
+
+
 class RenderTest(unittest.TestCase):
     def test_a_line_that_fails_the_check_is_not_returned(self):
         acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
@@ -726,6 +745,69 @@ class RenderTest(unittest.TestCase):
         self.assertEqual(body["an earlier wording was refused because"], ["not a question"])
         self.assertEqual(body["refused wordings"], ["I've stopped Add a clamp helper."])
 
+    def test_a_wording_that_was_refused_and_comes_back_is_read_again_and_not_served_its_refusal(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        line = "Should I stop Add a clamp helper?"
+        decider = Remembers(False, True, True)
+        speech = Speech(None, Reads(), decider, Lane(Writes(line)))
+        refused = speech.render(acts)
+        self.assertEqual((refused.line, refused.raw, refused.problems),
+                         (None, line, ["the line says something the facts do not support."]))
+        again = speech.render(acts, (), refused.problems, [refused.raw], 1)
+        self.assertEqual(again.text, line, "the same words, read again, pass")
+        self.assertEqual(decider.asked, [(line, 0), (line, 2)])
+        stale = Remembers(False, False, False)
+        self.assertIsNone(Speech(None, Reads(), stale, Lane(Writes(line))).render(acts).line)
+        self.assertIsNone(Speech(None, Reads(), stale, Lane(Writes(line))).render(acts, (), (), [line], 1).line,
+                          "the fresh readings are the only ones that can change the refusal, and here they refuse")
+        self.assertEqual(stale.asked, [(line, 0), (line, 2)])
+
+    def test_overturning_a_refusal_takes_two_new_readings_that_both_pass(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        line = "Should I stop Add a clamp helper?"
+        for second, third, said in ((True, True, True), (True, False, False), (False, True, False),
+                                    (False, False, False)):
+            with self.subTest(readings=(second, third)):
+                speech = Speech(None, Reads(), Remembers(False, second, third), Lane(Writes(line)))
+                self.assertIsNone(speech.render(acts).line)
+                self.assertEqual(speech.render(acts, (), ["no"], [line], 1).line is not None, said)
+
+    def test_a_refused_wording_is_read_again_once_whichever_route_says_it_and_however_many_drafts(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        line = "Should I stop Add a clamp helper?"
+        decider = Remembers(False, False, False)
+        speech = Speech(Lane(Writes(line)), Reads(), decider, Lane(Writes(line)))
+        first = speech.render(acts)
+        self.assertEqual(decider.asked, [(line, 0), (line, 2)],
+                         "the text model's identical wording is the writer's again: one fresh round, not two")
+        second = speech.render(acts, (), first.problems, first.tried, 1, reread=first.read)
+        self.assertIsNone(second.line)
+        self.assertEqual(decider.asked, [(line, 0), (line, 2), (line, 0), (line, 0)],
+                         "the second draft, from either route, is not read again: the refusal stands")
+        self.assertEqual(decider.readings, [], "three real readings were all that were made")
+
+    def test_a_new_wording_is_read_as_any_first_wording_is(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        decider = Remembers(True)
+        speech = Speech(None, Reads(), decider, Lane(Writes("Want me to stop Add a clamp helper?")))
+        self.assertTrue(speech.render(acts, (), ["no"], ["Should I stop Add a clamp helper?"], 1).line)
+        self.assertEqual(decider.asked, [("Want me to stop Add a clamp helper?", False)])
+
+    def test_a_repeat_the_code_check_refuses_is_not_read_by_the_decider_at_all(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        decider = Remembers()
+        speech = Speech(None, Reads(), decider, Lane(Writes("I've stopped Add a clamp helper.")))
+        rendered = speech.render(acts, (), ["not a question"], ["I've stopped Add a clamp helper."], 1)
+        self.assertEqual((rendered.line, rendered.problems), (None, ["not a question"]))
+        self.assertEqual(decider.asked, [])
+
+    def test_the_wording_of_every_route_is_kept_as_refused(self):
+        acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
+        speech = Speech(Lane(Writes("I stopped Add a clamp helper.")), Reads(), Remembers(), Lane(Writes("Stopped.")))
+        rendered = speech.render(acts)
+        self.assertEqual(rendered.tried, ("Stopped.", "I stopped Add a clamp helper."))
+        self.assertEqual(rendered.raw, "Stopped.")
+
     def test_a_passing_writer_draft_never_reaches_the_text_model(self):
         acts = (act(Kind.CONFIRM_STOP, thread="Add a clamp helper"),)
         text = Text()
@@ -739,6 +821,23 @@ class RenderTest(unittest.TestCase):
         rendered = speech.render(acts)
         self.assertEqual((rendered.line, rendered.problems, rendered.raw),
                          (None, ["not a question"], "I've stopped Add a clamp helper."))
+
+    def test_a_request_held_behind_another_is_shown_the_example_that_tells_it_apart_and_is_told_so(self):
+        plain = reader_messages((act(Kind.CONFIRM_LAUNCH, project="Alpha"),))[0]["content"]
+        other = reader_messages((act(Kind.CONFIRM_LAUNCH, project="Alpha", another=True,
+                                     about="speeding up the loader"),))[0]["content"]
+        bare = reader_messages((act(Kind.CONFIRM_LAUNCH, project="Alpha", another=True),))[0]["content"]
+        self.assertNotIn("`another`", plain)
+        self.assertIn("When `another` is given", other)
+        self.assertIn("Should I also start a second new coding thread in Example Fleet Notes, for sorting the fleet "
+                      "log by date?", other)
+        self.assertIn("Should I also start a second new coding thread in Example Fleet Notes?", bare)
+        self.assertNotIn("sorting the fleet log by date", bare, "an example's request is never offered where there is none")
+        for kind, slots in ((Kind.CONFIRM_TELL, {"thread": "Alpha", "message": "add a test"}),
+                            (Kind.CONFIRM_STOP, {"thread": "Alpha"}), (Kind.CONFIRM_THREAD, {"thread": "Alpha"})):
+            with self.subTest(kind.value):
+                shown = reader_messages((act(kind, **slots, another=True),))[0]["content"]
+                self.assertTrue("also" in shown or "other thing you asked" in shown)
 
     def test_the_writer_is_shown_a_thread_example_for_a_thread_question_and_a_project_one_otherwise(self):
         which = lambda of: reader_messages((act(Kind.ASK_WHICH, of=of, candidates=["Alpha", "Beta"]),))[0]["content"]

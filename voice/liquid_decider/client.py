@@ -143,6 +143,7 @@ class LiquidClient:
     """One persistent HTTPS connection to Liquid's System One endpoint, one request in flight."""
 
     def __init__(self, url=None, pacer=None, day_limit=DAY_LIMIT_USD, timeout_s=TIMEOUT_S, max_attempts=MAX_ATTEMPTS):
+        self._url = url
         parts = urlsplit(url or os.environ.get("VOICE_LIQUID_URL", f"https://{HOST}"))
         self.secure, self.host, self.port = parts.scheme != "http", parts.hostname, parts.port
         self._conn = None
@@ -151,6 +152,13 @@ class LiquidClient:
         self.pacer = pacer or api.Pacer()
         self.day_limit = day_limit
         self.timeout_s, self.max_attempts = timeout_s, max_attempts
+
+    def spare(self):
+        """A second client on the same terms, with a connection of its own, for a reading that runs beside one of this
+        client's: this one keeps one request in flight."""
+        if getattr(self, "_spare", None) is None:
+            self._spare = LiquidClient(self._url, self.pacer, self.day_limit, self.timeout_s, self.max_attempts)
+        return self._spare
 
     def _connection(self):
         if self._conn is not None:
@@ -169,6 +177,8 @@ class LiquidClient:
 
     def close(self):
         self._drop()
+        if getattr(self, "_spare", None) is not None:
+            self._spare.close()
 
     def live_calls(self):
         """The attempts this decider's ledger holds, so a run's own record counts Liquid's calls too."""

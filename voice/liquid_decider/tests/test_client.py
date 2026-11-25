@@ -72,6 +72,19 @@ class LiquidCase(unittest.TestCase):
         return liquid.entries()
 
 
+class Spare(LiquidCase):
+    def test_a_spare_is_one_other_client_on_the_same_server_and_terms(self):
+        spare = self.client.spare()
+        self.assertIs(self.client.spare(), spare)
+        self.assertIsNot(spare, self.client)
+        self.assertEqual((spare.host, spare.port, spare.pacer, spare.timeout_s),
+                         (self.client.host, self.client.port, self.client.pacer, self.client.timeout_s))
+        Handler.scripted = [(200, {}, answer(body()["questions"]))] * 2
+        self.client.call("decisions", body(), fresh=True)
+        spare.call("decisions", body(), fresh=True)
+        self.assertEqual(len(Handler.seen), 2)
+
+
 class Request(LiquidCase):
     def test_the_wire_body_names_d1_2_and_keeps_state_and_questions(self):
         record = self.client.call("decisions", body(), label="u:r1")

@@ -72,6 +72,9 @@ BEGUN = (" When `begun_in` is given, the thread has no name yet: it is the one y
          "than one thread was started in that project, so also say what this one was started for, from it.")
 ON_CALL = (" When `on_call` is given, the thread has no name yet but it is the one this call was opened on: call it this "
            "thread, and give no name or project for it.")
+ANOTHER = (" When `another` is given, this is a second request from what they said in one breath, asked now that "
+           "the first is answered: say it is another one, so it is not taken for the question they just answered. "
+           "When `about` is given, say what this request is about, from it, in your own words.")
 # What each act means, for the model that words it. These are directions, never wording to repeat.
 MEANINGS: dict[Kind, str] = {
     Kind.CONFIRM_LAUNCH: "Ask whether to start a new coding thread in this project. Nothing has started yet. Do not "
@@ -638,7 +641,9 @@ def act_facts(a: Act) -> dict:
 
 def wording_direction(a: Act) -> str:
     direction = _direction(a)
-    return direction + BEGUN if a.slots.get("begun_in") else direction + ON_CALL if a.slots.get("on_call") else direction
+    direction = (direction + BEGUN if a.slots.get("begun_in") else direction + ON_CALL if a.slots.get("on_call")
+                 else direction)
+    return direction + ANOTHER if a.slots.get("another") else direction
 
 
 def _direction(a: Act) -> str:
@@ -662,6 +667,8 @@ class Rendered:
     raw: str | None = None
     error: str | None = None
     verdict: Verdict | None = None
+    tried: tuple[str, ...] = ()
+    read: tuple[str, ...] = ()
 
     @property
     def text(self) -> str | None:
@@ -930,7 +937,11 @@ class Speech:
         return tuple(filled), read
 
     def render(self, acts: Iterable[Act], turns: Iterable[dict] = (), problems: Iterable[str] = (),
-               refused: Iterable[str] = (), attempt: int = 0, *, known_names=frozenset()) -> Rendered:
+               refused: Iterable[str] = (), attempt: int = 0, *, known_names=frozenset(),
+               reread: Iterable[str] = ()) -> Rendered:
+        """One wording of `acts`, from the writer and then the text model behind it. `reread` holds the refused
+        wordings the decider has already read again for this line, in `normalise` form: a wording gets one new
+        reading in all, whichever route says it and however many drafts the turn makes."""
         acts = tuple(acts)
         routes = [(lane, build, by) for lane, build, by in
                   ((self.writer, reader_messages, "lfm3"), (self.lane, self._lane_messages(), "text_model"))
@@ -938,30 +949,40 @@ class Speech:
         if not routes:
             return Rendered(None, error="no text model")
         problems, refused = list(problems), list(refused)
-        first = None
+        first, tried, read = None, [], set(reread)
         for lane, build, worded_by in routes:
             try:
                 record = lane.call(build(acts, turns, problems, refused, attempt), RENDER_TIMEOUT_S)
             except Exception as exc:
                 rendered = Rendered(None, error=repr(exc))
             else:
-                rendered = self.accept(acts, _clean(record.get("text", "")), worded_by, record.get("text"),
-                                       known_names=known_names)
+                text = _clean(record.get("text", ""))
+                # The writer decodes greedily and mostly says the refused wording again, and the decider keeps its
+                # first answer for a request, so the same words must be read again, not served the refusal.
+                words = normalise(text)
+                again = words in {normalise(r) for r in refused} and words not in read
+                if again:
+                    read.add(words)
+                rendered = self.accept(acts, text, worded_by, record.get("text"), known_names=known_names, again=again)
             if rendered.line is not None:
-                return rendered
+                return replace(rendered, read=tuple(read))
             first = first or rendered
             # The next route is told what this one was refused for, so it does not word the same line.
             problems = list(rendered.problems or ([rendered.error] if rendered.error else []))
-            if rendered.raw and rendered.raw not in refused:
-                refused.append(rendered.raw)
-        return first
+            if rendered.raw:
+                tried.append(rendered.raw)
+                if rendered.raw not in refused:
+                    refused.append(rendered.raw)
+        return replace(first, tried=tuple(tried), read=tuple(read))
 
     def _lane_messages(self):
         return local_messages if self.lane is not None and isinstance(self.lane.client, LocalText) else render_messages
 
     def accept(self, acts: Iterable[Act], text: str, worded_by: str, raw: str | None = None, *,
-               known_names=frozenset()) -> Rendered:
-        """Mint a line only after its text passes both the code and semantic checks."""
+               known_names=frozenset(), again: bool = False) -> Rendered:
+        """Mint a line only after its text passes both the code and semantic checks. `again` is a wording that was
+        refused before: the code check says the same as it did, and it passes the decider only on two new readings
+        that both pass, since overturning a refusal takes more evidence than making it."""
         acts = tuple(acts)
         raw = text if raw is None else raw
         found = check(text, acts) + field_names(text, acts, VOCABULARY) + check_names(text, acts,
@@ -970,7 +991,7 @@ class Speech:
             return Rendered(None, found, raw)
         if self.decider is None:
             return Rendered(None, [], raw, "no decider to check the line")
-        verdict = self.decider.verify(acts, text)
+        verdict = self.decider.verify(acts, text, fresh=2) if again else self.decider.verify(acts, text)
         if not verdict.passed:
             return Rendered(None, list(verdict.problems), raw, verdict.error, verdict)
         line = RenderedLine(text, acts, worded_by, verdict, _MINT)
@@ -1174,6 +1195,33 @@ READER_VARIANTS = {
                                         "status": "waiting_on_you", "need": "command_approval"},
                                        "The thread you started in Example Fleet Notes for sorting the fleet log by date is "
                                        "waiting for your approval to run a command."),
+    # A request held behind an earlier one of the same breath, asked once that one is answered: its words tell it
+    # apart from the question before it, which has the same project, thread or message.
+    # They open on the words the call's voice opens its own question with: "For the other thing you asked, should I start"
+    # was said on the first relay 2 of 10 times, and "Should I also start a second" 10 of 10 (relay_turn_eval).
+    (Kind.CONFIRM_LAUNCH, "another_about"): ({"project": "Example Fleet Notes", "another": True,
+                                              "about": "sorting the fleet log by date"},
+                                             "Should I also start a second new coding thread in Example Fleet Notes, "
+                                             "for sorting the fleet log by date?"),
+    (Kind.CONFIRM_LAUNCH, "another"): ({"project": "Example Fleet Notes", "another": True},
+                                       "Should I also start a second new coding thread in Example Fleet Notes?"),
+    (Kind.CONFIRM_TELL, "another"): ({"thread": "Example Trim Image Margins", "message": "keep the captions",
+                                      "another": True},
+                                     "Should I also send 'keep the captions' to Example Trim Image Margins as a "
+                                     "follow-up?"),
+    (Kind.CONFIRM_STOP, "another"): ({"thread": "Example Split Export Files", "another": True},
+                                     "Should I also stop Example Split Export Files?"),
+    (Kind.ASK_WHICH, "another_project"): ({"of": "project", "candidates": ["Example Lilac Post", "Example Daily Routes"],
+                                           "another": True},
+                                          "Which project do you mean for the other thing you asked, Example Lilac Post "
+                                          "or Example Daily Routes?"),
+    (Kind.ASK_WHICH, "another_thread"): ({"of": "thread", "candidates": ["Example Sort Photo Albums",
+                                                                         "Example Sort Photo Frames"], "another": True},
+                                         "Which thread do you mean for the other thing you asked, Example Sort Photo "
+                                         "Albums or Example Sort Photo Frames?"),
+    (Kind.CONFIRM_THREAD, "another"): ({"thread": "Example Polish Checkout Layout", "another": True},
+                                       "Do you mean the thread called Example Polish Checkout Layout for the other "
+                                       "thing you asked?"),
     (Kind.CONFIRM_THREAD, "begun_for"): ({"begun_in": "Example Fleet Notes", "begun_for": "sorting the fleet log by date"},
                                         "Do you mean the thread you started in Example Fleet Notes for sorting the fleet "
                                         "log by date?"),
@@ -1294,6 +1342,13 @@ STOPPED = frozenset({"cancelled", "interrupted", "rolled_back"})
 
 
 def _shape(kind: Kind, slots: dict) -> str | None:
+    if slots.get("another") and not {"begun_in", "begun_for", "on_call"} & slots.keys():
+        if kind is Kind.ASK_WHICH and (kind, f"another_{slots.get('of')}") in READER_VARIANTS:
+            return f"another_{slots['of']}"
+        if slots.get("about") and (kind, "another_about") in READER_VARIANTS:
+            return "another_about"
+        if (kind, "another") in READER_VARIANTS:
+            return "another"
     if kind is Kind.ASK_WHICH and slots.get("of") == "thread" and len(slots.get("candidates") or ()) == 2:
         return "thread_pair"
     if kind is Kind.NEEDS_THE_APP and slots.get("again"):

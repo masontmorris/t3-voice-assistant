@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import socket
+import threading
 import unittest
 from pathlib import Path
 
@@ -264,6 +265,20 @@ class LineCheck(unittest.TestCase):
         self.assertIn(("a1_summary", True), [(a.name, a.want) for a in again],
                       "a status said again still passes on what the thread reported")
 
+    def test_a_request_held_behind_another_must_be_worded_as_another_and_as_what_it_is_about(self):
+        first = asks([act(Kind.CONFIRM_LAUNCH, project="Alpha")])
+        second = asks([act(Kind.CONFIRM_LAUNCH, project="Alpha", another=True, about="speeding up the loader")])
+        self.assertFalse({"a1_another", "a1_about_request"} & {a.name for a in first},
+                         "the first question is asked as it always was")
+        self.assertIn(("a1_another", True), [(a.name, a.want) for a in second])
+        about = next(a for a in second if a.name == "a1_about_request")
+        self.assertTrue(about.want)
+        self.assertIn("speeding up the loader", about.question)
+        self.assertIn("another request", next(a for a in second if a.name == "a1_another").fix)
+        unnamed = asks([act(Kind.CONFIRM_LAUNCH, project="Alpha", another=True)])
+        self.assertIn("a1_another", {a.name for a in unnamed})
+        self.assertNotIn("a1_about_request", {a.name for a in unnamed}, "with no account it is not asked what it is about")
+
     def test_an_unnamed_cancellation_cannot_name_a_thread(self):
         acts = (act(Kind.CANCELLED, op="start"),)
 
@@ -289,6 +304,71 @@ class LineCheck(unittest.TestCase):
         self.assertFalse(rate_limited.verify(stop, "Want me to stop Alpha?").passed)
         unanswered = Decider(type("Empty", (), {"call": lambda self, *a, **k: {"status": 200, "response": {}}})())
         self.assertFalse(unanswered.verify(stop, "Want me to stop Alpha?").passed)
+
+    def test_a_fresh_reading_is_asked_of_the_client_only_when_a_line_asks_for_one(self):
+        class Records:
+            def __init__(self):
+                self.kwargs = []
+
+            def call(self, route, body, label="", **kwargs):
+                self.kwargs.append(kwargs)
+                return Recorded().call(route, body, label)
+
+        row = next(r for r in FIXTURE if r["should_pass"])
+        client = Records()
+        decider = Decider(client)
+        decider.verify(acts_of(row), row["line"])
+        decider.verify(acts_of(row), row["line"], fresh=True)
+        self.assertEqual(client.kwargs, [{}, {"fresh": True}])
+
+    def test_two_fresh_readings_both_have_to_pass_and_run_side_by_side_when_the_client_can(self):
+        row = next(r for r in FIXTURE if r["should_pass"])
+        passing = Recorded().call("decisions", request(acts_of(row), row["line"]), "")
+        failing = {"status": 200, "response": {"answers": {}}}
+
+        class Single:
+            """A client with one connection: its readings follow one another."""
+
+            def __init__(self, *answers):
+                self.answers, self.fresh = list(answers), []
+
+            def call(self, route, body, label="", fresh=False):
+                self.fresh.append(fresh)
+                return self.answers.pop(0)
+
+        class Pair(Single):
+            """A client with a second connection: each reading waits for the other, so they must overlap."""
+
+            def __init__(self, answer, other):
+                super().__init__(answer)
+                self.other, self.barrier = other, threading.Barrier(2)
+                other.barrier = self.barrier
+
+            def call(self, route, body, label="", fresh=False):
+                self.barrier.wait(timeout=5)
+                return super().call(route, body, label, fresh)
+
+            def spare(self):
+                return self.other
+
+        class Spare(Pair):
+            def __init__(self, answer):
+                Single.__init__(self, answer)
+
+        for first, second, said in ((passing, passing, True), (passing, failing, False), (failing, passing, False),
+                                    (failing, failing, False)):
+            with self.subTest(two_connections=(first is passing, second is passing)):
+                other = Spare(second)
+                client = Pair(first, other)
+                verdict = Decider(client).verify(acts_of(row), row["line"], fresh=2)
+                self.assertEqual(verdict.passed, said)
+                self.assertEqual((client.fresh, other.fresh), ([True], [True]), "each reading is fresh, one per client")
+        for first, second, said, calls in ((passing, passing, True, 2), (failing, passing, False, 1)):
+            with self.subTest(one_connection=said):
+                client = Single(first, second)
+                verdict = Decider(client).verify(acts_of(row), row["line"], fresh=2)
+                self.assertEqual((verdict.passed, client.fresh), (said, [True] * calls),
+                                 "with one connection the second reading is skipped once the first refuses")
 
     def test_a_decider_timeout_sends_the_line_to_the_fallback_never_to_speech(self):
         class Text:

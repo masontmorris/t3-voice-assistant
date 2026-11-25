@@ -29,7 +29,7 @@ from voice.t3 import fakes as F
 from voice.t3 import types as T
 from voice.t3.eval.line_cases import ACCOUNT_CASES, cases, need_lines, turns_for
 from voice.t3.speech import (Lane, LocalText, RequestGate, Speech, candidate_names, named, reference, without_request)
-from voice.t3.acts import Act, Kind
+from voice.t3.acts import Act, Kind, normalise
 from voice.t3.speech import Launch
 from voice.t3.verify import Decider
 
@@ -91,10 +91,23 @@ def word(speech: Speech, acts, turns, scene=None) -> dict:
             "any": any(d["passed"] for d in drafts)}
 
 
+def twin(acts) -> tuple:
+    """The first question of a held request's act: the same act as it is asked when nothing came before it."""
+    return tuple(Act(a.kind, {k: v for k, v in a.slots.items() if k not in ("another", "about")}) for a in acts)
+
+
 def run_cases(speech: Speech, repeats: int, groups: list[str]) -> list[dict]:
     rows = []
     for group, acts, scene in [c for c in cases() if not groups or c[0] in groups] * repeats:
         row = {"group": group, **word(speech, acts, turns_for(acts), scene)}
+        if "another" in acts[0].slots:
+            first = word(speech, twin(acts), turns_for(acts), scene)
+            said, before = (next((d["raw"] for d in reversed(r["drafts"]) if d["passed"]), None) for r in (row, first))
+            row["first_question"] = before
+            row["distinct"] = bool(said) and bool(before) and normalise(said) != normalise(before)
+            # The first question's words for this act: the check must refuse them as its second question.
+            row["first_question_refused"] = bool(before) and speech.accept(prepared(speech, acts, scene), before,
+                                                                          "eval").line is None
         rows.append(row)
         print(json.dumps({"group": group, "kind": acts[0].kind.value, "first": row["first"], "any": row["any"],
                           "line": next((d["raw"] for d in reversed(row["drafts"])), None)})[:260], flush=True)
@@ -102,14 +115,19 @@ def run_cases(speech: Speech, repeats: int, groups: list[str]) -> list[dict]:
 
 
 def report(rows: list[dict]) -> dict:
-    by = defaultdict(lambda: [0, 0, 0])
+    by = defaultdict(lambda: [0, 0, 0, 0, 0, 0])
     for row in rows:
         for key in (row["group"], "all"):
             by[key][0] += 1
             by[key][1] += row["first"]
             by[key][2] += row["any"]
-    return {key: {"cases": n, "first_draft_passed": first, "passed_within_drafts": any_}
-            for key, (n, first, any_) in by.items()}
+            by[key][3] += "distinct" in row
+            by[key][4] += row.get("distinct", False)
+            by[key][5] += row.get("first_question_refused", False)
+    return {key: {"cases": n, "first_draft_passed": first, "passed_within_drafts": any_,
+                  **({"worded_beside_the_first_question": paired, "worded_differently_from_it": distinct,
+                      "first_questions_words_refused_as_the_second": refused} if paired else {})}
+            for key, (n, first, any_, paired, distinct, refused) in by.items()}
 
 
 def check_need_lines(speech: Speech, legacy: bool = False) -> list[dict]:
