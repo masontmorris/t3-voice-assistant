@@ -749,9 +749,9 @@ class RenderTest(unittest.TestCase):
     def test_an_approval_asked_by_its_kind_is_shown_the_example_that_names_the_thread_as_the_act_does(self):
         shown = lambda **slots: reader_messages((act(Kind.CONFIRM_RESPOND, decision="approve", need="command_approval",
                                                       **slots),))[0]["content"]
-        self.assertIn("Notes for sorting the fleet log by date is waiting for your approval to run a command. Should I",
+        self.assertIn("Notes for sorting the fleet log by date, which is waiting for your approval to run a command?",
                       shown(begun_in="Example Fleet Notes", begun_for="an account"))
-        self.assertIn("Example Fleet Notes is waiting for your approval to run a command. Should I",
+        self.assertIn("Example Fleet Notes, which is waiting for your approval to run a command?",
                       shown(begun_in="Example Fleet Notes"))
         self.assertIn("this thread's request to run a command", shown(on_call=True))
         self.assertIn("Example Archive Old Invoices running a command?", shown(thread="Add a clamp helper"))

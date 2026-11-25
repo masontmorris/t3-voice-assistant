@@ -177,6 +177,20 @@ NEEDS_THE_APP_NEED = [
     act(Kind.NEEDS_THE_APP, thread="The kiln log is missing its last page.", decision="approve",
         need="command_approval"),
 ]
+# An approval asked about a thread the call started, which has no title, worded from the `kind_only_begun` examples:
+# they open on "Should I approve it", which the call's voice says first (voice/t3/eval/relay_turn_eval.py).
+CONFIRM_RESPOND_BEGUN = [
+    act(Kind.CONFIRM_RESPOND, begun_in="Moss Notes", begun_for="sorting the seed packets by season",
+        decision="approve", need="command_approval"),
+    act(Kind.CONFIRM_RESPOND, begun_in="Tide Tables", begun_for="exporting the tide times as a table",
+        decision="approve", need="file_change"),
+    act(Kind.CONFIRM_RESPOND, begun_in="Kiln Log", begun_for="giving each firing its own page",
+        decision="approve", need="command_approval"),
+    act(Kind.CONFIRM_RESPOND, begun_in="Fern Atlas", begun_for="a search box for the atlas", decision="approve",
+        need="file_read"),
+    act(Kind.CONFIRM_RESPOND, begun_in="Brook Survey", decision="approve", need="command_approval"),
+    act(Kind.CONFIRM_RESPOND, begun_in="Harbour Maps", decision="approve", need="file_change"),
+]
 ASK_QUESTION = [
     act(Kind.ASK_QUESTION, thread="Tidy the tide table export", question="Which file format should the export use?",
         options=["CSV", "JSON", "Keep the current format"]),
@@ -307,6 +321,7 @@ LAUNCH_TITLES.update({clipped(request): ref for ref, (request, _) in HELD_OUT_RE
 GROUPS = {"confirm_thread": CONFIRM_THREAD, "ask_which": ASK_WHICH, "thread_status_summary": SUMMARY,
           "status_without_summary": STATUS_WITHOUT_SUMMARY,
           "done_summary": DONE, "done_stopped": DONE_STOPPED, "needs_the_app_need": NEEDS_THE_APP_NEED, "other": OTHER, "ask_question": ASK_QUESTION, "confirm_answer": CONFIRM_ANSWER,
+          "confirm_respond_begun": CONFIRM_RESPOND_BEGUN,
           "answered": ANSWERED, "answer_in_app": ANSWER_IN_APP, "needs_the_app": NEEDS_THE_APP,
           "needs_with_command": NEEDS_WITH_COMMAND, "launch_needs_you": LAUNCH_NEEDS,
           "launch_status_waiting": LAUNCH_STATUS, "launch_confirm_thread": LAUNCH_CONFIRM_THREAD,
