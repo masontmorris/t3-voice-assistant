@@ -27,7 +27,7 @@ def heard_by(into, with_bytes=False):
     """A `speak` that records each reply once it ends: its text, and with `with_bytes` how many bytes it released."""
     pending = bytearray()
 
-    def speak(text, pcm, done):
+    def speak(text, pcm, done, kept=False):
         pending.extend(pcm)
         if done:
             into.append((text, len(pending)) if with_bytes else text)

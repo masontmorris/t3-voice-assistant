@@ -65,6 +65,22 @@ class PlayerRecordingTest(unittest.TestCase):
         self.assertEqual([call[0] for call in recorder.playback_calls], [first],
                          "the played block is kept and the buffered tail is not")
 
+    def test_the_position_a_barge_in_reports_is_the_current_replys_audio_that_reached_the_device(self):
+        player = make_player()
+        player.open = lambda rate: None
+        player.start_reply(24_000)
+        player.feed(pcm(1, 480))
+        player.start_reply(24_000)
+        player.feed(pcm(2, 960))
+        player.playing = True
+        for _ in range(2):
+            player._callback(bytearray(960), 480, None, None)
+        self.assertEqual(player.position(), 480, "the first reply's 480 samples played first, then 480 of the second")
+        player.flush()
+        self.assertEqual(player.position(), 960, "dropped audio leaves the buffer too, so the next reply starts at 0")
+        player.start_reply(24_000)
+        self.assertEqual(player.position(), 0)
+
     def test_a_short_last_block_records_the_audio_without_the_padding(self):
         recorder = FakeRecorder()
         player = make_player(recorder)

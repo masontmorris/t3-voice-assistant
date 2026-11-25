@@ -161,6 +161,8 @@ class Player:
         self.playing, self.reply_done = False, True
         self.first_play_t, self.underruns = None, 0
         self.gain, self.on_drain = 1.0, None
+        # Bytes fed in, bytes that left the buffer (played or dropped), and how many had been fed when this reply began.
+        self.fed, self.out, self.reply_from = 0, 0, 0
 
     def open(self, rate):
         """Opening a stream takes a while on Windows, so open it before the first reply and again only if the rate
@@ -182,9 +184,16 @@ class Player:
         self.open(rate)
         with self.lock:
             self.reply_done, self.first_play_t = False, None
+            self.reply_from = self.fed
+
+    def position(self):
+        """The samples of the current reply handed to the output so far."""
+        with self.lock:
+            return max(0, self.out - self.reply_from) // 2
 
     def feed(self, pcm):
         with self.lock:
+            self.fed += len(pcm)
             self.buffer += pcm
             if not self.playing and len(self.buffer) >= self.rate * self.prebuffer_ms // 1000 * 2:
                 self.playing = True
@@ -195,6 +204,7 @@ class Player:
 
     def flush(self):
         with self.lock:
+            self.out += len(self.buffer)
             self.buffer.clear()
             self.playing, self.gain = False, 1.0
         self._drained()
@@ -223,6 +233,7 @@ class Player:
                 self.first_play_t = time.perf_counter()
             chunk = bytes(self.buffer[:need])
             del self.buffer[:need]
+            self.out += len(chunk)
             if len(chunk) < need and not self.reply_done:
                 self.underruns += 1
             drained = bool(chunk) and not self.buffer
@@ -327,6 +338,7 @@ class Client:
         self.next_clip = asyncio.Event()
         self.turn_end_rx, self.trailing_s, self.reply_first = None, 0.0, None
         self.reply_audio, self.reply_turn, self.reply_t0 = bytearray(), None, None
+        self.ws, self.reply_index = None, None
         self.log_file = open(self.log_dir / "client.jsonl", "a", encoding="utf-8")
         self.finished, self.drained = asyncio.Event(), asyncio.Event()
 
@@ -431,6 +443,7 @@ class Client:
         elif kind == "reply_start":
             self.player.start_reply(message["rate"])
             self.reply_turn, self.reply_t0, self.reply_first = message["turn"], time.time(), now
+            self.reply_index = message.get("reply")
             e2e = None
             if self.turn_end_rx is not None and self.rtts:
                 e2e = round(now - self.turn_end_rx + self.trailing_s + self.rtt_median() / 2, 4)
@@ -461,6 +474,11 @@ class Client:
             if self.args.wav and message.get("verdict") != "turn":
                 self.advance()
         elif kind == "barge_in":
+            if self.ws is not None and message.get("turn") == self.reply_turn and self.reply_index is not None:
+                # Where this reply stopped, measured before the drop: the server trims the session to it.
+                position = {"type": "position", "turn": self.reply_turn, "reply": self.reply_index,
+                            "samples": self.player.position()}
+                asyncio.get_running_loop().create_task(self.ws.send(json.dumps(position)))
             self.player.flush()
             self.reply_audio.clear()
             print(f"[turn {message['turn']}] interrupted", flush=True)
@@ -497,6 +515,7 @@ class Client:
         return round(statistics.median(self.rtts), 4) if self.rtts else None
 
     async def receive(self, ws):
+        self.ws = ws
         async for message in ws:
             if isinstance(message, bytes):
                 self.player.feed(message)

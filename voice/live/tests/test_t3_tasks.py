@@ -1175,6 +1175,20 @@ class Authorization(unittest.TestCase):
         self.assertEqual(len(self.say_yes(t3, 2, "Yes, stop it.")), 1, "once said, a yes answers it")
         self.assertEqual(len(seam.ops("interrupt")), 1)
 
+    def test_a_prompt_talked_over_before_it_all_played_is_open_again_and_asked_again(self):
+        seam, t3 = self.stop_setup()
+        self.ask(t3, 1, STOP, "Stop the clamp helper thread.")
+        self.assertTrue(t3.question.heard, "its audio was all sent, so it counted as heard")
+        self.assertTrue(t3.unheard_question())
+        self.assertFalse(t3.question.heard)
+        self.assertTrue(t3.has_news(idle=True), "the line goes back to be said when the call is quiet")
+        update, = t3.reserve_news(idle=True)
+        self.assertEqual(update.task_id, t3.question.key)
+        self.assertEqual([e["event"] for e in self.say_yes(t3, 2, "Yes, stop it.")], ["completed"],
+                         "a yes before the question is heard again does not act on it")
+        self.assertEqual(seam.ops("interrupt"), [])
+        self.assertFalse(t3.unheard_question(), "no open question, nothing to give back")
+
     def test_an_unheard_prompt_the_next_turn_dropped_is_never_said_later(self):
         seam, t3 = self.stop_setup()
         self.ask(t3, 1, STOP, "Stop the clamp helper thread.", deliver=False)

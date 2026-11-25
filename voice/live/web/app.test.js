@@ -281,3 +281,22 @@ NodeTest.test("a connection the server closed sends no bye", async (t) => {
     false,
   );
 });
+
+NodeTest.test("a barge-in tells the server how much of the stopped reply played", async (t) => {
+  const call = await callWithRecording(t, false);
+  const playback = call.page.worklets.get("voice-playback");
+  call.socket.control({ type: "reply_start", turn: 3, reply: 1, rate: 24000 });
+  call.socket.onmessage({ data: new ArrayBuffer(24000 * 2) });
+  call.socket.control({ type: "barge_in", turn: 3 });
+  NodeAssert.deepEqual(
+    playback.posted.slice(-2),
+    [{ type: "position" }, { type: "flush" }],
+    "asked before the drop",
+  );
+  playback.port.onmessage({ data: { type: "position", frames: 24000 } });
+  NodeAssert.deepEqual(
+    call.sent().find((message) => message.type === "position"),
+    { type: "position", turn: 3, reply: 1, samples: 12000 },
+    "half a second of 48 kHz frames is 12000 samples at the reply's 24 kHz",
+  );
+});

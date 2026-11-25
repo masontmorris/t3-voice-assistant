@@ -639,6 +639,20 @@ class T3Tasks:
             elif question.heard:
                 self._drop_question()
 
+    def unheard_question(self) -> bool:
+        """The caller talked over the line that asked the open question before it had all played. They have not heard
+        it, so no answer can authorize it yet, and its line goes back to be asked again once their turn is done, by the
+        news path (`retry_news`). False, changing nothing, when the last line said was not that question's."""
+        with self.lock:
+            question, line = self.question, self.last_line
+            if (question is None or not question.heard or question.expired or line is None
+                    or line.task_id != question.key or line.status != "needs_clarification"):
+                return False
+            question.heard, question.heard_at, question.asked_at = False, 0.0, time.monotonic()
+            self.unasked = line
+        self.retry_news([line])
+        return True
+
     def news_spoken(self, update: L.Update) -> None:
         """News about a thread was said: the thread is up again, so a question about it that was taken back is over."""
         with self.lock:

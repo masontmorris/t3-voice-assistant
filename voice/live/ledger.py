@@ -44,6 +44,13 @@ class ConversationLedger:
         self.tasks.extend(carried_tasks(record))
         return turn
 
+    def cut(self, turn_id, said):
+        """The caller talked over turn `turn_id` and its unheard part was taken out of the voice session: its replies
+        are now `said`, what was heard, so later turns and workers read what the caller heard and nothing more."""
+        turn = next((turn for turn in self.turns if turn.id == turn_id), None)
+        if turn is not None:
+            turn.generated, turn.delivery = list(said), "cut"
+
     def conversation(self):
         result = []
         for turn in self.turns:

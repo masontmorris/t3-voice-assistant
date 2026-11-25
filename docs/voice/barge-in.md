@@ -24,12 +24,13 @@ Goal (Mason's): talk to the assistant the way people talk to each other. Talking
 4. **No lost words.** The barge-in turn opens with the overlap's audio, pre-roll included.
 5. **Record.** Every overlap is a line in `overlaps.jsonl`, and the barge-in turn's record names its overlap under `live.overlap`.
 6. **What the person heard.** A muted reply still finishes inside the call's one voice session, so the session holds a reply the person did not hear in full. Every barge-in, by voice or push-to-talk, records what they heard under `live.barge_in` in the new turn's record.
-   - The server keeps each reply a turn speaks as its own text and audio, because a turn can speak an answer and then a task update. It reads back the audio the playback clock says had played (`played_part`) and keeps the replies' text, joined in the order they were spoken, up to the last word the read-back matched (`heard_prefix`).
+   - The server keeps each reply a turn speaks as its own text and audio, because a turn can speak an answer and then a task update. It reads back the audio the playback clock says had played (`played_part`) and keeps the replies' text, joined in the order they were spoken, up to the last word the read-back matched (`heard_end`).
    - A barge-in inside the 250 ms grace window, or one settled after the reply ended, heard the whole reply. The record says `whole: true` and no read-back runs. A reply still being released is never whole, even when its audio ran out, because its text runs ahead of its audio.
    - The read-back runs beside the turns and never holds one: the next turn's reply and `turn_done` do not wait for it. A turn that ends first writes `heard: null, pending: true` and rewrites its record when the read-back lands. A read-back that fails, or takes over 5 s (`READBACK_TIMEOUT_S`, a guess, not a measured read-back time), records `heard: null` and the reason.
    - `played_s` is the server's estimate from the audio it sent and its own clock, not the client's report. How far it can run past what the client played is not measured.
    - A turn that continues a barge-in turn, because the person kept talking before it answered, takes over its record along with its audio.
    - `--barge-in-note on` also puts one short note in front of the new turn's audio saying the person interrupted and heard only the reply's start. The record keeps the note and the session's answer to it (`note_item`). Nothing matched, or the whole reply heard, sends no note. With the note on, the turn waits for its read-back, up to the 5 s bound, before its audio goes in. The note ships off, because the measurement below found no gain.
+   - `--trim-unheard on` takes the unheard part out of the session instead, and needs the patched llama-server (see [Trimming what was not heard](#trimming-what-was-not-heard)). The record keeps what it cut under `trim`.
 
 The voiced count uses a -60 dBFS floor. Call 2's quiet short turns peak near -40 dBFS, and the endpointer's -50 dBFS floor counts only 260 to 300 ms of "Answer the question." and "Okay, thanks." as voiced (measured).
 
@@ -140,12 +141,8 @@ same barge-in set either: 16 cases without the note, 10 with it. Its harness sco
 `live.barge_in_note` but carry no read-back field, and nothing in them shows where the note sat against the turn's
 audio (measured: no record has the read-back field). That order is shown by the unit test, not by these records.
 
-**Cutting the unheard part out instead.** Removing the unheard tail from the session would make a note unnecessary. The
-installed llama.cpp build (b12428) cannot do it. Its `llama-server-impl.dll` names none of `conversation.item.truncate`,
-`conversation.item.delete`, `conversation.item.retrieve` or `response.cancel` (measured, string search). The realtime
-dispatch in the llama.cpp source under `$VOICE_HOME/research/llamacpp-src` (`server-realtime.cpp`, `handle`) adds only
-`response.cancel`, which stops generation and removes nothing the session already holds. Truncation needs a patch that
-rewinds the session's KV cache to the heard point.
+**Cutting the unheard part out instead.** The installed build (b12428) has no event that removes anything from a
+session. The patched build does: see [Trimming what was not heard](#trimming-what-was-not-heard).
 
 **Before turning the note on.** A test that could show a gain needs:
 
@@ -159,6 +156,216 @@ rewinds the session's KV cache to the heard point.
 - Cases where the interrupted answer is long and no task text follows it, so the decider and task service do not swamp
   the note.
 - A gain larger than the measured control-to-control spread, reported per case as paired differences.
+
+## Trimming what was not heard
+
+`--trim-unheard on` (default off) makes the voice session's record of an interrupted reply what the caller heard. It
+needs `--llama-server` pointing at a build with [the truncate patch](realtime-truncate-llamacpp.patch); the installed
+build answers the new event with an error, and the turn then sends no note and keeps the whole reply, as today.
+
+**What the session holds after a barge-in, without it.** One llama-server slot holds the call's whole conversation as
+one sequence of positions (`server-realtime.cpp`, `server_realtime_slot`). A reply in mixed mode goes in as the
+generation prompt and `<|mixed_start|>`, then blocks of text tokens and audio frames: the frames go back in as
+embeddings of their codes, so the slot holds the reply's audio as well as its words. A muted reply still runs to its
+end, so all of it, heard or not, is in the slot, and the next turn's audio follows it. Measured on a bread request in
+the options run below: the reply took 379 to 707 positions.
+
+**The options, measured** (`voice/research/live/trim_options.py`, records under
+`$VOICE_HOME/evidence/live/trim-options/run1`, five trials per arm, the patched b12428 build on the RTX 3060 in the
+GPU lease). Each trial builds the same three-turn call on a fresh session (two short questions, then the long bread
+request), takes back all but the long reply's first 12 words, and asks the caller's next turn ("Sorry, someone was at
+the door. Please go on."). "First audio" runs from the first step after the long reply to the next reply's first audio.
+
+| Option | Works on this build | First audio, median (range) | What it loses |
+| --- | --- | --- | --- |
+| Nothing (control) | | 0.149 s (0.141 to 0.220) | |
+| (a) Cut the slot's sequence at the reply's start (`llama_memory_seq_rm`), no saved state | No. LFM3 is a hybrid: its 13 short-convolution layers keep one running state that cannot move back, and 5 of its 11 attention layers keep only a 256-position window. `seq_rm` returned false (n_past 1198 to 815), and the session ended with an error. | | |
+| (b) The truncate patch: the state saved when the reply began is put back, the heard words go in as text | Yes | 0.153 s (0.149 to 0.161) | The interrupted reply's audio frames; its heard words stay, as text. Earlier turns are untouched. |
+| (c) A new session, seeded with the call as text (the reply cut to the heard words) | Runs | 0.220 s (0.199 to 0.236) | Every earlier turn's audio, and the voice's own audio history. 4 of 5 next replies repeated the caller's words back ("It looks like someone was at the door. Please continue."), as the recorded call's seeded restarts did. |
+| (d) llama-server's `POST /slots/{id}?action=save` and `restore` | No. A realtime slot is processing for the whole session, and a save is deferred until it is not: the call timed out after 20 s. | | |
+
+The live server has not re-seeded a session from text since the call of 2026-11-16, for the reason (c) shows again.
+The table was measured on the patch's first version, which saved a checkpoint on every response; the second, below,
+saves one only for a session that asks, and answers a truncate once it has run.
+
+**How (b) works.** A session asks for it with `session.update {"response_checkpoints": N}`, 0 to 8. With 0, the
+default, the patched build saves no state and keeps no list of items, and does what the installed one does: on the same
+clips, first audio of the turn after a long reply had a median of 0.142 s on the installed build and 0.145 s on the
+patched one with checkpoints off (10 trials each, ranges 0.135 to 0.153 s and 0.139 to 0.157 s; the two are different
+builds, CUDA 12 and 13), and its log holds no checkpoint (`trim_options --arms control --clips`, records under
+`$VOICE_HOME/evidence/live/trim-options/pair-*`). Asked for, the slot saves the sequence's partial state at the start of
+every response (`llama_state_seq_get_data_ext`, `LLAMA_STATE_SEQ_FLAGS_PARTIAL_ONLY`: the convolution state and the
+sliding-window cells, as llama-server's own context checkpoints do) and keeps the last N, never more than 64 MiB in all;
+they go with the slot when the session ends, by any path. Measured on this model: 2.2 to 3.1 MiB each, and at most 5.4
+MiB held at once over 48 responses.
+
+`conversation.item.truncate {item_id, text, expect_last_item_id}` takes back what the listener did not hear of one of
+those responses. llama-server refuses it, and changes nothing, when:
+
+- `expect_last_item_id` is not the conversation's last item: the client is behind the session (`item_truncate_stale`);
+- the caller's audio was committed after the response (`item_truncate_caller_turn`), so a later caller turn is never
+  dropped;
+- `text` is not the start of what the response itself generated (`item_truncate_invalid_text`);
+- a response is still generating, or audio is appended and not committed;
+- the session keeps no checkpoints (`item_truncate_off`), or the response's checkpoint was dropped.
+
+Otherwise it puts the saved state back, removes the full-attention cells after it, and appends `text` as the
+assistant's text; an empty `text` leaves none of the response, and the caller's turn open. The items after the response
+in the same caller turn (a note, a task update) go with it, and `conversation.item.truncated` names them. The session's
+reader waits for the slot to have run the rewind before it reads the next client event, and only then answers. So
+nothing the client sends after a truncate can enter the conversation before it, and an answer that comes late describes
+a rewind that came first. From sending to the answer: 1.1 ms median idle (at most 1.3 ms), 10.0 ms median beside a
+session generating a long reply (at most 18.7 ms; 19.3 ms across three runs of 20).
+
+Checked on the real server (`voice/research/live/trim_protocol.py`, records under
+`$VOICE_HOME/evidence/live/trim-protocol/run3`), each case on the events and the server's log, all passing: a session
+without checkpoints saved none and refused; a made-up `text` and the reply's own text with more words after it were
+refused and nothing was rewound, and the right prefix then was taken; after a note, a truncate that expected the reply
+to be last was refused; after the caller's next audio, a truncate of the reply before it was refused; an answer, a
+note and an update in one turn: truncating the answer removed the note and the update and named them; and the
+truncate, the caller's next audio and a response sent at once, with no wait: the answer came before the audio's commit,
+and the next checkpoint sat at position 211, past the rewound 167, so the new audio went in after the rewind.
+
+**What the live server does with it.** With `--trim-unheard on` the call's session asks for 8 checkpoints. Each reply a
+turn speaks records the session item whose audio it carries (`reply_item`), and whether it is a line the trim never
+cuts: a relayed T3 line, a reply that asks the caller for something a task waits on (`asks_caller`, `ASK_NOTE`), and the
+line that takes a wrong reply back. On a barge-in, `hearing` works out what was heard:
+
+- Where playback stopped is the client's own report. On `barge_in` every client (`client.py`, the browser page,
+  the app's call in `apps/web/src/voiceCall/`) sends `position {turn, reply, samples}`: how many samples of the
+  playing reply it had handed to its output when it dropped the rest, about 60 bytes, once per barge-in. The server
+  waits for it at most 1 s (`POSITION_WAIT_S`, beside the turns) and only then falls back on its own playback clock.
+- Every reply before the playing one played whole, whatever the read-back says, so a read-back that misses a
+  confirmation question the caller heard does not cut it.
+- In the playing reply, the position is placed in its words by the reply's own timing (`spoken_end`): LFM3 says a
+  reply's words at an even pace across all the audio it makes for it, so the share of its whole audio that played
+  says that share of its whole text, and never a word the model had not yet written when that audio arrived, since it
+  writes each block's text before its audio. On the 89 barge-ins of the previous eval this reading sat a median of 0
+  words from the read-back, within one word in 61; the share of only the released text, the earlier rule, sat 2
+  words past it.
+- The read-back of the played audio (`heard_end`, its continuous match from the start) is the cross-check, kept in
+  the record beside the position (`by`), and a barge-in where the two are more than 2 words apart is logged.
+- A turn whose playing reply, or any later one, is a kept line is not trimmed: the line stays whole in the session.
+- The truncate expects the newest item the session told of (`last_item`).
+
+The turn waits for the read-back, then for the trim's answer for at most 0.5 s (`TRUNCATE_WAIT_S`, about 25 times the
+slowest answer measured); an answer that comes later still lands before the turn's audio, and the record is rewritten
+when it does. A turn that continues the barge-in turn waits on the same trim, never a second one. When it is taken, the
+note (`cut_note`) goes in, and the call's other records of those replies become what was heard:
+
+- The ledger (`ConversationLedger.cut`): the stopped turn's replies become the heard words, delivery `cut`, so the next
+  turns' fact check and the workers' call context read what was heard.
+- The call transcript recorded on the thread (`CallTranscript.cut`): the cut line keeps the heard words, flagged
+  `interrupted`; a later reply of that turn, unheard, is left out.
+- The reply check needs nothing: it already judges a cut-off reply by the part that played, by the same time rule,
+  before it plans a correction (`replycheck.py`), and a claim only in the unheard part gets none.
+- What "it" or "that thread" refers to (`T3Tasks.said_source`, `last_line`) is set only by checked T3 lines, which the
+  trim never cuts, so it still names a line the session holds.
+
+**A question cut off before it was heard.** The sender writes a relayed line to the client as fast as the socket
+takes it, so its delivery reads "sent" within moments and T3 counts the question heard (`Conversation._send_loop`,
+`T3TaskService.record_delivery`). With the trim on and the client's position known, a barge-in over a kept line that
+asks the caller something (`ASKED_KINDS`) before it had all played gives it back: the line stays whole in the
+session, T3 marks the open question not heard (`T3Tasks.unheard_question`), so the caller's words over it cannot
+answer it, and its line goes back through the news path (`retry_news`) to be asked again once the caller's turn is
+done. A question heard to its end stays heard. With the trim off, nothing changes: it counts as heard.
+
+**Operator only.** `--trim-unheard` and `--llama-server` are flags of `voice.live.server`, and `--server-arg` is a flag
+of the gate; no client message sets them (`hello` reads the mode, the recording flag, the thread and the environment).
+A `--llama-server` that is not there runs the installed build with the trim off and says so in one line. A server
+without the patch refuses the truncate: the turn sends no note, the call logs it once and goes on untrimmed.
+
+**The live comparison** (`voice/research/live/trim_eval.py`, records under `$VOICE_HOME/evidence/live/trim-eval-pos/`,
+2026-11-24). The real live server (`voice.live.rehearse` serve: its in-process T3 seam, the hosted decider, LFM3 on the
+patched build in both arms, so the flag is the only difference), and synthetic callers in the server's own TTS whose
+client reports where playback stopped. Each caller asks for a long answer and talks over it 1.5, 2.0, 2.5, 3.0 or 3.5 s
+after the reply starts, three calls per delay and shape. The hosted decider (the scenarios' `Judge`) answers one stated
+question per reply, with what the caller heard (the barge-in record) and the rest of the stopped reply as its context.
+The context and the questions are frozen: the first run's, unchanged. Counts are of calls.
+
+| Shape | Question (yes is) | Off | On |
+| --- | --- | --- | --- |
+| "Sorry, someone was at the door. Please go on." | goes on from where the heard part stops (good) | 2 of 15 | 3 of 15 |
+| | treats the unheard part as already told (bad) | 2 of 15 | 2 of 15 |
+| "Wait, what was the last bridge on your list?" (asked one bridge into five) | talks of the list as if it was heard whole (bad) | 12 of 12 | 0 of 7 |
+| | treats the unheard part as already told (bad) | 0 of 12 | 7 of 7 |
+| "Actually, never mind that. How many legs does a spider have?" | answers it (good) | 15 of 15 | 15 of 15 |
+| | treats the unheard part as already told (bad) | 0 of 15 | 0 of 15 |
+
+The unscored "bridges" calls, 3 off and 8 on, are the decider's: it sent the request to a lookup, the reply was "I
+can't look that up.", and the caller's line came after it had ended, so there was no barge-in. All 37 barge-ins with the
+trim on were trimmed; every one used the client's report, none the clock.
+
+**The heard point.** On the 78 barge-ins with a read-back, the position's reading sat a median of 0 words from the
+read-back with the trim off and 1 with it on (median distance 1 word in both, within one word in 54 of 78, from 3
+fewer to 11 more). The 11 is one reply whose text opened with markdown ("**Ingredients**"), which the voice does not
+say. The previous rule, the later of the clock's share of the released text and the read-back, sat a median of 2 words
+past the read-back, up to 14.
+
+**"Go on" is not clearly better on than off.** 3 of 15 against 2 of 15, and the same 2 of 15 treat the unheard part as
+told. With the exact position the cut falls early, most often in the reply's opening ("Sure! Here's a simple
+step-by-step guide to"), so what the caller missed is the whole of the content, and in most calls the voice then gives
+it from its first step, in both arms. Three typical on-arm calls, word for word, heard and then said:
+
+- Heard "Sure! Here's a simple step-by-step guide to baking bread at home. First"; said "Next, you'll need to mix the
+  ingredients like flour, yeast, water, and salt. Then, combine them to form a dough and let it rise. After that, shape
+  the dough into a loaf, place it in a baking pan, and bake it in a preheated oven." The judge: did not go on from
+  there (0.19), treats unheard as told (0.57).
+- Heard "Sure! To bake bread at home, you need"; said "To bake bread at home, you need to start by preparing your
+  ingredients. You'll need flour, water, yeast, salt, and optionally a bit of oil. First, mix the dry
+  ingredients—flour, salt, and yeast—in a bowl and stir until combined." The judge: goes on from there (0.51).
+- Heard "Sure! Here's a simple step-by-step"; said "To bake a loaf of bread at home, start by preheating your oven to
+  375°F (190°C) and placing a baking sheet or baking pan inside. In a large bowl, mix 3 cups of all-purpose flour, 1
+  teaspoon of salt, and 1 teaspoon of baking powder." The judge: did not go on (0.20).
+
+Read by hand, all three give the steps the caller had not heard, from the first, and none says it already gave them;
+the judge's "goes on" question marks two of the three no. Of the other twelve, two "go on" turns were taken as a
+request about T3 threads ("I checked the recent threads and couldn't find a match."), and one read the caller's words
+back ("The person said, 'Sorry. Someone was at the door. Please go on.'").
+
+**The list.** Without the trim, every scored "last bridge" answer named one as the last on the list. With it, all 7
+named the list's next bridge as next ("Next, the Tower Bridge in London, UK."): none claims a list the caller never
+heard, and none answers the question. The two frozen questions disagree on those 7 (0 of 7 against 7 of 7), and the
+second is the one misjudging: the replies say the Tower Bridge as new, which the judge, seeing it in the unheard part,
+reads as treating it as told.
+
+**Delay.** From the end of the barge-in turn's speech to its first audio: median 1.13 s off and 1.13 s on (means 1.26 s
+and 1.48 s, 42 and 37 turns). The trim's waits: the read-back, a median of 2 ms and one of 3.6 s, and the truncate's
+answer.
+
+**One voice** (measured on the previous round's 15 calls per shape; this round changed only where the cut falls).
+`voice/research/live/one_voice.py` embeds replies with microsoft/wavlm-base-plus-sv (a speaker
+verification head, on the CPU) and compares them by cosine similarity. The stopped reply against the reply after the
+barge-in: median 0.975 (0.890 to 0.990, 45 calls) off, 0.969 (0.895 to 0.988, 45 calls) on. For scale, stopped replies
+of different calls against each other, one voice saying other words: 0.912 to 0.993; stopped replies against the same
+lines in the TTS's other voice: 0.28 to 0.43. No reply after a trim moved toward a second voice: the trim changes no
+instruction and no voice setting, and the session is never replaced. The lowest pairs in both arms are the shortest
+replies ("Spiders have eight legs."), which embed less steadily.
+
+**The gate.** The default gate with the flag off is green (eight PASS, `follow-up` XFAIL, `news-permission` and
+`short-yes` XPASS; `$VOICE_HOME/evidence/scenarios/trim3-default`). With `--server-arg=--trim-unheard=on
+--server-arg=--llama-server=...`, `speak-over --spread 5` passed 5 of 5 (`trim3-speak-over`); each call's stop came from
+the client's report, and the caller talked over a relayed T3 status line, a kept line that asks nothing, so it stayed
+whole and was not given back. No scenario checks the trim's effect, which is a judged count across calls.
+
+**What is open.**
+
+- **"Go on".** With the heard point now where the caller stopped, "go on" is about as good with the trim as without:
+  most cuts fall in the opening, and the voice gives the content from its first step either way. The judge's "goes on"
+  question marks such a reply no, so its count understates both arms.
+- **The list question.** Asked about the part it never reached, the voice goes on with the list rather than saying it
+  had not got there. No note change was tried.
+- **Markdown.** A reply whose text holds markdown its audio does not say (`**Ingredients**`) puts the position's
+  reading a few words late, by up to 11 measured.
+- The patch keeps at most 8 responses' checkpoints; a reply older than that cannot be trimmed, and the truncate is
+  refused.
+
+**Build.** Unpack the b12428 source (`$VOICE_HOME/research/llamacpp-asrtick/src.tar.gz`, commit b4c0e00) into
+`$VOICE_HOME/llamacpp-truncate/src`, apply `realtime-truncate-llamacpp.patch` there (`patch -p1`), configure with
+CUDA (sm86, shared libs, `GGML_CUDA_FA_ALL_QUANTS=OFF`) and build only `llama-server`. The prebuilt web UI that the
+source asks Hugging Face for has changed since b12428 and fails its own asset check; copy a matching `dist/` into
+`src/tools/ui/dist`. Put the CUDA 13 runtime DLLs beside the binary. The installed build is not touched. `LLAMA_RT_REWIND_CUT_ONLY=1` makes the patched
+server do option (a) instead, for the measurement only.
 
 ## What it does not do yet
 

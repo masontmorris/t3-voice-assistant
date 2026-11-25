@@ -125,6 +125,8 @@ async function start() {
       if (state.status === "speaking") setStatus("listening");
     } else if (type === "played") {
       onPlayed(event.data, deviceRate);
+    } else if (type === "position") {
+      onPosition(event.data.frames, deviceRate);
     } else if (type === "recorded" && state.drained) {
       state.drained();
     }
@@ -135,6 +137,9 @@ async function start() {
   state.captureGain.connect(state.context.destination);
   state.playback.connect(state.context.destination);
   state.replyRate = 0;
+  state.fed = 0;
+  state.reply = null;
+  state.stopped = null;
   state.record = false;
   state.micBlocks = [];
   state.micSent = 0;
@@ -207,10 +212,20 @@ async function finishRecording(ws) {
 
 function onReply(data, deviceRate) {
   if (state.replyRate <= 0) return;
-  state.playback.port.postMessage({
-    type: "feed",
-    pcm: replyToDeviceFloat(new Uint8Array(data), state.replyRate, deviceRate),
-  });
+  const pcm = replyToDeviceFloat(new Uint8Array(data), state.replyRate, deviceRate);
+  state.fed += pcm.length;
+  state.playback.port.postMessage({ type: "feed", pcm });
+}
+
+// Where the stopped reply was when the barge-in came: the frames that had left the playback queue
+// since the reply began, back at the reply's rate. One small message per barge-in.
+function onPosition(frames, deviceRate) {
+  const stopped = state.stopped;
+  state.stopped = null;
+  const ws = state.ws;
+  if (!stopped || !ws || ws.readyState !== WebSocket.OPEN) return;
+  const samples = Math.max(0, Math.round(((frames - stopped.from) * stopped.rate) / deviceRate));
+  ws.send(JSON.stringify({ type: "position", turn: stopped.turn, reply: stopped.reply, samples }));
 }
 
 function onControl(message) {
@@ -240,6 +255,7 @@ function onControl(message) {
       state.playback.port.postMessage({ type: "flush" });
       state.replyRate = message.rate;
     }
+    state.reply = { turn: message.turn, reply: message.reply, from: state.fed, rate: message.rate };
     setStatus("speaking");
   } else if (message.type === "reply_end") {
     state.playback.port.postMessage({ type: "feed", pcm: new Float32Array(0), end: true });
@@ -248,6 +264,10 @@ function onControl(message) {
   } else if (message.type === "unduck") {
     state.playback.port.postMessage({ type: "unduck" });
   } else if (message.type === "barge_in") {
+    if (state.reply && state.reply.turn === message.turn && typeof state.reply.reply === "number") {
+      state.stopped = state.reply;
+      state.playback.port.postMessage({ type: "position" });
+    }
     state.playback.port.postMessage({ type: "flush" });
     setStatus("listening");
   } else if (message.type === "turn_done") {

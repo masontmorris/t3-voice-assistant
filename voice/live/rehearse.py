@@ -613,7 +613,8 @@ def serve(args, rest):
     server.default_model = lambda: None
     if args.cpu:
         real = server.Server
-        server.Server = lambda port, log, extra, slots: real(port, log, (*extra, "-ngl", "0", "--no-mmproj-offload"), slots)
+        server.Server = lambda port, log, extra, slots, **kw: real(port, log, (*extra, "-ngl", "0", "--no-mmproj-offload"),
+                                                                   slots, **kw)
     sys.argv = ["voice.live.server", *rest]
     server.main()
 
